@@ -9,11 +9,9 @@ import json
 import uuid
 from typing import Any, Dict, List, Optional
 from urllib.parse import urljoin
-
 import aiohttp
 from loguru import logger
-
-from .models import McpToolInfo, McpToolResult
+from .models import McpToolInfo, McpToolResult, McpPromptInfo, McpPromptResult
 
 
 class McpClient:
@@ -41,6 +39,7 @@ class McpClient:
         self.session_id: Optional[str] = None
         self.http_session: Optional[aiohttp.ClientSession] = None
         self._tools_cache: Optional[List[McpToolInfo]] = None
+        self._prompts_cache: Optional[List[McpPromptInfo]] = None
         self._initialized = False
 
     async def __aenter__(self) -> "McpClient":
@@ -207,6 +206,7 @@ class McpClient:
 
         self.session_id = None
         self._tools_cache = None
+        self._prompts_cache = None
         self._initialized = False
         logger.info("🔌 MCP 客户端已断开连接")
 
@@ -394,3 +394,109 @@ class McpClient:
             tool_descriptions.append(tool_desc)
 
         return "\n".join(tool_descriptions)
+
+    async def list_prompts(self) -> Optional[List[McpPromptInfo]]:
+        """获取可用提示词模板列表"""
+        try:
+            # 检查缓存
+            if self._prompts_cache is not None:
+                return self._prompts_cache
+
+            # 构建提示词列表请求
+            prompts_request = {
+                "jsonrpc": "2.0",
+                "id": str(uuid.uuid4()),
+                "method": "prompts/list",
+            }
+
+            response = await self._post_request("/mcp", prompts_request)
+
+            # 检查响应
+            if "error" in response:
+                logger.error(f"获取提示词列表失败: {response['error']}")
+                return None
+
+            # 解析提示词信息
+            prompts_data = response.get("result", {}).get("prompts", [])
+            prompts = []
+
+            for prompt_data in prompts_data:
+                try:
+                    prompt = McpPromptInfo(
+                        name=prompt_data["name"],
+                        description=prompt_data.get("description"),
+                        arguments=prompt_data.get("arguments"),
+                    )
+                    prompts.append(prompt)
+                except Exception as e:
+                    logger.warning(f"解析提示词信息失败: {e}, 数据: {prompt_data}")
+
+            # 缓存结果
+            self._prompts_cache = prompts
+            logger.info(f"✅ 获取到 {len(prompts)} 个提示词模板")
+
+            return prompts
+
+        except Exception as e:
+            logger.error(f"获取提示词列表时发生错误: {e}")
+            return None
+
+    async def get_prompt(
+        self, name: str, arguments: Optional[Dict[str, Any]] = None
+    ) -> Optional[McpPromptResult]:
+        """
+        获取指定的提示词模板
+
+        Args:
+            name: 提示词模板名称
+            arguments: 提示词参数（如果需要）
+
+        Returns:
+            提示词结果，包含描述和消息列表
+        """
+        try:
+            # 构建提示词获取请求
+            params: Dict[str, Any] = {"name": name}
+            if arguments:
+                params["arguments"] = arguments
+
+            prompt_request = {
+                "jsonrpc": "2.0",
+                "id": str(uuid.uuid4()),
+                "method": "prompts/get",
+                "params": params,
+            }
+
+            response = await self._post_request("/mcp", prompt_request)
+
+            # 检查响应
+            if "error" in response:
+                error_msg = response["error"].get("message", "未知错误")
+                logger.error(f"获取提示词 '{name}' 失败: {error_msg}")
+                return None
+
+            # 解析结果
+            result = response.get("result", {})
+
+            # 解析消息列表
+            from .models import McpPromptMessage
+
+            messages = []
+            for msg_data in result.get("messages", []):
+                message = McpPromptMessage(
+                    role=msg_data.get("role", "user"),
+                    content=msg_data.get("content", {}),
+                )
+                messages.append(message)
+
+            prompt_result = McpPromptResult(
+                description=result.get("description"),
+                messages=messages,
+            )
+
+            logger.success(f"✅ 获取提示词 '{name}' 成功")
+            return prompt_result
+
+        except Exception as e:
+            logger.error(f"获取提示词 '{name}' 时发生错误: {e}")
+            return None

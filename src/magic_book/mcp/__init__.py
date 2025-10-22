@@ -20,7 +20,13 @@ MCP (Model Context Protocol) 模块
 """
 
 from .client import McpClient
-from .models import McpToolInfo, McpToolResult
+from .models import (
+    McpToolInfo,
+    McpToolResult,
+    McpPromptInfo,
+    McpPromptResult,
+    McpPromptMessage,
+)
 from .parser import ToolCallParser
 from .execution import initialize_mcp_client, execute_mcp_tool
 from .prompts import build_json_tool_example, format_tool_description_simple
@@ -38,6 +44,9 @@ __all__ = [
     # 数据模型
     "McpToolInfo",
     "McpToolResult",
+    "McpPromptInfo",
+    "McpPromptResult",
+    "McpPromptMessage",
     # 解析器
     "ToolCallParser",
     # 执行相关
