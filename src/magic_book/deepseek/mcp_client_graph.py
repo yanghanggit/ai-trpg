@@ -666,24 +666,6 @@ def _should_execute_tools(state: McpState) -> str:
 
 
 ############################################################################################################
-def _should_re_invoke_llm(state: McpState) -> str:
-    """
-    条件路由：判断是否需要二次推理
-
-    - 如果有工具输出，需要进行二次推理
-    - 如果没有工具输出，直接进行响应合成
-
-    Args:
-        state: 当前状态
-
-    Returns:
-        str: 下一个节点名称
-    """
-    tool_outputs = state.get("tool_outputs", [])
-    return "llm_re_invoke" if tool_outputs else "response_synthesis"
-
-
-############################################################################################################
 async def create_compiled_mcp_stage_graph(
     node_name: str,
     mcp_client: McpClient,
