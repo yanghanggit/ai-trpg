@@ -150,10 +150,8 @@ def get_project_config() -> None:
 
     # 检查配置文件
     config_files: Dict[str, str] = {
-        "requirements.txt": "项目依赖",
-        "requirements-dev.txt": "开发依赖",
         "pyproject.toml": "Python项目配置",
-        "environment.yml": "Conda环境配置",
+        "uv.lock": "uv锁定文件",
         "Makefile": "构建配置",
         "mypy.ini": "MyPy类型检查配置",
         ".gitignore": "Git忽略规则",
