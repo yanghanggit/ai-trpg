@@ -1,0 +1,238 @@
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "magic-book"
+version = "0.1.0"
+description = "A multi-agent game framework based on ECS architecture for TCG games"
+authors = [{name = "Yang Hang", email = "yanghang@example.com"}]
+license = {text = "MIT"}
+readme = "README.md"
+requires-python = ">=3.12"
+keywords = ["multi-agent", "game", "framework", "ECS", "TCG", "AI"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Games/Entertainment",
+    "Topic :: Software Development :: Libraries :: Python Modules",
+]
+urls = {homepage = "https://github.com/yanghanggit/magic-book", repository = "https://github.com/yanghanggit/magic-book.git"}
+dependencies = [
+    # Core web framework and HTTP
+    "fastapi>=0.116.1",
+    "starlette>=0.47.2",
+    "uvicorn>=0.35.0",
+    "httpx>=0.28.1",
+    "httpcore>=1.0.4",
+    "h11>=0.14.0",
+    "anyio>=4.10.0",
+    "click>=8.1.7",
+    # HTTP client libraries
+    "aiohttp>=3.9.3",
+    "aiosignal>=1.3.1",
+    "requests>=2.32.2",
+    "urllib3>=2.2.1",
+    "certifi>=2024.2.2",
+    "charset-normalizer>=3.3.2",
+    "idna>=3.6",
+    "grpcio>=1.74.0",
+    "requests-oauthlib>=2.0.0",
+    # LangChain ecosystem
+    "langchain>=0.3.27",
+    "langchain-community>=0.3.27",
+    "langchain-core>=0.3.70,<1.0.0",
+    "langchain-openai>=0.3.28,<1.0.0",
+    "langchain-text-splitters>=0.3.9",
+    "langgraph>=0.6.2",
+    "langgraph-checkpoint>=2.1.0,<3.0.0",
+    "langgraph-sdk>=0.2.0",
+    "langserve>=0.3.1",
+    "langsmith>=0.4.9",
+    # Model Context Protocol (MCP)
+    "mcp>=1.13.0",
+    # Text-to-image generation
+    "replicate>=1.0.7",
+    # OpenAI and AI tools
+    "openai>=1.98.0",
+    "tiktoken>=0.8.0",
+    "faiss-cpu>=1.8.0",
+    "sentence-transformers>=4.1.0",
+    # Vector database and graph database
+    "chromadb>=1.0.15",
+    "onnxruntime>=1.22.1",
+    "mmh3>=5.2.0",
+    "pypika>=0.48.9",
+    "posthog>=5.4.0",
+    "neo4j>=5.28.1",
+    # Data processing
+    "numpy>=1.26.4",
+    "pandas>=2.2.3",
+    "openpyxl>=3.1.2",
+    # Database and vector database
+    "sqlalchemy>=2.0.27",
+    "pgvector>=0.4.1",
+    # Validation and serialization
+    "pydantic>=2.11.7",
+    "pydantic-core>=2.33.2",
+    "marshmallow>=3.21.0",
+    "dataclasses-json>=0.6.4",
+    # JSON and data formats
+    "orjson>=3.10.12",
+    "jsonschema>=4.22.0",
+    "jsonschema-specifications>=2023.12.1",
+    "jsonpointer>=2.4",
+    "msgpack>=1.1.0",
+    "ormsgpack>=1.10.0",
+    # Template and markup
+    "jinja2>=3.1.4",
+    "markupsafe>=2.1.5",
+    # Async and concurrency
+    "multidict>=6.0.5",
+    "frozenlist>=1.4.1",
+    "yarl>=1.9.4",
+    "attrs>=23.2.0",
+    # Streaming and events
+    "sse-starlette==2.0.0",
+    # Utilities
+    "loguru>=0.7.2",
+    "python-dotenv>=1.0.1",
+    "tenacity>=8.2.3",
+    "overrides>=7.7.0",
+    "tqdm>=4.66.3",
+    "packaging>=24.1",
+    "platformdirs>=4.2.2",
+    "referencing>=0.35.1",
+    "rpds-py>=0.18.1",
+    "six>=1.16.0",
+    "backoff>=2.2.1",
+    "build>=1.3.0",
+    "pyproject-hooks>=1.2.0",
+    "durationpy>=0.10",
+    "humanfriendly>=10.0",
+    "coloredlogs>=15.0.1",
+    "importlib-resources>=6.5.2",
+    "pybase64>=1.4.2",
+    "flatbuffers>=25.2.10",
+    # Configuration and validation
+    "pyyaml>=6.0.1",
+    "annotated-types>=0.6.0",
+    "typing-extensions>=4.12.2",
+    # File processing
+    "et-xmlfile>=1.1.0",
+    # Performance and compression
+    "xxhash>=3.5.0",
+    "zstandard>=0.23.0",
+    "jiter>=0.8.2",
+    # Cloud and authentication
+    "googleapis-common-protos>=1.70.0",
+    "oauthlib>=3.3.1",
+    "pyasn1-modules>=0.4.2",
+    "cachetools>=5.5.2",
+    "websocket-client>=1.8.0",
+    # OpenTelemetry (observability)
+    "opentelemetry-api>=1.36.0",
+    "opentelemetry-sdk>=1.36.0",
+    "opentelemetry-exporter-otlp-proto-grpc>=1.36.0",
+    "opentelemetry-exporter-otlp-proto-common>=1.36.0",
+    "opentelemetry-proto>=1.36.0",
+    "opentelemetry-semantic-conventions>=0.57b0",
+    # Additional utilities
+    "pytz>=2024.1",
+    "tzdata>=2024.1",
+    "regex>=2023.12.25",
+    "langchain-deepseek>=0.1.4",
+    "langgraph-prebuilt>=0.6.2",
+    "cfgv>=3.4.0",
+    "redis>=6.4.0",
+    "psycopg2-binary>=2.9.10",
+    "passlib>=1.7.4",
+    "python-jose>=3.5.0",
+    "pymongo>=3.13.0,<4.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    # Testing
+    "pytest>=8.3.4",
+    "pytest-asyncio>=0.25.3",
+    
+    # Type checking
+    "mypy>=1.16.0",
+    "mypy-extensions>=1.0.0",
+    
+    # Code formatting and linting
+    "black>=25.1.0",
+    "ruff>=0.5.0",
+    "pre-commit>=4.2.0",
+    
+    # Type stubs
+    "pandas-stubs>=2.2.1.240316",
+    "types-cffi>=1.17.0.20250523",
+    "types-jsonschema>=4.22.0.20240610",
+    "types-passlib>=1.7.7.20250602",
+    "types-psycopg2>=2.9.21.20250915",
+    "types-psutil>=7.0.0.20250822",
+    "types-pyasn1>=0.6.0.20250914",
+    "types-pyopenssl>=24.1.0.20240722",
+    "types-python-jose>=3.5.0.20250531",
+    "types-pytz>=2024.1.0.20240203",
+    "types-pyyaml>=6.0.12.12",
+    "types-redis>=4.6.0.20241004",
+    "types-requests>=2.32.0.20240907",
+    "types-setuptools>=80.9.0.20250529",
+    
+    # Additional dev tools
+    "psutil>=7.1.0",
+    "pymongo-stubs>=0.2.0",
+]
+
+# 脚本位于项目根目录的 scripts/ 文件夹中
+# [project.scripts] 暂时不使用
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-dir]
+"" = "src"
+
+[tool.black]
+line-length = 88
+target-version = ['py312']
+
+[tool.mypy]
+python_version = "3.12"
+strict = true
+warn_return_any = true
+warn_unused_configs = true
+
+[tool.ruff]
+exclude = [
+    ".bzr", ".direnv", ".eggs", ".git", ".git-rewrite", ".hg",
+    ".mypy_cache", ".nox", ".pants.d", ".pytype", ".ruff_cache",
+    ".svn", ".tox", ".venv", "__pypackages__", "_build", "buck-out",
+    "build", "dist", "node_modules", "venv", "gen_runtimes", "gen_worlds", "logs",
+]
+line-length = 88
+target-version = "py312"
+
+[tool.ruff.lint]
+# 启用规则：未使用导入、重复导入、import排序等
+# F401: 未使用的导入 - 现已全局启用，不再忽略
+# F402: 模块级导入被局部导入覆盖  
+# F403: 星号导入（from module import *）
+# F811: 重复定义
+# E401: 多个导入在一行
+# I001: import排序
+select = ["F401", "F402", "F403", "F811", "E401", "I001"]
+ignore = []
+fixable = ["F401", "F402", "F403", "F811", "E401", "I001"]
+
+[tool.ruff.lint.isort]
+# import排序配置
+known-first-party = ["magic_book"]
+
+
