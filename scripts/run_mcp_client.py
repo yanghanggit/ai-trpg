@@ -28,7 +28,7 @@ DeepSeek + MCP 聊天系统启动脚本
 import os
 import sys
 import traceback
-from typing import List
+from typing import Any, List
 
 
 # 将 src 目录添加到模块搜索路径
@@ -39,6 +39,7 @@ sys.path.insert(
 # 导入必要的模块
 import asyncio
 from langchain.schema import HumanMessage, SystemMessage
+from langgraph.graph.state import CompiledStateGraph
 from loguru import logger
 
 from magic_book.deepseek.mcp_client_graph import (
@@ -47,6 +48,7 @@ from magic_book.deepseek.mcp_client_graph import (
     stream_mcp_graph_updates,
 )
 from magic_book.mcp import (
+    McpClient,
     McpToolInfo,
     McpPromptInfo,
     McpResourceInfo,
@@ -133,6 +135,244 @@ def print_chat_history(chat_history_state: McpState) -> None:
     print("-" * 60)
 
 
+def handle_tools_command(available_tools: List[McpToolInfo]) -> None:
+    """处理 /tools 命令：显示可用工具详情"""
+    if available_tools:
+        print("\n🛠️ 可用工具详情：")
+        print("-" * 50)
+        for i, tool in enumerate(available_tools, 1):
+            print(f"{i}. {tool.name}")
+            print(f"   描述：{tool.description}")
+            if tool.input_schema and "properties" in tool.input_schema:
+                print("   参数：")
+                properties = tool.input_schema["properties"]
+                required = tool.input_schema.get("required", [])
+                for param_name, param_info in properties.items():
+                    param_desc = param_info.get("description", "无描述")
+                    is_required = " (必需)" if param_name in required else " (可选)"
+                    print(f"     - {param_name}: {param_desc}{is_required}")
+            print()
+    else:
+        print_available_tools()
+
+
+def handle_prompts_command(available_prompts: List[McpPromptInfo]) -> None:
+    """处理 /prompts 命令：显示可用的提示词模板"""
+    if available_prompts:
+        print("\n📝 可用提示词模板：")
+        print("-" * 50)
+        for i, prompt in enumerate(available_prompts, 1):
+            print(f"{i}. {prompt.name}")
+            if prompt.description:
+                print(f"   描述：{prompt.description}")
+            if prompt.arguments:
+                print("   参数：")
+                for arg in prompt.arguments:
+                    arg_name = arg.get("name", "未知")
+                    arg_desc = arg.get("description", "无描述")
+                    arg_required = " (必需)" if arg.get("required") else " (可选)"
+                    print(f"     - {arg_name}: {arg_desc}{arg_required}")
+            print()
+    else:
+        print("\n📝 当前没有可用的提示词模板")
+
+
+async def handle_resources_command(
+    available_resources: List[McpResourceInfo], mcp_client: McpClient
+) -> None:
+    """处理 /resources 命令：显示和读取资源"""
+    if available_resources:
+        print("\n📦 可用资源列表：")
+        print("-" * 50)
+        for i, resource in enumerate(available_resources, 1):
+            print(f"{i}. {resource.name}")
+            print(f"   URI: {resource.uri}")
+            if resource.description:
+                print(f"   描述：{resource.description}")
+            if resource.mime_type:
+                print(f"   类型：{resource.mime_type}")
+            print()
+
+        # 询问是否读取某个资源
+        choice = input("输入资源编号查看内容（直接回车跳过）: ").strip()
+        if choice.isdigit():
+            idx = int(choice) - 1
+            if 0 <= idx < len(available_resources):
+                selected_resource = available_resources[idx]
+                print(f"\n⏳ 正在读取资源: {selected_resource.name}")
+                try:
+                    content = await mcp_client.read_resource(selected_resource.uri)
+                    if content and content.text:
+                        print("\n" + "=" * 60)
+                        print(f"资源内容 ({selected_resource.uri}):")
+                        print("-" * 60)
+                        # 限制显示长度
+                        text = content.text
+                        if len(text) > 1000:
+                            print(text[:1000] + "\n...(内容过长，已截断)")
+                        else:
+                            print(text)
+                        print("=" * 60)
+                    else:
+                        print("❌ 无法读取资源内容")
+                except Exception as e:
+                    print(f"❌ 读取资源失败: {e}")
+            else:
+                print("❌ 无效的资源编号")
+    else:
+        print("\n📦 当前没有可用的资源")
+
+
+async def handle_analyze_command(
+    mcp_client: McpClient,
+    available_tools: List[McpToolInfo],
+    chat_history_state: McpState,
+    compiled_mcp_stage_graph: CompiledStateGraph[McpState, Any, McpState, McpState],
+) -> None:
+    """处理 /analyze 命令：使用提示词模板进行系统分析"""
+    print("\n🔍 系统分析演示（使用提示词模板）")
+    print("-" * 50)
+    print("可选分析类型：")
+    print("  1. general - 综合分析")
+    print("  2. performance - 性能分析")
+    print("  3. security - 安全分析")
+    print("  4. troubleshooting - 故障诊断")
+
+    analysis_choice = input("\n请选择分析类型 (1-4): ").strip()
+    analysis_types = {
+        "1": "general",
+        "2": "performance",
+        "3": "security",
+        "4": "troubleshooting",
+    }
+
+    analysis_type = analysis_types.get(analysis_choice, "general")
+
+    try:
+        # 步骤1: 获取系统数据
+        print(f"\n⏳ 正在获取系统信息...")
+        system_data_result = await mcp_client.call_tool(
+            tool_name="system_info", arguments={}
+        )
+
+        if not system_data_result.success:
+            print(f"❌ 获取系统信息失败: {system_data_result.error}")
+            return
+
+        # 步骤2: 获取提示词模板
+        print(f"⏳ 正在获取 {analysis_type} 分析模板...")
+        prompt_result = await mcp_client.get_prompt(
+            name="system_analysis",
+            arguments={"analysis_type": analysis_type},
+        )
+
+        if not prompt_result:
+            print("❌ 获取提示词模板失败")
+            return
+
+        # 步骤3: 填充模板
+        prompt_message = prompt_result.messages[0]
+        prompt_text = prompt_message.content.get("text", "")
+        filled_prompt = prompt_text.replace(
+            "{system_data}", str(system_data_result.result)
+        )
+
+        print(f"\n✅ 提示词模板已准备完成")
+        print(f"📊 分析类型: {analysis_type}")
+        print(f"📝 模板名称: system_analysis")
+        print(f"📋 角色: {prompt_message.role}")
+        print("\n" + "=" * 60)
+        print("生成的完整提示词预览（前800字符）：")
+        print("-" * 60)
+        print(
+            filled_prompt[:800] + "..." if len(filled_prompt) > 800 else filled_prompt
+        )
+        print("=" * 60)
+
+        # 步骤4: 询问是否发送给AI分析
+        should_analyze = (
+            input("\n是否将此提示词发送给AI进行分析？(y/n): ").strip().lower()
+        )
+
+        if should_analyze == "y":
+            # 创建用户输入状态
+            analysis_input_state: McpState = {
+                "messages": [HumanMessage(content=filled_prompt)],
+                "mcp_client": mcp_client,
+                "available_tools": available_tools,
+                "tool_outputs": [],
+            }
+
+            # 获取 AI 分析
+            print("\n⏳ AI 正在分析...")
+            update_messages = await stream_mcp_graph_updates(
+                state_compiled_graph=compiled_mcp_stage_graph,
+                chat_history_state=chat_history_state,
+                user_input_state=analysis_input_state,
+            )
+
+            # 更新聊天历史
+            chat_history_state["messages"].extend(analysis_input_state["messages"])
+            chat_history_state["messages"].extend(update_messages)
+
+            # 显示分析结果
+            if update_messages:
+                latest_response = update_messages[-1]
+                print(f"\n🤖 AI 分析结果：")
+                print("=" * 60)
+                print(latest_response.content)
+                print("=" * 60)
+            else:
+                print("\n❌ 没有收到分析结果")
+        else:
+            print("✋ 已取消分析")
+
+    except Exception as e:
+        logger.error(f"系统分析演示出错: {e}")
+        print(f"\n❌ 分析过程出错: {e}")
+
+
+async def handle_user_message(
+    user_input: str,
+    mcp_client: McpClient,
+    available_tools: List[McpToolInfo],
+    chat_history_state: McpState,
+    compiled_mcp_stage_graph: CompiledStateGraph[McpState, Any, McpState, McpState],
+) -> None:
+    """处理普通用户消息：发送给AI处理"""
+    # 用户输入状态
+    user_input_state: McpState = {
+        "messages": [HumanMessage(content=user_input)],
+        "mcp_client": mcp_client,
+        "available_tools": available_tools,
+        "tool_outputs": [],
+    }
+
+    # 获取 AI 回复（包含可能的工具调用）
+    logger.info(f"处理用户输入: {user_input}")
+    update_messages = await stream_mcp_graph_updates(
+        state_compiled_graph=compiled_mcp_stage_graph,
+        chat_history_state=chat_history_state,
+        user_input_state=user_input_state,
+    )
+
+    # 更新聊天历史（包含用户输入和AI回复）
+    chat_history_state["messages"].extend(user_input_state["messages"])
+    chat_history_state["messages"].extend(update_messages)
+
+    # 显示最新的AI回复
+    if update_messages:
+        latest_response = update_messages[-1]
+        print(f"\n🤖 DeepSeek: {latest_response.content}")
+    else:
+        print("\n❌ 抱歉，没有收到回复。")
+
+    # 提示用户可以使用 /history 查看对话历史
+    logger.debug(
+        f"💬 当前对话历史包含 {len(chat_history_state['messages'])} 条消息，使用 /history 查看详情"
+    )
+
+
 async def main() -> None:
     """
     DeepSeek + MCP 聊天系统主函数
@@ -215,256 +455,58 @@ async def main() -> None:
                 print("\n" + "=" * 60)
                 user_input = input("User: ").strip()
 
-                # 处理特殊命令
+                # 处理退出命令
                 if user_input.lower() in ["/quit", "/exit", "/q"]:
                     print("\n👋 感谢使用 DeepSeek + MCP 聊天系统！再见！")
                     break
+
+                # 处理工具列表命令
                 elif user_input.lower() == "/tools":
-                    if available_tools:
-                        print("\n🛠️ 可用工具详情：")
-                        print("-" * 50)
-                        for i, tool in enumerate(available_tools, 1):
-                            print(f"{i}. {tool.name}")
-                            print(f"   描述：{tool.description}")
-                            if tool.input_schema and "properties" in tool.input_schema:
-                                print("   参数：")
-                                properties = tool.input_schema["properties"]
-                                required = tool.input_schema.get("required", [])
-                                for param_name, param_info in properties.items():
-                                    param_desc = param_info.get("description", "无描述")
-                                    is_required = (
-                                        " (必需)"
-                                        if param_name in required
-                                        else " (可选)"
-                                    )
-                                    print(
-                                        f"     - {param_name}: {param_desc}{is_required}"
-                                    )
-                            print()
-                    else:
-                        print_available_tools()
+                    handle_tools_command(available_tools)
                     continue
+
+                # 处理历史记录命令
                 elif user_input.lower() == "/history":
                     print_chat_history(chat_history_state)
                     continue
+
+                # 处理提示词模板命令
                 elif user_input.lower() == "/prompts":
-                    # 显示可用的提示词模板
-                    if available_prompts:
-                        print("\n📝 可用提示词模板：")
-                        print("-" * 50)
-                        for i, prompt in enumerate(available_prompts, 1):
-                            print(f"{i}. {prompt.name}")
-                            if prompt.description:
-                                print(f"   描述：{prompt.description}")
-                            if prompt.arguments:
-                                print("   参数：")
-                                for arg in prompt.arguments:
-                                    arg_name = arg.get("name", "未知")
-                                    arg_desc = arg.get("description", "无描述")
-                                    arg_required = (
-                                        " (必需)" if arg.get("required") else " (可选)"
-                                    )
-                                    print(
-                                        f"     - {arg_name}: {arg_desc}{arg_required}"
-                                    )
-                            print()
-                    else:
-                        print("\n📝 当前没有可用的提示词模板")
+                    handle_prompts_command(available_prompts)
                     continue
+
+                # 处理资源列表命令
                 elif user_input.lower() == "/resources":
-                    # 显示可用的资源
-                    if available_resources:
-                        print("\n📦 可用资源列表：")
-                        print("-" * 50)
-                        for i, resource in enumerate(available_resources, 1):
-                            print(f"{i}. {resource.name}")
-                            print(f"   URI: {resource.uri}")
-                            if resource.description:
-                                print(f"   描述：{resource.description}")
-                            if resource.mime_type:
-                                print(f"   类型：{resource.mime_type}")
-                            print()
-
-                        # 询问是否读取某个资源
-                        choice = input("输入资源编号查看内容（直接回车跳过）: ").strip()
-                        if choice.isdigit():
-                            idx = int(choice) - 1
-                            if 0 <= idx < len(available_resources):
-                                selected_resource = available_resources[idx]
-                                print(f"\n⏳ 正在读取资源: {selected_resource.name}")
-                                try:
-                                    content = await mcp_client.read_resource(
-                                        selected_resource.uri
-                                    )
-                                    if content and content.text:
-                                        print("\n" + "=" * 60)
-                                        print(f"资源内容 ({selected_resource.uri}):")
-                                        print("-" * 60)
-                                        # 限制显示长度
-                                        text = content.text
-                                        if len(text) > 1000:
-                                            print(
-                                                text[:1000] + "\n...(内容过长，已截断)"
-                                            )
-                                        else:
-                                            print(text)
-                                        print("=" * 60)
-                                    else:
-                                        print("❌ 无法读取资源内容")
-                                except Exception as e:
-                                    print(f"❌ 读取资源失败: {e}")
-                            else:
-                                print("❌ 无效的资源编号")
-                    else:
-                        print("\n📦 当前没有可用的资源")
+                    await handle_resources_command(available_resources, mcp_client)
                     continue
+
+                # 处理系统分析命令
                 elif user_input.lower() == "/analyze":
-                    # 使用提示词模板进行系统分析的演示
-                    print("\n🔍 系统分析演示（使用提示词模板）")
-                    print("-" * 50)
-                    print("可选分析类型：")
-                    print("  1. general - 综合分析")
-                    print("  2. performance - 性能分析")
-                    print("  3. security - 安全分析")
-                    print("  4. troubleshooting - 故障诊断")
-
-                    analysis_choice = input("\n请选择分析类型 (1-4): ").strip()
-                    analysis_types = {
-                        "1": "general",
-                        "2": "performance",
-                        "3": "security",
-                        "4": "troubleshooting",
-                    }
-
-                    analysis_type = analysis_types.get(analysis_choice, "general")
-
-                    try:
-                        # 步骤1: 获取系统数据
-                        print(f"\n⏳ 正在获取系统信息...")
-                        system_data_result = await mcp_client.call_tool(
-                            tool_name="system_info", arguments={}
-                        )
-
-                        if not system_data_result.success:
-                            print(f"❌ 获取系统信息失败: {system_data_result.error}")
-                            continue
-
-                        # 步骤2: 获取提示词模板
-                        print(f"⏳ 正在获取 {analysis_type} 分析模板...")
-                        prompt_result = await mcp_client.get_prompt(
-                            name="system_analysis",
-                            arguments={"analysis_type": analysis_type},
-                        )
-
-                        if not prompt_result:
-                            print("❌ 获取提示词模板失败")
-                            continue
-
-                        # 步骤3: 填充模板
-                        prompt_message = prompt_result.messages[0]
-                        prompt_text = prompt_message.content.get("text", "")
-                        filled_prompt = prompt_text.replace(
-                            "{system_data}", str(system_data_result.result)
-                        )
-
-                        print(f"\n✅ 提示词模板已准备完成")
-                        print(f"📊 分析类型: {analysis_type}")
-                        print(f"📝 模板名称: system_analysis")
-                        print(f"📋 角色: {prompt_message.role}")
-                        print("\n" + "=" * 60)
-                        print("生成的完整提示词预览（前800字符）：")
-                        print("-" * 60)
-                        print(
-                            filled_prompt[:800] + "..."
-                            if len(filled_prompt) > 800
-                            else filled_prompt
-                        )
-                        print("=" * 60)
-
-                        # 步骤4: 询问是否发送给AI分析
-                        should_analyze = (
-                            input("\n是否将此提示词发送给AI进行分析？(y/n): ")
-                            .strip()
-                            .lower()
-                        )
-
-                        if should_analyze == "y":
-                            # 创建用户输入状态
-                            analysis_input_state: McpState = {
-                                "messages": [HumanMessage(content=filled_prompt)],
-                                "mcp_client": mcp_client,
-                                "available_tools": available_tools,
-                                "tool_outputs": [],
-                            }
-
-                            # 获取 AI 分析
-                            print("\n⏳ AI 正在分析...")
-                            update_messages = await stream_mcp_graph_updates(
-                                state_compiled_graph=compiled_mcp_stage_graph,
-                                chat_history_state=chat_history_state,
-                                user_input_state=analysis_input_state,
-                            )
-
-                            # 更新聊天历史
-                            chat_history_state["messages"].extend(
-                                analysis_input_state["messages"]
-                            )
-                            chat_history_state["messages"].extend(update_messages)
-
-                            # 显示分析结果
-                            if update_messages:
-                                latest_response = update_messages[-1]
-                                print(f"\n🤖 AI 分析结果：")
-                                print("=" * 60)
-                                print(latest_response.content)
-                                print("=" * 60)
-                            else:
-                                print("\n❌ 没有收到分析结果")
-                        else:
-                            print("✋ 已取消分析")
-
-                    except Exception as e:
-                        logger.error(f"系统分析演示出错: {e}")
-                        print(f"\n❌ 分析过程出错: {e}")
-
+                    await handle_analyze_command(
+                        mcp_client,
+                        available_tools,
+                        chat_history_state,
+                        compiled_mcp_stage_graph,
+                    )
                     continue
+
+                # 处理帮助命令
                 elif user_input.lower() == "/help":
                     print_welcome_message()
                     continue
+
+                # 处理空输入
                 elif user_input == "":
                     print("💡 请输入您的问题，或输入 /help 查看帮助")
                     continue
 
-                # 用户输入状态
-                user_input_state: McpState = {
-                    "messages": [HumanMessage(content=user_input)],
-                    "mcp_client": mcp_client,
-                    "available_tools": available_tools,
-                    "tool_outputs": [],
-                }
-
-                # 获取 AI 回复（包含可能的工具调用）
-                logger.info(f"处理用户输入: {user_input}")
-                update_messages = await stream_mcp_graph_updates(
-                    state_compiled_graph=compiled_mcp_stage_graph,
-                    chat_history_state=chat_history_state,
-                    user_input_state=user_input_state,
-                )
-
-                # 更新聊天历史（包含用户输入和AI回复）
-                chat_history_state["messages"].extend(user_input_state["messages"])
-                chat_history_state["messages"].extend(update_messages)
-
-                # 显示最新的AI回复
-                if update_messages:
-                    latest_response = update_messages[-1]
-                    print(f"\n🤖 DeepSeek: {latest_response.content}")
-                else:
-                    print("\n❌ 抱歉，没有收到回复。")
-
-                # 提示用户可以使用 /history 查看对话历史
-                logger.debug(
-                    f"💬 当前对话历史包含 {len(chat_history_state['messages'])} 条消息，使用 /history 查看详情"
+                # 处理普通用户消息
+                await handle_user_message(
+                    user_input,
+                    mcp_client,
+                    available_tools,
+                    chat_history_state,
+                    compiled_mcp_stage_graph,
                 )
 
             except KeyboardInterrupt:
