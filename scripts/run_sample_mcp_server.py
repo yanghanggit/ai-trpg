@@ -301,10 +301,13 @@ async def get_capabilities() -> str:
 @app.resource("logs://recent/{count}")
 async def get_recent_logs(count: str) -> str:
     """
-    获取最近的模拟日志
+    获取最近的模拟日志（动态资源，支持参数）
 
     Args:
         count: 日志条目数量
+
+    注意：这是一个动态资源，需要在 URI 中指定 count 参数。
+    例如：logs://recent/10 表示获取最近 10 条日志
     """
     try:
         log_count = int(count)
@@ -330,6 +333,13 @@ async def get_recent_logs(count: str) -> str:
         return "错误：无效的数字格式"
     except Exception as e:
         return f"错误：{str(e)}"
+
+
+@app.resource("logs://recent-10")
+async def get_recent_logs_10() -> str:
+    """获取最近10条日志（固定参数版本）"""
+    result: str = await get_recent_logs("10")
+    return result
 
 
 # ========================================================================

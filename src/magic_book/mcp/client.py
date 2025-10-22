@@ -11,7 +11,14 @@ from typing import Any, Dict, List, Optional
 from urllib.parse import urljoin
 import aiohttp
 from loguru import logger
-from .models import McpToolInfo, McpToolResult, McpPromptInfo, McpPromptResult
+from .models import (
+    McpToolInfo,
+    McpToolResult,
+    McpPromptInfo,
+    McpPromptResult,
+    McpResourceInfo,
+    McpResourceContent,
+)
 
 
 class McpClient:
@@ -40,6 +47,7 @@ class McpClient:
         self.http_session: Optional[aiohttp.ClientSession] = None
         self._tools_cache: Optional[List[McpToolInfo]] = None
         self._prompts_cache: Optional[List[McpPromptInfo]] = None
+        self._resources_cache: Optional[List[McpResourceInfo]] = None
         self._initialized = False
 
     async def __aenter__(self) -> "McpClient":
@@ -207,6 +215,7 @@ class McpClient:
         self.session_id = None
         self._tools_cache = None
         self._prompts_cache = None
+        self._resources_cache = None
         self._initialized = False
         logger.info("🔌 MCP 客户端已断开连接")
 
@@ -499,4 +508,103 @@ class McpClient:
 
         except Exception as e:
             logger.error(f"获取提示词 '{name}' 时发生错误: {e}")
+            return None
+
+    async def list_resources(self) -> Optional[List[McpResourceInfo]]:
+        """获取可用资源列表"""
+        try:
+            # 检查缓存
+            if self._resources_cache is not None:
+                return self._resources_cache
+
+            # 构建资源列表请求
+            resources_request = {
+                "jsonrpc": "2.0",
+                "id": str(uuid.uuid4()),
+                "method": "resources/list",
+            }
+
+            response = await self._post_request("/mcp", resources_request)
+
+            # 检查响应
+            if "error" in response:
+                logger.error(f"获取资源列表失败: {response['error']}")
+                return None
+
+            # 解析资源信息
+            resources_data = response.get("result", {}).get("resources", [])
+            logger.debug(f"🔍 服务器返回的资源数据: {resources_data}")
+            resources = []
+
+            for resource_data in resources_data:
+                try:
+                    resource = McpResourceInfo(
+                        uri=resource_data["uri"],
+                        name=resource_data.get("name", resource_data["uri"]),
+                        description=resource_data.get("description"),
+                        mime_type=resource_data.get("mimeType"),
+                    )
+                    resources.append(resource)
+                except Exception as e:
+                    logger.warning(f"解析资源信息失败: {e}, 数据: {resource_data}")
+
+            # 缓存结果
+            self._resources_cache = resources
+            logger.info(f"✅ 获取到 {len(resources)} 个资源")
+
+            return resources
+
+        except Exception as e:
+            logger.error(f"获取资源列表时发生错误: {e}")
+            return None
+
+    async def read_resource(self, uri: str) -> Optional[McpResourceContent]:
+        """
+        读取指定的资源内容
+
+        Args:
+            uri: 资源的 URI（例如: config://server-status）
+
+        Returns:
+            资源内容，包含文本和元数据
+        """
+        try:
+            # 构建资源读取请求
+            read_request = {
+                "jsonrpc": "2.0",
+                "id": str(uuid.uuid4()),
+                "method": "resources/read",
+                "params": {"uri": uri},
+            }
+
+            response = await self._post_request("/mcp", read_request)
+
+            # 检查响应
+            if "error" in response:
+                error_msg = response["error"].get("message", "未知错误")
+                logger.error(f"读取资源 '{uri}' 失败: {error_msg}")
+                return None
+
+            # 解析结果
+            result = response.get("result", {})
+            contents = result.get("contents", [])
+
+            if not contents:
+                logger.warning(f"资源 '{uri}' 没有内容")
+                return None
+
+            # 获取第一个内容项
+            content_data = contents[0]
+
+            resource_content = McpResourceContent(
+                uri=content_data.get("uri", uri),
+                mime_type=content_data.get("mimeType"),
+                text=content_data.get("text"),
+            )
+
+            logger.success(f"✅ 读取资源 '{uri}' 成功")
+            return resource_content
+
+        except Exception as e:
+            logger.error(f"读取资源 '{uri}' 时发生错误: {e}")
             return None

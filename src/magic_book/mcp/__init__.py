@@ -26,6 +26,8 @@ from .models import (
     McpPromptInfo,
     McpPromptResult,
     McpPromptMessage,
+    McpResourceInfo,
+    McpResourceContent,
 )
 from .parser import ToolCallParser
 from .execution import initialize_mcp_client, execute_mcp_tool
@@ -47,6 +49,8 @@ __all__ = [
     "McpPromptInfo",
     "McpPromptResult",
     "McpPromptMessage",
+    "McpResourceInfo",
+    "McpResourceContent",
     # 解析器
     "ToolCallParser",
     # 执行相关

@@ -49,6 +49,7 @@ from magic_book.deepseek.mcp_client_graph import (
 from magic_book.mcp import (
     McpToolInfo,
     McpPromptInfo,
+    McpResourceInfo,
     initialize_mcp_client,
     mcp_config,
 )
@@ -79,6 +80,7 @@ def print_welcome_message() -> None:
     print("  • 尝试说：'现在几点了？'、'查看系统状态'、'获取时间戳格式的时间'")
     print("  • 输入 /tools 查看可用工具详情")
     print("  • 输入 /prompts 查看可用提示词模板")
+    print("  • 输入 /resources 查看可用资源")
     print("  • 输入 /analyze 使用提示词模板进行系统分析")
     print("  • 输入 /history 查看对话历史")
     print("  • 输入 /quit、/exit 或 /q 退出程序")
@@ -152,6 +154,7 @@ async def main() -> None:
         mcp_client = None
         available_tools: List[McpToolInfo] = []
         available_prompts: List[McpPromptInfo] = []
+        available_resources: List[McpResourceInfo] = []
 
         try:
             mcp_client = await initialize_mcp_client(
@@ -167,6 +170,13 @@ async def main() -> None:
             prompts_result = await mcp_client.list_prompts()
             available_prompts = prompts_result if prompts_result is not None else []
             logger.success(f"📝 获取到 {len(available_prompts)} 个提示词模板")
+
+            # 获取可用的资源
+            resources_result = await mcp_client.list_resources()
+            available_resources = (
+                resources_result if resources_result is not None else []
+            )
+            logger.success(f"📦 获取到 {len(available_resources)} 个资源")
         except Exception as e:
             logger.error(f"❌ MCP 服务器连接失败: {e}")
             logger.info(
@@ -260,6 +270,53 @@ async def main() -> None:
                             print()
                     else:
                         print("\n📝 当前没有可用的提示词模板")
+                    continue
+                elif user_input.lower() == "/resources":
+                    # 显示可用的资源
+                    if available_resources:
+                        print("\n📦 可用资源列表：")
+                        print("-" * 50)
+                        for i, resource in enumerate(available_resources, 1):
+                            print(f"{i}. {resource.name}")
+                            print(f"   URI: {resource.uri}")
+                            if resource.description:
+                                print(f"   描述：{resource.description}")
+                            if resource.mime_type:
+                                print(f"   类型：{resource.mime_type}")
+                            print()
+
+                        # 询问是否读取某个资源
+                        choice = input("输入资源编号查看内容（直接回车跳过）: ").strip()
+                        if choice.isdigit():
+                            idx = int(choice) - 1
+                            if 0 <= idx < len(available_resources):
+                                selected_resource = available_resources[idx]
+                                print(f"\n⏳ 正在读取资源: {selected_resource.name}")
+                                try:
+                                    content = await mcp_client.read_resource(
+                                        selected_resource.uri
+                                    )
+                                    if content and content.text:
+                                        print("\n" + "=" * 60)
+                                        print(f"资源内容 ({selected_resource.uri}):")
+                                        print("-" * 60)
+                                        # 限制显示长度
+                                        text = content.text
+                                        if len(text) > 1000:
+                                            print(
+                                                text[:1000] + "\n...(内容过长，已截断)"
+                                            )
+                                        else:
+                                            print(text)
+                                        print("=" * 60)
+                                    else:
+                                        print("❌ 无法读取资源内容")
+                                except Exception as e:
+                                    print(f"❌ 读取资源失败: {e}")
+                            else:
+                                print("❌ 无效的资源编号")
+                    else:
+                        print("\n📦 当前没有可用的资源")
                     continue
                 elif user_input.lower() == "/analyze":
                     # 使用提示词模板进行系统分析的演示

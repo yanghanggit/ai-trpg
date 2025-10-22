@@ -45,3 +45,20 @@ class McpPromptResult(BaseModel):
 
     description: Optional[str] = None
     messages: List[McpPromptMessage]
+
+
+class McpResourceInfo(BaseModel):
+    """MCP 资源信息"""
+
+    uri: str
+    name: str
+    description: Optional[str] = None
+    mime_type: Optional[str] = None
+
+
+class McpResourceContent(BaseModel):
+    """MCP 资源内容"""
+
+    uri: str
+    mime_type: Optional[str] = None
+    text: Optional[str] = None
