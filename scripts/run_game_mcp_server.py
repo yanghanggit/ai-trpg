@@ -70,6 +70,28 @@ class Stage(BaseModel):
     actors: List[Actor]
     stages: List["Stage"] = []  # 支持嵌套子场景
 
+    def find_actor(self, actor_name: str) -> Actor | None:
+        """递归查找指定名称的Actor
+
+        Args:
+            actor_name: 要查找的Actor名称
+
+        Returns:
+            找到的Actor对象，如果未找到则返回None
+        """
+        # 在当前场景的actors中查找
+        for actor in self.actors:
+            if actor.name == actor_name:
+                return actor
+
+        # 递归搜索子场景中的actors
+        for stage in self.stages:
+            found = stage.find_actor(actor_name)
+            if found:
+                return found
+
+        return None
+
 
 class World(BaseModel):
     """表示游戏世界状态的模型"""
@@ -77,6 +99,60 @@ class World(BaseModel):
     name: str
     description: str
     stages: List[Stage]
+
+    def find_stage(self, stage_name: str) -> Stage | None:
+        """递归查找指定名称的Stage
+
+        Args:
+            stage_name: 要查找的Stage名称
+
+        Returns:
+            找到的Stage对象，如果未找到则返回None
+        """
+
+        def _recursive_find(stages: List[Stage], target_name: str) -> Stage | None:
+            for stage in stages:
+                if stage.name == target_name:
+                    return stage
+                # 递归搜索子场景
+                if stage.stages:
+                    found = _recursive_find(stage.stages, target_name)
+                    if found:
+                        return found
+            return None
+
+        return _recursive_find(self.stages, stage_name)
+
+    def find_actor_with_stage(
+        self, actor_name: str
+    ) -> tuple[Actor | None, Stage | None]:
+        """查找指定名称的Actor及其所在的Stage
+
+        Args:
+            actor_name: 要查找的Actor名称
+
+        Returns:
+            (Actor, Stage)元组，如果未找到则返回(None, None)
+        """
+
+        def _recursive_search(
+            stages: List[Stage],
+        ) -> tuple[Actor | None, Stage | None]:
+            for stage in stages:
+                # 在当前Stage中查找Actor
+                actor = stage.find_actor(actor_name)
+                if actor:
+                    return actor, stage
+
+                # 递归搜索子场景
+                if stage.stages:
+                    found_actor, found_stage = _recursive_search(stage.stages)
+                    if found_actor and found_stage:
+                        return found_actor, found_stage
+
+            return None, None
+
+        return _recursive_search(self.stages)
 
 
 # ============================================================================
@@ -235,40 +311,14 @@ async def get_world_entity(name: str) -> str:
             logger.info(f"获取World数据: {name}")
             return game_world.model_dump_json(indent=2, ensure_ascii=False)
 
-        # 递归搜索Stage的函数
-        def find_stage(stages: List[Stage], target_name: str) -> Stage | None:
-            for stage in stages:
-                if stage.name == target_name:
-                    return stage
-                # 递归搜索子场景
-                if stage.stages:
-                    found = find_stage(stage.stages, target_name)
-                    if found:
-                        return found
-            return None
-
-        # 递归搜索Actor的函数
-        def find_actor(stages: List[Stage], target_name: str) -> Actor | None:
-            for stage in stages:
-                # 在当前场景的actors中查找
-                for actor in stage.actors:
-                    if actor.name == target_name:
-                        return actor
-                # 递归搜索子场景中的actors
-                if stage.stages:
-                    found = find_actor(stage.stages, target_name)
-                    if found:
-                        return found
-            return None
-
         # 尝试查找Stage
-        stage = find_stage(game_world.stages, name)
+        stage = game_world.find_stage(name)
         if stage:
             logger.info(f"获取Stage数据: {name}")
             return stage.model_dump_json(indent=2, ensure_ascii=False)
 
         # 尝试查找Actor
-        actor = find_actor(game_world.stages, name)
+        actor, _ = game_world.find_actor_with_stage(name)
         if actor:
             logger.info(f"获取Actor数据: {name}")
             return actor.model_dump_json(indent=2, ensure_ascii=False)
@@ -307,37 +357,8 @@ async def move_actor(actor_name: str, target_stage_name: str) -> str:
         移动操作的结果信息（JSON格式）
     """
     try:
-        # 递归搜索并返回包含指定Actor的Stage
-        def find_stage_with_actor(
-            stages: List[Stage], target_actor_name: str
-        ) -> tuple[Stage | None, Actor | None]:
-            for stage in stages:
-                # 在当前场景的actors中查找
-                for actor in stage.actors:
-                    if actor.name == target_actor_name:
-                        return stage, actor
-                # 递归搜索子场景
-                if stage.stages:
-                    found_stage, found_actor = find_stage_with_actor(
-                        stage.stages, target_actor_name
-                    )
-                    if found_stage and found_actor:
-                        return found_stage, found_actor
-            return None, None
-
-        # 递归搜索目标Stage
-        def find_stage(stages: List[Stage], target_name: str) -> Stage | None:
-            for stage in stages:
-                if stage.name == target_name:
-                    return stage
-                if stage.stages:
-                    found = find_stage(stage.stages, target_name)
-                    if found:
-                        return found
-            return None
-
         # 查找Actor当前所在的Stage
-        current_stage, actor = find_stage_with_actor(game_world.stages, actor_name)
+        actor, current_stage = game_world.find_actor_with_stage(actor_name)
         if not current_stage or not actor:
             error_msg = f"错误：未找到名为 '{actor_name}' 的Actor"
             logger.warning(error_msg)
@@ -352,7 +373,7 @@ async def move_actor(actor_name: str, target_stage_name: str) -> str:
             )
 
         # 查找目标Stage
-        target_stage = find_stage(game_world.stages, target_stage_name)
+        target_stage = game_world.find_stage(target_stage_name)
         if not target_stage:
             error_msg = f"错误：未找到名为 '{target_stage_name}' 的目标Stage"
             logger.warning(error_msg)
