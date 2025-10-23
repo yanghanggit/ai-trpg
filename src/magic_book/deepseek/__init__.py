@@ -11,8 +11,8 @@ DeepSeek 聊天服务模块
 from .chat_graph import create_compiled_stage_graph, stream_graph_updates, State
 from .rag_graph import create_rag_compiled_graph, stream_rag_graph_updates
 from .mcp_client_graph import (
-    create_compiled_mcp_stage_graph,
-    stream_mcp_graph_updates,
+    create_mcp_workflow,
+    execute_mcp_workflow,
     McpState,
 )
 from .unified_chat_graph import (
@@ -31,8 +31,8 @@ __all__ = [
     "create_rag_compiled_graph",
     "stream_rag_graph_updates",
     # MCP 客户端聊天图
-    "create_compiled_mcp_stage_graph",
-    "stream_mcp_graph_updates",
+    "create_mcp_workflow",
+    "execute_mcp_workflow",
     "McpState",
     # 统一聊天图
     "create_unified_chat_graph",

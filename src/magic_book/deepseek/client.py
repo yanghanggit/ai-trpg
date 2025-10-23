@@ -32,16 +32,15 @@ def create_deepseek_llm(temperature: Optional[float] = None) -> ChatDeepSeek:
     if not deepseek_api_key:
         raise ValueError("DEEPSEEK_API_KEY environment variable is not set")
 
-    # _temperature: float = 0.7  # 默认温度，适合大多数RPG对话场景
-    # if option_temperature is not None:
-    #     _temperature = float(option_temperature)
+    # 记录温度设置
+    logger.debug(f"create_deepseek_llm temperature={temperature}")
 
     # 设置默认温度
     llm = ChatDeepSeek(
         api_key=SecretStr(deepseek_api_key),
         api_base="https://api.deepseek.com/v1",
         model="deepseek-chat",
-        temperature=temperature if temperature is not None else 0.7,
+        temperature=temperature,
         # 不设置固定的 response_format，保持输出格式的灵活性
     )
 

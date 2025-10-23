@@ -39,14 +39,16 @@ sys.path.insert(
 # 导入必要的模块
 import asyncio
 from langchain.schema import HumanMessage, SystemMessage
+from langchain_deepseek import ChatDeepSeek
 from langgraph.graph.state import CompiledStateGraph
 from loguru import logger
 
 from magic_book.deepseek.mcp_client_graph import (
     McpState,
-    create_compiled_mcp_stage_graph,
-    stream_mcp_graph_updates,
+    create_mcp_workflow,
+    execute_mcp_workflow,
 )
+from magic_book.deepseek.client import create_deepseek_llm
 from magic_book.mcp import (
     McpClient,
     McpToolInfo,
@@ -226,10 +228,19 @@ async def handle_resources_command(
 async def handle_analyze_command(
     mcp_client: McpClient,
     available_tools: List[McpToolInfo],
+    llm: ChatDeepSeek,
     chat_history_state: McpState,
     compiled_mcp_stage_graph: CompiledStateGraph[McpState, Any, McpState, McpState],
 ) -> None:
-    """处理 /analyze 命令：使用提示词模板进行系统分析"""
+    """处理 /analyze 命令：使用提示词模板进行系统分析
+
+    Args:
+        mcp_client: MCP 客户端实例
+        available_tools: 可用工具列表
+        llm: DeepSeek LLM 实例
+        chat_history_state: 聊天历史状态
+        compiled_mcp_stage_graph: 编译后的状态图
+    """
     print("\n🔍 系统分析演示（使用提示词模板）")
     print("-" * 50)
     print("可选分析类型：")
@@ -298,6 +309,7 @@ async def handle_analyze_command(
             # 创建用户输入状态
             analysis_input_state: McpState = {
                 "messages": [HumanMessage(content=filled_prompt)],
+                "llm": llm,  # 使用共享的 LLM 实例
                 "mcp_client": mcp_client,
                 "available_tools": available_tools,
                 "tool_outputs": [],
@@ -305,7 +317,7 @@ async def handle_analyze_command(
 
             # 获取 AI 分析
             print("\n⏳ AI 正在分析...")
-            update_messages = await stream_mcp_graph_updates(
+            update_messages = await execute_mcp_workflow(
                 state_compiled_graph=compiled_mcp_stage_graph,
                 chat_history_state=chat_history_state,
                 user_input_state=analysis_input_state,
@@ -333,24 +345,25 @@ async def handle_analyze_command(
 
 
 async def handle_user_message(
-    user_input: str,
-    mcp_client: McpClient,
-    available_tools: List[McpToolInfo],
+    user_input_state: McpState,
     chat_history_state: McpState,
     compiled_mcp_stage_graph: CompiledStateGraph[McpState, Any, McpState, McpState],
 ) -> None:
-    """处理普通用户消息：发送给AI处理"""
-    # 用户输入状态
-    user_input_state: McpState = {
-        "messages": [HumanMessage(content=user_input)],
-        "mcp_client": mcp_client,
-        "available_tools": available_tools,
-        "tool_outputs": [],
-    }
+    """处理普通用户消息：发送给AI处理
 
+    Args:
+        user_input_state: 已构建好的用户输入状态（包含消息、工具等）
+        chat_history_state: 聊天历史状态
+        compiled_mcp_stage_graph: 编译后的状态图
+    """
     # 获取 AI 回复（包含可能的工具调用）
-    logger.info(f"处理用户输入: {user_input}")
-    update_messages = await stream_mcp_graph_updates(
+    user_message = (
+        user_input_state["messages"][0] if user_input_state.get("messages") else None
+    )
+    if user_message:
+        logger.info(f"处理用户输入: {user_message.content}")
+
+    update_messages = await execute_mcp_workflow(
         state_compiled_graph=compiled_mcp_stage_graph,
         chat_history_state=chat_history_state,
         user_input_state=user_input_state,
@@ -428,6 +441,10 @@ async def main() -> None:
             )
             return
 
+        # 创建共享的 DeepSeek LLM 实例
+        llm = create_deepseek_llm(0.7)
+        logger.info("✅ DeepSeek LLM 实例创建成功")
+
         # 设置系统提示
         system_prompt = (
             """# 你作为一个人工智能助手要扮演一个海盗，你需要用海盗的语气来回答问题。"""
@@ -436,6 +453,7 @@ async def main() -> None:
         # 初始化 MCP 聊天历史状态
         chat_history_state: McpState = {
             "messages": [SystemMessage(content=system_prompt)],
+            "llm": llm,  # 包含共享的 LLM 实例
             "mcp_client": mcp_client,
             "available_tools": available_tools,
             "tool_outputs": [],
@@ -443,7 +461,7 @@ async def main() -> None:
 
         # 生成 MCP 增强的聊天机器人状态图
         assert mcp_client is not None, "MCP client is not initialized"
-        compiled_mcp_stage_graph = await create_compiled_mcp_stage_graph(
+        compiled_mcp_stage_graph = await create_mcp_workflow(
             "mcp_stage_graph",
             mcp_client,
         )
@@ -485,6 +503,7 @@ async def main() -> None:
                     await handle_analyze_command(
                         mcp_client,
                         available_tools,
+                        llm,
                         chat_history_state,
                         compiled_mcp_stage_graph,
                     )
@@ -501,12 +520,19 @@ async def main() -> None:
                     continue
 
                 # 处理普通用户消息
+                # 构建用户输入状态
+                user_input_state: McpState = {
+                    "messages": [HumanMessage(content=user_input)],
+                    "llm": llm,  # 使用共享的 LLM 实例
+                    "mcp_client": mcp_client,
+                    "available_tools": available_tools,
+                    "tool_outputs": [],
+                }
+
                 await handle_user_message(
-                    user_input,
-                    mcp_client,
-                    available_tools,
-                    chat_history_state,
-                    compiled_mcp_stage_graph,
+                    user_input_state=user_input_state,
+                    chat_history_state=chat_history_state,
+                    compiled_mcp_stage_graph=compiled_mcp_stage_graph,
                 )
 
             except KeyboardInterrupt:

@@ -46,8 +46,8 @@ from magic_book.deepseek import (
     create_unified_chat_graph,
     stream_unified_graph_updates,
     McpState,
-    create_compiled_mcp_stage_graph,
-    stream_mcp_graph_updates,
+    create_mcp_workflow,
+    execute_mcp_workflow,
 )
 
 from magic_book.configuration import (
@@ -487,13 +487,13 @@ async def process_chat_mcp_request(payload: ChatRequest) -> ChatResponse:
         }
 
         # 创建 MCP 状态图实例
-        compiled_mcp_stage_graph = await create_compiled_mcp_stage_graph(
+        compiled_mcp_stage_graph = await create_mcp_workflow(
             "deepseek_mcp_chatbot_node",
             mcp_client,
         )
 
         # 获取 MCP 回复（包含可能的工具调用）- 使用异步包装
-        update_messages = await stream_mcp_graph_updates(
+        update_messages = await execute_mcp_workflow(
             state_compiled_graph=compiled_mcp_stage_graph,
             chat_history_state=chat_history_state,
             user_input_state=user_input_state,

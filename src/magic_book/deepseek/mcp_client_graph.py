@@ -1,19 +1,27 @@
 """
 DeepSeek MCP 客户端图架构 - 二次推理增强版
 
-新架构流程说明：
+核心 API：
+==========
+- create_mcp_workflow(): 创建 MCP 工作流状态图
+- execute_mcp_workflow(): 执行工作流并返回响应消息
+
+工作流节点说明：
 =================
 
 1. 预处理节点 (preprocess)
    - 构建系统提示，包含工具使用说明
    - 准备增强消息供 LLM 使用
+   - 智能处理已有的系统消息（追加而非替换）
 
-2. 首次LLM调用 (llm_invoke)
+2. 首次 LLM 调用 (llm_invoke)
+   - 使用外部传入的 DeepSeek LLM 实例
    - 调用 DeepSeek 生成初始响应
-   - 可能包含工具调用指令
+   - 可能包含 JSON 格式的工具调用指令
 
 3. 工具解析节点 (tool_parse)
-   - 解析 LLM 响应中的工具调用
+   - 使用 ToolCallParser 解析 LLM 响应中的工具调用
+   - 支持 JSON 格式：{"tool_call": {"name": "...", "arguments": {...}}}
    - 判断是否需要执行工具
 
 4. 条件分支：
@@ -21,25 +29,40 @@ DeepSeek MCP 客户端图架构 - 二次推理增强版
    - 如果不需要工具 → response_synthesis
 
 5. 工具执行节点 (tool_execution)
-   - 并发执行所有解析出的工具调用
-   - 收集工具执行结果
+   - 使用 asyncio.gather() 并发执行所有工具调用
+   - 支持超时控制和失败重试（最多2次）
+   - 收集工具执行结果（包含成功状态、结果数据、执行时间）
 
-6. **二次推理节点 (llm_re_invoke) [新增]**
+6. **二次推理节点 (llm_re_invoke) [核心创新]**
    - 将工具结果作为上下文，再次调用 LLM
    - 让 AI 基于工具结果进行智能分析和回答
-   - 保持角色设定（如海盗语气等）
+   - 保持原有的角色设定（如海盗语气等）
+   - **灵活处理用户格式要求**：
+     * 禁止工具调用格式的 JSON
+     * 但允许用户要求的输出格式（JSON/Markdown/YAML 等）
+     * 严格遵守用户在 Human Message 中指定的所有约束
 
 7. 响应合成节点 (response_synthesis)
-   - 处理最终响应
-   - 对于有工具的情况，使用二次推理结果
-   - 对于无工具的情况，使用原始 LLM 响应
+   - 处理最终响应输出
+   - 优先使用二次推理结果（有工具执行的情况）
+   - 降级使用原始 LLM 响应（无工具执行或二次推理失败）
 
 架构优势：
 =========
-- 真正的智能工具结果处理，而非简单拼接
-- 保持AI角色设定和对话风格
-- 更自然的人机交互体验
-- 支持复杂工具结果的深度分析
+- ✅ 真正的智能工具结果处理，而非简单拼接
+- ✅ 保持 AI 角色设定和对话风格
+- ✅ 尊重用户的格式和结构要求
+- ✅ 更自然的人机交互体验
+- ✅ 支持复杂工具结果的深度分析
+- ✅ 外部 LLM 实例管理，提高灵活性和可测试性
+
+设计原则：
+=========
+1. **状态驱动**：使用 McpState TypedDict 管理所有状态
+2. **关注点分离**：每个节点专注单一职责
+3. **可组合性**：节点可独立测试和替换
+4. **错误容错**：完善的错误处理和降级策略
+5. **用户意图优先**：二次推理严格遵守用户要求
 
 流程图：
 =======
@@ -48,6 +71,32 @@ preprocess → llm_invoke → tool_parse → [条件判断]
                                     tool_execution → llm_re_invoke → response_synthesis
                                           ↓ (不需要工具)
                                     response_synthesis
+
+使用示例：
+=========
+```python
+# 1. 创建工作流
+llm = create_deepseek_llm()
+workflow = await create_mcp_workflow("my_workflow", mcp_client)
+
+# 2. 构建状态
+chat_history: McpState = {
+    "messages": [SystemMessage(content="你是海盗")],
+    "llm": llm,
+    "mcp_client": mcp_client,
+    "available_tools": tools,
+}
+
+user_input: McpState = {
+    "messages": [HumanMessage(content="现在几点了？用JSON格式回答")],
+    "llm": llm,
+    "mcp_client": mcp_client,
+    "available_tools": tools,
+}
+
+# 3. 执行工作流
+responses = await execute_mcp_workflow(workflow, chat_history, user_input)
+```
 """
 
 from dotenv import load_dotenv
@@ -58,7 +107,6 @@ load_dotenv()
 
 import asyncio
 from typing import Annotated, Any, Dict, List, Optional
-
 from langchain.schema import AIMessage, SystemMessage, HumanMessage
 from langchain_core.messages import BaseMessage
 from langchain_deepseek import ChatDeepSeek
@@ -77,9 +125,6 @@ from ..mcp import (
     format_tool_description_simple,
 )
 
-# 导入统一的 DeepSeek LLM 客户端
-from .client import create_deepseek_llm
-
 
 ############################################################################################################
 class McpState(TypedDict, total=False):
@@ -88,7 +133,7 @@ class McpState(TypedDict, total=False):
     """
 
     messages: Annotated[List[BaseMessage], add_messages]
-    llm: ChatDeepSeek  # DeepSeek LLM实例，整个graph流程共享
+    llm: Optional[ChatDeepSeek]  # DeepSeek LLM实例，整个graph流程共享
     mcp_client: Optional[McpClient]  # MCP 客户端
     available_tools: List[McpToolInfo]  # 可用的 MCP 工具
     tool_outputs: List[Dict[str, Any]]  # 工具执行结果
@@ -494,17 +539,19 @@ async def _llm_re_invoke_node(state: McpState) -> McpState:
 
         tool_context = "\n\n".join(tool_context_parts)
 
-        # 构建二次推理的提示（不包含角色设定，只专注工具结果分析）
+        # 构建二次推理的提示（灵活处理，不强制禁止用户要求的格式）
         tool_analysis_prompt = f"""
 工具已经执行完毕，请直接基于以下结果回答用户的问题：
 
 {tool_context}
 
-❌ 重要：不要再调用任何工具！工具执行已完成！
-❌ 不要输出任何JSON格式的内容！
-✅ 请直接用自然语言回答用户的问题！
-✅ 根据工具提供的信息进行分析和总结！
-✅ 保持你的角色设定和语言风格！
+## 重要约束
+❌ 不要再次调用工具！所有工具已执行完成！
+❌ 不要生成工具调用格式的JSON（即 {{"tool_call": {{"name": "...", "arguments": {{...}}}}}}）
+✅ 直接基于工具结果回答用户的问题
+✅ 严格遵守用户在问题中提出的所有要求（包括格式、语气、结构等）
+✅ 保持你的角色设定和语言风格
+✅ 如果用户要求特定的输出格式（如JSON、Markdown等），请严格按照用户要求输出
 
 现在请直接回答用户的问题。
 """
@@ -666,26 +713,22 @@ def _should_execute_tools(state: McpState) -> str:
 
 
 ############################################################################################################
-async def create_compiled_mcp_stage_graph(
-    node_name: str,
+async def create_mcp_workflow(
+    workflow_name: str,
     mcp_client: McpClient,
 ) -> CompiledStateGraph[McpState, Any, McpState, McpState]:
     """
     创建带 MCP 支持的编译状态图（多节点架构）
 
     Args:
-        node_name: 基础节点名称前缀
+        workflow_name: 工作流名称标识
         mcp_client: MCP客户端实例
 
     Returns:
         CompiledStateGraph: 编译后的状态图
     """
-    assert node_name != "", "node_name is empty"
+    assert workflow_name != "", "workflow_name is empty"
     assert mcp_client is not None, "mcp_client is required"
-
-    # 创建新的 ChatDeepSeek 实例
-    llm = create_deepseek_llm()
-    assert llm is not None, "ChatDeepSeek instance is not available"
 
     # 初始化 MCP 工具
     available_tools = []
@@ -702,7 +745,7 @@ async def create_compiled_mcp_stage_graph(
         # 确保状态包含必要信息，包括LLM实例
         state_with_context: McpState = {
             "messages": state.get("messages", []),
-            "llm": state.get("llm", llm),  # 确保LLM实例存在
+            "llm": state.get("llm", None),  # 确保LLM实例存在
             "mcp_client": state.get("mcp_client", mcp_client),
             "available_tools": state.get("available_tools", available_tools),
             "tool_outputs": state.get("tool_outputs", []),
@@ -717,7 +760,7 @@ async def create_compiled_mcp_stage_graph(
                 error_message = AIMessage(content="抱歉，处理请求时发生错误。")
                 fallback_result: McpState = {
                     "messages": [error_message],
-                    "llm": llm,  # 确保LLM实例存在
+                    "llm": state.get("llm", None),  # 确保LLM实例存在
                     "mcp_client": mcp_client,
                     "available_tools": available_tools,
                     "tool_outputs": [],
@@ -729,7 +772,7 @@ async def create_compiled_mcp_stage_graph(
             error_message = AIMessage(content="抱歉，系统发生未知错误。")
             fallback_exception_result: McpState = {
                 "messages": [error_message],
-                "llm": llm,  # 确保LLM实例存在
+                "llm": state.get("llm", None),  # 确保LLM实例存在
                 "mcp_client": mcp_client,
                 "available_tools": available_tools,
                 "tool_outputs": [],
@@ -775,7 +818,7 @@ async def create_compiled_mcp_stage_graph(
 
 
 ############################################################################################################
-async def stream_mcp_graph_updates(
+async def execute_mcp_workflow(
     state_compiled_graph: CompiledStateGraph[McpState, Any, McpState, McpState],
     chat_history_state: McpState,
     user_input_state: McpState,
@@ -795,9 +838,14 @@ async def stream_mcp_graph_updates(
 
     # 合并状态，保持 MCP 相关信息
     llm_instance = user_input_state.get("llm") or chat_history_state.get("llm")
+    assert (
+        llm_instance is not None
+    ), "LLM instance is required in either chat history or user input state"
     if not llm_instance:
+        logger.error("LLM 实例缺失，无法处理请求")
+        return []
         # 如果两个状态都没有LLM实例，创建一个新的
-        llm_instance = create_deepseek_llm()
+        # llm_instance = create_deepseek_llm()
 
     merged_message_context: McpState = {
         "messages": chat_history_state["messages"] + user_input_state["messages"],
@@ -830,3 +878,6 @@ async def stream_mcp_graph_updates(
         ret.append(error_message)
 
     return ret
+
+
+############################################################################################################
