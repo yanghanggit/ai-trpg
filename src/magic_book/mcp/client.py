@@ -533,7 +533,7 @@ class McpClient:
 
             # 解析资源信息
             resources_data = response.get("result", {}).get("resources", [])
-            logger.debug(f"🔍 服务器返回的资源数据: {resources_data}")
+            # logger.debug(f"🔍 服务器返回的资源数据: {resources_data}")
             resources = []
 
             for resource_data in resources_data:

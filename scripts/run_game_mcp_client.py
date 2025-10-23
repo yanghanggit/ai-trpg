@@ -14,8 +14,6 @@ Game MCP 客户端 - 简化版 DeepSeek + MCP 聊天系统
 
 import os
 import sys
-import traceback
-from typing import Any, List
 
 # 将 src 目录添加到模块搜索路径
 sys.path.insert(
@@ -23,6 +21,8 @@ sys.path.insert(
 )
 
 # 导入必要的模块
+import traceback
+from typing import Any, List
 import asyncio
 from langchain.schema import HumanMessage, SystemMessage
 from langgraph.graph.state import CompiledStateGraph
@@ -274,16 +274,23 @@ async def main() -> None:
             tools_result = await mcp_client.list_tools()
             available_tools = tools_result if tools_result is not None else []
             logger.success(f"🔗 MCP 客户端连接成功，可用工具: {len(available_tools)}")
+            for tool in available_tools:
+                logger.debug(f"{tool.model_dump_json(indent=2, ensure_ascii=False)}")
 
             prompts_result = await mcp_client.list_prompts()
             available_prompts = prompts_result if prompts_result is not None else []
             logger.success(f"📝 获取到 {len(available_prompts)} 个提示词模板")
+            for prompt in available_prompts:
+                logger.debug(f"{prompt.model_dump_json(indent=2, ensure_ascii=False)}")
 
             resources_result = await mcp_client.list_resources()
             available_resources = (
                 resources_result if resources_result is not None else []
             )
             logger.success(f"📦 获取到 {len(available_resources)} 个资源")
+            for resource in available_resources:
+                logger.debug(f"{resource.model_dump_json(indent=2, ensure_ascii=False)}")
+
         except Exception as e:
             logger.error(f"❌ MCP 服务器连接失败: {e}")
             logger.info("💡 请先启动 MCP 服务器: python scripts/run_game_mcp_server.py")
@@ -294,11 +301,15 @@ async def main() -> None:
         logger.info("✅ DeepSeek LLM 实例创建成功")
 
         # 设置系统提示
-        system_prompt = """你是一个游戏助手，帮助玩家了解游戏状态、提供建议和指导。"""
+        # system_prompt = """你是一个游戏助手，帮助玩家了解游戏状态、提供建议和指导。"""
 
         # 初始化聊天历史状态
-        chat_history_state: McpState = {
-            "messages": [SystemMessage(content=system_prompt)],
+        system_conversation_context: McpState = {
+            "messages": [
+                SystemMessage(
+                    content="""你是一个游戏助手，帮助玩家了解游戏状态、提供建议和指导。"""
+                )
+            ],
             "llm": llm,
             "mcp_client": mcp_client,
             "available_tools": available_tools,
@@ -329,7 +340,7 @@ async def main() -> None:
 
                 # 处理历史记录命令
                 elif user_input.lower() == "/history":
-                    print_chat_history(chat_history_state)
+                    print_chat_history(system_conversation_context)
                     continue
 
                 # 处理提示词模板命令
@@ -363,7 +374,7 @@ async def main() -> None:
 
                 await handle_user_message(
                     user_input_state=user_input_state,
-                    chat_history_state=chat_history_state,
+                    chat_history_state=system_conversation_context,
                     compiled_mcp_stage_graph=compiled_mcp_stage_graph,
                 )
 
