@@ -875,7 +875,7 @@ async def execute_mcp_workflow(
                     final_messages = value["messages"]
                 # 记录工具执行信息（用于调试）
                 if value.get("tool_outputs"):
-                    logger.info(f"工具执行记录: {value['tool_outputs']}")
+                    logger.debug(f"工具执行记录: {value['tool_outputs']}")
 
         # 返回最终消息
         ret.extend(final_messages)

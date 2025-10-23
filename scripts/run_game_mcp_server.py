@@ -187,35 +187,236 @@ async def health_check(request: Request) -> Response:
 # ============================================================================
 
 
+# @app.tool()
+# async def get_game_data(key: str) -> str:
+#     """
+#     从游戏数据字典获取指定键的值
+
+#     Args:
+#         key: 数据键名 (player_hp|player_level|game_status|player_name|current_scene|inventory_size)
+
+#     Returns:
+#         对应的游戏数据值，如果键不存在则返回错误信息
+#     """
+#     try:
+#         if key in GAME_DATA:
+#             result = {
+#                 "key": key,
+#                 "value": GAME_DATA[key],
+#                 "timestamp": datetime.now().isoformat(),
+#             }
+#             logger.info(f"获取游戏数据: {key} = {GAME_DATA[key]}")
+#             return json.dumps(result, ensure_ascii=False, indent=2)
+#         else:
+#             available_keys = ", ".join(GAME_DATA.keys())
+#             error_msg = f"错误：键 '{key}' 不存在。可用的键：{available_keys}"
+#             logger.warning(error_msg)
+#             return error_msg
+
+#     except Exception as e:
+#         logger.error(f"获取游戏数据失败: {e}")
+#         return f"错误：无法获取游戏数据 - {str(e)}"
+
+
 @app.tool()
-async def get_game_data(key: str) -> str:
+async def get_world_entity(name: str) -> str:
     """
-    从游戏数据字典获取指定键的值
+    根据名称获取游戏世界实体（World、Stage或Actor）的完整数据
 
     Args:
-        key: 数据键名 (player_hp|player_level|game_status|player_name|current_scene|inventory_size)
+        name: 实体名称（可以是World名称、Stage名称或Actor名称）
 
     Returns:
-        对应的游戏数据值，如果键不存在则返回错误信息
+        对应实体的完整JSON数据，包含所有嵌套信息
     """
     try:
-        if key in GAME_DATA:
-            result = {
-                "key": key,
-                "value": GAME_DATA[key],
-                "timestamp": datetime.now().isoformat(),
-            }
-            logger.info(f"获取游戏数据: {key} = {GAME_DATA[key]}")
-            return json.dumps(result, ensure_ascii=False, indent=2)
-        else:
-            available_keys = ", ".join(GAME_DATA.keys())
-            error_msg = f"错误：键 '{key}' 不存在。可用的键：{available_keys}"
-            logger.warning(error_msg)
-            return error_msg
+        # 检查是否是World
+        if name == game_world.name:
+            logger.info(f"获取World数据: {name}")
+            return game_world.model_dump_json(indent=2, ensure_ascii=False)
+
+        # 递归搜索Stage的函数
+        def find_stage(stages: List[Stage], target_name: str) -> Stage | None:
+            for stage in stages:
+                if stage.name == target_name:
+                    return stage
+                # 递归搜索子场景
+                if stage.stages:
+                    found = find_stage(stage.stages, target_name)
+                    if found:
+                        return found
+            return None
+
+        # 递归搜索Actor的函数
+        def find_actor(stages: List[Stage], target_name: str) -> Actor | None:
+            for stage in stages:
+                # 在当前场景的actors中查找
+                for actor in stage.actors:
+                    if actor.name == target_name:
+                        return actor
+                # 递归搜索子场景中的actors
+                if stage.stages:
+                    found = find_actor(stage.stages, target_name)
+                    if found:
+                        return found
+            return None
+
+        # 尝试查找Stage
+        stage = find_stage(game_world.stages, name)
+        if stage:
+            logger.info(f"获取Stage数据: {name}")
+            return stage.model_dump_json(indent=2, ensure_ascii=False)
+
+        # 尝试查找Actor
+        actor = find_actor(game_world.stages, name)
+        if actor:
+            logger.info(f"获取Actor数据: {name}")
+            return actor.model_dump_json(indent=2, ensure_ascii=False)
+
+        # 未找到任何匹配
+        error_msg = f"错误：未找到名为 '{name}' 的World、Stage或Actor"
+        logger.warning(error_msg)
+        return json.dumps(
+            {"error": error_msg, "timestamp": datetime.now().isoformat()},
+            ensure_ascii=False,
+            indent=2,
+        )
 
     except Exception as e:
-        logger.error(f"获取游戏数据失败: {e}")
-        return f"错误：无法获取游戏数据 - {str(e)}"
+        logger.error(f"获取游戏世界实体失败: {e}")
+        return json.dumps(
+            {
+                "error": f"无法获取游戏世界实体数据 - {str(e)}",
+                "timestamp": datetime.now().isoformat(),
+            },
+            ensure_ascii=False,
+            indent=2,
+        )
+
+
+@app.tool()
+async def move_actor(actor_name: str, target_stage_name: str) -> str:
+    """
+    将指定的Actor从当前Stage移动到目标Stage
+
+    Args:
+        actor_name: 要移动的Actor名称
+        target_stage_name: 目标Stage名称
+
+    Returns:
+        移动操作的结果信息（JSON格式）
+    """
+    try:
+        # 递归搜索并返回包含指定Actor的Stage
+        def find_stage_with_actor(
+            stages: List[Stage], target_actor_name: str
+        ) -> tuple[Stage | None, Actor | None]:
+            for stage in stages:
+                # 在当前场景的actors中查找
+                for actor in stage.actors:
+                    if actor.name == target_actor_name:
+                        return stage, actor
+                # 递归搜索子场景
+                if stage.stages:
+                    found_stage, found_actor = find_stage_with_actor(
+                        stage.stages, target_actor_name
+                    )
+                    if found_stage and found_actor:
+                        return found_stage, found_actor
+            return None, None
+
+        # 递归搜索目标Stage
+        def find_stage(stages: List[Stage], target_name: str) -> Stage | None:
+            for stage in stages:
+                if stage.name == target_name:
+                    return stage
+                if stage.stages:
+                    found = find_stage(stage.stages, target_name)
+                    if found:
+                        return found
+            return None
+
+        # 查找Actor当前所在的Stage
+        current_stage, actor = find_stage_with_actor(game_world.stages, actor_name)
+        if not current_stage or not actor:
+            error_msg = f"错误：未找到名为 '{actor_name}' 的Actor"
+            logger.warning(error_msg)
+            return json.dumps(
+                {
+                    "success": False,
+                    "error": error_msg,
+                    "timestamp": datetime.now().isoformat(),
+                },
+                ensure_ascii=False,
+                indent=2,
+            )
+
+        # 查找目标Stage
+        target_stage = find_stage(game_world.stages, target_stage_name)
+        if not target_stage:
+            error_msg = f"错误：未找到名为 '{target_stage_name}' 的目标Stage"
+            logger.warning(error_msg)
+            return json.dumps(
+                {
+                    "success": False,
+                    "error": error_msg,
+                    "timestamp": datetime.now().isoformat(),
+                },
+                ensure_ascii=False,
+                indent=2,
+            )
+
+        # 检查是否已经在目标Stage
+        if current_stage.name == target_stage.name:
+            info_msg = f"{actor_name} 已经在 {target_stage_name} 中"
+            logger.info(info_msg)
+            return json.dumps(
+                {
+                    "success": True,
+                    "message": info_msg,
+                    "actor": actor_name,
+                    "current_stage": current_stage.name,
+                    "timestamp": datetime.now().isoformat(),
+                },
+                ensure_ascii=False,
+                indent=2,
+            )
+
+        # 从当前Stage移除Actor
+        current_stage.actors.remove(actor)
+
+        # 添加Actor到目标Stage
+        target_stage.actors.append(actor)
+
+        success_msg = (
+            f"{actor_name} 成功从 {current_stage.name} 移动到 {target_stage_name}"
+        )
+        logger.info(success_msg)
+
+        return json.dumps(
+            {
+                "success": True,
+                "message": success_msg,
+                "actor": actor_name,
+                "from_stage": current_stage.name,
+                "to_stage": target_stage.name,
+                "timestamp": datetime.now().isoformat(),
+            },
+            ensure_ascii=False,
+            indent=2,
+        )
+
+    except Exception as e:
+        logger.error(f"移动Actor失败: {e}")
+        return json.dumps(
+            {
+                "success": False,
+                "error": f"移动Actor失败 - {str(e)}",
+                "timestamp": datetime.now().isoformat(),
+            },
+            ensure_ascii=False,
+            indent=2,
+        )
 
 
 # ============================================================================
