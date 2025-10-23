@@ -233,6 +233,7 @@ def handle_help_command() -> None:
     logger.info("  /resources - 查看可用资源")
     logger.info("  /prompts   - 查看提示词模板")
     logger.info("  /history   - 查看对话历史")
+    logger.info("  /system    - 执行系统指令（让AI主动获取游戏状态）")
     logger.info("  /help      - 显示此帮助")
     logger.info("  /quit      - 退出程序")
     logger.info("🎮" * 30)
@@ -282,6 +283,7 @@ async def main() -> None:
         logger.info("\n" + "🎮" * 30)
         logger.info("🤖 Game MCP Client - DeepSeek AI")
         logger.info("💡 输入 /help 查看命令 | 输入 /quit 退出")
+        logger.info("💡 输入 /system 执行系统指令让AI主动获取游戏状态")
         logger.info("🎮" * 30 + "\n")
 
         # 初始化 MCP 客户端
@@ -325,7 +327,7 @@ async def main() -> None:
 
         # 创建 DeepSeek LLM 实例
         llm = create_deepseek_llm(0.7)
-        logger.info("✅ DeepSeek LLM 实例创建成功")
+        logger.debug("✅ DeepSeek LLM 实例创建成功")
 
         # 设置系统提示
         # system_prompt = """你是一个游戏助手，帮助玩家了解游戏状态、提供建议和指导。"""
@@ -381,13 +383,78 @@ async def main() -> None:
                     handle_help_command()
                     continue
 
+                # 处理系统指令
+                elif user_input.startswith("/system"):
+                    # 提取系统指令内容（去除 /system 前缀）
+                    system_instruction = user_input[7:].strip()
+
+                    # 如果没有提供具体指令，使用默认指令
+                    if not system_instruction:
+                        logger.error("💡 未提供具体系统指令!")
+                        continue
+
+                    logger.success(f"🎮 执行系统指令: {system_instruction}")
+                    # 将系统指令作为用户消息发送给AI
+                    system_input_state: McpState = {
+                        "messages": [HumanMessage(content=system_instruction)],
+                        "llm": llm,
+                        "mcp_client": mcp_client,
+                        "available_tools": available_tools,
+                        "tool_outputs": [],
+                    }
+
+                    await handle_user_message(
+                        user_input_state=system_input_state,
+                        chat_history_state=system_conversation_context,
+                        compiled_mcp_stage_graph=compiled_mcp_stage_graph,
+                    )
+                    continue
+
+                #
+                elif user_input.startswith("/player"):
+
+                    player_command = user_input[7:].strip()
+                    if not player_command:
+                        logger.error("💡 未提供具体玩家指令!")
+                        continue
+
+                    logger.success(f"🎮 执行玩家指令: {player_command}")
+
+                    player_command_prompt = f"""# 控制指令
+
+## 控制角色
+ 
+{player_actor_name}
+
+## 指令内容
+
+{player_command}"""
+
+                    player_command_input_state: McpState = {
+                        "messages": [HumanMessage(content=player_command_prompt)],
+                        "llm": llm,
+                        "mcp_client": mcp_client,
+                        "available_tools": available_tools,
+                        "tool_outputs": [],
+                    }
+
+                    await handle_user_message(
+                        user_input_state=player_command_input_state,
+                        chat_history_state=system_conversation_context,
+                        compiled_mcp_stage_graph=compiled_mcp_stage_graph,
+                    )
+
+                    continue
+
                 # 处理空输入
                 elif user_input == "":
                     logger.warning("💡 请输入您的问题，或输入 /help 查看帮助")
                     continue
 
+                continue  # 先挡掉
+
                 # 处理普通用户消息
-                user_input_state: McpState = {
+                default_user_input_state: McpState = {
                     "messages": [HumanMessage(content=user_input)],
                     "llm": llm,
                     "mcp_client": mcp_client,
@@ -396,7 +463,7 @@ async def main() -> None:
                 }
 
                 await handle_user_message(
-                    user_input_state=user_input_state,
+                    user_input_state=default_user_input_state,
                     chat_history_state=system_conversation_context,
                     compiled_mcp_stage_graph=compiled_mcp_stage_graph,
                 )

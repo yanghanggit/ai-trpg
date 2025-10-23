@@ -29,15 +29,8 @@ from mcp.server.fastmcp import FastMCP
 import mcp.types as types
 from magic_book.mcp import mcp_config
 from pydantic import BaseModel
-
-# from magic_book.game.config import setup_logger
 from fastapi import Request, Response
 
-# ============================================================================
-# 初始化日志系统
-# ============================================================================
-
-# setup_logger()
 
 # ============================================================================
 # 游戏数据字典
@@ -139,10 +132,10 @@ class World(BaseModel):
             stages: List[Stage],
         ) -> tuple[Actor | None, Stage | None]:
             for stage in stages:
-                # 在当前Stage中查找Actor
-                actor = stage.find_actor(actor_name)
-                if actor:
-                    return actor, stage
+                # 先在当前Stage的actors中直接查找
+                for actor in stage.actors:
+                    if actor.name == actor_name:
+                        return actor, stage
 
                 # 递归搜索子场景
                 if stage.stages:

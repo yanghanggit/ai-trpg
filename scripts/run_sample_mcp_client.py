@@ -443,7 +443,7 @@ async def main() -> None:
 
         # 创建共享的 DeepSeek LLM 实例
         llm = create_deepseek_llm(0.7)
-        logger.info("✅ DeepSeek LLM 实例创建成功")
+        logger.debug("✅ DeepSeek LLM 实例创建成功")
 
         # 设置系统提示
         system_prompt = (
