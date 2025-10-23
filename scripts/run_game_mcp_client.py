@@ -22,7 +22,7 @@ sys.path.insert(
 
 # 导入必要的模块
 import traceback
-from typing import Any, List
+from typing import Any, Final, List
 import asyncio
 from langchain.schema import HumanMessage, SystemMessage
 from langgraph.graph.state import CompiledStateGraph
@@ -43,6 +43,27 @@ from magic_book.mcp import (
     mcp_config,
 )
 
+world_name: Final[str] = "艾泽拉斯大陆"
+player_actor_name: Final[str] = "艾尔温·星语"
+game_master_system_prompt: str = (
+    """你是一个游戏助手，帮助玩家了解游戏状态、提供建议和指导。"""
+)
+
+game_master_system_prompt = f"""# 你扮演一个奇幻世界游戏的管理员（Game Master）。
+
+## 游戏世界
+
+名称: {world_name}
+
+## 玩家角色
+
+名称: {player_actor_name}
+
+## 你的职责：
+
+负责引导玩家在名为 {world_name} 的虚拟世界中冒险。
+你的任务是根据玩家 {player_actor_name} 的输入，
+提供有趣且富有创意的回应，帮助他们理解游戏环境、任务和角色。"""
 
 # ============================================================================
 # 辅助函数
@@ -289,7 +310,9 @@ async def main() -> None:
             )
             logger.success(f"📦 获取到 {len(available_resources)} 个资源")
             for resource in available_resources:
-                logger.debug(f"{resource.model_dump_json(indent=2, ensure_ascii=False)}")
+                logger.debug(
+                    f"{resource.model_dump_json(indent=2, ensure_ascii=False)}"
+                )
 
         except Exception as e:
             logger.error(f"❌ MCP 服务器连接失败: {e}")
@@ -305,11 +328,7 @@ async def main() -> None:
 
         # 初始化聊天历史状态
         system_conversation_context: McpState = {
-            "messages": [
-                SystemMessage(
-                    content="""你是一个游戏助手，帮助玩家了解游戏状态、提供建议和指导。"""
-                )
-            ],
+            "messages": [SystemMessage(content=game_master_system_prompt)],
             "llm": llm,
             "mcp_client": mcp_client,
             "available_tools": available_tools,

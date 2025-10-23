@@ -15,19 +15,20 @@ Game MCP 服务器 - 简化版 MCP 服务器实现
 
 import os
 import sys
-import json
-from datetime import datetime
-from typing import Dict
 
 # 将 src 目录添加到模块搜索路径
 sys.path.insert(
     0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "src")
 )
 
+import json
+from datetime import datetime
+from typing import Dict, List
 from loguru import logger
 from mcp.server.fastmcp import FastMCP
 import mcp.types as types
 from magic_book.mcp import mcp_config
+from pydantic import BaseModel
 
 # from magic_book.game.config import setup_logger
 from fastapi import Request, Response
@@ -50,6 +51,79 @@ GAME_DATA: Dict[str, str] = {
     "current_scene": "forest",
     "inventory_size": "10",
 }
+
+
+class Actor(BaseModel):
+    """表示游戏中角色状态的模型"""
+
+    name: str
+    description: str
+    appearance: str
+
+
+class Stage(BaseModel):
+    """表示游戏中场景状态的模型"""
+
+    name: str
+    description: str
+    environment: str
+    actors: List[Actor]
+    stages: List["Stage"] = []  # 支持嵌套子场景
+
+
+class World(BaseModel):
+    """表示游戏世界状态的模型"""
+
+    name: str
+    description: str
+    stages: List[Stage]
+
+
+# ============================================================================
+# 游戏世界实例
+# ============================================================================
+
+game_world = World(
+    name="艾泽拉斯大陆",
+    description="一个充满魔法与冒险的奇幻世界，古老的传说在这里流传，英雄们在这片土地上书写着自己的史诗。",
+    stages=[
+        # 翡翠森林（主场景区域，包含子场景）
+        Stage(
+            name="翡翠森林",
+            description="艾泽拉斯大陆上最古老的森林之一，充满了生命的魔法能量。这片广袤的森林由多个区域组成，每个区域都有其独特的景观和居民。",
+            environment="古老而神秘的森林，参天巨树遮天蔽日，空气中弥漫着自然魔法的气息。森林深处隐藏着许多秘密和传说。",
+            actors=[],
+            stages=[
+                # 子场景1：月光林地（空场景）
+                Stage(
+                    name="月光林地",
+                    description="翡翠森林的北部区域，这片林地在夜晚会被月光笼罩，显得格外宁静祥和。古老的石碑矗立在林地中央，通往南边的星语圣树。",
+                    environment="银色的月光透过树叶间隙洒落，照亮了布满青苔的石板路。四周是参天的古树，偶尔能听到夜莺的歌声。一条蜿蜒的小路向南延伸，连接着森林深处。",
+                    actors=[],
+                ),
+                # 子场景2：星语圣树（有角色的场景）
+                Stage(
+                    name="星语圣树",
+                    description="翡翠森林的核心区域，一棵巨大的生命古树屹立于此，这是德鲁伊们的圣地。从北边的月光林地可以直接到达这里。",
+                    environment="一棵高耸入云的巨大古树占据了视野中心，树干粗壮到需要数十人才能环抱。树根盘绕形成天然的平台，树冠上挂满发光的藤蔓和花朵。空气中充满了浓郁的生命能量。",
+                    actors=[
+                        Actor(
+                            name="艾尔温·星语",
+                            description="精灵族的德鲁伊长老，守护翡翠森林已有千年之久。他精通自然魔法，能与森林中的生物沟通。常驻于星语圣树，但也会前往月光林地巡视。",
+                            appearance="身穿绿色长袍的高大精灵，银白色的长发及腰，碧绿的眼眸中闪烁着智慧的光芒，手持一根雕刻着古老符文的木杖",
+                        ),
+                        Actor(
+                            name="索尔娜·影舞",
+                            description="神秘的暗夜精灵游侠，是森林的守护者。她在两个区域间穿梭巡逻，行踪飘忽，箭术精湛，总是在危险来临前出现。",
+                            appearance="身着深紫色皮甲的矫健身影,紫色的肌肤在月光下闪耀,银色的长发束成高马尾,背后背着一把精致的月牙弓和装满银色羽箭的箭筒",
+                        ),
+                    ],
+                ),
+            ],
+        ),
+    ],
+)
+
 
 # ============================================================================
 # 创建 FastMCP 应用实例
