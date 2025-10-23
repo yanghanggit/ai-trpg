@@ -713,10 +713,68 @@ def _should_execute_tools(state: McpState) -> str:
 
 
 ############################################################################################################
-async def create_mcp_workflow(
-    workflow_name: str,
-    mcp_client: McpClient,
-) -> CompiledStateGraph[McpState, Any, McpState, McpState]:
+async def _preprocess_wrapper(state: McpState) -> McpState:
+    """
+    预处理包装器，确保状态包含必要信息
+
+    Args:
+        state: 当前状态
+
+    Returns:
+        McpState: 更新后的状态
+    """
+    # 确保状态包含必要信息，包括LLM实例
+    state_with_context: McpState = {
+        "messages": state.get("messages", []),
+        "llm": state.get("llm", None),  # 确保LLM实例存在
+        "mcp_client": state.get("mcp_client", None),
+        "available_tools": state.get("available_tools", []),
+        "tool_outputs": state.get("tool_outputs", []),
+    }
+    return await _preprocess_node(state_with_context)
+
+
+############################################################################################################
+async def _error_fallback_wrapper(state: McpState) -> McpState:
+    """
+    错误处理包装器，确保总能返回有效响应
+
+    Args:
+        state: 当前状态
+
+    Returns:
+        McpState: 更新后的状态
+    """
+    try:
+        # 如果之前的节点都失败了，提供一个基本的错误响应
+        if not state.get("messages"):
+            error_message = AIMessage(content="抱歉，处理请求时发生错误。")
+            fallback_result: McpState = {
+                "messages": [error_message],
+                "llm": state.get("llm", None),  # 确保LLM实例存在
+                "mcp_client": state.get("mcp_client", None),
+                "available_tools": state.get("available_tools", []),
+                "tool_outputs": [],
+            }
+            return fallback_result
+        return state
+    except Exception as e:
+        logger.error(f"错误处理包装器失败: {e}")
+        error_message = AIMessage(content="抱歉，系统发生未知错误。")
+        fallback_exception_result: McpState = {
+            "messages": [error_message],
+            "llm": state.get("llm", None),  # 确保LLM实例存在
+            "mcp_client": state.get("mcp_client", None),
+            "available_tools": state.get("available_tools", []),
+            "tool_outputs": [],
+        }
+        return fallback_exception_result
+
+
+############################################################################################################
+async def create_mcp_workflow() -> (
+    CompiledStateGraph[McpState, Any, McpState, McpState]
+):
     """
     创建带 MCP 支持的编译状态图（多节点架构）
 
@@ -727,69 +785,18 @@ async def create_mcp_workflow(
     Returns:
         CompiledStateGraph: 编译后的状态图
     """
-    assert workflow_name != "", "workflow_name is empty"
-    assert mcp_client is not None, "mcp_client is required"
-
-    # 初始化 MCP 工具
-    available_tools = []
-    try:
-        tools_result = await mcp_client.list_tools()
-        available_tools = tools_result if tools_result is not None else []
-        logger.info(f"MCP 工具初始化完成，可用工具数量: {len(available_tools)}")
-    except Exception as e:
-        logger.error(f"MCP 客户端初始化失败: {e}")
-        # MCP 初始化失败，但继续运行（只是没有工具支持）
-
-    # 创建包装函数，传递必要的上下文
-    async def preprocess_wrapper(state: McpState) -> McpState:
-        # 确保状态包含必要信息，包括LLM实例
-        state_with_context: McpState = {
-            "messages": state.get("messages", []),
-            "llm": state.get("llm", None),  # 确保LLM实例存在
-            "mcp_client": state.get("mcp_client", mcp_client),
-            "available_tools": state.get("available_tools", available_tools),
-            "tool_outputs": state.get("tool_outputs", []),
-        }
-        return await _preprocess_node(state_with_context)
-
-    async def error_fallback_wrapper(state: McpState) -> McpState:
-        """错误处理包装器，确保总能返回有效响应"""
-        try:
-            # 如果之前的节点都失败了，提供一个基本的错误响应
-            if not state.get("messages"):
-                error_message = AIMessage(content="抱歉，处理请求时发生错误。")
-                fallback_result: McpState = {
-                    "messages": [error_message],
-                    "llm": state.get("llm", None),  # 确保LLM实例存在
-                    "mcp_client": mcp_client,
-                    "available_tools": available_tools,
-                    "tool_outputs": [],
-                }
-                return fallback_result
-            return state
-        except Exception as e:
-            logger.error(f"错误处理包装器失败: {e}")
-            error_message = AIMessage(content="抱歉，系统发生未知错误。")
-            fallback_exception_result: McpState = {
-                "messages": [error_message],
-                "llm": state.get("llm", None),  # 确保LLM实例存在
-                "mcp_client": mcp_client,
-                "available_tools": available_tools,
-                "tool_outputs": [],
-            }
-            return fallback_exception_result
 
     # 构建多节点状态图
     graph_builder = StateGraph(McpState)
 
     # 添加各个节点
-    graph_builder.add_node("preprocess", preprocess_wrapper)
+    graph_builder.add_node("preprocess", _preprocess_wrapper)
     graph_builder.add_node("llm_invoke", _llm_invoke_node)
     graph_builder.add_node("tool_parse", _tool_parse_node)
     graph_builder.add_node("tool_execution", _tool_execution_node)
     graph_builder.add_node("llm_re_invoke", _llm_re_invoke_node)  # 新增二次推理节点
     graph_builder.add_node("response_synthesis", _response_synthesis_node)
-    graph_builder.add_node("error_fallback", error_fallback_wrapper)
+    graph_builder.add_node("error_fallback", _error_fallback_wrapper)
 
     # 设置流程路径
     graph_builder.set_entry_point("preprocess")

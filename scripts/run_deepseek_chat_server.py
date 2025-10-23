@@ -488,8 +488,8 @@ async def process_chat_mcp_request(payload: ChatRequest) -> ChatResponse:
 
         # 创建 MCP 状态图实例
         compiled_mcp_stage_graph = await create_mcp_workflow(
-            "deepseek_mcp_chatbot_node",
-            mcp_client,
+            # "deepseek_mcp_chatbot_node",
+            # mcp_client,
         )
 
         # 获取 MCP 回复（包含可能的工具调用）- 使用异步包装
