@@ -22,7 +22,7 @@ sys.path.insert(
 
 # 导入必要的模块
 import traceback
-from typing import Any, Final, List
+from typing import Any, List
 import asyncio
 from langchain.schema import BaseMessage, HumanMessage, SystemMessage
 from langgraph.graph.state import CompiledStateGraph
@@ -270,6 +270,33 @@ def _gen_game_system_prompt(command_content: str) -> str:
 2. 将你的回复内容组成成 markeddown 格式的文本块，方便阅读。"""
 
 
+###########################################################################################################################################
+###########################################################################################################################################
+###########################################################################################################################################
+def _gen_actor_prompt(actor: str, command: str) -> str:
+    return f"""# 角色级指令
+
+## 指令（或事件）的发起角色: {actor}
+
+## 指令内容
+
+{command}
+
+## 输出内容
+
+1. 请以符合该角色身份和背景的方式回应指令内容。
+2. 本条指令内容会产生影响，如对场景的影响与其他角色的互动等。
+3. 最终内容将1/2整合成一段完整通顺的内容。
+4. 注意！不要输出过往的对话内容，只输出本次指令的回应内容。
+
+## 输出要求
+
+将你的回复内容组成成 markeddown 格式的文本块，方便阅读。"""
+
+
+###########################################################################################################################################
+###########################################################################################################################################
+###########################################################################################################################################
 async def main() -> None:
     """Game MCP 客户端主函数"""
     logger.info("🎮 启动 Game MCP 客户端...")
@@ -411,7 +438,53 @@ async def main() -> None:
 
                     continue
 
-                logger.debug(f"💬 无法处理普通用户输入: {user_input}， 略过！")
+                # /actor @名字 指令内容
+                elif user_input.startswith("/actor"):
+
+                    # 解析 '/actor @名字 指令内容'格式
+                    parts = user_input.split(maxsplit=2)
+
+                    # 检查格式是否正确
+                    if len(parts) < 3:
+                        logger.error("💡 请提供正确的格式: /actor @名字 指令内容")
+                        continue
+
+                    # 提取角色名字（去掉@符号）
+                    actor_name_raw = parts[1]
+                    if not actor_name_raw.startswith("@"):
+                        logger.error(
+                            "💡 角色名字必须以 @ 开头，例如: /actor @张三 你的指令"
+                        )
+                        continue
+
+                    actor_name = actor_name_raw[1:]  # 去掉@符号
+                    command_content = parts[2]
+
+                    # 打印解析结果
+                    logger.info(f"🎭 角色名字: {actor_name}")
+                    logger.info(f"📝 指令内容: {command_content}")
+
+                    # TODO: 这里可以添加后续处理逻辑，比如向特定角色发送指令
+                    logger.warning("⚠️ /actor 命令功能待实现")
+
+                    prompt1 = _gen_actor_prompt(actor_name, command_content)
+                    logger.debug(f"💬 处理角色指令输入: {prompt1}")
+
+                    await handle_user_message(
+                        user_input_state={
+                            "messages": [HumanMessage(content=prompt1)],
+                            "llm": llm,
+                            "mcp_client": mcp_client,
+                            "available_tools": available_tools,
+                            "tool_outputs": [],
+                        },
+                        chat_history_state=system_conversation_state,
+                        compiled_mcp_stage_graph=compiled_mcp_stage_graph,
+                    )
+
+                    continue
+
+                logger.error(f"💬 无法处理普通用户输入: {user_input}， 略过！")
                 continue
 
                 # 处理空输入
