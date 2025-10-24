@@ -40,6 +40,7 @@ from magic_book.mcp import (
     McpResourceInfo,
     initialize_mcp_client,
     mcp_config,
+    McpClient,
 )
 import json
 
@@ -57,7 +58,7 @@ game_master_system_prompt = f"""# 你扮演一个奇幻世界游戏的管理员�
 
 ## 游戏规则
 
-- 世界构成：只有一个World, 而 World 包含多个 Stage，每个 Stage 包含多个 Actor 和 子Stages。
+- 世界构成：只有一个World, 而 World 包含多个 Stage，每个 Stage 包含多个 Actor 和 子Stages。这意味着如果想判断Actor所在的位置，需要遍历World下的所有Stage。
 
 ## 你的职责：
 
@@ -181,6 +182,41 @@ def handle_help_command() -> None:
     logger.info("🎮" * 30)
 
 
+async def handle_read_resource_command(user_input: str, mcp_client: McpClient) -> None:
+    """处理 /read-resource 命令：读取指定资源
+
+    Args:
+        user_input: 用户输入的完整命令
+        mcp_client: MCP客户端实例
+    """
+    # 解析资源名称
+    parts = user_input.split(" ", 1)
+    if len(parts) != 2 or not parts[1].strip():
+        logger.error("💡 请提供资源名称，例如: /read-resource 资源名称")
+        return
+
+    resource_uri = parts[1].strip()
+    logger.debug(f"📥 试图读取资源: {resource_uri}")
+
+    try:
+        resource_response = await mcp_client.read_resource(resource_uri)
+        if resource_response is not None:
+            logger.info(
+                f"{resource_response.model_dump_json(indent=2, ensure_ascii=False)}"
+            )
+
+            if resource_response.text is not None:
+                resource_data = json.loads(resource_response.text)
+                logger.debug(
+                    f"{json.dumps(resource_data, ensure_ascii=False, indent=2)}"
+                )
+        else:
+            logger.error(f"❌ 未能读取资源: {resource_uri}")
+    except Exception as e:
+        logger.error(f"❌ 读取资源时发生错误: {e}")
+        logger.error(f"Traceback: {traceback.format_exc()}")
+
+
 async def handle_user_message(
     user_input_state: McpState,
     chat_history_state: McpState,
@@ -216,6 +252,20 @@ async def handle_user_message(
 # ============================================================================
 # 主函数
 # ============================================================================
+
+
+def _gen_game_system_prompt(command_content: str) -> str:
+    return f"""# 系统级指令！
+
+## 说明
+
+1. 发送对象：玩家 -> 游戏系统（游戏管理员）
+2. 游戏系统（游戏管理员）拥有最高权限，负责管理和维护游戏世界的秩序与运行。
+3. 游戏系统（游戏管理员）需要根据玩家的指令内容，采取相应的行动，如更新游戏状态、提供信息等。
+
+## 指令内容
+
+{command_content}"""
 
 
 async def main() -> None:
@@ -290,6 +340,7 @@ async def main() -> None:
 
         # 对话循环
         while True:
+
             try:
                 logger.info("\n" + "=" * 60)
                 user_input = input("User: ").strip()
@@ -326,101 +377,47 @@ async def main() -> None:
 
                 # 复杂输入的处理：读取资源
                 elif "/read-resource" in user_input:
+                    await handle_read_resource_command(user_input, mcp_client)
+                    continue
 
-                    # 解析资源名称
+                elif "/system" in user_input:
+
                     parts = user_input.split(" ", 1)
                     if len(parts) != 2 or not parts[1].strip():
-                        logger.error("💡 请提供资源名称，例如: /read-resource 资源名称")
+                        logger.error(
+                            "💡 请提供系统指令内容，例如: /system 你的指令内容"
+                        )
                         continue
 
-                    resource_uri = parts[1].strip()
-                    logger.debug(f"📥 试图读取资源: {resource_uri}")
-                    resource_response = await mcp_client.read_resource(resource_uri)
-                    if resource_response is not None:
-                        logger.info(
-                            f"{resource_response.model_dump_json(indent=2, ensure_ascii=False)}"
-                        )
+                    command_content = parts[1].strip()
+                    assert len(command_content) > 0, "系统指令内容不能为空"
 
-                        if resource_response.text is not None:
-                            resource_data = json.loads(resource_response.text)
-                            logger.debug(
-                                f"{json.dumps(resource_data, ensure_ascii=False, indent=2)}"
-                            )
+                    prompt0 = _gen_game_system_prompt(command_content)
+                    logger.debug(f"💬 处理系统指令输入: {prompt0}")
 
-                    else:
-                        logger.error(f"❌ 未能读取资源: {resource_uri}")
+                    await handle_user_message(
+                        user_input_state={
+                            "messages": [HumanMessage(content=prompt0)],
+                            "llm": llm,
+                            "mcp_client": mcp_client,
+                            "available_tools": available_tools,
+                            "tool_outputs": [],
+                        },
+                        chat_history_state=system_conversation_state,
+                        compiled_mcp_stage_graph=compiled_mcp_stage_graph,
+                    )
 
                     continue
 
-                # 处理系统指令
-                #                 elif user_input.startswith("/system"):
-                #                     # 提取系统指令内容（去除 /system 前缀）
-                #                     system_instruction = user_input[7:].strip()
-
-                #                     # 如果没有提供具体指令，使用默认指令
-                #                     if not system_instruction:
-                #                         logger.error("💡 未提供具体系统指令!")
-                #                         continue
-
-                #                     logger.success(f"🎮 执行系统指令: {system_instruction}")
-                #                     # 将系统指令作为用户消息发送给AI
-                #                     system_input_state: McpState = {
-                #                         "messages": [HumanMessage(content=system_instruction)],
-                #                         "llm": llm,
-                #                         "mcp_client": mcp_client,
-                #                         "available_tools": available_tools,
-                #                         "tool_outputs": [],
-                #                     }
-
-                #                     await handle_user_message(
-                #                         user_input_state=system_input_state,
-                #                         chat_history_state=system_conversation_state,
-                #                         compiled_mcp_stage_graph=compiled_mcp_stage_graph,
-                #                     )
-                #                     continue
-
-                #                 #
-                #                 elif user_input.startswith("/player"):
-
-                #                     player_command = user_input[7:].strip()
-                #                     if not player_command:
-                #                         logger.error("💡 未提供具体玩家指令!")
-                #                         continue
-
-                #                     logger.success(f"🎮 执行玩家指令: {player_command}")
-
-                #                     player_command_prompt = f"""# 控制指令
-
-                # ## 控制角色
-
-                # {player_actor_name}
-
-                # ## 指令内容
-
-                # {player_command}"""
-
-                #                     player_command_input_state: McpState = {
-                #                         "messages": [HumanMessage(content=player_command_prompt)],
-                #                         "llm": llm,
-                #                         "mcp_client": mcp_client,
-                #                         "available_tools": available_tools,
-                #                         "tool_outputs": [],
-                #                     }
-
-                #                     await handle_user_message(
-                #                         user_input_state=player_command_input_state,
-                #                         chat_history_state=system_conversation_state,
-                #                         compiled_mcp_stage_graph=compiled_mcp_stage_graph,
-                #                     )
-
-                #                     continue
+                logger.debug(f"💬 无法处理普通用户输入: {user_input}， 略过！")
+                continue
 
                 # 处理空输入
-                elif user_input == "":
+                if user_input == "":
                     logger.warning("💡 请输入您的问题，或输入 /help 查看帮助")
                     continue
 
-                # 最后的兜底处理
+                # 最后的兜底处理, 纯聊天！
 
                 # 处理普通用户消息
                 default_user_input_state: McpState = {

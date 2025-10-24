@@ -179,12 +179,12 @@ game_world = World(
                     actors=[
                         Actor(
                             name="艾尔温·星语",
-                            description="精灵族的德鲁伊长老，守护翡翠森林已有千年之久。他精通自然魔法，能与森林中的生物沟通。常驻于星语圣树，但也会前往月光林地巡视。",
+                            description="精灵族的德鲁伊长老，他精通自然魔法，能与森林中的生物沟通。",
                             appearance="身穿绿色长袍的高大精灵，银白色的长发及腰，碧绿的眼眸中闪烁着智慧的光芒，手持一根雕刻着古老符文的木杖",
                         ),
                         Actor(
                             name="索尔娜·影舞",
-                            description="神秘的暗夜精灵游侠，是森林的守护者。她在两个区域间穿梭巡逻，行踪飘忽，箭术精湛，总是在危险来临前出现。",
+                            description="神秘的暗夜精灵游侠，是森林的守护者。她在区域间穿梭巡逻，行踪飘忽，箭术精湛，总是在危险来临前出现。",
                             appearance="身着深紫色皮甲的矫健身影,紫色的肌肤在月光下闪耀,银色的长发束成高马尾,背后背着一把精致的月牙弓和装满银色羽箭的箭筒",
                         ),
                     ],
@@ -430,13 +430,9 @@ async def get_game_config() -> str:
         return f"错误：{str(e)}"
 
 
-# @app.resource("game://dynamic/sample")
-# async def get_player_resource_example() -> str:
-#     """获取玩家信息（动态资源示例 - 固定 resource_id=sample）"""
-#     value = await get_dynamic_resource("sample")
-#     return str(value)
-
-
+#############################################################################################################
+#############################################################################################################
+#############################################################################################################
 @app.resource("game://dynamic/{resource_id}")
 async def get_dynamic_resource(resource_id: str) -> str:
     """
@@ -497,60 +493,25 @@ async def get_dynamic_resource(resource_id: str) -> str:
 
 
 @app.prompt()
-async def game_prompt(scenario: str = "default") -> types.GetPromptResult:
+async def game_prompt_sample() -> types.GetPromptResult:
     """
-    游戏场景提示词模板
-
-    Args:
-        scenario: 场景类型 (default|battle|exploration|dialogue)
+    提供游戏系统提示词模板
     """
-    prompts = {
-        "default": """欢迎来到游戏世界！
 
-当前游戏状态：
-- 玩家名称：{player_name}
-- 生命值：{player_hp}
-- 等级：{player_level}
-- 当前场景：{current_scene}
-
-请根据当前状态，为玩家提供合适的建议和指导。""",
-        "battle": """战斗场景
-
-玩家信息：
-- 生命值：{player_hp}
-- 等级：{player_level}
-
-你正在与敌人战斗！请分析当前形势，给出战斗策略建议。""",
-        "exploration": """探索场景
-
-玩家 {player_name} 正在 {current_scene} 探索。
-
-请描述周围的环境，并提示玩家可能发现的物品或遇到的事件。""",
-        "dialogue": """对话场景
-
-玩家 {player_name}（等级 {player_level}）正在与 NPC 对话。
-
-请生成合适的对话内容，并根据玩家当前状态调整对话选项。""",
-    }
-
-    prompt_text = prompts.get(scenario, prompts["default"])
-
-    # 填充游戏数据
-    filled_prompt = prompt_text.format(
-        player_name=GAME_DATA.get("player_name", "Unknown"),
-        player_hp=GAME_DATA.get("player_hp", "0"),
-        player_level=GAME_DATA.get("player_level", "1"),
-        current_scene=GAME_DATA.get("current_scene", "unknown"),
-    )
-
-    logger.info(f"生成游戏提示词模板: {scenario}")
+    prompt_template = """# 这是一个测试的提示词模板
+## 说明
+1. 发送对象：玩家 -> 游戏系统（游戏管理员）
+2. 游戏系统（游戏管理员）拥有最高权限，负责管理和维护游戏世界的秩序与运行。
+3. 游戏系统（游戏管理员）需要根据玩家的指令内容，采取相应的行动，如更新游戏状态、提供信息等。
+# 指令内容
+{command_content}"""
 
     return types.GetPromptResult(
-        description=f"游戏{scenario}场景提示模板",
+        description=f"游戏系统提示模板",
         messages=[
             types.PromptMessage(
                 role="user",
-                content=types.TextContent(type="text", text=filled_prompt),
+                content=types.TextContent(type="text", text=prompt_template),
             )
         ],
     )
