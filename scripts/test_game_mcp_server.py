@@ -27,7 +27,8 @@ sys.path.insert(
 from loguru import logger
 from mcp.server.fastmcp import FastMCP
 from magic_book.mcp import mcp_config
-from magic_book.game.config import setup_logger
+
+# from magic_book.configuration.game import setup_logger
 from magic_book.rag.knowledge_retrieval import search_similar_documents
 from magic_book.chroma import get_default_collection
 from magic_book.embedding_model.sentence_transformer import get_embedding_model
@@ -37,7 +38,7 @@ from fastapi import Request, Response
 # 初始化日志系统
 # ============================================================================
 
-setup_logger()
+# setup_logger()
 
 # ============================================================================
 # 创建 FastMCP 应用实例

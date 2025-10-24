@@ -31,14 +31,15 @@ from loguru import logger
 from mcp.server.fastmcp import FastMCP
 import mcp.types as types
 from magic_book.mcp import mcp_config
-from magic_book.game.config import setup_logger
+
+# from magic_book.configuration.game import setup_logger
 from fastapi import Request, Response
 
 # ============================================================================
 # 初始化日志系统
 # ============================================================================
 
-setup_logger()
+# setup_logger()
 
 # ============================================================================
 # 主函数

@@ -4,9 +4,9 @@ MongoDB 模块
 包含 MongoDB 相关的配置、客户端操作、文档模型等功能
 """
 
-from .world_document import WorldDocument
-from .boot_document import BootDocument
-from .dungeon_document import DungeonDocument
+# from .world_document import WorldDocument
+# from .boot_document import BootDocument
+# from .dungeon_document import DungeonDocument
 from .client import (
     MongoClientType,
     MongoCollectionType,
@@ -37,9 +37,9 @@ from .client import (
 
 
 __all__ = [
-    "BootDocument",
-    "DungeonDocument",
-    "WorldDocument",
+    # "BootDocument",
+    # "DungeonDocument",
+    # "WorldDocument",
     "MongoClientType",
     "MongoDatabaseType",
     "MongoCollectionType",
