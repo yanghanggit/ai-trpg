@@ -392,27 +392,13 @@ class McpClient:
                 execution_time=execution_time,
             )
 
-    def format_tools_description(self) -> str:
+    async def format_tools_description(self) -> str:
         """格式化工具描述用于 LLM prompt"""
-        import asyncio
+        # 确保工具列表已加载
+        if self._tools_cache is None:
+            await self.list_tools()
 
-        # 如果在异步上下文中调用，需要特殊处理
-        try:
-            loop = asyncio.get_event_loop()
-            if loop.is_running():
-                # 在运行的事件循环中，返回缓存的工具或提示
-                if self._tools_cache is not None:
-                    tools = self._tools_cache
-                else:
-                    return "工具列表尚未获取，请先调用 list_tools()"
-            else:
-                # 没有运行的事件循环，可以创建一个
-                tools_result = loop.run_until_complete(self.list_tools())
-                tools = tools_result if tools_result is not None else []
-        except RuntimeError:
-            # 没有事件循环，创建一个临时的
-            tools_result = asyncio.run(self.list_tools())
-            tools = tools_result if tools_result is not None else []
+        tools = self._tools_cache
 
         if tools is None:
             return "获取工具列表失败"
