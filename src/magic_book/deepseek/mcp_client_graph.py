@@ -150,7 +150,7 @@ class McpState(TypedDict, total=False):
 
 
 ############################################################################################################
-def _build_system_prompt(available_tools: List[McpToolInfo]) -> str:
+def _build_tool_instruction_prompt(available_tools: List[McpToolInfo]) -> str:
     """
     构建系统提示，仅支持JSON格式工具调用
 
@@ -161,18 +161,27 @@ def _build_system_prompt(available_tools: List[McpToolInfo]) -> str:
         str: 构建好的系统提示
     """
     # 工具使用说明（不包含角色设定）
-    system_prompt = """当你需要获取实时信息或执行特定操作时，可以调用相应的工具。
+    tool_instruction_prompt = """当你需要获取实时信息或执行特定操作时，可以调用相应的工具。
 
 ## 工具调用格式
 
-请严格按照以下JSON格式调用工具：
+请严格按照以下JSON格式调用工具（支持同时调用多个）：
 
 ```json
 {
   "tool_call": {
-    "name": "工具名称",
+    "name": "工具名称1",
     "arguments": {
-      "参数名": "参数值"
+      "参数名": "参数值1"
+    }
+  }
+}
+
+{
+  "tool_call": {
+    "name": "工具名称2",
+    "arguments": {
+      "参数名": "参数值2"
     }
   }
 }
@@ -180,29 +189,29 @@ def _build_system_prompt(available_tools: List[McpToolInfo]) -> str:
 
 ## 使用指南
 
-- 你可以在回复中自然地解释你要做什么
-- 然后在回复中包含JSON格式的工具调用
+- 根据需要调用一个或多个工具（调用一个工具只是多个的特例）
+- 可以在回复中自然地解释你要做什么，然后包含工具调用
 - 工具执行完成后，根据结果给出完整的回答
 - 如果工具执行失败，请为用户提供替代方案或解释原因"""
 
     if not available_tools:
-        system_prompt += "\n\n⚠️ 当前没有可用工具，请仅使用你的知识回答问题。"
-        return system_prompt
+        tool_instruction_prompt += "\n\n⚠️ 当前没有可用工具，请仅使用你的知识回答问题。"
+        return tool_instruction_prompt
 
     # 构建工具描述 - 简化版本，统一使用线性展示
-    system_prompt += "\n\n## 可用工具"
+    tool_instruction_prompt += "\n\n## 可用工具"
 
     # 直接列表展示所有工具，无需分类
     for tool in available_tools:
         tool_desc = format_tool_description_simple(tool)
-        system_prompt += f"\n{tool_desc}"
+        tool_instruction_prompt += f"\n{tool_desc}"
 
-    # 添加实际工具的调用示例
+    # 添加工具调用示例
     example_tool = available_tools[0]
-    system_prompt += f"\n\n## 调用示例\n\n"
-    system_prompt += build_json_tool_example(example_tool)
+    tool_instruction_prompt += f"\n\n## 调用示例\n\n"
+    tool_instruction_prompt += build_json_tool_example(example_tool)
 
-    return system_prompt
+    return tool_instruction_prompt
 
 
 ############################################################################################################
@@ -221,17 +230,17 @@ async def _preprocess_node(state: McpState) -> McpState:
         available_tools = state.get("available_tools", [])
 
         # 构建系统提示
-        system_prompt = _build_system_prompt(available_tools)
+        tool_instruction_prompt = _build_tool_instruction_prompt(available_tools)
 
         # 智能添加系统消息：如果已有系统消息则追加，否则插入到开头
         enhanced_messages = messages.copy()
         if enhanced_messages and isinstance(enhanced_messages[0], SystemMessage):
             # 已经有系统消息在开头，追加新的工具说明
-            enhanced_messages.insert(1, SystemMessage(content=system_prompt))
+            enhanced_messages.insert(1, SystemMessage(content=tool_instruction_prompt))
         else:
             # 没有系统消息，插入默认角色设定和工具说明到开头
             default_role_prompt = (
-                "你是一个智能助手，具有使用工具的能力。\n\n" + system_prompt
+                "你是一个智能助手，具有使用工具的能力。\n\n" + tool_instruction_prompt
             )
             enhanced_messages.insert(0, SystemMessage(content=default_role_prompt))
 
@@ -241,7 +250,7 @@ async def _preprocess_node(state: McpState) -> McpState:
             "mcp_client": state.get("mcp_client"),
             "available_tools": available_tools,
             "tool_outputs": state.get("tool_outputs", []),
-            "system_prompt": system_prompt,  # 保存系统提示供后续使用
+            "system_prompt": tool_instruction_prompt,  # 保存系统提示供后续使用
             "enhanced_messages": enhanced_messages,  # 保存增强消息供LLM使用
         }
         return result

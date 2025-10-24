@@ -24,7 +24,7 @@ sys.path.insert(
 import traceback
 from typing import Any, Final, List
 import asyncio
-from langchain.schema import HumanMessage, SystemMessage
+from langchain.schema import BaseMessage, HumanMessage, SystemMessage
 from langgraph.graph.state import CompiledStateGraph
 from loguru import logger
 
@@ -35,7 +35,6 @@ from magic_book.deepseek.mcp_client_graph import (
 )
 from magic_book.deepseek.client import create_deepseek_llm
 from magic_book.mcp import (
-    McpClient,
     McpToolInfo,
     McpPromptInfo,
     McpResourceInfo,
@@ -147,10 +146,8 @@ def handle_prompts_command(available_prompts: List[McpPromptInfo]) -> None:
         logger.warning("📝 当前没有可用的提示词模板")
 
 
-async def handle_resources_command(
-    available_resources: List[McpResourceInfo], mcp_client: McpClient
-) -> None:
-    """处理 /resources 命令：显示和读取资源"""
+def handle_resources_command(available_resources: List[McpResourceInfo]) -> None:
+    """处理 /resources 命令：显示可用资源"""
     if available_resources:
         logger.info("\n📦 可用资源列表：")
         logger.info("-" * 50)
@@ -161,67 +158,8 @@ async def handle_resources_command(
                 logger.info(f"   描述：{resource.description}")
             if resource.mime_type:
                 logger.info(f"   类型：{resource.mime_type}")
-
-        # 询问是否读取某个资源
-        logger.info("\n💡 提示：")
-        logger.info("  • 输入资源编号 (1-N) 查看内容")
-        logger.info("  • 输入自定义URI (如: game://dynamic/scene) 读取动态资源")
-        logger.info("  • 直接回车跳过")
-        choice = input("\n请选择: ").strip()
-
-        if choice == "":
-            return
-
-        # 检查是否是数字（选择列表中的资源）
-        if choice.isdigit():
-            idx = int(choice) - 1
-            if 0 <= idx < len(available_resources):
-                selected_resource = available_resources[idx]
-                logger.info(f"⏳ 正在读取资源: {selected_resource.name}")
-                resource_uri = selected_resource.uri
-            else:
-                logger.error("❌ 无效的资源编号")
-                return
-        else:
-            # 用户输入的是自定义 URI
-            resource_uri = choice
-            logger.info(f"⏳ 正在读取自定义资源: {resource_uri}")
-
-        # 读取资源内容
-        try:
-            content = await mcp_client.read_resource(resource_uri)
-            if content and content.text:
-                logger.info("\n" + "=" * 60)
-                logger.info(f"资源内容 ({resource_uri}):")
-                logger.info("-" * 60)
-                text = content.text
-                if len(text) > 1000:
-                    logger.info(text[:1000] + "\n...(内容过长，已截断)")
-                else:
-                    logger.info(text)
-                logger.info("=" * 60)
-            else:
-                logger.error("❌ 无法读取资源内容")
-        except Exception as e:
-            logger.error(f"❌ 读取资源失败: {e}")
     else:
         logger.warning("📦 当前没有可用的资源")
-        logger.info("💡 你仍然可以输入自定义URI (如: game://dynamic/player)")
-        custom_uri = input("请输入资源URI（直接回车跳过）: ").strip()
-        if custom_uri:
-            logger.info(f"⏳ 正在读取自定义资源: {custom_uri}")
-            try:
-                content = await mcp_client.read_resource(custom_uri)
-                if content and content.text:
-                    logger.info("\n" + "=" * 60)
-                    logger.info(f"资源内容 ({custom_uri}):")
-                    logger.info("-" * 60)
-                    logger.info(content.text)
-                    logger.info("=" * 60)
-                else:
-                    logger.error("❌ 无法读取资源内容")
-            except Exception as e:
-                logger.error(f"❌ 读取资源失败: {e}")
 
 
 def handle_help_command() -> None:
@@ -243,7 +181,7 @@ async def handle_user_message(
     user_input_state: McpState,
     chat_history_state: McpState,
     compiled_mcp_stage_graph: CompiledStateGraph[McpState, Any, McpState, McpState],
-) -> None:
+) -> List[BaseMessage]:
     """处理普通用户消息：发送给AI处理"""
     user_message = (
         user_input_state["messages"][0] if user_input_state.get("messages") else None
@@ -267,6 +205,8 @@ async def handle_user_message(
         logger.info(f"\n🤖 DeepSeek: {latest_response.content}")
     else:
         logger.error("❌ 抱歉，没有收到回复。")
+
+    return update_messages
 
 
 # ============================================================================
@@ -329,11 +269,8 @@ async def main() -> None:
         llm = create_deepseek_llm(0.7)
         logger.debug("✅ DeepSeek LLM 实例创建成功")
 
-        # 设置系统提示
-        # system_prompt = """你是一个游戏助手，帮助玩家了解游戏状态、提供建议和指导。"""
-
         # 初始化聊天历史状态
-        system_conversation_context: McpState = {
+        system_conversation_state: McpState = {
             "messages": [SystemMessage(content=game_master_system_prompt)],
             "llm": llm,
             "mcp_client": mcp_client,
@@ -365,7 +302,7 @@ async def main() -> None:
 
                 # 处理历史记录命令
                 elif user_input.lower() == "/history":
-                    print_chat_history(system_conversation_context)
+                    print_chat_history(system_conversation_state)
                     continue
 
                 # 处理提示词模板命令
@@ -375,7 +312,7 @@ async def main() -> None:
 
                 # 处理资源列表命令
                 elif user_input.lower() == "/resources":
-                    await handle_resources_command(available_resources, mcp_client)
+                    handle_resources_command(available_resources)
                     continue
 
                 # 处理帮助命令
@@ -405,7 +342,7 @@ async def main() -> None:
 
                     await handle_user_message(
                         user_input_state=system_input_state,
-                        chat_history_state=system_conversation_context,
+                        chat_history_state=system_conversation_state,
                         compiled_mcp_stage_graph=compiled_mcp_stage_graph,
                     )
                     continue
@@ -440,7 +377,7 @@ async def main() -> None:
 
                     await handle_user_message(
                         user_input_state=player_command_input_state,
-                        chat_history_state=system_conversation_context,
+                        chat_history_state=system_conversation_state,
                         compiled_mcp_stage_graph=compiled_mcp_stage_graph,
                     )
 
@@ -451,22 +388,22 @@ async def main() -> None:
                     logger.warning("💡 请输入您的问题，或输入 /help 查看帮助")
                     continue
 
-                continue  # 先挡掉
+                # continue  # 先挡掉
 
-                # 处理普通用户消息
-                default_user_input_state: McpState = {
-                    "messages": [HumanMessage(content=user_input)],
-                    "llm": llm,
-                    "mcp_client": mcp_client,
-                    "available_tools": available_tools,
-                    "tool_outputs": [],
-                }
+                # # 处理普通用户消息
+                # default_user_input_state: McpState = {
+                #     "messages": [HumanMessage(content=user_input)],
+                #     "llm": llm,
+                #     "mcp_client": mcp_client,
+                #     "available_tools": available_tools,
+                #     "tool_outputs": [],
+                # }
 
-                await handle_user_message(
-                    user_input_state=default_user_input_state,
-                    chat_history_state=system_conversation_context,
-                    compiled_mcp_stage_graph=compiled_mcp_stage_graph,
-                )
+                # await handle_user_message(
+                #     user_input_state=default_user_input_state,
+                #     chat_history_state=system_conversation_context,
+                #     compiled_mcp_stage_graph=compiled_mcp_stage_graph,
+                # )
 
             except KeyboardInterrupt:
                 logger.info("🛑 用户中断程序")
