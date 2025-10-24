@@ -5,6 +5,7 @@
 支持标准的 HTTP POST/GET 请求和 Server-Sent Events (SSE) 流。
 """
 
+import asyncio
 import json
 import uuid
 from typing import Any, Dict, List, Optional
@@ -62,8 +63,18 @@ class McpClient:
     async def connect(self) -> None:
         """连接到 MCP 服务器"""
         try:
+            # 创建连接器，配置连接池参数以避免连接复用问题
+            connector = aiohttp.TCPConnector(
+                limit=10,  # 最大连接数
+                limit_per_host=5,  # 每个主机的最大连接数
+                ttl_dns_cache=300,  # DNS缓存时间
+                force_close=False,  # 不强制关闭连接
+                enable_cleanup_closed=True,  # 启用清理已关闭的连接
+            )
+
             # 创建 HTTP 会话
             self.http_session = aiohttp.ClientSession(
+                connector=connector,
                 timeout=aiohttp.ClientTimeout(total=self.timeout),
                 headers={
                     "Content-Type": "application/json",
@@ -121,7 +132,7 @@ class McpClient:
     async def _post_request(
         self, endpoint: str, data: Dict[str, Any]
     ) -> Dict[str, Any]:
-        """发送 POST 请求到 MCP 服务器"""
+        """发送 POST 请求到 MCP 服务器，带自动重试机制"""
         if not self.http_session:
             raise RuntimeError("HTTP 会话未初始化")
 
@@ -136,32 +147,58 @@ class McpClient:
         if self.session_id:
             headers["mcp-session-id"] = self.session_id
 
-        async with self.http_session.post(url, json=data, headers=headers) as response:
-            # 检查会话ID
-            session_id = response.headers.get("mcp-session-id")
-            if session_id and not self.session_id:
-                self.session_id = session_id
-                logger.debug(f"🆔 获取到会话ID: {session_id[:8]}...")
-
-            if response.status == 404:
-                raise RuntimeError(f"MCP 服务器端点未找到: {url}")
-
-            if response.status >= 400:
-                error_text = await response.text()
-                raise RuntimeError(f"MCP 服务器错误 {response.status}: {error_text}")
-
-            content_type = response.headers.get("content-type", "")
-
-            if "text/event-stream" in content_type:
-                # 处理 SSE 流
-                return await self._handle_sse_response(response)
-            else:
-                # 处理普通 JSON 响应
-                json_result = await response.json()
-                if isinstance(json_result, dict):
-                    return json_result
+        # 重试机制：处理连接重置错误
+        max_retries = 2
+        for attempt in range(max_retries):
+            try:
+                async with self.http_session.post(
+                    url, json=data, headers=headers
+                ) as response:
+                    return await self._process_response(response)
+            except (aiohttp.ClientConnectionError, ConnectionResetError) as e:
+                if attempt < max_retries - 1:
+                    logger.warning(
+                        f"连接错误 (尝试 {attempt + 1}/{max_retries}): {e}, 正在重试..."
+                    )
+                    await asyncio.sleep(0.1)  # 短暂延迟后重试
+                    continue
                 else:
-                    return {"data": json_result}
+                    # 最后一次尝试仍然失败，抛出异常
+                    raise
+
+        # 理论上不会到达这里，但为了类型安全
+        raise RuntimeError("请求失败")
+
+    async def _process_response(
+        self, response: aiohttp.ClientResponse
+    ) -> Dict[str, Any]:
+        """处理HTTP响应"""
+        # 检查会话ID
+        session_id = response.headers.get("mcp-session-id")
+        if session_id and not self.session_id:
+            self.session_id = session_id
+            logger.debug(f"🆔 获取到会话ID: {session_id[:8]}...")
+
+        if response.status == 404:
+            url = str(response.url)
+            raise RuntimeError(f"MCP 服务器端点未找到: {url}")
+
+        if response.status >= 400:
+            error_text = await response.text()
+            raise RuntimeError(f"MCP 服务器错误 {response.status}: {error_text}")
+
+        content_type = response.headers.get("content-type", "")
+
+        if "text/event-stream" in content_type:
+            # 处理 SSE 流
+            return await self._handle_sse_response(response)
+        else:
+            # 处理普通 JSON 响应
+            json_result = await response.json()
+            if isinstance(json_result, dict):
+                return json_result
+            else:
+                return {"data": json_result}
 
     async def _post_notification(self, endpoint: str, data: Dict[str, Any]) -> None:
         """发送通知到 MCP 服务器（不期望响应）"""

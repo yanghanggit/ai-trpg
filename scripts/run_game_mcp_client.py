@@ -335,12 +335,21 @@ async def main() -> None:
 
                     resource_uri = parts[1].strip()
                     logger.debug(f"📥 试图读取资源: {resource_uri}")
-                    resource_res = await mcp_client.read_resource(resource_uri)
-                    if resource_res is not None:
-                        logger.info(f"{resource_res.model_dump_json(indent=2, ensure_ascii=False)}")
+                    resource_response = await mcp_client.read_resource(resource_uri)
+                    if resource_response is not None:
+                        logger.info(
+                            f"{resource_response.model_dump_json(indent=2, ensure_ascii=False)}"
+                        )
+
+                        if resource_response.text is not None:
+                            resource_data = json.loads(resource_response.text)
+                            logger.debug(
+                                f"{json.dumps(resource_data, ensure_ascii=False, indent=2)}"
+                            )
+
                     else:
                         logger.error(f"❌ 未能读取资源: {resource_uri}")
-                      
+
                     continue
 
                 # 处理系统指令

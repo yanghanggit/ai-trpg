@@ -24,6 +24,7 @@ sys.path.insert(
 import json
 from datetime import datetime
 from typing import Dict, List
+from urllib.parse import unquote
 from loguru import logger
 from mcp.server.fastmcp import FastMCP
 import mcp.types as types
@@ -256,37 +257,6 @@ async def health_check(request: Request) -> Response:
 # ============================================================================
 
 
-# @app.tool()
-# async def get_game_data(key: str) -> str:
-#     """
-#     从游戏数据字典获取指定键的值
-
-#     Args:
-#         key: 数据键名 (player_hp|player_level|game_status|player_name|current_scene|inventory_size)
-
-#     Returns:
-#         对应的游戏数据值，如果键不存在则返回错误信息
-#     """
-#     try:
-#         if key in GAME_DATA:
-#             result = {
-#                 "key": key,
-#                 "value": GAME_DATA[key],
-#                 "timestamp": datetime.now().isoformat(),
-#             }
-#             logger.info(f"获取游戏数据: {key} = {GAME_DATA[key]}")
-#             return json.dumps(result, ensure_ascii=False, indent=2)
-#         else:
-#             available_keys = ", ".join(GAME_DATA.keys())
-#             error_msg = f"错误：键 '{key}' 不存在。可用的键：{available_keys}"
-#             logger.warning(error_msg)
-#             return error_msg
-
-#     except Exception as e:
-#         logger.error(f"获取游戏数据失败: {e}")
-#         return f"错误：无法获取游戏数据 - {str(e)}"
-
-
 @app.tool()
 async def get_world_entity(name: str) -> str:
     """
@@ -460,70 +430,65 @@ async def get_game_config() -> str:
         return f"错误：{str(e)}"
 
 
-@app.resource("game://dynamic/player")
-async def get_player_resource_example() -> str:
-    """获取玩家信息（动态资源示例 - 固定 resource_id=player）"""
-    value = await get_dynamic_resource("player")
-    return str(value)
+# @app.resource("game://dynamic/sample")
+# async def get_player_resource_example() -> str:
+#     """获取玩家信息（动态资源示例 - 固定 resource_id=sample）"""
+#     value = await get_dynamic_resource("sample")
+#     return str(value)
 
 
 @app.resource("game://dynamic/{resource_id}")
 async def get_dynamic_resource(resource_id: str) -> str:
     """
-    获取动态游戏资源
+    获取动态游戏资源（根据名称获取游戏世界实体的完整数据）
 
     Args:
-        resource_id: 资源标识符
+        resource_id: 资源标识符（可以是World名称、Stage名称或Actor名称）
 
     Returns:
-        动态生成的资源内容
+        对应实体的完整JSON数据，包含所有嵌套信息
     """
     try:
-        # 模拟不同类型的动态资源
-        resource_types = {
-            "player": {
-                "type": "player_info",
-                "data": {
-                    "name": GAME_DATA.get("player_name", "Unknown"),
-                    "hp": GAME_DATA.get("player_hp", "0"),
-                    "level": GAME_DATA.get("player_level", "1"),
-                },
-            },
-            "scene": {
-                "type": "scene_info",
-                "data": {
-                    "current": GAME_DATA.get("current_scene", "unknown"),
-                    "description": "一片神秘的森林",
-                },
-            },
-            "inventory": {
-                "type": "inventory_info",
-                "data": {
-                    "size": GAME_DATA.get("inventory_size", "0"),
-                    "items": ["sword", "shield", "potion"],
-                },
-            },
-        }
+        # URL 解码资源ID（处理中文等特殊字符）
+        decoded_resource_id = unquote(resource_id)
+        logger.debug(f"原始 resource_id: {resource_id}, 解码后: {decoded_resource_id}")
 
-        if resource_id in resource_types:
-            result = {
-                "resource_id": resource_id,
-                "content": resource_types[resource_id],
-                "timestamp": datetime.now().isoformat(),
-            }
-            logger.info(f"读取动态资源: {resource_id}")
-            return json.dumps(result, ensure_ascii=False, indent=2)
-        else:
-            available_ids = ", ".join(resource_types.keys())
-            error_msg = (
-                f"错误：资源 '{resource_id}' 不存在。可用的资源：{available_ids}"
-            )
-            logger.warning(error_msg)
-            return error_msg
+        # 检查是否是World
+        if decoded_resource_id == game_world.name:
+            logger.info(f"获取World数据: {decoded_resource_id}")
+            return game_world.model_dump_json(indent=2, ensure_ascii=False)
+
+        # 尝试查找Stage
+        stage = game_world.find_stage(decoded_resource_id)
+        if stage:
+            logger.info(f"获取Stage数据: {decoded_resource_id}")
+            return stage.model_dump_json(indent=2, ensure_ascii=False)
+
+        # 尝试查找Actor
+        actor, _ = game_world.find_actor_with_stage(decoded_resource_id)
+        if actor:
+            logger.info(f"获取Actor数据: {decoded_resource_id}")
+            return actor.model_dump_json(indent=2, ensure_ascii=False)
+
+        # 未找到任何匹配
+        error_msg = f"错误：未找到名为 '{decoded_resource_id}' 的World、Stage或Actor"
+        logger.warning(error_msg)
+        return json.dumps(
+            {"error": error_msg, "timestamp": datetime.now().isoformat()},
+            ensure_ascii=False,
+            indent=2,
+        )
 
     except Exception as e:
         logger.error(f"获取动态资源失败: {e}")
-        return f"错误：{str(e)}"
+        return json.dumps(
+            {
+                "error": f"无法获取动态资源数据 - {str(e)}",
+                "timestamp": datetime.now().isoformat(),
+            },
+            ensure_ascii=False,
+            indent=2,
+        )
 
 
 # ============================================================================
