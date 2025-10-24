@@ -23,177 +23,13 @@ sys.path.insert(
 
 import json
 from datetime import datetime
-from typing import Dict, List
 from urllib.parse import unquote
 from loguru import logger
 from mcp.server.fastmcp import FastMCP
 import mcp.types as types
 from magic_book.mcp import mcp_config
-from pydantic import BaseModel
 from fastapi import Request, Response
-
-
-# ============================================================================
-# 游戏数据字典
-# ============================================================================
-
-GAME_DATA: Dict[str, str] = {
-    "player_hp": "100",
-    "player_level": "5",
-    "game_status": "running",
-    "player_name": "Hero",
-    "current_scene": "forest",
-    "inventory_size": "10",
-}
-
-
-class Actor(BaseModel):
-    """表示游戏中角色状态的模型"""
-
-    name: str
-    description: str
-    appearance: str
-
-
-class Stage(BaseModel):
-    """表示游戏中场景状态的模型"""
-
-    name: str
-    description: str
-    environment: str
-    actors: List[Actor]
-    stages: List["Stage"] = []  # 支持嵌套子场景
-
-    def find_actor(self, actor_name: str) -> Actor | None:
-        """递归查找指定名称的Actor
-
-        Args:
-            actor_name: 要查找的Actor名称
-
-        Returns:
-            找到的Actor对象，如果未找到则返回None
-        """
-        # 在当前场景的actors中查找
-        for actor in self.actors:
-            if actor.name == actor_name:
-                return actor
-
-        # 递归搜索子场景中的actors
-        for stage in self.stages:
-            found = stage.find_actor(actor_name)
-            if found:
-                return found
-
-        return None
-
-
-class World(BaseModel):
-    """表示游戏世界状态的模型"""
-
-    name: str
-    description: str
-    stages: List[Stage]
-
-    def find_stage(self, stage_name: str) -> Stage | None:
-        """递归查找指定名称的Stage
-
-        Args:
-            stage_name: 要查找的Stage名称
-
-        Returns:
-            找到的Stage对象，如果未找到则返回None
-        """
-
-        def _recursive_find(stages: List[Stage], target_name: str) -> Stage | None:
-            for stage in stages:
-                if stage.name == target_name:
-                    return stage
-                # 递归搜索子场景
-                if stage.stages:
-                    found = _recursive_find(stage.stages, target_name)
-                    if found:
-                        return found
-            return None
-
-        return _recursive_find(self.stages, stage_name)
-
-    def find_actor_with_stage(
-        self, actor_name: str
-    ) -> tuple[Actor | None, Stage | None]:
-        """查找指定名称的Actor及其所在的Stage
-
-        Args:
-            actor_name: 要查找的Actor名称
-
-        Returns:
-            (Actor, Stage)元组，如果未找到则返回(None, None)
-        """
-
-        def _recursive_search(
-            stages: List[Stage],
-        ) -> tuple[Actor | None, Stage | None]:
-            for stage in stages:
-                # 先在当前Stage的actors中直接查找
-                for actor in stage.actors:
-                    if actor.name == actor_name:
-                        return actor, stage
-
-                # 递归搜索子场景
-                if stage.stages:
-                    found_actor, found_stage = _recursive_search(stage.stages)
-                    if found_actor and found_stage:
-                        return found_actor, found_stage
-
-            return None, None
-
-        return _recursive_search(self.stages)
-
-
-# ============================================================================
-# 游戏世界实例
-# ============================================================================
-
-game_world = World(
-    name="艾泽拉斯大陆",
-    description="一个充满魔法与冒险的奇幻世界，古老的传说在这里流传，英雄们在这片土地上书写着自己的史诗。",
-    stages=[
-        # 翡翠森林（主场景区域，包含子场景）
-        Stage(
-            name="翡翠森林",
-            description="艾泽拉斯大陆上最古老的森林之一，充满了生命的魔法能量。这片广袤的森林由多个区域组成，每个区域都有其独特的景观和居民。",
-            environment="古老而神秘的森林，参天巨树遮天蔽日，空气中弥漫着自然魔法的气息。森林深处隐藏着许多秘密和传说。",
-            actors=[],
-            stages=[
-                # 子场景1：月光林地（空场景）
-                Stage(
-                    name="月光林地",
-                    description="翡翠森林的北部区域，这片林地在夜晚会被月光笼罩，显得格外宁静祥和。古老的石碑矗立在林地中央，通往南边的星语圣树。",
-                    environment="银色的月光透过树叶间隙洒落，照亮了布满青苔的石板路。四周是参天的古树，偶尔能听到夜莺的歌声。一条蜿蜒的小路向南延伸，连接着森林深处。",
-                    actors=[],
-                ),
-                # 子场景2：星语圣树（有角色的场景）
-                Stage(
-                    name="星语圣树",
-                    description="翡翠森林的核心区域，一棵巨大的生命古树屹立于此，这是德鲁伊们的圣地。从北边的月光林地可以直接到达这里。",
-                    environment="一棵高耸入云的巨大古树占据了视野中心，树干粗壮到需要数十人才能环抱。树根盘绕形成天然的平台，树冠上挂满发光的藤蔓和花朵。空气中充满了浓郁的生命能量。",
-                    actors=[
-                        Actor(
-                            name="艾尔温·星语",
-                            description="精灵族的德鲁伊长老，他精通自然魔法，能与森林中的生物沟通。",
-                            appearance="身穿绿色长袍的高大精灵，银白色的长发及腰，碧绿的眼眸中闪烁着智慧的光芒，手持一根雕刻着古老符文的木杖",
-                        ),
-                        Actor(
-                            name="索尔娜·影舞",
-                            description="神秘的暗夜精灵游侠，是森林的守护者。她在区域间穿梭巡逻，行踪飘忽，箭术精湛，总是在危险来临前出现。",
-                            appearance="身着深紫色皮甲的矫健身影,紫色的肌肤在月光下闪耀,银色的长发束成高马尾,背后背着一把精致的月牙弓和装满银色羽箭的箭筒",
-                        ),
-                    ],
-                ),
-            ],
-        ),
-    ],
-)
-
+from magic_book.demo.test_world import test_world
 
 # ============================================================================
 # 创建 FastMCP 应用实例
@@ -258,7 +94,7 @@ async def health_check(request: Request) -> Response:
 
 
 @app.tool()
-async def get_world_entity(name: str) -> str:
+async def find_entity_by_name(name: str) -> str:
     """
     根据名称获取游戏世界实体（World、Stage或Actor）的完整数据
 
@@ -270,21 +106,30 @@ async def get_world_entity(name: str) -> str:
     """
     try:
         # 检查是否是World
-        if name == game_world.name:
+        if name == test_world.name:
             logger.info(f"获取World数据: {name}")
-            return game_world.model_dump_json(indent=2, ensure_ascii=False)
+            return test_world.model_dump_json(indent=2, ensure_ascii=False)
 
         # 尝试查找Stage
-        stage = game_world.find_stage(name)
+        stage = test_world.find_stage(name)
         if stage:
             logger.info(f"获取Stage数据: {name}")
             return stage.model_dump_json(indent=2, ensure_ascii=False)
 
         # 尝试查找Actor
-        actor, _ = game_world.find_actor_with_stage(name)
-        if actor:
-            logger.info(f"获取Actor数据: {name}")
-            return actor.model_dump_json(indent=2, ensure_ascii=False)
+        actor, stage = test_world.find_actor_with_stage(name)
+        if actor and stage:
+            logger.info(f"获取Actor数据: {name}, 所在Stage: {stage.name}")
+            # 将Actor和其所在的Stage信息打包
+            result = {
+                "actor": actor.model_dump(),
+                "stage": {
+                    "name": stage.name,
+                    "description": stage.description,
+                    "environment": stage.environment,
+                },
+            }
+            return json.dumps(result, ensure_ascii=False, indent=2)
 
         # 未找到任何匹配
         error_msg = f"错误：未找到名为 '{name}' 的World、Stage或Actor"
@@ -321,7 +166,7 @@ async def move_actor(actor_name: str, target_stage_name: str) -> str:
     """
     try:
         # 查找Actor当前所在的Stage
-        actor, current_stage = game_world.find_actor_with_stage(actor_name)
+        actor, current_stage = test_world.find_actor_with_stage(actor_name)
         if not current_stage or not actor:
             error_msg = f"错误：未找到名为 '{actor_name}' 的Actor"
             logger.warning(error_msg)
@@ -336,7 +181,7 @@ async def move_actor(actor_name: str, target_stage_name: str) -> str:
             )
 
         # 查找目标Stage
-        target_stage = game_world.find_stage(target_stage_name)
+        target_stage = test_world.find_stage(target_stage_name)
         if not target_stage:
             error_msg = f"错误：未找到名为 '{target_stage_name}' 的目标Stage"
             logger.warning(error_msg)
@@ -450,18 +295,18 @@ async def get_dynamic_resource(resource_id: str) -> str:
         logger.debug(f"原始 resource_id: {resource_id}, 解码后: {decoded_resource_id}")
 
         # 检查是否是World
-        if decoded_resource_id == game_world.name:
+        if decoded_resource_id == test_world.name:
             logger.info(f"获取World数据: {decoded_resource_id}")
-            return game_world.model_dump_json(indent=2, ensure_ascii=False)
+            return test_world.model_dump_json(indent=2, ensure_ascii=False)
 
         # 尝试查找Stage
-        stage = game_world.find_stage(decoded_resource_id)
+        stage = test_world.find_stage(decoded_resource_id)
         if stage:
             logger.info(f"获取Stage数据: {decoded_resource_id}")
             return stage.model_dump_json(indent=2, ensure_ascii=False)
 
         # 尝试查找Actor
-        actor, _ = game_world.find_actor_with_stage(decoded_resource_id)
+        actor, _ = test_world.find_actor_with_stage(decoded_resource_id)
         if actor:
             logger.info(f"获取Actor数据: {decoded_resource_id}")
             return actor.model_dump_json(indent=2, ensure_ascii=False)

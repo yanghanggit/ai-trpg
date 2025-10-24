@@ -43,26 +43,23 @@ from magic_book.mcp import (
     McpClient,
 )
 import json
-
-world_name: Final[str] = "艾泽拉斯大陆"
-player_actor_name: Final[str] = "艾尔温·星语"
-game_master_system_prompt: str = (
-    """你是一个游戏助手，帮助玩家了解游戏状态、提供建议和指导。"""
-)
+from magic_book.demo.test_world import test_world
 
 game_master_system_prompt = f"""# 你扮演一个奇幻世界游戏的管理员（Game Master）。
 
 ## 游戏世界
 
-名称: {world_name}
+名称: {test_world.name}
+描述: {test_world.description}
 
 ## 游戏规则
 
-- 世界构成：只有一个World, 而 World 包含多个 Stage，每个 Stage 包含多个 Actor 和 子Stages。这意味着如果想判断Actor所在的位置，需要遍历World下的所有Stage。
+- 世界构成：只有一个World, 而 World 包含多个 Stage，每个 Stage 包含多个 Actor 和 子Stages。
+- 核心规则：Actor 必须所在某个 Stage 中。在 Stage 中，Actor 可以与其他 Actor 互动。
 
 ## 你的职责：
 
-- 负责引导玩家在名为 {world_name} 的虚拟世界中冒险。
+- 负责引导玩家在名为 {test_world.name} 的虚拟世界中冒险。
 - 你的任务是根据玩家的输入，提供有趣且富有创意的回应，帮助他们理解游戏环境、任务和角色。"""
 
 # ============================================================================
@@ -265,7 +262,12 @@ def _gen_game_system_prompt(command_content: str) -> str:
 
 ## 指令内容
 
-{command_content}"""
+{command_content}
+
+## 输出要求
+
+1. 以简洁明了的方式回应玩家。
+2. 将你的回复内容组成成 markeddown 格式的文本块，方便阅读。"""
 
 
 async def main() -> None:
