@@ -107,57 +107,65 @@ def print_chat_history(chat_history_state: McpState) -> None:
 
 
 def handle_tools_command(available_tools: List[McpToolInfo]) -> None:
-    """处理 /tools 命令：显示可用工具详情"""
+    """处理 /tools 命令:显示可用工具详情"""
     if available_tools:
-        logger.info("\n🛠️ 可用工具详情：")
-        logger.info("-" * 50)
+        output_lines = []
+        output_lines.append("\n🛠️ 可用工具详情:")
+        output_lines.append("-" * 50)
         for i, tool in enumerate(available_tools, 1):
-            logger.info(f"{i}. {tool.name}")
-            logger.info(f"   描述：{tool.description}")
+            output_lines.append(f"{i}. {tool.name}")
+            output_lines.append(f"   描述:{tool.description}")
             if tool.input_schema and "properties" in tool.input_schema:
-                logger.info("   参数：")
+                output_lines.append("   参数:")
                 properties = tool.input_schema["properties"]
                 required = tool.input_schema.get("required", [])
                 for param_name, param_info in properties.items():
                     param_desc = param_info.get("description", "无描述")
                     is_required = " (必需)" if param_name in required else " (可选)"
-                    logger.info(f"     - {param_name}: {param_desc}{is_required}")
+                    output_lines.append(
+                        f"     - {param_name}: {param_desc}{is_required}"
+                    )
+        logger.info("\n".join(output_lines))
     else:
         logger.warning("❌ 当前没有可用的工具")
 
 
 def handle_prompts_command(available_prompts: List[McpPromptInfo]) -> None:
-    """处理 /prompts 命令：显示可用的提示词模板"""
+    """处理 /prompts 命令:显示可用的提示词模板"""
     if available_prompts:
-        logger.info("\n📝 可用提示词模板：")
-        logger.info("-" * 50)
+        output_lines = []
+        output_lines.append("\n📝 可用提示词模板:")
+        output_lines.append("-" * 50)
         for i, prompt in enumerate(available_prompts, 1):
-            logger.info(f"{i}. {prompt.name}")
+            output_lines.append(f"{i}. {prompt.name}")
             if prompt.description:
-                logger.info(f"   描述：{prompt.description}")
+                output_lines.append(f"   描述:{prompt.description}")
             if prompt.arguments:
-                logger.info("   参数：")
+                output_lines.append("   参数:")
                 for arg in prompt.arguments:
                     arg_name = arg.get("name", "未知")
                     arg_desc = arg.get("description", "无描述")
                     arg_required = " (必需)" if arg.get("required") else " (可选)"
-                    logger.info(f"     - {arg_name}: {arg_desc}{arg_required}")
+                    output_lines.append(f"     - {arg_name}: {arg_desc}{arg_required}")
+        logger.info("\n".join(output_lines))
     else:
         logger.warning("📝 当前没有可用的提示词模板")
 
 
 def handle_resources_command(available_resources: List[McpResourceInfo]) -> None:
-    """处理 /resources 命令：显示可用资源"""
+    """处理 /resources 命令:显示可用资源"""
     if available_resources:
-        logger.info("\n📦 可用资源列表：")
-        logger.info("-" * 50)
+        output_lines = []
+        output_lines.append("\n📦 可用资源列表:")
+        output_lines.append("-" * 50)
         for i, resource in enumerate(available_resources, 1):
-            logger.info(f"{i}. {resource.name}")
-            logger.info(f"   URI: {resource.uri}")
+            output_lines.append(f"{i}. {resource.name}")
+            output_lines.append(f"   URI: {resource.uri}")
             if resource.description:
-                logger.info(f"   描述：{resource.description}")
+                output_lines.append(f"   描述:{resource.description}")
             if resource.mime_type:
-                logger.info(f"   类型：{resource.mime_type}")
+                output_lines.append(f"   类型:{resource.mime_type}")
+        logger.info("\n".join(output_lines))
     else:
         logger.warning("📦 当前没有可用的资源")
 
