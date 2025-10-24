@@ -41,6 +41,7 @@ from magic_book.mcp import (
     initialize_mcp_client,
     mcp_config,
 )
+import json
 
 world_name: Final[str] = "艾泽拉斯大陆"
 player_actor_name: Final[str] = "艾尔温·星语"
@@ -54,19 +55,14 @@ game_master_system_prompt = f"""# 你扮演一个奇幻世界游戏的管理员�
 
 名称: {world_name}
 
-## 玩家角色
-
-名称: {player_actor_name}
-
 ## 游戏规则
 
 - 世界构成：只有一个World, 而 World 包含多个 Stage，每个 Stage 包含多个 Actor 和 子Stages。
 
 ## 你的职责：
 
-负责引导玩家在名为 {world_name} 的虚拟世界中冒险。
-你的任务是根据玩家 {player_actor_name} 的输入，
-提供有趣且富有创意的回应，帮助他们理解游戏环境、任务和角色。"""
+- 负责引导玩家在名为 {world_name} 的虚拟世界中冒险。
+- 你的任务是根据玩家的输入，提供有趣且富有创意的回应，帮助他们理解游戏环境、任务和角色。"""
 
 # ============================================================================
 # 辅助函数
@@ -179,7 +175,7 @@ def handle_help_command() -> None:
     logger.info("  /resources - 查看可用资源")
     logger.info("  /prompts   - 查看提示词模板")
     logger.info("  /history   - 查看对话历史")
-    logger.info("  /system    - 执行系统指令（让AI主动获取游戏状态）")
+    # logger.info("  /system    - 执行系统指令（让AI主动获取游戏状态）")
     logger.info("  /help      - 显示此帮助")
     logger.info("  /quit      - 退出程序")
     logger.info("🎮" * 30)
@@ -231,7 +227,7 @@ async def main() -> None:
         logger.info("\n" + "🎮" * 30)
         logger.info("🤖 Game MCP Client - DeepSeek AI")
         logger.info("💡 输入 /help 查看命令 | 输入 /quit 退出")
-        logger.info("💡 输入 /system 执行系统指令让AI主动获取游戏状态")
+        # logger.info("💡 输入 /system 执行系统指令让AI主动获取游戏状态")
         logger.info("🎮" * 30 + "\n")
 
         # 初始化 MCP 客户端
@@ -328,90 +324,109 @@ async def main() -> None:
                     handle_help_command()
                     continue
 
+                # 复杂输入的处理：读取资源
+                elif "/read-resource" in user_input:
+
+                    # 解析资源名称
+                    parts = user_input.split(" ", 1)
+                    if len(parts) != 2 or not parts[1].strip():
+                        logger.error("💡 请提供资源名称，例如: /read-resource 资源名称")
+                        continue
+
+                    resource_uri = parts[1].strip()
+                    logger.debug(f"📥 试图读取资源: {resource_uri}")
+                    resource_res = await mcp_client.read_resource(resource_uri)
+                    if resource_res is not None:
+                        logger.info(f"{resource_res.model_dump_json(indent=2, ensure_ascii=False)}")
+                    else:
+                        logger.error(f"❌ 未能读取资源: {resource_uri}")
+                      
+                    continue
+
                 # 处理系统指令
-                elif user_input.startswith("/system"):
-                    # 提取系统指令内容（去除 /system 前缀）
-                    system_instruction = user_input[7:].strip()
+                #                 elif user_input.startswith("/system"):
+                #                     # 提取系统指令内容（去除 /system 前缀）
+                #                     system_instruction = user_input[7:].strip()
 
-                    # 如果没有提供具体指令，使用默认指令
-                    if not system_instruction:
-                        logger.error("💡 未提供具体系统指令!")
-                        continue
+                #                     # 如果没有提供具体指令，使用默认指令
+                #                     if not system_instruction:
+                #                         logger.error("💡 未提供具体系统指令!")
+                #                         continue
 
-                    logger.success(f"🎮 执行系统指令: {system_instruction}")
-                    # 将系统指令作为用户消息发送给AI
-                    system_input_state: McpState = {
-                        "messages": [HumanMessage(content=system_instruction)],
-                        "llm": llm,
-                        "mcp_client": mcp_client,
-                        "available_tools": available_tools,
-                        "tool_outputs": [],
-                    }
+                #                     logger.success(f"🎮 执行系统指令: {system_instruction}")
+                #                     # 将系统指令作为用户消息发送给AI
+                #                     system_input_state: McpState = {
+                #                         "messages": [HumanMessage(content=system_instruction)],
+                #                         "llm": llm,
+                #                         "mcp_client": mcp_client,
+                #                         "available_tools": available_tools,
+                #                         "tool_outputs": [],
+                #                     }
 
-                    await handle_user_message(
-                        user_input_state=system_input_state,
-                        chat_history_state=system_conversation_state,
-                        compiled_mcp_stage_graph=compiled_mcp_stage_graph,
-                    )
-                    continue
+                #                     await handle_user_message(
+                #                         user_input_state=system_input_state,
+                #                         chat_history_state=system_conversation_state,
+                #                         compiled_mcp_stage_graph=compiled_mcp_stage_graph,
+                #                     )
+                #                     continue
 
-                #
-                elif user_input.startswith("/player"):
+                #                 #
+                #                 elif user_input.startswith("/player"):
 
-                    player_command = user_input[7:].strip()
-                    if not player_command:
-                        logger.error("💡 未提供具体玩家指令!")
-                        continue
+                #                     player_command = user_input[7:].strip()
+                #                     if not player_command:
+                #                         logger.error("💡 未提供具体玩家指令!")
+                #                         continue
 
-                    logger.success(f"🎮 执行玩家指令: {player_command}")
+                #                     logger.success(f"🎮 执行玩家指令: {player_command}")
 
-                    player_command_prompt = f"""# 控制指令
+                #                     player_command_prompt = f"""# 控制指令
 
-## 控制角色
- 
-{player_actor_name}
+                # ## 控制角色
 
-## 指令内容
+                # {player_actor_name}
 
-{player_command}"""
+                # ## 指令内容
 
-                    player_command_input_state: McpState = {
-                        "messages": [HumanMessage(content=player_command_prompt)],
-                        "llm": llm,
-                        "mcp_client": mcp_client,
-                        "available_tools": available_tools,
-                        "tool_outputs": [],
-                    }
+                # {player_command}"""
 
-                    await handle_user_message(
-                        user_input_state=player_command_input_state,
-                        chat_history_state=system_conversation_state,
-                        compiled_mcp_stage_graph=compiled_mcp_stage_graph,
-                    )
+                #                     player_command_input_state: McpState = {
+                #                         "messages": [HumanMessage(content=player_command_prompt)],
+                #                         "llm": llm,
+                #                         "mcp_client": mcp_client,
+                #                         "available_tools": available_tools,
+                #                         "tool_outputs": [],
+                #                     }
 
-                    continue
+                #                     await handle_user_message(
+                #                         user_input_state=player_command_input_state,
+                #                         chat_history_state=system_conversation_state,
+                #                         compiled_mcp_stage_graph=compiled_mcp_stage_graph,
+                #                     )
+
+                #                     continue
 
                 # 处理空输入
                 elif user_input == "":
                     logger.warning("💡 请输入您的问题，或输入 /help 查看帮助")
                     continue
 
-                # continue  # 先挡掉
+                # 最后的兜底处理
 
-                # # 处理普通用户消息
-                # default_user_input_state: McpState = {
-                #     "messages": [HumanMessage(content=user_input)],
-                #     "llm": llm,
-                #     "mcp_client": mcp_client,
-                #     "available_tools": available_tools,
-                #     "tool_outputs": [],
-                # }
+                # 处理普通用户消息
+                default_user_input_state: McpState = {
+                    "messages": [HumanMessage(content=user_input)],
+                    "llm": llm,
+                    "mcp_client": mcp_client,
+                    "available_tools": available_tools,
+                    "tool_outputs": [],
+                }
 
-                # await handle_user_message(
-                #     user_input_state=default_user_input_state,
-                #     chat_history_state=system_conversation_context,
-                #     compiled_mcp_stage_graph=compiled_mcp_stage_graph,
-                # )
+                await handle_user_message(
+                    user_input_state=default_user_input_state,
+                    chat_history_state=system_conversation_state,
+                    compiled_mcp_stage_graph=compiled_mcp_stage_graph,
+                )
 
             except KeyboardInterrupt:
                 logger.info("🛑 用户中断程序")
