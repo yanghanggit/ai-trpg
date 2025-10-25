@@ -30,6 +30,8 @@ from .json_format import (
     strip_json_code_block,
 )
 
+from .user_input import parse_command_with_params
+
 # 公开的API
 __all__ = [
     # JSON格式化工具
@@ -49,4 +51,5 @@ __all__ = [
     "safe_get_row_number",
     "convert_dict_to_model",
     "list_valid_rows_as_models",
+    "parse_command_with_params",
 ]
