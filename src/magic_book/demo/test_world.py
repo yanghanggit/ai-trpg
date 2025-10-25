@@ -87,7 +87,7 @@ class World(BaseModel):
             actor_name: 要查找的Actor名称
 
         Returns:
-            (Actor, Stage)元组，如果未找到则返回(None, None)
+            (Actor, Stage)元组,如果未找到则返回(None, None)
         """
 
         def _recursive_search(
@@ -108,6 +108,25 @@ class World(BaseModel):
             return None, None
 
         return _recursive_search(self.stages)
+
+    def get_all_actors(self) -> List[Actor]:
+        """遍历获取世界中所有的Actor
+
+        Returns:
+            包含世界中所有Actor的列表
+        """
+        all_actors: List[Actor] = []
+
+        def _collect_actors(stages: List[Stage]) -> None:
+            for stage in stages:
+                # 收集当前Stage中的所有actors
+                all_actors.extend(stage.actors)
+                # 递归收集子场景中的actors
+                if stage.stages:
+                    _collect_actors(stage.stages)
+
+        _collect_actors(self.stages)
+        return all_actors
 
 
 # ============================================================================

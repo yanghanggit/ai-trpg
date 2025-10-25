@@ -46,7 +46,7 @@ import json
 from magic_book.demo.test_world import test_world
 from pydantic import BaseModel
 
-game_master_system_prompt = f"""# 游戏管理员
+game_system_character_profile = f"""# 游戏管理员
 
 你负责管理和维护游戏世界的秩序与运行，你是游戏的最高管理者。
 
@@ -72,13 +72,26 @@ class GameAgent(BaseModel):
 
 
 # 创建游戏角色代理
-system_agent = GameAgent(
-    name="游戏管理员", chat_history=[SystemMessage(content=game_master_system_prompt)]
+game_system_agent = GameAgent(
+    name="游戏管理员",
+    chat_history=[SystemMessage(content=game_system_character_profile)],
 )
-actor1_agent = GameAgent(name="艾尔温·星语", chat_history=[])
-actor2_agent = GameAgent(name="索尔娜·影舞", chat_history=[])
-all_agents: List[GameAgent] = [system_agent, actor1_agent, actor2_agent]
-current_agent: GameAgent = system_agent
+
+# 获取游戏世界中的所有角色
+all_actors = test_world.get_all_actors()
+logger.info(f"游戏世界中的所有角色: {[actor.name for actor in all_actors]}")
+
+# 创建每个角色的代理
+actor_agents: List[GameAgent] = []
+for actor in all_actors:
+    agent = GameAgent(name=actor.name, chat_history=[])
+    actor_agents.append(agent)
+
+# 所有代理列表
+all_agents: List[GameAgent] = [game_system_agent] + actor_agents
+
+# 当前的代理（默认为游戏管理员）
+current_agent: GameAgent = game_system_agent
 
 
 # ============================================================================
@@ -420,7 +433,7 @@ def _gen_actor_prompt(actor: str, command: str) -> str:
 ###########################################################################################################################################
 async def main() -> None:
     """Game MCP 客户端主函数"""
-    logger.info("🎮 启动 Game MCP 客户端...")
+    # logger.info("🎮 启动 Game MCP 客户端...")
 
     try:
         # 简化的欢迎信息
@@ -477,7 +490,7 @@ async def main() -> None:
         assert mcp_client is not None, "MCP client is not initialized"
         compiled_mcp_stage_graph = await create_mcp_workflow()
 
-        #logger.debug("🤖 Game MCP 客户端初始化完成，开始对话...")
+        # logger.debug("🤖 Game MCP 客户端初始化完成，开始对话...")
 
         # 对话循环
         while True:
@@ -545,7 +558,7 @@ async def main() -> None:
                             "tool_outputs": [],
                         },
                         chat_history_state={
-                            "messages": system_agent.chat_history.copy(),
+                            "messages": game_system_agent.chat_history.copy(),
                             "llm": llm,
                             "mcp_client": mcp_client,
                             "available_tools": available_tools,
