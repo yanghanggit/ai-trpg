@@ -28,7 +28,7 @@ from loguru import logger
 from mcp.server.fastmcp import FastMCP
 import mcp.types as types
 from magic_book.mcp import mcp_config
-from fastapi import Request, Response
+from fastapi import Request, Response, status
 from magic_book.demo.test_world import test_world
 
 # ============================================================================
@@ -62,7 +62,7 @@ async def health_check(request: Request) -> Response:
             return Response(
                 content=json.dumps(response_data),
                 media_type="application/json",
-                status_code=200,
+                status_code=status.HTTP_200_OK,
             )
         else:
             error_response = {
@@ -73,7 +73,7 @@ async def health_check(request: Request) -> Response:
             return Response(
                 content=json.dumps(error_response),
                 media_type="application/json",
-                status_code=200,
+                status_code=status.HTTP_200_OK,
             )
     except Exception as e:
         error_response = {
@@ -84,42 +84,41 @@ async def health_check(request: Request) -> Response:
         return Response(
             content=json.dumps(error_response),
             media_type="application/json",
-            status_code=400,
+            status_code=status.HTTP_400_BAD_REQUEST,
         )
 
 
 # ============================================================================
-# 注册工具
+# 公共函数
 # ============================================================================
 
 
-@app.tool()
-async def find_entity_by_name(name: str) -> str:
+def _query_game_entity(entity_name: str) -> str:
     """
-    根据名称获取游戏世界实体（World、Stage或Actor）的完整数据
+    根据名称查询游戏世界实体的内部实现
 
     Args:
-        name: 实体名称（可以是World名称、Stage名称或Actor名称）
+        entity_name: 实体名称（可以是World名称、Stage名称或Actor名称）
 
     Returns:
         对应实体的完整JSON数据，包含所有嵌套信息
     """
     try:
         # 检查是否是World
-        if name == test_world.name:
-            logger.info(f"获取World数据: {name}")
+        if entity_name == test_world.name:
+            logger.info(f"获取World数据: {entity_name}")
             return test_world.model_dump_json(indent=2, ensure_ascii=False)
 
         # 尝试查找Stage
-        stage = test_world.find_stage(name)
+        stage = test_world.find_stage(entity_name)
         if stage:
-            logger.info(f"获取Stage数据: {name}")
+            logger.info(f"获取Stage数据: {entity_name}")
             return stage.model_dump_json(indent=2, ensure_ascii=False)
 
         # 尝试查找Actor
-        actor, stage = test_world.find_actor_with_stage(name)
+        actor, stage = test_world.find_actor_with_stage(entity_name)
         if actor and stage:
-            logger.info(f"获取Actor数据: {name}, 所在Stage: {stage.name}")
+            logger.info(f"获取Actor数据: {entity_name}, 所在Stage: {stage.name}")
             # 将Actor和其所在的Stage信息打包
             result = {
                 "actor": actor.model_dump(),
@@ -132,7 +131,7 @@ async def find_entity_by_name(name: str) -> str:
             return json.dumps(result, ensure_ascii=False, indent=2)
 
         # 未找到任何匹配
-        error_msg = f"错误：未找到名为 '{name}' 的World、Stage或Actor"
+        error_msg = f"错误：未找到名为 '{entity_name}' 的World、Stage或Actor"
         logger.warning(error_msg)
         return json.dumps(
             {"error": error_msg, "timestamp": datetime.now().isoformat()},
@@ -150,6 +149,25 @@ async def find_entity_by_name(name: str) -> str:
             ensure_ascii=False,
             indent=2,
         )
+
+
+# ============================================================================
+# 注册工具
+# ============================================================================
+
+
+@app.tool()
+async def get_entity_by_name(name: str) -> str:
+    """
+    根据名称获取游戏世界实体（World、Stage或Actor）的完整数据
+
+    Args:
+        name: 实体名称（可以是World名称、Stage名称或Actor名称）
+
+    Returns:
+        对应实体的完整JSON数据，包含所有嵌套信息
+    """
+    return _query_game_entity(name)
 
 
 @app.tool()
@@ -275,88 +293,71 @@ async def get_game_config() -> str:
         return f"错误：{str(e)}"
 
 
-#############################################################################################################
-#############################################################################################################
-#############################################################################################################
-@app.resource("game://dynamic/{resource_id}")
-async def get_dynamic_resource(resource_id: str) -> str:
+@app.resource("game://entity/{entity_name}")
+async def get_entity_resource(entity_name: str) -> str:
     """
-    获取动态游戏资源（根据名称获取游戏世界实体的完整数据）
+    获取游戏世界实体资源（根据名称获取World、Stage或Actor的完整数据）
 
     Args:
-        resource_id: 资源标识符（可以是World名称、Stage名称或Actor名称）
+        entity_name: 实体名称（可以是World名称、Stage名称或Actor名称）
 
     Returns:
         对应实体的完整JSON数据，包含所有嵌套信息
     """
-    try:
-        # URL 解码资源ID（处理中文等特殊字符）
-        decoded_resource_id = unquote(resource_id)
-        logger.debug(f"原始 resource_id: {resource_id}, 解码后: {decoded_resource_id}")
-
-        # 检查是否是World
-        if decoded_resource_id == test_world.name:
-            logger.info(f"获取World数据: {decoded_resource_id}")
-            return test_world.model_dump_json(indent=2, ensure_ascii=False)
-
-        # 尝试查找Stage
-        stage = test_world.find_stage(decoded_resource_id)
-        if stage:
-            logger.info(f"获取Stage数据: {decoded_resource_id}")
-            return stage.model_dump_json(indent=2, ensure_ascii=False)
-
-        # 尝试查找Actor
-        actor, _ = test_world.find_actor_with_stage(decoded_resource_id)
-        if actor:
-            logger.info(f"获取Actor数据: {decoded_resource_id}")
-            return actor.model_dump_json(indent=2, ensure_ascii=False)
-
-        # 未找到任何匹配
-        error_msg = f"错误：未找到名为 '{decoded_resource_id}' 的World、Stage或Actor"
-        logger.warning(error_msg)
-        return json.dumps(
-            {"error": error_msg, "timestamp": datetime.now().isoformat()},
-            ensure_ascii=False,
-            indent=2,
-        )
-
-    except Exception as e:
-        logger.error(f"获取动态资源失败: {e}")
-        return json.dumps(
-            {
-                "error": f"无法获取动态资源数据 - {str(e)}",
-                "timestamp": datetime.now().isoformat(),
-            },
-            ensure_ascii=False,
-            indent=2,
-        )
+    # URL 解码实体名称（处理中文等特殊字符）
+    decoded_entity_name = unquote(entity_name)
+    logger.debug(f"原始 entity_name: {entity_name}, 解码后: {decoded_entity_name}")
+    return _query_game_entity(decoded_entity_name)
 
 
 # ============================================================================
 # 注册提示词模板
 # ============================================================================
 
+# 例子：game_system_prompt_example --player_name=张三 --current_stage=客厅 --world_name=测试世界 --timestamp=2025-10-25T10:30:00 --player_status=健康 --command_content=查看当前场景的详细信息
+"""
+game_system_prompt_example --player_name=张三 --current_stage=客厅 --world_name=测试世界
+"""
+
 
 @app.prompt()
-async def game_prompt_sample() -> types.GetPromptResult:
+async def game_system_prompt_example() -> types.GetPromptResult:
     """
-    提供游戏系统提示词模板
+    提供游戏系统提示词模板（示例）
+
+    这是一个示例提示词模板，展示如何使用参数化的提示词。
+    实际使用时，客户端可以传入具体的参数值来替换模板中的占位符。
     """
 
-    prompt_template = """# 这是一个测试的提示词模板
-## 说明
-1. 发送对象：玩家 -> 游戏系统（游戏管理员）
-2. 游戏系统（游戏管理员）拥有最高权限，负责管理和维护游戏世界的秩序与运行。
-3. 游戏系统（游戏管理员）需要根据玩家的指令内容，采取相应的行动，如更新游戏状态、提供信息等。
-# 指令内容
-{command_content}"""
+    prompt_example = """# 游戏系统提示词模板（示例）
+
+> **注意**：这是一个示例模板，用于演示 MCP Prompt 功能的使用方式。
+> 实际使用时，请根据具体场景自定义模板内容和参数。
+
+## 角色设定
+- **玩家名称**: {player_name}
+- **当前场景**: {current_stage}
+- **游戏世界**: {world_name}
+
+## 系统权限
+游戏系统（游戏管理员）拥有最高权限，负责：
+1. 管理和维护游戏世界的秩序与运行
+2. 处理玩家的各类请求和指令
+3. 更新游戏状态和实体信息
+
+## 期望行为
+根据上述设定，游戏系统应当：
+1. 理解玩家的意图和需求
+2. 验证指令的合法性和可执行性
+3. 执行相应的游戏逻辑操作
+4. 返回清晰的执行结果和反馈"""
 
     return types.GetPromptResult(
-        description=f"游戏系统提示模板",
+        description="游戏系统提示词模板（示例） - 展示如何使用多参数提示词模板",
         messages=[
             types.PromptMessage(
                 role="user",
-                content=types.TextContent(type="text", text=prompt_template),
+                content=types.TextContent(type="text", text=prompt_example),
             )
         ],
     )

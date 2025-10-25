@@ -67,6 +67,52 @@ game_master_system_prompt = f"""# 你扮演一个奇幻世界游戏的管理员�
 # ============================================================================
 
 
+def parse_command_with_params(user_input: str) -> tuple[str, dict[str, str]] | None:
+    """解析命令行参数格式的输入
+
+    支持格式：command --param1=value1 --param2=value2 ...
+
+    Args:
+        user_input: 用户输入的字符串
+
+    Returns:
+        如果是命令格式，返回 (command, params_dict)
+        如果不是命令格式，返回 None
+
+    Examples:
+        >>> parse_command_with_params("move --actor=张三 --stage=客厅")
+        ('move', {'actor': '张三', 'stage': '客厅'})
+
+        >>> parse_command_with_params("query --verbose")
+        ('query', {'verbose': 'true'})
+    """
+    # 检查是否包含 -- 参数格式
+    if " --" not in user_input:
+        return None
+
+    # 分割命令和参数
+    parts = user_input.split()
+    if not parts:
+        return None
+
+    command = parts[0]  # 第一个部分是命令
+
+    # 解析参数
+    params: dict[str, str] = {}
+    for part in parts[1:]:
+        if part.startswith("--"):
+            # 移除 -- 前缀并分割键值对
+            param_str = part[2:]  # 去掉 --
+            if "=" in param_str:
+                key, value = param_str.split("=", 1)
+                params[key] = value
+            else:
+                # 如果没有 =，则视为标志参数（值为 true）
+                params[param_str] = "true"
+
+    return (command, params)
+
+
 def print_chat_history(chat_history_state: McpState) -> None:
     """打印对话历史"""
     messages = chat_history_state["messages"]
@@ -246,6 +292,74 @@ async def handle_user_message(
     return update_messages
 
 
+async def handle_prompt_with_params_command(
+    user_input: str, mcp_client: McpClient
+) -> None:
+    """处理参数化 Prompt 调用命令
+
+    支持格式：command --param1=value1 --param2=value2 ...
+    例如：game_system_prompt_example --player_name=张三 --current_stage=客厅
+
+    Args:
+        user_input: 用户输入的完整命令字符串
+        mcp_client: MCP客户端实例
+    """
+    # 尝试解析命令行参数格式
+    parsed_result = parse_command_with_params(user_input)
+    if parsed_result is None:
+        logger.warning(
+            "💡 无法识别的输入格式\n"
+            "支持的格式：\n"
+            "  • /命令 [参数]\n"
+            "  • 命令 --参数1=值1 --参数2=值2\n"
+            "  • 输入 /help 查看所有可用命令"
+        )
+        return
+
+    command, params = parsed_result
+
+    # 打印解析结果
+    logger.debug(f"命令行参数解析结果: command = {command}, params = \n{params}")
+
+    # 从 MCP 服务器获取 Prompt 模板
+    prompt_result = await mcp_client.get_prompt(name=command)
+    if prompt_result is None:
+        logger.warning(f"不是可用的提示词模板: {command}")
+        return
+
+    logger.debug(f"{prompt_result.model_dump_json(indent=2, ensure_ascii=False)}")
+
+    # 提取并打印消息内容
+    if prompt_result.messages:
+        for i, message in enumerate(prompt_result.messages):
+            logger.debug(f"{message.model_dump_json(indent=2, ensure_ascii=False)}")
+
+    # 提取原始 Prompt 文本
+    prompt_message = prompt_result.messages[0]
+    prompt_text_raw = prompt_message.content.get("text", "")
+    logger.debug(f"prompt_text_raw (原始JSON字符串) = {prompt_text_raw}")
+
+    # 解析 JSON 字符串，提取真正的提示词模板
+    try:
+        prompt_data = json.loads(prompt_text_raw)
+        # 从嵌套结构中提取核心的模板文本
+        actual_prompt_template = str(prompt_data["messages"][0]["content"]["text"])
+
+        logger.debug(f"✅ 提取到的核心提示词模板:\n{actual_prompt_template}")
+
+        # 现在可以进行参数替换
+        for key, value in params.items():
+            placeholder = "{" + key + "}"
+            actual_prompt_template = actual_prompt_template.replace(placeholder, value)
+
+        logger.success(f"最终填充后的提示词:\n{actual_prompt_template}")
+
+    except json.JSONDecodeError as e:
+        logger.error(f"❌ 解析 prompt_text JSON 失败: {e}")
+    except KeyError as e:
+        logger.error(f"❌ 提取提示词模板失败，缺少键: {e}")
+
+
 # ============================================================================
 # 主函数
 # ============================================================================
@@ -405,11 +519,11 @@ async def main() -> None:
                     continue
 
                 # 复杂输入的处理：读取资源
-                elif "/read-resource" in user_input:
+                elif user_input.startswith("/read-resource"):
                     await handle_read_resource_command(user_input, mcp_client)
                     continue
 
-                elif "/system" in user_input:
+                elif user_input.startswith("/system"):
 
                     parts = user_input.split(" ", 1)
                     if len(parts) != 2 or not parts[1].strip():
@@ -484,30 +598,36 @@ async def main() -> None:
 
                     continue
 
-                logger.error(f"💬 无法处理普通用户输入: {user_input}， 略过！")
-                continue
-
-                # 处理空输入
-                if user_input == "":
-                    logger.warning("💡 请输入您的问题，或输入 /help 查看帮助")
+                else:
+                    # 处理参数化 Prompt 调用
+                    await handle_prompt_with_params_command(user_input, mcp_client)
                     continue
 
-                # 最后的兜底处理, 纯聊天！
+                # 兜底用的，默认处理！！！！
+                # logger.error(f"💬 无法处理普通用户输入: {user_input}， 略过！")
+                # continue
 
-                # 处理普通用户消息
-                default_user_input_state: McpState = {
-                    "messages": [HumanMessage(content=user_input)],
-                    "llm": llm,
-                    "mcp_client": mcp_client,
-                    "available_tools": available_tools,
-                    "tool_outputs": [],
-                }
+                # # 处理空输入
+                # if user_input == "":
+                #     logger.warning("💡 请输入您的问题，或输入 /help 查看帮助")
+                #     continue
 
-                await handle_user_message(
-                    user_input_state=default_user_input_state,
-                    chat_history_state=system_conversation_state,
-                    compiled_mcp_stage_graph=compiled_mcp_stage_graph,
-                )
+                # # 最后的兜底处理, 纯聊天！
+
+                # # 处理普通用户消息
+                # default_user_input_state: McpState = {
+                #     "messages": [HumanMessage(content=user_input)],
+                #     "llm": llm,
+                #     "mcp_client": mcp_client,
+                #     "available_tools": available_tools,
+                #     "tool_outputs": [],
+                # }
+
+                # await handle_user_message(
+                #     user_input_state=default_user_input_state,
+                #     chat_history_state=system_conversation_state,
+                #     compiled_mcp_stage_graph=compiled_mcp_stage_graph,
+                # )
 
             except KeyboardInterrupt:
                 logger.info("🛑 用户中断程序")
