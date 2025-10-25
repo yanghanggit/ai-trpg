@@ -1,5 +1,5 @@
 from pydantic import BaseModel
-from typing import List
+from typing import List, Final
 
 
 # ============================================================================
@@ -128,12 +128,31 @@ class World(BaseModel):
         _collect_actors(self.stages)
         return all_actors
 
+    def get_all_stages(self) -> List[Stage]:
+        """遍历获取世界中所有的Stage
+
+        Returns:
+            包含世界中所有Stage的列表
+        """
+        all_stages: List[Stage] = []
+
+        def _collect_stages(stages: List[Stage]) -> None:
+            for stage in stages:
+                # 收集当前Stage
+                all_stages.append(stage)
+                # 递归收集子场景
+                if stage.stages:
+                    _collect_stages(stage.stages)
+
+        _collect_stages(self.stages)
+        return all_stages
+
 
 # ============================================================================
 # 游戏世界实例
 # ============================================================================
 
-test_world = World(
+test_world: Final[World] = World(
     name="艾泽拉斯大陆",
     description="一个充满魔法与冒险的奇幻世界，古老的传说在这里流传，英雄们在这片土地上书写着自己的史诗。",
     stages=[

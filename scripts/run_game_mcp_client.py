@@ -22,7 +22,7 @@ sys.path.insert(
 
 # 导入必要的模块
 import traceback
-from typing import Any, List
+from typing import Any, Final, List
 import asyncio
 from langchain.schema import AIMessage, BaseMessage, HumanMessage, SystemMessage
 from langgraph.graph.state import CompiledStateGraph
@@ -43,17 +43,19 @@ from magic_book.mcp import (
     McpClient,
 )
 import json
-from magic_book.demo.test_world import test_world
+from magic_book.demo.test_world import test_world, Actor, World, Stage
 from pydantic import BaseModel
 
-game_system_character_profile = f"""# 游戏管理员
+
+def _gen_admin_system_message(world: World) -> str:
+    return f"""# 游戏管理员
 
 你负责管理和维护游戏世界的秩序与运行，你是游戏的最高管理者。
 
 ## 游戏世界
 
-名称: {test_world.name}
-描述: {test_world.description}
+名称: {world.name}
+描述: {world.description}
 
 ## 游戏规则
 
@@ -61,37 +63,121 @@ game_system_character_profile = f"""# 游戏管理员
 - 核心规则：Actor 必须所在某个 Stage 中。在 Stage 中，Actor 可以与其他 Actor 互动。
 
 ## 你的职责：
+- 你需要根据玩家的指令，管理游戏世界的状态。
+- 你可以添加、删除或修改 Actor 和 Stage。
+- 你需要确保游戏世界的逻辑一致性和规则遵守。
+- 你需要根据玩家的指令，提供游戏世界的最新状态信息。
 
-- 负责引导玩家在名为 {test_world.name} 的虚拟世界中冒险。
-- 你的任务是根据玩家的输入，提供有趣且富有创意的回应，帮助他们理解游戏环境、任务和角色。"""
+## 输出要求
+
+将你的回复内容组成成 markeddown 格式的文本块，方便阅读。"""
+
+
+def _gen_actor_system_message(actor_model: Actor, world: World) -> str:
+    return f"""# {actor_model.name}
+
+你扮演这个游戏世界的一个角色：{actor_model.name} 
+
+## 人物设定：
+
+{actor_model.character_profile}
+
+## 外观信息
+
+{actor_model.appearance}
+
+## 世界设定
+
+名称: {world.name}
+描述: {world.description}
+
+## 你的职责：
+- 你需要根据你的角色设定，做出符合角色身份的回应。
+- 你可以与其他角色互动，探索场景，完成任务。
+- 你的回应应当推动故事发展，增加游戏的趣味性和沉浸感。
+
+## 输出要求
+
+将你的回复内容组成成 markeddown 格式的文本块，方便阅读。"""
+
+
+def _gen_stage_system_message(stage_model: Stage, world: World) -> str:
+    return f"""# 场景: {stage_model.name}
+
+你扮演这个游戏世界的一个场景: {stage_model.name}
+
+## 场景描述：
+
+{stage_model.description}
+
+## 场景环境描写
+
+{stage_model.environment}
+
+## 世界设定
+
+名称: {world.name}
+描述: {world.description}
+
+## 你的职责：
+- 你需要根据你的场景设定，描述场景中的环境和氛围。
+- 你可以描述场景中的角色互动，事件发生等。
+- 你的描述应当推动故事发展，增加游戏的趣味性和沉浸感。
+
+## 输出要求
+
+将你的回复内容组成成 markeddown 格式的文本块，方便阅读。"""
 
 
 class GameAgent(BaseModel):
     name: str
+    type: str
     chat_history: List[BaseMessage] = []
 
 
 # 创建游戏角色代理
-game_system_agent = GameAgent(
+admin_agent: Final[GameAgent] = GameAgent(
     name="游戏管理员",
-    chat_history=[SystemMessage(content=game_system_character_profile)],
+    type=World.__name__,
+    chat_history=[SystemMessage(content=_gen_admin_system_message(test_world))],
 )
 
 # 获取游戏世界中的所有角色
 all_actors = test_world.get_all_actors()
 logger.info(f"游戏世界中的所有角色: {[actor.name for actor in all_actors]}")
 
+all_stages = test_world.get_all_stages()
+logger.info(f"游戏世界中的所有场景: {[stage.name for stage in all_stages]}")
+
 # 创建每个角色的代理
 actor_agents: List[GameAgent] = []
 for actor in all_actors:
-    agent = GameAgent(name=actor.name, chat_history=[])
+    agent = GameAgent(
+        name=actor.name,
+        type=Actor.__name__,
+        chat_history=[
+            SystemMessage(content=_gen_actor_system_message(actor, test_world))
+        ],
+    )
     actor_agents.append(agent)
 
-# 所有代理列表
-all_agents: List[GameAgent] = [game_system_agent] + actor_agents
+stage_agents: List[GameAgent] = []
+for stage in all_stages:
+    agent = GameAgent(
+        name=stage.name,
+        type=Stage.__name__,
+        chat_history=[
+            SystemMessage(content=_gen_stage_system_message(stage, test_world))
+        ],
+    )
+    stage_agents.append(agent)
 
-# 当前的代理（默认为游戏管理员）
-current_agent: GameAgent = game_system_agent
+
+# 所有代理列表
+all_agents: List[GameAgent] = [admin_agent] + actor_agents + stage_agents
+
+for agent in all_agents:
+    logger.info(f"已创建代理: {agent.name}")
 
 
 # ============================================================================
@@ -285,6 +371,7 @@ async def handle_user_message(
     user_input_state: McpState,
     chat_history_state: McpState,
     compiled_mcp_stage_graph: CompiledStateGraph[McpState, Any, McpState, McpState],
+    should_append_to_history: bool = True,
 ) -> List[BaseMessage]:
     """处理普通用户消息：发送给AI处理"""
     user_message = (
@@ -300,13 +387,15 @@ async def handle_user_message(
     )
 
     # 更新聊天历史
-    chat_history_state["messages"].extend(user_input_state["messages"])
-    chat_history_state["messages"].extend(update_messages)
+    if should_append_to_history:
+        chat_history_state["messages"].extend(user_input_state["messages"])
+        chat_history_state["messages"].extend(update_messages)
 
     # 显示最新的AI回复
     if update_messages:
-        latest_response = update_messages[-1]
-        logger.info(f"\n🤖 DeepSeek: {latest_response.content}")
+        for msg in update_messages:
+            assert isinstance(msg, AIMessage)
+            logger.debug(f"{msg.content}")
     else:
         logger.error("❌ 抱歉，没有收到回复。")
 
@@ -386,61 +475,17 @@ async def handle_prompt_with_params_command(
 # ============================================================================
 
 
-def _gen_game_system_prompt(command_content: str) -> str:
-    return f"""# 系统级指令！
-
-## 说明
-
-1. 发送对象：玩家 -> 游戏管理员
-3. 游戏管理员 需要根据玩家的指令内容，采取相应的行动，如更新游戏状态、提供信息等。
-
-## 指令内容
-
-{command_content}
-
-## 输出要求
-
-1. 以简洁明了的方式回应玩家。
-2. 将你的回复内容组成成 markeddown 格式的文本块，方便阅读。"""
-
-
-###########################################################################################################################################
-###########################################################################################################################################
-###########################################################################################################################################
-def _gen_actor_prompt(actor: str, command: str) -> str:
-    return f"""# 角色级指令
-
-## 指令（或事件）的发起角色: {actor}
-
-## 指令内容
-
-{command}
-
-## 输出内容
-
-1. 请以符合该角色身份和背景的方式回应指令内容。
-2. 本条指令内容会产生影响，如对场景的影响与其他角色的互动等。
-3. 最终内容将1/2整合成一段完整通顺的内容。
-4. 注意！不要输出过往的对话内容，只输出本次指令的回应内容。
-
-## 输出要求
-
-将你的回复内容组成成 markeddown 格式的文本块，方便阅读。"""
-
-
-###########################################################################################################################################
-###########################################################################################################################################
-###########################################################################################################################################
 async def main() -> None:
     """Game MCP 客户端主函数"""
-    # logger.info("🎮 启动 Game MCP 客户端...")
+    logger.success("🎮 启动 Game MCP 客户端...")
+
+    # 当前的代理（默认为游戏管理员）
+    current_agent: GameAgent = admin_agent
 
     try:
         # 简化的欢迎信息
         logger.info("\n" + "🎮" * 30)
-        logger.info("🤖 Game MCP Client - DeepSeek AI")
         logger.info("💡 输入 /help 查看命令 | 输入 /quit 退出")
-        # logger.info("💡 输入 /system 执行系统指令让AI主动获取游戏状态")
         logger.info("🎮" * 30 + "\n")
 
         # 初始化 MCP 客户端
@@ -450,23 +495,29 @@ async def main() -> None:
         available_resources: List[McpResourceInfo] = []
 
         try:
+
+            # Initialize MCP client
             mcp_client = await initialize_mcp_client(
                 mcp_server_url=mcp_config.mcp_server_url,
                 mcp_protocol_version=mcp_config.protocol_version,
                 mcp_timeout=mcp_config.mcp_timeout,
             )
+
+            # 获取可用工具
             tools_result = await mcp_client.list_tools()
             available_tools = tools_result if tools_result is not None else []
             logger.success(f"🔗 MCP 客户端连接成功，可用工具: {len(available_tools)}")
             for tool in available_tools:
                 logger.debug(f"{tool.model_dump_json(indent=2, ensure_ascii=False)}")
 
+            # 获取可用提示词模板
             prompts_result = await mcp_client.list_prompts()
             available_prompts = prompts_result if prompts_result is not None else []
             logger.success(f"📝 获取到 {len(available_prompts)} 个提示词模板")
             for prompt in available_prompts:
                 logger.debug(f"{prompt.model_dump_json(indent=2, ensure_ascii=False)}")
 
+            # 获取可用资源
             resources_result = await mcp_client.list_resources()
             available_resources = (
                 resources_result if resources_result is not None else []
@@ -490,8 +541,6 @@ async def main() -> None:
         assert mcp_client is not None, "MCP client is not initialized"
         compiled_mcp_stage_graph = await create_mcp_workflow()
 
-        # logger.debug("🤖 Game MCP 客户端初始化完成，开始对话...")
-
         # 对话循环
         while True:
 
@@ -511,6 +560,7 @@ async def main() -> None:
 
                 # 处理历史记录命令
                 elif user_input.lower() == "/history":
+                    logger.info(f"📜 打印当前代理 [{current_agent.name}] 的对话历史")
                     print_chat_history(current_agent.chat_history)
                     continue
 
@@ -534,92 +584,34 @@ async def main() -> None:
                     await handle_read_resource_command(user_input, mcp_client)
                     continue
 
-                elif user_input.startswith("/system"):
+                elif user_input.startswith("@"):
 
-                    parts = user_input.split(" ", 1)
-                    if len(parts) != 2 or not parts[1].strip():
-                        logger.error(
-                            "💡 请提供系统指令内容，例如: /system 你的指令内容"
-                        )
+                    # @名字。请提取出来
+                    target_name = user_input[1:]
+                    if not target_name:
+                        logger.error("💡 请输入有效的角色名字")
                         continue
 
-                    command_content = parts[1].strip()
-                    assert len(command_content) > 0, "系统指令内容不能为空"
-
-                    prompt0 = _gen_game_system_prompt(command_content)
-                    logger.debug(f"💬 处理系统指令输入: {prompt0}")
-
-                    await handle_user_message(
-                        user_input_state={
-                            "messages": [HumanMessage(content=prompt0)],
-                            "llm": llm,
-                            "mcp_client": mcp_client,
-                            "available_tools": available_tools,
-                            "tool_outputs": [],
-                        },
-                        chat_history_state={
-                            "messages": game_system_agent.chat_history.copy(),
-                            "llm": llm,
-                            "mcp_client": mcp_client,
-                            "available_tools": available_tools,
-                            "tool_outputs": [],
-                        },
-                        # game_system_agent.chat_history.copy(),
-                        compiled_mcp_stage_graph=compiled_mcp_stage_graph,
-                    )
-
-                    continue
-
-                # /actor @名字 指令内容
-                elif user_input.startswith("/actor"):
-
-                    # 解析 '/actor @名字 指令内容'格式
-                    parts = user_input.split(maxsplit=2)
-
-                    # 检查格式是否正确
-                    if len(parts) < 3:
-                        logger.error("💡 请提供正确的格式: /actor @名字 指令内容")
+                    logger.info(f"🎭 角色名字: {target_name}")
+                    if target_name == current_agent.name:
+                        logger.warning("⚠️ 你已经是该角色代理，无需切换")
                         continue
 
-                    # 提取角色名字（去掉@符号）
-                    actor_name_raw = parts[1]
-                    if not actor_name_raw.startswith("@"):
-                        logger.error(
-                            "💡 角色名字必须以 @ 开头，例如: /actor @张三 你的指令"
-                        )
-                        continue
+                    last_agent_name = current_agent.name
+                    switched = False
 
-                    actor_name = actor_name_raw[1:]  # 去掉@符号
-                    command_content = parts[2]
+                    for agent in all_agents:
+                        if agent.name == target_name:
+                            current_agent = agent
+                            assert current_agent is not None
+                            logger.success(
+                                f"✅ 切换当前代理 {last_agent_name} 到 {current_agent.name}"
+                            )
+                            switched = True
+                            break
 
-                    # 打印解析结果
-                    logger.info(f"🎭 角色名字: {actor_name}")
-                    logger.info(f"📝 指令内容: {command_content}")
-
-                    # TODO: 这里可以添加后续处理逻辑，比如向特定角色发送指令
-                    logger.warning("⚠️ /actor 命令功能待实现")
-
-                    prompt1 = _gen_actor_prompt(actor_name, command_content)
-                    logger.debug(f"💬 处理角色指令输入: {prompt1}")
-
-                    await handle_user_message(
-                        user_input_state={
-                            "messages": [HumanMessage(content=prompt1)],
-                            "llm": llm,
-                            "mcp_client": mcp_client,
-                            "available_tools": available_tools,
-                            "tool_outputs": [],
-                        },
-                        chat_history_state={
-                            "messages": current_agent.chat_history.copy(),
-                            "llm": llm,
-                            "mcp_client": mcp_client,
-                            "available_tools": available_tools,
-                            "tool_outputs": [],
-                        },
-                        # current_agent.chat_history.copy(),
-                        compiled_mcp_stage_graph=compiled_mcp_stage_graph,
-                    )
+                    if not switched:
+                        logger.error(f"❌ 未找到角色代理: {target_name}")
 
                     continue
 
@@ -634,16 +626,7 @@ async def main() -> None:
                     continue
 
                 # 最后的兜底处理, 纯聊天！
-                # 处理普通用户消息
-                # default_user_input_state: McpState = {
-                #     "messages": [HumanMessage(content=user_input)],
-                #     "llm": llm,
-                #     "mcp_client": mcp_client,
-                #     "available_tools": available_tools,
-                #     "tool_outputs": [],
-                # }
-
-                await handle_user_message(
+                response = await handle_user_message(
                     user_input_state={
                         "messages": [HumanMessage(content=user_input)],
                         "llm": llm,
@@ -658,9 +641,12 @@ async def main() -> None:
                         "available_tools": available_tools,
                         "tool_outputs": [],
                     },
-                    # system_conversation_state,
                     compiled_mcp_stage_graph=compiled_mcp_stage_graph,
                 )
+
+                # 更新当前代理的对话历史
+                current_agent.chat_history.append(HumanMessage(content=user_input))
+                current_agent.chat_history.extend(response)
 
             except KeyboardInterrupt:
                 logger.info("🛑 用户中断程序")

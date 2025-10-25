@@ -313,13 +313,7 @@ async def get_entity_resource(entity_name: str) -> str:
 # ============================================================================
 # 注册提示词模板
 # ============================================================================
-
-# 例子：game_system_prompt_example --player_name=张三 --current_stage=客厅 --world_name=测试世界 --timestamp=2025-10-25T10:30:00 --player_status=健康 --command_content=查看当前场景的详细信息
-"""
-game_system_prompt_example --player_name=张三 --current_stage=客厅 --world_name=测试世界
-"""
-
-
+# game_system_prompt_example --player_name=张三 --current_stage=客厅 --world_name=测试世界
 @app.prompt()
 async def game_system_prompt_example() -> types.GetPromptResult:
     """
@@ -337,20 +331,7 @@ async def game_system_prompt_example() -> types.GetPromptResult:
 ## 角色设定
 - **玩家名称**: {player_name}
 - **当前场景**: {current_stage}
-- **游戏世界**: {world_name}
-
-## 系统权限
-游戏系统拥有最高权限，负责：
-1. 管理和维护游戏世界的秩序与运行
-2. 处理玩家的各类请求和指令
-3. 更新游戏状态和实体信息
-
-## 期望行为
-根据上述设定，游戏系统应当：
-1. 理解玩家的意图和需求
-2. 验证指令的合法性和可执行性
-3. 执行相应的游戏逻辑操作
-4. 返回清晰的执行结果和反馈"""
+- **游戏世界**: {world_name}"""
 
     return types.GetPromptResult(
         description="游戏系统提示词模板（示例） - 展示如何使用多参数提示词模板",
