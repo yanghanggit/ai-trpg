@@ -361,7 +361,7 @@ async def handle_user_message(
         user_input_state["messages"][0] if user_input_state.get("messages") else None
     )
     if user_message:
-        logger.info(f"处理用户输入: {user_message.content}")
+        logger.success(f"处理用户输入: {user_message.content}")
 
     update_messages = await execute_mcp_workflow(
         state_compiled_graph=compiled_mcp_stage_graph,

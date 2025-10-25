@@ -340,7 +340,7 @@ async def game_system_prompt_example() -> types.GetPromptResult:
 - **游戏世界**: {world_name}
 
 ## 系统权限
-游戏系统（游戏管理员）拥有最高权限，负责：
+游戏系统拥有最高权限，负责：
 1. 管理和维护游戏世界的秩序与运行
 2. 处理玩家的各类请求和指令
 3. 更新游戏状态和实体信息

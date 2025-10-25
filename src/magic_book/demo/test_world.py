@@ -7,11 +7,12 @@ from typing import List
 # ============================================================================
 
 
+# character_profile
 class Actor(BaseModel):
     """表示游戏中角色状态的模型"""
 
     name: str
-    description: str
+    character_profile: str
     appearance: str
 
 
@@ -132,12 +133,12 @@ test_world = World(
             actors=[
                 Actor(
                     name="艾尔温·星语",
-                    description="精灵族的德鲁伊长老，他精通自然魔法，能与森林中的生物沟通。",
+                    character_profile="精灵族的德鲁伊长老，他精通自然魔法，能与森林中的生物沟通。",
                     appearance="身穿绿色长袍的高大精灵，银白色的长发及腰，碧绿的眼眸中闪烁着智慧的光芒，手持一根雕刻着古老符文的木杖",
                 ),
                 Actor(
                     name="索尔娜·影舞",
-                    description="神秘的暗夜精灵游侠，是森林的守护者。她在区域间穿梭巡逻，行踪飘忽，箭术精湛，总是在危险来临前出现。",
+                    character_profile="神秘的暗夜精灵游侠，是森林的守护者。她在区域间穿梭巡逻，行踪飘忽，箭术精湛，总是在危险来临前出现。",
                     appearance="身着深紫色皮甲的矫健身影,紫色的肌肤在月光下闪耀,银色的长发束成高马尾,背后背着一把精致的月牙弓和装满银色羽箭的箭筒",
                 ),
             ],

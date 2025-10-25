@@ -24,7 +24,7 @@ sys.path.insert(
 import traceback
 from typing import Any, List
 import asyncio
-from langchain.schema import BaseMessage, HumanMessage, SystemMessage
+from langchain.schema import AIMessage, BaseMessage, HumanMessage, SystemMessage
 from langgraph.graph.state import CompiledStateGraph
 from loguru import logger
 
@@ -44,8 +44,11 @@ from magic_book.mcp import (
 )
 import json
 from magic_book.demo.test_world import test_world
+from pydantic import BaseModel
 
-game_master_system_prompt = f"""# 你扮演一个奇幻世界游戏的管理员（Game Master）。
+game_master_system_prompt = f"""# 游戏管理员
+
+你负责管理和维护游戏世界的秩序与运行，你是游戏的最高管理者。
 
 ## 游戏世界
 
@@ -61,6 +64,22 @@ game_master_system_prompt = f"""# 你扮演一个奇幻世界游戏的管理员�
 
 - 负责引导玩家在名为 {test_world.name} 的虚拟世界中冒险。
 - 你的任务是根据玩家的输入，提供有趣且富有创意的回应，帮助他们理解游戏环境、任务和角色。"""
+
+
+class GameAgent(BaseModel):
+    name: str
+    chat_history: List[BaseMessage] = []
+
+
+# 创建游戏角色代理
+system_agent = GameAgent(
+    name="游戏管理员", chat_history=[SystemMessage(content=game_master_system_prompt)]
+)
+actor1_agent = GameAgent(name="艾尔温·星语", chat_history=[])
+actor2_agent = GameAgent(name="索尔娜·影舞", chat_history=[])
+all_agents: List[GameAgent] = [system_agent, actor1_agent, actor2_agent]
+current_agent: GameAgent = system_agent
+
 
 # ============================================================================
 # 辅助函数
@@ -113,37 +132,26 @@ def parse_command_with_params(user_input: str) -> tuple[str, dict[str, str]] | N
     return (command, params)
 
 
-def print_chat_history(chat_history_state: McpState) -> None:
+def print_chat_history(messages: List[BaseMessage]) -> None:
     """打印对话历史"""
-    messages = chat_history_state["messages"]
 
     if not messages:
         logger.info("📜 对话历史为空")
         return
 
-    logger.info("\n" + "=" * 60)
-    logger.info("📜 对话历史：")
-    logger.info("-" * 60)
+    # logger.info("\n" + "=" * 60)
+    logger.info(f"📜 对话历史：数量 = {len(messages)}")
+    # logger.info("-" * 60)
 
-    for i, message in enumerate(messages, 1):
+    for i, message in enumerate(messages):
         if isinstance(message, HumanMessage):
-            logger.info(f"👤 用户 [{i}]: {message.content}")
-        else:
-            content = str(message.content)
-            logger.info(f"🤖 DeepSeek [{i}]: {content}")
+            logger.debug(f"👤 HumanMessage [{i}]: {message.content}")
+        elif isinstance(message, SystemMessage):
+            logger.debug(f"⚙️ SystemMessage [{i}]: {message.content}")
+        elif isinstance(message, AIMessage):
+            logger.debug(f"🤖 AIMessage [{i}]: {message.content}")
 
-    logger.info(f"\n📊 统计信息：")
-    logger.info(f"   • 总消息数: {len(messages)}")
-    logger.info(
-        f"   • 用户消息: {sum(1 for msg in messages if isinstance(msg, HumanMessage))}"
-    )
-    logger.info(
-        f"   • AI回复: {sum(1 for msg in messages if not isinstance(msg, HumanMessage))}"
-    )
-    logger.info(f"   • 可用工具: {len(chat_history_state.get('available_tools', []))}")
-    mcp_client = chat_history_state.get("mcp_client")
-    logger.info(f"   • MCP状态: {'已连接' if mcp_client is not None else '未连接'}")
-    logger.info("=" * 60)
+    # logger.info("=" * 60)
 
 
 def handle_tools_command(available_tools: List[McpToolInfo]) -> None:
@@ -270,7 +278,7 @@ async def handle_user_message(
         user_input_state["messages"][0] if user_input_state.get("messages") else None
     )
     if user_message:
-        logger.info(f"💬 处理用户输入: {user_message.content}")
+        logger.success(f"💬 处理用户输入: {user_message.content}")
 
     update_messages = await execute_mcp_workflow(
         state_compiled_graph=compiled_mcp_stage_graph,
@@ -370,9 +378,8 @@ def _gen_game_system_prompt(command_content: str) -> str:
 
 ## 说明
 
-1. 发送对象：玩家 -> 游戏系统（游戏管理员）
-2. 游戏系统（游戏管理员）拥有最高权限，负责管理和维护游戏世界的秩序与运行。
-3. 游戏系统（游戏管理员）需要根据玩家的指令内容，采取相应的行动，如更新游戏状态、提供信息等。
+1. 发送对象：玩家 -> 游戏管理员
+3. 游戏管理员 需要根据玩家的指令内容，采取相应的行动，如更新游戏状态、提供信息等。
 
 ## 指令内容
 
@@ -466,27 +473,18 @@ async def main() -> None:
         llm = create_deepseek_llm(0.7)
         logger.debug("✅ DeepSeek LLM 实例创建成功")
 
-        # 初始化聊天历史状态
-        system_conversation_state: McpState = {
-            "messages": [SystemMessage(content=game_master_system_prompt)],
-            "llm": llm,
-            "mcp_client": mcp_client,
-            "available_tools": available_tools,
-            "tool_outputs": [],
-        }
-
         # 创建工作流
         assert mcp_client is not None, "MCP client is not initialized"
         compiled_mcp_stage_graph = await create_mcp_workflow()
 
-        logger.success("🤖 Game MCP 客户端初始化完成，开始对话...")
+        #logger.debug("🤖 Game MCP 客户端初始化完成，开始对话...")
 
         # 对话循环
         while True:
 
             try:
                 logger.info("\n" + "=" * 60)
-                user_input = input("User: ").strip()
+                user_input = input(f"[{current_agent.name}]:").strip()
 
                 # 处理退出命令
                 if user_input.lower() in ["/quit", "/exit", "/q"]:
@@ -500,7 +498,7 @@ async def main() -> None:
 
                 # 处理历史记录命令
                 elif user_input.lower() == "/history":
-                    print_chat_history(system_conversation_state)
+                    print_chat_history(current_agent.chat_history)
                     continue
 
                 # 处理提示词模板命令
@@ -546,7 +544,14 @@ async def main() -> None:
                             "available_tools": available_tools,
                             "tool_outputs": [],
                         },
-                        chat_history_state=system_conversation_state,
+                        chat_history_state={
+                            "messages": system_agent.chat_history.copy(),
+                            "llm": llm,
+                            "mcp_client": mcp_client,
+                            "available_tools": available_tools,
+                            "tool_outputs": [],
+                        },
+                        # game_system_agent.chat_history.copy(),
                         compiled_mcp_stage_graph=compiled_mcp_stage_graph,
                     )
 
@@ -592,29 +597,31 @@ async def main() -> None:
                             "available_tools": available_tools,
                             "tool_outputs": [],
                         },
-                        chat_history_state=system_conversation_state,
+                        chat_history_state={
+                            "messages": current_agent.chat_history.copy(),
+                            "llm": llm,
+                            "mcp_client": mcp_client,
+                            "available_tools": available_tools,
+                            "tool_outputs": [],
+                        },
+                        # current_agent.chat_history.copy(),
                         compiled_mcp_stage_graph=compiled_mcp_stage_graph,
                     )
 
                     continue
 
-                else:
+                elif parse_command_with_params(user_input) is not None:
                     # 处理参数化 Prompt 调用
                     await handle_prompt_with_params_command(user_input, mcp_client)
                     continue
 
-                # 兜底用的，默认处理！！！！
-                # logger.error(f"💬 无法处理普通用户输入: {user_input}， 略过！")
-                # continue
+                # 处理空输入
+                if user_input == "":
+                    logger.error("💡 请输入您的问题，或输入 /help 查看帮助")
+                    continue
 
-                # # 处理空输入
-                # if user_input == "":
-                #     logger.warning("💡 请输入您的问题，或输入 /help 查看帮助")
-                #     continue
-
-                # # 最后的兜底处理, 纯聊天！
-
-                # # 处理普通用户消息
+                # 最后的兜底处理, 纯聊天！
+                # 处理普通用户消息
                 # default_user_input_state: McpState = {
                 #     "messages": [HumanMessage(content=user_input)],
                 #     "llm": llm,
@@ -623,11 +630,24 @@ async def main() -> None:
                 #     "tool_outputs": [],
                 # }
 
-                # await handle_user_message(
-                #     user_input_state=default_user_input_state,
-                #     chat_history_state=system_conversation_state,
-                #     compiled_mcp_stage_graph=compiled_mcp_stage_graph,
-                # )
+                await handle_user_message(
+                    user_input_state={
+                        "messages": [HumanMessage(content=user_input)],
+                        "llm": llm,
+                        "mcp_client": mcp_client,
+                        "available_tools": available_tools,
+                        "tool_outputs": [],
+                    },
+                    chat_history_state={
+                        "messages": current_agent.chat_history.copy(),
+                        "llm": llm,
+                        "mcp_client": mcp_client,
+                        "available_tools": available_tools,
+                        "tool_outputs": [],
+                    },
+                    # system_conversation_state,
+                    compiled_mcp_stage_graph=compiled_mcp_stage_graph,
+                )
 
             except KeyboardInterrupt:
                 logger.info("🛑 用户中断程序")
