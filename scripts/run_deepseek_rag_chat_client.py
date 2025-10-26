@@ -28,26 +28,24 @@ from langchain.schema import HumanMessage
 from loguru import logger
 
 from magic_book.deepseek.rag_graph import (
-    State,
-    create_rag_compiled_graph,
-    stream_rag_graph_updates,
+    RAGState,
+    create_rag_workflow,
+    execute_rag_workflow,
 )
 from magic_book.deepseek.client import create_deepseek_llm
 
+
 def main() -> None:
-   
+
     try:
 
         # 步骤2: 创建RAG状态图
-        rag_compiled_graph = create_rag_compiled_graph()
+        rag_compiled_graph = create_rag_workflow()
 
         # 步骤3: 初始化聊天历史
-        
 
         llm = create_deepseek_llm()
-        chat_history_state: State = {"messages": [], "llm": llm}
-
-
+        chat_history_state: RAGState = {"messages": [], "llm": llm}
 
         # 步骤4: 开始交互循环
         while True:
@@ -60,13 +58,13 @@ def main() -> None:
                     break
 
                 # 用户输入
-                user_input_state: State = {
+                user_input_state: RAGState = {
                     "messages": [HumanMessage(content=user_input)],
                     "llm": llm,  # 使用同一个LLM实例
                 }
 
                 # 执行RAG流程
-                update_messages = stream_rag_graph_updates(
+                update_messages = execute_rag_workflow(
                     rag_compiled_graph=rag_compiled_graph,
                     chat_history_state=chat_history_state,
                     user_input_state=user_input_state,

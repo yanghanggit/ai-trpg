@@ -9,7 +9,7 @@ DeepSeek 聊天服务模块
 """
 
 from .chat_graph import create_chat_workflow, execute_chat_workflow, ChatState
-from .rag_graph import create_rag_compiled_graph, stream_rag_graph_updates
+from .rag_graph import create_rag_workflow, execute_rag_workflow
 from .mcp_client_graph import (
     create_mcp_workflow,
     execute_mcp_workflow,
@@ -28,8 +28,8 @@ __all__ = [
     "execute_chat_workflow",
     "ChatState",
     # RAG 聊天图
-    "create_rag_compiled_graph",
-    "stream_rag_graph_updates",
+    "create_rag_workflow",
+    "execute_rag_workflow",
     # MCP 客户端聊天图
     "create_mcp_workflow",
     "execute_mcp_workflow",
