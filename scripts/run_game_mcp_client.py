@@ -39,6 +39,9 @@ from magic_book.deepseek import (
     create_chat_workflow,
     execute_chat_workflow,
     ChatState,
+    RAGState,
+    create_rag_workflow,
+    execute_rag_workflow,
 )
 
 from magic_book.mcp import (
@@ -62,6 +65,7 @@ from magic_book.demo.test_world import (
 )
 
 from magic_book.utils import parse_command_with_params
+from magic_book.rag.game_retriever import GameDocumentRetriever
 
 
 ########################################################################################################################
@@ -379,6 +383,52 @@ def _execute_chat_state_workflow(
 
 
 ########################################################################################################################
+def _execute_rag_workflow(
+    user_input_state: RAGState,
+    chat_history_state: RAGState,
+    work_flow: CompiledStateGraph[RAGState, Any, RAGState, RAGState],
+    should_append_to_history: bool = True,
+) -> List[BaseMessage]:
+    """执行 RAG 工作流
+
+    Args:
+        user_input_state: 用户输入状态（包含用户消息、LLM实例和检索器）
+        chat_history_state: 聊天历史状态（包含历史消息、LLM实例和检索器）
+        work_flow: 编译后的 RAG 工作流状态图
+        should_append_to_history: 是否将本次对话追加到历史记录（默认True）
+
+    Returns:
+        List[BaseMessage]: AI响应消息列表
+    """
+    user_message = (
+        user_input_state["messages"][0] if user_input_state.get("messages") else None
+    )
+    if user_message:
+        logger.success(f"💬 处理用户输入（RAG）: {user_message.content}")
+
+    update_messages = execute_rag_workflow(
+        rag_compiled_graph=work_flow,
+        chat_history_state=chat_history_state,
+        user_input_state=user_input_state,
+    )
+
+    # 更新聊天历史
+    if should_append_to_history:
+        chat_history_state["messages"].extend(user_input_state["messages"])
+        chat_history_state["messages"].extend(update_messages)
+
+    # 显示最新的AI回复
+    if update_messages:
+        for msg in update_messages:
+            assert isinstance(msg, AIMessage)
+            logger.info(f"{msg.content}")
+    else:
+        logger.error("❌ 抱歉，没有收到回复。")
+
+    return update_messages
+
+
+########################################################################################################################
 async def _handle_prompt_with_params_command(
     user_input: str, mcp_client: McpClient
 ) -> None:
@@ -510,13 +560,7 @@ async def _initialize_mcp_client_with_config(
 
 async def main() -> None:
     """Game MCP 客户端主函数"""
-    logger.success("🎮 启动 Game MCP 客户端...")
-
     try:
-        # 简化的欢迎信息
-        # logger.info("\n" + "🎮" * 30)
-        # logger.info("💡 输入 /help 查看命令 | 输入 /quit 退出")
-        # logger.info("🎮" * 30 + "\n")
 
         # 当前的代理（默认为游戏管理员）
         current_agent: GameAgent = admin_agent
@@ -531,6 +575,12 @@ async def main() -> None:
 
         chat_workflow = create_chat_workflow()
         logger.debug("✅ Chat 工作流创建成功")
+
+        rag_workflow = create_rag_workflow()
+        logger.debug("✅ RAG 工作流创建成功")
+
+        game_retriever = GameDocumentRetriever()
+        logger.debug("✅ Game 文档检索器创建成功")
 
         # 初始化 MCP 客户端并获取可用资源
         try:
@@ -663,6 +713,34 @@ async def main() -> None:
                     current_agent.chat_history.append(
                         HumanMessage(content=format_user_input)
                     )
+                    current_agent.chat_history.extend(response)
+                    continue
+
+                elif user_input.startswith("/rag"):
+
+                    # ‘/rag 内容ABC’ 将内容提取出来。
+                    rag_content = user_input[len("/rag") :].strip()
+                    if not rag_content:
+                        logger.error("💡 请输入有效的内容，格式: /rag 内容")
+                        continue
+
+                    # RAG 的工作流
+                    response = _execute_rag_workflow(
+                        user_input_state={
+                            "messages": [HumanMessage(content=rag_content)],
+                            "llm": llm,
+                            "document_retriever": game_retriever,
+                        },
+                        chat_history_state={
+                            "messages": current_agent.chat_history.copy(),
+                            "llm": llm,
+                            "document_retriever": game_retriever,
+                        },
+                        work_flow=rag_workflow,
+                    )
+
+                    # 更新当前代理的对话历史
+                    current_agent.chat_history.append(HumanMessage(content=rag_content))
                     current_agent.chat_history.extend(response)
                     continue
 
