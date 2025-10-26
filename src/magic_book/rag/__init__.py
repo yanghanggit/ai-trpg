@@ -21,16 +21,16 @@ from .knowledge_retrieval import (
 )
 
 # Import routing components for convenience
-from .routing import (
-    KeywordRouteStrategy,
-    RouteConfigBuilder,
-    RouteDecision,
-    RouteDecisionManager,
-    RouteStrategy,
-    SemanticRouteStrategy,
-    StrategyWeight,
-    create_route_manager_with_strategies,
-)
+# from .routing import (
+#     KeywordRouteStrategy,
+#     RouteConfigBuilder,
+#     RouteDecision,
+#     RouteDecisionManager,
+#     RouteStrategy,
+#     SemanticRouteStrategy,
+#     StrategyWeight,
+#     create_route_manager_with_strategies,
+# )
 
 __all__: List[str] = [
     # RAG core functions
@@ -38,12 +38,12 @@ __all__: List[str] = [
     "load_knowledge_base_to_vector_db",
     "search_similar_documents",
     # Routing components
-    "RouteStrategy",
-    "RouteDecision",
-    "KeywordRouteStrategy",
-    "SemanticRouteStrategy",
-    "RouteDecisionManager",
-    "StrategyWeight",
-    "RouteConfigBuilder",
-    "create_route_manager_with_strategies",
+    # "RouteStrategy",
+    # "RouteDecision",
+    # "KeywordRouteStrategy",
+    # "SemanticRouteStrategy",
+    # "RouteDecisionManager",
+    # "StrategyWeight",
+    # "RouteConfigBuilder",
+    # "create_route_manager_with_strategies",
 ]
