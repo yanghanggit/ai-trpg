@@ -1,11 +1,11 @@
 from dotenv import load_dotenv
-from loguru import logger
+
 
 # 加载 .env 文件中的环境变量
 load_dotenv()
 
 import traceback
-from typing import Annotated, Any, Dict, List
+from typing import Annotated, Any, Dict, List, Optional
 
 from langchain.schema import AIMessage, HumanMessage
 from langchain_core.messages import BaseMessage
@@ -14,23 +14,64 @@ from langgraph.graph import StateGraph
 from langgraph.graph.message import add_messages
 from langgraph.graph.state import CompiledStateGraph
 from typing_extensions import TypedDict
-
-# 导入ChromaDB相关功能
-from ..chroma import get_default_collection
-
-# 导入统一的 DeepSeek LLM 客户端
+from loguru import logger
 
 
 ############################################################################################################
-class State(TypedDict):
-    messages: Annotated[List[BaseMessage], add_messages]
-    llm: ChatDeepSeek  # DeepSeek LLM实例，整个流程共享
+# 配置常量
+############################################################################################################
+# 相似度阈值（低于此值的文档将被过滤）
+MIN_SIMILARITY_THRESHOLD = 0.3
+
+# 检索文档数量（预留给后续真实检索使用）
+TOP_K_DOCUMENTS = 5
 
 
 ############################################################################################################
-class RAGState(TypedDict):
+def _get_mock_retrieval_data(user_query: str) -> tuple[List[str], List[float]]:
+    """
+    生成 Mock 检索数据（用于测试RAG流程）
+
+    Args:
+        user_query: 用户查询文本
+
+    Returns:
+        (检索文档列表, 相似度分数列表)
+
+    Note:
+        这是临时测试函数，后续会接入真实的ChromaDB检索
+    """
+    logger.info("🎭 [MOCK] 使用Mock数据模拟检索")
+
+    # 模拟检索到的文档（按相似度降序排列）
+    mock_docs = [
+        "RAG（Retrieval-Augmented Generation）是一种结合检索和生成的AI技术，通过从知识库检索相关信息来增强大语言模型的回答质量。",
+        "RAG系统通常包含三个核心组件：文档检索器（使用向量数据库如ChromaDB）、上下文增强器和语言模型生成器。",
+        "使用RAG技术可以让AI模型访问最新的、领域特定的知识，而无需重新训练模型，显著提升回答的准确性和时效性。",
+        "向量数据库（如ChromaDB、Pinecone）在RAG系统中扮演关键角色，它们使用嵌入模型将文本转换为向量并进行语义搜索。",
+        "LangGraph是一个用于构建有状态、多参与者AI应用的框架，非常适合实现复杂的RAG工作流。",
+    ]
+
+    # 模拟相似度分数（降序排列，模拟真实检索结果）
+    mock_scores = [0.89, 0.76, 0.68, 0.52, 0.41]
+
+    logger.info(f"🎭 [MOCK] 返回 {len(mock_docs)} 个模拟文档")
+    for i, (doc, score) in enumerate(zip(mock_docs, mock_scores), 1):
+        logger.debug(f"🎭 [MOCK] [{i}] 相似度: {score:.3f}, 内容: {doc[:50]}...")
+
+    return mock_docs, mock_scores
+
+
+############################################################################################################
+class State(TypedDict, total=False):
     messages: Annotated[List[BaseMessage], add_messages]
-    llm: ChatDeepSeek  # DeepSeek LLM实例，整个RAG流程共享
+    llm: Optional[ChatDeepSeek]  # DeepSeek LLM实例，整个流程共享
+
+
+############################################################################################################
+class RAGState(TypedDict, total=False):
+    messages: Annotated[List[BaseMessage], add_messages]
+    llm: Optional[ChatDeepSeek]  # DeepSeek LLM实例，整个RAG流程共享
     user_query: str  # 用户原始查询
     retrieved_docs: List[str]  # 检索到的文档
     enhanced_context: str  # 增强后的上下文
@@ -42,98 +83,67 @@ class RAGState(TypedDict):
 ############################################################################################################
 def retrieval_node(state: RAGState) -> Dict[str, Any]:
     """
-    ChromaDB向量检索节点
+    向量检索节点
 
-    功能改造：
-    1. 将原来的关键词匹配改为ChromaDB语义向量搜索
-    2. 使用SentenceTransformer计算查询向量
-    3. 返回最相似的文档和相似度分数
-    4. 保持原有的错误处理和日志记录
+    功能：
+    1. 使用 Mock 数据进行测试检索
+    2. 相似度过滤和排序
+    3. 完整的错误处理和日志记录
+
+    Args:
+        state: RAG状态对象
+
+    Returns:
+        包含检索结果的字典：
+        - user_query: 用户查询
+        - retrieved_docs: 检索到的文档列表
+        - similarity_scores: 对应的相似度分数列表
+
+    Note:
+        当前使用 Mock 数据，后续会接入真实的 ChromaDB 检索
     """
     try:
         logger.info("🔍 [RETRIEVAL] 开始向量语义检索...")
+        logger.info("🔍 [RETRIEVAL] 检索模式: Mock测试模式")
 
+        # 提取用户查询
         user_query = state.get("user_query", "")
         if not user_query:
             # 从最新消息中提取查询
             if state["messages"]:
                 last_message = state["messages"][-1]
                 if isinstance(last_message, HumanMessage):
-                    # 确保content是字符串类型
                     content = last_message.content
                     user_query = content if isinstance(content, str) else str(content)
 
         logger.info(f"🔍 [RETRIEVAL] 用户查询: {user_query}")
 
-        # 获取ChromaDB实例并执行语义搜索
-        # chroma_db = get_chroma_db()
+        # 使用 Mock 数据进行检索
+        retrieved_docs, similarity_scores = _get_mock_retrieval_data(user_query)
 
-        # if not chroma_db.initialized:
-        #     logger.error("❌ [RETRIEVAL] ChromaDB未初始化，无法执行搜索")
-        #     return {
-        #         "user_query": user_query,
-        #         "retrieved_docs": ["ChromaDB数据库未初始化，请检查系统配置。"],
-        #         "similarity_scores": [0.0],
-        #     }
-
-        # 执行向量语义搜索
-        from ..rag import search_similar_documents
-        from ..embedding_model.sentence_transformer import (
-            get_embedding_model,
-        )
-
-        # 获取嵌入模型
-        embedding_model = get_embedding_model()
-        if embedding_model is None:
-            return {
-                "retrieved_docs": ["嵌入模型未初始化，请检查系统配置。"],
-                "similarity_scores": [0.0],
-            }
-
-        # 检查collection是否可用
-        # if chroma_db.collection is None:
-        #     return {
-        #         "retrieved_docs": ["ChromaDB collection未初始化，请检查系统配置。"],
-        #         "similarity_scores": [0.0],
-        #     }
-
-        retrieved_docs, similarity_scores = search_similar_documents(
-            user_query, get_default_collection(), embedding_model, top_k=5
-        )
-
-        # 检查搜索结果
-        if not retrieved_docs:
-            logger.warning("🔍 [RETRIEVAL] 语义搜索未找到相关文档，使用默认回复")
-            retrieved_docs = [
-                "抱歉，没有找到相关的具体信息，我会尽力根据常识回答您的问题。"
-            ]
-            similarity_scores = [0.0]
-
-        # 过滤低相似度结果（相似度阈值：0.3）
-        MIN_SIMILARITY = 0.3
+        # 过滤低相似度结果
         filtered_docs = []
         filtered_scores = []
 
         for doc, score in zip(retrieved_docs, similarity_scores):
-            if score >= MIN_SIMILARITY:
+            if score >= MIN_SIMILARITY_THRESHOLD:
                 filtered_docs.append(doc)
                 filtered_scores.append(score)
 
-        # 如果过滤后没有文档，保留最高分的文档
+        # 如果过滤后没有文档，至少保留最高分的文档
         if not filtered_docs and retrieved_docs:
             filtered_docs = [retrieved_docs[0]]
             filtered_scores = [similarity_scores[0]]
             logger.info(
-                f"🔍 [RETRIEVAL] 所有结果低于阈值，保留最高分文档 (相似度: {similarity_scores[0]:.3f})"
+                f"🔍 [RETRIEVAL] 所有结果低于阈值({MIN_SIMILARITY_THRESHOLD})，"
+                f"保留最高分文档 (相似度: {similarity_scores[0]:.3f})"
             )
 
-        logger.success(
-            f"🔍 [RETRIEVAL] 语义检索完成，共找到 {len(filtered_docs)} 个相关文档"
-        )
+        logger.success(f"🔍 [RETRIEVAL] 检索完成，共返回 {len(filtered_docs)} 个文档")
 
-        # 记录相似度信息
-        for i, (doc, score) in enumerate(zip(filtered_docs, filtered_scores)):
-            logger.info(f"  📄 [{i+1}] 相似度: {score:.3f}, 内容: {doc[:50]}...")
+        # 记录详细信息
+        for i, (doc, score) in enumerate(zip(filtered_docs, filtered_scores), 1):
+            logger.info(f"  📄 [{i}] 相似度: {score:.3f}, 内容: {doc[:60]}...")
 
         return {
             "user_query": user_query,
@@ -365,12 +375,12 @@ def stream_rag_graph_updates(
     return ret
 
 
-############################################################################################################
-def main() -> None:
-    pass
+# ############################################################################################################
+# def main() -> None:
+#     pass
 
 
-############################################################################################################
-if __name__ == "__main__":
-    # 提示用户使用专用启动脚本
-    main()
+# ############################################################################################################
+# if __name__ == "__main__":
+#     # 提示用户使用专用启动脚本
+#     main()

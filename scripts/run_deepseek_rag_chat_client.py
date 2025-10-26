@@ -32,40 +32,22 @@ from magic_book.deepseek.rag_graph import (
     create_rag_compiled_graph,
     stream_rag_graph_updates,
 )
-
+from magic_book.deepseek.client import create_deepseek_llm
 
 def main() -> None:
-    """
-    ChromaDB增强版RAG聊天系统主函数
-
-    功能改进：
-    1. 初始化ChromaDB向量数据库
-    2. 加载SentenceTransformer模型
-    3. 支持语义搜索和关键词搜索回退
-    4. 提供丰富的使用提示和错误处理
-    """
-    logger.info("🎯 启动ChromaDB增强版RAG聊天系统...")
-
+   
     try:
 
         # 步骤2: 创建RAG状态图
         rag_compiled_graph = create_rag_compiled_graph()
 
         # 步骤3: 初始化聊天历史
-        from magic_book.deepseek.client import create_deepseek_llm
+        
 
         llm = create_deepseek_llm()
         chat_history_state: State = {"messages": [], "llm": llm}
 
-        logger.success("🎯 RAG系统初始化完成，开始对话...")
-        logger.info("💡 提示：您可以询问关于艾尔法尼亚世界的问题，例如：")
-        logger.info("   - 艾尔法尼亚大陆有哪些王国？")
-        logger.info("   - 圣剑有什么特殊能力？")
-        logger.info("   - 魔王阿巴顿的弱点是什么？")
-        logger.info("   - 有哪些种族生活在这片大陆？")
-        logger.info("   - 著名的遗迹有哪些？")
-        logger.info("   - 冒险者公会是如何运作的？")
-        logger.info("💡 输入 /quit、/exit 或 /q 退出程序")
+
 
         # 步骤4: 开始交互循环
         while True:
