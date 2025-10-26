@@ -9,18 +9,17 @@ DeepSeek 聊天服务模块
 """
 
 from .chat_graph import create_chat_workflow, execute_chat_workflow, ChatState
-from .rag_graph import create_rag_workflow, execute_rag_workflow
+from .rag_graph import (
+    create_rag_workflow,
+    execute_rag_workflow,
+    RAGState,
+    DocumentRetriever,
+)
 from .mcp_client_graph import (
     create_mcp_workflow,
     execute_mcp_workflow,
     McpState,
 )
-
-# from .unified_chat_graph import (
-#     create_unified_chat_graph,
-#     stream_unified_graph_updates,
-#     UnifiedState,
-# )
 from .client import create_deepseek_llm
 
 __all__ = [
@@ -29,15 +28,14 @@ __all__ = [
     "execute_chat_workflow",
     "ChatState",
     # RAG 聊天图
+    "RAGState",
+    "DocumentRetriever",
     "create_rag_workflow",
     "execute_rag_workflow",
     # MCP 客户端聊天图
     "create_mcp_workflow",
     "execute_mcp_workflow",
     "McpState",
-    # 统一聊天图
-    # "create_unified_chat_graph",
-    # "stream_unified_graph_updates",
-    # "UnifiedState",
+    # 创建 DeepSeek LLM 实例
     "create_deepseek_llm",
 ]

@@ -121,6 +121,7 @@ from dotenv import load_dotenv
 load_dotenv()
 
 import traceback
+from abc import ABC, abstractmethod
 from typing import Annotated, Any, Final, List, Optional
 from langchain.schema import AIMessage, HumanMessage
 from langchain_core.messages import BaseMessage
@@ -130,6 +131,52 @@ from langgraph.graph.message import add_messages
 from langgraph.graph.state import CompiledStateGraph
 from typing_extensions import TypedDict
 from loguru import logger
+
+
+############################################################################################################
+# 抽象文档检索器接口
+############################################################################################################
+class DocumentRetriever(ABC):
+    """
+    文档检索器抽象基类
+
+    定义了文档检索的标准接口，所有具体的检索实现（ChromaDB、Elasticsearch等）
+    都应该继承此类并实现 retrieve_documents 方法。
+
+    设计理念：
+    - 统一接口：提供一致的检索API，方便替换不同的检索实现
+    - 扩展性：支持多种检索后端（向量数据库、全文搜索、混合检索等）
+    - 可测试性：便于创建Mock实现进行单元测试
+    """
+
+    @abstractmethod
+    def retrieve_documents(
+        self, user_query: str, top_k: int, min_similarity: float
+    ) -> tuple[List[str], List[float]]:
+        """
+        检索与用户查询相关的文档
+
+        Args:
+            user_query: 用户查询文本
+            top_k: 返回的最大文档数量（默认：5）
+            min_similarity: 最小相似度阈值，低于此值的结果将被过滤（默认：0.0）
+
+        Returns:
+            tuple[List[str], List[float]]:
+                - List[str]: 检索到的文档列表（按相似度降序排列）
+                - List[float]: 对应的相似度分数列表（范围：0.0-1.0）
+
+        Raises:
+            NotImplementedError: 子类必须实现此方法
+
+        Example:
+            >>> retriever = ConcreteRetriever()
+            >>> docs, scores = retriever.retrieve_documents("什么是RAG?", top_k=3)
+            >>> print(f"找到 {len(docs)} 个文档")
+            >>> for doc, score in zip(docs, scores):
+            ...     print(f"相似度: {score:.3f} - {doc[:50]}...")
+        """
+        raise NotImplementedError("子类必须实现 retrieve_documents 方法")
 
 
 ############################################################################################################
@@ -143,44 +190,10 @@ TOP_K_DOCUMENTS: Final[int] = 5
 
 
 ############################################################################################################
-def _get_mock_retrieval_data(user_query: str) -> tuple[List[str], List[float]]:
-    """
-    生成 Mock 检索数据（用于测试RAG流程）
-
-    Args:
-        user_query: 用户查询文本
-
-    Returns:
-        (检索文档列表, 相似度分数列表)
-
-    Note:
-        这是临时测试函数，后续会接入真实的ChromaDB检索
-    """
-    logger.info("🎭 [MOCK] 使用Mock数据模拟检索")
-
-    # 模拟检索到的文档（按相似度降序排列）
-    mock_docs = [
-        "RAG（Retrieval-Augmented Generation）是一种结合检索和生成的AI技术，通过从知识库检索相关信息来增强大语言模型的回答质量。",
-        "RAG系统通常包含三个核心组件：文档检索器（使用向量数据库如ChromaDB）、上下文增强器和语言模型生成器。",
-        "使用RAG技术可以让AI模型访问最新的、领域特定的知识，而无需重新训练模型，显著提升回答的准确性和时效性。",
-        "向量数据库（如ChromaDB、Pinecone）在RAG系统中扮演关键角色，它们使用嵌入模型将文本转换为向量并进行语义搜索。",
-        "LangGraph是一个用于构建有状态、多参与者AI应用的框架，非常适合实现复杂的RAG工作流。",
-    ]
-
-    # 模拟相似度分数（降序排列，模拟真实检索结果）
-    mock_scores = [0.89, 0.76, 0.68, 0.52, 0.41]
-
-    logger.info(f"🎭 [MOCK] 返回 {len(mock_docs)} 个模拟文档")
-    for i, (doc, score) in enumerate(zip(mock_docs, mock_scores), 1):
-        logger.debug(f"🎭 [MOCK] [{i}] 相似度: {score:.3f}, 内容: {doc[:50]}...")
-
-    return mock_docs, mock_scores
-
-
-############################################################################################################
 class RAGState(TypedDict, total=False):
     messages: Annotated[List[BaseMessage], add_messages]
     llm: Optional[ChatDeepSeek]  # DeepSeek LLM实例，整个RAG流程共享
+    document_retriever: Optional[DocumentRetriever]  # 文档检索器实例，支持依赖注入
     user_query: str  # 用户原始查询
     retrieved_docs: List[str]  # 检索到的文档
     enhanced_context: str  # 增强后的上下文
@@ -229,15 +242,33 @@ def _retrieval_node(state: RAGState) -> RAGState:
 
         logger.info(f"🔍 [RETRIEVAL] 用户查询: {user_query}")
 
-        # 使用 Mock 数据进行检索
-        retrieved_docs, similarity_scores = _get_mock_retrieval_data(user_query)
-
         # 从状态中获取配置值，如果没有则使用默认值
         min_threshold = state.get("min_similarity_threshold", MIN_SIMILARITY_THRESHOLD)
         top_k = state.get("top_k_documents", TOP_K_DOCUMENTS)
 
         logger.info(
             f"🔍 [RETRIEVAL] 使用配置 - 相似度阈值: {min_threshold}, Top-K: {top_k}"
+        )
+
+        # 获取文档检索器实例（严格检查，必须提供）
+        document_retriever = state.get("document_retriever")
+        if document_retriever is None:
+            error_msg = (
+                "🔍 [RETRIEVAL] 严重错误: 未提供 DocumentRetriever 实例！\n"
+                "RAG 工作流必须注入 DocumentRetriever 实例才能运行。\n"
+                "请在调用 execute_rag_workflow 时，在 user_input_state 或 chat_history_state 中提供 'document_retriever' 字段。"
+            )
+            logger.error(error_msg)
+            raise ValueError(
+                "DocumentRetriever is required but not provided in RAGState. "
+                "Please inject a DocumentRetriever instance (e.g., ChromaDBRetriever or MockDocumentRetriever) "
+                "into user_input_state or chat_history_state before executing the RAG workflow."
+            )
+
+        # 使用注入的检索器实例
+        logger.info(f"🔍 [RETRIEVAL] 使用检索器: {type(document_retriever).__name__}")
+        retrieved_docs, similarity_scores = document_retriever.retrieve_documents(
+            user_query=user_query, top_k=top_k, min_similarity=min_threshold
         )
 
         # 过滤低相似度结果
@@ -475,6 +506,11 @@ def execute_rag_workflow(
         chat_history_state.get("top_k_documents", TOP_K_DOCUMENTS),
     )
 
+    assert (
+        user_input_state["document_retriever"] is not None
+        or chat_history_state["document_retriever"] is not None
+    ), "DocumentRetriever instance must be provided in either user_input_state or chat_history_state."
+
     rag_state: RAGState = {
         "messages": chat_history_state["messages"] + user_input_state["messages"],
         "user_query": user_query,
@@ -482,6 +518,9 @@ def execute_rag_workflow(
         "enhanced_context": "",
         "similarity_scores": [],
         "llm": user_input_state["llm"],
+        "document_retriever": user_input_state.get(
+            "document_retriever", chat_history_state.get("document_retriever")
+        ),
         "min_similarity_threshold": min_threshold,
         "top_k_documents": top_k,
     }
