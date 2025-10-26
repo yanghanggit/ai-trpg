@@ -781,9 +781,7 @@ async def _error_fallback_wrapper(state: McpState) -> McpState:
 
 
 ############################################################################################################
-async def create_mcp_workflow() -> (
-    CompiledStateGraph[McpState, Any, McpState, McpState]
-):
+def create_mcp_workflow() -> CompiledStateGraph[McpState, Any, McpState, McpState]:
     """
     创建带 MCP 支持的编译状态图（多节点架构）
 

@@ -27,13 +27,20 @@ import asyncio
 from langchain.schema import AIMessage, BaseMessage, HumanMessage, SystemMessage
 from langgraph.graph.state import CompiledStateGraph
 from loguru import logger
+import json
+from pydantic import BaseModel
 
-from magic_book.deepseek.mcp_client_graph import (
+
+from magic_book.deepseek import (
     McpState,
     create_mcp_workflow,
     execute_mcp_workflow,
+    create_deepseek_llm,
+    create_chat_workflow,
+    execute_chat_workflow,
+    ChatState,
 )
-from magic_book.deepseek.client import create_deepseek_llm
+
 from magic_book.mcp import (
     McpToolInfo,
     McpPromptInfo,
@@ -43,7 +50,7 @@ from magic_book.mcp import (
     McpClient,
     McpConfig,
 )
-import json
+
 from magic_book.demo.test_world import (
     test_world,
     Actor,
@@ -53,7 +60,7 @@ from magic_book.demo.test_world import (
     gen_actor_system_message,
     gen_stage_system_message,
 )
-from pydantic import BaseModel
+
 from magic_book.utils import parse_command_with_params
 
 
@@ -326,6 +333,52 @@ async def _execute_mcp_state_workflow(
 
 
 ########################################################################################################################
+def _execute_chat_state_workflow(
+    user_input_state: ChatState,
+    chat_history_state: ChatState,
+    work_flow: CompiledStateGraph[ChatState, Any, ChatState, ChatState],
+    should_append_to_history: bool = True,
+) -> List[BaseMessage]:
+    """执行纯聊天工作流（不涉及工具调用）
+
+    Args:
+        user_input_state: 用户输入状态（包含用户消息和LLM实例）
+        chat_history_state: 聊天历史状态（包含历史消息和LLM实例）
+        work_flow: 编译后的聊天工作流状态图
+        should_append_to_history: 是否将本次对话追加到历史记录（默认True）
+
+    Returns:
+        List[BaseMessage]: AI响应消息列表
+    """
+    user_message = (
+        user_input_state["messages"][0] if user_input_state.get("messages") else None
+    )
+    if user_message:
+        logger.success(f"💬 处理用户输入（纯聊天）: {user_message.content}")
+
+    update_messages = execute_chat_workflow(
+        state_compiled_graph=work_flow,
+        chat_history_state=chat_history_state,
+        user_input_state=user_input_state,
+    )
+
+    # 更新聊天历史
+    if should_append_to_history:
+        chat_history_state["messages"].extend(user_input_state["messages"])
+        chat_history_state["messages"].extend(update_messages)
+
+    # 显示最新的AI回复
+    if update_messages:
+        for msg in update_messages:
+            assert isinstance(msg, AIMessage)
+            logger.info(f"{msg.content}")
+    else:
+        logger.error("❌ 抱歉，没有收到回复。")
+
+    return update_messages
+
+
+########################################################################################################################
 async def _handle_prompt_with_params_command(
     user_input: str, mcp_client: McpClient
 ) -> None:
@@ -459,22 +512,25 @@ async def main() -> None:
     """Game MCP 客户端主函数"""
     logger.success("🎮 启动 Game MCP 客户端...")
 
-    # 当前的代理（默认为游戏管理员）
-    current_agent: GameAgent = admin_agent
-
     try:
         # 简化的欢迎信息
-        logger.info("\n" + "🎮" * 30)
-        logger.info("💡 输入 /help 查看命令 | 输入 /quit 退出")
-        logger.info("🎮" * 30 + "\n")
+        # logger.info("\n" + "🎮" * 30)
+        # logger.info("💡 输入 /help 查看命令 | 输入 /quit 退出")
+        # logger.info("🎮" * 30 + "\n")
+
+        # 当前的代理（默认为游戏管理员）
+        current_agent: GameAgent = admin_agent
 
         # 创建 DeepSeek LLM 实例
         llm = create_deepseek_llm(0.7)
         logger.debug("✅ DeepSeek LLM 实例创建成功")
 
         # 创建工作流
-        mcp_workflow = await create_mcp_workflow()
+        mcp_workflow = create_mcp_workflow()
         logger.debug("✅ MCP 工作流创建成功")
+
+        chat_workflow = create_chat_workflow()
+        logger.debug("✅ Chat 工作流创建成功")
 
         # 初始化 MCP 客户端并获取可用资源
         try:
@@ -526,6 +582,7 @@ async def main() -> None:
                     continue
 
                 elif user_input.startswith("@"):
+
                     # 提取目标代理名称
                     target_name = user_input[1:].strip()
                     if not target_name:
@@ -552,7 +609,7 @@ async def main() -> None:
                     # 格式化用户输入
                     format_user_input = _format_user_input_prompt(mcp_content)
 
-                    # 最后的兜底处理, 纯聊天！
+                    # mcp 的工作流
                     response = await _execute_mcp_state_workflow(
                         user_input_state={
                             "messages": [HumanMessage(content=format_user_input)],
@@ -578,6 +635,37 @@ async def main() -> None:
                     current_agent.chat_history.extend(response)
                     continue
 
+                elif user_input.startswith("/chat"):
+
+                    # ‘/chat 内容ABC’ 将内容提取出来。
+                    chat_content = user_input[len("/chat") :].strip()
+                    if not chat_content:
+                        logger.error("💡 请输入有效的内容，格式: /chat 内容")
+                        continue
+
+                    # 格式化用户输入
+                    format_user_input = _format_user_input_prompt(chat_content)
+
+                    # 聊天的工作流
+                    response = _execute_chat_state_workflow(
+                        user_input_state={
+                            "messages": [HumanMessage(content=format_user_input)],
+                            "llm": llm,
+                        },
+                        chat_history_state={
+                            "messages": current_agent.chat_history.copy(),
+                            "llm": llm,
+                        },
+                        work_flow=chat_workflow,
+                    )
+
+                    # 更新当前代理的对话历史
+                    current_agent.chat_history.append(
+                        HumanMessage(content=format_user_input)
+                    )
+                    current_agent.chat_history.extend(response)
+                    continue
+
                 elif parse_command_with_params(user_input) is not None:
                     # 处理参数化 Prompt 调用
                     await _handle_prompt_with_params_command(user_input, mcp_client)
@@ -585,39 +673,6 @@ async def main() -> None:
 
                 else:
                     logger.error("💡 无法识别的输入格式\n")
-
-                # 处理空输入
-                # if user_input == "":
-                #     logger.error("💡 请输入您的问题，或输入 /help 查看帮助")
-                #     continue
-
-                # 格式化用户输入
-                # format_user_input = _format_user_input_prompt(user_input)
-
-                # # 最后的兜底处理, 纯聊天！
-                # response = await _execute_mcp_state_workflow(
-                #     user_input_state={
-                #         "messages": [HumanMessage(content=format_user_input)],
-                #         "llm": llm,
-                #         "mcp_client": mcp_client,
-                #         "available_tools": available_tools,
-                #         "tool_outputs": [],
-                #     },
-                #     chat_history_state={
-                #         "messages": current_agent.chat_history.copy(),
-                #         "llm": llm,
-                #         "mcp_client": mcp_client,
-                #         "available_tools": available_tools,
-                #         "tool_outputs": [],
-                #     },
-                #     work_flow=mcp_workflow,
-                # )
-
-                # # 更新当前代理的对话历史
-                # current_agent.chat_history.append(
-                #     HumanMessage(content=format_user_input)
-                # )
-                # current_agent.chat_history.extend(response)
 
             except KeyboardInterrupt:
                 logger.info("🛑 用户中断程序")

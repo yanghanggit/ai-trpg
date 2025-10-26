@@ -461,7 +461,7 @@ async def main() -> None:
 
         # 生成 MCP 增强的聊天机器人状态图
         assert mcp_client is not None, "MCP client is not initialized"
-        compiled_mcp_stage_graph = await create_mcp_workflow(
+        compiled_mcp_stage_graph = create_mcp_workflow(
             # "mcp_stage_graph",
             # mcp_client,
         )
