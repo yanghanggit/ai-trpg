@@ -200,13 +200,14 @@ def search_similar_documents(
         distances = results["distances"][0] if results["distances"] else []
         metadatas = results["metadatas"][0] if results["metadatas"] else []
 
-        # 5. 将距离转换为相似度分数（距离越小，相似度越高）
-        # 相似度 = 1 - 标准化距离
+        # 5. 将距离转换为相似度分数
+        # ChromaDB 返回的是 L2 距离（欧氏距离），距离越小表示越相似
+        # 使用指数衰减函数将距离转换为 [0, 1] 区间的相似度分数
+        # similarity = exp(-distance) 当 distance=0 时 similarity=1，distance 越大 similarity 越接近 0
         if distances:
-            max_distance = max(distances) if distances else 1.0
-            similarity_scores = [
-                max(0, 1 - (dist / max_distance)) for dist in distances
-            ]
+            import math
+
+            similarity_scores = [math.exp(-dist) for dist in distances]
         else:
             similarity_scores = []
 
