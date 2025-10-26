@@ -317,7 +317,7 @@ async def _handle_user_message(
     if update_messages:
         for msg in update_messages:
             assert isinstance(msg, AIMessage)
-            logger.debug(f"{msg.content}")
+            logger.info(f"{msg.content}")
     else:
         logger.error("❌ 抱歉，没有收到回复。")
 
@@ -417,6 +417,14 @@ async def main() -> None:
         available_prompts: List[McpPromptInfo] = []
         available_resources: List[McpResourceInfo] = []
 
+        # 创建 DeepSeek LLM 实例
+        llm = create_deepseek_llm(0.7)
+        logger.debug("✅ DeepSeek LLM 实例创建成功")
+
+        # 创建工作流
+        mcp_workflow = await create_mcp_workflow()
+        logger.debug("✅ MCP 工作流创建成功")
+
         try:
 
             # Initialize MCP client
@@ -456,13 +464,7 @@ async def main() -> None:
             logger.info("💡 请先启动 MCP 服务器: python scripts/run_game_mcp_server.py")
             return
 
-        # 创建 DeepSeek LLM 实例
-        llm = create_deepseek_llm(0.7)
-        logger.debug("✅ DeepSeek LLM 实例创建成功")
-
-        # 创建工作流
         assert mcp_client is not None, "MCP client is not initialized"
-        compiled_mcp_stage_graph = await create_mcp_workflow()
 
         # 对话循环
         while True:
@@ -547,7 +549,7 @@ async def main() -> None:
                         "available_tools": available_tools,
                         "tool_outputs": [],
                     },
-                    work_flow=compiled_mcp_stage_graph,
+                    work_flow=mcp_workflow,
                 )
 
                 # 更新当前代理的对话历史

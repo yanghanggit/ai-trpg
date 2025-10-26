@@ -28,9 +28,9 @@ from langchain.schema import HumanMessage
 from loguru import logger
 
 from magic_book.deepseek import (
-    State,
-    create_compiled_stage_graph,
-    stream_graph_updates,
+    ChatState,
+    create_chat_workflow,
+    execute_chat_workflow,
     create_deepseek_llm,
 )
 
@@ -52,10 +52,10 @@ def main() -> None:
         llm = create_deepseek_llm()
 
         # 聊天历史（包含LLM实例）
-        chat_history_state: State = {"messages": [], "llm": llm}
+        chat_history_state: ChatState = {"messages": [], "llm": llm}
 
         # 生成聊天机器人状态图
-        compiled_stage_graph = create_compiled_stage_graph("deepseek_chatbot_node")
+        chat_workflow = create_chat_workflow()
 
         logger.success("🤖 DeepSeek聊天系统初始化完成，开始对话...")
         logger.info("💡 提示：您可以与DeepSeek AI进行自由对话")
@@ -71,14 +71,14 @@ def main() -> None:
                     break
 
                 # 用户输入
-                user_input_state: State = {
+                user_input_state: ChatState = {
                     "messages": [HumanMessage(content=user_input)],
                     "llm": llm,
                 }
 
                 # 获取回复
-                update_messages = stream_graph_updates(
-                    state_compiled_graph=compiled_stage_graph,
+                update_messages = execute_chat_workflow(
+                    state_compiled_graph=chat_workflow,
                     chat_history_state=chat_history_state,
                     user_input_state=user_input_state,
                 )
