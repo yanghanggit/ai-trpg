@@ -41,6 +41,7 @@ from magic_book.mcp import (
     initialize_mcp_client,
     mcp_config,
     McpClient,
+    McpConfig,
 )
 import json
 from magic_book.demo.test_world import (
@@ -163,7 +164,7 @@ def _format_user_input_prompt(user_input: str) -> str:
 
 ## 输出格式要求
 
-输出内容组成成 markeddown 格式的文本块，方便阅读。"""
+输出内容必须是 markeddown 格式。"""
 
 
 ########################################################################################################################
@@ -289,7 +290,7 @@ async def _handle_read_resource_command(user_input: str, mcp_client: McpClient) 
 
 
 ########################################################################################################################
-async def _handle_user_message(
+async def _execute_mcp_state_workflow(
     user_input_state: McpState,
     chat_history_state: McpState,
     work_flow: CompiledStateGraph[McpState, Any, McpState, McpState],
@@ -394,6 +395,62 @@ async def _handle_prompt_with_params_command(
 
 
 # ============================================================================
+# MCP 客户端初始化
+# ============================================================================
+
+
+async def _initialize_mcp_client_with_config(
+    mcp_config: McpConfig,
+) -> tuple[McpClient, List[McpToolInfo], List[McpPromptInfo], List[McpResourceInfo]]:
+    """初始化 MCP 客户端并获取所有可用资源
+
+    Args:
+        mcp_config: MCP 配置对象
+
+    Returns:
+        包含4个元素的元组: (mcp_client, available_tools, available_prompts, available_resources)
+
+    Raises:
+        Exception: 当 MCP 服务器连接失败时抛出异常
+    """
+    try:
+        # 初始化 MCP 客户端
+        mcp_client = await initialize_mcp_client(
+            mcp_server_url=mcp_config.mcp_server_url,
+            mcp_protocol_version=mcp_config.protocol_version,
+            mcp_timeout=mcp_config.mcp_timeout,
+        )
+
+        # 获取可用工具
+        tools_result = await mcp_client.list_tools()
+        available_tools = tools_result if tools_result is not None else []
+        logger.success(f"🔗 MCP 客户端连接成功，可用工具: {len(available_tools)}")
+        for tool in available_tools:
+            logger.debug(f"{tool.model_dump_json(indent=2, ensure_ascii=False)}")
+
+        # 获取可用提示词模板
+        prompts_result = await mcp_client.list_prompts()
+        available_prompts = prompts_result if prompts_result is not None else []
+        logger.success(f"📝 获取到 {len(available_prompts)} 个提示词模板")
+        for prompt in available_prompts:
+            logger.debug(f"{prompt.model_dump_json(indent=2, ensure_ascii=False)}")
+
+        # 获取可用资源
+        resources_result = await mcp_client.list_resources()
+        available_resources = resources_result if resources_result is not None else []
+        logger.success(f"📦 获取到 {len(available_resources)} 个资源")
+        for resource in available_resources:
+            logger.debug(f"{resource.model_dump_json(indent=2, ensure_ascii=False)}")
+
+        return mcp_client, available_tools, available_prompts, available_resources
+
+    except Exception as e:
+        logger.error(f"❌ MCP 服务器连接失败: {e}")
+        logger.info("💡 请先启动 MCP 服务器: python scripts/run_game_mcp_server.py")
+        raise
+
+
+# ============================================================================
 # 主函数
 # ============================================================================
 
@@ -411,12 +468,6 @@ async def main() -> None:
         logger.info("💡 输入 /help 查看命令 | 输入 /quit 退出")
         logger.info("🎮" * 30 + "\n")
 
-        # 初始化 MCP 客户端
-        mcp_client = None
-        available_tools: List[McpToolInfo] = []
-        available_prompts: List[McpPromptInfo] = []
-        available_resources: List[McpResourceInfo] = []
-
         # 创建 DeepSeek LLM 实例
         llm = create_deepseek_llm(0.7)
         logger.debug("✅ DeepSeek LLM 实例创建成功")
@@ -425,46 +476,16 @@ async def main() -> None:
         mcp_workflow = await create_mcp_workflow()
         logger.debug("✅ MCP 工作流创建成功")
 
+        # 初始化 MCP 客户端并获取可用资源
         try:
-
-            # Initialize MCP client
-            mcp_client = await initialize_mcp_client(
-                mcp_server_url=mcp_config.mcp_server_url,
-                mcp_protocol_version=mcp_config.protocol_version,
-                mcp_timeout=mcp_config.mcp_timeout,
-            )
-
-            # 获取可用工具
-            tools_result = await mcp_client.list_tools()
-            available_tools = tools_result if tools_result is not None else []
-            logger.success(f"🔗 MCP 客户端连接成功，可用工具: {len(available_tools)}")
-            for tool in available_tools:
-                logger.debug(f"{tool.model_dump_json(indent=2, ensure_ascii=False)}")
-
-            # 获取可用提示词模板
-            prompts_result = await mcp_client.list_prompts()
-            available_prompts = prompts_result if prompts_result is not None else []
-            logger.success(f"📝 获取到 {len(available_prompts)} 个提示词模板")
-            for prompt in available_prompts:
-                logger.debug(f"{prompt.model_dump_json(indent=2, ensure_ascii=False)}")
-
-            # 获取可用资源
-            resources_result = await mcp_client.list_resources()
-            available_resources = (
-                resources_result if resources_result is not None else []
-            )
-            logger.success(f"📦 获取到 {len(available_resources)} 个资源")
-            for resource in available_resources:
-                logger.debug(
-                    f"{resource.model_dump_json(indent=2, ensure_ascii=False)}"
-                )
-
-        except Exception as e:
-            logger.error(f"❌ MCP 服务器连接失败: {e}")
-            logger.info("💡 请先启动 MCP 服务器: python scripts/run_game_mcp_server.py")
+            (
+                mcp_client,
+                available_tools,
+                available_prompts,
+                available_resources,
+            ) = await _initialize_mcp_client_with_config(mcp_config)
+        except Exception:
             return
-
-        assert mcp_client is not None, "MCP client is not initialized"
 
         # 对话循环
         while True:
@@ -520,43 +541,83 @@ async def main() -> None:
 
                     continue
 
+                elif user_input.startswith("/mcp"):
+
+                    # ‘/mcp 内容ABC’ 将内容提取出来。
+                    mcp_content = user_input[len("/mcp") :].strip()
+                    if not mcp_content:
+                        logger.error("💡 请输入有效的内容，格式: /mcp 内容")
+                        continue
+
+                    # 格式化用户输入
+                    format_user_input = _format_user_input_prompt(mcp_content)
+
+                    # 最后的兜底处理, 纯聊天！
+                    response = await _execute_mcp_state_workflow(
+                        user_input_state={
+                            "messages": [HumanMessage(content=format_user_input)],
+                            "llm": llm,
+                            "mcp_client": mcp_client,
+                            "available_tools": available_tools,
+                            "tool_outputs": [],
+                        },
+                        chat_history_state={
+                            "messages": current_agent.chat_history.copy(),
+                            "llm": llm,
+                            "mcp_client": mcp_client,
+                            "available_tools": available_tools,
+                            "tool_outputs": [],
+                        },
+                        work_flow=mcp_workflow,
+                    )
+
+                    # 更新当前代理的对话历史
+                    current_agent.chat_history.append(
+                        HumanMessage(content=format_user_input)
+                    )
+                    current_agent.chat_history.extend(response)
+                    continue
+
                 elif parse_command_with_params(user_input) is not None:
                     # 处理参数化 Prompt 调用
                     await _handle_prompt_with_params_command(user_input, mcp_client)
                     continue
 
+                else:
+                    logger.error("💡 无法识别的输入格式\n")
+
                 # 处理空输入
-                if user_input == "":
-                    logger.error("💡 请输入您的问题，或输入 /help 查看帮助")
-                    continue
+                # if user_input == "":
+                #     logger.error("💡 请输入您的问题，或输入 /help 查看帮助")
+                #     continue
 
                 # 格式化用户输入
-                format_user_input = _format_user_input_prompt(user_input)
+                # format_user_input = _format_user_input_prompt(user_input)
 
-                # 最后的兜底处理, 纯聊天！
-                response = await _handle_user_message(
-                    user_input_state={
-                        "messages": [HumanMessage(content=format_user_input)],
-                        "llm": llm,
-                        "mcp_client": mcp_client,
-                        "available_tools": available_tools,
-                        "tool_outputs": [],
-                    },
-                    chat_history_state={
-                        "messages": current_agent.chat_history.copy(),
-                        "llm": llm,
-                        "mcp_client": mcp_client,
-                        "available_tools": available_tools,
-                        "tool_outputs": [],
-                    },
-                    work_flow=mcp_workflow,
-                )
+                # # 最后的兜底处理, 纯聊天！
+                # response = await _execute_mcp_state_workflow(
+                #     user_input_state={
+                #         "messages": [HumanMessage(content=format_user_input)],
+                #         "llm": llm,
+                #         "mcp_client": mcp_client,
+                #         "available_tools": available_tools,
+                #         "tool_outputs": [],
+                #     },
+                #     chat_history_state={
+                #         "messages": current_agent.chat_history.copy(),
+                #         "llm": llm,
+                #         "mcp_client": mcp_client,
+                #         "available_tools": available_tools,
+                #         "tool_outputs": [],
+                #     },
+                #     work_flow=mcp_workflow,
+                # )
 
-                # 更新当前代理的对话历史
-                current_agent.chat_history.append(
-                    HumanMessage(content=format_user_input)
-                )
-                current_agent.chat_history.extend(response)
+                # # 更新当前代理的对话历史
+                # current_agent.chat_history.append(
+                #     HumanMessage(content=format_user_input)
+                # )
+                # current_agent.chat_history.extend(response)
 
             except KeyboardInterrupt:
                 logger.info("🛑 用户中断程序")
