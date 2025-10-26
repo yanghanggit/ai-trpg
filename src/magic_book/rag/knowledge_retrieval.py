@@ -202,23 +202,25 @@ def search_similar_documents(
 
         # 5. 将距离转换为相似度分数
         # ChromaDB 返回的是 L2 距离（欧氏距离），距离越小表示越相似
-        # 使用指数衰减函数将距离转换为 [0, 1] 区间的相似度分数
-        # similarity = exp(-distance) 当 distance=0 时 similarity=1，distance 越大 similarity 越接近 0
+        # 使用余弦相似度转换：similarity = 1 / (1 + distance)
+        # 当 distance=0 时 similarity=1，distance 越大 similarity 越接近 0
         if distances:
-            import math
+            # 使用更合理的转换函数，避免指数函数在大距离时过度衰减
+            similarity_scores = [1.0 / (1.0 + dist) for dist in distances]
 
-            similarity_scores = [math.exp(-dist) for dist in distances]
+            # 调试：打印原始距离值
+            logger.debug(f"🔍 [CHROMADB] 原始距离值: {distances}")
         else:
             similarity_scores = []
 
         logger.info(f"✅ [CHROMADB] 搜索完成，找到 {len(documents)} 个相关文档")
 
         # 6. 打印搜索结果详情（用于调试）
-        for i, (doc, score, metadata) in enumerate(
-            zip(documents, similarity_scores, metadatas)
+        for i, (doc, score, dist, metadata) in enumerate(
+            zip(documents, similarity_scores, distances, metadatas)
         ):
             logger.debug(
-                f"  📄 [{i+1}] 相似度: {score:.3f}, 类别: {metadata.get('category', 'unknown')}, 内容: {doc[:50]}..."
+                f"  📄 [{i+1}] 距离: {dist:.3f}, 相似度: {score:.3f}, 类别: {metadata.get('category', 'unknown')}, 内容: {doc[:50]}..."
             )
 
         return documents, similarity_scores

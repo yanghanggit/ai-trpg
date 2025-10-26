@@ -12,18 +12,14 @@ from .model_loader import (
     load_sentence_transformer,
 )
 from .sentence_transformer import (
-    # clear_embedding_model,
     get_embedding_model,
 )
 
 __all__ = [
-    # model_loader
     "ModelLoader",
     "is_model_cached",
     "load_basic_model",
     "load_multilingual_model",
     "load_sentence_transformer",
-    # sentence_transformer_embedding_model
-    # "clear_embedding_model",
     "get_embedding_model",
 ]
