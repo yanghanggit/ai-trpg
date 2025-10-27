@@ -20,7 +20,7 @@ def format_user_input_prompt(user_input: str) -> str:
         格式化后的提示词字符串
     """
     return f"""# 消息！
-                    
+
 ## 消息内容
 
 {user_input}

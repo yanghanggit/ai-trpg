@@ -69,6 +69,7 @@ from workflow_executors import (
 )
 from io_utils import format_user_input_prompt, log_chat_history
 from mcp_client_init import initialize_mcp_client_with_config
+from gameplay_handler import handle_game_command
 
 
 ########################################################################################################################
@@ -212,7 +213,6 @@ async def main() -> None:
 
             elif user_input.startswith("/mcp"):
 
-                # '/mcp 内容ABC' 将内容提取出来。
                 mcp_content = user_input[len("/mcp") :].strip()
                 if not mcp_content:
                     logger.error("💡 请输入有效的内容，格式: /mcp 内容")
@@ -249,7 +249,6 @@ async def main() -> None:
 
             elif user_input.startswith("/chat"):
 
-                # '/chat 内容ABC' 将内容提取出来。
                 chat_content = user_input[len("/chat") :].strip()
                 if not chat_content:
                     logger.error("💡 请输入有效的内容，格式: /chat 内容")
@@ -280,7 +279,6 @@ async def main() -> None:
 
             elif user_input.startswith("/rag"):
 
-                # '/rag 内容ABC' 将内容提取出来。
                 rag_content = user_input[len("/rag") :].strip()
                 if not rag_content:
                     logger.error("💡 请输入有效的内容，格式: /rag 内容")
@@ -304,6 +302,34 @@ async def main() -> None:
                 # 更新当前代理的对话历史
                 current_agent.chat_history.append(HumanMessage(content=rag_content))
                 current_agent.chat_history.extend(response)
+                continue
+
+            elif user_input.startswith("/game"):
+
+                # 形如指令'/game 1'，将1提取出来
+                command = user_input[len("/game") :].strip()
+                if not command:
+                    logger.error("💡 请输入有效的内容，格式: /game 内容")
+                    continue
+
+                # 调用游戏指令处理器
+                await handle_game_command(
+                    command=command,
+                    current_agent=current_agent,
+                    all_agents=all_agents,
+                    world_agent=world_agent,
+                    stage_agents=stage_agents,
+                    actor_agents=actor_agents,
+                    llm=llm,
+                    mcp_client=mcp_client,
+                    available_tools=available_tools,
+                    available_prompts=available_prompts,
+                    available_resources=available_resources,
+                    mcp_workflow=mcp_workflow,
+                    chat_workflow=chat_workflow,
+                    rag_workflow=rag_workflow,
+                    game_retriever=game_retriever,
+                )
                 continue
 
             elif parse_command_with_params(user_input) is not None:
