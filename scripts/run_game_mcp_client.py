@@ -173,6 +173,7 @@ def _format_user_input_prompt(user_input: str) -> str:
 ## 输出内容
 
 **约束**！不要重复输出过往内容。
+输出内容尽量简洁明了，避免冗长。
 
 ## 输出格式要求
 
