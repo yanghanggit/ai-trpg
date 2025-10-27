@@ -11,12 +11,22 @@ from typing import List, Final
 # - 核心规则：Actor 必须所在某个 Stage 中。在 Stage 中，Actor 可以与其他 Actor 互动。
 
 
+class StatusEffect(BaseModel):
+    """表示游戏中角色状态效果的模型"""
+
+    name: str = Field(description="状态效果名称")
+    description: str = Field(description="状态效果描述")
+
+
 class Actor(BaseModel):
     """表示游戏中角色状态的模型"""
 
     name: str = Field(description="角色名称")
     profile: str = Field(description="角色档案/设定")
     appearance: str = Field(description="外观描述")
+    status_effects: List[StatusEffect] = Field(
+        default_factory=list, description="角色当前的状态效果列表"
+    )
 
 
 class Stage(BaseModel):
@@ -174,6 +184,12 @@ test_world: Final[World] = World(
                     name="艾琳",
                     profile="我是乌鸦猎人，专门追猎那些被血之狂乱吞噬的堕落猎人。我是猎人队伍中的异类，独行于雅南的街道。我的身手敏捷，剑技精湛，对血之契约有着深刻的理解。但我不多言——话语无法改变这座城市的堕落。我的心中埋藏着悲哀，为这座曾经辉煌的城市，为那些失去人性的同伴。我知道许多关于上层建筑的秘密，那些不应被知晓的真相，但我选择保持沉默。我的慈悲之刃上刻满了名字——每一个都是我曾经的同伴，每一个都是我必须亲手终结的悲剧。这是我的使命，也是我的诅咒。",
                     appearance="身高约170厘米，身材修长精瘦。身着厚重的黑色乌鸦羽毛斗篷，羽毛层叠密布，边缘磨损泛白。斗篷内是紧身的黑色猎装，胸口和肩部有皮质护甲加固。戴着深灰色的鸟喙状瘟疫医生面具，面具两侧有圆形的玻璃镜片，只露出一双眼眸。腰间挂着古老的慈悲之刃，弧形刀身约80厘米长，黑色刀鞘表面刻满密密麻麻的文字和名字。双手戴着深色皮质手套，手套和护腕上有多处划痕和磨损痕迹。斗篷下腰带上挂着猎人徽章、数个小型皮袋和血色的圆珠。靴子为高筒皮靴，靴底厚重，表面沾有泥土和暗色污渍。",
+                    status_effects=[
+                        StatusEffect(
+                            name="阴影隐匿",
+                            description="藏身于阴影之中，只要不主动攻击，艾琳将获得隐匿状态，难以被敌人发现。乌鸦猎人的羽毛斗篷在暗处与周围环境融为一体，让她能够无声无息地接近目标或从危险中脱身。",
+                        )
+                    ],
                 ),
                 Actor(
                     name="外乡人",
