@@ -66,6 +66,7 @@ from magic_book.demo.test_world import (
 
 from magic_book.utils import parse_command_with_params
 from magic_book.rag.game_retriever import GameDocumentRetriever
+from magic_book.configuration.game import setup_logger
 
 
 ########################################################################################################################
@@ -175,7 +176,7 @@ def _format_user_input_prompt(user_input: str) -> str:
 
 ## 输出格式要求
 
-输出内容必须是 markeddown 格式。"""
+输出内容须是 markdown 格式。"""
 
 
 ########################################################################################################################
@@ -561,6 +562,9 @@ async def _initialize_mcp_client_with_config(
 async def main() -> None:
     """Game MCP 客户端主函数"""
     try:
+
+        setup_logger()
+        logger.debug("✅ Logger 设置成功")
 
         #
         current_agent: GameAgent = world_agent
