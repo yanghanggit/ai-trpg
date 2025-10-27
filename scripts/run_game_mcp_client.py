@@ -560,13 +560,13 @@ async def _initialize_mcp_client_with_config(
 
 
 async def main() -> None:
-    """Game MCP 客户端主函数"""
+
     try:
 
         setup_logger()
         logger.debug("✅ Logger 设置成功")
 
-        #
+        # 默认激活的代理是世界观代理
         current_agent: GameAgent = world_agent
 
         # 创建 DeepSeek LLM 实例
@@ -587,191 +587,176 @@ async def main() -> None:
         logger.debug("✅ Game 文档检索器创建成功")
 
         # 初始化 MCP 客户端并获取可用资源
-        try:
-            (
-                mcp_client,
-                available_tools,
-                available_prompts,
-                available_resources,
-            ) = await _initialize_mcp_client_with_config(mcp_config)
-        except Exception:
-            return
+        (
+            mcp_client,
+            available_tools,
+            available_prompts,
+            available_resources,
+        ) = await _initialize_mcp_client_with_config(mcp_config)
 
         # 对话循环
         while True:
 
-            try:
-                logger.info("\n" + "=" * 60)
-                user_input = input(f"[{current_agent.name}]:").strip()
+            user_input = input(f"[{current_agent.name}]:").strip()
 
-                # 处理退出命令
-                if user_input.lower() in ["/quit", "/exit", "/q"]:
-                    logger.info("👋 感谢使用 Game MCP 客户端！再见！")
-                    break
-
-                # 处理工具列表命令
-                elif user_input.lower() == "/tools":
-                    _handle_tools_command(available_tools)
-                    continue
-
-                # 处理历史记录命令
-                elif user_input.lower() == "/history":
-                    logger.info(f"📜 打印当前代理 [{current_agent.name}] 的对话历史")
-                    _log_chat_history(current_agent.chat_history)
-                    continue
-
-                # 处理提示词模板命令
-                elif user_input.lower() == "/prompts":
-                    _handle_prompts_command(available_prompts)
-                    continue
-
-                # 处理资源列表命令
-                elif user_input.lower() == "/resources":
-                    _handle_resources_command(available_resources)
-                    continue
-
-                # 复杂输入的处理：读取资源
-                elif user_input.startswith("/read-resource"):
-                    await _handle_read_resource_command(user_input, mcp_client)
-                    continue
-
-                elif user_input.startswith("@"):
-
-                    # 提取目标代理名称
-                    target_name = user_input[1:].strip()
-                    if not target_name:
-                        logger.error("💡 请输入有效的角色名字，格式: @角色名")
-                        continue
-
-                    logger.info(f"🎭 尝试切换到代理: {target_name}")
-
-                    # 尝试切换代理
-                    new_agent = _switch_agent(all_agents, target_name, current_agent)
-                    if new_agent is not None:
-                        current_agent = new_agent
-
-                    continue
-
-                elif user_input.startswith("/mcp"):
-
-                    # ‘/mcp 内容ABC’ 将内容提取出来。
-                    mcp_content = user_input[len("/mcp") :].strip()
-                    if not mcp_content:
-                        logger.error("💡 请输入有效的内容，格式: /mcp 内容")
-                        continue
-
-                    # 格式化用户输入
-                    format_user_input = _format_user_input_prompt(mcp_content)
-
-                    # mcp 的工作流
-                    response = await _execute_mcp_state_workflow(
-                        user_input_state={
-                            "messages": [HumanMessage(content=format_user_input)],
-                            "llm": llm,
-                            "mcp_client": mcp_client,
-                            "available_tools": available_tools,
-                            "tool_outputs": [],
-                        },
-                        chat_history_state={
-                            "messages": current_agent.chat_history.copy(),
-                            "llm": llm,
-                            "mcp_client": mcp_client,
-                            "available_tools": available_tools,
-                            "tool_outputs": [],
-                        },
-                        work_flow=mcp_workflow,
-                    )
-
-                    # 更新当前代理的对话历史
-                    current_agent.chat_history.append(
-                        HumanMessage(content=format_user_input)
-                    )
-                    current_agent.chat_history.extend(response)
-                    continue
-
-                elif user_input.startswith("/chat"):
-
-                    # ‘/chat 内容ABC’ 将内容提取出来。
-                    chat_content = user_input[len("/chat") :].strip()
-                    if not chat_content:
-                        logger.error("💡 请输入有效的内容，格式: /chat 内容")
-                        continue
-
-                    # 格式化用户输入
-                    format_user_input = _format_user_input_prompt(chat_content)
-
-                    # 聊天的工作流
-                    response = _execute_chat_state_workflow(
-                        user_input_state={
-                            "messages": [HumanMessage(content=format_user_input)],
-                            "llm": llm,
-                        },
-                        chat_history_state={
-                            "messages": current_agent.chat_history.copy(),
-                            "llm": llm,
-                        },
-                        work_flow=chat_workflow,
-                    )
-
-                    # 更新当前代理的对话历史
-                    current_agent.chat_history.append(
-                        HumanMessage(content=format_user_input)
-                    )
-                    current_agent.chat_history.extend(response)
-                    continue
-
-                elif user_input.startswith("/rag"):
-
-                    # ‘/rag 内容ABC’ 将内容提取出来。
-                    rag_content = user_input[len("/rag") :].strip()
-                    if not rag_content:
-                        logger.error("💡 请输入有效的内容，格式: /rag 内容")
-                        continue
-
-                    # RAG 的工作流
-                    response = _execute_rag_workflow(
-                        user_input_state={
-                            "messages": [HumanMessage(content=rag_content)],
-                            "llm": llm,
-                            "document_retriever": game_retriever,
-                        },
-                        chat_history_state={
-                            "messages": current_agent.chat_history.copy(),
-                            "llm": llm,
-                            "document_retriever": game_retriever,
-                        },
-                        work_flow=rag_workflow,
-                    )
-
-                    # 更新当前代理的对话历史
-                    current_agent.chat_history.append(HumanMessage(content=rag_content))
-                    current_agent.chat_history.extend(response)
-                    continue
-
-                elif parse_command_with_params(user_input) is not None:
-                    # 处理参数化 Prompt 调用
-                    await _handle_prompt_with_params_command(user_input, mcp_client)
-                    continue
-
-                else:
-                    logger.error("💡 无法识别的输入格式\n")
-
-            except KeyboardInterrupt:
-                logger.info("🛑 用户中断程序")
-                logger.info("👋 程序已中断。再见！")
+            # 处理退出命令
+            if user_input.lower() in ["/quit", "/exit", "/q"]:
+                logger.info("👋 感谢使用 Game MCP 客户端！再见！")
                 break
-            except Exception as e:
-                logger.error(f"❌ 处理用户输入时发生错误: {e}")
-                logger.error(f"Traceback: {traceback.format_exc()}")
-                logger.warning("请重试。")
+
+            # 处理工具列表命令
+            elif user_input.lower() == "/tools":
+                _handle_tools_command(available_tools)
+                continue
+
+            # 处理历史记录命令
+            elif user_input.lower() == "/history":
+                logger.info(f"📜 打印当前代理 [{current_agent.name}] 的对话历史")
+                _log_chat_history(current_agent.chat_history)
+                continue
+
+            # 处理提示词模板命令
+            elif user_input.lower() == "/prompts":
+                _handle_prompts_command(available_prompts)
+                continue
+
+            # 处理资源列表命令
+            elif user_input.lower() == "/resources":
+                _handle_resources_command(available_resources)
+                continue
+
+            # 复杂输入的处理：读取资源
+            elif user_input.startswith("/read-resource"):
+                await _handle_read_resource_command(user_input, mcp_client)
+                continue
+
+            elif user_input.startswith("@"):
+
+                # 提取目标代理名称
+                target_name = user_input[1:].strip()
+                if not target_name:
+                    logger.error("💡 请输入有效的角色名字，格式: @角色名")
+                    continue
+
+                logger.info(f"🎭 尝试切换到代理: {target_name}")
+
+                # 尝试切换代理
+                new_agent = _switch_agent(all_agents, target_name, current_agent)
+                if new_agent is not None:
+                    current_agent = new_agent
+
+                continue
+
+            elif user_input.startswith("/mcp"):
+
+                # ‘/mcp 内容ABC’ 将内容提取出来。
+                mcp_content = user_input[len("/mcp") :].strip()
+                if not mcp_content:
+                    logger.error("💡 请输入有效的内容，格式: /mcp 内容")
+                    continue
+
+                # 格式化用户输入
+                format_user_input = _format_user_input_prompt(mcp_content)
+
+                # mcp 的工作流
+                response = await _execute_mcp_state_workflow(
+                    user_input_state={
+                        "messages": [HumanMessage(content=format_user_input)],
+                        "llm": llm,
+                        "mcp_client": mcp_client,
+                        "available_tools": available_tools,
+                        "tool_outputs": [],
+                    },
+                    chat_history_state={
+                        "messages": current_agent.chat_history.copy(),
+                        "llm": llm,
+                        "mcp_client": mcp_client,
+                        "available_tools": available_tools,
+                        "tool_outputs": [],
+                    },
+                    work_flow=mcp_workflow,
+                )
+
+                # 更新当前代理的对话历史
+                current_agent.chat_history.append(
+                    HumanMessage(content=format_user_input)
+                )
+                current_agent.chat_history.extend(response)
+                continue
+
+            elif user_input.startswith("/chat"):
+
+                # ‘/chat 内容ABC’ 将内容提取出来。
+                chat_content = user_input[len("/chat") :].strip()
+                if not chat_content:
+                    logger.error("💡 请输入有效的内容，格式: /chat 内容")
+                    continue
+
+                # 格式化用户输入
+                format_user_input = _format_user_input_prompt(chat_content)
+
+                # 聊天的工作流
+                response = _execute_chat_state_workflow(
+                    user_input_state={
+                        "messages": [HumanMessage(content=format_user_input)],
+                        "llm": llm,
+                    },
+                    chat_history_state={
+                        "messages": current_agent.chat_history.copy(),
+                        "llm": llm,
+                    },
+                    work_flow=chat_workflow,
+                )
+
+                # 更新当前代理的对话历史
+                current_agent.chat_history.append(
+                    HumanMessage(content=format_user_input)
+                )
+                current_agent.chat_history.extend(response)
+                continue
+
+            elif user_input.startswith("/rag"):
+
+                # ‘/rag 内容ABC’ 将内容提取出来。
+                rag_content = user_input[len("/rag") :].strip()
+                if not rag_content:
+                    logger.error("💡 请输入有效的内容，格式: /rag 内容")
+                    continue
+
+                # RAG 的工作流
+                response = _execute_rag_workflow(
+                    user_input_state={
+                        "messages": [HumanMessage(content=rag_content)],
+                        "llm": llm,
+                        "document_retriever": game_retriever,
+                    },
+                    chat_history_state={
+                        "messages": current_agent.chat_history.copy(),
+                        "llm": llm,
+                        "document_retriever": game_retriever,
+                    },
+                    work_flow=rag_workflow,
+                )
+
+                # 更新当前代理的对话历史
+                current_agent.chat_history.append(HumanMessage(content=rag_content))
+                current_agent.chat_history.extend(response)
+                continue
+
+            elif parse_command_with_params(user_input) is not None:
+                # 处理参数化 Prompt 调用
+                await _handle_prompt_with_params_command(user_input, mcp_client)
+                continue
+
+            else:
+                logger.error("💡 无法识别的输入格式\n")
+
+    except KeyboardInterrupt:
+        logger.info("👋 程序已中断。再见！")
 
     except Exception as e:
-        logger.error(f"❌ 系统启动失败: {e}")
-        logger.info("请检查以下项目：")
-        logger.info("  1. DEEPSEEK_API_KEY 环境变量是否设置")
-        logger.info("  2. 网络连接是否正常")
-        logger.info("  3. 依赖包是否正确安装")
-        logger.info("  4. MCP 服务器是否正在运行")
+        logger.error(f"出现错误: {e}")
+        traceback.print_exc()
 
     finally:
         logger.info("🔒 清理系统资源...")
