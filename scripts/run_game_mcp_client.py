@@ -59,7 +59,7 @@ from magic_book.demo.test_world import (
     Actor,
     World,
     Stage,
-    gen_admin_system_message,
+    gen_world_system_message,
     gen_actor_system_message,
     gen_stage_system_message,
 )
@@ -76,10 +76,10 @@ class GameAgent(BaseModel):
 
 
 # 创建游戏角色代理
-admin_agent: Final[GameAgent] = GameAgent(
-    name="游戏管理员",
+world_agent: Final[GameAgent] = GameAgent(
+    name=test_world.name,
     type=World.__name__,
-    chat_history=[SystemMessage(content=gen_admin_system_message(test_world))],
+    chat_history=[SystemMessage(content=gen_world_system_message(test_world))],
 )
 
 # 获取游戏世界中的所有角色
@@ -114,7 +114,7 @@ for stage in all_stages:
 
 
 # 所有代理列表
-all_agents: List[GameAgent] = [admin_agent] + actor_agents + stage_agents
+all_agents: List[GameAgent] = [world_agent] + actor_agents + stage_agents
 
 for agent in all_agents:
     logger.info(f"已创建代理: {agent.name}")
@@ -562,8 +562,8 @@ async def main() -> None:
     """Game MCP 客户端主函数"""
     try:
 
-        # 当前的代理（默认为游戏管理员）
-        current_agent: GameAgent = admin_agent
+        #
+        current_agent: GameAgent = world_agent
 
         # 创建 DeepSeek LLM 实例
         llm = create_deepseek_llm(0.7)
