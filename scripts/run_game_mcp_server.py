@@ -124,7 +124,7 @@ def _query_game_entity(entity_name: str) -> str:
                 "actor": actor.model_dump(),
                 "stage": {
                     "name": stage.name,
-                    "description": stage.description,
+                    "description": stage.narrative,
                     "environment": stage.environment,
                 },
             }

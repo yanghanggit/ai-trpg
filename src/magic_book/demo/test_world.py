@@ -6,23 +6,27 @@ from typing import List, Final
 # 游戏数据字典
 # ============================================================================
 
+## 游戏规则
+# - 世界构成：只有一个World, 而 World 包含多个 Stage，每个 Stage 包含多个 Actor 和 子Stages。
+# - 核心规则：Actor 必须所在某个 Stage 中。在 Stage 中，Actor 可以与其他 Actor 互动。
+
 
 class Actor(BaseModel):
     """表示游戏中角色状态的模型"""
 
-    name: str
-    character_profile: str
-    appearance: str
+    name: str  # 角色名称
+    profile: str  # 角色档案/设定
+    appearance: str  # 外观描述
 
 
 class Stage(BaseModel):
     """表示游戏中场景状态的模型"""
 
-    name: str
-    description: str
-    environment: str
-    actors: List[Actor]
-    stages: List["Stage"] = []  # 支持嵌套子场景
+    name: str  # 场景名称
+    narrative: str  # 叙事描述（故事层面）
+    environment: str  # 环境描写（感官层面）
+    actors: List[Actor]  # 场景中的角色
+    sub_stages: List["Stage"] = []  # 子场景
 
     def find_actor(self, actor_name: str) -> Actor | None:
         """递归查找指定名称的Actor
@@ -39,7 +43,7 @@ class Stage(BaseModel):
                 return actor
 
         # 递归搜索子场景中的actors
-        for stage in self.stages:
+        for stage in self.sub_stages:
             found = stage.find_actor(actor_name)
             if found:
                 return found
@@ -51,7 +55,7 @@ class World(BaseModel):
     """表示游戏世界状态的模型"""
 
     name: str
-    description: str
+    campaign_setting: str
     stages: List[Stage]
 
     def find_stage(self, stage_name: str) -> Stage | None:
@@ -69,8 +73,8 @@ class World(BaseModel):
                 if stage.name == target_name:
                     return stage
                 # 递归搜索子场景
-                if stage.stages:
-                    found = _recursive_find(stage.stages, target_name)
+                if stage.sub_stages:
+                    found = _recursive_find(stage.sub_stages, target_name)
                     if found:
                         return found
             return None
@@ -99,8 +103,8 @@ class World(BaseModel):
                         return actor, stage
 
                 # 递归搜索子场景
-                if stage.stages:
-                    found_actor, found_stage = _recursive_search(stage.stages)
+                if stage.sub_stages:
+                    found_actor, found_stage = _recursive_search(stage.sub_stages)
                     if found_actor and found_stage:
                         return found_actor, found_stage
 
@@ -121,8 +125,8 @@ class World(BaseModel):
                 # 收集当前Stage中的所有actors
                 all_actors.extend(stage.actors)
                 # 递归收集子场景中的actors
-                if stage.stages:
-                    _collect_actors(stage.stages)
+                if stage.sub_stages:
+                    _collect_actors(stage.sub_stages)
 
         _collect_actors(self.stages)
         return all_actors
@@ -140,8 +144,8 @@ class World(BaseModel):
                 # 收集当前Stage
                 all_stages.append(stage)
                 # 递归收集子场景
-                if stage.stages:
-                    _collect_stages(stage.stages)
+                if stage.sub_stages:
+                    _collect_stages(stage.sub_stages)
 
         _collect_stages(self.stages)
         return all_stages
@@ -152,41 +156,47 @@ class World(BaseModel):
 # ============================================================================
 
 test_world: Final[World] = World(
-    name="艾泽拉斯大陆",
-    description="一个充满魔法与冒险的奇幻世界，古老的传说在这里流传，英雄们在这片土地上书写着自己的史诗。",
+    name="雅南诅咒之夜",
+    campaign_setting="一座被兽疫诅咒笼罩的维多利亚式古城，血月高悬，兽性在人心中蔓延。教会的狩猎之夜永无止境，古老的血脉秘密埋藏在哥特式教堂的地底深处。",
     stages=[
-        # 月光林地（直接作为World的Stage）
+        # 雅南古城教堂区
         Stage(
-            name="月光林地",
-            description="艾泽拉斯大陆北部的神秘林地，这片林地在夜晚会被月光笼罩，显得格外宁静祥和。古老的石碑矗立在林地中央，通往南边的星语圣树。",
-            environment="银色的月光透过树叶间隙洒落，照亮了布满青苔的石板路。四周是参天的古树，偶尔能听到夜莺的歌声。一条蜿蜒的小路向南延伸，连接着森林深处。",
-            actors=[],
-        ),
-        # 星语圣树（直接作为World的Stage）
-        Stage(
-            name="星语圣树",
-            description="艾泽拉斯大陆的核心圣地，一棵巨大的生命古树屹立于此，这是德鲁伊们的圣地。从北边的月光林地可以直接到达这里。",
-            environment="一棵高耸入云的巨大古树占据了视野中心，树干粗壮到需要数十人才能环抱。树根盘绕形成天然的平台，树冠上挂满发光的藤蔓和花朵。空气中充满了浓郁的生命能量。",
+            name="雅南古城教堂区",
+            narrative="雅南古城的核心地带，高耸的哥特式教堂矗立在血雾弥漫的广场上。这里曾是治愈教会的圣地，如今却成为了兽化病患的墓场。石质尖塔刺破猩红的血月，教堂的钟声在夜空中回荡，仿佛在为死者祈祷。",
+            environment="破败的维多利亚式建筑群在血月的照耀下投下扭曲的阴影。鹅卵石铺就的广场上散落着被遗弃的轮椅和医疗器械，干涸的血迹在地面上形成诡异的图案。教堂的彩色玻璃窗透出昏暗的烛光，铁栅栏后传来低沉的嘶吼声。浓稠的血雾从街道的每个角落渗出，空气中弥漫着焚香、腐朽和铁锈的混合气味。远处偶尔传来野兽的咆哮和猎人的枪声。",
             actors=[
                 Actor(
-                    name="艾尔温·星语",
-                    character_profile="精灵族的德鲁伊长老，他精通自然魔法，能与森林中的生物沟通。",
-                    appearance="身穿绿色长袍的高大精灵，银白色的长发及腰，碧绿的眼眸中闪烁着智慧的光芒，手持一根雕刻着古老符文的木杖",
+                    name="加斯科因神父",
+                    profile="曾经的治愈教会神父，现在却在兽化的边缘挣扎。他是教会最优秀的猎人之一，但长期的狩猎让他逐渐失去人性。他在理智与疯狂之间徘徊，手持斧头和猎枪守卫着教堂墓地，既是守护者也是囚徒。他的灵魂深处残存着对妻女的记忆，这是他最后的人性锚点。",
+                    appearance="身穿沾满血污的黑色神父长袍，外罩褴褛的灰色猎人大衣。面容憔悴苍白，凌乱的黑发下是一双布满血丝的眼睛。右手持一把巨大的猎人斧，左手拿着双管猎枪。脖子上挂着已经破碎的银制十字架。每一次呼吸都伴随着喉咙深处的低吼，身上散发着血腥和硫磺的气息。",
                 ),
                 Actor(
-                    name="索尔娜·影舞",
-                    character_profile="神秘的暗夜精灵游侠，是森林的守护者。她在区域间穿梭巡逻，行踪飘忽，箭术精湛，总是在危险来临前出现。",
-                    appearance="身着深紫色皮甲的矫健身影,紫色的肌肤在月光下闪耀,银色的长发束成高马尾,背后背着一把精致的月牙弓和装满银色羽箭的箭筒",
+                    name="孤独的猎人艾琳",
+                    profile="冷酷而神秘的乌鸦猎人，专门追猎那些被血之狂乱吞噬的堕落猎人。她是猎人队伍中的异类，独行于雅南的街道，身手敏捷，剑技精湛。她对血之契约有着深刻的理解，但从不多言。艾琳心中埋藏着对这座城市堕落的悲哀，以及对那些失去人性的同伴的怜悯。她知道许多关于上层建筑的秘密，但选择保持沉默。",
+                    appearance="身着厚重的乌鸦羽毛斗篷和黑色猎装，戴着鸟喙状的瘟疫医生面具，只露出一双冰冷锐利的眼眸。腰间挂着古老的慈悲之刃，刀鞘上刻满了已故猎人的名字。皮质手套和护腕上布满了战斗的痕迹。她的动作无声而致命，如同夜色中的幽灵。斗篷下隐约可见猎人徽章和血之遗珠。",
                 ),
             ],
         ),
     ],
 )
 
-
-## 游戏规则
-# - 世界构成：只有一个World, 而 World 包含多个 Stage，每个 Stage 包含多个 Actor 和 子Stages。
-# - 核心规则：Actor 必须所在某个 Stage 中。在 Stage 中，Actor 可以与其他 Actor 互动。
+# ============================================================================
+# RAG 知识库测试数据
+# ============================================================================
+test_knowledge_base: Final[dict[str, List[str]]] = {
+    "场景介绍": [
+        "雅南古城教堂区是治愈教会的核心区域，高耸的哥特式尖塔直指血红色的夜空。石制建筑上雕刻着复杂的宗教图案，诉说着古老血族的秘密。",
+        "教堂区的广场上散落着被遗弃的医疗器械和轮椅，这里曾是血液疗法的实验场所。墙壁上的血迹已经干涸，形成了诡异的褐色图案。",
+        "教堂的地下墓穴深不可测，据说通往上层建筑和月之河。墓穴中埋葬着无数因兽疫而死的亡灵，他们的哀嚎在夜晚回荡。",
+        "血月高悬时，教堂区会显现出平日里看不见的景象——巨大的上位者在空中游荡，它们的触手在建筑间蠕动，低语着令人疯狂的真理。",
+        "治愈教会曾在此进行血液治疗，但随着时间推移，这些治疗反而加速了兽疫的传播。如今教堂已经成为禁区，只有最勇敢的猎人才敢踏足。",
+        "教堂的钟楼上住着乌鸦群，它们被称为死亡的使者。每当有猎人死去，乌鸦就会聚集在尸体上空盘旋，发出刺耳的鸣叫。",
+        "广场的中央有一口古井，井水呈现出诡异的红色。据说这口井直通地底的血之池，是上位者赐予雅南的恩惠，也是诅咒的源头。",
+        "教堂区的巷道错综复杂，许多道路在血雾中若隐若现。墙壁上写满了疯狂者的涂鸦，警告着闯入者不要深入。",
+        "夜晚的教堂区充满危险，兽化的病患在街道上游荡，它们曾经是普通的雅南市民，如今只剩下嗜血的本能和残破的人形。",
+        "传说教堂的地底深处隐藏着古神的真相，但没有人能活着从那里回来。只有在梦境中，猎人才能窥见那不可名状的恐怖存在。",
+    ],
+}
 
 
 ########################################################################################################################
@@ -198,7 +208,7 @@ def gen_admin_system_message(world: World) -> str:
 ## 游戏世界
 
 名称: {world.name}
-描述: {world.description}
+描述: {world.campaign_setting}
 
 ## 你的职责：
 - 你需要根据玩家的指令，管理游戏世界的状态。
@@ -215,7 +225,7 @@ def gen_actor_system_message(actor_model: Actor, world: World) -> str:
 
 ## 人物设定：
 
-{actor_model.character_profile}
+{actor_model.profile}
 
 ## 外观信息
 
@@ -224,7 +234,7 @@ def gen_actor_system_message(actor_model: Actor, world: World) -> str:
 ## 世界设定
 
 名称: {world.name}
-描述: {world.description}
+描述: {world.campaign_setting}
 
 ## 你的职责：
 - 你需要根据你的角色设定，做出符合角色身份的回应。
@@ -240,7 +250,7 @@ def gen_stage_system_message(stage_model: Stage, world: World) -> str:
 
 ## 场景描述：
 
-{stage_model.description}
+{stage_model.narrative}
 
 ## 场景环境描写
 
@@ -249,29 +259,9 @@ def gen_stage_system_message(stage_model: Stage, world: World) -> str:
 ## 世界设定
 
 名称: {world.name}
-描述: {world.description}
+描述: {world.campaign_setting}
 
 ## 你的职责：
 - 你需要根据你的场景设定，描述场景中的环境和氛围。
 - 你可以描述场景中的角色互动，事件发生等。
 - 你的描述应当推动故事发展，增加游戏的趣味性和沉浸感。"""
-
-
-# ============================================================================
-# RAG 知识库测试数据
-# ============================================================================
-
-test_knowledge_base: Final[dict[str, List[str]]] = {
-    "场景介绍": [
-        "暗影裂谷位于艾泽拉斯大陆东部的荒芜之地，是一处充满黑暗能量的裂缝。传说这里曾是上古战争的战场，地面上布满了破碎的武器和盔甲。",
-        "暗影裂谷深处有一座被遗忘的神殿，神殿中封印着强大的暗影生物。裂谷边缘弥漫着紫色的雾气，任何靠近的生物都会感到不安。",
-        "翡翠之湖坐落在艾泽拉斯大陆西部的群山之间，湖水呈现出梦幻般的翡翠绿色。湖畔生长着珍稀的魔法植物，是炼金术师们向往的宝地。",
-        "翡翠之湖的湖心有一座小岛，岛上有一座精灵族建造的观星塔。每到满月之夜，湖面会倒映出星空，形成壮观的景象。",
-        "烈焰山脉耸立在艾泽拉斯大陆南部，是一片火山地带。山脉中活跃着火元素生物，地下蕴藏着稀有的火焰水晶和熔岩矿石。",
-        "烈焰山脉的主峰终年喷发着岩浆，山腰有矮人族开凿的熔炉要塞，那里的铁匠们能打造出最精良的武器和护甲。",
-        "迷雾港口是艾泽拉斯大陆北部海岸线上的繁华港口城市。这里是各族商人聚集的贸易中心，每天都有来自远方的船只停靠。",
-        "迷雾港口因常年笼罩在海雾中而得名，港口的灯塔是航海者们的指路明灯。城市中有酒馆、市集和各种奇特的商铺。",
-        "永恒雪原位于艾泽拉斯大陆最北端，是一片终年被冰雪覆盖的荒原。这里居住着适应极寒气候的雪地部落，他们与冰霜巨龙和谐共存。",
-        "永恒雪原深处有一座冰封神殿，据说里面保存着上古时代的冰霜魔法秘籍。神殿由纯净的冰晶构成，在北极光的照耀下散发着神秘的蓝光。",
-    ],
-}
