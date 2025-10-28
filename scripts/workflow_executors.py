@@ -31,7 +31,7 @@ async def execute_mcp_state_workflow(
         user_input_state["messages"][0] if user_input_state.get("messages") else None
     )
     if user_message:
-        logger.success(f"💬 处理用户输入（MCP）: \n{user_message.content}")
+        logger.debug(f"💬 处理用户输入（MCP）: \n{user_message.content}")
 
     update_messages = await execute_mcp_workflow(
         state_compiled_graph=work_flow,
@@ -76,7 +76,7 @@ def execute_chat_state_workflow(
         user_input_state["messages"][0] if user_input_state.get("messages") else None
     )
     if user_message:
-        logger.success(f"💬 处理用户输入（纯聊天）: \n{user_message.content}")
+        logger.debug(f"💬 处理用户输入（纯聊天）: \n{user_message.content}")
 
     update_messages = execute_chat_workflow(
         state_compiled_graph=work_flow,
@@ -121,7 +121,7 @@ def execute_rag_workflow_handler(
         user_input_state["messages"][0] if user_input_state.get("messages") else None
     )
     if user_message:
-        logger.success(f"💬 处理用户输入（RAG）: \n{user_message.content}")
+        logger.debug(f"💬 处理用户输入（RAG）: \n{user_message.content}")
 
     update_messages = execute_rag_workflow(
         rag_compiled_graph=work_flow,

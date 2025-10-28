@@ -106,8 +106,8 @@ async def _handle_actor_observe(
         observation_prompt = f"""请从 {actor_agent.name} 的视角,生成他在当前场景中的观察结果。
 
 【场景任务】
-1. 分析 {actor_agent.name} 的感知能力(视觉、听觉、嗅觉、触觉、魔法感知等)
-2. 评估他的当前状态效果(是否失明、耳聋、被魅惑、警觉等)
+1. 分析 {actor_agent.name} 的感知能力(视觉、听觉、嗅觉、触觉、感知等)
+2. 评估他的当前状态效果(是否失明、耳聋、被魅惑、警觉等、隐藏状态)
 3. 判断他与场景中其他角色/物体的位置关系和视线遮挡
 4. 基于以上因素,生成他能感知到的信息
 
@@ -115,7 +115,7 @@ async def _handle_actor_observe(
 - 使用第一人称视角输出: "我看到/听到/感觉到..."
 - 只包含 {actor_agent.name} 实际能感知到的内容
 - 对于其他角色,只描述可观察特征(外观、动作、神态),不要提及名字
-- 被隐藏、遮挡或超出感知范围的事物不要描述
+- 被隐藏、遮挡或超出感知范围的事物（与角色）不要描述
 - 控制在100字以内,突出最关键的观察信息
 
 注意: 不同角色在同一场景中观察到的内容应该有差异,体现各自的感知特点和关注重点。"""
@@ -178,25 +178,29 @@ async def handle_game_command(
     """
     logger.info(f"🎮 游戏指令: {command}")
 
-    # /game stage:refresh - 刷新所有场景代理的状态
-    if command == "stage:refresh":
-        assert len(stage_agents) > 0, "没有可用的场景代理进行刷新"
-        await _handle_stage_refresh(
-            stage_agent=stage_agents[0],
-            llm=llm,
-            mcp_client=mcp_client,
-            available_tools=available_tools,
-            mcp_workflow=mcp_workflow,
-        )
+    match command:
+        # /game stage:refresh - 刷新所有场景代理的状态
+        case "stage:refresh":
+            assert len(stage_agents) > 0, "没有可用的场景代理进行刷新"
+            await _handle_stage_refresh(
+                stage_agent=stage_agents[0],
+                llm=llm,
+                mcp_client=mcp_client,
+                available_tools=available_tools,
+                mcp_workflow=mcp_workflow,
+            )
 
-    # /game actor:observe - 让所有角色观察并记录场景信息
-    elif command == "actor:observe":
-        assert len(stage_agents) > 0, "没有可用的场景代理"
-        assert len(actor_agents) > 0, "没有可用的角色代理"
+        # /game actor:observe - 让所有角色观察并记录场景信息
+        case "actor:observe":
+            assert len(stage_agents) > 0, "没有可用的场景代理"
+            assert len(actor_agents) > 0, "没有可用的角色代理"
 
-        await _handle_actor_observe(
-            actor_agents=actor_agents,
-            stage_agent=stage_agents[0],
-            llm=llm,
-            chat_workflow=chat_workflow,
-        )
+            await _handle_actor_observe(
+                actor_agents=actor_agents,
+                stage_agent=stage_agents[0],
+                llm=llm,
+                chat_workflow=chat_workflow,
+            )
+
+        case _:
+            logger.error(f"未知的游戏指令: {command}")
