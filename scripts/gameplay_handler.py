@@ -335,6 +335,94 @@ async def _handle_actor_plan_all(
 ########################################################################################################################
 ########################################################################################################################
 ########################################################################################################################
+async def _handle_stage_execute(
+    stage_agent: GameAgent,
+    actor_agents: List[GameAgent],
+    llm: ChatDeepSeek,
+    chat_workflow: CompiledStateGraph[ChatState, Any, ChatState, ChatState],
+) -> None:
+    """处理场景执行指令
+
+    收集所有角色的行动计划,由场景代理生成统一的行动执行描述。
+
+    Args:
+        stage_agent: 场景代理
+        actor_agents: 角色代理列表
+        llm: DeepSeek LLM 实例
+        chat_workflow: Chat 工作流状态图
+    """
+    assert len(actor_agents) > 0, "没有可用的角色代理"
+
+    logger.info(f"🎬 场景执行: {stage_agent.name}")
+
+    # 收集所有角色的最后一个消息（行动计划）
+    actor_plans = []
+    for actor_agent in actor_agents:
+        if len(actor_agent.chat_history) > 0:
+            last_message = actor_agent.chat_history[-1]
+            # 提取消息内容
+            plan_content = (
+                last_message.content
+                if hasattr(last_message, "content")
+                else str(last_message)
+            )
+            actor_plans.append({"actor_name": actor_agent.name, "plan": plan_content})
+
+    if not actor_plans:
+        logger.warning("⚠️  没有角色有行动计划，跳过场景执行")
+        return
+
+    # 构建行动执行提示词
+    plans_text = "\n".join(
+        [f"- **{plan['actor_name']}**: {plan['plan']}" for plan in actor_plans]
+    )
+
+    stage_execute_prompt = f"""请基于以下角色的行动计划,生成第三人称的场景行动执行描述。
+
+## 角色行动计划
+
+{plans_text}
+
+## 执行要求
+
+1. 使用第三人称全知视角叙述
+2. 按时间顺序描述各角色行动的实际执行过程
+3. 描述行动之间的互动和影响(如果有)
+4. 包含环境的动态变化和氛围渲染
+5. 如果行动之间存在冲突或碰撞,合理描述结果
+
+## 输出要求
+
+- 视角: 第三人称全知
+- 风格: 生动、具体、动态
+- 长度: 200字以内的完整自然段
+- 重点: 展现行动的实际执行效果,而非重复计划内容
+
+注意: 这是行动的实际执行阶段,需要将计划转化为具体的场景描述,推进故事发展。"""
+
+    # 执行 Chat 工作流
+    response = execute_chat_state_workflow(
+        user_input_state={
+            "messages": [HumanMessage(content=stage_execute_prompt)],
+            "llm": llm,
+        },
+        chat_history_state={
+            "messages": stage_agent.chat_history.copy(),
+            "llm": llm,
+        },
+        work_flow=chat_workflow,
+    )
+
+    # 更新场景代理的对话历史
+    stage_agent.chat_history.append(HumanMessage(content=stage_execute_prompt))
+    stage_agent.chat_history.extend(response)
+
+    logger.debug(f"✅ 场景执行完成")
+
+
+########################################################################################################################
+########################################################################################################################
+########################################################################################################################
 async def handle_game_command(
     command: str,
     current_agent: GameAgent,
@@ -410,6 +498,16 @@ async def handle_game_command(
                 chat_workflow=chat_workflow,
             )
 
+        # /game stage:execute - 执行所有角色的行动计划并更新场景状态
+        case "stage:execute":
+            assert len(stage_agents) > 0, "没有可用的场景代理进行执行"
+            await _handle_stage_execute(
+                stage_agent=stage_agents[0],
+                actor_agents=actor_agents,
+                llm=llm,
+                chat_workflow=chat_workflow,
+            )
+
         # /game pipeline:test1 - 上面两个步骤的组合测试。
         case "pipeline:test1":
 
@@ -424,6 +522,19 @@ async def handle_game_command(
             await _handle_actor_observe(
                 actor_agents=actor_agents,
                 stage_agent=stage_agents[0],
+                llm=llm,
+                chat_workflow=chat_workflow,
+            )
+
+            await _handle_actor_plan_all(
+                actor_agents=actor_agents,
+                llm=llm,
+                chat_workflow=chat_workflow,
+            )
+
+            await _handle_stage_execute(
+                stage_agent=stage_agents[0],
+                actor_agents=actor_agents,
                 llm=llm,
                 chat_workflow=chat_workflow,
             )
