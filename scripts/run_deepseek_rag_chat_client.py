@@ -75,7 +75,7 @@ def main() -> None:
 
                 # 执行RAG流程
                 update_messages = execute_rag_workflow(
-                    rag_compiled_graph=rag_compiled_graph,
+                    work_flow=rag_compiled_graph,
                     chat_history_state=chat_history_state,
                     user_input_state=user_input_state,
                 )

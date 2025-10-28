@@ -833,7 +833,7 @@ def create_mcp_workflow() -> CompiledStateGraph[McpState, Any, McpState, McpStat
 
 ############################################################################################################
 async def execute_mcp_workflow(
-    state_compiled_graph: CompiledStateGraph[McpState, Any, McpState, McpState],
+    work_flow: CompiledStateGraph[McpState, Any, McpState, McpState],
     chat_history_state: McpState,
     user_input_state: McpState,
 ) -> List[BaseMessage]:
@@ -875,7 +875,7 @@ async def execute_mcp_workflow(
 
     try:
         final_messages = []
-        async for event in state_compiled_graph.astream(merged_message_context):
+        async for event in work_flow.astream(merged_message_context):
             for node_name, value in event.items():
                 # 只收集来自最终节点的消息，避免重复
                 if node_name == "response_synthesis" and value.get("messages"):

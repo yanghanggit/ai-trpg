@@ -56,7 +56,7 @@ async def _handle_stage_refresh(
 
 - 环境描述要与当前剧情氛围相符
 - 使用第三人称叙事视角
-- 保持描述简洁生动,150字以内的完整段落
+- 保持描述简洁生动，150字以内的完整自然段
 - 避免重复之前的描述内容"""
 
     # 执行 MCP 工作流
@@ -176,7 +176,7 @@ async def _handle_actor_observe(
 【输出要求】
 - 视角: 第一人称
 - 风格: 客观、直接、精确
-- 长度: 150字以内的完整段落
+- 长度: 150字以内的完整自然段
 
 重要提醒: 这是传感器式的数据采集,不是文学描写。{actor_agent.name} 的个性应在后续的行动和对话中体现,而非观察阶段。"""
 
@@ -256,6 +256,24 @@ async def handle_game_command(
         case "actor:observe":
             assert len(stage_agents) > 0, "没有可用的场景代理"
             assert len(actor_agents) > 0, "没有可用的角色代理"
+
+            await _handle_actor_observe(
+                actor_agents=actor_agents,
+                stage_agent=stage_agents[0],
+                llm=llm,
+                chat_workflow=chat_workflow,
+            )
+
+        # /game pipeline:test1 - 上面两个步骤的组合测试。
+        case "pipeline:test1":
+
+            await _handle_stage_refresh(
+                stage_agent=stage_agents[0],
+                llm=llm,
+                mcp_client=mcp_client,
+                available_tools=available_tools,
+                mcp_workflow=mcp_workflow,
+            )
 
             await _handle_actor_observe(
                 actor_agents=actor_agents,

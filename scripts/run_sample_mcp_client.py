@@ -318,7 +318,7 @@ async def handle_analyze_command(
             # 获取 AI 分析
             print("\n⏳ AI 正在分析...")
             update_messages = await execute_mcp_workflow(
-                state_compiled_graph=compiled_mcp_stage_graph,
+                work_flow=compiled_mcp_stage_graph,
                 chat_history_state=chat_history_state,
                 user_input_state=analysis_input_state,
             )
@@ -364,7 +364,7 @@ async def handle_user_message(
         logger.success(f"处理用户输入: {user_message.content}")
 
     update_messages = await execute_mcp_workflow(
-        state_compiled_graph=compiled_mcp_stage_graph,
+        work_flow=compiled_mcp_stage_graph,
         chat_history_state=chat_history_state,
         user_input_state=user_input_state,
     )

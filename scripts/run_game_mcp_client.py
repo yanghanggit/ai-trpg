@@ -119,7 +119,25 @@ for agent in all_agents:
 
     if agent.name == "艾琳":
         logger.debug(f"单独给 [{agent.name}] 添加了狩猎目标提示词")
-        agent.chat_history.append(HumanMessage(content="你的目标是来狩猎 加斯科因"))
+        agent.chat_history.append(
+            HumanMessage(
+                content="你当前所处场景：奥顿教堂墓地。你的目标是来狩猎 加斯科因"
+            )
+        )
+    elif agent.name == "加斯科因":
+        logger.debug(f"单独给 [{agent.name}] 添加了狩猎目标提示词")
+        agent.chat_history.append(
+            HumanMessage(
+                content="你当前所处场景：奥顿教堂墓地。你的目标是狩猎所有闯入者"
+            )
+        )
+    elif agent.name == "外乡人":
+        logger.debug(f"单独给 [{agent.name}] 添加了探索目标提示词")
+        agent.chat_history.append(
+            HumanMessage(
+                content="你当前所处场景：奥顿教堂墓地。你的目标是探索这里的秘密 并 自保"
+            )
+        )
 
 # ============================================================================
 # 主函数
