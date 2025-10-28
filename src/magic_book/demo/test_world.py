@@ -247,6 +247,7 @@ def gen_world_system_message(world: World) -> str:
 
 你是 {world.name}，你扮演这个游戏世界的管理员。
 你负责管理和维护游戏世界的秩序与运行，你是游戏的最高管理者。
+你的实体类型是: {World.__name__}
 
 ## 游戏世界
 
@@ -268,6 +269,7 @@ def gen_actor_system_message(actor_model: Actor, world: World) -> str:
     return f"""# {actor_model.name}
 
 你扮演这个游戏世界的一个角色：{actor_model.name} 
+你的实体类型是: {Actor.__name__}
 
 ## 人物设定：
 
@@ -297,6 +299,7 @@ def gen_stage_system_message(stage_model: Stage, world: World) -> str:
     return f"""# 场景: {stage_model.name}
 
 你扮演这个游戏世界的一个场景: {stage_model.name}
+你的实体类型是: {Stage.__name__}
 
 ## 场景描述：
 

@@ -29,7 +29,8 @@ from mcp.server.fastmcp import FastMCP
 import mcp.types as types
 from magic_book.mcp import mcp_config
 from fastapi import Request, Response, status
-from magic_book.demo.test_world import demo_world
+from magic_book.demo.test_world import demo_world, Stage
+from typing import Any, Dict, List
 
 # ============================================================================
 # 创建 FastMCP 应用实例
@@ -89,61 +90,26 @@ async def health_check(request: Request) -> Response:
 
 
 # ============================================================================
-# 公共函数
+# 注册工具
 # ============================================================================
 
 
-def _query_game_entity(entity_name: str) -> str:
+@app.tool()
+async def get_world_info() -> str:
     """
-    根据名称查询游戏世界实体的内部实现
-
-    Args:
-        entity_name: 实体名称（可以是World名称、Stage名称或Actor名称）
+    获取游戏世界（World）的完整信息
 
     Returns:
-        对应实体的完整JSON数据，包含所有嵌套信息
+        World的完整JSON数据，包含所有场景和角色的嵌套信息
     """
     try:
-        # 检查是否是World
-        if entity_name == demo_world.name:
-            logger.info(f"获取World数据: {entity_name}")
-            return demo_world.model_dump_json(indent=2, ensure_ascii=False)
-
-        # 尝试查找Stage
-        stage = demo_world.find_stage(entity_name)
-        if stage:
-            logger.info(f"获取Stage数据: {entity_name}")
-            return stage.model_dump_json(indent=2, ensure_ascii=False)
-
-        # 尝试查找Actor
-        actor, stage = demo_world.find_actor_with_stage(entity_name)
-        if actor and stage:
-            logger.info(f"获取Actor数据: {entity_name}, 所在Stage: {stage.name}")
-            # 将Actor和其所在的Stage信息打包
-            result = {
-                "actor": actor.model_dump(),
-                "stage": {
-                    "name": stage.name,
-                    "narrative": stage.narrative,
-                    "environment": stage.environment,
-                },
-            }
-            return json.dumps(result, ensure_ascii=False, indent=2)
-
-        # 未找到任何匹配
-        error_msg = f"错误：未找到名为 '{entity_name}' 的World、Stage或Actor"
-        logger.warning(error_msg)
-        return json.dumps(
-            {"error": error_msg, "timestamp": datetime.now().isoformat()},
-            ensure_ascii=False,
-            indent=2,
-        )
-
+        logger.info(f"获取World数据: {demo_world.name}")
+        return demo_world.model_dump_json(indent=2, ensure_ascii=False)
     except Exception as e:
-        logger.error(f"获取游戏世界实体失败: {e}")
+        logger.error(f"获取World信息失败: {e}")
         return json.dumps(
             {
-                "error": f"无法获取游戏世界实体数据 - {str(e)}",
+                "error": f"无法获取World数据 - {str(e)}",
                 "timestamp": datetime.now().isoformat(),
             },
             ensure_ascii=False,
@@ -151,23 +117,133 @@ def _query_game_entity(entity_name: str) -> str:
         )
 
 
-# ============================================================================
-# 注册工具
-# ============================================================================
+@app.tool()
+async def get_stage_info(stage_name: str) -> str:
+    """
+    根据场景名称获取Stage的完整信息（角色信息为精简版）
+
+    Args:
+        stage_name: 场景名称
+
+    Returns:
+        Stage的完整JSON数据，包含场景的所有属性（名称、叙事、环境、子场景等）
+        以及场景中角色的简要信息（仅包含角色名称和外观描述，不包含档案和已知角色列表）
+    """
+    try:
+        stage = demo_world.find_stage(stage_name)
+        if stage:
+            logger.info(f"获取Stage数据: {stage_name}")
+
+            # 构建精简的角色信息列表
+            simplified_actors = [
+                {
+                    "name": actor.name,
+                    "appearance": actor.appearance,
+                }
+                for actor in stage.actors
+            ]
+
+            # 递归处理子场景（如果有的话）
+            def simplify_sub_stages(stages: List[Stage]) -> List[Dict[str, Any]]:
+                result = []
+                for sub_stage in stages:
+                    simplified_sub = {
+                        "name": sub_stage.name,
+                        "narrative": sub_stage.narrative,
+                        "environment": sub_stage.environment,
+                        "actors": [
+                            {
+                                "name": actor.name,
+                                "appearance": actor.appearance,
+                            }
+                            for actor in sub_stage.actors
+                        ],
+                    }
+                    # 如果子场景还有子场景，继续递归
+                    if sub_stage.sub_stages:
+                        simplified_sub["sub_stages"] = simplify_sub_stages(
+                            sub_stage.sub_stages
+                        )
+                    else:
+                        simplified_sub["sub_stages"] = []
+                    result.append(simplified_sub)
+                return result
+
+            # 构建返回结果
+            result = {
+                "name": stage.name,
+                "narrative": stage.narrative,
+                "environment": stage.environment,
+                "actors": simplified_actors,
+                "sub_stages": (
+                    simplify_sub_stages(stage.sub_stages) if stage.sub_stages else []
+                ),
+            }
+
+            return json.dumps(result, ensure_ascii=False, indent=2)
+        else:
+            error_msg = f"错误：未找到名为 '{stage_name}' 的Stage"
+            logger.warning(error_msg)
+            return json.dumps(
+                {"error": error_msg, "timestamp": datetime.now().isoformat()},
+                ensure_ascii=False,
+                indent=2,
+            )
+    except Exception as e:
+        logger.error(f"获取Stage信息失败: {e}")
+        return json.dumps(
+            {
+                "error": f"无法获取Stage数据 - {str(e)}",
+                "timestamp": datetime.now().isoformat(),
+            },
+            ensure_ascii=False,
+            indent=2,
+        )
 
 
 @app.tool()
-async def get_entity_by_name(name: str) -> str:
+async def get_actor_info(actor_name: str) -> str:
     """
-    根据名称获取游戏世界实体（World、Stage或Actor）的完整数据
+    根据角色名称获取Actor的完整信息（包含所在场景的上下文）
 
     Args:
-        name: 实体名称（可以是World名称、Stage名称或Actor名称）
+        actor_name: 角色名称
 
     Returns:
-        对应实体的完整JSON数据，包含所有嵌套信息
+        Actor的完整JSON数据，包含角色的所有属性（名称、档案、外观、已知角色列表等）
+        以及其所在Stage的部分信息（场景名称和环境描写）
     """
-    return _query_game_entity(name)
+    try:
+        actor, stage = demo_world.find_actor_with_stage(actor_name)
+        if actor and stage:
+            logger.info(f"获取Actor数据: {actor_name}, 所在Stage: {stage.name}")
+            # 将Actor和其所在的Stage信息打包
+            result = {
+                "actor": actor.model_dump(),
+                "stage": {
+                    "name": stage.name,
+                    "environment": stage.environment,
+                },
+            }
+            return json.dumps(result, ensure_ascii=False, indent=2)
+        else:
+            error_msg = f"错误：未找到名为 '{actor_name}' 的Actor"
+            logger.warning(error_msg)
+            return json.dumps(
+                {"error": error_msg, "timestamp": datetime.now().isoformat()},
+                ensure_ascii=False,
+                indent=2,
+            )
+    except Exception as e:
+        logger.error(f"获取Actor信息失败: {e}")
+        return json.dumps(
+            {
+                "error": f"无法获取Actor数据 - {str(e)}",
+                "timestamp": datetime.now().isoformat(),
+            },
+            ensure_ascii=False,
+            indent=2,
+        )
 
 
 @app.tool()
@@ -307,7 +383,55 @@ async def get_entity_resource(entity_name: str) -> str:
     # URL 解码实体名称（处理中文等特殊字符）
     decoded_entity_name = unquote(entity_name)
     logger.debug(f"原始 entity_name: {entity_name}, 解码后: {decoded_entity_name}")
-    return _query_game_entity(decoded_entity_name)
+
+    try:
+        # 检查是否是World
+        if decoded_entity_name == demo_world.name:
+            logger.info(f"获取World数据: {decoded_entity_name}")
+            return demo_world.model_dump_json(indent=2, ensure_ascii=False)
+
+        # 尝试查找Stage
+        stage = demo_world.find_stage(decoded_entity_name)
+        if stage:
+            logger.info(f"获取Stage数据: {decoded_entity_name}")
+            return stage.model_dump_json(indent=2, ensure_ascii=False)
+
+        # 尝试查找Actor
+        actor, stage = demo_world.find_actor_with_stage(decoded_entity_name)
+        if actor and stage:
+            logger.info(
+                f"获取Actor数据: {decoded_entity_name}, 所在Stage: {stage.name}"
+            )
+            # 将Actor和其所在的Stage信息打包
+            result = {
+                "actor": actor.model_dump(),
+                "stage": {
+                    "name": stage.name,
+                    "narrative": stage.narrative,
+                    "environment": stage.environment,
+                },
+            }
+            return json.dumps(result, ensure_ascii=False, indent=2)
+
+        # 未找到任何匹配
+        error_msg = f"错误：未找到名为 '{decoded_entity_name}' 的World、Stage或Actor"
+        logger.warning(error_msg)
+        return json.dumps(
+            {"error": error_msg, "timestamp": datetime.now().isoformat()},
+            ensure_ascii=False,
+            indent=2,
+        )
+
+    except Exception as e:
+        logger.error(f"获取游戏世界实体失败: {e}")
+        return json.dumps(
+            {
+                "error": f"无法获取游戏世界实体数据 - {str(e)}",
+                "timestamp": datetime.now().isoformat(),
+            },
+            ensure_ascii=False,
+            indent=2,
+        )
 
 
 # ============================================================================
