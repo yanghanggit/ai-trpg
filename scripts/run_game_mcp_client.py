@@ -40,7 +40,7 @@ from magic_book.mcp import (
 )
 
 from magic_book.demo.test_world import (
-    test_world,
+    demo_world,
     Actor,
     World,
     Stage,
@@ -75,16 +75,16 @@ from gameplay_handler import handle_game_command
 ########################################################################################################################
 # 创建游戏角色代理
 world_agent: Final[GameAgent] = GameAgent(
-    name=test_world.name,
+    name=demo_world.name,
     type=World.__name__,
-    chat_history=[SystemMessage(content=gen_world_system_message(test_world))],
+    chat_history=[SystemMessage(content=gen_world_system_message(demo_world))],
 )
 
 # 获取游戏世界中的所有角色
-all_actors = test_world.get_all_actors()
+all_actors = demo_world.get_all_actors()
 logger.info(f"游戏世界中的所有角色: {[actor.name for actor in all_actors]}")
 
-all_stages = test_world.get_all_stages()
+all_stages = demo_world.get_all_stages()
 logger.info(f"游戏世界中的所有场景: {[stage.name for stage in all_stages]}")
 
 # 创建每个角色的代理
@@ -94,7 +94,7 @@ for actor in all_actors:
         name=actor.name,
         type=Actor.__name__,
         chat_history=[
-            SystemMessage(content=gen_actor_system_message(actor, test_world))
+            SystemMessage(content=gen_actor_system_message(actor, demo_world))
         ],
     )
     actor_agents.append(agent)
@@ -105,7 +105,7 @@ for stage in all_stages:
         name=stage.name,
         type=Stage.__name__,
         chat_history=[
-            SystemMessage(content=gen_stage_system_message(stage, test_world))
+            SystemMessage(content=gen_stage_system_message(stage, demo_world))
         ],
     )
     stage_agents.append(agent)
@@ -117,6 +117,9 @@ all_agents: List[GameAgent] = [world_agent] + actor_agents + stage_agents
 for agent in all_agents:
     logger.info(f"已创建代理: {agent.name}")
 
+    if agent.name == "艾琳":
+        logger.debug(f"单独给 [{agent.name}] 添加了狩猎目标提示词")
+        agent.chat_history.append(HumanMessage(content="你的目标是来狩猎 加斯科因"))
 
 # ============================================================================
 # 主函数

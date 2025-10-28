@@ -18,6 +18,7 @@ from workflow_executors import (
     execute_chat_state_workflow,
 )
 from langchain.schema import HumanMessage
+from magic_book.demo.test_world import demo_world
 
 
 ########################################################################################################################
@@ -83,6 +84,47 @@ async def _handle_stage_refresh(
 ########################################################################################################################
 ########################################################################################################################
 ########################################################################################################################
+def _collect_actor_perception_info(
+    actor_agent: GameAgent,
+) -> tuple[List[str], List[str], int] | None:
+    """收集角色感知信息
+
+    查找角色在世界中的位置,收集场景中其他角色的信息,用于生成观察提示词。
+
+    Args:
+        actor_agent: 角色代理
+
+    Returns:
+        如果成功: (其他角色名列表, 认识的角色名列表, 陌生角色数量)
+        如果失败: None
+    """
+    # 查找角色在世界中的位置
+    target_actor, target_stage = demo_world.find_actor_with_stage(
+        actor_name=actor_agent.name,
+    )
+
+    if target_actor is None or target_stage is None:
+        logger.error(
+            f"⚠️  跳过角色 {actor_agent.name}: "
+            f"{'未找到角色实例' if target_actor is None else '未找到所在场景'}"
+        )
+        return None
+
+    # 收集场景中的其他角色信息
+    other_actors_on_stage = [
+        a.name for a in target_stage.actors if a.name != actor_agent.name
+    ]
+    known_actors = [
+        name for name in other_actors_on_stage if name in target_actor.known_actors
+    ]
+    unknown_actors_count = len(other_actors_on_stage) - len(known_actors)
+
+    return other_actors_on_stage, known_actors, unknown_actors_count
+
+
+########################################################################################################################
+########################################################################################################################
+########################################################################################################################
 async def _handle_actor_observe(
     actor_agents: List[GameAgent],
     stage_agent: GameAgent,
@@ -102,23 +144,44 @@ async def _handle_actor_observe(
     for actor_agent in actor_agents:
         logger.info(f"👀 角色观察场景: {actor_agent.name}")
 
-        # 构建场景代理为特定角色生成观察描述的提示词
-        observation_prompt = f"""请从 {actor_agent.name} 的视角,生成他在当前场景中的观察结果。
+        # 收集角色感知信息
+        perception_info = _collect_actor_perception_info(actor_agent)
+        if perception_info is None:
+            continue
 
-【场景任务】
-1. 分析 {actor_agent.name} 的感知能力(视觉、听觉、嗅觉、触觉、感知等)
-2. 评估他的当前状态效果(是否失明、耳聋、被魅惑、警觉等、隐藏状态)
-3. 判断他与场景中其他角色/物体的位置关系和视线遮挡
-4. 基于以上因素,生成他能感知到的信息
+        other_actors_on_stage, known_actors, unknown_actors_count = perception_info
+
+        # 构建观察提示词
+        observation_prompt = f"""# 以 {actor_agent.name} 的第一人称视角,生成他在当前场景中的纯感官观察结果。
+
+【角色感知信息】
+- 场景中共有 {len(other_actors_on_stage)} 个其他角色
+- 认识的角色: {', '.join(known_actors) if known_actors else '无'}
+- 陌生的角色数量: {unknown_actors_count} 个
+
+【观察内容】
+1. 场景环境: 建筑、地形、物体的位置、形态、颜色、材质
+2. 感官信息: 光线强度/颜色、声音类型/方向、气味种类、温度/湿度
+3. 其他角色: 外观特征、当前动作、身体姿态、位置关系
+
+【禁止规则 - 必须严格遵守】
+1. 禁止情绪词: 不使用"该死的"、"可怕的"、"美丽的"、"诡异的"等任何主观评价词
+2. 禁止比喻修辞: 不使用"像...一样"、"仿佛"、"似乎"等比喻和拟人手法
+3. 禁止推测: 不推测动机、情绪、意图,只描述可直接观察到的事实
+4. 禁止评价: 不进行好坏、美丑、善恶等任何价值判断
+5. 隐藏角色: 处于"隐藏"状态的角色必须完全忽略,不得以任何形式提及
 
 【输出要求】
-- 使用第一人称视角输出: "我看到/听到/感觉到..."
-- 只包含 {actor_agent.name} 实际能感知到的内容
-- 对于其他角色,只描述可观察特征(外观、动作、神态),不要提及名字
-- 被隐藏、遮挡或超出感知范围的事物（与角色）不要描述
-- 控制在100字以内,突出最关键的观察信息
+- 视角: 第一人称 ("我看到/听到/闻到...")
+- 风格: 客观、直接、精确
+- 长度: 100字以内，要一整段话
+- 格式示例:
+  ✅ 正确: "我看到藤蔓缠绕在墓碑上,藤蔓在微风中轻微摆动"
+  ❌ 错误: "我看到那些该死的藤蔓像蛇一样缠绕在墓碑上,诡异地蠕动着"
+  ✅ 正确: "我看到一个身穿黑色长袍的人站在雕像旁,他右手握着斧头"
+  ❌ 错误: "我看到一个穿黑袍的家伙,看起来很危险,正紧张地握着斧头"
 
-注意: 不同角色在同一场景中观察到的内容应该有差异,体现各自的感知特点和关注重点。"""
+重要提醒: 这是传感器式的数据采集,不是文学描写。{actor_agent.name} 的个性应在后续的行动和对话中体现,而非观察阶段。"""
 
         # 执行聊天工作流，使用场景代理的历史作为上下文
         response = execute_chat_state_workflow(
@@ -135,9 +198,11 @@ async def _handle_actor_observe(
 
         # 更新角色代理的对话历史
         # 注意: 这里是场景代理计算后的观察结果,但要让角色代理认为是自己主动观察到的
-        actor_record = f"我仔细观察周围的环境和其他存在"
-        actor_agent.chat_history.append(HumanMessage(content=actor_record))
+        actor_observation_action = "我仔细观察周围的环境和其他存在"
+        actor_agent.chat_history.append(HumanMessage(content=actor_observation_action))
         actor_agent.chat_history.extend(response)
+
+        logger.debug(f"✅ {actor_agent.name} 完成场景观察")
 
 
 ########################################################################################################################

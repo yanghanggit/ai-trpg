@@ -29,7 +29,7 @@ from mcp.server.fastmcp import FastMCP
 import mcp.types as types
 from magic_book.mcp import mcp_config
 from fastapi import Request, Response, status
-from magic_book.demo.test_world import test_world
+from magic_book.demo.test_world import demo_world
 
 # ============================================================================
 # 创建 FastMCP 应用实例
@@ -105,18 +105,18 @@ def _query_game_entity(entity_name: str) -> str:
     """
     try:
         # 检查是否是World
-        if entity_name == test_world.name:
+        if entity_name == demo_world.name:
             logger.info(f"获取World数据: {entity_name}")
-            return test_world.model_dump_json(indent=2, ensure_ascii=False)
+            return demo_world.model_dump_json(indent=2, ensure_ascii=False)
 
         # 尝试查找Stage
-        stage = test_world.find_stage(entity_name)
+        stage = demo_world.find_stage(entity_name)
         if stage:
             logger.info(f"获取Stage数据: {entity_name}")
             return stage.model_dump_json(indent=2, ensure_ascii=False)
 
         # 尝试查找Actor
-        actor, stage = test_world.find_actor_with_stage(entity_name)
+        actor, stage = demo_world.find_actor_with_stage(entity_name)
         if actor and stage:
             logger.info(f"获取Actor数据: {entity_name}, 所在Stage: {stage.name}")
             # 将Actor和其所在的Stage信息打包
@@ -184,7 +184,7 @@ async def move_actor(actor_name: str, target_stage_name: str) -> str:
     """
     try:
         # 查找Actor当前所在的Stage
-        actor, current_stage = test_world.find_actor_with_stage(actor_name)
+        actor, current_stage = demo_world.find_actor_with_stage(actor_name)
         if not current_stage or not actor:
             error_msg = f"错误：未找到名为 '{actor_name}' 的Actor"
             logger.warning(error_msg)
@@ -199,7 +199,7 @@ async def move_actor(actor_name: str, target_stage_name: str) -> str:
             )
 
         # 查找目标Stage
-        target_stage = test_world.find_stage(target_stage_name)
+        target_stage = demo_world.find_stage(target_stage_name)
         if not target_stage:
             error_msg = f"错误：未找到名为 '{target_stage_name}' 的目标Stage"
             logger.warning(error_msg)

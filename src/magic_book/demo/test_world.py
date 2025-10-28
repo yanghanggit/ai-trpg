@@ -18,6 +18,9 @@ class Actor(BaseModel):
     status_effects: List[StatusEffect] = Field(
         default_factory=list, description="角色当前的状态效果列表"
     )
+    known_actors: List[str] = Field(
+        default_factory=list, description="该角色认识的其他角色名字列表"
+    )
 
 
 class Stage(BaseModel):
@@ -183,7 +186,7 @@ GLOBAL_GAME_MECHANICS: Final[
 # 游戏世界实例
 # ============================================================================
 
-test_world: Final[World] = World(
+demo_world: Final[World] = World(
     name="雅南城",
     campaign_setting="一座被兽疫诅咒笼罩的维多利亚式古城，血月高悬，兽性在人心中蔓延。教会的狩猎之夜永无止境，古老的血脉秘密埋藏在哥特式教堂的地底深处。",
     stages=[
@@ -207,6 +210,9 @@ test_world: Final[World] = World(
                             name="阴影隐匿",
                             description="在夜晚藏身于阴影之中，只要不主动攻击或现身，艾琳将获得隐匿状态，将不会被任何人发现。乌鸦猎人的羽毛斗篷在暗处与周围环境融为一体，让她能够无声无息地接近目标或从危险中脱身。",
                         )
+                    ],
+                    known_actors=[
+                        "加斯科因",
                     ],
                 ),
                 Actor(
