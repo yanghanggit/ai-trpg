@@ -246,7 +246,7 @@ async def get_actor_info(actor_name: str) -> str:
         )
 
 
-@app.tool()
+# @app.tool()
 async def move_actor(actor_name: str, target_stage_name: str) -> str:
     """
     将指定的Actor从当前Stage移动到目标Stage
