@@ -26,7 +26,7 @@ from magic_book.rag.knowledge_retrieval import (
     load_knowledge_base_to_vector_db,
     search_similar_documents,
 )
-from magic_book.demo.test_world import test_knowledge_base
+from magic_book.demo.demo_world import test_knowledge_base
 from magic_book.embedding_model import get_embedding_model
 
 

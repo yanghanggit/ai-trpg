@@ -29,7 +29,7 @@ from mcp.server.fastmcp import FastMCP
 import mcp.types as types
 from magic_book.mcp import mcp_config
 from fastapi import Request, Response, status
-from magic_book.demo.test_world import demo_world, Stage
+from magic_book.demo.demo_world import demo_world, Stage
 from typing import Any, Dict, List
 
 # ============================================================================

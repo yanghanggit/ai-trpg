@@ -18,7 +18,7 @@ from workflow_executors import (
     execute_chat_state_workflow,
 )
 from langchain.schema import HumanMessage
-from magic_book.demo.test_world import demo_world
+from magic_book.demo.demo_world import demo_world
 import random
 
 
