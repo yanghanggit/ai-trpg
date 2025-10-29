@@ -294,7 +294,7 @@ async def _handle_stage_execute(
 **输出**(200字内): 生动具体的完整自然段,展现执行效果而非重复计划。"""
 
     # 执行 Chat 工作流
-    response = execute_chat_state_workflow(
+    stage_execution_response = execute_chat_state_workflow(
         user_input_state={
             "messages": [HumanMessage(content=stage_execute_prompt)],
             "llm": llm,
@@ -308,9 +308,29 @@ async def _handle_stage_execute(
 
     # 更新场景代理的对话历史
     stage_agent.chat_history.append(HumanMessage(content=stage_execute_prompt))
-    stage_agent.chat_history.extend(response)
+    stage_agent.chat_history.extend(stage_execution_response)
 
     logger.debug(f"✅ 场景执行完成")
+
+    # 提取场景执行结果
+    execution_result = (
+        stage_execution_response[-1].content if stage_execution_response else ""
+    )
+
+    # 将场景执行结果通知给所有角色代理
+    for actor_agent in actor_agents:
+        # 构建场景执行结果通知提示词
+        event_notification = f"""# 发生场景事件！
+
+## 事件内容
+
+{execution_result}
+
+## 注意
+
+以上是刚刚发生的场景事件,你需要了解这些信息以便做出后续反应。"""
+
+        actor_agent.chat_history.append(HumanMessage(content=event_notification))
 
 
 ########################################################################################################################
