@@ -45,15 +45,26 @@ async def _handle_stage_update(
 
     logger.info(f"🔄 更新场景代理: {stage_agent.name}")
 
-    stage_update_prompt = """# 场景状态更新
+    stage_update_prompt = """# 场景状态更新任务
 
-请查询场景内所有角色的当前状态(位置、行为、状态效果),并更新场景描述:
+## 核心要求
 
-1. 故事层面:基于角色最新状态更新叙事
-2. 感官层面:氛围、光线、声音、气味等环境描写
-3. 如果有角色处于隐藏状态,请明确提出该角色为"隐藏"状态
+查询所有角色的当前状态,生成客观的场景快照描述。
 
-**输出**: 第三人称视角,150字以内完整自然段,避免重复旧内容。"""
+## 重要约束
+
+- **避免重复**: 不要重复历史记录中的内容,专注于描述当前最新状态
+- **禁止重复上一次"场景行动执行"的内容**
+
+## 内容要求
+
+**必须包含**: 角色位置(方位/距离) | 外显动作(站立/移动/静止) | 隐藏状态标注【隐藏】 | 环境感官(光线/声音/气味)
+
+**严格禁止**: ❌ 推断意图/目的/情绪 | ❌ 使用"似乎/打算/准备/试图/可能"等暗示词 | ❌ 主观解读
+
+## 输出规范
+
+第三人称全知视角 | 150字内 | 只写"是什么"不写"将做什么" | 客观简洁具体"""
 
     # 执行 MCP 工作流
     scene_update_response = await execute_mcp_state_workflow(
@@ -100,10 +111,12 @@ async def _handle_single_actor_observe(
     """
     last_ai_message = stage_agent.chat_history[-1].content
 
-    logger.info(f"👀 角色观察场景: {actor_agent.name}")
+    logger.warning(f"角色观察场景: {actor_agent.name}")
 
     # 构建观察提示词
     observation_prompt = f"""# 场景观察
+
+## 最新场景快照
 
 {last_ai_message}
 
@@ -130,7 +143,7 @@ async def _handle_single_actor_observe(
     actor_agent.chat_history.append(HumanMessage(content=observation_prompt))
     actor_agent.chat_history.extend(observation_response)
 
-    logger.debug(f"✅ {actor_agent.name} 完成场景观察")
+    # logger.debug(f"✅ {actor_agent.name} 完成场景观察")
 
 
 ########################################################################################################################
@@ -209,7 +222,7 @@ async def _execute_actor_plan(
         llm: DeepSeek LLM 实例
         chat_workflow: Chat 工作流状态图
     """
-    logger.info(f"💬 角色行动计划: {actor_agent.name}")
+    logger.warning(f"角色行动计划: {actor_agent.name}")
 
     # 构建行动规划提示词
     action_planning_prompt = """# 行动规划
@@ -236,7 +249,7 @@ async def _execute_actor_plan(
     actor_agent.chat_history.append(HumanMessage(content=actor_planning_action))
     actor_agent.chat_history.extend(action_plan_response)
 
-    logger.debug(f"✅ {actor_agent.name} 完成行动规划")
+    # logger.debug(f"✅ {actor_agent.name} 完成行动规划")
 
 
 ########################################################################################################################
@@ -365,7 +378,7 @@ async def _handle_stage_execute(
     stage_agent.chat_history.append(HumanMessage(content=stage_execute_prompt))
     stage_agent.chat_history.extend(stage_execution_response)
 
-    logger.debug(f"✅ 场景执行完成")
+    # logger.debug(f"✅ 场景执行完成")
 
     # 将场景执行结果通知给所有角色代理
     _notify_actors_with_execution_result(actor_agents, stage_execution_response)
