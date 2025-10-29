@@ -127,8 +127,7 @@ async def _handle_single_actor_observe(
     )
 
     # 更新角色代理的对话历史
-    actor_observation_action = "我仔细观察周围的环境和其他存在"
-    actor_agent.chat_history.append(HumanMessage(content=actor_observation_action))
+    actor_agent.chat_history.append(HumanMessage(content=observation_prompt))
     actor_agent.chat_history.extend(response)
 
     logger.debug(f"✅ {actor_agent.name} 完成场景观察")
@@ -153,7 +152,6 @@ async def _handle_all_actors_observe(
         llm: DeepSeek LLM 实例
         chat_workflow: Chat 工作流状态图
     """
-    logger.debug(f"🏞️ 场景最新描述: {stage_agent.chat_history[-1].content}")
 
     for actor_agent in actor_agents:
         await _handle_single_actor_observe(
@@ -162,6 +160,83 @@ async def _handle_all_actors_observe(
             llm=llm,
             chat_workflow=chat_workflow,
         )
+
+
+########################################################################################################################
+########################################################################################################################
+########################################################################################################################
+
+
+async def _handle_actor_plan_all(
+    actor_agents: List[GameAgent],
+    llm: ChatDeepSeek,
+    chat_workflow: CompiledStateGraph[ChatState, Any, ChatState, ChatState],
+) -> None:
+    """处理所有角色行动规划指令
+
+    遍历所有角色代理,让每个角色基于观察结果规划下一步行动。
+
+    Args:
+        actor_agents: 角色代理列表
+        llm: DeepSeek LLM 实例
+        chat_workflow: Chat 工作流状态图
+    """
+    assert len(actor_agents) > 0, "没有可用的角色代理"
+
+    # 遍历所有角色,依次执行行动规划
+    for actor_agent in actor_agents:
+        await _execute_actor_plan(
+            actor_agent=actor_agent,
+            llm=llm,
+            chat_workflow=chat_workflow,
+        )
+
+
+########################################################################################################################
+########################################################################################################################
+########################################################################################################################
+async def _execute_actor_plan(
+    actor_agent: GameAgent,
+    llm: ChatDeepSeek,
+    chat_workflow: CompiledStateGraph[ChatState, Any, ChatState, ChatState],
+) -> None:
+    """执行单个角色的行动规划
+
+    让指定角色基于其观察历史规划下一步行动。
+
+    Args:
+        actor_agent: 要规划行动的角色代理
+        llm: DeepSeek LLM 实例
+        chat_workflow: Chat 工作流状态图
+    """
+    logger.info(f"💬 角色行动计划: {actor_agent.name}")
+
+    # 构建行动规划提示词
+    action_planning_prompt = """# 行动规划
+
+基于你的观察,规划下一步行动。可选类型:移动/交流/观察/互动/隐藏/其他。
+
+**输出**(100字内,第一人称): 具体描述你将采取的行动、对象和目的,符合你的角色设定和当前情境。"""
+
+    # 执行聊天工作流，使用角色代理自己的历史作为上下文
+    response = execute_chat_state_workflow(
+        user_input_state={
+            "messages": [HumanMessage(content=action_planning_prompt)],
+            "llm": llm,
+        },
+        chat_history_state={
+            "messages": actor_agent.chat_history.copy(),
+            "llm": llm,
+        },
+        work_flow=chat_workflow,
+    )
+
+    # 更新角色代理的对话历史
+    actor_planning_action = f"我({actor_agent.name})思考接下来要采取的行动"
+    actor_agent.chat_history.append(HumanMessage(content=actor_planning_action))
+    actor_agent.chat_history.extend(response)
+
+    logger.debug(f"✅ {actor_agent.name} 完成行动规划")
 
 
 ########################################################################################################################
@@ -205,7 +280,9 @@ async def handle_game_command(
     assert len(stage_agents) > 0, "没有可用的场景代理"
     assert len(actor_agents) > 0, "没有可用的角色代理"
 
-    match command:  # /game stage:refresh - 刷新所有场景代理的状态
+    match command:
+
+        # /game stage:refresh - 刷新所有场景代理的状态
         case "stage:refresh":
 
             await _handle_stage_refresh(
@@ -226,6 +303,15 @@ async def handle_game_command(
                 chat_workflow=chat_workflow,
             )
 
+        # /game all_actors:plan - 让所有角色代理规划下一步行动
+        case "all_actors:plan":
+
+            await _handle_actor_plan_all(
+                actor_agents=actor_agents,
+                llm=llm,
+                chat_workflow=chat_workflow,
+            )
+
         # /game pipeline:test1 - 测试流水线1: 刷新场景后让角色观察
         case "pipeline:test1":
 
@@ -240,6 +326,12 @@ async def handle_game_command(
             await _handle_all_actors_observe(
                 actor_agents=actor_agents,
                 stage_agent=stage_agents[0],
+                llm=llm,
+                chat_workflow=chat_workflow,
+            )
+
+            await _handle_actor_plan_all(
+                actor_agents=actor_agents,
                 llm=llm,
                 chat_workflow=chat_workflow,
             )
