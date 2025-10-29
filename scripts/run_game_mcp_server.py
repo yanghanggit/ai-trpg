@@ -149,7 +149,7 @@ async def get_stage_info(stage_name: str) -> str:
                 for sub_stage in stages:
                     simplified_sub = {
                         "name": sub_stage.name,
-                        "narrative": sub_stage.narrative,
+                        #"narrative": sub_stage.narrative,
                         "environment": sub_stage.environment,
                         "actors": [
                             {
@@ -172,7 +172,7 @@ async def get_stage_info(stage_name: str) -> str:
             # 构建返回结果
             result = {
                 "name": stage.name,
-                "narrative": stage.narrative,
+                #"narrative": stage.narrative,
                 "environment": stage.environment,
                 "actors": simplified_actors,
                 "sub_stages": (
