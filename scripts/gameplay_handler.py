@@ -47,10 +47,11 @@ async def _handle_stage_refresh(
 
     stage_refresh_prompt = """# 场景状态更新
 
-查询场景内所有角色的当前状态(位置、行为、状态效果),并更新场景描述:
+请查询场景内所有角色的当前状态(位置、行为、状态效果),并更新场景描述:
 
 1. 故事层面:基于角色最新状态更新叙事
 2. 感官层面:氛围、光线、声音、气味等环境描写
+3. 如果有角色处于隐藏状态,请明确提出该角色为"隐藏"状态
 
 **输出**: 第三人称视角,150字以内完整自然段,避免重复旧内容。"""
 
@@ -81,13 +82,68 @@ async def _handle_stage_refresh(
 ########################################################################################################################
 ########################################################################################################################
 ########################################################################################################################
-async def _handle_actor_observe(
+async def _handle_single_actor_observe(
+    actor_agent: GameAgent,
+    stage_agent: GameAgent,
+    llm: ChatDeepSeek,
+    chat_workflow: CompiledStateGraph[ChatState, Any, ChatState, ChatState],
+) -> None:
+    """处理单个角色观察指令
+
+    让单个角色代理从第一人称视角观察当前场景,并更新其认知。
+
+    Args:
+        actor_agent: 角色代理
+        stage_agent: 场景代理(提供场景上下文)
+        llm: DeepSeek LLM 实例
+        chat_workflow: Chat 工作流状态图
+    """
+    last_ai_message = stage_agent.chat_history[-1].content
+
+    logger.info(f"👀 角色观察场景: {actor_agent.name}")
+
+    # 构建观察提示词
+    observation_prompt = f"""# 场景观察
+
+{last_ai_message}
+
+从你的第一人称视角观察并描述场景:你看到、听到、感受到什么?场景中有谁在做什么?你的情绪反应?
+
+**隐藏规则**: 标注"隐藏/藏身/纹丝不动/无法被察觉"的角色对你来讲不存在（即使场景描述中提到），你不得以任何形式提及或暗示。
+
+**输出**: 第一人称"我",100字以内,符合角色设定。"""
+
+    # 执行聊天工作流，使用场景代理的历史作为上下文
+    response = execute_chat_state_workflow(
+        user_input_state={
+            "messages": [HumanMessage(content=observation_prompt)],
+            "llm": llm,
+        },
+        chat_history_state={
+            "messages": actor_agent.chat_history.copy(),
+            "llm": llm,
+        },
+        work_flow=chat_workflow,
+    )
+
+    # 更新角色代理的对话历史
+    actor_observation_action = "我仔细观察周围的环境和其他存在"
+    actor_agent.chat_history.append(HumanMessage(content=actor_observation_action))
+    actor_agent.chat_history.extend(response)
+
+    logger.debug(f"✅ {actor_agent.name} 完成场景观察")
+
+
+########################################################################################################################
+########################################################################################################################
+########################################################################################################################
+async def _handle_all_actors_observe(
     actor_agents: List[GameAgent],
     stage_agent: GameAgent,
     llm: ChatDeepSeek,
     chat_workflow: CompiledStateGraph[ChatState, Any, ChatState, ChatState],
 ) -> None:
-    """处理角色观察指令
+    """处理所有角色观察指令
 
     让所有角色代理从第一人称视角观察当前场景,并更新各自的认知。
 
@@ -97,43 +153,15 @@ async def _handle_actor_observe(
         llm: DeepSeek LLM 实例
         chat_workflow: Chat 工作流状态图
     """
-
-    last_ai_message = stage_agent.chat_history[-1].content
-    logger.debug(f"🏞️ 场景最新描述: {last_ai_message}")
+    logger.debug(f"🏞️ 场景最新描述: {stage_agent.chat_history[-1].content}")
 
     for actor_agent in actor_agents:
-        logger.info(f"👀 角色观察场景: {actor_agent.name}")
-
-        # 构建观察提示词
-        observation_prompt = f"""# 场景观察
-
-{last_ai_message}
-
-从你的第一人称视角观察并描述场景:你看到、听到、感受到什么?场景中有谁在做什么?你的情绪反应?
-
-**隐藏规则**: 标注"隐藏/藏身/纹丝不动/无法被察觉"的角色不存在,不得以任何形式提及或暗示。
-
-**输出**: 第一人称"我",100字以内,符合角色设定。"""
-
-        # 执行聊天工作流，使用场景代理的历史作为上下文
-        response = execute_chat_state_workflow(
-            user_input_state={
-                "messages": [HumanMessage(content=observation_prompt)],
-                "llm": llm,
-            },
-            chat_history_state={
-                "messages": actor_agent.chat_history.copy(),
-                "llm": llm,
-            },
-            work_flow=chat_workflow,
+        await _handle_single_actor_observe(
+            actor_agent=actor_agent,
+            stage_agent=stage_agent,
+            llm=llm,
+            chat_workflow=chat_workflow,
         )
-
-        # 更新角色代理的对话历史
-        actor_observation_action = "我仔细观察周围的环境和其他存在"
-        actor_agent.chat_history.append(HumanMessage(content=actor_observation_action))
-        actor_agent.chat_history.extend(response)
-
-        logger.debug(f"✅ {actor_agent.name} 完成场景观察")
 
 
 ########################################################################################################################
@@ -174,9 +202,12 @@ async def handle_game_command(
     """
     logger.info(f"🎮 游戏指令: {command}")
 
+    assert len(stage_agents) > 0, "没有可用的场景代理"
+    assert len(actor_agents) > 0, "没有可用的角色代理"
+
     match command:  # /game stage:refresh - 刷新所有场景代理的状态
         case "stage:refresh":
-            assert len(stage_agents) > 0, "没有可用的场景代理进行刷新"
+
             await _handle_stage_refresh(
                 stage_agent=stage_agents[0],
                 llm=llm,
@@ -185,13 +216,10 @@ async def handle_game_command(
                 mcp_workflow=mcp_workflow,
             )
 
-        # /game actor:observe - 让所有角色代理观察当前场景
-        case "actor:observe":
+        # /game all_actors:observe - 让所有角色代理观察当前场景
+        case "all_actors:observe":
 
-            assert len(stage_agents) > 0, "没有可用的场景代理"
-            assert len(actor_agents) > 0, "没有可用的角色代理"
-
-            await _handle_actor_observe(
+            await _handle_all_actors_observe(
                 actor_agents=actor_agents,
                 stage_agent=stage_agents[0],
                 llm=llm,
@@ -200,8 +228,6 @@ async def handle_game_command(
 
         # /game pipeline:test1 - 测试流水线1: 刷新场景后让角色观察
         case "pipeline:test1":
-            assert len(stage_agents) > 0, "没有可用的场景代理"
-            assert len(actor_agents) > 0, "没有可用的角色代理"
 
             await _handle_stage_refresh(
                 stage_agent=stage_agents[0],
@@ -211,7 +237,7 @@ async def handle_game_command(
                 mcp_workflow=mcp_workflow,
             )
 
-            await _handle_actor_observe(
+            await _handle_all_actors_observe(
                 actor_agents=actor_agents,
                 stage_agent=stage_agents[0],
                 llm=llm,
