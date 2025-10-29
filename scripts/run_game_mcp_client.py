@@ -118,35 +118,50 @@ for agent in all_agents:
     logger.info(f"已创建代理: {agent.name}")
 
     if agent.name == "艾琳":
-        logger.debug(f"单独给 [{agent.name}] 添加了狩猎目标提示词")
+        # logger.debug(f"单独给 [{agent.name}] 添加了狩猎目标提示词")
         agent.chat_history.append(
             HumanMessage(
-                content="你当前所处场景：奥顿教堂墓地。你的目标是来狩猎 加斯科因"
+                content="""# 初始状态
+    
+当前场景：奥顿教堂墓地
+你的目标：狩猎 加斯科因"""
             )
         )
     elif agent.name == "加斯科因":
-        logger.debug(f"单独给 [{agent.name}] 添加了狩猎目标提示词")
+        # logger.debug(f"单独给 [{agent.name}] 添加了狩猎目标提示词")
         agent.chat_history.append(
             HumanMessage(
-                content="你当前所处场景：奥顿教堂墓地。你的目标是狩猎所有闯入者"
+                content="""# 初始状态
+                
+当前场景：奥顿教堂墓地
+你的目标：狩猎所有闯入者"""
             )
         )
     elif agent.name == "外乡人":
-        logger.debug(f"单独给 [{agent.name}] 添加了探索目标提示词")
+        # logger.debug(f"单独给 [{agent.name}] 添加了探索目标提示词")
         agent.chat_history.append(
             HumanMessage(
-                content="你当前所处场景：奥顿教堂墓地。你的目标是探索这里的秘密 并 自保"
+                content="""# 初始状态
+                                
+当前场景：奥顿教堂墓地
+你的目标：探索这里的秘密并自保"""
             )
         )
     elif agent.name == "奥顿教堂墓地":
-        logger.debug(f"单独给 [{agent.name}] 添加了场景描述提示词")
+        # logger.debug(f"单独给 [{agent.name}] 添加了场景描述提示词")
         agent.chat_history.append(
             HumanMessage(
-                content=""""
+                content=""""# 初始状态
+## 状态描述
+               
 加斯科因在墓地中央的天使雕像旁来回踱步,手中的猎人斧随着他沉重的步伐不时触碰地面,发出金属摩擦的刺耳声响。他时而仰望血月,时而低头凝视地面,像一头困在笼中的野兽。
 艾琳 **隐藏** 于墓地东侧的枯树的阴影之中,乌鸦羽毛斗篷与夜色完全融为一体，无法被其他人察觉。她一动不动地观察着墓地内的环境，以及猎物——加斯科因。
-外乡人刚刚从南侧的铁栅栏门进入墓地,此刻正站在入口处约十米的位置。
-"""
+外乡人刚刚从南侧的铁栅栏门进入墓地,此刻正站在入口处约十米的位置,环顾四周，试图弄清楚自己身处何地以及接下来该做什么。
+
+参与者位置:
+- 加斯科因: 墓地中央,靠近天使雕像
+- 艾琳: 墓地东侧,枯树阴影中 **隐藏**
+- 外乡人: 墓地南侧入口处,距离铁栅栏门约十米"""
             )
         )
 
