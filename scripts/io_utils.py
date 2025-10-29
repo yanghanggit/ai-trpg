@@ -19,20 +19,11 @@ def format_user_input_prompt(user_input: str) -> str:
     Returns:
         格式化后的提示词字符串
     """
-    return f"""# 消息！
-
-## 消息内容
+    return f"""# 用户请求
 
 {user_input}
 
-## 输出内容
-
-**约束**！不要重复输出过往内容。
-输出内容尽量简洁明了，避免冗长。
-
-## 输出格式要求
-
-输出内容须是 一整段 简洁的文本描述，不允许包含任何其他格式或标记。"""
+**输出要求**: 简洁纯文本一段,不重复历史内容,不使用任何标记格式。"""
 
 
 def log_chat_history(messages: List[BaseMessage]) -> None:

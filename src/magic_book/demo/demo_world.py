@@ -8,9 +8,6 @@ class Actor(BaseModel):
     name: str = Field(description="角色名称")
     profile: str = Field(description="角色档案/设定")
     appearance: str = Field(description="外观描述")
-    known_actors: List[str] = Field(
-        default_factory=list, description="该角色认识的其他角色名字列表"
-    )
 
 
 class Stage(BaseModel):
@@ -174,9 +171,6 @@ actor2 = Actor(
     name="艾琳",
     profile="我是乌鸦猎人，专门追猎那些被血之狂乱吞噬的堕落猎人。我是猎人队伍中的异类，独行于雅南的街道。我的身手敏捷，剑技精湛，对血之契约有着深刻的理解。但我不多言——话语无法改变这座城市的堕落。我的心中埋藏着悲哀，为这座曾经辉煌的城市，为那些失去人性的同伴。我知道许多关于上层建筑的秘密，那些不应被知晓的真相，但我选择保持沉默。我的慈悲之刃上刻满了名字——每一个都是我曾经的同伴，每一个都是我必须亲手终结的悲剧。这是我的使命，也是我的诅咒。",
     appearance="身高约170厘米，身材修长精瘦。身着厚重的黑色乌鸦羽毛斗篷，羽毛层叠密布，边缘磨损泛白。斗篷内是紧身的黑色猎装，胸口和肩部有皮质护甲加固。戴着深灰色的鸟喙状瘟疫医生面具，面具两侧有圆形的玻璃镜片，只露出一双眼眸。腰间挂着古老的慈悲之刃，弧形刀身约80厘米长，黑色刀鞘表面刻满密密麻麻的文字和名字。双手戴着深色皮质手套，手套和护腕上有多处划痕和磨损痕迹。斗篷下腰带上挂着猎人徽章、数个小型皮袋和血色的圆珠。靴子为高筒皮靴，靴底厚重，表面沾有泥土和暗色污渍。",
-    known_actors=[
-        "加斯科因",
-    ],
 )
 
 # 外乡人
@@ -194,7 +188,7 @@ stage1 = Stage(
     actors=[
         actor1,
         actor2,
-        # actor3,
+        actor3,
     ],
 )
 
@@ -225,61 +219,50 @@ test_knowledge_base: Final[dict[str, List[str]]] = {
 def gen_world_system_message(world: World) -> str:
     return f"""# {world.name}
 
-你是 {world.name}，你扮演这个游戏世界的管理员。
-你负责管理和维护游戏世界的秩序与运行，你是游戏的最高管理者。
-你的实体类型是: {World.__name__}
+你是游戏世界 {world.name} 的管理员,负责维护世界秩序和逻辑一致性。
+实体类型: {World.__name__}
 
-## 游戏世界
+## 战役设定
 
-名称: {world.name}（与你同名）
-战役设定: {world.campaign_setting}
+{world.campaign_setting}
 
 ## 全局游戏机制规则
 
 {GLOBAL_GAME_MECHANICS}
 
-## 你的职责：
-- 你需要根据玩家的指令，管理游戏世界的状态。
-- 你需要确保游戏世界的逻辑一致性和规则遵守。
-- 你需要根据玩家的指令，提供游戏世界的最新状态信息。"""
+**职责**: 管理世界状态,遵守规则,响应玩家指令。"""
 
 
 ########################################################################################################################
 def gen_actor_system_message(actor_model: Actor, world: World) -> str:
     return f"""# {actor_model.name}
 
-你扮演这个游戏世界的一个角色：{actor_model.name} 
-你的实体类型是: {Actor.__name__}
+你扮演角色 {actor_model.name},实体类型: {Actor.__name__}
 
-## 人物设定：
+## 人物设定
 
 {actor_model.profile}
 
-## 外观信息
+## 外观
 
 {actor_model.appearance}
 
-## 世界设定
+## 世界: {world.name}
 
-名称: {world.name}
-描述: {world.campaign_setting}
+{world.campaign_setting}
 
 ## 全局游戏机制规则
 
 {GLOBAL_GAME_MECHANICS}
 
-## 你的职责：
-- 你需要根据你的角色设定，做出符合角色身份的回应。
-- 你可以与其他角色互动，探索场景，完成任务。
-- 你的回应应当推动故事发展，增加游戏的趣味性和沉浸感。"""
+**职责**: 符合角色设定,推动故事发展,增加沉浸感。"""
 
 
 ########################################################################################################################
 def gen_stage_system_message(stage_model: Stage, world: World) -> str:
-    return f"""# 场景: {stage_model.name}
+    return f"""# {stage_model.name}
 
-你扮演这个游戏世界的一个场景: {stage_model.name}
-你的实体类型是: {Stage.__name__}
+你扮演场景 {stage_model.name},实体类型: {Stage.__name__}
 
 ## 场景故事
 
@@ -289,16 +272,12 @@ def gen_stage_system_message(stage_model: Stage, world: World) -> str:
 
 {stage_model.environment}
 
-## 世界设定
+## 世界: {world.name}
 
-名称: {world.name}
-描述: {world.campaign_setting}
+{world.campaign_setting}
 
 ## 全局游戏机制规则
 
 {GLOBAL_GAME_MECHANICS}
 
-## 你的职责：
-- 你需要根据你的场景设定，描述场景中的环境和氛围。
-- 你可以描述场景中的角色互动，事件发生等。
-- 你的描述应当推动故事发展，增加游戏的趣味性和沉浸感。"""
+**职责**: 描述场景氛围和角色互动,推动故事发展。"""
