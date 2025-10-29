@@ -242,6 +242,80 @@ async def _execute_actor_plan(
 ########################################################################################################################
 ########################################################################################################################
 ########################################################################################################################
+async def _handle_stage_execute(
+    stage_agent: GameAgent,
+    actor_agents: List[GameAgent],
+    llm: ChatDeepSeek,
+    chat_workflow: CompiledStateGraph[ChatState, Any, ChatState, ChatState],
+) -> None:
+    """处理场景执行指令
+
+    收集所有角色的行动计划,由场景代理生成统一的行动执行描述。
+
+    Args:
+        stage_agent: 场景代理
+        actor_agents: 角色代理列表
+        llm: DeepSeek LLM 实例
+        chat_workflow: Chat 工作流状态图
+    """
+    assert len(actor_agents) > 0, "没有可用的角色代理"
+
+    logger.info(f"🎬 场景执行: {stage_agent.name}")
+
+    # 收集所有角色的最后一个消息（行动计划）
+    actor_plans = []
+    for actor_agent in actor_agents:
+        if len(actor_agent.chat_history) > 0:
+            last_message = actor_agent.chat_history[-1]
+            # 提取消息内容
+            plan_content = (
+                last_message.content
+                if hasattr(last_message, "content")
+                else str(last_message)
+            )
+            actor_plans.append({"actor_name": actor_agent.name, "plan": plan_content})
+
+    if not actor_plans:
+        logger.warning("⚠️  没有角色有行动计划，跳过场景执行")
+        return
+
+    # 构建行动执行提示词
+    plans_text = "\n".join(
+        [f"- **{plan['actor_name']}**: {plan['plan']}" for plan in actor_plans]
+    )
+
+    stage_execute_prompt = f"""# 场景行动执行
+
+## 角色计划
+{plans_text}
+
+将上述计划转化为第三人称全知视角的场景执行描述:按时间顺序叙述各角色行动的实际过程、互动效果、环境变化。如有冲突需合理描述结果。
+
+**输出**(200字内): 生动具体的完整自然段,展现执行效果而非重复计划。"""
+
+    # 执行 Chat 工作流
+    response = execute_chat_state_workflow(
+        user_input_state={
+            "messages": [HumanMessage(content=stage_execute_prompt)],
+            "llm": llm,
+        },
+        chat_history_state={
+            "messages": stage_agent.chat_history.copy(),
+            "llm": llm,
+        },
+        work_flow=chat_workflow,
+    )
+
+    # 更新场景代理的对话历史
+    stage_agent.chat_history.append(HumanMessage(content=stage_execute_prompt))
+    stage_agent.chat_history.extend(response)
+
+    logger.debug(f"✅ 场景执行完成")
+
+
+########################################################################################################################
+########################################################################################################################
+########################################################################################################################
 async def handle_game_command(
     command: str,
     current_agent: GameAgent,
@@ -312,6 +386,16 @@ async def handle_game_command(
                 chat_workflow=chat_workflow,
             )
 
+        # /game stage:execute - 让场景代理执行所有角色的行动计划
+        case "stage:execute":
+
+            await _handle_stage_execute(
+                stage_agent=stage_agents[0],
+                actor_agents=actor_agents,
+                llm=llm,
+                chat_workflow=chat_workflow,
+            )
+
         # /game pipeline:test1 - 测试流水线1: 刷新场景后让角色观察
         case "pipeline:test1":
 
@@ -331,6 +415,13 @@ async def handle_game_command(
             )
 
             await _handle_actor_plan_all(
+                actor_agents=actor_agents,
+                llm=llm,
+                chat_workflow=chat_workflow,
+            )
+
+            await _handle_stage_execute(
+                stage_agent=stage_agents[0],
                 actor_agents=actor_agents,
                 llm=llm,
                 chat_workflow=chat_workflow,
