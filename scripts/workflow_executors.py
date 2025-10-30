@@ -24,7 +24,6 @@ async def execute_mcp_state_workflow(
     user_input_state: McpState,
     chat_history_state: McpState,
     work_flow: CompiledStateGraph[McpState, Any, McpState, McpState],
-    should_append_to_history: bool = True,
 ) -> List[BaseMessage]:
     """处理普通用户消息：发送给AI处理"""
     user_message = (
@@ -38,11 +37,6 @@ async def execute_mcp_state_workflow(
         chat_history_state=chat_history_state,
         user_input_state=user_input_state,
     )
-
-    # 更新聊天历史
-    if should_append_to_history:
-        chat_history_state["messages"].extend(user_input_state["messages"])
-        chat_history_state["messages"].extend(update_messages)
 
     # 显示最新的AI回复
     if update_messages:
@@ -59,7 +53,6 @@ def execute_chat_state_workflow(
     user_input_state: ChatState,
     chat_history_state: ChatState,
     work_flow: CompiledStateGraph[ChatState, Any, ChatState, ChatState],
-    should_append_to_history: bool = True,
 ) -> List[BaseMessage]:
     """执行纯聊天工作流（不涉及工具调用）
 
@@ -84,11 +77,6 @@ def execute_chat_state_workflow(
         user_input_state=user_input_state,
     )
 
-    # 更新聊天历史
-    if should_append_to_history:
-        chat_history_state["messages"].extend(user_input_state["messages"])
-        chat_history_state["messages"].extend(update_messages)
-
     # 显示最新的AI回复
     if update_messages:
         for msg in update_messages:
@@ -104,7 +92,6 @@ def execute_rag_workflow_handler(
     user_input_state: RAGState,
     chat_history_state: RAGState,
     work_flow: CompiledStateGraph[RAGState, Any, RAGState, RAGState],
-    should_append_to_history: bool = True,
 ) -> List[BaseMessage]:
     """执行 RAG 工作流
 
@@ -128,11 +115,6 @@ def execute_rag_workflow_handler(
         chat_history_state=chat_history_state,
         user_input_state=user_input_state,
     )
-
-    # 更新聊天历史
-    if should_append_to_history:
-        chat_history_state["messages"].extend(user_input_state["messages"])
-        chat_history_state["messages"].extend(update_messages)
 
     # 显示最新的AI回复
     if update_messages:

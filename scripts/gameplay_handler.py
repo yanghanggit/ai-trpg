@@ -320,13 +320,14 @@ async def _handle_stage_execute(
         return
 
     # 构建行动执行提示词
-    plans_text = "\n".join(
-        [f"- **{plan.actor_name}**: {plan.plan}" for plan in actor_plans]
+    plans_text = "\n\n".join(
+        [f"**{plan.actor_name}**: {plan.plan}" for plan in actor_plans]
     )
 
     stage_execute_prompt = f"""# 场景行动执行
 
 ## 角色计划
+
 {plans_text}
 
 将上述计划转化为第三人称全知视角的场景执行描述:按时间顺序叙述各角色行动的实际过程、互动效果、环境变化。如有冲突需合理描述结果。

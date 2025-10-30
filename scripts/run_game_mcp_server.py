@@ -217,9 +217,12 @@ async def get_actor_info(actor_name: str) -> str:
         actor, stage = demo_world.find_actor_with_stage(actor_name)
         if actor and stage:
             logger.info(f"获取Actor数据: {actor_name}, 所在Stage: {stage.name}")
-            # 将Actor和其所在的Stage信息打包
+
             result = {
-                "actor": actor.model_dump(),
+                "actor": {
+                    "name": actor.name,
+                    "appearance": actor.appearance,
+                },
                 "stage": {
                     "name": stage.name,
                     "environment": stage.environment,

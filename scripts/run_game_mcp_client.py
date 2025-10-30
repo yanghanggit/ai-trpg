@@ -118,37 +118,33 @@ for agent in all_agents:
     logger.info(f"已创建代理: {agent.name}")
 
     if agent.name == "艾琳":
-        # logger.debug(f"单独给 [{agent.name}] 添加了狩猎目标提示词")
         agent.chat_history.append(
             HumanMessage(
                 content="""# 初始状态
     
 当前场景：奥顿教堂墓地
-你的目标：狩猎 加斯科因"""
+你的目标：必须狩猎 加斯科因。加斯科因已经兽化，所以必须消灭他。"""
             )
         )
     elif agent.name == "加斯科因":
-        # logger.debug(f"单独给 [{agent.name}] 添加了狩猎目标提示词")
         agent.chat_history.append(
             HumanMessage(
                 content="""# 初始状态
                 
 当前场景：奥顿教堂墓地
-你的目标：狩猎所有闯入者"""
+你的目标：必须杀死任何闯入者！毫不犹豫，直接攻击他们。"""
             )
         )
     elif agent.name == "外乡人":
-        # logger.debug(f"单独给 [{agent.name}] 添加了探索目标提示词")
         agent.chat_history.append(
             HumanMessage(
                 content="""# 初始状态
                                 
 当前场景：奥顿教堂墓地
-你的目标：探索这里的秘密并自保"""
+你的目标：探索这里的秘密并自保，尽量回避危险，必要时可以反击！"""
             )
         )
     elif agent.name == "奥顿教堂墓地":
-        # logger.debug(f"单独给 [{agent.name}] 添加了场景描述提示词")
         agent.chat_history.append(
             HumanMessage(
                 content=""""# 初始状态
