@@ -40,7 +40,7 @@ def create_deepseek_llm(temperature: Optional[float] = None) -> ChatDeepSeek:
         api_key=SecretStr(deepseek_api_key),
         api_base="https://api.deepseek.com/v1",
         model="deepseek-chat",
-        temperature=temperature,
+        temperature=temperature if temperature is not None else 0.7,
         # 不设置固定的 response_format，保持输出格式的灵活性
     )
 
