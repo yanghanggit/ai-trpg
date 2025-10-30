@@ -61,7 +61,7 @@ def create_chat_workflow() -> CompiledStateGraph[ChatState, Any, ChatState, Chat
 
 
 ############################################################################################################
-def execute_chat_workflow(
+async def execute_chat_workflow(
     work_flow: CompiledStateGraph[ChatState, Any, ChatState, ChatState],
     chat_history_state: ChatState,
     user_input_state: ChatState,
@@ -86,7 +86,7 @@ def execute_chat_workflow(
         "llm": chat_history_state["llm"],  # 使用聊天历史状态中的LLM实例
     }
 
-    for event in work_flow.stream(merged_message_context):
+    async for event in work_flow.astream(merged_message_context):
         for value in event.values():
             ret.extend(value["messages"])
 

@@ -35,7 +35,7 @@ from magic_book.deepseek import (
 )
 
 
-def main() -> None:
+async def main() -> None:
     """
     DeepSeek聊天系统主函数
 
@@ -77,7 +77,7 @@ def main() -> None:
                 }
 
                 # 获取回复
-                update_messages = execute_chat_workflow(
+                update_messages = await execute_chat_workflow(
                     work_flow=chat_workflow,
                     chat_history_state=chat_history_state,
                     user_input_state=user_input_state,
@@ -118,4 +118,6 @@ def main() -> None:
 
 
 if __name__ == "__main__":
-    main()
+    import asyncio
+
+    asyncio.run(main())

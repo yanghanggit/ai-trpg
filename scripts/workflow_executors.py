@@ -21,18 +21,10 @@ from magic_book.deepseek import (
     create_rag_workflow,
 )
 
-# from magic_book.deepseek import (
-#     create_mcp_workflow,
-#     create_deepseek_llm,
-#     create_chat_workflow,
-#     create_rag_workflow,
-# )
-
 
 async def execute_mcp_state_workflow(
     user_input_state: McpState,
     chat_history_state: McpState,
-    # work_flow: CompiledStateGraph[McpState, Any, McpState, McpState],
 ) -> List[BaseMessage]:
     """处理普通用户消息：发送给AI处理"""
     user_message = (
@@ -59,10 +51,9 @@ async def execute_mcp_state_workflow(
     return update_messages
 
 
-def execute_chat_state_workflow(
+async def execute_chat_state_workflow(
     user_input_state: ChatState,
     chat_history_state: ChatState,
-    # work_flow: CompiledStateGraph[ChatState, Any, ChatState, ChatState],
 ) -> List[BaseMessage]:
     """执行纯聊天工作流（不涉及工具调用）
 
@@ -83,7 +74,7 @@ def execute_chat_state_workflow(
         logger.debug(f"{user_message.content}")
 
     work_flow = create_chat_workflow()
-    update_messages = execute_chat_workflow(
+    update_messages = await execute_chat_workflow(
         work_flow=work_flow,
         chat_history_state=chat_history_state,
         user_input_state=user_input_state,
@@ -100,10 +91,9 @@ def execute_chat_state_workflow(
     return update_messages
 
 
-def execute_rag_workflow_handler(
+async def execute_rag_workflow_handler(
     user_input_state: RAGState,
     chat_history_state: RAGState,
-    # work_flow: CompiledStateGraph[RAGState, Any, RAGState, RAGState],
 ) -> List[BaseMessage]:
     """执行 RAG 工作流
 
@@ -123,7 +113,7 @@ def execute_rag_workflow_handler(
         logger.debug(f"{user_message.content}")
 
     work_flow = create_rag_workflow()
-    update_messages = execute_rag_workflow(
+    update_messages = await execute_rag_workflow(
         work_flow=work_flow,
         chat_history_state=chat_history_state,
         user_input_state=user_input_state,

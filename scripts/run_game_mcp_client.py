@@ -174,23 +174,6 @@ async def main() -> None:
         # 默认激活的代理是世界观代理
         current_agent: GameAgent = world_agent
 
-        # 创建 DeepSeek LLM 实例
-        # llm = create_deepseek_llm()
-        # logger.debug("✅ DeepSeek LLM 实例创建成功")
-
-        # 创建工作流
-        # mcp_workflow = create_mcp_workflow()
-        # logger.debug("✅ MCP 工作流创建成功")
-
-        # chat_workflow = create_chat_workflow()
-        # logger.debug("✅ Chat 工作流创建成功")
-
-        # rag_workflow = create_rag_workflow()
-        # logger.debug("✅ RAG 工作流创建成功")
-
-        # game_retriever = GameDocumentRetriever()
-        # logger.debug("✅ Game 文档检索器创建成功")
-
         # 初始化 MCP 客户端并获取可用资源
         (
             mcp_client,
@@ -263,7 +246,7 @@ async def main() -> None:
                 format_user_input = format_user_input_prompt(mcp_content)
 
                 # mcp 的工作流
-                response = await execute_mcp_state_workflow(
+                mcp_response = await execute_mcp_state_workflow(
                     user_input_state={
                         "messages": [HumanMessage(content=format_user_input)],
                         "llm": create_deepseek_llm(),
@@ -278,14 +261,13 @@ async def main() -> None:
                         "available_tools": available_tools,
                         "tool_outputs": [],
                     },
-                    # work_flow=mcp_workflow,
                 )
 
                 # 更新当前代理的对话历史
                 current_agent.chat_history.append(
                     HumanMessage(content=format_user_input)
                 )
-                current_agent.chat_history.extend(response)
+                current_agent.chat_history.extend(mcp_response)
                 continue
 
             elif user_input.startswith("/chat"):
@@ -299,7 +281,7 @@ async def main() -> None:
                 format_user_input = format_user_input_prompt(chat_content)
 
                 # 聊天的工作流
-                response = execute_chat_state_workflow(
+                chat_response = await execute_chat_state_workflow(
                     user_input_state={
                         "messages": [HumanMessage(content=format_user_input)],
                         "llm": create_deepseek_llm(),
@@ -308,14 +290,13 @@ async def main() -> None:
                         "messages": current_agent.chat_history.copy(),
                         "llm": create_deepseek_llm(),
                     },
-                    # work_flow=chat_workflow,
                 )
 
                 # 更新当前代理的对话历史
                 current_agent.chat_history.append(
                     HumanMessage(content=format_user_input)
                 )
-                current_agent.chat_history.extend(response)
+                current_agent.chat_history.extend(chat_response)
                 continue
 
             elif user_input.startswith("/rag"):
@@ -326,7 +307,7 @@ async def main() -> None:
                     continue
 
                 # RAG 的工作流
-                response = execute_rag_workflow_handler(
+                rag_response = await execute_rag_workflow_handler(
                     user_input_state={
                         "messages": [HumanMessage(content=rag_content)],
                         "llm": create_deepseek_llm(),
@@ -337,12 +318,11 @@ async def main() -> None:
                         "llm": create_deepseek_llm(),
                         "document_retriever": GameDocumentRetriever(),
                     },
-                    # work_flow=rag_workflow,
                 )
 
                 # 更新当前代理的对话历史
                 current_agent.chat_history.append(HumanMessage(content=rag_content))
-                current_agent.chat_history.extend(response)
+                current_agent.chat_history.extend(rag_response)
                 continue
 
             elif user_input.startswith("/game"):
@@ -362,16 +342,11 @@ async def main() -> None:
                     world_agent=world_agent,
                     stage_agents=stage_agents,
                     actor_agents=actor_agents,
-                    # llm=llm,
                     # mcp 上下文
                     mcp_client=mcp_client,
                     available_tools=available_tools,
                     available_prompts=available_prompts,
                     available_resources=available_resources,
-                    # mcp_workflow=mcp_workflow,
-                    # chat_workflow=chat_workflow,
-                    # rag_workflow=rag_workflow,
-                    # game_retriever=game_retriever,
                 )
                 continue
 

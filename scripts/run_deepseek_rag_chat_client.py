@@ -36,7 +36,7 @@ from magic_book.deepseek import (
 from magic_book.rag.game_retriever import GameDocumentRetriever
 
 
-def main() -> None:
+async def main() -> None:
 
     try:
 
@@ -74,7 +74,7 @@ def main() -> None:
                 }
 
                 # 执行RAG流程
-                update_messages = execute_rag_workflow(
+                update_messages = await execute_rag_workflow(
                     work_flow=rag_compiled_graph,
                     chat_history_state=chat_history_state,
                     user_input_state=user_input_state,
@@ -110,4 +110,6 @@ def main() -> None:
 
 
 if __name__ == "__main__":
-    main()
+    import asyncio
+
+    asyncio.run(main())

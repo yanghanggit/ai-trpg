@@ -374,7 +374,7 @@ def create_rag_workflow() -> CompiledStateGraph[RAGState, Any, RAGState, RAGStat
 
 
 ############################################################################################################
-def execute_rag_workflow(
+async def execute_rag_workflow(
     work_flow: CompiledStateGraph[RAGState, Any, RAGState, RAGState],
     chat_history_state: RAGState,
     user_input_state: RAGState,
@@ -437,7 +437,7 @@ def execute_rag_workflow(
 
     # 执行RAG流程
     ret: List[BaseMessage] = []
-    for event in work_flow.stream(rag_state):
+    async for event in work_flow.astream(rag_state):
         logger.debug(f"🚀 RAG流程事件: {list(event.keys())}")
         for node_name, node_output in event.items():
             if "messages" in node_output:

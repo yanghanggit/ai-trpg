@@ -5,6 +5,7 @@
 提供游戏玩法相关的功能处理，包括游戏指令的执行和处理。
 """
 
+import asyncio
 from typing import List, Any
 from loguru import logger
 from langchain_deepseek import ChatDeepSeek
@@ -54,7 +55,6 @@ async def _handle_stage_update(
     llm: ChatDeepSeek,
     mcp_client: McpClient,
     available_tools: List[McpToolInfo],
-    # mcp_workflow: CompiledStateGraph[McpState, Any, McpState, McpState],
 ) -> None:
     """处理场景刷新指令
 
@@ -108,7 +108,6 @@ async def _handle_stage_update(
             "available_tools": available_tools,
             "tool_outputs": [],
         },
-        # work_flow=mcp_workflow,
     )
 
     # 更新场景代理的对话历史
@@ -119,30 +118,25 @@ async def _handle_stage_update(
 ########################################################################################################################
 ########################################################################################################################
 ########################################################################################################################
-async def _handle_all_actors_observe_and_plan(
-    actor_agents: List[GameAgent],
-    stage_agent: GameAgent,
+async def _handle_single_actor_observe_and_plan(
+    actor_agent: GameAgent,
+    latest_stage_message: str,
     llm: ChatDeepSeek,
-    # chat_workflow: CompiledStateGraph[ChatState, Any, ChatState, ChatState],
 ) -> None:
-    """处理所有角色的观察和行动规划（合并版本，JSON输出）
+    """处理单个角色的观察和行动规划
 
-    让每个角色从第一人称视角观察场景，并立即规划下一步行动。
+    让角色从第一人称视角观察场景，并立即规划下一步行动。
     使用JSON格式输出，便于解析和后续处理。
 
     Args:
-        actor_agents: 角色代理列表
-        stage_agent: 场景代理(提供场景上下文)
+        actor_agent: 角色代理
+        latest_stage_message: 最新的场景消息内容
         llm: DeepSeek LLM 实例
-        chat_workflow: Chat 工作流状态图
     """
-    latest_stage_message = stage_agent.chat_history[-1].content
+    logger.warning(f"角色观察并规划: {actor_agent.name}")
 
-    for actor_agent in actor_agents:
-        logger.warning(f"角色观察并规划: {actor_agent.name}")
-
-        # JSON格式的提示词
-        observe_and_plan_prompt = f"""# 场景观察与行动规划
+    # JSON格式的提示词
+    observe_and_plan_prompt = f"""# 场景观察与行动规划
 
 ## 最新场景快照
 
@@ -175,42 +169,88 @@ async def _handle_all_actors_observe_and_plan(
 
 **重要**: 只输出JSON代码块，不要有其他文本。"""
 
-        # 执行聊天工作流
-        actors_observe_and_plan_response = execute_chat_state_workflow(
-            user_input_state={
-                "messages": [HumanMessage(content=observe_and_plan_prompt)],
-                "llm": llm,
-            },
-            chat_history_state={
-                "messages": actor_agent.chat_history.copy(),
-                "llm": llm,
-            },
-            # work_flow=chat_workflow,
+    # 执行聊天工作流
+    actors_observe_and_plan_response = await execute_chat_state_workflow(
+        user_input_state={
+            "messages": [HumanMessage(content=observe_and_plan_prompt)],
+            "llm": llm,
+        },
+        chat_history_state={
+            "messages": actor_agent.chat_history.copy(),
+            "llm": llm,
+        },
+    )
+
+    # 更新角色代理的对话历史
+    actor_agent.chat_history.append(HumanMessage(content=observe_and_plan_prompt))
+    assert len(actors_observe_and_plan_response) > 0, "角色观察与规划响应为空"
+
+    try:
+        # 步骤1: 从JSON代码块中提取字符串
+        json_str = strip_json_code_block(
+            str(actors_observe_and_plan_response[-1].content)
         )
 
-        # 更新角色代理的对话历史
-        actor_agent.chat_history.append(HumanMessage(content=observe_and_plan_prompt))
-        assert len(actors_observe_and_plan_response) > 0, "角色观察与规划响应为空"
+        # 步骤2: 使用Pydantic解析和验证
+        formatted_data = ActorObservationAndPlan.model_validate_json(json_str)
 
-        try:
-
-            # 步骤1: 从JSON代码块中提取字符串
-            json_str = strip_json_code_block(
-                str(actors_observe_and_plan_response[-1].content)
+        # 步骤3: 将结果添加到角色的对话历史
+        actor_agent.chat_history.append(
+            AIMessage(
+                content=f"""{formatted_data.observation}\n{formatted_data.plan}"""
             )
+        )
+        logger.success(
+            f"{actor_agent.name}:\n{formatted_data.observation}\n{formatted_data.plan}"
+        )
 
-            # 步骤2: 使用Pydantic解析和验证
-            formatted_data = ActorObservationAndPlan.model_validate_json(json_str)
+    except Exception as e:
+        logger.error(f"JSON解析错误: {e}")
 
-            # 步骤3: 将结果添加到角色的对话历史
-            actor_agent.chat_history.append(
-                AIMessage(
-                    content=f"""{formatted_data.observation}\n{formatted_data.plan}"""
-                )
+
+########################################################################################################################
+########################################################################################################################
+########################################################################################################################
+async def _handle_all_actors_observe_and_plan(
+    actor_agents: List[GameAgent],
+    stage_agent: GameAgent,
+    llm: ChatDeepSeek,
+    use_concurrency: bool = False,
+) -> None:
+    """处理所有角色的观察和行动规划（合并版本，JSON输出）
+
+    让每个角色从第一人称视角观察场景，并立即规划下一步行动。
+    使用JSON格式输出，便于解析和后续处理。
+
+    Args:
+        actor_agents: 角色代理列表
+        stage_agent: 场景代理(提供场景上下文)
+        llm: DeepSeek LLM 实例
+        use_concurrency: 是否使用并行处理，默认False（顺序执行）
+    """
+    latest_stage_message = stage_agent.chat_history[-1].content
+
+    if use_concurrency:
+        # 并行处理所有角色
+        logger.info(f"🔄 并行处理 {len(actor_agents)} 个角色的观察和规划")
+        tasks = [
+            _handle_single_actor_observe_and_plan(
+                actor_agent=actor_agent,
+                latest_stage_message=str(latest_stage_message),
+                llm=llm,
             )
-
-        except Exception as e:
-            logger.error(f"JSON解析错误: {e}")
+            for actor_agent in actor_agents
+        ]
+        await asyncio.gather(*tasks)
+    else:
+        # 顺序处理所有角色
+        logger.info(f"🔄 顺序处理 {len(actor_agents)} 个角色的观察和规划")
+        for actor_agent in actor_agents:
+            await _handle_single_actor_observe_and_plan(
+                actor_agent=actor_agent,
+                latest_stage_message=str(latest_stage_message),
+                llm=llm,
+            )
 
 
 ########################################################################################################################
@@ -294,7 +334,6 @@ async def _handle_stage_execute(
     stage_agent: GameAgent,
     actor_agents: List[GameAgent],
     llm: ChatDeepSeek,
-    # chat_workflow: CompiledStateGraph[ChatState, Any, ChatState, ChatState],
 ) -> None:
     """处理场景执行指令
 
@@ -333,7 +372,7 @@ async def _handle_stage_execute(
 **输出**(200字内): 生动具体的完整自然段,展现执行效果而非重复计划。"""
 
     # 执行 Chat 工作流
-    stage_execution_response = execute_chat_state_workflow(
+    stage_execution_response = await execute_chat_state_workflow(
         user_input_state={
             "messages": [HumanMessage(content=stage_execute_prompt)],
             "llm": llm,
@@ -342,7 +381,6 @@ async def _handle_stage_execute(
             "messages": stage_agent.chat_history.copy(),
             "llm": llm,
         },
-        # work_flow=chat_workflow,
     )
 
     # 更新场景代理的对话历史
@@ -363,15 +401,10 @@ async def handle_game_command(
     world_agent: GameAgent,
     stage_agents: List[GameAgent],
     actor_agents: List[GameAgent],
-    # llm: ChatDeepSeek,
     mcp_client: McpClient,
     available_tools: List[McpToolInfo],
     available_prompts: List[McpPromptInfo],
     available_resources: List[McpResourceInfo],
-    # mcp_workflow: CompiledStateGraph[McpState, Any, McpState, McpState],
-    # chat_workflow: CompiledStateGraph[ChatState, Any, ChatState, ChatState],
-    # rag_workflow: CompiledStateGraph[RAGState, Any, RAGState, RAGState],
-    # game_retriever: GameDocumentRetriever,
 ) -> None:
     """处理游戏指令
 
@@ -404,7 +437,6 @@ async def handle_game_command(
                 llm=create_deepseek_llm(),
                 mcp_client=mcp_client,
                 available_tools=available_tools,
-                # mcp_workflow=mcp_workflow,
             )
 
         # /game all_actors:observe_and_plan - 让所有角色代理观察场景并规划行动
@@ -413,7 +445,7 @@ async def handle_game_command(
                 actor_agents=actor_agents,
                 stage_agent=stage_agents[0],
                 llm=create_deepseek_llm(),
-                # chat_workflow=chat_workflow,
+                use_concurrency=False,
             )
 
         # /game stage:execute - 让场景代理执行所有角色的行动计划
@@ -423,7 +455,6 @@ async def handle_game_command(
                 stage_agent=stage_agents[0],
                 actor_agents=actor_agents,
                 llm=create_deepseek_llm(),
-                # chat_workflow=chat_workflow,
             )
 
         # /game pipeline:test1 - 测试流水线1: 刷新场景后让角色观察
@@ -434,19 +465,17 @@ async def handle_game_command(
                 llm=create_deepseek_llm(),
                 mcp_client=mcp_client,
                 available_tools=available_tools,
-                # mcp_workflow=mcp_workflow,
             )
 
             await _handle_all_actors_observe_and_plan(
                 actor_agents=actor_agents,
                 stage_agent=stage_agents[0],
                 llm=create_deepseek_llm(),
-                # chat_workflow=chat_workflow,
+                use_concurrency=True,
             )
 
             await _handle_stage_execute(
                 stage_agent=stage_agents[0],
                 actor_agents=actor_agents,
                 llm=create_deepseek_llm(),
-                # chat_workflow=chat_workflow,
             )
