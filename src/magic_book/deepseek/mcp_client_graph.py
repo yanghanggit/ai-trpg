@@ -99,6 +99,7 @@ responses = await execute_mcp_workflow(workflow, chat_history, user_input)
 ```
 """
 
+import json
 from dotenv import load_dotenv
 from loguru import logger
 
@@ -880,7 +881,12 @@ async def execute_mcp_workflow(
                     final_messages = value["messages"]
                 # 记录工具执行信息（用于调试）
                 if value.get("tool_outputs"):
-                    logger.debug(f"工具执行记录: {value['tool_outputs']}")
+
+                    # 请注意 tool_outputs: List[Dict[str, Any]]  # 工具执行结果 的类型。
+                    # 我希望用json.dumps更清晰地打印出来, 这样可以带一些indent
+                    logger.debug(
+                        f"工具执行记录: {json.dumps(value['tool_outputs'], indent=2, ensure_ascii=False)}"
+                    )
 
         # 返回最终消息
         ret.extend(final_messages)

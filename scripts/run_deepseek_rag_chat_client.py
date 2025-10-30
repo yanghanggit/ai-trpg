@@ -40,20 +40,10 @@ async def main() -> None:
 
     try:
 
-        # 步骤1: 创建 Mock 文档检索器（测试用）
-        # mock_retriever = MockDocumentRetriever()
-        game_retriever = GameDocumentRetriever()
-        logger.info("📚 [MAIN] Mock文档检索器创建完成")
-
-        # 步骤2: 创建RAG状态图
-        rag_compiled_graph = create_rag_workflow()
-
-        # 步骤3: 初始化聊天历史
-        llm = create_deepseek_llm()
-        chat_history_state: RAGState = {
+        context_state: RAGState = {
             "messages": [],
-            "llm": llm,
-            "document_retriever": game_retriever,  # 注入检索器
+            "llm": create_deepseek_llm(),
+            "document_retriever": GameDocumentRetriever(),  # 注入检索器
         }
 
         # 步骤4: 开始交互循环
@@ -67,26 +57,26 @@ async def main() -> None:
                     break
 
                 # 用户输入
-                user_input_state: RAGState = {
+                request_state: RAGState = {
                     "messages": [HumanMessage(content=user_input)],
-                    "llm": llm,  # 使用同一个LLM实例
-                    "document_retriever": game_retriever,  # 注入检索器
+                    "llm": create_deepseek_llm(),  # 使用同一个LLM实例
+                    "document_retriever": GameDocumentRetriever(),  # 注入检索器
                 }
 
                 # 执行RAG流程
-                update_messages = await execute_rag_workflow(
-                    work_flow=rag_compiled_graph,
-                    context=chat_history_state,
-                    request=user_input_state,
+                rag_response = await execute_rag_workflow(
+                    work_flow=create_rag_workflow(),
+                    context=context_state,
+                    request=request_state,
                 )
 
                 # 更新聊天历史
-                chat_history_state["messages"].extend(user_input_state["messages"])
-                chat_history_state["messages"].extend(update_messages)
+                context_state["messages"].extend(request_state["messages"])
+                context_state["messages"].extend(rag_response)
 
                 # 显示最新的AI回复
-                if update_messages:
-                    latest_response = update_messages[-1]
+                if rag_response:
+                    latest_response = rag_response[-1]
                     print(f"\nDeepSeek: {latest_response.content}")
                     logger.success(f"✅ RAG回答: {latest_response.content}")
 

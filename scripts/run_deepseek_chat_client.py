@@ -48,14 +48,9 @@ async def main() -> None:
     logger.info("🤖 启动DeepSeek聊天系统...")
 
     try:
-        # 为每个会话创建独立的LLM实例
-        llm = create_deepseek_llm()
 
         # 聊天历史（包含LLM实例）
-        chat_history_state: ChatState = {"messages": [], "llm": llm}
-
-        # 生成聊天机器人状态图
-        chat_workflow = create_chat_workflow()
+        context_state: ChatState = {"messages": [], "llm": create_deepseek_llm()}
 
         logger.success("🤖 DeepSeek聊天系统初始化完成，开始对话...")
         logger.info("💡 提示：您可以与DeepSeek AI进行自由对话")
@@ -71,21 +66,21 @@ async def main() -> None:
                     break
 
                 # 用户输入
-                user_input_state: ChatState = {
+                request_state: ChatState = {
                     "messages": [HumanMessage(content=user_input)],
-                    "llm": llm,
+                    "llm": create_deepseek_llm(),
                 }
 
                 # 获取回复
                 update_messages = await execute_chat_workflow(
-                    work_flow=chat_workflow,
-                    context=chat_history_state,
-                    request=user_input_state,
+                    work_flow=create_chat_workflow(),
+                    context=context_state,
+                    request=request_state,
                 )
 
                 # 测试用：记录上下文。
-                chat_history_state["messages"].extend(user_input_state["messages"])
-                chat_history_state["messages"].extend(update_messages)
+                context_state["messages"].extend(request_state["messages"])
+                context_state["messages"].extend(update_messages)
 
                 # 显示最新的AI回复
                 if update_messages:
@@ -93,7 +88,7 @@ async def main() -> None:
                     print(f"\nDeepSeek: {latest_response.content}")
 
                 logger.debug("*" * 50)
-                for message in chat_history_state["messages"]:
+                for message in context_state["messages"]:
                     if isinstance(message, HumanMessage):
                         logger.info(f"User: {message.content}")
                     else:

@@ -19,8 +19,6 @@ from magic_book.pgsql import (
 from magic_book.redis.client import (
     redis_flushall,
 )
-
-# 导入必要的模块
 from magic_book.chroma import reset_client, get_default_collection
 from magic_book.rag.knowledge_retrieval import (
     load_knowledge_base_to_vector_db,

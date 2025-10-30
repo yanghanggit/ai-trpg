@@ -22,6 +22,7 @@ from magic_book.deepseek import (
 )
 
 
+#############################################################################################################
 async def execute_mcp_state_workflow(
     context: McpState,
     request: McpState,
@@ -31,24 +32,24 @@ async def execute_mcp_state_workflow(
     if user_message:
         logger.debug(f"{user_message.content}")
 
-    work_flow = create_mcp_workflow()
-    update_messages = await execute_mcp_workflow(
-        work_flow=work_flow,
+    mcp_response = await execute_mcp_workflow(
+        work_flow=create_mcp_workflow(),
         context=context,
         request=request,
     )
 
     # 显示最新的AI回复
-    if update_messages:
-        for msg in update_messages:
+    if mcp_response:
+        for msg in mcp_response:
             assert isinstance(msg, AIMessage)
             logger.info(f"{msg.content}")
     else:
         logger.error("❌ 抱歉，没有收到回复。")
 
-    return update_messages
+    return mcp_response
 
 
+#############################################################################################################
 async def execute_chat_state_workflow(
     context: ChatState,
     request: ChatState,
@@ -69,24 +70,24 @@ async def execute_chat_state_workflow(
     if user_message:
         logger.debug(f"{user_message.content}")
 
-    work_flow = create_chat_workflow()
-    update_messages = await execute_chat_workflow(
-        work_flow=work_flow,
+    chat_response = await execute_chat_workflow(
+        work_flow=create_chat_workflow(),
         context=context,
         request=request,
     )
 
     # 显示最新的AI回复
-    if update_messages:
-        for msg in update_messages:
+    if chat_response:
+        for msg in chat_response:
             assert isinstance(msg, AIMessage)
             logger.info(f"{msg.content}")
     else:
         logger.error("❌ 抱歉，没有收到回复。")
 
-    return update_messages
+    return chat_response
 
 
+#############################################################################################################
 async def execute_rag_workflow_handler(
     context: RAGState,
     request: RAGState,
@@ -106,19 +107,18 @@ async def execute_rag_workflow_handler(
     if user_message:
         logger.debug(f"{user_message.content}")
 
-    work_flow = create_rag_workflow()
-    update_messages = await execute_rag_workflow(
-        work_flow=work_flow,
+    rag_response = await execute_rag_workflow(
+        work_flow=create_rag_workflow(),
         context=context,
         request=request,
     )
 
     # 显示最新的AI回复
-    if update_messages:
-        for msg in update_messages:
+    if rag_response:
+        for msg in rag_response:
             assert isinstance(msg, AIMessage)
             logger.info(f"{msg.content}")
     else:
         logger.error("❌ 抱歉，没有收到回复。")
 
-    return update_messages
+    return rag_response
