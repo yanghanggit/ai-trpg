@@ -1,107 +1,12 @@
 """
-DeepSeek MCP 客户端图架构 - 二次推理增强版
-
-核心 API：
-==========
-- create_mcp_workflow(): 创建 MCP 工作流状态图
-- execute_mcp_workflow(): 执行工作流并返回响应消息
-
-工作流节点说明：
-=================
-
-1. 预处理节点 (preprocess)
-   - 构建系统提示，包含工具使用说明
-   - 准备增强消息供 LLM 使用
-   - 智能处理已有的系统消息（追加而非替换）
-
-2. 首次 LLM 调用 (llm_invoke)
-   - 使用外部传入的 DeepSeek LLM 实例
-   - 调用 DeepSeek 生成初始响应
-   - 可能包含 JSON 格式的工具调用指令
-
-3. 工具解析节点 (tool_parse)
-   - 使用 ToolCallParser 解析 LLM 响应中的工具调用
-   - 支持 JSON 格式：{"tool_call": {"name": "...", "arguments": {...}}}
-   - 判断是否需要执行工具
-
-4. 条件分支：
-   - 如果需要工具执行 → tool_execution
-   - 如果不需要工具 → response_synthesis
-
-5. 工具执行节点 (tool_execution)
-   - 使用 asyncio.gather() 并发执行所有工具调用
-   - 支持超时控制和失败重试（最多2次）
-   - 收集工具执行结果（包含成功状态、结果数据、执行时间）
-
-6. **二次推理节点 (llm_re_invoke) [核心创新]**
-   - 将工具结果作为上下文，再次调用 LLM
-   - 让 AI 基于工具结果进行智能分析和回答
-   - 保持原有的角色设定（如海盗语气等）
-   - **灵活处理用户格式要求**：
-     * 禁止工具调用格式的 JSON
-     * 但允许用户要求的输出格式（JSON/Markdown/YAML 等）
-     * 严格遵守用户在 Human Message 中指定的所有约束
-
-7. 响应合成节点 (response_synthesis)
-   - 处理最终响应输出
-   - 优先使用二次推理结果（有工具执行的情况）
-   - 降级使用原始 LLM 响应（无工具执行或二次推理失败）
-
-架构优势：
-=========
-- ✅ 真正的智能工具结果处理，而非简单拼接
-- ✅ 保持 AI 角色设定和对话风格
-- ✅ 尊重用户的格式和结构要求
-- ✅ 更自然的人机交互体验
-- ✅ 支持复杂工具结果的深度分析
-- ✅ 外部 LLM 实例管理，提高灵活性和可测试性
-
-设计原则：
-=========
-1. **状态驱动**：使用 McpState TypedDict 管理所有状态
-2. **关注点分离**：每个节点专注单一职责
-3. **可组合性**：节点可独立测试和替换
-4. **错误容错**：完善的错误处理和降级策略
-5. **用户意图优先**：二次推理严格遵守用户要求
-
-流程图：
-=======
 preprocess → llm_invoke → tool_parse → [条件判断]
                                           ↓ (需要工具)
                                     tool_execution → llm_re_invoke → response_synthesis
                                           ↓ (不需要工具)
                                     response_synthesis
-
-使用示例：
-=========
-```python
-# 1. 创建工作流
-llm = create_deepseek_llm()
-workflow = await create_mcp_workflow("my_workflow", mcp_client)
-
-# 2. 构建状态
-chat_history: McpState = {
-    "messages": [SystemMessage(content="你是海盗")],
-    "llm": llm,
-    "mcp_client": mcp_client,
-    "available_tools": tools,
-}
-
-user_input: McpState = {
-    "messages": [HumanMessage(content="现在几点了？用JSON格式回答")],
-    "llm": llm,
-    "mcp_client": mcp_client,
-    "available_tools": tools,
-}
-
-# 3. 执行工作流
-responses = await execute_mcp_workflow(workflow, chat_history, user_input)
-```
 """
 
-import json
 from dotenv import load_dotenv
-from loguru import logger
 
 # 加载 .env 文件中的环境变量
 load_dotenv()
@@ -115,8 +20,6 @@ from langgraph.graph import StateGraph
 from langgraph.graph.message import add_messages
 from langgraph.graph.state import CompiledStateGraph
 from typing_extensions import TypedDict
-
-# 导入统一 MCP 客户端和功能
 from ..mcp import (
     McpClient,
     McpToolInfo,
@@ -125,6 +28,8 @@ from ..mcp import (
     build_json_tool_example,
     format_tool_description_simple,
 )
+from loguru import logger
+import json
 
 
 ############################################################################################################
@@ -463,6 +368,11 @@ async def _tool_execution_node(state: McpState) -> McpState:
                 f"总耗时: {total_time:.2f}s"
             )
 
+            # 记录工具执行详细信息
+            logger.debug(
+                f"工具执行记录: {json.dumps(tool_outputs, indent=2, ensure_ascii=False)}"
+            )
+
         final_result: McpState = {
             "messages": [],  # 工具执行节点不返回消息，避免重复累积
             "llm": state["llm"],  # 传递LLM实例
@@ -636,6 +546,7 @@ async def _response_synthesis_node(state: McpState) -> McpState:
     1. 对于有工具执行的情况，接收二次推理的结果
     2. 对于无工具执行的情况，直接使用原始LLM响应
     3. 确保最终响应的格式正确
+    4. **关键改进**：确保在所有分支都设置 final_response 字段
 
     Args:
         state: 当前状态
@@ -654,6 +565,7 @@ async def _response_synthesis_node(state: McpState) -> McpState:
                 "mcp_client": state.get("mcp_client"),
                 "available_tools": state.get("available_tools", []),
                 "tool_outputs": state.get("tool_outputs", []),
+                "final_response": final_response,  # 保持 final_response
             }
             return final_result
 
@@ -670,6 +582,7 @@ async def _response_synthesis_node(state: McpState) -> McpState:
                 "mcp_client": state.get("mcp_client"),
                 "available_tools": state.get("available_tools", []),
                 "tool_outputs": tool_outputs,
+                "final_response": error_message,  # 设置 final_response
             }
             return synthesis_error_result
 
@@ -691,6 +604,7 @@ async def _response_synthesis_node(state: McpState) -> McpState:
             "mcp_client": state.get("mcp_client"),
             "available_tools": state.get("available_tools", []),
             "tool_outputs": tool_outputs,
+            "final_response": llm_response,  # 设置 final_response
         }
         return synthesis_result
 
@@ -703,6 +617,7 @@ async def _response_synthesis_node(state: McpState) -> McpState:
             "mcp_client": state.get("mcp_client"),
             "available_tools": state.get("available_tools", []),
             "tool_outputs": [],
+            "final_response": error_message,  # 设置 final_response
         }
         return synthesis_exception_result
 
@@ -841,10 +756,12 @@ async def execute_mcp_workflow(
     """
     流式处理 MCP 图更新
 
+    **关键改进**：不再依赖节点名称，而是从最终状态的 final_response 字段获取结果
+
     Args:
-        state_compiled_graph: 编译后的状态图
-        chat_history_state: 聊天历史状态
-        user_input_state: 用户输入状态
+        work_flow: 编译后的状态图
+        context: 聊天历史状态
+        request: 用户输入状态
 
     Returns:
         List[BaseMessage]: 响应消息列表
@@ -856,11 +773,6 @@ async def execute_mcp_workflow(
     assert (
         llm_instance is not None
     ), "LLM instance is required in either chat history or user input state"
-    if not llm_instance:
-        logger.error("LLM 实例缺失，无法处理请求")
-        return []
-        # 如果两个状态都没有LLM实例，创建一个新的
-        # llm_instance = create_deepseek_llm()
 
     merged_message_context: McpState = {
         "messages": context["messages"] + request["messages"],
@@ -873,27 +785,31 @@ async def execute_mcp_workflow(
     }
 
     try:
-        final_messages = []
+
+        # 最终状态
+        final_state = None
+
+        # 流式处理所有节点的更新
         async for event in work_flow.astream(merged_message_context):
             for node_name, value in event.items():
-                # 只收集来自最终节点的消息，避免重复
-                if node_name == "response_synthesis" and value.get("messages"):
-                    final_messages = value["messages"]
-                # 记录工具执行信息（用于调试）
-                if value.get("tool_outputs"):
+                # 持续更新状态，最后一个就是最终状态
+                final_state = value
 
-                    # 请注意 tool_outputs: List[Dict[str, Any]]  # 工具执行结果 的类型。
-                    # 我希望用json.dumps更清晰地打印出来, 这样可以带一些indent
-                    logger.debug(
-                        f"工具执行记录: {json.dumps(value['tool_outputs'], indent=2, ensure_ascii=False)}"
-                    )
+        # ✅ 关键改进：从最终状态的 final_response 字段获取结果，不依赖节点名称
+        if final_state:
+            final_response = final_state.get("final_response")
+            if final_response:
+                logger.info("✅ 从状态的 final_response 字段获取最终响应")
+                ret.append(final_response)
+            else:
+                logger.error(
+                    "❌ final_response 不存在，这不应该发生（所有节点都应该设置 final_response）"
+                )
+        else:
+            logger.error("❌ 未获取到最终状态")
 
-        # 返回最终消息
-        ret.extend(final_messages)
     except Exception as e:
         logger.error(f"Stream processing error: {e}")
-        error_message = AIMessage(content="抱歉，处理消息时发生错误。")
-        ret.append(error_message)
 
     return ret
 
