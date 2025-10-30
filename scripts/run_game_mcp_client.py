@@ -247,14 +247,14 @@ async def main() -> None:
 
                 # mcp 的工作流
                 mcp_response = await execute_mcp_state_workflow(
-                    user_input_state={
+                    request={
                         "messages": [HumanMessage(content=format_user_input)],
                         "llm": create_deepseek_llm(),
                         "mcp_client": mcp_client,
                         "available_tools": available_tools,
                         "tool_outputs": [],
                     },
-                    chat_history_state={
+                    context={
                         "messages": current_agent.chat_history.copy(),
                         "llm": create_deepseek_llm(),
                         "mcp_client": mcp_client,
@@ -282,11 +282,11 @@ async def main() -> None:
 
                 # 聊天的工作流
                 chat_response = await execute_chat_state_workflow(
-                    user_input_state={
+                    request={
                         "messages": [HumanMessage(content=format_user_input)],
                         "llm": create_deepseek_llm(),
                     },
-                    chat_history_state={
+                    context={
                         "messages": current_agent.chat_history.copy(),
                         "llm": create_deepseek_llm(),
                     },
@@ -308,12 +308,12 @@ async def main() -> None:
 
                 # RAG 的工作流
                 rag_response = await execute_rag_workflow_handler(
-                    user_input_state={
+                    request={
                         "messages": [HumanMessage(content=rag_content)],
                         "llm": create_deepseek_llm(),
                         "document_retriever": GameDocumentRetriever(),
                     },
-                    chat_history_state={
+                    context={
                         "messages": current_agent.chat_history.copy(),
                         "llm": create_deepseek_llm(),
                         "document_retriever": GameDocumentRetriever(),

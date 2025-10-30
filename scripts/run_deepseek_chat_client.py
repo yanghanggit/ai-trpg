@@ -79,8 +79,8 @@ async def main() -> None:
                 # 获取回复
                 update_messages = await execute_chat_workflow(
                     work_flow=chat_workflow,
-                    chat_history_state=chat_history_state,
-                    user_input_state=user_input_state,
+                    context=chat_history_state,
+                    request=user_input_state,
                 )
 
                 # 测试用：记录上下文。

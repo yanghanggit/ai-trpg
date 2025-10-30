@@ -76,8 +76,8 @@ async def main() -> None:
                 # 执行RAG流程
                 update_messages = await execute_rag_workflow(
                     work_flow=rag_compiled_graph,
-                    chat_history_state=chat_history_state,
-                    user_input_state=user_input_state,
+                    context=chat_history_state,
+                    request=user_input_state,
                 )
 
                 # 更新聊天历史

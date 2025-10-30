@@ -319,8 +319,8 @@ async def handle_analyze_command(
             print("\n⏳ AI 正在分析...")
             update_messages = await execute_mcp_workflow(
                 work_flow=compiled_mcp_stage_graph,
-                chat_history_state=chat_history_state,
-                user_input_state=analysis_input_state,
+                context=chat_history_state,
+                request=analysis_input_state,
             )
 
             # 更新聊天历史
@@ -365,8 +365,8 @@ async def handle_user_message(
 
     update_messages = await execute_mcp_workflow(
         work_flow=compiled_mcp_stage_graph,
-        chat_history_state=chat_history_state,
-        user_input_state=user_input_state,
+        context=chat_history_state,
+        request=user_input_state,
     )
 
     # 更新聊天历史（包含用户输入和AI回复）

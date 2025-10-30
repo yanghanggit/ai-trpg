@@ -23,21 +23,19 @@ from magic_book.deepseek import (
 
 
 async def execute_mcp_state_workflow(
-    user_input_state: McpState,
-    chat_history_state: McpState,
+    context: McpState,
+    request: McpState,
 ) -> List[BaseMessage]:
     """处理普通用户消息：发送给AI处理"""
-    user_message = (
-        user_input_state["messages"][0] if user_input_state.get("messages") else None
-    )
+    user_message = request["messages"][0] if request.get("messages") else None
     if user_message:
         logger.debug(f"{user_message.content}")
 
     work_flow = create_mcp_workflow()
     update_messages = await execute_mcp_workflow(
         work_flow=work_flow,
-        chat_history_state=chat_history_state,
-        user_input_state=user_input_state,
+        context=context,
+        request=request,
     )
 
     # 显示最新的AI回复
@@ -52,8 +50,8 @@ async def execute_mcp_state_workflow(
 
 
 async def execute_chat_state_workflow(
-    user_input_state: ChatState,
-    chat_history_state: ChatState,
+    context: ChatState,
+    request: ChatState,
 ) -> List[BaseMessage]:
     """执行纯聊天工作流（不涉及工具调用）
 
@@ -67,17 +65,15 @@ async def execute_chat_state_workflow(
         List[BaseMessage]: AI响应消息列表
     """
 
-    user_message = (
-        user_input_state["messages"][0] if user_input_state.get("messages") else None
-    )
+    user_message = request["messages"][0] if request.get("messages") else None
     if user_message:
         logger.debug(f"{user_message.content}")
 
     work_flow = create_chat_workflow()
     update_messages = await execute_chat_workflow(
         work_flow=work_flow,
-        chat_history_state=chat_history_state,
-        user_input_state=user_input_state,
+        context=context,
+        request=request,
     )
 
     # 显示最新的AI回复
@@ -92,8 +88,8 @@ async def execute_chat_state_workflow(
 
 
 async def execute_rag_workflow_handler(
-    user_input_state: RAGState,
-    chat_history_state: RAGState,
+    context: RAGState,
+    request: RAGState,
 ) -> List[BaseMessage]:
     """执行 RAG 工作流
 
@@ -106,17 +102,15 @@ async def execute_rag_workflow_handler(
     Returns:
         List[BaseMessage]: AI响应消息列表
     """
-    user_message = (
-        user_input_state["messages"][0] if user_input_state.get("messages") else None
-    )
+    user_message = request["messages"][0] if request.get("messages") else None
     if user_message:
         logger.debug(f"{user_message.content}")
 
     work_flow = create_rag_workflow()
     update_messages = await execute_rag_workflow(
         work_flow=work_flow,
-        chat_history_state=chat_history_state,
-        user_input_state=user_input_state,
+        context=context,
+        request=request,
     )
 
     # 显示最新的AI回复

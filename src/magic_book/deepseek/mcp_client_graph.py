@@ -834,8 +834,8 @@ def create_mcp_workflow() -> CompiledStateGraph[McpState, Any, McpState, McpStat
 ############################################################################################################
 async def execute_mcp_workflow(
     work_flow: CompiledStateGraph[McpState, Any, McpState, McpState],
-    chat_history_state: McpState,
-    user_input_state: McpState,
+    context: McpState,
+    request: McpState,
 ) -> List[BaseMessage]:
     """
     流式处理 MCP 图更新
@@ -851,7 +851,7 @@ async def execute_mcp_workflow(
     ret: List[BaseMessage] = []
 
     # 合并状态，保持 MCP 相关信息
-    llm_instance = user_input_state.get("llm") or chat_history_state.get("llm")
+    llm_instance = request.get("llm") or context.get("llm")
     assert (
         llm_instance is not None
     ), "LLM instance is required in either chat history or user input state"
@@ -862,15 +862,13 @@ async def execute_mcp_workflow(
         # llm_instance = create_deepseek_llm()
 
     merged_message_context: McpState = {
-        "messages": chat_history_state["messages"] + user_input_state["messages"],
+        "messages": context["messages"] + request["messages"],
         "llm": llm_instance,  # 确保LLM实例存在
-        "mcp_client": user_input_state.get(
-            "mcp_client", chat_history_state.get("mcp_client")
+        "mcp_client": request.get("mcp_client", context.get("mcp_client")),
+        "available_tools": request.get(
+            "available_tools", context.get("available_tools", [])
         ),
-        "available_tools": user_input_state.get(
-            "available_tools", chat_history_state.get("available_tools", [])
-        ),
-        "tool_outputs": chat_history_state.get("tool_outputs", []),
+        "tool_outputs": context.get("tool_outputs", []),
     }
 
     try:

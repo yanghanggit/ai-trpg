@@ -94,14 +94,14 @@ async def _handle_stage_update(
 
     # 执行 MCP 工作流
     scene_update_response = await execute_mcp_state_workflow(
-        user_input_state={
+        request={
             "messages": [HumanMessage(content=stage_update_prompt)],
             "llm": llm,
             "mcp_client": mcp_client,
             "available_tools": available_tools,
             "tool_outputs": [],
         },
-        chat_history_state={
+        context={
             "messages": stage_agent.chat_history.copy(),
             "llm": llm,
             "mcp_client": mcp_client,
@@ -171,11 +171,11 @@ async def _handle_single_actor_observe_and_plan(
 
     # 执行聊天工作流
     actors_observe_and_plan_response = await execute_chat_state_workflow(
-        user_input_state={
+        request={
             "messages": [HumanMessage(content=observe_and_plan_prompt)],
             "llm": llm,
         },
-        chat_history_state={
+        context={
             "messages": actor_agent.chat_history.copy(),
             "llm": llm,
         },
@@ -373,11 +373,11 @@ async def _handle_stage_execute(
 
     # 执行 Chat 工作流
     stage_execution_response = await execute_chat_state_workflow(
-        user_input_state={
+        request={
             "messages": [HumanMessage(content=stage_execute_prompt)],
             "llm": llm,
         },
-        chat_history_state={
+        context={
             "messages": stage_agent.chat_history.copy(),
             "llm": llm,
         },

@@ -376,8 +376,8 @@ def create_rag_workflow() -> CompiledStateGraph[RAGState, Any, RAGState, RAGStat
 ############################################################################################################
 async def execute_rag_workflow(
     work_flow: CompiledStateGraph[RAGState, Any, RAGState, RAGState],
-    chat_history_state: RAGState,
-    user_input_state: RAGState,
+    context: RAGState,
+    request: RAGState,
 ) -> List[BaseMessage]:
     """
     执行RAG状态图并返回结果
@@ -396,38 +396,36 @@ async def execute_rag_workflow(
     logger.info("🚀 开始执行RAG流程...")
 
     # 准备RAG状态
-    user_message = (
-        user_input_state["messages"][-1] if user_input_state["messages"] else None
-    )
+    user_message = request["messages"][-1] if request["messages"] else None
     user_query = ""
     if user_message:
         content = user_message.content
         user_query = content if isinstance(content, str) else str(content)
 
     # 优先使用 user_input_state 中的配置，如果没有则使用 chat_history_state，最后使用默认值
-    min_threshold = user_input_state.get(
+    min_threshold = request.get(
         "min_similarity_threshold",
-        chat_history_state.get("min_similarity_threshold", MIN_SIMILARITY_THRESHOLD),
+        context.get("min_similarity_threshold", MIN_SIMILARITY_THRESHOLD),
     )
-    top_k = user_input_state.get(
+    top_k = request.get(
         "top_k_documents",
-        chat_history_state.get("top_k_documents", TOP_K_DOCUMENTS),
+        context.get("top_k_documents", TOP_K_DOCUMENTS),
     )
 
     assert (
-        user_input_state["document_retriever"] is not None
-        or chat_history_state["document_retriever"] is not None
+        request["document_retriever"] is not None
+        or context["document_retriever"] is not None
     ), "DocumentRetriever instance must be provided in either user_input_state or chat_history_state."
 
     rag_state: RAGState = {
-        "messages": chat_history_state["messages"] + user_input_state["messages"],
+        "messages": context["messages"] + request["messages"],
         "user_query": user_query,
         "retrieved_docs": [],
         "enhanced_context": "",
         "similarity_scores": [],
-        "llm": user_input_state["llm"],
-        "document_retriever": user_input_state.get(
-            "document_retriever", chat_history_state.get("document_retriever")
+        "llm": request["llm"],
+        "document_retriever": request.get(
+            "document_retriever", context.get("document_retriever")
         ),
         "min_similarity_threshold": min_threshold,
         "top_k_documents": top_k,
