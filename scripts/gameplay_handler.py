@@ -6,13 +6,11 @@
 """
 
 from typing import List, Any
-from langgraph.graph.state import CompiledStateGraph
 from loguru import logger
 from langchain_deepseek import ChatDeepSeek
 from pydantic import BaseModel
-from magic_book.deepseek import McpState, ChatState, RAGState
+from magic_book.deepseek import create_deepseek_llm
 from magic_book.mcp import McpClient, McpToolInfo, McpPromptInfo, McpResourceInfo
-from magic_book.rag.game_retriever import GameDocumentRetriever
 from magic_book.utils.json_format import strip_json_code_block
 from agent_utils import GameAgent
 from workflow_executors import (
@@ -56,7 +54,7 @@ async def _handle_stage_update(
     llm: ChatDeepSeek,
     mcp_client: McpClient,
     available_tools: List[McpToolInfo],
-    mcp_workflow: CompiledStateGraph[McpState, Any, McpState, McpState],
+    # mcp_workflow: CompiledStateGraph[McpState, Any, McpState, McpState],
 ) -> None:
     """处理场景刷新指令
 
@@ -110,7 +108,7 @@ async def _handle_stage_update(
             "available_tools": available_tools,
             "tool_outputs": [],
         },
-        work_flow=mcp_workflow,
+        # work_flow=mcp_workflow,
     )
 
     # 更新场景代理的对话历史
@@ -125,7 +123,7 @@ async def _handle_all_actors_observe_and_plan(
     actor_agents: List[GameAgent],
     stage_agent: GameAgent,
     llm: ChatDeepSeek,
-    chat_workflow: CompiledStateGraph[ChatState, Any, ChatState, ChatState],
+    # chat_workflow: CompiledStateGraph[ChatState, Any, ChatState, ChatState],
 ) -> None:
     """处理所有角色的观察和行动规划（合并版本，JSON输出）
 
@@ -187,7 +185,7 @@ async def _handle_all_actors_observe_and_plan(
                 "messages": actor_agent.chat_history.copy(),
                 "llm": llm,
             },
-            work_flow=chat_workflow,
+            # work_flow=chat_workflow,
         )
 
         # 更新角色代理的对话历史
@@ -296,7 +294,7 @@ async def _handle_stage_execute(
     stage_agent: GameAgent,
     actor_agents: List[GameAgent],
     llm: ChatDeepSeek,
-    chat_workflow: CompiledStateGraph[ChatState, Any, ChatState, ChatState],
+    # chat_workflow: CompiledStateGraph[ChatState, Any, ChatState, ChatState],
 ) -> None:
     """处理场景执行指令
 
@@ -344,7 +342,7 @@ async def _handle_stage_execute(
             "messages": stage_agent.chat_history.copy(),
             "llm": llm,
         },
-        work_flow=chat_workflow,
+        # work_flow=chat_workflow,
     )
 
     # 更新场景代理的对话历史
@@ -365,15 +363,15 @@ async def handle_game_command(
     world_agent: GameAgent,
     stage_agents: List[GameAgent],
     actor_agents: List[GameAgent],
-    llm: ChatDeepSeek,
+    # llm: ChatDeepSeek,
     mcp_client: McpClient,
     available_tools: List[McpToolInfo],
     available_prompts: List[McpPromptInfo],
     available_resources: List[McpResourceInfo],
-    mcp_workflow: CompiledStateGraph[McpState, Any, McpState, McpState],
-    chat_workflow: CompiledStateGraph[ChatState, Any, ChatState, ChatState],
-    rag_workflow: CompiledStateGraph[RAGState, Any, RAGState, RAGState],
-    game_retriever: GameDocumentRetriever,
+    # mcp_workflow: CompiledStateGraph[McpState, Any, McpState, McpState],
+    # chat_workflow: CompiledStateGraph[ChatState, Any, ChatState, ChatState],
+    # rag_workflow: CompiledStateGraph[RAGState, Any, RAGState, RAGState],
+    # game_retriever: GameDocumentRetriever,
 ) -> None:
     """处理游戏指令
 
@@ -403,10 +401,10 @@ async def handle_game_command(
 
             await _handle_stage_update(
                 stage_agent=stage_agents[0],
-                llm=llm,
+                llm=create_deepseek_llm(),
                 mcp_client=mcp_client,
                 available_tools=available_tools,
-                mcp_workflow=mcp_workflow,
+                # mcp_workflow=mcp_workflow,
             )
 
         # /game all_actors:observe_and_plan - 让所有角色代理观察场景并规划行动
@@ -414,8 +412,8 @@ async def handle_game_command(
             await _handle_all_actors_observe_and_plan(
                 actor_agents=actor_agents,
                 stage_agent=stage_agents[0],
-                llm=llm,
-                chat_workflow=chat_workflow,
+                llm=create_deepseek_llm(),
+                # chat_workflow=chat_workflow,
             )
 
         # /game stage:execute - 让场景代理执行所有角色的行动计划
@@ -424,8 +422,8 @@ async def handle_game_command(
             await _handle_stage_execute(
                 stage_agent=stage_agents[0],
                 actor_agents=actor_agents,
-                llm=llm,
-                chat_workflow=chat_workflow,
+                llm=create_deepseek_llm(),
+                # chat_workflow=chat_workflow,
             )
 
         # /game pipeline:test1 - 测试流水线1: 刷新场景后让角色观察
@@ -433,22 +431,22 @@ async def handle_game_command(
 
             await _handle_stage_update(
                 stage_agent=stage_agents[0],
-                llm=llm,
+                llm=create_deepseek_llm(),
                 mcp_client=mcp_client,
                 available_tools=available_tools,
-                mcp_workflow=mcp_workflow,
+                # mcp_workflow=mcp_workflow,
             )
 
             await _handle_all_actors_observe_and_plan(
                 actor_agents=actor_agents,
                 stage_agent=stage_agents[0],
-                llm=llm,
-                chat_workflow=chat_workflow,
+                llm=create_deepseek_llm(),
+                # chat_workflow=chat_workflow,
             )
 
             await _handle_stage_execute(
                 stage_agent=stage_agents[0],
                 actor_agents=actor_agents,
-                llm=llm,
-                chat_workflow=chat_workflow,
+                llm=create_deepseek_llm(),
+                # chat_workflow=chat_workflow,
             )

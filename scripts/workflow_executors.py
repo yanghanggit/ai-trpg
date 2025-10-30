@@ -5,9 +5,8 @@
 提供各种工作流（MCP、Chat、RAG）的执行函数。
 """
 
-from typing import Any, List
+from typing import List
 from langchain.schema import AIMessage, BaseMessage
-from langgraph.graph.state import CompiledStateGraph
 from loguru import logger
 
 from magic_book.deepseek import (
@@ -17,13 +16,23 @@ from magic_book.deepseek import (
     execute_chat_workflow,
     RAGState,
     execute_rag_workflow,
+    create_mcp_workflow,
+    create_chat_workflow,
+    create_rag_workflow,
 )
+
+# from magic_book.deepseek import (
+#     create_mcp_workflow,
+#     create_deepseek_llm,
+#     create_chat_workflow,
+#     create_rag_workflow,
+# )
 
 
 async def execute_mcp_state_workflow(
     user_input_state: McpState,
     chat_history_state: McpState,
-    work_flow: CompiledStateGraph[McpState, Any, McpState, McpState],
+    # work_flow: CompiledStateGraph[McpState, Any, McpState, McpState],
 ) -> List[BaseMessage]:
     """处理普通用户消息：发送给AI处理"""
     user_message = (
@@ -32,6 +41,7 @@ async def execute_mcp_state_workflow(
     if user_message:
         logger.debug(f"{user_message.content}")
 
+    work_flow = create_mcp_workflow()
     update_messages = await execute_mcp_workflow(
         work_flow=work_flow,
         chat_history_state=chat_history_state,
@@ -52,7 +62,7 @@ async def execute_mcp_state_workflow(
 def execute_chat_state_workflow(
     user_input_state: ChatState,
     chat_history_state: ChatState,
-    work_flow: CompiledStateGraph[ChatState, Any, ChatState, ChatState],
+    # work_flow: CompiledStateGraph[ChatState, Any, ChatState, ChatState],
 ) -> List[BaseMessage]:
     """执行纯聊天工作流（不涉及工具调用）
 
@@ -65,12 +75,14 @@ def execute_chat_state_workflow(
     Returns:
         List[BaseMessage]: AI响应消息列表
     """
+
     user_message = (
         user_input_state["messages"][0] if user_input_state.get("messages") else None
     )
     if user_message:
         logger.debug(f"{user_message.content}")
 
+    work_flow = create_chat_workflow()
     update_messages = execute_chat_workflow(
         work_flow=work_flow,
         chat_history_state=chat_history_state,
@@ -91,7 +103,7 @@ def execute_chat_state_workflow(
 def execute_rag_workflow_handler(
     user_input_state: RAGState,
     chat_history_state: RAGState,
-    work_flow: CompiledStateGraph[RAGState, Any, RAGState, RAGState],
+    # work_flow: CompiledStateGraph[RAGState, Any, RAGState, RAGState],
 ) -> List[BaseMessage]:
     """执行 RAG 工作流
 
@@ -110,6 +122,7 @@ def execute_rag_workflow_handler(
     if user_message:
         logger.debug(f"{user_message.content}")
 
+    work_flow = create_rag_workflow()
     update_messages = execute_rag_workflow(
         work_flow=work_flow,
         chat_history_state=chat_history_state,

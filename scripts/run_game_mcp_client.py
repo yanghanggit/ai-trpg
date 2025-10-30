@@ -29,10 +29,7 @@ from loguru import logger
 
 
 from magic_book.deepseek import (
-    create_mcp_workflow,
     create_deepseek_llm,
-    create_chat_workflow,
-    create_rag_workflow,
 )
 
 from magic_book.mcp import (
@@ -178,21 +175,21 @@ async def main() -> None:
         current_agent: GameAgent = world_agent
 
         # 创建 DeepSeek LLM 实例
-        llm = create_deepseek_llm(0.7)
-        logger.debug("✅ DeepSeek LLM 实例创建成功")
+        # llm = create_deepseek_llm()
+        # logger.debug("✅ DeepSeek LLM 实例创建成功")
 
         # 创建工作流
-        mcp_workflow = create_mcp_workflow()
-        logger.debug("✅ MCP 工作流创建成功")
+        # mcp_workflow = create_mcp_workflow()
+        # logger.debug("✅ MCP 工作流创建成功")
 
-        chat_workflow = create_chat_workflow()
-        logger.debug("✅ Chat 工作流创建成功")
+        # chat_workflow = create_chat_workflow()
+        # logger.debug("✅ Chat 工作流创建成功")
 
-        rag_workflow = create_rag_workflow()
-        logger.debug("✅ RAG 工作流创建成功")
+        # rag_workflow = create_rag_workflow()
+        # logger.debug("✅ RAG 工作流创建成功")
 
-        game_retriever = GameDocumentRetriever()
-        logger.debug("✅ Game 文档检索器创建成功")
+        # game_retriever = GameDocumentRetriever()
+        # logger.debug("✅ Game 文档检索器创建成功")
 
         # 初始化 MCP 客户端并获取可用资源
         (
@@ -269,19 +266,19 @@ async def main() -> None:
                 response = await execute_mcp_state_workflow(
                     user_input_state={
                         "messages": [HumanMessage(content=format_user_input)],
-                        "llm": llm,
+                        "llm": create_deepseek_llm(),
                         "mcp_client": mcp_client,
                         "available_tools": available_tools,
                         "tool_outputs": [],
                     },
                     chat_history_state={
                         "messages": current_agent.chat_history.copy(),
-                        "llm": llm,
+                        "llm": create_deepseek_llm(),
                         "mcp_client": mcp_client,
                         "available_tools": available_tools,
                         "tool_outputs": [],
                     },
-                    work_flow=mcp_workflow,
+                    # work_flow=mcp_workflow,
                 )
 
                 # 更新当前代理的对话历史
@@ -305,13 +302,13 @@ async def main() -> None:
                 response = execute_chat_state_workflow(
                     user_input_state={
                         "messages": [HumanMessage(content=format_user_input)],
-                        "llm": llm,
+                        "llm": create_deepseek_llm(),
                     },
                     chat_history_state={
                         "messages": current_agent.chat_history.copy(),
-                        "llm": llm,
+                        "llm": create_deepseek_llm(),
                     },
-                    work_flow=chat_workflow,
+                    # work_flow=chat_workflow,
                 )
 
                 # 更新当前代理的对话历史
@@ -332,15 +329,15 @@ async def main() -> None:
                 response = execute_rag_workflow_handler(
                     user_input_state={
                         "messages": [HumanMessage(content=rag_content)],
-                        "llm": llm,
-                        "document_retriever": game_retriever,
+                        "llm": create_deepseek_llm(),
+                        "document_retriever": GameDocumentRetriever(),
                     },
                     chat_history_state={
                         "messages": current_agent.chat_history.copy(),
-                        "llm": llm,
-                        "document_retriever": game_retriever,
+                        "llm": create_deepseek_llm(),
+                        "document_retriever": GameDocumentRetriever(),
                     },
-                    work_flow=rag_workflow,
+                    # work_flow=rag_workflow,
                 )
 
                 # 更新当前代理的对话历史
@@ -359,20 +356,22 @@ async def main() -> None:
                 # 调用游戏指令处理器
                 await handle_game_command(
                     command=command,
+                    # 游戏上下文
                     current_agent=current_agent,
                     all_agents=all_agents,
                     world_agent=world_agent,
                     stage_agents=stage_agents,
                     actor_agents=actor_agents,
-                    llm=llm,
+                    # llm=llm,
+                    # mcp 上下文
                     mcp_client=mcp_client,
                     available_tools=available_tools,
                     available_prompts=available_prompts,
                     available_resources=available_resources,
-                    mcp_workflow=mcp_workflow,
-                    chat_workflow=chat_workflow,
-                    rag_workflow=rag_workflow,
-                    game_retriever=game_retriever,
+                    # mcp_workflow=mcp_workflow,
+                    # chat_workflow=chat_workflow,
+                    # rag_workflow=rag_workflow,
+                    # game_retriever=game_retriever,
                 )
                 continue
 
