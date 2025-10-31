@@ -29,8 +29,8 @@ class ActorObservationAndPlan(BaseModel):
     用于验证和解析角色的观察和行动计划JSON数据。
     """
 
-    observation: str
-    plan: str
+    observation: str  # 角色观察内容
+    plan: str  # 角色行动计划内容
 
 
 ########################################################################################################################
@@ -42,8 +42,8 @@ class ActorPlan(BaseModel):
     用于收集和传递角色的行动计划信息，提供类型安全的数据结构。
     """
 
-    actor_name: str
-    plan: str
+    actor_name: str  # 角色名称
+    plan: str  # 行动计划内容
 
 
 ########################################################################################################################
@@ -78,77 +78,8 @@ class StageExecutionResult(BaseModel):
 ########################################################################################################################
 ########################################################################################################################
 ########################################################################################################################
-# async def _handle_stage_update(
-#     stage_agent: GameAgent,
-#     llm: ChatDeepSeek,
-#     mcp_client: McpClient,
-#     available_tools: List[McpToolInfo],
-# ) -> None:
-#     """处理场景刷新指令
-
-#     遍历所有场景代理,更新它们的故事描述与环境描述。
-
-#     Args:
-#         stage_agents: 场景代理列表
-#         current_agent: 当前激活的代理
-#         llm: DeepSeek LLM 实例
-#         mcp_client: MCP 客户端实例
-#         available_tools: 可用的工具列表
-#         mcp_workflow: MCP 工作流状态图
-#     """
-
-#     logger.info(f"🔄 更新场景代理: {stage_agent.name}")
-
-#     stage_update_prompt = """# 场景状态更新任务
-
-# ## 核心要求
-
-# 查询所有角色的当前状态,生成客观的场景快照描述。
-
-# ## 重要约束
-
-# - **避免重复**: 不要重复历史记录中的内容,专注于描述当前最新状态
-# - **禁止重复上一次"场景行动执行"的内容**
-
-# ## 内容要求
-
-# **必须包含**: 角色位置(方位/距离) | 外显动作(站立/移动/静止) | 隐藏状态标注【隐藏】 | 环境感官(光线/声音/气味)
-
-# **严格禁止**: ❌ 推断意图/目的/情绪 | ❌ 使用"似乎/打算/准备/试图/可能"等暗示词 | ❌ 主观解读
-
-# ## 输出规范
-
-# 第三人称全知视角 | 150字内 | 只写"是什么"不写"将做什么" | 客观简洁具体"""
-
-#     # 执行 MCP 工作流
-#     scene_update_response = await execute_mcp_state_workflow(
-#         request={
-#             "messages": [HumanMessage(content=stage_update_prompt)],
-#             "llm": llm,
-#             "mcp_client": mcp_client,
-#             "available_tools": available_tools,
-#             "tool_outputs": [],
-#         },
-#         context={
-#             "messages": stage_agent.chat_history.copy(),
-#             "llm": llm,
-#             "mcp_client": mcp_client,
-#             "available_tools": available_tools,
-#             "tool_outputs": [],
-#         },
-#     )
-
-#     # 更新场景代理的对话历史
-#     stage_agent.chat_history.append(HumanMessage(content=stage_update_prompt))
-#     stage_agent.chat_history.extend(scene_update_response)
-
-
-########################################################################################################################
-########################################################################################################################
-########################################################################################################################
 async def _handle_single_actor_observe_and_plan(
     actor_agent: GameAgent,
-    # latest_stage_message: str,
     llm: ChatDeepSeek,
 ) -> None:
     """处理单个角色的观察和行动规划
@@ -252,7 +183,6 @@ async def _handle_all_actors_observe_and_plan(
         llm: DeepSeek LLM 实例
         use_concurrency: 是否使用并行处理，默认False（顺序执行）
     """
-    # latest_stage_message = stage_agent.chat_history[-1].content
 
     if use_concurrency:
         # 并行处理所有角色
@@ -260,7 +190,6 @@ async def _handle_all_actors_observe_and_plan(
         tasks = [
             _handle_single_actor_observe_and_plan(
                 actor_agent=actor_agent,
-                # latest_stage_message=str(latest_stage_message),
                 llm=llm,
             )
             for actor_agent in actor_agents
@@ -272,7 +201,6 @@ async def _handle_all_actors_observe_and_plan(
         for actor_agent in actor_agents:
             await _handle_single_actor_observe_and_plan(
                 actor_agent=actor_agent,
-                # latest_stage_message=str(latest_stage_message),
                 llm=llm,
             )
 
@@ -365,7 +293,7 @@ def _notify_actors_with_execution_result(
 ########################################################################################################################
 ########################################################################################################################
 ########################################################################################################################
-async def _handle_stage_execute(
+async def _orchestrate_actor_plans_and_update_stage(
     stage_agent: GameAgent,
     actor_agents: List[GameAgent],
     llm: ChatDeepSeek,
@@ -539,16 +467,6 @@ async def handle_game_command(
 
     match command:
 
-        # /game stage:update - 更新所有场景代理的状态
-        # case "stage:update":
-
-        #     await _handle_stage_update(
-        #         stage_agent=stage_agents[0],
-        #         llm=create_deepseek_llm(),
-        #         mcp_client=mcp_client,
-        #         available_tools=available_tools,
-        #     )
-
         # /game all_actors:observe_and_plan - 让所有角色代理观察场景并规划行动
         case "all_actors:observe_and_plan":
             await _handle_all_actors_observe_and_plan(
@@ -558,17 +476,17 @@ async def handle_game_command(
                 use_concurrency=False,
             )
 
-        # /game stage:execute - 让场景代理执行所有角色的行动计划
-        case "stage:execute":
+        # /game stage:orchestrate_actor_plans_and_update_stage - 让场景代理执行所有角色的行动计划
+        case "stage:orchestrate_actor_plans_and_update_stage":
 
-            await _handle_stage_execute(
+            await _orchestrate_actor_plans_and_update_stage(
                 stage_agent=stage_agents[0],
                 actor_agents=actor_agents,
                 llm=create_deepseek_llm(),
             )
 
         # /game pipeline:test1 - 测试流水线1: 观察规划→执行更新循环
-        # 注意: 假设第0帧(story_test)已通过初始化注入stage_agent
+        # 注意: 假设第0帧 已通过初始化注入stage_agent
         case "pipeline:test1":
 
             # 步骤1: 所有角色观察场景并规划行动
@@ -581,7 +499,7 @@ async def handle_game_command(
 
             # 步骤2: 场景执行计划并生成新的状态快照
             # 输出的状态快照将成为下一轮的输入
-            await _handle_stage_execute(
+            await _orchestrate_actor_plans_and_update_stage(
                 stage_agent=stage_agents[0],
                 actor_agents=actor_agents,
                 llm=create_deepseek_llm(),
