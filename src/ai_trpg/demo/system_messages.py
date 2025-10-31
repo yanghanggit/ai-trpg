@@ -95,9 +95,9 @@ def gen_stage_system_message(
 
 你扮演场景 {stage_model.name},实体类型: {Stage.__name__}
 
-## 场景故事
+## 场景设定
 
-{stage_model.narrative}
+{stage_model.profile}
 
 ## 场景环境
 

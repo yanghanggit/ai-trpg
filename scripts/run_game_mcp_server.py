@@ -407,7 +407,7 @@ async def get_entity_resource(entity_name: str) -> str:
                 "actor": actor.model_dump(),
                 "stage": {
                     "name": stage.name,
-                    "narrative": stage.narrative,
+                    "profile": stage.profile,
                     "environment": stage.environment,
                 },
             }

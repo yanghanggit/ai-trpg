@@ -23,7 +23,7 @@ class Stage(BaseModel):
     """表示游戏中场景状态的模型"""
 
     name: str = Field(description="场景名称")
-    narrative: str = Field(description="叙事描述（故事层面）")
+    profile: str = Field(description="场景档案/设定（固定背景故事）")
     environment: str = Field(description="环境描写（感官层面）")
     actors: List[Actor] = Field(description="场景中的角色")
     sub_stages: List["Stage"] = Field(default_factory=list, description="子场景")
