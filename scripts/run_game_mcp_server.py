@@ -30,13 +30,24 @@ import mcp.types as types
 from ai_trpg.mcp import mcp_config
 from fastapi import Request, Response, status
 from ai_trpg.demo.world import test_world
-from typing import Any, Dict
+from typing import Any, Dict, Tuple
 
 
 # 辅助函数！！！
 
 
-def _format_stage_state_to_markdown(stage_name: str, state_data: str) -> str:
+# stage1.narrative = f"""# {stage1.name} 场景状态
+
+# ## 场景内角色
+
+# 加斯科因: 墓地中央,靠近天使雕像, 来回踱步,手中的猎人斧随着他沉重的步伐不时触碰地面,发出金属摩擦的刺耳声响。他时而仰望血月,时而低头凝视地面,像一头困在笼中的野兽。
+# 艾琳: 墓地东侧的枯树的阴影之中 **隐藏** 了起来, 乌鸦羽毛斗篷与夜色完全融为一体，无法被其他人察觉。她一动不动地观察着墓地内的环境，以及猎物——加斯科因。
+# 外乡人: 墓地南侧入口处,距离铁栅栏门约十米,环顾四周，试图弄清楚自己身处何地以及接下来该做什么。"""
+
+
+def _format_stage_state_to_markdown(
+    stage_name: str, state_data: str
+) -> Tuple[str, str]:
     """
     将场景状态数据格式化为Markdown文本
 
@@ -66,15 +77,13 @@ def _format_stage_state_to_markdown(stage_name: str, state_data: str) -> str:
     environment_text = state_dict.get("environment_state", "")
 
     # 使用f-string模板生成Markdown
-    return f"""# {stage_name} 状态
+    actor_state_prompt = f"""# {stage_name}
 
 ## 场景内角色
 
-{actors_text}
+{actors_text}"""
 
-## 场景环境
-
-{environment_text}"""
+    return actor_state_prompt, environment_text
 
 
 def _get_actor_info_impl(actor_name: str) -> str:
@@ -307,16 +316,22 @@ async def sync_stage_state(
             )
 
         # 格式化状态数据为Markdown
-        markdown_text = _format_stage_state_to_markdown(stage_name, state_data)
+        actor_state_prompt, environment_text = _format_stage_state_to_markdown(
+            stage_name, state_data
+        )
 
         # 打印格式化后的Markdown
-        logger.warning(f"\n{markdown_text}")
+        logger.warning(f"{actor_state_prompt}")
+        logger.warning(f"{environment_text}")
+
+        stage.narrative = actor_state_prompt
+        stage.environment = environment_text
 
         return json.dumps(
             {
                 "success": True,
                 "stage_name": stage_name,
-                "formatted": markdown_text,
+                # "formatted": markdown_text,
                 "timestamp": datetime.now().isoformat(),
             },
             ensure_ascii=False,

@@ -54,7 +54,7 @@ stage1 = Stage(
     narrative="",
 )
 
-stage1.narrative = f"""# {stage1.name} 状态
+stage1.narrative = f"""# {stage1.name}
 
 ## 场景内角色
 
