@@ -27,7 +27,7 @@ sys.path.insert(
 from langchain.schema import HumanMessage
 from loguru import logger
 
-from magic_book.deepseek import (
+from ai_trpg.deepseek import (
     ChatState,
     create_chat_workflow,
     execute_chat_workflow,

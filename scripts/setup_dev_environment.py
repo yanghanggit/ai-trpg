@@ -7,25 +7,25 @@ sys.path.insert(
     0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "src")
 )
 from loguru import logger
-from magic_book.mongodb import (
+from ai_trpg.mongodb import (
     mongodb_clear_database,
 )
-from magic_book.pgsql import (
+from ai_trpg.pgsql import (
     pgsql_create_database,
     pgsql_drop_database,
     pgsql_ensure_database_tables,
     postgresql_config,
 )
-from magic_book.redis.client import (
+from ai_trpg.redis.client import (
     redis_flushall,
 )
-from magic_book.chroma import reset_client, get_default_collection
-from magic_book.rag.knowledge_retrieval import (
+from ai_trpg.chroma import reset_client, get_default_collection
+from ai_trpg.rag.knowledge_retrieval import (
     load_knowledge_base_to_vector_db,
     search_similar_documents,
 )
-from magic_book.demo.demo_world import test_knowledge_base
-from magic_book.embedding_model import multilingual_model
+from ai_trpg.demo.demo_world import test_knowledge_base
+from ai_trpg.embedding_model import multilingual_model
 
 
 #######################################################################################################

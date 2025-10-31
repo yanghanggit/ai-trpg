@@ -9,16 +9,16 @@ def test_package_structure() -> None:
     # 基本的包结构测试
     src_path = Path(__file__).parent.parent.parent / "src"
     assert src_path.exists()
-    assert (src_path / "magic_book").exists()
-    assert (src_path / "magic_book" / "__init__.py").exists()
+    assert (src_path / "ai_trpg").exists()
+    assert (src_path / "ai_trpg" / "__init__.py").exists()
 
 
 def test_import_main_package() -> None:
     """Test that the main package can be imported."""
     try:
-        import src.magic_book as magic_book
+        import src.ai_trpg as ai_trpg
 
-        assert magic_book.__version__ == "0.1.0"
+        assert ai_trpg.__version__ == "0.1.0"
     except ImportError as e:
         pytest.skip(f"Package import failed: {e}")
 

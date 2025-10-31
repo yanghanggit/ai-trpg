@@ -1,4 +1,4 @@
-# magic_book
+# ai_trpg
 
 没想好干啥，测试一下mcp?
 

@@ -16,7 +16,7 @@ import time
 from datetime import datetime
 from loguru import logger
 
-from src.magic_book.mongodb import (
+from src.ai_trpg.mongodb import (
     # get_mongodb_database_instance,
     mongodb_count_documents,
     mongodb_create_index,

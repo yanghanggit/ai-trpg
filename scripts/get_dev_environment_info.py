@@ -26,7 +26,7 @@ try:
 except ImportError:
     # Python < 3.8 fallback
     import pkg_resources
-from magic_book.pgsql import (
+from ai_trpg.pgsql import (
     postgresql_config,
 )
 

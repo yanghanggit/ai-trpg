@@ -28,15 +28,15 @@ from langchain.schema import HumanMessage, SystemMessage
 from loguru import logger
 
 
-from magic_book.deepseek import (
+from ai_trpg.deepseek import (
     create_deepseek_llm,
 )
 
-from magic_book.mcp import (
+from ai_trpg.mcp import (
     mcp_config,
 )
 
-from magic_book.demo.demo_world import (
+from ai_trpg.demo.demo_world import (
     demo_world,
     Actor,
     World,
@@ -46,9 +46,9 @@ from magic_book.demo.demo_world import (
     gen_stage_system_message,
 )
 
-from magic_book.utils import parse_command_with_params
-from magic_book.rag.game_retriever import GameDocumentRetriever
-from magic_book.configuration.game import setup_logger
+from ai_trpg.utils import parse_command_with_params
+from ai_trpg.rag.game_retriever import GameDocumentRetriever
+from ai_trpg.configuration.game import setup_logger
 
 # 导入本地工具模块
 from agent_utils import GameAgent, switch_agent

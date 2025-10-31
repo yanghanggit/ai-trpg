@@ -1,5 +1,5 @@
 """
-Authentication module for the magic-book.
+Authentication module for the ai-trpg.
 
 This module provides:
 - Password encryption and verification utilities

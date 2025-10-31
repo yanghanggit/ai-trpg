@@ -13,7 +13,7 @@ from typing import Generator
 import pytest
 from loguru import logger
 
-from src.magic_book.redis.client import (
+from src.ai_trpg.redis.client import (
     redis_set,
     redis_get,
     redis_delete,

@@ -10,9 +10,9 @@ from typing import List, Any
 from loguru import logger
 from langchain_deepseek import ChatDeepSeek
 from pydantic import BaseModel
-from magic_book.deepseek import create_deepseek_llm
-from magic_book.mcp import McpClient, McpToolInfo, McpPromptInfo, McpResourceInfo
-from magic_book.utils.json_format import strip_json_code_block
+from ai_trpg.deepseek import create_deepseek_llm
+from ai_trpg.mcp import McpClient, McpToolInfo, McpPromptInfo, McpResourceInfo
+from ai_trpg.utils.json_format import strip_json_code_block
 from agent_utils import GameAgent
 from workflow_executors import (
     execute_mcp_state_workflow,

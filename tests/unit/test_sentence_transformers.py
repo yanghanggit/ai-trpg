@@ -13,7 +13,7 @@ from typing import List, Callable, Any
 
 # 导入嵌入模型模块
 try:
-    from src.magic_book.embedding_model import (
+    from src.ai_trpg.embedding_model import (
         multilingual_model,
         cache_path,
         is_model_cached,
@@ -407,7 +407,7 @@ if __name__ == "__main__":
             print("1. Loading multilingual model...")
             if USE_EMBEDDING_MODULE:
                 # 直接使用预加载的全局模型实例
-                from src.magic_book.embedding_model import multilingual_model as model
+                from src.ai_trpg.embedding_model import multilingual_model as model
 
                 print("✅ Using pre-loaded multilingual model from module")
             else:

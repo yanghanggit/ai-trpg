@@ -9,7 +9,7 @@ from typing import List
 from langchain.schema import AIMessage, BaseMessage
 from loguru import logger
 
-from magic_book.deepseek import (
+from ai_trpg.deepseek import (
     McpState,
     execute_mcp_workflow,
     ChatState,

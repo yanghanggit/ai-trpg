@@ -27,13 +27,13 @@ sys.path.insert(
 from langchain.schema import HumanMessage
 from loguru import logger
 
-from magic_book.deepseek import (
+from ai_trpg.deepseek import (
     RAGState,
     create_rag_workflow,
     execute_rag_workflow,
     create_deepseek_llm,
 )
-from magic_book.rag.game_retriever import GameDocumentRetriever
+from ai_trpg.rag.game_retriever import GameDocumentRetriever
 
 
 async def main() -> None:

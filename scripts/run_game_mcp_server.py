@@ -27,9 +27,9 @@ from urllib.parse import unquote
 from loguru import logger
 from mcp.server.fastmcp import FastMCP
 import mcp.types as types
-from magic_book.mcp import mcp_config
+from ai_trpg.mcp import mcp_config
 from fastapi import Request, Response, status
-from magic_book.demo.demo_world import demo_world, Stage
+from ai_trpg.demo.demo_world import demo_world, Stage
 from typing import Any, Dict, List
 
 # ============================================================================

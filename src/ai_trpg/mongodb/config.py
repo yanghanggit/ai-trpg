@@ -6,7 +6,7 @@ from pydantic import BaseModel
 class MongoDBConfig(BaseModel):
     host: str = "localhost"
     port: int = 27017
-    database: str = "magic_book"
+    database: str = "ai_trpg"
     # username: str = ""
     # password: str = ""
 

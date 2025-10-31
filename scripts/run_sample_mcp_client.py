@@ -43,13 +43,13 @@ from langchain_deepseek import ChatDeepSeek
 from langgraph.graph.state import CompiledStateGraph
 from loguru import logger
 
-from magic_book.deepseek.mcp_client_graph import (
+from ai_trpg.deepseek.mcp_client_graph import (
     McpState,
     create_mcp_workflow,
     execute_mcp_workflow,
 )
-from magic_book.deepseek.client import create_deepseek_llm
-from magic_book.mcp import (
+from ai_trpg.deepseek.client import create_deepseek_llm
+from ai_trpg.mcp import (
     McpClient,
     McpToolInfo,
     McpPromptInfo,

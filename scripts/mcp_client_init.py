@@ -8,7 +8,7 @@ MCP 客户端初始化模块
 from typing import List
 from loguru import logger
 
-from magic_book.mcp import (
+from ai_trpg.mcp import (
     McpToolInfo,
     McpPromptInfo,
     McpResourceInfo,

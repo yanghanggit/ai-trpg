@@ -14,10 +14,10 @@ from typing import List
 from unittest.mock import AsyncMock, MagicMock, patch
 
 
-from src.magic_book.deepseek.mcp_client_graph import (
+from src.ai_trpg.deepseek.mcp_client_graph import (
     McpState,
 )
-from src.magic_book.mcp import (
+from src.ai_trpg.mcp import (
     McpClient,
     McpToolInfo,
     McpToolResult,
@@ -93,7 +93,7 @@ class TestMcpClient:
     async def test_mcp_client_initialization(self) -> None:
         """测试 MCP 客户端初始化"""
         # Mock the McpClient to avoid real network connections
-        with patch("src.magic_book.mcp.execution.McpClient") as mock_client_class:
+        with patch("src.ai_trpg.mcp.execution.McpClient") as mock_client_class:
             mock_client = AsyncMock()
             mock_client_class.return_value = mock_client
             mock_client.connect.return_value = None

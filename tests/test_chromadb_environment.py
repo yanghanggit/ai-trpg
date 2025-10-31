@@ -184,7 +184,7 @@ class TestChromaDBEnvironment:
             )
 
             # 导入项目的嵌入模型工具
-            from src.magic_book.embedding_model import (
+            from src.ai_trpg.embedding_model import (
                 is_model_cached,
                 cache_path,
             )
@@ -254,7 +254,7 @@ class TestChromaDBEnvironment:
         """测试项目的嵌入模型与ChromaDB集成"""
         try:
             import chromadb
-            from src.magic_book.embedding_model import (
+            from src.ai_trpg.embedding_model import (
                 multilingual_model,
                 cache_path,
                 SENTENCE_TRANSFORMERS_CACHE,

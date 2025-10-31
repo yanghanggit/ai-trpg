@@ -1,3 +1,3 @@
 """
-Source package for magic-book.
+Source package for ai-trpg.
 """

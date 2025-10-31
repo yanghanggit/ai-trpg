@@ -5,7 +5,7 @@ from pydantic import BaseModel
 @final
 class PostgreSQLConfig(BaseModel):
     host: str = "localhost"
-    database: str = "magic-book-db"
+    database: str = "ai-trpg-db"
     user: str = "postgres"
 
     @property

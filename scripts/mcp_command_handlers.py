@@ -10,8 +10,8 @@ import traceback
 from typing import List
 from loguru import logger
 
-from magic_book.mcp import McpToolInfo, McpPromptInfo, McpResourceInfo, McpClient
-from magic_book.utils import parse_command_with_params
+from ai_trpg.mcp import McpToolInfo, McpPromptInfo, McpResourceInfo, McpClient
+from ai_trpg.utils import parse_command_with_params
 
 
 def handle_tools_command(available_tools: List[McpToolInfo]) -> None:

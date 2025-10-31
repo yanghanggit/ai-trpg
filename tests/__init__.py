@@ -1,3 +1,3 @@
 """
-Tests package for magic-book.
+Tests package for ai-trpg.
 """

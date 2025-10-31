@@ -3,7 +3,7 @@ requires = ["setuptools>=61.0", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "magic-book"
+name = "ai-trpg"
 version = "0.1.0"
 description = "A multi-agent game framework based on ECS architecture for TCG games"
 authors = [{name = "Yang Hang", email = "yanghang@example.com"}]
@@ -20,7 +20,7 @@ classifiers = [
     "Topic :: Games/Entertainment",
     "Topic :: Software Development :: Libraries :: Python Modules",
 ]
-urls = {homepage = "https://github.com/yanghanggit/magic-book", repository = "https://github.com/yanghanggit/magic-book.git"}
+urls = {homepage = "https://github.com/yanghanggit/ai-trpg", repository = "https://github.com/yanghanggit/ai-trpg.git"}
 dependencies = [
     # Core web framework and HTTP
     "fastapi>=0.116.1",
@@ -233,6 +233,6 @@ fixable = ["F401", "F402", "F403", "F811", "E401", "I001"]
 
 [tool.ruff.lint.isort]
 # import排序配置
-known-first-party = ["magic_book"]
+known-first-party = ["ai_trpg"]
 
 
