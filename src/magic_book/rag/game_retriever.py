@@ -12,7 +12,7 @@ from loguru import logger
 from ..deepseek import DocumentRetriever
 from ..chroma import get_default_collection
 from .knowledge_retrieval import search_similar_documents
-from ..embedding_model import get_embedding_model
+from ..embedding_model import multilingual_model
 
 
 ############################################################################################################
@@ -55,14 +55,14 @@ class GameDocumentRetriever(DocumentRetriever):
 
         try:
 
-            embedding_model = get_embedding_model()
-            assert embedding_model is not None, "嵌入模型未加载成功"
+            # embedding_model = get_embedding_model()
+            # assert embedding_model is not None, "嵌入模型未加载成功"
 
             # 使用 search_similar_documents 进行语义搜索
             documents, scores = search_similar_documents(
                 query=user_query,
                 collection=get_default_collection(),
-                embedding_model=embedding_model,
+                embedding_model=multilingual_model,
                 top_k=top_k,
             )
 

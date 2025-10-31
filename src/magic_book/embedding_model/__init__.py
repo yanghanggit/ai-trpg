@@ -4,22 +4,18 @@
 提供 SentenceTransformer 模型的加载和管理功能。
 """
 
-from .model_loader import (
-    ModelLoader,
+from .config import (
+    SENTENCE_TRANSFORMERS_CACHE,
+    cache_path,
     is_model_cached,
-    load_basic_model,
-    load_multilingual_model,
-    load_sentence_transformer,
 )
 from .sentence_transformer import (
-    get_embedding_model,
+    multilingual_model,
 )
 
 __all__ = [
-    "ModelLoader",
+    "SENTENCE_TRANSFORMERS_CACHE",
+    "cache_path",
     "is_model_cached",
-    "load_basic_model",
-    "load_multilingual_model",
-    "load_sentence_transformer",
-    "get_embedding_model",
+    "multilingual_model",
 ]

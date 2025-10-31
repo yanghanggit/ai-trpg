@@ -183,21 +183,20 @@ class TestChromaDBEnvironment:
                 SentenceTransformerEmbeddingFunction,
             )
 
-            # 导入项目的模型加载器
-            from src.magic_book.embedding_model.model_loader import (
-                load_sentence_transformer,
+            # 导入项目的嵌入模型工具
+            from src.magic_book.embedding_model import (
                 is_model_cached,
+                cache_path,
             )
+            from sentence_transformers import SentenceTransformer
 
             model_name = "all-MiniLM-L6-v2"
 
             # 检查模型是否已缓存
             if is_model_cached(model_name):
                 print(f"✅ 使用项目缓存的模型: {model_name}")
-                # 使用项目的模型加载器加载模型
-                model = load_sentence_transformer(model_name)
-                if model is None:
-                    pytest.fail(f"无法从缓存加载模型: {model_name}")
+                # 使用缓存路径加载模型
+                model = SentenceTransformer(str(cache_path(model_name)))
                 # 使用已加载的模型创建embedding函数
                 ef = SentenceTransformerEmbeddingFunction(model_name=model_name)
             else:
@@ -252,25 +251,21 @@ class TestChromaDBEnvironment:
             pytest.fail(f"ChromaDB与Sentence Transformers集成测试失败: {e}")
 
     def test_project_model_loader_integration(self) -> None:
-        """测试项目的ModelLoader与ChromaDB集成"""
+        """测试项目的嵌入模型与ChromaDB集成"""
         try:
             import chromadb
-            from src.magic_book.embedding_model.model_loader import (
-                load_multilingual_model,
-                is_model_cached,
-                ModelLoader,
+            from src.magic_book.embedding_model import (
+                multilingual_model,
+                cache_path,
+                SENTENCE_TRANSFORMERS_CACHE,
             )
 
-            # 获取模型加载器
-            loader = ModelLoader()
-            print(f"✅ 模型缓存目录: {loader.cache_dir}")
+            # 显示模型缓存目录
+            print(f"✅ 模型缓存目录: {SENTENCE_TRANSFORMERS_CACHE}")
 
-            # 使用项目的多语言模型加载器
-            model = load_multilingual_model()
-            if model is None:
-                pytest.skip("多语言模型未缓存，请先运行下载脚本")
-
-            print(f"✅ 成功从项目缓存加载多语言模型")
+            # 使用项目的预加载多语言模型
+            model = multilingual_model
+            print(f"✅ 成功使用项目预加载的多语言模型")
 
             # 测试模型编码功能
             test_texts = ["这是测试文本", "another test text"]
@@ -319,7 +314,7 @@ class TestChromaDBEnvironment:
                 assert results["documents"] is not None
                 assert len(results["documents"]) > 0
                 assert len(results["documents"][0]) > 0
-                print("✅ 项目ModelLoader与ChromaDB集成测试成功")
+                print("✅ 项目嵌入模型与ChromaDB集成测试成功")
 
             finally:
                 # 清理测试集合
@@ -329,9 +324,9 @@ class TestChromaDBEnvironment:
                     pass
 
         except ImportError as e:
-            pytest.skip(f"无法导入项目模型加载器: {e}")
+            pytest.skip(f"无法导入项目嵌入模型: {e}")
         except Exception as e:
-            pytest.fail(f"项目ModelLoader集成测试失败: {e}")
+            pytest.fail(f"项目嵌入模型集成测试失败: {e}")
 
 
 class TestChromaDBPerformance:

@@ -25,7 +25,7 @@ from magic_book.rag.knowledge_retrieval import (
     search_similar_documents,
 )
 from magic_book.demo.demo_world import test_knowledge_base
-from magic_book.embedding_model import get_embedding_model
+from magic_book.embedding_model import multilingual_model
 
 
 #######################################################################################################
@@ -36,8 +36,8 @@ def _test_chromadb_search() -> None:
     """
     logger.info("🔍 开始测试向量检索功能...")
 
-    embedding_model = get_embedding_model()
-    assert embedding_model is not None, "嵌入模型未加载成功"
+    # embedding_model = get_embedding_model()
+    # assert embedding_model is not None, "嵌入模型未加载成功"
 
     # 测试查询列表
     test_queries = [
@@ -53,7 +53,7 @@ def _test_chromadb_search() -> None:
         documents, scores = search_similar_documents(
             query=query,
             collection=get_default_collection(),
-            embedding_model=embedding_model,
+            embedding_model=multilingual_model,
             top_k=3,
         )
 
@@ -84,14 +84,14 @@ def _setup_chromadb() -> None:
 
         # 获取ChromaDB客户端和嵌入模型
         # logger.info("📦 获取ChromaDB客户端和嵌入模型...")
-        embedding_model = get_embedding_model()
-        assert embedding_model is not None, "嵌入模型未加载成功"
+        # embedding_model = get_embedding_model()
+        # assert embedding_model is not None, "嵌入模型未加载成功"
 
         # 加载测试知识库数据到向量数据库
         # logger.info("🔄 加载测试知识库到向量数据库...")
         success = load_knowledge_base_to_vector_db(
             knowledge_base=test_knowledge_base,
-            embedding_model=embedding_model,
+            embedding_model=multilingual_model,
             collection=get_default_collection(),
         )
 
