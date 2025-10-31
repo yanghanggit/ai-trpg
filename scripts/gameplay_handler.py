@@ -120,7 +120,7 @@ async def _handle_stage_update(
 ########################################################################################################################
 async def _handle_single_actor_observe_and_plan(
     actor_agent: GameAgent,
-    latest_stage_message: str,
+    # latest_stage_message: str,
     llm: ChatDeepSeek,
 ) -> None:
     """处理单个角色的观察和行动规划
@@ -135,14 +135,14 @@ async def _handle_single_actor_observe_and_plan(
     """
     logger.warning(f"角色观察并规划: {actor_agent.name}")
 
+    #     ## 最新场景快照
+
+    # {latest_stage_message}
+
     # JSON格式的提示词
     observe_and_plan_prompt = f"""# 场景观察与行动规划
 
-## 最新场景快照
-
-{latest_stage_message}
-
-请完成以下两个任务：
+## 请完成以下两个任务：
 
 ### 任务1: 观察场景
 
@@ -228,7 +228,7 @@ async def _handle_all_actors_observe_and_plan(
         llm: DeepSeek LLM 实例
         use_concurrency: 是否使用并行处理，默认False（顺序执行）
     """
-    latest_stage_message = stage_agent.chat_history[-1].content
+    # latest_stage_message = stage_agent.chat_history[-1].content
 
     if use_concurrency:
         # 并行处理所有角色
@@ -236,7 +236,7 @@ async def _handle_all_actors_observe_and_plan(
         tasks = [
             _handle_single_actor_observe_and_plan(
                 actor_agent=actor_agent,
-                latest_stage_message=str(latest_stage_message),
+                # latest_stage_message=str(latest_stage_message),
                 llm=llm,
             )
             for actor_agent in actor_agents
@@ -248,7 +248,7 @@ async def _handle_all_actors_observe_and_plan(
         for actor_agent in actor_agents:
             await _handle_single_actor_observe_and_plan(
                 actor_agent=actor_agent,
-                latest_stage_message=str(latest_stage_message),
+                # latest_stage_message=str(latest_stage_message),
                 llm=llm,
             )
 
@@ -361,15 +361,67 @@ async def _handle_stage_execute(
         [f"**{plan.actor_name}**: {plan.plan}" for plan in actor_plans]
     )
 
-    stage_execute_prompt = f"""# 场景行动执行
+    stage_execute_prompt = f"""# 场景行动执行与状态更新
 
 ## 角色计划
 
 {plans_text}
 
-将上述计划转化为第三人称全知视角的场景执行描述:按时间顺序叙述各角色行动的实际过程、互动效果、环境变化。如有冲突需合理描述结果。
+## 任务要求
 
-**输出**(200字内): 生动具体的完整自然段,展现执行效果而非重复计划。"""
+请在一次输出中完成以下两部分内容：
+
+### 第一部分：场景执行描述（叙事层）
+
+将上述计划转化为第三人称全知视角的场景执行描述：按时间顺序叙述各角色行动的实际过程、互动效果、环境变化。如有冲突需合理描述结果。
+
+**要求**：生动具体的完整自然段，展现执行效果而非重复计划。
+
+---
+
+### 第二部分：场景状态快照（数据层）
+
+基于刚刚发生的行动执行，生成当前的**最终状态快照**。
+
+#### 角色状态
+
+逐个描述每个角色的当前状态：
+
+- **角色名**：当前位置（相对地标/方位/距离） | 当前姿态 | 状态（如隐藏则标注【隐藏】，否则留空）
+
+#### 环境状态
+
+**关键要求**：基于场景的原始环境描述（environment），生成执行后的**完整环境快照**。
+
+- 参考原始环境描述的结构和要素
+- 保持未变化的部分不变
+- 更新有变化的部分（如：墓碑被破坏、地面有新痕迹、雾气扰动等）
+- 添加新增的感官元素（如：硝烟味、新的声音等）
+- 输出完整的环境描述段落，就像重新书写 environment 字段
+
+**格式要求**：
+
+```
+## 场景执行
+
+[生动叙事描述]
+
+---
+
+## 状态快照
+
+### 角色状态
+
+- **角色A**：[位置 | 姿态 | 状态]
+- **角色B**：[位置 | 姿态 | 状态]
+- **角色C**：[位置 | 姿态 | 状态]
+
+### 环境状态
+
+[完整的环境描述段落，要将变化部分纳入更新与体现]
+```
+
+**重要**：环境状态是完整的绝对描述，不是增量变化。这是下一轮场景更新的起点。"""
 
     # 执行 Chat 工作流
     stage_execution_response = await execute_chat_state_workflow(
@@ -457,16 +509,11 @@ async def handle_game_command(
                 llm=create_deepseek_llm(),
             )
 
-        # /game pipeline:test1 - 测试流水线1: 刷新场景后让角色观察
+        # /game pipeline:test1 - 测试流水线1: 观察规划→执行更新循环
+        # 注意: 假设第0帧(story_test)已通过初始化注入stage_agent
         case "pipeline:test1":
 
-            await _handle_stage_update(
-                stage_agent=stage_agents[0],
-                llm=create_deepseek_llm(),
-                mcp_client=mcp_client,
-                available_tools=available_tools,
-            )
-
+            # 步骤1: 所有角色观察场景并规划行动
             await _handle_all_actors_observe_and_plan(
                 actor_agents=actor_agents,
                 stage_agent=stage_agents[0],
@@ -474,6 +521,8 @@ async def handle_game_command(
                 use_concurrency=True,
             )
 
+            # 步骤2: 场景执行计划并生成新的状态快照
+            # 输出的状态快照将成为下一轮的输入
             await _handle_stage_execute(
                 stage_agent=stage_agents[0],
                 actor_agents=actor_agents,
