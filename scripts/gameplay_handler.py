@@ -16,6 +16,7 @@ from ai_trpg.utils.json_format import strip_json_code_block
 from agent_utils import GameAgent
 from workflow_executors import (
     execute_chat_state_workflow,
+    execute_mcp_state_workflow,
 )
 from langchain.schema import HumanMessage, AIMessage
 
@@ -80,7 +81,8 @@ class StageExecutionResult(BaseModel):
 ########################################################################################################################
 async def _handle_single_actor_observe_and_plan(
     actor_agent: GameAgent,
-    llm: ChatDeepSeek,
+    mcp_client: McpClient,
+    available_tools: List[McpToolInfo],
 ) -> None:
     """处理单个角色的观察和行动规划
 
@@ -94,45 +96,122 @@ async def _handle_single_actor_observe_and_plan(
     """
     logger.warning(f"角色观察并规划: {actor_agent.name}")
 
-    # JSON格式的提示词
-    observe_and_plan_prompt = f"""# 场景观察与行动规划
+    # JSON格式的提示词 - 三步骤流程（强制工具调用版本）
+    observe_and_plan_prompt = f"""# 角色场景观察与行动规划（三步骤流程）
 
-## 请完成以下两个任务：
+## ⚠️ 关键要求：必须先调用工具！
 
-### 任务1: 观察场景
-
-从你的第一人称视角观察并描述场景：你看到、听到、感受到什么？场景中有谁在做什么？你的情绪反应？
-
-**隐藏规则**: 标注"隐藏/藏身/纹丝不动/无法被察觉"的角色对你来讲不存在（即使场景描述中提到），你不得以任何形式提及或暗示。
-
-### 任务2: 规划行动
-
-基于你的观察，规划下一步行动。可选类型：移动/交流/观察/互动/隐藏/其他。
+**在进行任何观察和规划之前，你必须先调用工具 `get_actor_info` 获取你的角色信息。**
 
 ---
 
-**输出格式**：
+## 步骤1：查询角色信息【强制执行，不可跳过】
 
-必须且只能返回JSON代码块格式，示例：
+**操作要求**：立即调用工具 `get_actor_info`，参数为 `actor_name: "{actor_agent.name}"`
 
+**工具调用格式示例**：
 ```json
 {{
-    "observation": "你的观察内容（第一人称'我'，约70字，符合角色设定）",
-    "plan": "你的行动计划（第一人称'我'，约80字，具体描述行动、对象和目的）"
+  "tool_call": {{
+    "name": "get_actor_info",
+    "arguments": {{
+      "actor_name": "{actor_agent.name}"
+    }}
+  }}
 }}
 ```
 
-**重要**: 只输出JSON代码块，不要有其他文本。"""
+**目的**：获取你当前的状态（生命值、攻击力等属性），这是后续观察和规划的基础。
+
+**重要**：必须等待工具执行完成后，才能进行步骤2和步骤3。
+
+---
+
+## 步骤2：场景观察（基于步骤1的工具结果）
+
+**前提**：已从步骤1的工具结果中获得你的角色属性信息。
+
+**任务**：从第一人称视角（"我"）观察并描述当前场景。
+
+**内容要求**：
+- 你看到什么？（视觉：环境、物体、其他角色的位置和行为）
+- 你听到什么？（听觉：声音、对话、环境音）
+- 你感受到什么？（触觉、嗅觉、情绪反应）
+- **结合你从工具获取的角色属性（生命值、攻击力），评估当前状况**
+
+**隐藏规则**：标注为"隐藏/藏身/纹丝不动/无法被察觉"的角色对你不可见，你不得以任何形式提及或暗示其存在。
+
+**字数**：约70字，符合你的角色设定和性格。
+
+---
+
+## 步骤3：行动规划（基于步骤2的观察）
+
+**前提**：已完成场景观察。
+
+**任务**：基于你的观察，规划下一步具体行动。
+
+**行动类型**：移动/交流/观察/互动/隐藏/战斗/其他
+
+**内容要求**：
+- 具体说明要做什么（动作）
+- 针对谁或什么（对象）
+- 为什么这样做（目的）
+- **结合你从工具获取的角色属性（生命值、攻击力等）考虑行动的可行性**
+
+**字数**：约80字，第一人称（"我"），具体且可执行。
+
+---
+
+## 最终输出格式
+
+工具执行完成后，基于工具返回的角色信息，输出以下JSON代码块：
+
+```json
+{{
+    "observation": "你在步骤2中的观察内容（第一人称'我'，约70字，需体现你从工具获得的属性信息）",
+    "plan": "你在步骤3中的行动计划（第一人称'我'，约80字，需考虑你的角色属性）"
+}}
+```
+
+**执行流程总结**：
+1. ✅ 先调用 `get_actor_info` 工具（必须）
+2. ✅ 等待工具返回你的角色信息
+3. ✅ 基于工具结果进行观察（步骤2）
+4. ✅ 基于观察制定计划（步骤3）
+5. ✅ 输出最终JSON（包含步骤2和步骤3的结果）
+
+**严禁**：在没有调用工具的情况下直接输出JSON！"""
 
     # 执行聊天工作流
-    actors_observe_and_plan_response = await execute_chat_state_workflow(
-        request={
-            "messages": [HumanMessage(content=observe_and_plan_prompt)],
-            "llm": llm,
-        },
+    # actors_observe_and_plan_response = await execute_chat_state_workflow(
+    #     request={
+    #         "messages": [HumanMessage(content=observe_and_plan_prompt)],
+    #         "llm": llm,
+    #     },
+    #     context={
+    #         "messages": actor_agent.chat_history.copy(),
+    #         "llm": llm,
+    #     },
+    # )
+
+    # 测试！
+    # observe_and_plan_prompt = f"""使用工具'get_actor_info' 获取你的Actor的信息，然后输出你有多少个生命值"""
+
+    actors_observe_and_plan_response = await execute_mcp_state_workflow(
         context={
             "messages": actor_agent.chat_history.copy(),
-            "llm": llm,
+            "llm": create_deepseek_llm(),
+            "mcp_client": mcp_client,
+            "available_tools": available_tools,
+            "tool_outputs": [],
+        },
+        request={
+            "messages": [HumanMessage(content=observe_and_plan_prompt)],
+            "llm": create_deepseek_llm(),
+            "mcp_client": mcp_client,
+            "available_tools": available_tools,
+            "tool_outputs": [],
         },
     )
 
@@ -168,8 +247,10 @@ async def _handle_single_actor_observe_and_plan(
 ########################################################################################################################
 async def _handle_all_actors_observe_and_plan(
     actor_agents: List[GameAgent],
-    stage_agent: GameAgent,
-    llm: ChatDeepSeek,
+    # stage_agent: GameAgent,
+    # llm: ChatDeepSeek,
+    mcp_client: McpClient,
+    available_tools: List[McpToolInfo],
     use_concurrency: bool = False,
 ) -> None:
     """处理所有角色的观察和行动规划（合并版本，JSON输出）
@@ -190,7 +271,9 @@ async def _handle_all_actors_observe_and_plan(
         tasks = [
             _handle_single_actor_observe_and_plan(
                 actor_agent=actor_agent,
-                llm=llm,
+                mcp_client=mcp_client,
+                available_tools=available_tools,
+                # llm=llm,
             )
             for actor_agent in actor_agents
         ]
@@ -201,7 +284,9 @@ async def _handle_all_actors_observe_and_plan(
         for actor_agent in actor_agents:
             await _handle_single_actor_observe_and_plan(
                 actor_agent=actor_agent,
-                llm=llm,
+                mcp_client=mcp_client,
+                available_tools=available_tools,
+                # llm=llm,
             )
 
 
@@ -471,8 +556,10 @@ async def handle_game_command(
         case "all_actors:observe_and_plan":
             await _handle_all_actors_observe_and_plan(
                 actor_agents=actor_agents,
-                stage_agent=stage_agents[0],
-                llm=create_deepseek_llm(),
+                # stage_agent=stage_agents[0],
+                # llm=create_deepseek_llm(),
+                mcp_client=mcp_client,
+                available_tools=available_tools,
                 use_concurrency=True,
             )
 
@@ -492,8 +579,10 @@ async def handle_game_command(
             # 步骤1: 所有角色观察场景并规划行动
             await _handle_all_actors_observe_and_plan(
                 actor_agents=actor_agents,
-                stage_agent=stage_agents[0],
-                llm=create_deepseek_llm(),
+                # stage_agent=stage_agents[0],
+                # llm=create_deepseek_llm(),
+                mcp_client=mcp_client,
+                available_tools=available_tools,
                 use_concurrency=True,
             )
 

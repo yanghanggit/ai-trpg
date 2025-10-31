@@ -280,15 +280,15 @@ async def main() -> None:
 
                 # mcp 的工作流
                 mcp_response = await execute_mcp_state_workflow(
-                    request={
-                        "messages": [HumanMessage(content=format_user_input)],
+                    context={
+                        "messages": current_agent.chat_history.copy(),
                         "llm": create_deepseek_llm(),
                         "mcp_client": mcp_client,
                         "available_tools": available_tools,
                         "tool_outputs": [],
                     },
-                    context={
-                        "messages": current_agent.chat_history.copy(),
+                    request={
+                        "messages": [HumanMessage(content=format_user_input)],
                         "llm": create_deepseek_llm(),
                         "mcp_client": mcp_client,
                         "available_tools": available_tools,
