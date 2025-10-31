@@ -33,6 +33,51 @@ from ai_trpg.demo.world import test_world
 from ai_trpg.demo.models import Stage
 from typing import Any, Dict, List
 
+
+# 辅助函数！！！
+
+
+def _format_stage_state_to_markdown(stage_name: str, state_data: str) -> str:
+    """
+    将场景状态数据格式化为Markdown文本
+
+    Args:
+        stage_name: 场景名称
+        state_data: 场景状态的JSON字符串
+
+    Returns:
+        格式化后的Markdown文本
+    """
+    state_dict: Dict[str, Any] = json.loads(state_data)
+
+    # 准备角色状态文本
+    actor_lines = []
+    for actor_state in state_dict.get("actor_states", []):
+        actor_name = actor_state.get("actor_name", "未知")
+        location = actor_state.get("location", "未知位置")
+        posture = actor_state.get("posture", "未知姿态")
+        status = actor_state.get("status", "")
+
+        line = f"**{actor_name}**: {location} | {posture}"
+        if status:
+            line += f" | {status}"
+        actor_lines.append(line)
+
+    actors_text = "\n".join(actor_lines)
+    environment_text = state_dict.get("environment_state", "")
+
+    # 使用f-string模板生成Markdown
+    return f"""# {stage_name} 状态
+
+## 场景内角色
+
+{actors_text}
+
+## 场景环境
+
+{environment_text}"""
+
+
 # ============================================================================
 # 创建 FastMCP 应用实例
 # ============================================================================
@@ -243,6 +288,58 @@ async def get_actor_info(actor_name: str) -> str:
             },
             ensure_ascii=False,
             indent=2,
+        )
+
+
+@app.tool()
+async def sync_stage_state(
+    stage_name: str,
+    state_data: str,
+) -> str:
+    """
+    同步场景状态数据到MCP Server
+
+    接收场景状态的JSON数据并记录。
+
+    Args:
+        stage_name: 场景名称
+        state_data: 场景状态的JSON字符串
+
+    Returns:
+        同步操作的结果（JSON格式）
+    """
+    try:
+        # 验证Stage存在
+        stage = test_world.find_stage(stage_name)
+        if not stage:
+            error_msg = f"错误：未找到名为 '{stage_name}' 的Stage"
+            logger.warning(error_msg)
+            return json.dumps(
+                {"success": False, "error": error_msg},
+                ensure_ascii=False,
+            )
+
+        # 格式化状态数据为Markdown
+        markdown_text = _format_stage_state_to_markdown(stage_name, state_data)
+
+        # 打印格式化后的Markdown
+        logger.warning(f"\n{markdown_text}")
+
+        return json.dumps(
+            {
+                "success": True,
+                "stage_name": stage_name,
+                "formatted": markdown_text,
+                "timestamp": datetime.now().isoformat(),
+            },
+            ensure_ascii=False,
+        )
+
+    except Exception as e:
+        logger.error(f"同步失败: {e}")
+        return json.dumps(
+            {"success": False, "error": str(e)},
+            ensure_ascii=False,
         )
 
 

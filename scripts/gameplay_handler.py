@@ -8,7 +8,6 @@
 import asyncio
 from typing import List
 from loguru import logger
-from langchain_deepseek import ChatDeepSeek
 from pydantic import BaseModel
 from ai_trpg.deepseek import create_deepseek_llm
 from ai_trpg.mcp import McpClient, McpToolInfo, McpPromptInfo, McpResourceInfo
@@ -330,7 +329,8 @@ def _notify_actors_with_execution_result(
 async def _orchestrate_actor_plans_and_update_stage(
     stage_agent: GameAgent,
     actor_agents: List[GameAgent],
-    llm: ChatDeepSeek,
+    mcp_client: McpClient,
+    available_tools: List[McpToolInfo],
 ) -> None:
     """处理场景执行指令
 
@@ -394,12 +394,14 @@ async def _orchestrate_actor_plans_and_update_stage(
 ```
 
 **重要**：
+
 1. 只输出JSON代码块，不要有其他文本
 2. narrative字段：生动叙事，展现执行过程
 3. actor_states数组：必须包含所有角色的状态
 4. environment_state字段：完整的环境快照，是下一轮场景更新的起点
 
 **环境状态更新原则**：
+
 - 第一轮：参考系统消息中的初始环境描述
 - 后续轮次：从对话历史中找到上一次的environment_state，以此为基准更新
 - 保持未变化部分，更新有变化部分，添加新增感官元素
@@ -409,11 +411,11 @@ async def _orchestrate_actor_plans_and_update_stage(
     stage_execution_response = await execute_chat_state_workflow(
         request={
             "messages": [HumanMessage(content=stage_execute_prompt)],
-            "llm": llm,
+            "llm": create_deepseek_llm(),
         },
         context={
             "messages": stage_agent.chat_history.copy(),
-            "llm": llm,
+            "llm": create_deepseek_llm(),
         },
     )
 
@@ -458,6 +460,15 @@ async def _orchestrate_actor_plans_and_update_stage(
 
         # 将场景执行结果通知给所有角色代理
         _notify_actors_with_execution_result(actor_agents, formatted_data)
+
+        # 随便测试下调用 MCP 同步场景状态工具
+        await mcp_client.call_tool(
+            "sync_stage_state",
+            {
+                "stage_name": stage_agent.name,
+                "state_data": json_str,  # 参数名也改了
+            },
+        )
 
     except Exception as e:
         logger.error(f"JSON解析错误: {e}")
@@ -516,7 +527,8 @@ async def handle_game_command(
             await _orchestrate_actor_plans_and_update_stage(
                 stage_agent=stage_agents[0],
                 actor_agents=actor_agents,
-                llm=create_deepseek_llm(),
+                mcp_client=mcp_client,
+                available_tools=available_tools,
             )
 
         # /game pipeline:test1 - 测试流水线1: 观察规划→执行更新循环
@@ -536,5 +548,6 @@ async def handle_game_command(
             await _orchestrate_actor_plans_and_update_stage(
                 stage_agent=stage_agents[0],
                 actor_agents=actor_agents,
-                llm=create_deepseek_llm(),
+                mcp_client=mcp_client,
+                available_tools=available_tools,
             )
