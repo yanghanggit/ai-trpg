@@ -96,14 +96,14 @@ async def _handle_single_actor_observe_and_plan(
     """
     logger.warning(f"角色观察并规划: {actor_agent.name}")
 
-    # JSON格式的提示词 - 优化版三步骤流程
     observe_and_plan_prompt = f"""# 角色观察与行动规划
 
-## ⚠️ 第一步：调用工具（必须执行）
+## ⚠️ 第一步：获取角色信息（必须执行）
 
-立即调用 `get_actor_info`，参数 `actor_name: "{actor_agent.name}"`
+**你必须先使用工具获取你自己的Actor信息**
 
-- 获取你的角色属性（生命值、攻击力等）
+- 查看可用工具列表，选择合适的工具获取Actor信息
+- 获取你的角色属性
 - 这是后续步骤的基础数据
 - 必须等待工具返回结果
 
@@ -147,7 +147,7 @@ async def _handle_single_actor_observe_and_plan(
 }}
 ```
 
-**流程**：调用工具 → 等待结果 → 观察场景 → 规划行动 → 输出JSON
+**流程**：使用工具获取Actor信息 → 等待结果 → 观察场景 → 规划行动 → 输出JSON
 
 **严禁**：未调用工具直接输出JSON！"""
 
@@ -200,8 +200,6 @@ async def _handle_single_actor_observe_and_plan(
 ########################################################################################################################
 async def _handle_all_actors_observe_and_plan(
     actor_agents: List[GameAgent],
-    # stage_agent: GameAgent,
-    # llm: ChatDeepSeek,
     mcp_client: McpClient,
     available_tools: List[McpToolInfo],
     use_concurrency: bool = False,
@@ -226,7 +224,6 @@ async def _handle_all_actors_observe_and_plan(
                 actor_agent=actor_agent,
                 mcp_client=mcp_client,
                 available_tools=available_tools,
-                # llm=llm,
             )
             for actor_agent in actor_agents
         ]
@@ -239,7 +236,6 @@ async def _handle_all_actors_observe_and_plan(
                 actor_agent=actor_agent,
                 mcp_client=mcp_client,
                 available_tools=available_tools,
-                # llm=llm,
             )
 
 
@@ -509,8 +505,6 @@ async def handle_game_command(
         case "all_actors:observe_and_plan":
             await _handle_all_actors_observe_and_plan(
                 actor_agents=actor_agents,
-                # stage_agent=stage_agents[0],
-                # llm=create_deepseek_llm(),
                 mcp_client=mcp_client,
                 available_tools=available_tools,
                 use_concurrency=True,
@@ -532,8 +526,6 @@ async def handle_game_command(
             # 步骤1: 所有角色观察场景并规划行动
             await _handle_all_actors_observe_and_plan(
                 actor_agents=actor_agents,
-                # stage_agent=stage_agents[0],
-                # llm=create_deepseek_llm(),
                 mcp_client=mcp_client,
                 available_tools=available_tools,
                 use_concurrency=True,
