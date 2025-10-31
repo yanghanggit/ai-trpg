@@ -29,7 +29,8 @@ from mcp.server.fastmcp import FastMCP
 import mcp.types as types
 from ai_trpg.mcp import mcp_config
 from fastapi import Request, Response, status
-from ai_trpg.demo.demo_world import demo_world, Stage
+from ai_trpg.demo.world import test_world
+from ai_trpg.demo.models import Stage
 from typing import Any, Dict, List
 
 # ============================================================================
@@ -103,8 +104,8 @@ async def get_world_info() -> str:
         World的完整JSON数据，包含所有场景和角色的嵌套信息
     """
     try:
-        logger.info(f"获取World数据: {demo_world.name}")
-        return demo_world.model_dump_json(indent=2, ensure_ascii=False)
+        logger.info(f"获取World数据: {test_world.name}")
+        return test_world.model_dump_json(indent=2, ensure_ascii=False)
     except Exception as e:
         logger.error(f"获取World信息失败: {e}")
         return json.dumps(
@@ -130,7 +131,7 @@ async def get_stage_info(stage_name: str) -> str:
         以及场景中角色的简要信息（仅包含角色名称和外观描述，不包含档案和已知角色列表）
     """
     try:
-        stage = demo_world.find_stage(stage_name)
+        stage = test_world.find_stage(stage_name)
         if stage:
             logger.info(f"获取Stage数据: {stage_name}")
 
@@ -214,7 +215,7 @@ async def get_actor_info(actor_name: str) -> str:
         以及其所在Stage的部分信息（场景名称和环境描写）
     """
     try:
-        actor, stage = demo_world.find_actor_with_stage(actor_name)
+        actor, stage = test_world.find_actor_with_stage(actor_name)
         if actor and stage:
             logger.info(f"获取Actor数据: {actor_name}, 所在Stage: {stage.name}")
 
@@ -263,7 +264,7 @@ async def move_actor(actor_name: str, target_stage_name: str) -> str:
     """
     try:
         # 查找Actor当前所在的Stage
-        actor, current_stage = demo_world.find_actor_with_stage(actor_name)
+        actor, current_stage = test_world.find_actor_with_stage(actor_name)
         if not current_stage or not actor:
             error_msg = f"错误：未找到名为 '{actor_name}' 的Actor"
             logger.warning(error_msg)
@@ -278,7 +279,7 @@ async def move_actor(actor_name: str, target_stage_name: str) -> str:
             )
 
         # 查找目标Stage
-        target_stage = demo_world.find_stage(target_stage_name)
+        target_stage = test_world.find_stage(target_stage_name)
         if not target_stage:
             error_msg = f"错误：未找到名为 '{target_stage_name}' 的目标Stage"
             logger.warning(error_msg)
@@ -389,18 +390,18 @@ async def get_entity_resource(entity_name: str) -> str:
 
     try:
         # 检查是否是World
-        if decoded_entity_name == demo_world.name:
+        if decoded_entity_name == test_world.name:
             logger.info(f"获取World数据: {decoded_entity_name}")
-            return demo_world.model_dump_json(indent=2, ensure_ascii=False)
+            return test_world.model_dump_json(indent=2, ensure_ascii=False)
 
         # 尝试查找Stage
-        stage = demo_world.find_stage(decoded_entity_name)
+        stage = test_world.find_stage(decoded_entity_name)
         if stage:
             logger.info(f"获取Stage数据: {decoded_entity_name}")
             return stage.model_dump_json(indent=2, ensure_ascii=False)
 
         # 尝试查找Actor
-        actor, stage = demo_world.find_actor_with_stage(decoded_entity_name)
+        actor, stage = test_world.find_actor_with_stage(decoded_entity_name)
         if actor and stage:
             logger.info(
                 f"获取Actor数据: {decoded_entity_name}, 所在Stage: {stage.name}"

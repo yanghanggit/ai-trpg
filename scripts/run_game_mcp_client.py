@@ -36,11 +36,14 @@ from ai_trpg.mcp import (
     mcp_config,
 )
 
-from ai_trpg.demo.demo_world import (
-    demo_world,
-    Actor,
+from ai_trpg.demo.world import (
+    test_world,
+)
+from ai_trpg.demo import (
     World,
+    Actor,
     Stage,
+    GLOBAL_GAME_MECHANICS,
     gen_world_system_message,
     gen_actor_system_message,
     gen_stage_system_message,
@@ -72,16 +75,20 @@ from gameplay_handler import handle_game_command
 ########################################################################################################################
 # 创建游戏角色代理
 world_agent: Final[GameAgent] = GameAgent(
-    name=demo_world.name,
+    name=test_world.name,
     type=World.__name__,
-    chat_history=[SystemMessage(content=gen_world_system_message(demo_world))],
+    chat_history=[
+        SystemMessage(
+            content=gen_world_system_message(test_world, GLOBAL_GAME_MECHANICS)
+        )
+    ],
 )
 
 # 获取游戏世界中的所有角色
-all_actors = demo_world.get_all_actors()
+all_actors = test_world.get_all_actors()
 logger.info(f"游戏世界中的所有角色: {[actor.name for actor in all_actors]}")
 
-all_stages = demo_world.get_all_stages()
+all_stages = test_world.get_all_stages()
 logger.info(f"游戏世界中的所有场景: {[stage.name for stage in all_stages]}")
 
 # 创建每个角色的代理
@@ -91,7 +98,11 @@ for actor in all_actors:
         name=actor.name,
         type=Actor.__name__,
         chat_history=[
-            SystemMessage(content=gen_actor_system_message(actor, demo_world))
+            SystemMessage(
+                content=gen_actor_system_message(
+                    actor, test_world, GLOBAL_GAME_MECHANICS
+                )
+            )
         ],
     )
     actor_agents.append(agent)
@@ -102,7 +113,11 @@ for stage in all_stages:
         name=stage.name,
         type=Stage.__name__,
         chat_history=[
-            SystemMessage(content=gen_stage_system_message(stage, demo_world))
+            SystemMessage(
+                content=gen_stage_system_message(
+                    stage, test_world, GLOBAL_GAME_MECHANICS
+                )
+            )
         ],
     )
     stage_agents.append(agent)
