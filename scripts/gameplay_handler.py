@@ -15,7 +15,6 @@ from ai_trpg.mcp import McpClient, McpToolInfo, McpPromptInfo, McpResourceInfo
 from ai_trpg.utils.json_format import strip_json_code_block
 from agent_utils import GameAgent
 from workflow_executors import (
-    execute_mcp_state_workflow,
     execute_chat_state_workflow,
 )
 from langchain.schema import HumanMessage, AIMessage
@@ -50,69 +49,69 @@ class ActorPlan(BaseModel):
 ########################################################################################################################
 ########################################################################################################################
 ########################################################################################################################
-async def _handle_stage_update(
-    stage_agent: GameAgent,
-    llm: ChatDeepSeek,
-    mcp_client: McpClient,
-    available_tools: List[McpToolInfo],
-) -> None:
-    """处理场景刷新指令
+# async def _handle_stage_update(
+#     stage_agent: GameAgent,
+#     llm: ChatDeepSeek,
+#     mcp_client: McpClient,
+#     available_tools: List[McpToolInfo],
+# ) -> None:
+#     """处理场景刷新指令
 
-    遍历所有场景代理,更新它们的故事描述与环境描述。
+#     遍历所有场景代理,更新它们的故事描述与环境描述。
 
-    Args:
-        stage_agents: 场景代理列表
-        current_agent: 当前激活的代理
-        llm: DeepSeek LLM 实例
-        mcp_client: MCP 客户端实例
-        available_tools: 可用的工具列表
-        mcp_workflow: MCP 工作流状态图
-    """
+#     Args:
+#         stage_agents: 场景代理列表
+#         current_agent: 当前激活的代理
+#         llm: DeepSeek LLM 实例
+#         mcp_client: MCP 客户端实例
+#         available_tools: 可用的工具列表
+#         mcp_workflow: MCP 工作流状态图
+#     """
 
-    logger.info(f"🔄 更新场景代理: {stage_agent.name}")
+#     logger.info(f"🔄 更新场景代理: {stage_agent.name}")
 
-    stage_update_prompt = """# 场景状态更新任务
+#     stage_update_prompt = """# 场景状态更新任务
 
-## 核心要求
+# ## 核心要求
 
-查询所有角色的当前状态,生成客观的场景快照描述。
+# 查询所有角色的当前状态,生成客观的场景快照描述。
 
-## 重要约束
+# ## 重要约束
 
-- **避免重复**: 不要重复历史记录中的内容,专注于描述当前最新状态
-- **禁止重复上一次"场景行动执行"的内容**
+# - **避免重复**: 不要重复历史记录中的内容,专注于描述当前最新状态
+# - **禁止重复上一次"场景行动执行"的内容**
 
-## 内容要求
+# ## 内容要求
 
-**必须包含**: 角色位置(方位/距离) | 外显动作(站立/移动/静止) | 隐藏状态标注【隐藏】 | 环境感官(光线/声音/气味)
+# **必须包含**: 角色位置(方位/距离) | 外显动作(站立/移动/静止) | 隐藏状态标注【隐藏】 | 环境感官(光线/声音/气味)
 
-**严格禁止**: ❌ 推断意图/目的/情绪 | ❌ 使用"似乎/打算/准备/试图/可能"等暗示词 | ❌ 主观解读
+# **严格禁止**: ❌ 推断意图/目的/情绪 | ❌ 使用"似乎/打算/准备/试图/可能"等暗示词 | ❌ 主观解读
 
-## 输出规范
+# ## 输出规范
 
-第三人称全知视角 | 150字内 | 只写"是什么"不写"将做什么" | 客观简洁具体"""
+# 第三人称全知视角 | 150字内 | 只写"是什么"不写"将做什么" | 客观简洁具体"""
 
-    # 执行 MCP 工作流
-    scene_update_response = await execute_mcp_state_workflow(
-        request={
-            "messages": [HumanMessage(content=stage_update_prompt)],
-            "llm": llm,
-            "mcp_client": mcp_client,
-            "available_tools": available_tools,
-            "tool_outputs": [],
-        },
-        context={
-            "messages": stage_agent.chat_history.copy(),
-            "llm": llm,
-            "mcp_client": mcp_client,
-            "available_tools": available_tools,
-            "tool_outputs": [],
-        },
-    )
+#     # 执行 MCP 工作流
+#     scene_update_response = await execute_mcp_state_workflow(
+#         request={
+#             "messages": [HumanMessage(content=stage_update_prompt)],
+#             "llm": llm,
+#             "mcp_client": mcp_client,
+#             "available_tools": available_tools,
+#             "tool_outputs": [],
+#         },
+#         context={
+#             "messages": stage_agent.chat_history.copy(),
+#             "llm": llm,
+#             "mcp_client": mcp_client,
+#             "available_tools": available_tools,
+#             "tool_outputs": [],
+#         },
+#     )
 
-    # 更新场景代理的对话历史
-    stage_agent.chat_history.append(HumanMessage(content=stage_update_prompt))
-    stage_agent.chat_history.extend(scene_update_response)
+#     # 更新场景代理的对话历史
+#     stage_agent.chat_history.append(HumanMessage(content=stage_update_prompt))
+#     stage_agent.chat_history.extend(scene_update_response)
 
 
 ########################################################################################################################
@@ -134,10 +133,6 @@ async def _handle_single_actor_observe_and_plan(
         llm: DeepSeek LLM 实例
     """
     logger.warning(f"角色观察并规划: {actor_agent.name}")
-
-    #     ## 最新场景快照
-
-    # {latest_stage_message}
 
     # JSON格式的提示词
     observe_and_plan_prompt = f"""# 场景观察与行动规划
@@ -391,13 +386,15 @@ async def _handle_stage_execute(
 
 #### 环境状态
 
-**关键要求**：基于场景的原始环境描述（environment），生成执行后的**完整环境快照**。
+**关键要求**：基于**你对话历史中最近一次输出的环境状态快照**，生成本轮执行后的**完整环境快照**。
 
-- 参考原始环境描述的结构和要素
-- 保持未变化的部分不变
-- 更新有变化的部分（如：墓碑被破坏、地面有新痕迹、雾气扰动等）
-- 添加新增的感官元素（如：硝烟味、新的声音等）
-- 输出完整的环境描述段落，就像重新书写 environment 字段
+**更新原则**：
+- 如果这是第一轮执行，参考你的系统消息中的初始环境描述
+- 如果这是后续轮次，**必须**从你的对话历史中找到上一次输出的"### 环境状态"，以此为基准进行更新
+- 保持未变化的部分不变（空间结构、固定设施、基本布局等）
+- 更新有变化的部分（物体损坏、地面痕迹、环境扰动、角色行动留痕等）
+- 添加新增的感官元素（新出现的气味、声音、视觉变化等）
+- 输出完整的环境描述段落，而非增量描述
 
 **格式要求**：
 
@@ -418,10 +415,10 @@ async def _handle_stage_execute(
 
 ### 环境状态
 
-[完整的环境描述段落，要将变化部分纳入更新与体现]
+[完整的环境描述段落，基于上一轮的环境状态更新，包含本轮的所有变化]
 ```
 
-**重要**：环境状态是完整的绝对描述，不是增量变化。这是下一轮场景更新的起点。"""
+**重要**：环境状态是完整的绝对描述，不是"增加了什么"的增量变化。这是下一轮场景更新的起点。"""
 
     # 执行 Chat 工作流
     stage_execution_response = await execute_chat_state_workflow(
@@ -482,14 +479,14 @@ async def handle_game_command(
     match command:
 
         # /game stage:update - 更新所有场景代理的状态
-        case "stage:update":
+        # case "stage:update":
 
-            await _handle_stage_update(
-                stage_agent=stage_agents[0],
-                llm=create_deepseek_llm(),
-                mcp_client=mcp_client,
-                available_tools=available_tools,
-            )
+        #     await _handle_stage_update(
+        #         stage_agent=stage_agents[0],
+        #         llm=create_deepseek_llm(),
+        #         mcp_client=mcp_client,
+        #         available_tools=available_tools,
+        #     )
 
         # /game all_actors:observe_and_plan - 让所有角色代理观察场景并规划行动
         case "all_actors:observe_and_plan":
