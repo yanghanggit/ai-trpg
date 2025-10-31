@@ -78,6 +78,7 @@ class StageExecutionResult(BaseModel):
 ########################################################################################################################
 ########################################################################################################################
 async def _handle_single_actor_observe_and_plan(
+    stage_agent: GameAgent,
     actor_agent: GameAgent,
     mcp_client: McpClient,
 ) -> None:
@@ -94,14 +95,29 @@ async def _handle_single_actor_observe_and_plan(
 
     # 读取角色信息资源
     try:
-        resource_uri = f"game://actor/{actor_agent.name}"
-        resource_response = await mcp_client.read_resource(resource_uri)
-        if resource_response is None or resource_response.text is None:
-            logger.error(f"❌ 未能读取资源: {resource_uri}")
+        actor_resource_uri = f"game://actor/{actor_agent.name}"
+        actor_resource_response = await mcp_client.read_resource(actor_resource_uri)
+        if actor_resource_response is None or actor_resource_response.text is None:
+            logger.error(f"❌ 未能读取资源: {actor_resource_uri}")
             return
 
-        actor_info_json = resource_response.text
+        actor_info_json = actor_resource_response.text
         # logger.debug(f"读取到角色信息: {actor_info_json}")
+
+    except Exception as e:
+        logger.error(f"❌ 读取资源时发生错误: {e}")
+        return
+
+    # 在这个位置获取场景stage 的 resource
+    try:
+        stage_resource_uri = f"game://stage/{stage_agent.name}"
+        stage_resource_response = await mcp_client.read_resource(stage_resource_uri)
+        if stage_resource_response is None or stage_resource_response.text is None:
+            logger.error(f"❌ 未能读取资源: {stage_resource_uri}")
+            return
+
+        stage_info_json = stage_resource_response.text
+        # logger.debug(f"读取到场景信息: {stage_info_json}")
 
     except Exception as e:
         logger.error(f"❌ 读取资源时发生错误: {e}")
@@ -109,10 +125,14 @@ async def _handle_single_actor_observe_and_plan(
 
     observe_and_plan_prompt = f"""# 角色观察与行动规划
 
-## 第一步：你的角色信息
+## 第一步：你的角色信息 与 当前场景信息
 
 ```json
 {actor_info_json}
+```
+
+```json
+{stage_info_json}
 ```
 
 ---
@@ -199,6 +219,7 @@ async def _handle_single_actor_observe_and_plan(
 ########################################################################################################################
 ########################################################################################################################
 async def _handle_all_actors_observe_and_plan(
+    stage_agent: GameAgent,
     actor_agents: List[GameAgent],
     mcp_client: McpClient,
     use_concurrency: bool = False,
@@ -219,6 +240,7 @@ async def _handle_all_actors_observe_and_plan(
         logger.info(f"🔄 并行处理 {len(actor_agents)} 个角色的观察和规划")
         tasks = [
             _handle_single_actor_observe_and_plan(
+                stage_agent=stage_agent,
                 actor_agent=actor_agent,
                 mcp_client=mcp_client,
             )
@@ -230,6 +252,7 @@ async def _handle_all_actors_observe_and_plan(
         logger.info(f"🔄 顺序处理 {len(actor_agents)} 个角色的观察和规划")
         for actor_agent in actor_agents:
             await _handle_single_actor_observe_and_plan(
+                stage_agent=stage_agent,
                 actor_agent=actor_agent,
                 mcp_client=mcp_client,
             )
@@ -512,6 +535,7 @@ async def handle_game_command(
         # /game all_actors:observe_and_plan - 让所有角色代理观察场景并规划行动
         case "all_actors:observe_and_plan":
             await _handle_all_actors_observe_and_plan(
+                stage_agent=stage_agents[0],
                 actor_agents=actor_agents,
                 mcp_client=mcp_client,
                 use_concurrency=True,
@@ -533,6 +557,7 @@ async def handle_game_command(
 
             # 步骤1: 所有角色观察场景并规划行动
             await _handle_all_actors_observe_and_plan(
+                stage_agent=stage_agents[0],
                 actor_agents=actor_agents,
                 mcp_client=mcp_client,
                 use_concurrency=True,

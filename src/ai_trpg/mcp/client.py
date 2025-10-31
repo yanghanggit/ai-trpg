@@ -625,7 +625,7 @@ class McpClient:
                 text=content_data.get("text"),
             )
 
-            logger.success(f"✅ 读取资源 '{uri}' 成功")
+            # logger.success(f"✅ 读取资源 '{uri}' 成功")
             return resource_content
 
         except Exception as e:

@@ -30,8 +30,7 @@ import mcp.types as types
 from ai_trpg.mcp import mcp_config
 from fastapi import Request, Response, status
 from ai_trpg.demo.world import test_world
-from ai_trpg.demo.models import Stage
-from typing import Any, Dict, List
+from typing import Any, Dict
 
 
 # 辅助函数！！！
@@ -116,6 +115,48 @@ def _get_actor_info_impl(actor_name: str) -> str:
         return json.dumps(
             {
                 "error": f"无法获取Actor数据 - {str(e)}",
+                "timestamp": datetime.now().isoformat(),
+            },
+            ensure_ascii=False,
+            indent=2,
+        )
+
+
+def _get_stage_info_impl(stage_name: str) -> str:
+    """
+    获取Stage信息的内部实现（辅助函数）
+
+    Args:
+        stage_name: 场景名称
+
+    Returns:
+        Stage的JSON数据，包含场景的所有属性（名称、叙事、环境等）
+    """
+    try:
+        stage = test_world.find_stage(stage_name)
+        if stage:
+            logger.info(f"获取Stage数据: {stage_name}")
+            # 构建返回结果
+            result = {
+                "name": stage.name,
+                "narrative": stage.narrative,
+                "environment": stage.environment,
+            }
+
+            return json.dumps(result, ensure_ascii=False, indent=2)
+        else:
+            error_msg = f"错误：未找到名为 '{stage_name}' 的Stage"
+            logger.warning(error_msg)
+            return json.dumps(
+                {"error": error_msg, "timestamp": datetime.now().isoformat()},
+                ensure_ascii=False,
+                indent=2,
+            )
+    except Exception as e:
+        logger.error(f"获取Stage信息失败: {e}")
+        return json.dumps(
+            {
+                "error": f"无法获取Stage数据 - {str(e)}",
                 "timestamp": datetime.now().isoformat(),
             },
             ensure_ascii=False,
@@ -220,74 +261,7 @@ async def get_stage_info(stage_name: str) -> str:
         Stage的完整JSON数据，包含场景的所有属性（名称、叙事、环境、子场景等）
         以及场景中角色的简要信息（仅包含角色名称和外观描述，不包含档案和已知角色列表）
     """
-    try:
-        stage = test_world.find_stage(stage_name)
-        if stage:
-            logger.info(f"获取Stage数据: {stage_name}")
-
-            # 构建精简的角色信息列表
-            simplified_actors = [
-                {
-                    "name": actor.name,
-                    "appearance": actor.appearance,
-                }
-                for actor in stage.actors
-            ]
-
-            # 递归处理子场景（如果有的话）
-            def simplify_sub_stages(stages: List[Stage]) -> List[Dict[str, Any]]:
-                result = []
-                for sub_stage in stages:
-                    simplified_sub = {
-                        "name": sub_stage.name,
-                        "environment": sub_stage.environment,
-                        "actors": [
-                            {
-                                "name": actor.name,
-                                "appearance": actor.appearance,
-                            }
-                            for actor in sub_stage.actors
-                        ],
-                    }
-                    # 如果子场景还有子场景，继续递归
-                    if sub_stage.sub_stages:
-                        simplified_sub["sub_stages"] = simplify_sub_stages(
-                            sub_stage.sub_stages
-                        )
-                    else:
-                        simplified_sub["sub_stages"] = []
-                    result.append(simplified_sub)
-                return result
-
-            # 构建返回结果
-            result = {
-                "name": stage.name,
-                "environment": stage.environment,
-                "actors": simplified_actors,
-                "sub_stages": (
-                    simplify_sub_stages(stage.sub_stages) if stage.sub_stages else []
-                ),
-            }
-
-            return json.dumps(result, ensure_ascii=False, indent=2)
-        else:
-            error_msg = f"错误：未找到名为 '{stage_name}' 的Stage"
-            logger.warning(error_msg)
-            return json.dumps(
-                {"error": error_msg, "timestamp": datetime.now().isoformat()},
-                ensure_ascii=False,
-                indent=2,
-            )
-    except Exception as e:
-        logger.error(f"获取Stage信息失败: {e}")
-        return json.dumps(
-            {
-                "error": f"无法获取Stage数据 - {str(e)}",
-                "timestamp": datetime.now().isoformat(),
-            },
-            ensure_ascii=False,
-            indent=2,
-        )
+    return _get_stage_info_impl(stage_name)
 
 
 @app.tool()
@@ -560,6 +534,24 @@ async def get_actor_resource(actor_name: str) -> str:
     logger.debug(f"原始 actor_name: {actor_name}, 解码后: {decoded_actor_name}")
 
     return _get_actor_info_impl(decoded_actor_name)
+
+
+@app.resource("game://stage/{stage_name}")
+async def get_stage_resource(stage_name: str) -> str:
+    """
+    获取Stage信息资源（根据场景名称获取Stage的信息）
+
+    Args:
+        stage_name: 场景名称
+
+    Returns:
+        Stage的JSON数据，包含场景的所有属性（名称、叙事、环境等）
+    """
+    # URL 解码场景名称（处理中文等特殊字符）
+    decoded_stage_name = unquote(stage_name)
+    logger.debug(f"原始 stage_name: {stage_name}, 解码后: {decoded_stage_name}")
+
+    return _get_stage_info_impl(decoded_stage_name)
 
 
 # ============================================================================
