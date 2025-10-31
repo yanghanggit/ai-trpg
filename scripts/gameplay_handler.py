@@ -6,7 +6,7 @@
 """
 
 import asyncio
-from typing import List, Any
+from typing import List
 from loguru import logger
 from langchain_deepseek import ChatDeepSeek
 from pydantic import BaseModel
@@ -44,6 +44,35 @@ class ActorPlan(BaseModel):
 
     actor_name: str
     plan: str
+
+
+########################################################################################################################
+########################################################################################################################
+########################################################################################################################
+class ActorState(BaseModel):
+    """单个角色的状态数据模型
+
+    用于描述角色在场景中的当前状态，包括位置、姿态和特殊状态标记。
+    """
+
+    actor_name: str
+    location: str  # 位置（相对地标/方位/距离）
+    posture: str  # 姿态
+    status: str  # 状态（如"【隐藏】"或空字符串）
+
+
+########################################################################################################################
+########################################################################################################################
+########################################################################################################################
+class StageExecutionResult(BaseModel):
+    """场景执行结果的数据模型
+
+    用于验证和解析场景执行的JSON输出，包含叙事描述、角色状态和环境状态。
+    """
+
+    narrative: str  # 场景执行描述（叙事层）
+    actor_states: List[ActorState]  # 角色状态列表
+    environment_state: str  # 环境状态描述
 
 
 ########################################################################################################################
@@ -291,33 +320,44 @@ def _collect_actor_plans(actor_agents: List[GameAgent]) -> List[ActorPlan]:
 ########################################################################################################################
 ########################################################################################################################
 def _notify_actors_with_execution_result(
-    actor_agents: List[GameAgent], stage_execution_response: List[Any]
+    actor_agents: List[GameAgent], execution_result: StageExecutionResult
 ) -> None:
     """将场景执行结果通知给所有角色代理
 
-    从场景执行响应中提取结果,并将其作为事件通知发送给所有角色代理的对话历史。
+    从场景执行结果中提取叙事描述和角色状态,并将其作为事件通知发送给所有角色代理的对话历史。
 
     Args:
         actor_agents: 角色代理列表
-        stage_execution_response: 场景执行工作流的响应结果
+        execution_result: 场景执行结果的结构化数据
     """
-    # 提取场景执行结果
-    execution_result = (
-        stage_execution_response[-1].content if stage_execution_response else ""
+    # 构建角色状态文本
+    actor_states_text = "\n".join(
+        [
+            f"- **{state.actor_name}**：{state.location} | {state.posture} | {state.status}"
+            for state in execution_result.actor_states
+        ]
     )
 
     # 将场景执行结果通知给所有角色代理
     for actor_agent in actor_agents:
         # 构建场景执行结果通知提示词
-        event_notification = f"""# 发生场景事件！
+        event_notification = f"""# 场景事件发生
 
-## 事件内容
+## 事件叙事
 
-{execution_result}
+{execution_result.narrative}
 
-## 注意
+## 当前角色状态
 
-以上是刚刚发生的场景事件,你需要了解这些信息以便做出后续反应。"""
+{actor_states_text}
+
+## 当前环境状态
+
+{execution_result.environment_state}
+
+---
+
+**提示**：以上是刚刚发生的场景事件及最新状态快照，请基于这些信息进行观察和规划。"""
 
         actor_agent.chat_history.append(HumanMessage(content=event_notification))
 
@@ -364,61 +404,44 @@ async def _handle_stage_execute(
 
 ## 任务要求
 
-请在一次输出中完成以下两部分内容：
+基于上述角色计划，生成场景执行结果。
 
-### 第一部分：场景执行描述（叙事层）
+**输出格式**：
 
-将上述计划转化为第三人称全知视角的场景执行描述：按时间顺序叙述各角色行动的实际过程、互动效果、环境变化。如有冲突需合理描述结果。
+必须且只能返回JSON代码块格式，示例：
 
-**要求**：生动具体的完整自然段，展现执行效果而非重复计划。
-
----
-
-### 第二部分：场景状态快照（数据层）
-
-基于刚刚发生的行动执行，生成当前的**最终状态快照**。
-
-#### 角色状态
-
-逐个描述每个角色的当前状态：
-
-- **角色名**：当前位置（相对地标/方位/距离） | 当前姿态 | 状态（如隐藏则标注【隐藏】，否则留空）
-
-#### 环境状态
-
-**关键要求**：基于**你对话历史中最近一次输出的环境状态快照**，生成本轮执行后的**完整环境快照**。
-
-**更新原则**：
-- 如果这是第一轮执行，参考你的系统消息中的初始环境描述
-- 如果这是后续轮次，**必须**从你的对话历史中找到上一次输出的"### 环境状态"，以此为基准进行更新
-- 保持未变化的部分不变（空间结构、固定设施、基本布局等）
-- 更新有变化的部分（物体损坏、地面痕迹、环境扰动、角色行动留痕等）
-- 添加新增的感官元素（新出现的气味、声音、视觉变化等）
-- 输出完整的环境描述段落，而非增量描述
-
-**格式要求**：
-
-```
-## 场景执行
-
-[生动叙事描述]
-
----
-
-## 状态快照
-
-### 角色状态
-
-- **角色A**：[位置 | 姿态 | 状态]
-- **角色B**：[位置 | 姿态 | 状态]
-- **角色C**：[位置 | 姿态 | 状态]
-
-### 环境状态
-
-[完整的环境描述段落，基于上一轮的环境状态更新，包含本轮的所有变化]
+```json
+{{
+    "narrative": "第三人称全知视角的场景执行描述，按时间顺序叙述各角色行动的实际过程、互动效果、环境变化。如有冲突需合理描述结果。生动具体的完整自然段，展现执行效果而非重复计划。",
+    "actor_states": [
+        {{
+            "actor_name": "角色名1",
+            "location": "当前位置（相对地标/方位/距离）",
+            "posture": "当前姿态",
+            "status": "【隐藏】或空字符串"
+        }},
+        {{
+            "actor_name": "角色名2",
+            "location": "当前位置",
+            "posture": "当前姿态",
+            "status": ""
+        }}
+    ],
+    "environment_state": "完整的环境描述段落。基于你对话历史中最近一次输出的environment_state进行更新。如果是第一轮执行，参考系统消息中的初始环境描述。保持未变化的部分不变（空间结构、固定设施、基本布局等），更新有变化的部分（物体损坏、地面痕迹、环境扰动、角色行动留痕等），添加新增的感官元素（新出现的气味、声音、视觉变化等）。这是完整的绝对描述，不是增量变化。"
+}}
 ```
 
-**重要**：环境状态是完整的绝对描述，不是"增加了什么"的增量变化。这是下一轮场景更新的起点。"""
+**重要**：
+1. 只输出JSON代码块，不要有其他文本
+2. narrative字段：生动叙事，展现执行过程
+3. actor_states数组：必须包含所有角色的状态
+4. environment_state字段：完整的环境快照，是下一轮场景更新的起点
+
+**环境状态更新原则**：
+- 第一轮：参考系统消息中的初始环境描述
+- 后续轮次：从对话历史中找到上一次的environment_state，以此为基准更新
+- 保持未变化部分，更新有变化部分，添加新增感官元素
+- 输出完整描述，非增量描述"""
 
     # 执行 Chat 工作流
     stage_execution_response = await execute_chat_state_workflow(
@@ -434,11 +457,48 @@ async def _handle_stage_execute(
 
     # 更新场景代理的对话历史
     stage_agent.chat_history.append(HumanMessage(content=stage_execute_prompt))
-    stage_agent.chat_history.extend(stage_execution_response)
+    assert len(stage_execution_response) > 0, "场景执行响应为空"
 
-    # 将场景执行结果通知给所有角色代理
-    _notify_actors_with_execution_result(actor_agents, stage_execution_response)
+    try:
+        # 步骤1: 从JSON代码块中提取字符串
+        json_str = strip_json_code_block(str(stage_execution_response[-1].content))
 
+        # 步骤2: 使用Pydantic解析和验证
+        formatted_data = StageExecutionResult.model_validate_json(json_str)
+
+        # 步骤3: 构建格式化的消息添加到对话历史
+        actor_states_text = "\n".join(
+            [
+                f"- **{state.actor_name}**：{state.location} | {state.posture} | {state.status}"
+                for state in formatted_data.actor_states
+            ]
+        )
+
+        formatted_content = f"""## 场景执行
+
+{formatted_data.narrative}
+
+---
+
+## 状态快照
+
+### 角色状态
+
+{actor_states_text}
+
+### 环境状态
+
+{formatted_data.environment_state}"""
+
+        stage_agent.chat_history.append(AIMessage(content=formatted_content))
+
+        logger.success(f"✅ 场景执行成功: {stage_agent.name}")
+
+        # 将场景执行结果通知给所有角色代理
+        _notify_actors_with_execution_result(actor_agents, formatted_data)
+
+    except Exception as e:
+        logger.error(f"JSON解析错误: {e}")
 
 ########################################################################################################################
 ########################################################################################################################
