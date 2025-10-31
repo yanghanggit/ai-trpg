@@ -1,6 +1,5 @@
 from typing import Optional
 from dotenv import load_dotenv
-from loguru import logger
 
 # 加载 .env 文件中的环境变量
 load_dotenv()
@@ -25,7 +24,7 @@ def create_deepseek_llm(temperature: Optional[float] = None) -> ChatDeepSeek:
     Raises:
         ValueError: 当DEEPSEEK_API_KEY环境变量未设置时
     """
-    logger.debug("🤖 创建新的DeepSeek LLM实例...")
+    # logger.debug("🤖 创建新的DeepSeek LLM实例...")
 
     # 检查必需的环境变量
     deepseek_api_key = os.getenv("DEEPSEEK_API_KEY")
@@ -33,7 +32,7 @@ def create_deepseek_llm(temperature: Optional[float] = None) -> ChatDeepSeek:
         raise ValueError("DEEPSEEK_API_KEY environment variable is not set")
 
     # 记录温度设置
-    logger.debug(f"create_deepseek_llm temperature={temperature}")
+    # logger.debug(f"create_deepseek_llm temperature={temperature}")
 
     # 设置默认温度
     llm = ChatDeepSeek(
@@ -46,5 +45,5 @@ def create_deepseek_llm(temperature: Optional[float] = None) -> ChatDeepSeek:
 
     # llm.with_structured_output()
 
-    logger.debug("🤖 DeepSeek LLM实例创建完成")
+    # logger.debug("🤖 DeepSeek LLM实例创建完成")
     return llm

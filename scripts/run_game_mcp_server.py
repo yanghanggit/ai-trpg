@@ -78,6 +78,51 @@ def _format_stage_state_to_markdown(stage_name: str, state_data: str) -> str:
 {environment_text}"""
 
 
+def _get_actor_info_impl(actor_name: str) -> str:
+    """
+    获取Actor信息的内部实现（辅助函数）
+
+    Args:
+        actor_name: 角色名称
+
+    Returns:
+        Actor的JSON数据，包含名称、外观描述和角色属性（生命值、攻击力等）
+    """
+    try:
+        actor, stage = test_world.find_actor_with_stage(actor_name)
+        if actor:
+            logger.info(f"获取Actor数据: {actor_name}")
+
+            result = {
+                "name": actor.name,
+                "appearance": actor.appearance,
+                "attributes": {
+                    "health": actor.attributes.health,
+                    "max_health": actor.attributes.max_health,
+                    "attack": actor.attributes.attack,
+                },
+            }
+            return json.dumps(result, ensure_ascii=False, indent=2)
+        else:
+            error_msg = f"错误：未找到名为 '{actor_name}' 的Actor"
+            logger.warning(error_msg)
+            return json.dumps(
+                {"error": error_msg, "timestamp": datetime.now().isoformat()},
+                ensure_ascii=False,
+                indent=2,
+            )
+    except Exception as e:
+        logger.error(f"获取Actor信息失败: {e}")
+        return json.dumps(
+            {
+                "error": f"无法获取Actor数据 - {str(e)}",
+                "timestamp": datetime.now().isoformat(),
+            },
+            ensure_ascii=False,
+            indent=2,
+        )
+
+
 # ============================================================================
 # 创建 FastMCP 应用实例
 # ============================================================================
@@ -256,39 +301,7 @@ async def get_actor_info(actor_name: str) -> str:
     Returns:
         Actor的JSON数据，包含名称、外观描述和角色属性（生命值、攻击力等）
     """
-    try:
-        actor, stage = test_world.find_actor_with_stage(actor_name)
-        if actor:
-            logger.info(f"获取Actor数据: {actor_name}")
-
-            result = {
-                "name": actor.name,
-                "appearance": actor.appearance,
-                "attributes": {
-                    "health": actor.attributes.health,
-                    "max_health": actor.attributes.max_health,
-                    "attack": actor.attributes.attack,
-                },
-            }
-            return json.dumps(result, ensure_ascii=False, indent=2)
-        else:
-            error_msg = f"错误：未找到名为 '{actor_name}' 的Actor"
-            logger.warning(error_msg)
-            return json.dumps(
-                {"error": error_msg, "timestamp": datetime.now().isoformat()},
-                ensure_ascii=False,
-                indent=2,
-            )
-    except Exception as e:
-        logger.error(f"获取Actor信息失败: {e}")
-        return json.dumps(
-            {
-                "error": f"无法获取Actor数据 - {str(e)}",
-                "timestamp": datetime.now().isoformat(),
-            },
-            ensure_ascii=False,
-            indent=2,
-        )
+    return _get_actor_info_impl(actor_name)
 
 
 @app.tool()
@@ -529,6 +542,24 @@ async def get_entity_resource(entity_name: str) -> str:
             ensure_ascii=False,
             indent=2,
         )
+
+
+@app.resource("game://actor/{actor_name}")
+async def get_actor_resource(actor_name: str) -> str:
+    """
+    获取Actor信息资源（根据角色名称获取Actor的信息）
+
+    Args:
+        actor_name: 角色名称
+
+    Returns:
+        Actor的JSON数据，包含名称、外观描述和角色属性（生命值、攻击力等）
+    """
+    # URL 解码角色名称（处理中文等特殊字符）
+    decoded_actor_name = unquote(actor_name)
+    logger.debug(f"原始 actor_name: {actor_name}, 解码后: {decoded_actor_name}")
+
+    return _get_actor_info_impl(decoded_actor_name)
 
 
 # ============================================================================

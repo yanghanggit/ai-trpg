@@ -15,7 +15,6 @@ from ai_trpg.utils.json_format import strip_json_code_block
 from agent_utils import GameAgent
 from workflow_executors import (
     execute_chat_state_workflow,
-    execute_mcp_state_workflow,
 )
 from langchain.schema import HumanMessage, AIMessage
 
@@ -81,7 +80,6 @@ class StageExecutionResult(BaseModel):
 async def _handle_single_actor_observe_and_plan(
     actor_agent: GameAgent,
     mcp_client: McpClient,
-    available_tools: List[McpToolInfo],
 ) -> None:
     """处理单个角色的观察和行动规划
 
@@ -90,32 +88,43 @@ async def _handle_single_actor_observe_and_plan(
 
     Args:
         actor_agent: 角色代理
-        latest_stage_message: 最新的场景消息内容
-        llm: DeepSeek LLM 实例
+        mcp_client: MCP 客户端（用于读取角色信息资源）
     """
     logger.warning(f"角色观察并规划: {actor_agent.name}")
 
+    # 读取角色信息资源
+    try:
+        resource_uri = f"game://actor/{actor_agent.name}"
+        resource_response = await mcp_client.read_resource(resource_uri)
+        if resource_response is None or resource_response.text is None:
+            logger.error(f"❌ 未能读取资源: {resource_uri}")
+            return
+
+        actor_info_json = resource_response.text
+        # logger.debug(f"读取到角色信息: {actor_info_json}")
+
+    except Exception as e:
+        logger.error(f"❌ 读取资源时发生错误: {e}")
+        return
+
     observe_and_plan_prompt = f"""# 角色观察与行动规划
 
-## ⚠️ 第一步：获取角色信息（必须执行）
+## 第一步：你的角色信息
 
-**你必须先使用工具获取你自己的Actor信息**
-
-- 查看可用工具列表，选择合适的工具获取Actor信息
-- 获取你的角色属性
-- 这是后续步骤的基础数据
-- 必须等待工具返回结果
+```json
+{actor_info_json}
+```
 
 ---
 
-## 第二步：观察场景（基于工具结果）
+## 第二步：观察场景
 
 从第一人称（"我"）视角观察场景：
 
 - **视觉**：环境、物体、其他角色的位置和行为
 - **听觉**：声音、对话、环境音
 - **其他感知**：触觉、嗅觉、情绪反应
-- **状态评估**：结合工具返回的角色属性，评估当前状况
+- **状态评估**：结合上述角色属性，评估当前状况
 
 **隐藏规则**：标注"隐藏/藏身/无法被察觉"的角色不可见，不得提及或暗示。
 
@@ -137,7 +146,7 @@ async def _handle_single_actor_observe_and_plan(
 
 ## 输出格式
 
-工具执行完成后，输出JSON：
+输出JSON：
 
 ```json
 {{
@@ -146,24 +155,16 @@ async def _handle_single_actor_observe_and_plan(
 }}
 ```
 
-**流程**：使用工具获取Actor信息 → 等待结果 → 观察场景 → 规划行动 → 输出JSON
+**要求**：基于第一步提供的角色信息 → 观察场景 → 规划行动 → 输出JSON"""
 
-**严禁**：未调用工具直接输出JSON！"""
-
-    actors_observe_and_plan_response = await execute_mcp_state_workflow(
+    actors_observe_and_plan_response = await execute_chat_state_workflow(
         context={
             "messages": actor_agent.chat_history.copy(),
             "llm": create_deepseek_llm(),
-            "mcp_client": mcp_client,
-            "available_tools": available_tools,
-            "tool_outputs": [],
         },
         request={
             "messages": [HumanMessage(content=observe_and_plan_prompt)],
             "llm": create_deepseek_llm(),
-            "mcp_client": mcp_client,
-            "available_tools": available_tools,
-            "tool_outputs": [],
         },
     )
 
@@ -200,7 +201,6 @@ async def _handle_single_actor_observe_and_plan(
 async def _handle_all_actors_observe_and_plan(
     actor_agents: List[GameAgent],
     mcp_client: McpClient,
-    available_tools: List[McpToolInfo],
     use_concurrency: bool = False,
 ) -> None:
     """处理所有角色的观察和行动规划（合并版本，JSON输出）
@@ -210,8 +210,7 @@ async def _handle_all_actors_observe_and_plan(
 
     Args:
         actor_agents: 角色代理列表
-        stage_agent: 场景代理(提供场景上下文)
-        llm: DeepSeek LLM 实例
+        mcp_client: MCP 客户端（用于读取角色信息资源）
         use_concurrency: 是否使用并行处理，默认False（顺序执行）
     """
 
@@ -222,7 +221,6 @@ async def _handle_all_actors_observe_and_plan(
             _handle_single_actor_observe_and_plan(
                 actor_agent=actor_agent,
                 mcp_client=mcp_client,
-                available_tools=available_tools,
             )
             for actor_agent in actor_agents
         ]
@@ -234,7 +232,6 @@ async def _handle_all_actors_observe_and_plan(
             await _handle_single_actor_observe_and_plan(
                 actor_agent=actor_agent,
                 mcp_client=mcp_client,
-                available_tools=available_tools,
             )
 
 
@@ -517,7 +514,6 @@ async def handle_game_command(
             await _handle_all_actors_observe_and_plan(
                 actor_agents=actor_agents,
                 mcp_client=mcp_client,
-                available_tools=available_tools,
                 use_concurrency=True,
             )
 
@@ -539,7 +535,6 @@ async def handle_game_command(
             await _handle_all_actors_observe_and_plan(
                 actor_agents=actor_agents,
                 mcp_client=mcp_client,
-                available_tools=available_tools,
                 use_concurrency=True,
             )
 
