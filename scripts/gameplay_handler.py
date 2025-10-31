@@ -473,7 +473,7 @@ async def handle_game_command(
                 actor_agents=actor_agents,
                 stage_agent=stage_agents[0],
                 llm=create_deepseek_llm(),
-                use_concurrency=False,
+                use_concurrency=True,
             )
 
         # /game stage:orchestrate_actor_plans_and_update_stage - 让场景代理执行所有角色的行动计划

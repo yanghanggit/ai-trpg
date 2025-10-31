@@ -2,12 +2,21 @@ from pydantic import BaseModel, Field
 from typing import List
 
 
+class Attributes(BaseModel):
+    """表示角色属性的模型"""
+
+    health: int = Field(default=100, description="生命值/血量", ge=0)
+    max_health: int = Field(default=100, description="最大生命值", ge=1)
+    attack: int = Field(default=10, description="攻击力", ge=0)
+
+
 class Actor(BaseModel):
     """表示游戏中角色状态的模型"""
 
     name: str = Field(description="角色名称")
     profile: str = Field(description="角色档案/设定")
     appearance: str = Field(description="外观描述")
+    attributes: Attributes = Field(default_factory=Attributes, description="角色属性")
 
 
 class Stage(BaseModel):

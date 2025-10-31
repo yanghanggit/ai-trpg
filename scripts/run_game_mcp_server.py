@@ -150,7 +150,6 @@ async def get_stage_info(stage_name: str) -> str:
                 for sub_stage in stages:
                     simplified_sub = {
                         "name": sub_stage.name,
-                        # "narrative": sub_stage.narrative,
                         "environment": sub_stage.environment,
                         "actors": [
                             {
@@ -173,7 +172,6 @@ async def get_stage_info(stage_name: str) -> str:
             # 构建返回结果
             result = {
                 "name": stage.name,
-                # "narrative": stage.narrative,
                 "environment": stage.environment,
                 "actors": simplified_actors,
                 "sub_stages": (
@@ -205,28 +203,26 @@ async def get_stage_info(stage_name: str) -> str:
 @app.tool()
 async def get_actor_info(actor_name: str) -> str:
     """
-    根据角色名称获取Actor的完整信息（包含所在场景的上下文）
+    根据角色名称获取Actor的信息
 
     Args:
         actor_name: 角色名称
 
     Returns:
-        Actor的完整JSON数据，包含角色的所有属性（名称、档案、外观、已知角色列表等）
-        以及其所在Stage的部分信息（场景名称和环境描写）
+        Actor的JSON数据，包含名称、外观描述和角色属性（生命值、攻击力等）
     """
     try:
         actor, stage = test_world.find_actor_with_stage(actor_name)
-        if actor and stage:
-            logger.info(f"获取Actor数据: {actor_name}, 所在Stage: {stage.name}")
+        if actor:
+            logger.info(f"获取Actor数据: {actor_name}")
 
             result = {
-                "actor": {
-                    "name": actor.name,
-                    "appearance": actor.appearance,
-                },
-                "stage": {
-                    "name": stage.name,
-                    "environment": stage.environment,
+                "name": actor.name,
+                "appearance": actor.appearance,
+                "attributes": {
+                    "health": actor.attributes.health,
+                    "max_health": actor.attributes.max_health,
+                    "attack": actor.attributes.attack,
                 },
             }
             return json.dumps(result, ensure_ascii=False, indent=2)
