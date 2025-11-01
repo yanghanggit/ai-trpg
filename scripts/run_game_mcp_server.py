@@ -139,17 +139,27 @@ def _get_stage_info_impl(stage_name: str) -> str:
         stage_name: 场景名称
 
     Returns:
-        Stage的JSON数据，包含场景的所有属性（名称、叙事、环境等）
+        Stage的JSON数据，包含场景的所有属性（名称、叙事、环境、角色外观等）
     """
     try:
         stage = test_world.find_stage(stage_name)
         if stage:
             logger.info(f"获取Stage数据: {stage_name}")
+            # 构建角色外观信息列表
+            actors_appearance = [
+                {
+                    "name": actor.name,
+                    "appearance": actor.appearance,
+                }
+                for actor in stage.actors
+            ]
+
             # 构建返回结果
             result = {
                 "name": stage.name,
                 "narrative": stage.narrative,
                 "environment": stage.environment,
+                "actors_appearance": actors_appearance,
             }
 
             return json.dumps(result, ensure_ascii=False, indent=2)

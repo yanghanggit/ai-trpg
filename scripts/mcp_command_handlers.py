@@ -7,15 +7,16 @@ MCP 命令处理器模块
 
 import json
 import traceback
-from typing import List
 from loguru import logger
 
-from ai_trpg.mcp import McpToolInfo, McpPromptInfo, McpResourceInfo, McpClient
+from ai_trpg.mcp import McpClient
 from ai_trpg.utils import parse_command_with_params
 
 
-def handle_tools_command(available_tools: List[McpToolInfo]) -> None:
+async def handle_tools_command(mcp_client: McpClient) -> None:
     """处理 /tools 命令:显示可用工具详情"""
+    available_tools = await mcp_client.list_tools()
+    assert available_tools is not None, "无法获取可用工具列表"
     if available_tools:
         output_lines = []
         output_lines.append("\n🛠️ 可用工具详情:")
@@ -38,8 +39,10 @@ def handle_tools_command(available_tools: List[McpToolInfo]) -> None:
         logger.warning("❌ 当前没有可用的工具")
 
 
-def handle_prompts_command(available_prompts: List[McpPromptInfo]) -> None:
+async def handle_prompts_command(mcp_client: McpClient) -> None:
     """处理 /prompts 命令:显示可用的提示词模板"""
+    available_prompts = await mcp_client.list_prompts()
+    assert available_prompts is not None, "无法获取可用提示词模板列表"
     if available_prompts:
         output_lines = []
         output_lines.append("\n📝 可用提示词模板:")
@@ -60,8 +63,10 @@ def handle_prompts_command(available_prompts: List[McpPromptInfo]) -> None:
         logger.warning("📝 当前没有可用的提示词模板")
 
 
-def handle_resources_command(available_resources: List[McpResourceInfo]) -> None:
+async def handle_resources_command(mcp_client: McpClient) -> None:
     """处理 /resources 命令:显示可用资源"""
+    available_resources = await mcp_client.list_resources()
+    assert available_resources is not None, "无法获取可用资源列表"
     if available_resources:
         output_lines = []
         output_lines.append("\n📦 可用资源列表:")

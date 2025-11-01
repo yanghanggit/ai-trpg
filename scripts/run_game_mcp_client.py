@@ -175,12 +175,8 @@ async def main() -> None:
         current_agent: GameAgent = world_agent
 
         # 初始化 MCP 客户端并获取可用资源
-        (
-            mcp_client,
-            available_tools,
-            available_prompts,
-            available_resources,
-        ) = await initialize_mcp_client_with_config(mcp_config)
+        mcp_client = await initialize_mcp_client_with_config(mcp_config)
+        assert mcp_client is not None, "MCP 客户端初始化失败"
 
         # 对话循环
         while True:
@@ -194,7 +190,7 @@ async def main() -> None:
 
             # 处理工具列表命令
             elif user_input.lower() == "/tools":
-                handle_tools_command(available_tools)
+                await handle_tools_command(mcp_client)
                 continue
 
             # 处理历史记录命令
@@ -205,12 +201,12 @@ async def main() -> None:
 
             # 处理提示词模板命令
             elif user_input.lower() == "/prompts":
-                handle_prompts_command(available_prompts)
+                await handle_prompts_command(mcp_client)
                 continue
 
             # 处理资源列表命令
             elif user_input.lower() == "/resources":
-                handle_resources_command(available_resources)
+                await handle_resources_command(mcp_client)
                 continue
 
             # 复杂输入的处理：读取资源
@@ -244,6 +240,8 @@ async def main() -> None:
 
                 # 格式化用户输入
                 format_user_input = format_user_input_prompt(mcp_content)
+                available_tools = await mcp_client.list_tools()
+                assert available_tools is not None, "获取 MCP 可用工具失败"
 
                 # mcp 的工作流
                 mcp_response = await execute_mcp_state_workflow(
@@ -344,9 +342,6 @@ async def main() -> None:
                     actor_agents=actor_agents,
                     # mcp 上下文
                     mcp_client=mcp_client,
-                    available_tools=available_tools,
-                    available_prompts=available_prompts,
-                    available_resources=available_resources,
                 )
                 continue
 

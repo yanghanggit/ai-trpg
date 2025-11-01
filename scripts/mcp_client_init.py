@@ -5,13 +5,9 @@ MCP 客户端初始化模块
 提供 MCP 客户端的初始化和配置功能。
 """
 
-from typing import List
+from typing import Optional
 from loguru import logger
-
 from ai_trpg.mcp import (
-    McpToolInfo,
-    McpPromptInfo,
-    McpResourceInfo,
     initialize_mcp_client,
     McpClient,
     McpConfig,
@@ -20,7 +16,7 @@ from ai_trpg.mcp import (
 
 async def initialize_mcp_client_with_config(
     mcp_config: McpConfig,
-) -> tuple[McpClient, List[McpToolInfo], List[McpPromptInfo], List[McpResourceInfo]]:
+) -> Optional[McpClient]:
     """初始化 MCP 客户端并获取所有可用资源
 
     Args:
@@ -61,9 +57,11 @@ async def initialize_mcp_client_with_config(
         for resource in available_resources:
             logger.debug(f"{resource.model_dump_json(indent=2, ensure_ascii=False)}")
 
-        return mcp_client, available_tools, available_prompts, available_resources
+        return mcp_client
 
     except Exception as e:
         logger.error(f"❌ MCP 服务器连接失败: {e}")
         logger.info("💡 请先启动 MCP 服务器: python scripts/run_game_mcp_server.py")
-        raise
+        # raise
+
+    return None

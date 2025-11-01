@@ -10,7 +10,7 @@ from typing import List
 from loguru import logger
 from pydantic import BaseModel
 from ai_trpg.deepseek import create_deepseek_llm
-from ai_trpg.mcp import McpClient, McpToolInfo, McpPromptInfo, McpResourceInfo
+from ai_trpg.mcp import McpClient, McpToolInfo
 from ai_trpg.utils.json_format import strip_json_code_block
 from agent_utils import GameAgent
 from workflow_executors import (
@@ -505,9 +505,9 @@ async def handle_game_command(
     stage_agents: List[GameAgent],
     actor_agents: List[GameAgent],
     mcp_client: McpClient,
-    available_tools: List[McpToolInfo],
-    available_prompts: List[McpPromptInfo],
-    available_resources: List[McpResourceInfo],
+    # available_tools: List[McpToolInfo],
+    # available_prompts: List[McpPromptInfo],
+    # available_resources: List[McpResourceInfo],
 ) -> None:
     """处理游戏指令
 
@@ -529,6 +529,9 @@ async def handle_game_command(
 
     assert len(stage_agents) > 0, "没有可用的场景代理"
     assert len(actor_agents) > 0, "没有可用的角色代理"
+
+    available_tools = await mcp_client.list_tools()
+    assert available_tools is not None, "获取 MCP 可用工具失败"
 
     match command:
 
