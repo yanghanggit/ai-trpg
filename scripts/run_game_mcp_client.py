@@ -24,7 +24,7 @@ sys.path.insert(
 import traceback
 from typing import Final, List
 import asyncio
-from langchain.schema import HumanMessage, SystemMessage
+from langchain.schema import HumanMessage, SystemMessage, AIMessage
 from loguru import logger
 
 
@@ -127,35 +127,39 @@ for stage in all_stages:
 all_agents: List[GameAgent] = [world_agent] + actor_agents + stage_agents
 
 
+kickoff_messages = """# 游戏开始！你是谁？你在哪里？你的目标是什么？"""
+
+
 for agent in all_agents:
     logger.info(f"已创建代理: {agent.name}")
 
     if agent.name == "艾琳":
-        agent.chat_history.append(
-            HumanMessage(
-                content=f"""# 初始状态
-    
-当前场景：奥顿教堂墓地
-你的目标：必须狩猎 加斯科因！加斯科因已经兽化，所以必须消灭他，你决定要马上行动！"""
-            )
+        agent.chat_history.extend(
+            [
+                HumanMessage(content=kickoff_messages),
+                AIMessage(
+                    content="我是艾琳。我在 奥顿教堂墓地。我的目标是 狩猎 加斯科因！因为斯科因已经兽化，所以必须消灭他。我决定要马上行动！"
+                ),
+            ]
         )
+
     elif agent.name == "加斯科因":
-        agent.chat_history.append(
-            HumanMessage(
-                content=f"""# 初始状态
-                
-当前场景：奥顿教堂墓地
-你的目标：必须杀死任何闯入者！毫不犹豫，直接攻击他们。"""
-            )
+        agent.chat_history.extend(
+            [
+                HumanMessage(content=kickoff_messages),
+                AIMessage(
+                    content="我是加斯科因。我在 奥顿教堂墓地。我的目标是 杀死任何闯入者！毫不犹豫，直接攻击他们。"
+                ),
+            ]
         )
     elif agent.name == "外乡人":
-        agent.chat_history.append(
-            HumanMessage(
-                content=f"""# 初始状态
-                                
-当前场景：奥顿教堂墓地
-你的目标：探索这里的秘密并自保，尽量回避危险，必要时可以反击！"""
-            )
+        agent.chat_history.extend(
+            [
+                HumanMessage(content=kickoff_messages),
+                AIMessage(
+                    content="我是外乡人。我在 奥顿教堂墓地。我的目标是 探索这里的秘密并自保，尽量回避危险，必要时可以反击！"
+                ),
+            ]
         )
 
 
