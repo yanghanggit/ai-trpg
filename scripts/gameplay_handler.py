@@ -179,7 +179,7 @@ async def _handle_single_actor_observe_and_plan(
 
     actors_observe_and_plan_response = await execute_chat_state_workflow(
         context={
-            "messages": actor_agent.chat_history.copy(),
+            "messages": actor_agent.context.copy(),
             "llm": create_deepseek_llm(),
         },
         request={
@@ -189,7 +189,7 @@ async def _handle_single_actor_observe_and_plan(
     )
 
     # 更新角色代理的对话历史
-    actor_agent.chat_history.append(HumanMessage(content=observe_and_plan_prompt))
+    actor_agent.context.append(HumanMessage(content=observe_and_plan_prompt))
     assert len(actors_observe_and_plan_response) > 0, "角色观察与规划响应为空"
 
     try:
@@ -202,7 +202,7 @@ async def _handle_single_actor_observe_and_plan(
         formatted_data = ActorObservationAndPlan.model_validate_json(json_str)
 
         # 步骤3: 将结果添加到角色的对话历史
-        actor_agent.chat_history.append(
+        actor_agent.context.append(
             AIMessage(
                 content=f"""{formatted_data.observation}\n{formatted_data.plan}"""
             )
@@ -276,8 +276,8 @@ def _collect_actor_plans(actor_agents: List[GameAgent]) -> List[ActorPlan]:
     actor_plans: List[ActorPlan] = []
 
     for actor_agent in actor_agents:
-        if len(actor_agent.chat_history) > 0:
-            last_message = actor_agent.chat_history[-1]
+        if len(actor_agent.context) > 0:
+            last_message = actor_agent.context[-1]
             # 提取消息内容并确保是字符串类型
             content = (
                 last_message.content
@@ -340,7 +340,7 @@ def _notify_actors_with_execution_result(
 
 **提示**：以上是刚刚发生的场景事件及最新状态快照，请基于这些信息进行观察和规划。"""
 
-        actor_agent.chat_history.append(HumanMessage(content=event_notification))
+        actor_agent.context.append(HumanMessage(content=event_notification))
 
 
 ########################################################################################################################
@@ -434,13 +434,13 @@ async def _orchestrate_actor_plans_and_update_stage(
             "llm": create_deepseek_llm(),
         },
         context={
-            "messages": stage_agent.chat_history.copy(),
+            "messages": stage_agent.context.copy(),
             "llm": create_deepseek_llm(),
         },
     )
 
     # 更新场景代理的对话历史
-    stage_agent.chat_history.append(HumanMessage(content=stage_execute_prompt))
+    stage_agent.context.append(HumanMessage(content=stage_execute_prompt))
     assert len(stage_execution_response) > 0, "场景执行响应为空"
 
     try:
@@ -474,7 +474,7 @@ async def _orchestrate_actor_plans_and_update_stage(
 
 {formatted_data.environment_state}"""
 
-        stage_agent.chat_history.append(AIMessage(content=formatted_content))
+        stage_agent.context.append(AIMessage(content=formatted_content))
 
         logger.success(f"✅ 场景执行成功: {stage_agent.name}")
 

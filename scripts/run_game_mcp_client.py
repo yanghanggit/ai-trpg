@@ -67,7 +67,7 @@ from workflow_executors import (
     execute_chat_state_workflow,
     execute_rag_workflow_handler,
 )
-from io_utils import format_user_input_prompt, log_chat_history
+from io_utils import format_user_input_prompt, log_history, dump_history
 from mcp_client_init import initialize_mcp_client_with_config
 from gameplay_handler import handle_game_command
 
@@ -77,7 +77,7 @@ from gameplay_handler import handle_game_command
 world_agent: Final[GameAgent] = GameAgent(
     name=test_world.name,
     type=World.__name__,
-    chat_history=[
+    context=[
         SystemMessage(
             content=gen_world_system_message(test_world, GLOBAL_GAME_MECHANICS)
         )
@@ -97,7 +97,7 @@ for actor in all_actors:
     agent = GameAgent(
         name=actor.name,
         type=Actor.__name__,
-        chat_history=[
+        context=[
             SystemMessage(
                 content=gen_actor_system_message(
                     actor, test_world, GLOBAL_GAME_MECHANICS
@@ -112,7 +112,7 @@ for stage in all_stages:
     agent = GameAgent(
         name=stage.name,
         type=Stage.__name__,
-        chat_history=[
+        context=[
             SystemMessage(
                 content=gen_stage_system_message(
                     stage, test_world, GLOBAL_GAME_MECHANICS
@@ -134,7 +134,7 @@ for agent in all_agents:
     logger.info(f"已创建代理: {agent.name}")
 
     if agent.name == "艾琳":
-        agent.chat_history.extend(
+        agent.context.extend(
             [
                 HumanMessage(content=kickoff_messages),
                 AIMessage(
@@ -144,7 +144,7 @@ for agent in all_agents:
         )
 
     elif agent.name == "加斯科因":
-        agent.chat_history.extend(
+        agent.context.extend(
             [
                 HumanMessage(content=kickoff_messages),
                 AIMessage(
@@ -153,7 +153,7 @@ for agent in all_agents:
             ]
         )
     elif agent.name == "外乡人":
-        agent.chat_history.extend(
+        agent.context.extend(
             [
                 HumanMessage(content=kickoff_messages),
                 AIMessage(
@@ -198,9 +198,18 @@ async def main() -> None:
                 continue
 
             # 处理历史记录命令
-            elif user_input.lower() == "/history":
+            elif user_input.lower() == "/log":
                 logger.info(f"📜 打印当前代理 [{current_agent.name}] 的对话历史")
-                log_chat_history(current_agent.chat_history)
+                log_history(
+                    agent_name=current_agent.name, messages=current_agent.context
+                )
+                continue
+
+            elif user_input.lower() == "/dump":
+                logger.info(f"💾 保存当前代理 [{current_agent.name}] 的对话历史")
+                dump_history(
+                    agent_name=current_agent.name, messages=current_agent.context
+                )
                 continue
 
             # 处理提示词模板命令
@@ -250,7 +259,7 @@ async def main() -> None:
                 # mcp 的工作流
                 mcp_response = await execute_mcp_state_workflow(
                     context={
-                        "messages": current_agent.chat_history.copy(),
+                        "messages": current_agent.context.copy(),
                         "llm": create_deepseek_llm(),
                         "mcp_client": mcp_client,
                         "available_tools": available_tools,
@@ -266,10 +275,8 @@ async def main() -> None:
                 )
 
                 # 更新当前代理的对话历史
-                current_agent.chat_history.append(
-                    HumanMessage(content=format_user_input)
-                )
-                current_agent.chat_history.extend(mcp_response)
+                current_agent.context.append(HumanMessage(content=format_user_input))
+                current_agent.context.extend(mcp_response)
                 continue
 
             elif user_input.startswith("/chat"):
@@ -289,16 +296,14 @@ async def main() -> None:
                         "llm": create_deepseek_llm(),
                     },
                     context={
-                        "messages": current_agent.chat_history.copy(),
+                        "messages": current_agent.context.copy(),
                         "llm": create_deepseek_llm(),
                     },
                 )
 
                 # 更新当前代理的对话历史
-                current_agent.chat_history.append(
-                    HumanMessage(content=format_user_input)
-                )
-                current_agent.chat_history.extend(chat_response)
+                current_agent.context.append(HumanMessage(content=format_user_input))
+                current_agent.context.extend(chat_response)
                 continue
 
             elif user_input.startswith("/rag"):
@@ -316,15 +321,15 @@ async def main() -> None:
                         "document_retriever": GameDocumentRetriever(),
                     },
                     context={
-                        "messages": current_agent.chat_history.copy(),
+                        "messages": current_agent.context.copy(),
                         "llm": create_deepseek_llm(),
                         "document_retriever": GameDocumentRetriever(),
                     },
                 )
 
                 # 更新当前代理的对话历史
-                current_agent.chat_history.append(HumanMessage(content=rag_content))
-                current_agent.chat_history.extend(rag_response)
+                current_agent.context.append(HumanMessage(content=rag_content))
+                current_agent.context.extend(rag_response)
                 continue
 
             elif user_input.startswith("/game"):

@@ -16,7 +16,7 @@ class GameAgent(BaseModel):
 
     name: str
     type: str
-    chat_history: List[BaseMessage] = []
+    context: List[BaseMessage] = []
 
 
 def switch_agent(
