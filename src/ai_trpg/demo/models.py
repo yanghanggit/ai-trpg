@@ -28,6 +28,7 @@ class Stage(BaseModel):
     actors: List[Actor] = Field(description="场景中的角色")
     sub_stages: List["Stage"] = Field(default_factory=list, description="子场景")
     narrative: str = Field(description="场景叙事")
+    actor_states: str = Field(description="场景中角色状态描述")
 
     def find_actor(self, actor_name: str) -> Actor | None:
         """递归查找指定名称的Actor

@@ -30,37 +30,42 @@ import mcp.types as types
 from ai_trpg.mcp import mcp_config
 from fastapi import Request, Response, status
 from ai_trpg.demo.world import test_world
-from typing import Any, Dict, Tuple
+from typing import Any, Dict, NamedTuple
 
 
 # 辅助函数！！！
 
 
-# stage1.narrative = f"""# {stage1.name} 场景状态
+class StageStateComponents(NamedTuple):
+    """场景状态组件"""
 
-# ## 场景内角色
-
-# 加斯科因: 墓地中央,靠近天使雕像, 来回踱步,手中的猎人斧随着他沉重的步伐不时触碰地面,发出金属摩擦的刺耳声响。他时而仰望血月,时而低头凝视地面,像一头困在笼中的野兽。
-# 艾琳: 墓地东侧的枯树的阴影之中 **隐藏** 了起来, 乌鸦羽毛斗篷与夜色完全融为一体，无法被其他人察觉。她一动不动地观察着墓地内的环境，以及猎物——加斯科因。
-# 外乡人: 墓地南侧入口处,距离铁栅栏门约十米,环顾四周，试图弄清楚自己身处何地以及接下来该做什么。"""
+    narrative: str
+    actor_states: str
+    environment: str
 
 
-def _format_stage_state_to_markdown(
-    stage_name: str, state_data: str
-) -> Tuple[str, str]:
+def _parse_and_format_stage_state(state_data: str) -> StageStateComponents:
     """
-    将场景状态数据格式化为Markdown文本
+    解析场景状态JSON并格式化角色状态为Markdown
+
+    将JSON格式的场景状态解析为三个独立的文本组件，
+    其中角色状态会被格式化为Markdown列表格式。
 
     Args:
-        stage_name: 场景名称
-        state_data: 场景状态的JSON字符串
+        state_data: 场景状态的JSON字符串，包含以下字段：
+            - narrative: 场景叙事文本
+            - actor_states: 角色状态列表
+            - environment_state: 环境描述文本
 
     Returns:
-        格式化后的Markdown文本
+        StageStateComponents: 包含三个组件的命名元组
+            - narrative: 场景叙事文本
+            - actor_states: Markdown格式的角色状态列表
+            - environment: 环境描述文本
     """
     state_dict: Dict[str, Any] = json.loads(state_data)
 
-    # 准备角色状态文本
+    # 准备角色状态文本（格式化为Markdown）
     actor_lines = []
     for actor_state in state_dict.get("actor_states", []):
         actor_name = actor_state.get("actor_name", "未知")
@@ -75,15 +80,11 @@ def _format_stage_state_to_markdown(
 
     actors_text = "\n".join(actor_lines)
     environment_text = state_dict.get("environment_state", "")
+    narrative_text = state_dict.get("narrative", "")
 
-    # 使用f-string模板生成Markdown
-    actor_state_prompt = f"""# {stage_name}
-
-## 场景内角色
-
-{actors_text}"""
-
-    return actor_state_prompt, environment_text
+    return StageStateComponents(
+        narrative=narrative_text, actor_states=actors_text, environment=environment_text
+    )
 
 
 def _get_actor_info_impl(actor_name: str) -> str:
@@ -159,6 +160,7 @@ def _get_stage_info_impl(stage_name: str) -> str:
                 "name": stage.name,
                 "narrative": stage.narrative,
                 "environment": stage.environment,
+                "actor_states": stage.actor_states,
                 "actors_appearance": actors_appearance,
             }
 
@@ -325,23 +327,24 @@ async def sync_stage_state(
                 ensure_ascii=False,
             )
 
-        # 格式化状态数据为Markdown
-        actor_state_prompt, environment_text = _format_stage_state_to_markdown(
-            stage_name, state_data
-        )
+        # 解析并格式化状态数据
+        components = _parse_and_format_stage_state(state_data)
 
-        # 打印格式化后的Markdown
-        logger.warning(f"{actor_state_prompt}")
-        logger.warning(f"{environment_text}")
+        # 打印格式化后的组件
+        logger.warning(f"narrative:\n{components.narrative}")
+        logger.warning(f"actor_states:\n{components.actor_states}")
+        logger.warning(f"environment:\n{components.environment}")
 
-        stage.narrative = actor_state_prompt
-        stage.environment = environment_text
+        # 更新Stage状态
+        stage.narrative = components.narrative
+        stage.actor_states = components.actor_states
+        stage.environment = components.environment
 
         return json.dumps(
             {
                 "success": True,
                 "stage_name": stage_name,
-                # "formatted": markdown_text,
+                # "actor_states": stage.actor_states,
                 "timestamp": datetime.now().isoformat(),
             },
             ensure_ascii=False,
