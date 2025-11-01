@@ -1,9 +1,35 @@
 """
+MCP Client Graph - 基于 LangGraph 的 MCP 工具调用工作流
+
+## 工作流架构
 preprocess → llm_invoke → tool_parse → [条件判断]
                                           ↓ (需要工具)
                                     tool_execution → llm_re_invoke → response_synthesis
                                           ↓ (不需要工具)
                                     response_synthesis
+
+## 上下文变化链路（Context Chain）
+
+### 核心改进：二次推理（Re-invoke）模式
+让AI基于工具结果进行深度分析，而不是简单拼接。
+
+### 上下文演变（6个阶段）
+1. **初始上下文**: `context["messages"] + request["messages"]`
+2. **预处理增强**: 添加工具指令 → `enhanced_messages`
+3. **第一次推理**: LLM决定调用工具 → `llm_response`
+4. **工具执行**: 并发执行工具 → `tool_outputs`
+5. **二次推理** ⭐: 重构上下文，按正确时序组织消息
+   ```
+   [SystemMessage(角色), SystemMessage(工具说明),
+    HumanMessage(用户问题), AIMessage(第一次响应),
+    AIMessage(工具结果)]  # ← 关键：使用AIMessage而非SystemMessage
+   ```
+6. **最终响应**: 基于工具结果的智能回答 → `final_response`
+
+### 关键设计
+- **消息类型**: 工具结果用 `AIMessage`（AI的观察）而非 `SystemMessage`
+- **消息顺序**: 用户问题 → AI响应 → 工具结果（符合因果关系）
+- **调试功能**: `_print_full_context_chain()` 打印完整链路（DEBUG级别）
 """
 
 from dotenv import load_dotenv
@@ -45,7 +71,6 @@ class McpState(TypedDict, total=False):
     tool_outputs: List[Dict[str, Any]]  # 工具执行结果
 
     # 新增字段用于多节点流程
-    system_prompt: Optional[str]  # 系统提示缓存
     enhanced_messages: List[BaseMessage]  # 包含系统提示的增强消息
     llm_response: Optional[BaseMessage]  # LLM原始响应
     parsed_tool_calls: List[Dict[str, Any]]  # 解析出的工具调用
@@ -156,7 +181,6 @@ async def _preprocess_node(state: McpState) -> McpState:
             "mcp_client": state.get("mcp_client"),
             "available_tools": available_tools,
             "tool_outputs": state.get("tool_outputs", []),
-            "system_prompt": tool_instruction_prompt,  # 保存系统提示供后续使用
             "enhanced_messages": enhanced_messages,  # 保存增强消息供LLM使用
         }
         return result
@@ -476,22 +500,29 @@ async def _llm_re_invoke_node(state: McpState) -> McpState:
 
 注意：用户的输入可能是问题、指令、对话、信息、行动描述等多种形式，请根据上下文灵活响应。"""
 
-        # 创建二次推理的消息列表，保持原有的角色设定
+        # 创建二次推理的消息列表，保持正确的时序逻辑
         re_invoke_messages: List[BaseMessage] = []
 
-        # 从原始消息中提取已有的角色设定
+        # 第1步：从原始消息中提取角色设定和工具说明（SystemMessage）
+        # 只有核心设定才使用 SystemMessage，保持在开头位置
         for msg in original_messages:
             if isinstance(msg, SystemMessage):
-                # 保持原有的角色设定
                 re_invoke_messages.append(msg)
 
-        # 在角色设定后插入工具分析提示
-        re_invoke_messages.append(SystemMessage(content=tool_analysis_prompt))
-
-        # 添加用户的问题
+        # 第2步：添加用户的问题（HumanMessage）- 这是触发工具调用的原因
         for msg in original_messages:
             if isinstance(msg, HumanMessage):
                 re_invoke_messages.append(msg)
+
+        # 第3步：添加AI第一次响应（如果存在）- 展示AI决定调用工具的过程
+        llm_first_response = state.get("llm_response")
+        if llm_first_response:
+            re_invoke_messages.append(llm_first_response)
+
+        # 第4步：添加工具执行结果作为 AIMessage（而不是 SystemMessage）
+        # 表示"AI观察到工具执行的结果"，而不是系统级指令
+        # 这样保持了对话流的连贯性：User → AI(调用工具) → AI(观察结果) → AI(最终回答)
+        re_invoke_messages.append(AIMessage(content=tool_analysis_prompt))
 
         # 二次调用 LLM
         logger.info("🔄 开始二次推理，基于工具结果生成智能回答...")
@@ -559,6 +590,7 @@ async def _response_synthesis_node(state: McpState) -> McpState:
         final_response = state.get("final_response")
         if final_response:
             # 有二次推理结果，直接使用
+            # ⚠️ 重要：传递所有调试字段，确保 _print_full_context_chain 可以访问完整上下文
             final_result: McpState = {
                 "messages": [final_response],
                 "llm": state["llm"],
@@ -566,6 +598,10 @@ async def _response_synthesis_node(state: McpState) -> McpState:
                 "available_tools": state.get("available_tools", []),
                 "tool_outputs": state.get("tool_outputs", []),
                 "final_response": final_response,  # 保持 final_response
+                # 传递调试所需的关键字段
+                "enhanced_messages": state.get("enhanced_messages", []),
+                "llm_response": state.get("llm_response"),
+                "parsed_tool_calls": state.get("parsed_tool_calls", []),
             }
             return final_result
 
@@ -583,6 +619,10 @@ async def _response_synthesis_node(state: McpState) -> McpState:
                 "available_tools": state.get("available_tools", []),
                 "tool_outputs": tool_outputs,
                 "final_response": error_message,  # 设置 final_response
+                # 传递调试字段
+                "enhanced_messages": state.get("enhanced_messages", []),
+                "llm_response": state.get("llm_response"),
+                "parsed_tool_calls": parsed_tool_calls,
             }
             return synthesis_error_result
 
@@ -605,6 +645,10 @@ async def _response_synthesis_node(state: McpState) -> McpState:
             "available_tools": state.get("available_tools", []),
             "tool_outputs": tool_outputs,
             "final_response": llm_response,  # 设置 final_response
+            # 传递调试字段
+            "enhanced_messages": state.get("enhanced_messages", []),
+            "llm_response": llm_response,
+            "parsed_tool_calls": parsed_tool_calls,
         }
         return synthesis_result
 
@@ -618,6 +662,10 @@ async def _response_synthesis_node(state: McpState) -> McpState:
             "available_tools": state.get("available_tools", []),
             "tool_outputs": [],
             "final_response": error_message,  # 设置 final_response
+            # 传递调试字段
+            "enhanced_messages": state.get("enhanced_messages", []),
+            "llm_response": state.get("llm_response"),
+            "parsed_tool_calls": state.get("parsed_tool_calls", []),
         }
         return synthesis_exception_result
 
@@ -694,6 +742,103 @@ async def _error_fallback_wrapper(state: McpState) -> McpState:
             "tool_outputs": [],
         }
         return fallback_exception_result
+
+
+############################################################################################################
+def _format_message_for_debug(msg: BaseMessage) -> str:
+    """
+    格式化单条消息用于调试输出
+
+    Args:
+        msg: 要格式化的消息
+        index: 消息索引
+
+    Returns:
+        str: 格式化后的消息字符串
+    """
+    msg_type = type(msg).__name__
+    content = str(msg.content) if msg.content else ""
+
+    # 限制内容长度，避免输出过长
+    max_content_length = 500
+    if len(content) > max_content_length:
+        content = content[:max_content_length] + "...[截断]"
+
+    return f"""{msg_type}\n{content}"""
+
+
+############################################################################################################
+def _print_full_context_chain(state: McpState, title: str = "完整上下文链路") -> None:
+    """
+    打印完整的上下文链路，用于调试
+
+    Args:
+        state: 最终状态
+        title: 调试输出的标题
+    """
+    try:
+        # logger.debug(f"\n\n{'#'*80}")
+        logger.warning(f"{title}")
+        # logger.debug(f"{'#'*80}\n")
+
+        # 1. 打印增强消息（第一次LLM调用的输入）
+        enhanced_messages = state.get("enhanced_messages", [])
+        if enhanced_messages:
+            # logger.debug(f"\n{'='*80}")
+            logger.debug("📝 第一次LLM调用输入 (enhanced_messages)")
+            # logger.debug(f"{'='*80}")
+            for i, msg in enumerate(enhanced_messages, 1):
+                logger.debug(_format_message_for_debug(msg))
+
+        # 2. 打印第一次LLM响应
+        llm_response = state.get("llm_response")
+        if llm_response:
+            # logger.debug(f"\n{'='*80}")
+            logger.debug("🤖 第一次LLM响应 (llm_response)")
+            # logger.debug(f"{'='*80}")
+            logger.debug(_format_message_for_debug(llm_response))
+
+        # 3. 打印解析出的工具调用
+        parsed_tool_calls = state.get("parsed_tool_calls", [])
+        if parsed_tool_calls:
+            # logger.debug(f"\n{'='*80}")
+            logger.debug(f"🔧 解析出的工具调用 ({len(parsed_tool_calls)} 个)")
+            # logger.debug(f"{'='*80}")
+            for i, call in enumerate(parsed_tool_calls, 1):
+                logger.debug(
+                    f"[{i}] {call['name']} - 参数: {json.dumps(call['args'], indent=2, ensure_ascii=False)}"
+                )
+
+        # 4. 打印工具执行结果
+        tool_outputs = state.get("tool_outputs", [])
+        if tool_outputs:
+            # logger.debug(f"\n{'='*80}")
+            logger.debug(f"⚙️ 工具执行结果 ({len(tool_outputs)} 个)")
+            # logger.debug(f"{'='*80}")
+            for i, output in enumerate(tool_outputs, 1):
+                status = "✅ 成功" if output.get("success") else "❌ 失败"
+                result = str(output.get("result", ""))
+                if len(result) > 300:
+                    result = result[:300] + "...[截断]"
+                logger.debug(
+                    f"[{i}] {output.get('tool', '未知')} {status} "
+                    f"(耗时: {output.get('execution_time', 0):.2f}s) - 结果: {result}"
+                )
+
+        # 5. 打印最终响应
+        final_response = state.get("final_response")
+        if final_response:
+            # logger.debug(f"\n{'='*80}")
+            logger.debug("🎯 最终响应 (final_response)")
+            # logger.debug(f"{'='*80}")
+            logger.debug(_format_message_for_debug(final_response))
+
+        # logger.debug(f"\n{'#'*80}")
+        logger.warning(f"# 上下文链路打印完成")
+        # logger.debug(f"{'#'*80}\n\n")
+
+    except Exception as e:
+        logger.error(f"打印上下文链路时发生错误: {e}")
 
 
 ############################################################################################################
@@ -801,6 +946,9 @@ async def execute_mcp_workflow(
             if final_response:
                 logger.info("✅ 从状态的 final_response 字段获取最终响应")
                 ret.append(final_response)
+
+                # 🔍 调试输出：打印完整的上下文链路
+                # _print_full_context_chain(final_state, "MCP Workflow 完整上下文链路")
             else:
                 logger.error(
                     "❌ final_response 不存在，这不应该发生（所有节点都应该设置 final_response）"
