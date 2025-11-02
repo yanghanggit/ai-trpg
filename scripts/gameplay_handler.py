@@ -304,10 +304,14 @@ async def _handle_all_actors_kickoff(
         assert narrative != "", "场景叙事不能为空"
 
         stage_narrative_prompts = f"""# {stage_agent.name} 场景叙事
+        
 {narrative}"""
 
         for actor_agent in actor_agents:
             actor_agent.context.append(HumanMessage(content=stage_narrative_prompts))
+            logger.debug(
+                f"✅ 角色 {actor_agent.name} kickoff = \n{stage_narrative_prompts}"
+            )
 
     except Exception as e:
         logger.error(f"❌ 读取资源时发生错误: {e}")

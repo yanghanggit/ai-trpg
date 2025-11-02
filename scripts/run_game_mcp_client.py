@@ -36,9 +36,6 @@ from ai_trpg.mcp import (
     mcp_config,
 )
 
-from ai_trpg.demo.world import (
-    test_world,
-)
 from ai_trpg.demo import (
     World,
     Actor,
@@ -47,6 +44,7 @@ from ai_trpg.demo import (
     gen_world_system_message,
     gen_actor_system_message,
     gen_stage_system_message,
+    create_test_world1,
 )
 
 from ai_trpg.utils import parse_command_with_params
@@ -70,6 +68,8 @@ from workflow_handlers import (
 from io_utils import format_user_input_prompt, log_history, dump_history
 from mcp_client_init import initialize_mcp_client_with_config
 from gameplay_handler import handle_game_command
+
+test_world = create_test_world1()
 
 
 ########################################################################################################################
@@ -181,6 +181,16 @@ async def main() -> None:
         # 初始化 MCP 客户端并获取可用资源
         mcp_client = await initialize_mcp_client_with_config(mcp_config)
         assert mcp_client is not None, "MCP 客户端初始化失败"
+
+        # 故意读一次，确保世界观资源存在，同时mcp server会重置世界。
+        world_resource_uri = f"game://world"
+        world_resource_response = await mcp_client.read_resource(world_resource_uri)
+        if world_resource_response is None or world_resource_response.text is None:
+            raise ValueError(f"❌ 未能读取资源: {world_resource_uri}")
+
+        # logger.debug(
+        #     f"🌐 读取世界资源: {world_resource_uri} 成功\n{world_resource_response.text}"
+        # )
 
         # 对话循环
         while True:

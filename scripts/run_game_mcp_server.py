@@ -29,11 +29,13 @@ from mcp.server.fastmcp import FastMCP
 import mcp.types as types
 from ai_trpg.mcp import mcp_config
 from fastapi import Request, Response, status
-from ai_trpg.demo.world import test_world
+from ai_trpg.demo import create_test_world1
 from typing import Any, Dict, NamedTuple
 
 
 # 辅助函数！！！
+
+test_world = create_test_world1()
 
 
 class StageStateComponents(NamedTuple):
@@ -579,6 +581,36 @@ async def get_stage_resource(stage_name: str) -> str:
     logger.debug(f"原始 stage_name: {stage_name}, 解码后: {decoded_stage_name}")
 
     return _get_stage_info_impl(decoded_stage_name)
+
+
+@app.resource("game://world")
+async def get_world_resource() -> str:
+    """
+    获取游戏世界（World）信息资源
+
+    Returns:
+        World的完整JSON数据，包含所有场景和角色的嵌套信息
+    """
+
+    # 创建游戏世界
+    global test_world
+    test_world = create_test_world1()
+
+    try:
+
+        logger.info(f"获取World数据: {test_world.name}")
+        return test_world.model_dump_json(indent=2, ensure_ascii=False)
+
+    except Exception as e:
+        logger.error(f"获取World信息失败: {e}")
+        return json.dumps(
+            {
+                "error": f"无法获取World数据 - {str(e)}",
+                "timestamp": datetime.now().isoformat(),
+            },
+            ensure_ascii=False,
+            indent=2,
+        )
 
 
 # ============================================================================
