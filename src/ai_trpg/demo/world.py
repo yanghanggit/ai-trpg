@@ -1,6 +1,6 @@
 from typing import List, Final
 from .models import Actor, Stage, World, Effect
-
+import copy
 
 # ============================================================================
 # 游戏世界实例
@@ -84,14 +84,16 @@ test_knowledge_base: Final[dict[str, List[str]]] = {
     ],
 }
 
+test_world1: Final[World] = World(
+    name="雅南城",
+    campaign_setting="一座被兽疫诅咒笼罩的维多利亚式古城，血月高悬，兽性在人心中蔓延。教会的狩猎之夜永无止境，古老的血脉秘密埋藏在哥特式教堂的地底深处。",
+    stages=[
+        stage1,
+    ],
+)
+
 
 # 创建游戏世界实例
-def create_test_world1() -> World:
+def clone_test_world1() -> World:
     """创建测试游戏世界实例"""
-    return World(
-        name="雅南城",
-        campaign_setting="一座被兽疫诅咒笼罩的维多利亚式古城，血月高悬，兽性在人心中蔓延。教会的狩猎之夜永无止境，古老的血脉秘密埋藏在哥特式教堂的地底深处。",
-        stages=[
-            stage1,
-        ],
-    )
+    return copy.deepcopy(test_world1)

@@ -29,13 +29,13 @@ from mcp.server.fastmcp import FastMCP
 import mcp.types as types
 from ai_trpg.mcp import mcp_config
 from fastapi import Request, Response, status
-from ai_trpg.demo import create_test_world1
+from ai_trpg.demo import clone_test_world1
 from typing import Any, Dict, NamedTuple
 
 
 # 辅助函数！！！
 
-test_world = create_test_world1()
+test_world = clone_test_world1()
 
 
 class StageStateComponents(NamedTuple):
@@ -100,7 +100,7 @@ def _get_actor_info_impl(actor_name: str) -> str:
         Actor的JSON数据，包含名称、外观描述和角色属性（生命值、攻击力等）
     """
     try:
-        actor, stage = test_world.find_actor_with_stage(actor_name)
+        actor, _ = test_world.find_actor_with_stage(actor_name)
         if actor:
             logger.info(f"获取Actor数据: {actor_name}")
 
@@ -594,8 +594,8 @@ async def get_world_resource() -> str:
     """
 
     # 创建游戏世界
-    # global test_world
-    # test_world = create_test_world1()
+    global test_world
+    test_world = clone_test_world1()
 
     try:
 
