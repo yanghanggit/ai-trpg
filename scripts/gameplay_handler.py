@@ -13,8 +13,8 @@ from ai_trpg.deepseek import create_deepseek_llm
 from ai_trpg.mcp import McpClient, McpToolInfo
 from ai_trpg.utils.json_format import strip_json_code_block
 from agent_utils import GameAgent
-from workflow_executors import (
-    execute_chat_state_workflow,
+from workflow_handlers import (
+    handle_chat_workflow_execution,
 )
 from langchain.schema import HumanMessage, AIMessage
 
@@ -177,7 +177,8 @@ async def _handle_single_actor_observe_and_plan(
 
 **要求**：基于第一步提供的角色信息 → 观察场景 → 规划行动 → 输出JSON"""
 
-    actors_observe_and_plan_response = await execute_chat_state_workflow(
+    actors_observe_and_plan_response = await handle_chat_workflow_execution(
+        agent_name=actor_agent.name,
         context={
             "messages": actor_agent.context.copy(),
             "llm": create_deepseek_llm(),
@@ -206,9 +207,6 @@ async def _handle_single_actor_observe_and_plan(
             AIMessage(
                 content=f"""{formatted_data.observation}\n{formatted_data.plan}"""
             )
-        )
-        logger.success(
-            f"{actor_agent.name}:\n{formatted_data.observation}\n{formatted_data.plan}"
         )
 
     except Exception as e:
@@ -428,7 +426,8 @@ async def _orchestrate_actor_plans_and_update_stage(
 - 输出完整描述，非增量描述"""
 
     # 执行 Chat 工作流
-    stage_execution_response = await execute_chat_state_workflow(
+    stage_execution_response = await handle_chat_workflow_execution(
+        agent_name=stage_agent.name,
         request={
             "messages": [HumanMessage(content=stage_execute_prompt)],
             "llm": create_deepseek_llm(),

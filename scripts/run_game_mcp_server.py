@@ -344,7 +344,6 @@ async def sync_stage_state(
             {
                 "success": True,
                 "stage_name": stage_name,
-                # "actor_states": stage.actor_states,
                 "timestamp": datetime.now().isoformat(),
             },
             ensure_ascii=False,

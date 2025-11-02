@@ -8,7 +8,6 @@
 from typing import List
 from langchain.schema import AIMessage, BaseMessage
 from loguru import logger
-
 from ai_trpg.deepseek import (
     McpState,
     execute_mcp_workflow,
@@ -23,14 +22,15 @@ from ai_trpg.deepseek import (
 
 
 #############################################################################################################
-async def execute_mcp_state_workflow(
+async def handle_mcp_workflow_execution(
+    agent_name: str,
     context: McpState,
     request: McpState,
 ) -> List[BaseMessage]:
     """处理普通用户消息：发送给AI处理"""
     user_message = request["messages"][0] if request.get("messages") else None
     if user_message:
-        logger.debug(f"{user_message.content}")
+        logger.debug(f"{agent_name}:\n{user_message.content}")
 
     mcp_response = await execute_mcp_workflow(
         work_flow=create_mcp_workflow(),
@@ -42,7 +42,7 @@ async def execute_mcp_state_workflow(
     if mcp_response:
         for msg in mcp_response:
             assert isinstance(msg, AIMessage)
-            logger.info(f"{msg.content}")
+            logger.info(f"{agent_name}:\n{msg.content}")
     else:
         logger.error("❌ 抱歉，没有收到回复。")
 
@@ -50,7 +50,8 @@ async def execute_mcp_state_workflow(
 
 
 #############################################################################################################
-async def execute_chat_state_workflow(
+async def handle_chat_workflow_execution(
+    agent_name: str,
     context: ChatState,
     request: ChatState,
 ) -> List[BaseMessage]:
@@ -68,7 +69,7 @@ async def execute_chat_state_workflow(
 
     user_message = request["messages"][0] if request.get("messages") else None
     if user_message:
-        logger.debug(f"{user_message.content}")
+        logger.debug(f"{agent_name}:\n{user_message.content}")
 
     chat_response = await execute_chat_workflow(
         work_flow=create_chat_workflow(),
@@ -80,7 +81,7 @@ async def execute_chat_state_workflow(
     if chat_response:
         for msg in chat_response:
             assert isinstance(msg, AIMessage)
-            logger.info(f"{msg.content}")
+            logger.info(f"{agent_name}:\n{msg.content}")
     else:
         logger.error("❌ 抱歉，没有收到回复。")
 
@@ -88,7 +89,8 @@ async def execute_chat_state_workflow(
 
 
 #############################################################################################################
-async def execute_rag_workflow_handler(
+async def handle_rag_workflow_execution(
+    agent_name: str,
     context: RAGState,
     request: RAGState,
 ) -> List[BaseMessage]:
@@ -105,7 +107,7 @@ async def execute_rag_workflow_handler(
     """
     user_message = request["messages"][0] if request.get("messages") else None
     if user_message:
-        logger.debug(f"{user_message.content}")
+        logger.debug(f"{agent_name}:\n{user_message.content}")
 
     rag_response = await execute_rag_workflow(
         work_flow=create_rag_workflow(),
@@ -117,7 +119,7 @@ async def execute_rag_workflow_handler(
     if rag_response:
         for msg in rag_response:
             assert isinstance(msg, AIMessage)
-            logger.info(f"{msg.content}")
+            logger.info(f"{agent_name}:\n{msg.content}")
     else:
         logger.error("❌ 抱歉，没有收到回复。")
 

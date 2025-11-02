@@ -62,10 +62,10 @@ from mcp_command_handlers import (
     handle_read_resource_command,
     handle_prompt_with_params_command,
 )
-from workflow_executors import (
-    execute_mcp_state_workflow,
-    execute_chat_state_workflow,
-    execute_rag_workflow_handler,
+from workflow_handlers import (
+    handle_mcp_workflow_execution,
+    handle_chat_workflow_execution,
+    handle_rag_workflow_execution,
 )
 from io_utils import format_user_input_prompt, log_history, dump_history
 from mcp_client_init import initialize_mcp_client_with_config
@@ -257,7 +257,8 @@ async def main() -> None:
                 assert available_tools is not None, "获取 MCP 可用工具失败"
 
                 # mcp 的工作流
-                mcp_response = await execute_mcp_state_workflow(
+                mcp_response = await handle_mcp_workflow_execution(
+                    agent_name=current_agent.name,
                     context={
                         "messages": current_agent.context.copy(),
                         "llm": create_deepseek_llm(),
@@ -290,7 +291,8 @@ async def main() -> None:
                 format_user_input = format_user_input_prompt(chat_content)
 
                 # 聊天的工作流
-                chat_response = await execute_chat_state_workflow(
+                chat_response = await handle_chat_workflow_execution(
+                    agent_name=current_agent.name,
                     request={
                         "messages": [HumanMessage(content=format_user_input)],
                         "llm": create_deepseek_llm(),
@@ -314,7 +316,8 @@ async def main() -> None:
                     continue
 
                 # RAG 的工作流
-                rag_response = await execute_rag_workflow_handler(
+                rag_response = await handle_rag_workflow_execution(
+                    agent_name=current_agent.name,
                     request={
                         "messages": [HumanMessage(content=rag_content)],
                         "llm": create_deepseek_llm(),
