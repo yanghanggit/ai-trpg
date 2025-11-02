@@ -6,7 +6,8 @@
 """
 
 import asyncio
-from typing import List
+import json
+from typing import Any, Dict, List
 from loguru import logger
 from pydantic import BaseModel
 from ai_trpg.deepseek import create_deepseek_llm
@@ -101,8 +102,7 @@ async def _handle_single_actor_observe_and_plan(
             logger.error(f"❌ 未能读取资源: {actor_resource_uri}")
             return
 
-        actor_info_json = actor_resource_response.text
-        # logger.debug(f"读取到角色信息: {actor_info_json}")
+        actor_info_json = json.loads(actor_resource_response.text)
 
     except Exception as e:
         logger.error(f"❌ 读取资源时发生错误: {e}")
@@ -116,8 +116,35 @@ async def _handle_single_actor_observe_and_plan(
             logger.error(f"❌ 未能读取资源: {stage_resource_uri}")
             return
 
-        stage_info_json = stage_resource_response.text
-        # logger.debug(f"读取到场景信息: {stage_info_json}")
+        stage_info_data = json.loads(stage_resource_response.text)
+
+        # 创建新的字典,只复制需要的字段
+        filtered_stage_info: Dict[str, Any] = {}
+
+        # 复制需要的字段：名字要
+        if "name" in stage_info_data:
+            filtered_stage_info["name"] = stage_info_data["name"]
+
+        # 复制需要的字段：环境描述要
+        if "environment" in stage_info_data:
+            filtered_stage_info["environment"] = stage_info_data["environment"]
+
+        # 复制需要的字段：角色状态要
+        if "actor_states" in stage_info_data:
+            filtered_stage_info["actor_states"] = stage_info_data["actor_states"]
+
+        if "actors_appearance" in stage_info_data:
+            # 过滤掉当前角色的外观信息，因为是冗余的
+            actors_appearance = stage_info_data["actors_appearance"]
+            if isinstance(actors_appearance, list):
+                filtered_appearances = [
+                    actor
+                    for actor in actors_appearance
+                    if actor.get("name") != actor_agent.name
+                ]
+                filtered_stage_info["actors_appearance"] = filtered_appearances
+            else:
+                filtered_stage_info["actors_appearance"] = actors_appearance
 
     except Exception as e:
         logger.error(f"❌ 读取资源时发生错误: {e}")
@@ -128,11 +155,11 @@ async def _handle_single_actor_observe_and_plan(
 ## 第一步：你的角色信息 与 当前场景信息
 
 ```json
-{actor_info_json}
+{json.dumps(actor_info_json, ensure_ascii=False, indent=2)}
 ```
 
 ```json
-{stage_info_json}
+{json.dumps(filtered_stage_info, ensure_ascii=False, indent=2)}
 ```
 
 ---
@@ -254,6 +281,36 @@ async def _handle_all_actors_observe_and_plan(
                 actor_agent=actor_agent,
                 mcp_client=mcp_client,
             )
+
+
+########################################################################################################################
+async def _handle_all_actors_kickoff(
+    stage_agent: GameAgent,
+    actor_agents: List[GameAgent],
+    mcp_client: McpClient,
+) -> None:
+
+    try:
+
+        stage_resource_uri = f"game://stage/{stage_agent.name}"
+        stage_resource_response = await mcp_client.read_resource(stage_resource_uri)
+        if stage_resource_response is None or stage_resource_response.text is None:
+            logger.error(f"❌ 未能读取资源: {stage_resource_uri}")
+            return
+
+        stage_info_data = json.loads(stage_resource_response.text)
+
+        narrative = stage_info_data.get("narrative", "")
+        assert narrative != "", "场景叙事不能为空"
+
+        stage_narrative_prompts = f"""# {stage_agent.name} 场景叙事
+{narrative}"""
+
+        for actor_agent in actor_agents:
+            actor_agent.context.append(HumanMessage(content=stage_narrative_prompts))
+
+    except Exception as e:
+        logger.error(f"❌ 读取资源时发生错误: {e}")
 
 
 ########################################################################################################################
@@ -496,6 +553,8 @@ async def _orchestrate_actor_plans_and_update_stage(
 ########################################################################################################################
 ########################################################################################################################
 ########################################################################################################################
+
+
 async def handle_game_command(
     command: str,
     current_agent: GameAgent,
@@ -532,7 +591,18 @@ async def handle_game_command(
     available_tools = await mcp_client.list_tools()
     assert available_tools is not None, "获取 MCP 可用工具失败"
 
+    # global kick_off
+
     match command:
+
+        # /game all_actors:kickoff - 让所有角色代理开始行动
+        case "all_actors:kickoff":
+
+            await _handle_all_actors_kickoff(
+                stage_agent=stage_agents[0],
+                actor_agents=actor_agents,
+                mcp_client=mcp_client,
+            )
 
         # /game all_actors:observe_and_plan - 让所有角色代理观察场景并规划行动
         case "all_actors:observe_and_plan":
@@ -556,6 +626,13 @@ async def handle_game_command(
         # /game pipeline:test1 - 测试流水线1: 观察规划→执行更新循环
         # 注意: 假设第0帧 已通过初始化注入stage_agent
         case "pipeline:test1":
+
+            # 步骤0: 所有角色开始行动（Kickoff）
+            await _handle_all_actors_kickoff(
+                stage_agent=stage_agents[0],
+                actor_agents=actor_agents,
+                mcp_client=mcp_client,
+            )
 
             # 步骤1: 所有角色观察场景并规划行动
             await _handle_all_actors_observe_and_plan(
