@@ -11,7 +11,7 @@ from typing import Any, Dict, List
 from loguru import logger
 from pydantic import BaseModel
 from ai_trpg.deepseek import create_deepseek_llm
-from ai_trpg.mcp import McpClient, McpToolInfo
+from ai_trpg.mcp import McpClient
 from ai_trpg.utils.json_format import strip_json_code_block
 from agent_utils import GameAgent
 from workflow_handlers import (
@@ -31,19 +31,6 @@ class ActorObservationAndPlan(BaseModel):
 
     observation: str  # 角色观察内容
     plan: str  # 角色行动计划内容
-
-
-########################################################################################################################
-########################################################################################################################
-########################################################################################################################
-class ActorPlan(BaseModel):
-    """角色行动计划数据模型
-
-    用于收集和传递角色的行动计划信息，提供类型安全的数据结构。
-    """
-
-    actor_name: str  # 角色名称
-    plan: str  # 行动计划内容
 
 
 ########################################################################################################################
@@ -216,11 +203,10 @@ async def _handle_single_actor_observe_and_plan(
         },
     )
 
-    # 更新角色代理的对话历史
-    actor_agent.context.append(HumanMessage(content=observe_and_plan_prompt))
-    assert len(actors_observe_and_plan_response) > 0, "角色观察与规划响应为空"
-
     try:
+
+        assert len(actors_observe_and_plan_response) > 0, "角色观察与规划响应为空"
+
         # 步骤1: 从JSON代码块中提取字符串
         json_str = strip_json_code_block(
             str(actors_observe_and_plan_response[-1].content)
@@ -229,12 +215,19 @@ async def _handle_single_actor_observe_and_plan(
         # 步骤2: 使用Pydantic解析和验证
         formatted_data = ActorObservationAndPlan.model_validate_json(json_str)
 
+        # 更新角色代理的对话历史
+        actor_agent.context.append(HumanMessage(content=observe_and_plan_prompt))
+        assert len(actors_observe_and_plan_response) > 0, "角色观察与规划响应为空"
+
         # 步骤3: 将结果添加到角色的对话历史
         actor_agent.context.append(
             AIMessage(
-                content=f"""{formatted_data.observation}\n{formatted_data.plan}"""
+                content=f"""{formatted_data.observation}\n\n{formatted_data.plan}"""
             )
         )
+
+        # 记录角色的计划到属性中，方便后续使用
+        actor_agent.plans = [formatted_data.plan]
 
     except Exception as e:
         logger.error(f"JSON解析错误: {e}")
@@ -320,7 +313,9 @@ async def _handle_all_actors_kickoff(
 ########################################################################################################################
 ########################################################################################################################
 ########################################################################################################################
-def _collect_actor_plans(actor_agents: List[GameAgent]) -> List[ActorPlan]:
+async def _collect_actor_plan_prompts(
+    actor_agents: List[GameAgent], mcp_client: McpClient
+) -> List[str]:
     """收集所有角色的行动计划
 
     从角色代理列表中提取每个角色的最后一条消息作为行动计划。
@@ -332,35 +327,50 @@ def _collect_actor_plans(actor_agents: List[GameAgent]) -> List[ActorPlan]:
     Returns:
         ActorPlan对象列表，每个对象包含actor_name和plan字段
     """
-    actor_plans: List[ActorPlan] = []
+    ret: List[str] = []
 
     for actor_agent in actor_agents:
-        if len(actor_agent.context) > 0:
-            last_message = actor_agent.context[-1]
-            # 提取消息内容并确保是字符串类型
-            content = (
-                last_message.content
-                if hasattr(last_message, "content")
-                else str(last_message)
-            )
-            # 确保content是字符串
-            content_str = str(content) if not isinstance(content, str) else content
+        prompt = await _build_actor_plan_prompt(actor_agent, mcp_client)
+        if prompt != "":
+            ret.append(prompt)
 
-            actor_plans.append(
-                ActorPlan(
-                    actor_name=actor_agent.name,
-                    plan=content_str,
-                )
-            )
-
-    return actor_plans
+    return ret
 
 
 ########################################################################################################################
 ########################################################################################################################
 ########################################################################################################################
-def _notify_actors_with_execution_result(
-    actor_agents: List[GameAgent], execution_result: StageExecutionResult
+async def _build_actor_plan_prompt(
+    actor_agent: GameAgent, mcp_client: McpClient
+) -> str:
+
+    if len(actor_agent.plans) == 0:
+        return ""
+
+    try:
+        actor_resource_uri = f"game://actor/{actor_agent.name}"
+        actor_resource_response = await mcp_client.read_resource(actor_resource_uri)
+        if actor_resource_response is None or actor_resource_response.text is None:
+            logger.error(f"❌ 未能读取资源: {actor_resource_uri}")
+            return ""
+
+        return f"""### {actor_agent.name}
+        
+**计划**: {actor_agent.plans[-1]}
+**信息**
+{actor_resource_response.text}"""
+
+    except Exception as e:
+        logger.error(f"❌ 读取资源时发生错误: {e}")
+
+    return ""
+
+
+########################################################################################################################
+########################################################################################################################
+########################################################################################################################
+def _broadcast_narrative_to_actors(
+    actor_agents: List[GameAgent], narrative: str
 ) -> None:
     """将场景执行结果通知给所有角色代理
 
@@ -370,32 +380,15 @@ def _notify_actors_with_execution_result(
         actor_agents: 角色代理列表
         execution_result: 场景执行结果的结构化数据
     """
-    # 构建角色状态文本
-    actor_states_text = "\n".join(
-        [
-            f"- **{state.actor_name}**：{state.location} | {state.posture} | {state.status}"
-            for state in execution_result.actor_states
-        ]
-    )
 
     # 将场景执行结果通知给所有角色代理
     for actor_agent in actor_agents:
         # 构建场景执行结果通知提示词
-        event_notification = f"""# 场景事件发生
+        event_notification = f"""# 场景事件发生！
 
-## 事件叙事
+## 叙事
 
-{execution_result.narrative}
-
-## 当前角色状态
-
-{actor_states_text}
-
-## 当前环境状态
-
-{execution_result.environment_state}
-
----
+{narrative}
 
 **提示**：以上是刚刚发生的场景事件及最新状态快照，请基于这些信息进行观察和规划。"""
 
@@ -409,7 +402,6 @@ async def _orchestrate_actor_plans_and_update_stage(
     stage_agent: GameAgent,
     actor_agents: List[GameAgent],
     mcp_client: McpClient,
-    available_tools: List[McpToolInfo],
 ) -> None:
     """处理场景执行指令
 
@@ -426,20 +418,18 @@ async def _orchestrate_actor_plans_and_update_stage(
     logger.info(f"🎬 场景执行: {stage_agent.name}")
 
     # 收集所有角色的行动计划
-    actor_plans = _collect_actor_plans(actor_agents)
+    actor_plans = await _collect_actor_plan_prompts(actor_agents, mcp_client)
 
     if not actor_plans:
         logger.warning("⚠️  没有角色有行动计划，跳过场景执行")
         return
 
     # 构建行动执行提示词
-    plans_text = "\n\n".join(
-        [f"**{plan.actor_name}**: {plan.plan}" for plan in actor_plans]
-    )
+    plans_text = "\n\n".join(actor_plans)
 
     stage_execute_prompt = f"""# 场景行动执行与状态更新
 
-## 角色计划
+## 角色计划与信息
 
 {plans_text}
 
@@ -499,8 +489,6 @@ async def _orchestrate_actor_plans_and_update_stage(
         },
     )
 
-    # 更新场景代理的对话历史
-    stage_agent.context.append(HumanMessage(content=stage_execute_prompt))
     assert len(stage_execution_response) > 0, "场景执行响应为空"
 
     try:
@@ -510,38 +498,16 @@ async def _orchestrate_actor_plans_and_update_stage(
         # 步骤2: 使用Pydantic解析和验证
         formatted_data = StageExecutionResult.model_validate_json(json_str)
 
-        # 步骤3: 构建格式化的消息添加到对话历史
-        actor_states_text = "\n".join(
-            [
-                f"- **{state.actor_name}**：{state.location} | {state.posture} | {state.status}"
-                for state in formatted_data.actor_states
-            ]
-        )
+        # 步骤3: 更新场景代理的对话历史
+        stage_agent.context.append(HumanMessage(content=stage_execute_prompt))
 
-        formatted_content = f"""## 场景执行
+        # 步骤4: 将结果添加到场景的对话历史
+        stage_agent.context.append(AIMessage(content=json_str))
 
-{formatted_data.narrative}
+        # 步骤5: 通知所有角色代理场景执行结果
+        _broadcast_narrative_to_actors(actor_agents, formatted_data.narrative)
 
----
-
-## 状态快照
-
-### 角色状态
-
-{actor_states_text}
-
-### 环境状态
-
-{formatted_data.environment_state}"""
-
-        stage_agent.context.append(AIMessage(content=formatted_content))
-
-        logger.success(f"✅ 场景执行成功: {stage_agent.name}")
-
-        # 将场景执行结果通知给所有角色代理
-        _notify_actors_with_execution_result(actor_agents, formatted_data)
-
-        # 随便测试下调用 MCP 同步场景状态工具
+        # 步骤？: 随便测试下调用 MCP 同步场景状态工具
         await mcp_client.call_tool(
             "sync_stage_state",
             {
@@ -624,7 +590,7 @@ async def handle_game_command(
                 stage_agent=stage_agents[0],
                 actor_agents=actor_agents,
                 mcp_client=mcp_client,
-                available_tools=available_tools,
+                # available_tools=available_tools,
             )
 
         # /game pipeline:test0 - 测试流水线0: 开局→观察规划
@@ -670,5 +636,5 @@ async def handle_game_command(
                 stage_agent=stage_agents[0],
                 actor_agents=actor_agents,
                 mcp_client=mcp_client,
-                available_tools=available_tools,
+                # available_tools=available_tools,
             )

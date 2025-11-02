@@ -183,10 +183,10 @@ async def main() -> None:
         assert mcp_client is not None, "MCP 客户端初始化失败"
 
         # 故意读一次，确保世界观资源存在，同时mcp server会重置世界。
-        world_resource_uri = f"game://world"
-        world_resource_response = await mcp_client.read_resource(world_resource_uri)
-        if world_resource_response is None or world_resource_response.text is None:
-            raise ValueError(f"❌ 未能读取资源: {world_resource_uri}")
+        # world_resource_uri = f"game://world"
+        # world_resource_response = await mcp_client.read_resource(world_resource_uri)
+        # if world_resource_response is None or world_resource_response.text is None:
+        #     raise ValueError(f"❌ 未能读取资源: {world_resource_uri}")
 
         # logger.debug(
         #     f"🌐 读取世界资源: {world_resource_uri} 成功\n{world_resource_response.text}"

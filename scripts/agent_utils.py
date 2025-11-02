@@ -17,6 +17,7 @@ class GameAgent(BaseModel):
     name: str
     type: str
     context: List[BaseMessage] = []
+    plans: List[str] = []
 
 
 def switch_agent(

@@ -594,8 +594,8 @@ async def get_world_resource() -> str:
     """
 
     # 创建游戏世界
-    global test_world
-    test_world = create_test_world1()
+    # global test_world
+    # test_world = create_test_world1()
 
     try:
 
