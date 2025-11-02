@@ -1,5 +1,5 @@
 from typing import List, Final
-from .models import Actor, Stage, World
+from .models import Actor, Stage, World, Effect
 
 
 # ============================================================================
@@ -24,7 +24,13 @@ actor2 = Actor(
 )
 
 # 单独设置艾琳的属性
-actor2.attributes.attack = 80
+actor2.attributes.attack = 50
+actor2.effects.append(
+    Effect(
+        name="暗影突袭",
+        description="从隐藏状态脱离时，第一次攻击威力提升200%。触发后效果消失。",
+    )
+)
 
 # 外乡人
 actor3 = Actor(

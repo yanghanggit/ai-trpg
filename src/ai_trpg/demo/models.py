@@ -10,6 +10,27 @@ class Attributes(BaseModel):
     attack: int = Field(default=10, description="攻击力", ge=0)
 
 
+# class EffectType(StrEnum):
+#     """效果类型"""
+#     BUFF = "buff"           # 增益效果
+#     DEBUFF = "debuff"       # 减益效果
+#     DOT = "dot"             # 持续伤害
+#     HOT = "hot"             # 持续治疗
+#     CONTROL = "control"     # 控制效果(眩晕、定身等)
+#     SPECIAL = "special"     # 特殊效果
+
+
+class Effect(BaseModel):
+    """效果模型"""
+
+    name: str = Field(description="效果名称")
+    # effect_type: EffectType = Field(description="效果类型")
+    description: str = Field(description="效果描述")
+    # duration: int = Field(default=-1, description="持续回合数，-1表示永久")
+    # stack: int = Field(default=1, description="叠加层数", ge=1)
+    # value: Optional[float] = Field(default=None, description="效果数值(如伤害值、治疗值)")
+
+
 class Actor(BaseModel):
     """表示游戏中角色状态的模型"""
 
@@ -17,6 +38,7 @@ class Actor(BaseModel):
     profile: str = Field(description="角色档案/设定")
     appearance: str = Field(description="外观描述")
     attributes: Attributes = Field(default_factory=Attributes, description="角色属性")
+    effects: List[Effect] = Field(default_factory=list, description="角色当前效果状态")
 
 
 class Stage(BaseModel):

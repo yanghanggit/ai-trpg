@@ -112,6 +112,7 @@ def _get_actor_info_impl(actor_name: str) -> str:
                     "max_health": actor.attributes.max_health,
                     "attack": actor.attributes.attack,
                 },
+                "effects": [effect.model_dump() for effect in actor.effects],
             }
             return json.dumps(result, ensure_ascii=False, indent=2)
         else:

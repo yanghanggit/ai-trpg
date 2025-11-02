@@ -262,7 +262,7 @@ async def _handle_all_actors_observe_and_plan(
 
     if use_concurrency:
         # 并行处理所有角色
-        logger.info(f"🔄 并行处理 {len(actor_agents)} 个角色的观察和规划")
+        logger.debug(f"🔄 并行处理 {len(actor_agents)} 个角色的观察和规划")
         tasks = [
             _handle_single_actor_observe_and_plan(
                 stage_agent=stage_agent,
@@ -274,7 +274,7 @@ async def _handle_all_actors_observe_and_plan(
         await asyncio.gather(*tasks)
     else:
         # 顺序处理所有角色
-        logger.info(f"🔄 顺序处理 {len(actor_agents)} 个角色的观察和规划")
+        logger.debug(f"🔄 顺序处理 {len(actor_agents)} 个角色的观察和规划")
         for actor_agent in actor_agents:
             await _handle_single_actor_observe_and_plan(
                 stage_agent=stage_agent,
@@ -627,7 +627,25 @@ async def handle_game_command(
                 available_tools=available_tools,
             )
 
-        # /game pipeline:test1 - 测试流水线1: 观察规划→执行更新循环
+        # /game pipeline:test0 - 测试流水线0: 开局→观察规划
+        case "pipeline:test0":
+
+            # 步骤0: 所有角色开始行动（Kickoff）
+            await _handle_all_actors_kickoff(
+                stage_agent=stage_agents[0],
+                actor_agents=actor_agents,
+                mcp_client=mcp_client,
+            )
+
+            # 步骤1: 所有角色观察场景并规划行动
+            await _handle_all_actors_observe_and_plan(
+                stage_agent=stage_agents[0],
+                actor_agents=actor_agents,
+                mcp_client=mcp_client,
+                use_concurrency=True,
+            )
+
+        # /game pipeline:test1 - 测试流水线1: 开局→观察规划→执行更新循环
         # 注意: 假设第0帧 已通过初始化注入stage_agent
         case "pipeline:test1":
 
