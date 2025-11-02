@@ -57,7 +57,7 @@ def _parse_and_format_stage_state(state_data: str) -> StageStateComponents:
         state_data: 场景状态的JSON字符串，包含以下字段：
             - narrative: 场景叙事文本
             - actor_states: 角色状态列表
-            - environment_state: 环境描述文本
+            - environment: 环境描述文本
 
     Returns:
         StageStateComponents: 包含三个组件的命名元组
@@ -81,7 +81,7 @@ def _parse_and_format_stage_state(state_data: str) -> StageStateComponents:
         actor_lines.append(line)
 
     actors_text = "\n".join(actor_lines)
-    environment_text = state_dict.get("environment_state", "")
+    environment_text = state_dict.get("environment", "")
     narrative_text = state_dict.get("narrative", "")
 
     return StageStateComponents(

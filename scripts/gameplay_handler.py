@@ -59,7 +59,7 @@ class StageExecutionResult(BaseModel):
 
     narrative: str  # 场景执行描述（叙事层）
     actor_states: List[ActorState]  # 角色状态列表
-    environment_state: str  # 环境状态描述
+    environment: str  # 环境状态描述
 
 
 ########################################################################################################################
@@ -135,7 +135,7 @@ async def _handle_single_actor_observe_and_plan(
 
     except Exception as e:
         logger.error(f"❌ 读取资源时发生错误: {e}")
-        return
+        # return
 
     observe_and_plan_prompt = f"""# 角色观察与行动规划
 
@@ -277,7 +277,7 @@ async def _handle_all_actors_observe_and_plan(
 
 
 ########################################################################################################################
-async def _handle_all_actors_kickoff(
+async def _handle_all_kickoff(
     stage_agent: GameAgent,
     actor_agents: List[GameAgent],
     mcp_client: McpClient,
@@ -296,14 +296,41 @@ async def _handle_all_actors_kickoff(
         narrative = stage_info_data.get("narrative", "")
         assert narrative != "", "场景叙事不能为空"
 
-        stage_narrative_prompts = f"""# {stage_agent.name} 场景叙事
+        actor_states = stage_info_data.get("actor_states", "")
+        assert actor_states != "", "场景角色状态不能为空"
+
+        environment = stage_info_data.get("environment", "")
+        assert environment != "", "场景环境状态不能为空"
+
+        # 通知场景代理场景叙事和角色状态
+        notify_stage_prompt = f"""# {stage_agent.name}
+        
+## 叙事
+
+{narrative}
+
+## 角色状态
+
+{actor_states}
+
+## 环境
+
+{environment}"""
+
+        stage_agent.context.append(HumanMessage(content=notify_stage_prompt))
+        logger.debug(f"✅ 场景 {stage_agent.name} kickoff = \n{notify_stage_prompt}")
+
+        # 通知所有角色代理场景叙事
+        notify_actor_prompt = f"""# {stage_agent.name}
+
+## 叙事
         
 {narrative}"""
 
         for actor_agent in actor_agents:
-            actor_agent.context.append(HumanMessage(content=stage_narrative_prompts))
+            actor_agent.context.append(HumanMessage(content=notify_actor_prompt))
             logger.debug(
-                f"✅ 角色 {actor_agent.name} kickoff = \n{stage_narrative_prompts}"
+                f"✅ 角色 {actor_agent.name} kickoff = \n{notify_actor_prompt}"
             )
 
     except Exception as e:
@@ -425,13 +452,13 @@ async def _orchestrate_actor_plans_and_update_stage(
         return
 
     # 构建行动执行提示词
-    plans_text = "\n\n".join(actor_plans)
+    # plans_text = "\n\n".join(actor_plans)
 
     stage_execute_prompt = f"""# 场景行动执行与状态更新
 
 ## 角色计划与信息
 
-{plans_text}
+{"\n\n".join(actor_plans)}
 
 ## 任务要求
 
@@ -458,7 +485,7 @@ async def _orchestrate_actor_plans_and_update_stage(
             "status": ""
         }}
     ],
-    "environment_state": "完整的环境描述段落。基于你对话历史中最近一次输出的environment_state进行更新。如果是第一轮执行，参考系统消息中的初始环境描述。保持未变化的部分不变（空间结构、固定设施、基本布局等），更新有变化的部分（物体损坏、地面痕迹、环境扰动、角色行动留痕等），添加新增的感官元素（新出现的气味、声音、视觉变化等）。这是完整的绝对描述，不是增量变化。"
+    "environment": "完整的环境描述段落。基于你对话历史中最近一次输出的environment进行更新。如果是第一轮执行，参考系统消息中的初始环境描述。保持未变化的部分不变（空间结构、固定设施、基本布局等），更新有变化的部分（物体损坏、地面痕迹、环境扰动、角色行动留痕等），添加新增的感官元素（新出现的气味、声音、视觉变化等）。这是完整的绝对描述，不是增量变化。"
 }}
 ```
 
@@ -467,12 +494,12 @@ async def _orchestrate_actor_plans_and_update_stage(
 1. 只输出JSON代码块，不要有其他文本
 2. narrative字段：生动叙事，展现执行过程
 3. actor_states数组：必须包含所有角色的状态
-4. environment_state字段：完整的环境快照，是下一轮场景更新的起点
+4. environment字段：完整的环境快照，是下一轮场景更新的起点
 
 **环境状态更新原则**：
 
 - 第一轮：参考系统消息中的初始环境描述
-- 后续轮次：从对话历史中找到上一次的environment_state，以此为基准更新
+- 后续轮次：从对话历史中找到上一次的environment，以此为基准更新
 - 保持未变化部分，更新有变化部分，添加新增感官元素
 - 输出完整描述，非增量描述"""
 
@@ -565,10 +592,10 @@ async def handle_game_command(
 
     match command:
 
-        # /game all_actors:kickoff - 让所有角色代理开始行动
-        case "all_actors:kickoff":
+        # /game all:kickoff - 让所有的代理开始行动（Kickoff）
+        case "all:kickoff":
 
-            await _handle_all_actors_kickoff(
+            await _handle_all_kickoff(
                 stage_agent=stage_agents[0],
                 actor_agents=actor_agents,
                 mcp_client=mcp_client,
@@ -597,7 +624,7 @@ async def handle_game_command(
         case "pipeline:test0":
 
             # 步骤0: 所有角色开始行动（Kickoff）
-            await _handle_all_actors_kickoff(
+            await _handle_all_kickoff(
                 stage_agent=stage_agents[0],
                 actor_agents=actor_agents,
                 mcp_client=mcp_client,
@@ -616,7 +643,7 @@ async def handle_game_command(
         case "pipeline:test1":
 
             # 步骤0: 所有角色开始行动（Kickoff）
-            await _handle_all_actors_kickoff(
+            await _handle_all_kickoff(
                 stage_agent=stage_agents[0],
                 actor_agents=actor_agents,
                 mcp_client=mcp_client,
