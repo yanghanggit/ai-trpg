@@ -51,22 +51,16 @@ async def handle_all_kickoff(
         assert environment != "", "场景环境状态不能为空"
 
         # 通知场景代理场景叙事和角色状态
-        stage_narrative_notification = f"""# {stage_agent.name}
+        kickoff_prompt = f"""# {stage_agent.name}
         
 {narrative}"""
 
-        stage_agent.context.append(HumanMessage(content=stage_narrative_notification))
-        logger.debug(
-            f"✅ 场景 {stage_agent.name} kickoff = \n{stage_narrative_notification}"
-        )
+        stage_agent.context.append(HumanMessage(content=kickoff_prompt))
+        logger.info(f"✅ 场景 {stage_agent.name} kickoff = \n{kickoff_prompt}")
 
         for actor_agent in actor_agents:
-            actor_agent.context.append(
-                HumanMessage(content=stage_narrative_notification)
-            )
-            logger.debug(
-                f"✅ 角色 {actor_agent.name} kickoff = \n{stage_narrative_notification}"
-            )
+            actor_agent.context.append(HumanMessage(content=kickoff_prompt))
+            logger.debug(f"✅ 角色 {actor_agent.name} kickoff = \n{kickoff_prompt}")
 
     except Exception as e:
         logger.error(f"❌ 读取资源时发生错误: {e}")

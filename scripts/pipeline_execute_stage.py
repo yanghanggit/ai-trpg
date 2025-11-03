@@ -17,6 +17,11 @@ from agent_utils import GameAgent
 from workflow_handlers import handle_chat_workflow_execution
 
 
+def _gen_compressed_stage_execute_prompt(stage_name: str) -> str:
+
+    return f"""# {stage_name} 场景发生事件！请生成事件内容！"""
+
+
 ########################################################################################################################
 ########################################################################################################################
 ########################################################################################################################
@@ -258,25 +263,35 @@ async def orchestrate_actor_plans_and_update_stage(
         formatted_data = StageExecutionResult.model_validate_json(json_str)
 
         # 步骤3: 更新场景代理的对话历史
-        stage_agent.context.append(HumanMessage(content=stage_execute_prompt))
+        stage_agent.context.append(
+            HumanMessage(content=_gen_compressed_stage_execute_prompt(stage_agent.name))
+        )
 
-        narrative_content = f"""# {stage_agent.name} 场景执行结果(发生事件)
-      
-## 叙事
-        
-{formatted_data.narrative}
-
-**注意**：这是场景的发生事件，会影响后续的观察、规划与执行，请基于此信息进行处理。"""
-
-        # 步骤4: 将结果添加到场景的对话历史
-        stage_agent.context.append(AIMessage(content=narrative_content))
-        logger.debug(f"✅ 场景 {stage_agent.name} 执行结果 = \n{narrative_content}")
+        # 步骤4: 记录场景执行结果到场景代理的对话历史
+        stage_agent.context.append(AIMessage(content=formatted_data.narrative))
+        logger.debug(
+            f"✅ 场景 {stage_agent.name} 执行结果 = \n{formatted_data.narrative}"
+        )
+        stage_agent.context.append(
+            HumanMessage(
+                content="**注意**！场景状态已更新，请在下轮执行中考虑这些变化。"
+            )
+        )
 
         # 步骤5: 通知所有角色代理场景执行结果
         for actor_agent in actor_agents:
-            actor_agent.context.append(HumanMessage(content=narrative_content))
+
+            notify_prompt = f"""# {stage_agent.name} 场景发生事件：
+            
+## 叙事
+{formatted_data.narrative}
+            
+以上事件已发生并改变了场景状态，这将直接影响你的下一步观察与规划。"""
+
+            # 更新角色代理的对话历史
+            actor_agent.context.append(HumanMessage(content=notify_prompt))
             logger.debug(
-                f"✅ 角色 {actor_agent.name} 收到场景执行结果通知 = \n{narrative_content}"
+                f"✅ 角色 {actor_agent.name} 收到场景执行结果通知 = \n{notify_prompt}"
             )
 
         # 步骤？: 随便测试下调用 MCP 同步场景状态工具

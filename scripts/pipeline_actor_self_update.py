@@ -63,11 +63,11 @@ def _gen_self_update_request_prompt_test_v1(actor_name: str) -> str:
     ]
 }}
 
-注意：
+### 注意!
 
-此JSON代码块必须输出
-appearance 填写调用 update_actor_appearance 工具后返回的外观描述
-effects 填写所有调用 add_actor_effect 工具添加的效果名称列表"""
+- 请严格按照上述格式输出JSON结果，确保 JSON 格式正确无误。
+- appearance 填写调用 update_actor_appearance 工具后返回的外观描述
+- effects 填写所有调用 add_actor_effect 工具添加的效果名称列表"""
 
 
 ########################################################################################################################
@@ -116,9 +116,10 @@ async def _handle_single_actor_self_update(
         },
     )
 
-    # 更新当前代理的对话历史
-    # actor_agent.context.append(HumanMessage(content=self_update_request_prompt))
-    # actor_agent.context.extend(mcp_response)
+    # 在这里注意，不要添加任何新的对话历史，所有的更新都在 MCP 工作流中完成！
+    logger.warning(
+        f"✅ 角色 {actor_agent.name} 自我状态更新完成, 注意对话历史未变更，所有更新在 MCP 工作流中完成"
+    )
 
 
 ########################################################################################################################
