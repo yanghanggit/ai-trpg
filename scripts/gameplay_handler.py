@@ -16,6 +16,7 @@ from ai_trpg.utils.json_format import strip_json_code_block
 from agent_utils import GameAgent
 from workflow_handlers import (
     handle_chat_workflow_execution,
+    handle_mcp_workflow_execution,
 )
 from langchain.schema import HumanMessage, AIMessage
 
@@ -425,6 +426,121 @@ async def _handle_all_kickoff(
 
 
 ########################################################################################################################
+async def _handle_all_actors_self_update(
+    actor_agents: List[GameAgent],
+    mcp_client: McpClient,
+    use_concurrency: bool = False,
+) -> None:
+
+    if use_concurrency:
+        logger.debug(f"🔄 并行处理 {len(actor_agents)} 个角色的观察和规划")
+        tasks = [
+            _handle_single_actor_self_update(
+                actor_agent=actor_agent,
+                mcp_client=mcp_client,
+            )
+            for actor_agent in actor_agents
+        ]
+        await asyncio.gather(*tasks)
+    else:
+        logger.debug(f"🔄 顺序处理 {len(actor_agents)} 个角色的观察和规划")
+        for actor_agent in actor_agents:
+            await _handle_single_actor_self_update(
+                actor_agent=actor_agent,
+                mcp_client=mcp_client,
+            )
+
+
+########################################################################################################################
+########################################################################################################################
+########################################################################################################################
+async def _handle_single_actor_self_update(
+    actor_agent: GameAgent,
+    mcp_client: McpClient,
+) -> None:
+    """处理单个角色的自我状态更新
+
+    角色根据场景执行结果（在上下文中）判断是否需要：
+    1. 更新外观描述（如受伤、变化等）
+    2. 添加新的状态效果（如增益、减益等）
+
+    通过调用 MCP 工具实现状态更新。
+    """
+
+    available_tools = await mcp_client.list_tools()
+    assert available_tools is not None, "获取 MCP 可用工具失败"
+
+    self_update_request_prompt = f"""# {actor_agent.name} 状态更新分析
+
+阅读对话历史中的**场景执行结果**，分析是否需要更新角色状态。
+
+## 第一步：内部决策（不要输出，仅思考）
+
+**外观判断**：
+- 是否有身体损伤（流血、骨折、烧伤等）？
+- 是否有衣物变化（破损、沾染、脱落等）？
+- 是否有装备更换（武器、护甲变化）？
+- 是否有环境影响（沾泥、淋雨、染血等）？
+→ 如果有任一项，准备新的完整外观描述（80-120字）
+
+**效果判断**：
+- 是否获得伤势（轻伤、重伤、流血等）？
+- 是否获得增益（力量提升、防护等）？
+- 是否获得减益（虚弱、中毒、恐惧等）？
+- 是否获得环境效果（潮湿、寒冷等）？
+- 是否产生心理状态变化（愤怒、冷静、疯狂等）？
+→ 如果有，列出所有新效果（每个：名称2-6字，描述20-40字）
+
+## 第二步：执行输出
+
+**情况A：需要更新**
+一次性输出所有工具调用（JSON格式）：
+- 如果外观改变 → 生成 update_actor_appearance 工具调用
+- 如果有新效果 → 生成多个 add_actor_effect 工具调用（每个效果一个）
+
+**情况B：无需更新**
+直接回复："无需更新"（四个字，不要其他内容）
+
+## 🔴 测试模式（强制要求）
+当前处于测试阶段，**必须执行情况A**：
+1. 生成 update_actor_appearance 工具调用（即使只是微调描述）
+2. 生成至少1个 add_actor_effect 工具调用（如"警觉"、"紧张"等合理状态）
+
+## ⚠️ 重要：最终输出格式（请严格遵守）
+
+**第一步输出**：先生成工具调用的 JSON
+**第二步输出**（工具执行后）：用自然语言简要说明更新内容，是完整的一自然段语言。
+
+**示例**：
+"已更新外观描述，并添加了A和B两个状态效果。"
+
+**注意**：最终回复是纯文本"""
+
+    # mcp 的工作流
+    mcp_response = await handle_mcp_workflow_execution(
+        agent_name=actor_agent.name,
+        context={
+            "messages": actor_agent.context.copy(),
+            "llm": create_deepseek_llm(),
+            "mcp_client": mcp_client,
+            "available_tools": available_tools,
+            "tool_outputs": [],
+        },
+        request={
+            "messages": [HumanMessage(content=self_update_request_prompt)],
+            "llm": create_deepseek_llm(),
+            "mcp_client": mcp_client,
+            "available_tools": available_tools,
+            "tool_outputs": [],
+        },
+    )
+
+    # 更新当前代理的对话历史
+    # actor_agent.context.append(HumanMessage(content=self_update_request_prompt))
+    # actor_agent.context.extend(mcp_response)
+
+
+########################################################################################################################
 ########################################################################################################################
 ########################################################################################################################
 async def _collect_actor_plan_prompts(
@@ -517,35 +633,6 @@ async def _build_actor_plan_prompt(
         logger.error(f"❌ 读取资源时发生错误: {e}")
 
     return ""
-
-
-########################################################################################################################
-########################################################################################################################
-########################################################################################################################
-def _broadcast_narrative_to_actors(
-    actor_agents: List[GameAgent], narrative: str
-) -> None:
-    """将场景执行结果通知给所有角色代理
-
-    从场景执行结果中提取叙事描述和角色状态,并将其作为事件通知发送给所有角色代理的对话历史。
-
-    Args:
-        actor_agents: 角色代理列表
-        execution_result: 场景执行结果的结构化数据
-    """
-
-    # 将场景执行结果通知给所有角色代理
-    for actor_agent in actor_agents:
-        # 构建场景执行结果通知提示词
-        event_notification = f"""# 场景事件发生！
-
-## 叙事
-
-{narrative}
-
-**提示**：以上是刚刚发生的场景事件及最新状态快照，请基于这些信息进行观察和规划。"""
-
-        actor_agent.context.append(HumanMessage(content=event_notification))
 
 
 ########################################################################################################################
@@ -677,9 +764,14 @@ async def _orchestrate_actor_plans_and_update_stage(
 
         # 步骤4: 将结果添加到场景的对话历史
         stage_agent.context.append(AIMessage(content=narrative_content))
+        logger.debug(f"✅ 场景 {stage_agent.name} 执行结果 = \n{narrative_content}")
 
         # 步骤5: 通知所有角色代理场景执行结果
-        _broadcast_narrative_to_actors(actor_agents, narrative_content)
+        for actor_agent in actor_agents:
+            actor_agent.context.append(HumanMessage(content=narrative_content))
+            logger.debug(
+                f"✅ 角色 {actor_agent.name} 收到场景执行结果通知 = \n{narrative_content}"
+            )
 
         # 步骤？: 随便测试下调用 MCP 同步场景状态工具
         await mcp_client.call_tool(
@@ -761,6 +853,14 @@ async def handle_game_command(
                 mcp_client=mcp_client,
             )
 
+        # /game all_actors:update - 让所有角色进行更新
+        case "all_actors:update":
+
+            await _handle_all_actors_self_update(
+                actor_agents=actor_agents,
+                mcp_client=mcp_client,
+            )
+
         # /game pipeline:test0 - 测试流水线0: 开局→观察规划
         case "pipeline:test0":
 
@@ -804,4 +904,11 @@ async def handle_game_command(
                 stage_agent=stage_agents[0],
                 actor_agents=actor_agents,
                 mcp_client=mcp_client,
+            )
+
+            # 步骤3: 所有角色进行状态更新
+            await _handle_all_actors_self_update(
+                actor_agents=actor_agents,
+                mcp_client=mcp_client,
+                use_concurrency=True,
             )

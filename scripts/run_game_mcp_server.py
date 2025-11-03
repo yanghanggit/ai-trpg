@@ -29,7 +29,7 @@ from mcp.server.fastmcp import FastMCP
 import mcp.types as types
 from ai_trpg.mcp import mcp_config
 from fastapi import Request, Response, status
-from ai_trpg.demo import clone_test_world1
+from ai_trpg.demo import clone_test_world1, Effect
 from typing import Any, Dict, NamedTuple
 
 
@@ -357,6 +357,139 @@ async def sync_stage_state(
         return json.dumps(
             {"success": False, "error": str(e)},
             ensure_ascii=False,
+        )
+
+
+@app.tool()
+async def update_actor_appearance(actor_name: str, new_appearance: str) -> str:
+    """
+    更新指定Actor的外观描述（appearance字段）
+
+    Args:
+        actor_name: 要更新的Actor名称
+        new_appearance: 新的外观描述文本
+
+    Returns:
+        更新操作的结果信息（JSON格式）
+    """
+    try:
+        # 查找Actor
+        actor, current_stage = test_world.find_actor_with_stage(actor_name)
+        if not actor or not current_stage:
+            error_msg = f"错误：未找到名为 '{actor_name}' 的Actor"
+            logger.warning(error_msg)
+            return json.dumps(
+                {
+                    "success": False,
+                    "error": error_msg,
+                    "timestamp": datetime.now().isoformat(),
+                },
+                ensure_ascii=False,
+                indent=2,
+            )
+
+        # 保存旧的外观描述以便日志记录
+        old_appearance = actor.appearance
+
+        # 更新Actor的appearance字段
+        actor.appearance = new_appearance
+
+        success_msg = f"成功更新 {actor_name} 的外观描述"
+        logger.info(
+            f"{success_msg}\n旧外观: {old_appearance}\n新外观: {new_appearance}"
+        )
+
+        return json.dumps(
+            {
+                "success": True,
+                "message": success_msg,
+                "actor": actor_name,
+                "stage": current_stage.name,
+                "old_appearance": old_appearance,
+                "new_appearance": new_appearance,
+                "timestamp": datetime.now().isoformat(),
+            },
+            ensure_ascii=False,
+            indent=2,
+        )
+
+    except Exception as e:
+        logger.error(f"更新Actor外观失败: {e}")
+        return json.dumps(
+            {
+                "success": False,
+                "error": f"更新Actor外观失败 - {str(e)}",
+                "timestamp": datetime.now().isoformat(),
+            },
+            ensure_ascii=False,
+            indent=2,
+        )
+
+
+@app.tool()
+async def add_actor_effect(
+    actor_name: str, effect_name: str, effect_description: str
+) -> str:
+    """
+    为指定Actor添加一个新的Effect（效果/状态）
+
+    Args:
+        actor_name: 要添加效果的Actor名称
+        effect_name: 效果名称
+        effect_description: 效果描述
+
+    Returns:
+        添加操作的结果信息（JSON格式）
+    """
+    try:
+        # 查找Actor
+        actor, current_stage = test_world.find_actor_with_stage(actor_name)
+        if not actor or not current_stage:
+            error_msg = f"错误：未找到名为 '{actor_name}' 的Actor"
+            logger.warning(error_msg)
+            return json.dumps(
+                {
+                    "success": False,
+                    "error": error_msg,
+                    "timestamp": datetime.now().isoformat(),
+                },
+                ensure_ascii=False,
+                indent=2,
+            )
+
+        # 创建新的 Effect
+        new_effect = Effect(name=effect_name, description=effect_description)
+
+        # 添加效果到Actor
+        actor.effects.append(new_effect)
+
+        success_msg = f"成功为 {actor_name} 添加效果: {effect_name}"
+        logger.info(f"{success_msg}\n效果描述: {effect_description}")
+
+        return json.dumps(
+            {
+                "success": True,
+                "message": success_msg,
+                "actor": actor_name,
+                "stage": current_stage.name,
+                "effect": new_effect.model_dump(),
+                "total_effects": len(actor.effects),
+                "timestamp": datetime.now().isoformat(),
+            },
+            ensure_ascii=False,
+            indent=2,
+        )
+
+    except Exception as e:
+        logger.error(f"添加Actor效果失败: {e}")
+        return json.dumps(
+            {
+                "success": False,
+                "error": f"添加Actor效果失败 - {str(e)}",
+                "timestamp": datetime.now().isoformat(),
+            },
+            ensure_ascii=False,
+            indent=2,
         )
 
 

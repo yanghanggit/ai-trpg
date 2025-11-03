@@ -1,6 +1,6 @@
 """Demo actors, stages, and world for the multi-agents game framework."""
 
-from .models import Actor, Stage, World
+from .models import Effect, Actor, Stage, World
 from .system_messages import (
     GLOBAL_GAME_MECHANICS,
     gen_world_system_message,
@@ -10,6 +10,7 @@ from .system_messages import (
 from .world import clone_test_world1
 
 __all__ = [
+    "Effect",
     "Actor",
     "Stage",
     "World",
