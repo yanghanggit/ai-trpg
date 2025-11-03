@@ -125,17 +125,77 @@ async def _handle_single_actor_observe_and_plan(
         else:
             filtered_stage_info["actors_appearance"] = actors_appearance
 
+    # 构建第一步的Markdown格式
+    # 1. 角色个人信息部分
+    actor_name = actor_info_json.get("name", "未知")
+    actor_appearance = actor_info_json.get("appearance", "无描述")
+    actor_attributes = actor_info_json.get("attributes", {})
+    actor_effects = actor_info_json.get("effects", [])
+
+    # 格式化战斗数据
+    health = actor_attributes.get("health", 0)
+    max_health = actor_attributes.get("max_health", 0)
+    attack = actor_attributes.get("attack", 0)
+
+    # 格式化状态效果
+    if actor_effects:
+        effect_parts = []
+        for effect in actor_effects:
+            effect_name = effect.get("name", "未知效果")
+            effect_desc = effect.get("description", "")
+            if effect_desc:
+                effect_parts.append(f"{effect_name}({effect_desc})")
+            else:
+                effect_parts.append(effect_name)
+        effects_str = ", ".join(effect_parts)
+    else:
+        effects_str = "无"
+
+    # 2. 场景信息部分
+    stage_name = filtered_stage_info.get("name", "未知场景")
+    stage_environment = filtered_stage_info.get("environment", "无描述")
+    stage_actor_states = filtered_stage_info.get("actor_states", "无角色状态")
+    stage_actors_appearance = filtered_stage_info.get("actors_appearance", [])
+
+    # 格式化其他角色的外观
+    other_actors_str = ""
+    if isinstance(stage_actors_appearance, list) and stage_actors_appearance:
+        other_actors_parts = []
+        for actor in stage_actors_appearance:
+            actor_other_name = actor.get("name", "未知")
+            actor_other_appearance = actor.get("appearance", "无描述")
+            other_actors_parts.append(
+                f"""**{actor_other_name}**
+- 外观: {actor_other_appearance}"""
+            )
+        other_actors_str = "\n\n".join(other_actors_parts)
+    else:
+        other_actors_str = "无其他角色"
+
     observe_and_plan_prompt = f"""# {actor_agent.name} 角色观察与行动规划
 
-## 第一步：你的角色信息 与 当前场景信息
+## 第一步: 你的角色信息 与 当前场景信息
 
-```json
-{json.dumps(actor_info_json, ensure_ascii=False, indent=2)}
-```
+### 你的角色信息
 
-```json
-{json.dumps(filtered_stage_info, ensure_ascii=False, indent=2)}
-```
+**{actor_name}**
+- 战斗数据: 生命值 {health}/{max_health} | 攻击力 {attack}
+- 状态效果: {effects_str}
+- 外观: {actor_appearance}
+
+### 当前场景信息
+
+**场景**: {stage_name}
+
+**环境描述**:
+{stage_environment}
+
+**场景中的角色位置与状态**:
+{stage_actor_states}
+
+**场景中的其他角色**:
+
+{other_actors_str}
 
 ---
 
