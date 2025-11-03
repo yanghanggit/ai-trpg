@@ -81,63 +81,51 @@ async def _handle_single_actor_observe_and_plan(
     """
     logger.warning(f"角色观察并规划: {actor_agent.name}")
 
-    # 读取角色信息资源
-    try:
-        actor_resource_uri = f"game://actor/{actor_agent.name}"
-        actor_resource_response = await mcp_client.read_resource(actor_resource_uri)
-        if actor_resource_response is None or actor_resource_response.text is None:
-            logger.error(f"❌ 未能读取资源: {actor_resource_uri}")
-            return
-
-        actor_info_json = json.loads(actor_resource_response.text)
-
-    except Exception as e:
-        logger.error(f"❌ 读取资源时发生错误: {e}")
+    stage_resource_uri = f"game://stage/{stage_agent.name}"
+    stage_resource_response = await mcp_client.read_resource(stage_resource_uri)
+    if stage_resource_response is None or stage_resource_response.text is None:
+        logger.error(f"❌ 未能读取资源: {stage_resource_uri}")
         return
 
-    # 在这个位置获取场景stage 的 resource
-    try:
-        stage_resource_uri = f"game://stage/{stage_agent.name}"
-        stage_resource_response = await mcp_client.read_resource(stage_resource_uri)
-        if stage_resource_response is None or stage_resource_response.text is None:
-            logger.error(f"❌ 未能读取资源: {stage_resource_uri}")
-            return
+    # 读取角色信息资源
+    actor_resource_uri = f"game://actor/{actor_agent.name}"
+    actor_resource_response = await mcp_client.read_resource(actor_resource_uri)
+    if actor_resource_response is None or actor_resource_response.text is None:
+        logger.error(f"❌ 未能读取资源: {actor_resource_uri}")
+        return
 
-        stage_info_data = json.loads(stage_resource_response.text)
+    stage_info_json = json.loads(stage_resource_response.text)
+    actor_info_json = json.loads(actor_resource_response.text)
 
-        # 创建新的字典,只复制需要的字段
-        filtered_stage_info: Dict[str, Any] = {}
+    # 创建新的字典,只复制需要的字段
+    filtered_stage_info: Dict[str, Any] = {}
 
-        # 复制需要的字段：名字要
-        if "name" in stage_info_data:
-            filtered_stage_info["name"] = stage_info_data["name"]
+    # 复制需要的字段：名字要
+    if "name" in stage_info_json:
+        filtered_stage_info["name"] = stage_info_json["name"]
 
-        # 复制需要的字段：环境描述要
-        if "environment" in stage_info_data:
-            filtered_stage_info["environment"] = stage_info_data["environment"]
+    # 复制需要的字段：环境描述要
+    if "environment" in stage_info_json:
+        filtered_stage_info["environment"] = stage_info_json["environment"]
 
-        # 复制需要的字段：角色状态要
-        if "actor_states" in stage_info_data:
-            filtered_stage_info["actor_states"] = stage_info_data["actor_states"]
+    # 复制需要的字段：角色状态要
+    if "actor_states" in stage_info_json:
+        filtered_stage_info["actor_states"] = stage_info_json["actor_states"]
 
-        if "actors_appearance" in stage_info_data:
-            # 过滤掉当前角色的外观信息，因为是冗余的
-            actors_appearance = stage_info_data["actors_appearance"]
-            if isinstance(actors_appearance, list):
-                filtered_appearances = [
-                    actor
-                    for actor in actors_appearance
-                    if actor.get("name") != actor_agent.name
-                ]
-                filtered_stage_info["actors_appearance"] = filtered_appearances
-            else:
-                filtered_stage_info["actors_appearance"] = actors_appearance
+    if "actors_appearance" in stage_info_json:
+        # 过滤掉当前角色的外观信息，因为是冗余的
+        actors_appearance = stage_info_json["actors_appearance"]
+        if isinstance(actors_appearance, list):
+            filtered_appearances = [
+                actor
+                for actor in actors_appearance
+                if actor.get("name") != actor_agent.name
+            ]
+            filtered_stage_info["actors_appearance"] = filtered_appearances
+        else:
+            filtered_stage_info["actors_appearance"] = actors_appearance
 
-    except Exception as e:
-        logger.error(f"❌ 读取资源时发生错误: {e}")
-        # return
-
-    observe_and_plan_prompt = f"""# 角色观察与行动规划
+    observe_and_plan_prompt = f"""# {actor_agent.name} 角色观察与行动规划
 
 ## 第一步：你的角色信息 与 当前场景信息
 
@@ -303,34 +291,21 @@ async def _handle_all_kickoff(
         assert environment != "", "场景环境状态不能为空"
 
         # 通知场景代理场景叙事和角色状态
-        notify_stage_prompt = f"""# {stage_agent.name}
-        
-## 叙事
-
-{narrative}
-
-## 角色状态
-
-{actor_states}
-
-## 环境
-
-{environment}"""
-
-        stage_agent.context.append(HumanMessage(content=notify_stage_prompt))
-        logger.debug(f"✅ 场景 {stage_agent.name} kickoff = \n{notify_stage_prompt}")
-
-        # 通知所有角色代理场景叙事
-        notify_actor_prompt = f"""# {stage_agent.name}
-
-## 叙事
+        stage_narrative_notification = f"""# {stage_agent.name}
         
 {narrative}"""
 
+        stage_agent.context.append(HumanMessage(content=stage_narrative_notification))
+        logger.debug(
+            f"✅ 场景 {stage_agent.name} kickoff = \n{stage_narrative_notification}"
+        )
+
         for actor_agent in actor_agents:
-            actor_agent.context.append(HumanMessage(content=notify_actor_prompt))
+            actor_agent.context.append(
+                HumanMessage(content=stage_narrative_notification)
+            )
             logger.debug(
-                f"✅ 角色 {actor_agent.name} kickoff = \n{notify_actor_prompt}"
+                f"✅ 角色 {actor_agent.name} kickoff = \n{stage_narrative_notification}"
             )
 
     except Exception as e:
@@ -381,10 +356,7 @@ async def _build_actor_plan_prompt(
             logger.error(f"❌ 未能读取资源: {actor_resource_uri}")
             return ""
 
-        return f"""### {actor_agent.name}
-        
-**计划**: {actor_agent.plans[-1]}
-**信息**
+        return f"""**{actor_agent.name}**: {actor_agent.plans[-1]}
 {actor_resource_response.text}"""
 
     except Exception as e:
@@ -444,21 +416,35 @@ async def _orchestrate_actor_plans_and_update_stage(
 
     logger.info(f"🎬 场景执行: {stage_agent.name}")
 
+    stage_resource_uri = f"game://stage/{stage_agent.name}"
+    stage_resource_response = await mcp_client.read_resource(stage_resource_uri)
+    if stage_resource_response is None or stage_resource_response.text is None:
+        logger.error(f"❌ 未能读取资源: {stage_resource_uri}")
+        return
+
     # 收集所有角色的行动计划
     actor_plans = await _collect_actor_plan_prompts(actor_agents, mcp_client)
+
+    stage_info_json = json.loads(stage_resource_response.text)
 
     if not actor_plans:
         logger.warning("⚠️  没有角色有行动计划，跳过场景执行")
         return
 
     # 构建行动执行提示词
-    # plans_text = "\n\n".join(actor_plans)
-
-    stage_execute_prompt = f"""# 场景行动执行与状态更新
+    stage_execute_prompt = f"""# {stage_agent.name} 场景行动执行与状态更新
 
 ## 角色计划与信息
 
 {"\n\n".join(actor_plans)}
+
+## 角色状态
+
+{stage_info_json.get("actor_states", "")}
+
+## 当前环境
+
+{stage_info_json.get("environment", "")}
 
 ## 任务要求
 
@@ -528,11 +514,19 @@ async def _orchestrate_actor_plans_and_update_stage(
         # 步骤3: 更新场景代理的对话历史
         stage_agent.context.append(HumanMessage(content=stage_execute_prompt))
 
+        narrative_content = f"""# {stage_agent.name} 场景执行结果(发生事件)
+      
+## 叙事
+        
+{formatted_data.narrative}
+
+**注意**：这是场景的发生事件，会影响后续的观察、规划与执行，请基于此信息进行处理。"""
+
         # 步骤4: 将结果添加到场景的对话历史
-        stage_agent.context.append(AIMessage(content=json_str))
+        stage_agent.context.append(AIMessage(content=narrative_content))
 
         # 步骤5: 通知所有角色代理场景执行结果
-        _broadcast_narrative_to_actors(actor_agents, formatted_data.narrative)
+        _broadcast_narrative_to_actors(actor_agents, narrative_content)
 
         # 步骤？: 随便测试下调用 MCP 同步场景状态工具
         await mcp_client.call_tool(
@@ -560,9 +554,6 @@ async def handle_game_command(
     stage_agents: List[GameAgent],
     actor_agents: List[GameAgent],
     mcp_client: McpClient,
-    # available_tools: List[McpToolInfo],
-    # available_prompts: List[McpPromptInfo],
-    # available_resources: List[McpResourceInfo],
 ) -> None:
     """处理游戏指令
 
@@ -587,8 +578,6 @@ async def handle_game_command(
 
     available_tools = await mcp_client.list_tools()
     assert available_tools is not None, "获取 MCP 可用工具失败"
-
-    # global kick_off
 
     match command:
 
