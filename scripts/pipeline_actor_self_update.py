@@ -15,30 +15,13 @@ from agent_utils import GameAgent
 from workflow_handlers import handle_mcp_workflow_execution
 
 
-########################################################################################################################
-########################################################################################################################
-########################################################################################################################
-async def _handle_single_actor_self_update(
-    actor_agent: GameAgent,
-    mcp_client: McpClient,
-) -> None:
-    """处理单个角色的自我状态更新
-
-    角色根据场景执行结果（在上下文中）判断是否需要：
-    1. 更新外观描述（如受伤、变化等）
-    2. 添加新的状态效果（如增益、减益等）
-
-    通过调用 MCP 工具实现状态更新。
-
-    Args:
-        actor_agent: 角色代理
-        mcp_client: MCP 客户端
+def _gen_self_update_request_prompt_test_v1(actor_name: str) -> str:
+    """
+    生成角色自我状态更新请求提示词（测试版v1）,
+    因为测试模式下需要强制执行更新外观和添加效果。
     """
 
-    available_tools = await mcp_client.list_tools()
-    assert available_tools is not None, "获取 MCP 可用工具失败"
-
-    self_update_request_prompt = f"""# {actor_agent.name} 状态更新
+    return f"""# {actor_name} 状态更新
 
 ## ⚠️ 强制要求（测试模式）
 
@@ -85,6 +68,34 @@ async def _handle_single_actor_self_update(
 此JSON代码块必须输出
 appearance 填写调用 update_actor_appearance 工具后返回的外观描述
 effects 填写所有调用 add_actor_effect 工具添加的效果名称列表"""
+
+
+########################################################################################################################
+########################################################################################################################
+########################################################################################################################
+async def _handle_single_actor_self_update(
+    actor_agent: GameAgent,
+    mcp_client: McpClient,
+) -> None:
+    """处理单个角色的自我状态更新
+
+    角色根据场景执行结果（在上下文中）判断是否需要：
+    1. 更新外观描述（如受伤、变化等）
+    2. 添加新的状态效果（如增益、减益等）
+
+    通过调用 MCP 工具实现状态更新。
+
+    Args:
+        actor_agent: 角色代理
+        mcp_client: MCP 客户端
+    """
+
+    available_tools = await mcp_client.list_tools()
+    assert available_tools is not None, "获取 MCP 可用工具失败"
+
+    self_update_request_prompt = _gen_self_update_request_prompt_test_v1(
+        actor_agent.name
+    )
 
     # mcp 的工作流
     await handle_mcp_workflow_execution(
