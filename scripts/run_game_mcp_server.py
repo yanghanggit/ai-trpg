@@ -363,7 +363,7 @@ async def sync_stage_state(
 @app.tool()
 async def update_actor_appearance(actor_name: str, new_appearance: str) -> str:
     """
-    更新指定Actor的外观描述（appearance字段）
+    更新指定Actor的外观描述
 
     Args:
         actor_name: 要更新的Actor名称
@@ -402,10 +402,10 @@ async def update_actor_appearance(actor_name: str, new_appearance: str) -> str:
         return json.dumps(
             {
                 "success": True,
-                "message": success_msg,
+                # "message": success_msg,
                 "actor": actor_name,
-                "stage": current_stage.name,
-                "old_appearance": old_appearance,
+                # "stage": current_stage.name,
+                # "old_appearance": old_appearance,
                 "new_appearance": new_appearance,
                 "timestamp": datetime.now().isoformat(),
             },
@@ -469,11 +469,11 @@ async def add_actor_effect(
         return json.dumps(
             {
                 "success": True,
-                "message": success_msg,
+                # "message": success_msg,
                 "actor": actor_name,
-                "stage": current_stage.name,
+                # "stage": current_stage.name,
                 "effect": new_effect.model_dump(),
-                "total_effects": len(actor.effects),
+                # "total_effects": len(actor.effects),
                 "timestamp": datetime.now().isoformat(),
             },
             ensure_ascii=False,
