@@ -396,16 +396,13 @@ async def update_actor_appearance(actor_name: str, new_appearance: str) -> str:
 
         success_msg = f"成功更新 {actor_name} 的外观描述"
         logger.info(
-            f"{success_msg}\n旧外观: {old_appearance}\n新外观: {new_appearance}"
+            f"{success_msg}\n旧外观: {old_appearance}\n\n新外观: {new_appearance}"
         )
 
         return json.dumps(
             {
                 "success": True,
-                # "message": success_msg,
                 "actor": actor_name,
-                # "stage": current_stage.name,
-                # "old_appearance": old_appearance,
                 "new_appearance": new_appearance,
                 "timestamp": datetime.now().isoformat(),
             },
@@ -469,11 +466,8 @@ async def add_actor_effect(
         return json.dumps(
             {
                 "success": True,
-                # "message": success_msg,
                 "actor": actor_name,
-                # "stage": current_stage.name,
                 "effect": new_effect.model_dump(),
-                # "total_effects": len(actor.effects),
                 "timestamp": datetime.now().isoformat(),
             },
             ensure_ascii=False,

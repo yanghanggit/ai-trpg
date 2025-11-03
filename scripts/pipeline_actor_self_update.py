@@ -73,7 +73,7 @@ async def _handle_single_actor_self_update(
 
 ```json
 {{
-    "appearance": "工具返回的完整外观描述",
+    "appearance": "是否更新了外观？仅回答：是/否",
     "effects": [
         "添加的效果名称1",
         "添加的效果名称2"
