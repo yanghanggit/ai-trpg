@@ -345,6 +345,15 @@ async def _collect_actor_plan_prompts(
 async def _build_actor_plan_prompt(
     actor_agent: GameAgent, mcp_client: McpClient
 ) -> str:
+    """构建角色计划提示词（优化版）
+
+    生成格式：
+    **角色名**
+    - 行动计划: xxx
+    - 战斗数据: 生命值 X/Y | 攻击力 Z
+    - 状态效果: 效果1(描述), 效果2(描述) 或 无
+    - 外观: xxx
+    """
 
     if len(actor_agent.plans) == 0:
         return ""
@@ -356,8 +365,41 @@ async def _build_actor_plan_prompt(
             logger.error(f"❌ 未能读取资源: {actor_resource_uri}")
             return ""
 
-        return f"""**{actor_agent.name}**: {actor_agent.plans[-1]}
-{actor_resource_response.text}"""
+        # 解析角色数据
+        actor_info = json.loads(actor_resource_response.text)
+
+        # 提取基本信息
+        name = actor_info.get("name", "未知")
+        appearance = actor_info.get("appearance", "无描述")
+        attributes = actor_info.get("attributes", {})
+        effects = actor_info.get("effects", [])
+
+        # 格式化属性
+        health = attributes.get("health", 0)
+        max_health = attributes.get("max_health", 0)
+        attack = attributes.get("attack", 0)
+
+        # 格式化效果（紧凑型，包含名称和描述）
+        if effects:
+            # 每个effect是一个dict，包含name和description
+            effect_parts = []
+            for effect in effects:
+                effect_name = effect.get("name", "未知效果")
+                effect_desc = effect.get("description", "")
+                if effect_desc:
+                    effect_parts.append(f"{effect_name}({effect_desc})")
+                else:
+                    effect_parts.append(effect_name)
+            effects_str = ", ".join(effect_parts)
+        else:
+            effects_str = "无"
+
+        # 构建美化后的提示词
+        return f"""**{name}**
+- 行动计划: {actor_agent.plans[-1]}
+- 战斗数据: 生命值 {health}/{max_health} | 攻击力 {attack}
+- 状态效果: {effects_str}
+- 外观: {appearance}"""
 
     except Exception as e:
         logger.error(f"❌ 读取资源时发生错误: {e}")
@@ -484,8 +526,7 @@ async def _orchestrate_actor_plans_and_update_stage(
 
 **环境状态更新原则**：
 
-- 第一轮：参考系统消息中的初始环境描述
-- 后续轮次：从对话历史中找到上一次的environment，以此为基准更新
+- 基准：使用上方'当前环境'部分提供的环境描述作为更新基准
 - 保持未变化部分，更新有变化部分，添加新增感官元素
 - 输出完整描述，非增量描述"""
 
@@ -540,6 +581,10 @@ async def _orchestrate_actor_plans_and_update_stage(
     except Exception as e:
         logger.error(f"JSON解析错误: {e}")
 
+
+"""
+
+"""
 
 ########################################################################################################################
 ########################################################################################################################
