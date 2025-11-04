@@ -219,83 +219,63 @@ async def handle_orchestrate_actor_plans_and_update_stage(
 
 {stage_info_json.get("environment", "")}
 
-## 执行流程
+## 任务要求
 
-### 步骤1：推理与计算
+### 第一步：内部推理
 
-请先进行内部推理（可以用自然语言说明）：
+请先思考并准备以下内容（按优先级顺序）：
 
-1. **calculation_log**：计算战斗结果或互动结果
-   - 战斗：攻击者 → 防御者 | 基础攻击力 + 效果加成 = 最终伤害
-   - 公式：当前生命值 - 伤害 = 新生命值
+1. **calculation_log**（最优先）：计算战斗伤害或互动结果
+   - 战斗场景：记录攻击者、防御者、伤害计算（基础攻击力 + 效果加成）、最终生命值
+   - 战斗公式：当前生命值 - 伤害 = 新生命值
+   - 非战斗场景：记录互动过程和结果
 
-2. **narrative**：第三人称场景叙事
+2. **narrative**：基于 calculation_log，生成第三人称场景叙事
+   - 按时间顺序描述各角色行动的实际过程、互动效果、环境变化
 
-3. **actor_states**：角色状态（格式：`**角色名**: 位置 | 姿态 | 状态`）
+3. **actor_states**：基于 calculation_log 和 narrative，生成角色状态字符串
+   - 格式：每行一个角色，`**角色名**: 位置 | 姿态 | 状态`
+   - 位置：描述角色相对于地标、方位和距离
+   - 姿态：描述角色的动作或体态
+   - 状态：特殊状态用【】标记，如【隐藏】，无特殊状态则留空
 
-4. **environment**：更新环境描述
+4. **environment**：基于场景变化，更新环境描述
+   - 保持未变化部分，更新有变化部分，添加新增感官元素
 
-### 步骤2：工具调用（必须执行）
+### 第二步：同步状态到服务器
 
-**你必须调用 sync_stage_state 工具来同步场景状态。**
+你需要将上述准备好的内容同步到游戏服务器：
 
-工具调用格式示例：
+1. **必须同步场景状态**：
+   - 场景名称：{stage_agent.name}
+   - 场景叙事：narrative
+   - 角色状态：actor_states（字符串格式，使用换行符分隔多个角色）
+   - 环境描述：environment
 
-```json
-{{
-  "tool_call": {{
-    "name": "sync_stage_state",
-    "arguments": {{
-      "stage_name": "{stage_agent.name}",
-      "narrative": "这里填写你在步骤1生成的场景叙事",
-      "actor_states": "**加斯科因**: 墓地中央 | 站立 | \\n**艾琳**: 东侧阴影 | 潜行 | 【隐藏】",
-      "environment": "这里填写你在步骤1生成的环境描述"
-    }}
-  }}
-}}
-```
+2. **如果有角色生命值变化**，需要更新每个角色的生命值：
+   - 角色名称
+   - 新的生命值（整数，0-max_health）
 
-如果有角色生命值变化，调用：
-```json
-{{
-  "tool_call": {{
-    "name": "update_actor_health",
-    "arguments": {{
-      "actor_name": "角色名",
-      "new_health": 新生命值数字
-    }}
-  }}
-}}
-```
+3. **如果有效果被消耗**（如战斗中的增益效果触发后消失），需要移除这些效果：
+   - 角色名称
+   - 效果名称
 
-如果有效果被消耗，调用：
-```json
-{{
-  "tool_call": {{
-    "name": "remove_actor_effects",
-    "arguments": {{
-      "actor_name": "角色名",
-      "effect_name": "效果名称"
-    }}
-  }}
-}}
-```
+### 第三步：最终响应
 
-**注意**：
-- 每个工具调用都是独立的 JSON 对象
-- 必须严格遵循 `{{"tool_call": {{"name": "...", "arguments": {{...}}}}}}` 格式
-- 多个工具调用时，每个都是完整的 JSON 块
-
-### 步骤3：最终回复
-
-工具执行完成后，只返回这个简化的 JSON：
+所有状态同步完成后，只返回以下 JSON：
 
 ```json
 {{
     "calculation_log": "你的计算日志",
     "narrative": "你的场景叙事"
 }}
-```"""
+```
+
+**重要说明**：
+
+- actor_states 和 environment 已通过服务器同步，无需在最终响应中返回
+- 使用可用的工具来完成状态同步任务
+- 确保按顺序完成：推理 → 同步 → 返回"""
 
     # 执行 MCP 工作流（改用支持工具调用的工作流）
     stage_execution_response = await handle_mcp_workflow_execution(

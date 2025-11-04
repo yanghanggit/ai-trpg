@@ -250,7 +250,7 @@ async def update_actor_appearance(actor_name: str, new_appearance: str) -> str:
         actor.appearance = new_appearance
 
         success_msg = f"成功更新 {actor_name} 的外观描述"
-        logger.info(
+        logger.warning(
             f"{success_msg}\n旧外观: {old_appearance}\n\n新外观: {new_appearance}"
         )
 
@@ -316,7 +316,7 @@ async def add_actor_effect(
         actor.effects.append(new_effect)
 
         success_msg = f"成功为 {actor_name} 添加效果: {effect_name}"
-        logger.info(f"{success_msg}\n效果描述: {effect_description}")
+        logger.warning(f"{success_msg}\n效果描述: {effect_description}")
 
         return json.dumps(
             {
@@ -378,7 +378,7 @@ async def remove_actor_effects(actor_name: str, effect_name: str) -> str:
         # 如果没有找到匹配的效果
         if not effects_to_remove:
             info_msg = f"{actor_name} 身上没有名为 '{effect_name}' 的效果"
-            logger.info(info_msg)
+            logger.warning(info_msg)
             return json.dumps(
                 {
                     "success": True,
@@ -400,7 +400,7 @@ async def remove_actor_effects(actor_name: str, effect_name: str) -> str:
         success_msg = (
             f"成功从 {actor_name} 移除了 {removed_count} 个名为 '{effect_name}' 的效果"
         )
-        logger.info(success_msg)
+        logger.warning(success_msg)
 
         return json.dumps(
             {
@@ -467,7 +467,7 @@ async def update_actor_health(actor_name: str, new_health: int) -> str:
         actor.attributes.health = clamped_health
 
         # 记录日志
-        logger.info(
+        logger.warning(
             f"更新 {actor_name} 生命值: {old_health} → {clamped_health}/{max_health}"
         )
 
@@ -543,7 +543,7 @@ async def move_actor(actor_name: str, target_stage_name: str) -> str:
         # 检查是否已经在目标Stage
         if current_stage.name == target_stage.name:
             info_msg = f"{actor_name} 已经在 {target_stage_name} 中"
-            logger.info(info_msg)
+            logger.warning(info_msg)
             return json.dumps(
                 {
                     "success": True,
@@ -565,7 +565,7 @@ async def move_actor(actor_name: str, target_stage_name: str) -> str:
         success_msg = (
             f"{actor_name} 成功从 {current_stage.name} 移动到 {target_stage_name}"
         )
-        logger.info(success_msg)
+        logger.warning(success_msg)
 
         return json.dumps(
             {
@@ -649,7 +649,7 @@ async def get_world_resource() -> str:
 
     try:
 
-        logger.info(f"获取World数据: {test_world.name}")
+        # logger.info(f"获取World数据: {test_world.name}")
         return test_world.model_dump_json(indent=2, ensure_ascii=False)
 
     except Exception as e:
