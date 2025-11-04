@@ -6,12 +6,12 @@
 """
 
 from typing import List
-from langchain.schema import AIMessage, BaseMessage
+from langchain.schema import AIMessage, BaseMessage, HumanMessage
+from langchain_deepseek import ChatDeepSeek
 from loguru import logger
 from ai_trpg.deepseek import (
     McpState,
     execute_mcp_workflow,
-    ChatState,
     execute_chat_workflow,
     RAGState,
     execute_rag_workflow,
@@ -52,29 +52,29 @@ async def handle_mcp_workflow_execution(
 #############################################################################################################
 async def handle_chat_workflow_execution(
     agent_name: str,
-    context: ChatState,
-    request: ChatState,
+    context: List[BaseMessage],
+    request: HumanMessage,
+    llm: ChatDeepSeek,
 ) -> List[BaseMessage]:
     """执行纯聊天工作流（不涉及工具调用）
 
     Args:
-        user_input_state: 用户输入状态（包含用户消息和LLM实例）
-        chat_history_state: 聊天历史状态（包含历史消息和LLM实例）
-        work_flow: 编译后的聊天工作流状态图
-        should_append_to_history: 是否将本次对话追加到历史记录（默认True）
+        agent_name: 代理名称，用于日志输出
+        context: 历史消息列表
+        request: 用户当前输入的消息
+        llm: ChatDeepSeek LLM 实例
 
     Returns:
         List[BaseMessage]: AI响应消息列表
     """
 
-    user_message = request["messages"][0] if request.get("messages") else None
-    if user_message:
-        logger.debug(f"{agent_name}:\n{user_message.content}")
+    logger.debug(f"{agent_name}:\n{request.content}")
 
     chat_response = await execute_chat_workflow(
         work_flow=create_chat_workflow(),
         context=context,
         request=request,
+        llm=llm,
     )
 
     # 显示最新的AI回复

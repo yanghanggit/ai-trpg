@@ -300,14 +300,9 @@ async def main() -> None:
                 # 聊天的工作流
                 chat_response = await handle_chat_workflow_execution(
                     agent_name=current_agent.name,
-                    request={
-                        "messages": [HumanMessage(content=format_user_input)],
-                        "llm": create_deepseek_llm(),
-                    },
-                    context={
-                        "messages": current_agent.context.copy(),
-                        "llm": create_deepseek_llm(),
-                    },
+                    context=current_agent.context.copy(),
+                    request=HumanMessage(content=format_user_input),
+                    llm=create_deepseek_llm(),
                 )
 
                 # 更新当前代理的对话历史

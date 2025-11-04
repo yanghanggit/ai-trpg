@@ -17,6 +17,7 @@ DeepSeek聊天系统启动脚本
 import os
 import sys
 import traceback
+from typing import List
 
 # 将 src 目录添加到模块搜索路径
 sys.path.insert(
@@ -24,11 +25,10 @@ sys.path.insert(
 )
 
 # 导入必要的模块
-from langchain.schema import HumanMessage
+from langchain.schema import HumanMessage, BaseMessage
 from loguru import logger
 
 from ai_trpg.deepseek import (
-    ChatState,
     create_chat_workflow,
     execute_chat_workflow,
     create_deepseek_llm,
@@ -49,8 +49,9 @@ async def main() -> None:
 
     try:
 
-        # 聊天历史（包含LLM实例）
-        context_state: ChatState = {"messages": [], "llm": create_deepseek_llm()}
+        # 初始化：聊天历史和LLM实例
+        chat_history: List[BaseMessage] = []
+        llm_instance = create_deepseek_llm()
 
         logger.success("🤖 DeepSeek聊天系统初始化完成，开始对话...")
         logger.info("💡 提示：您可以与DeepSeek AI进行自由对话")
@@ -65,22 +66,17 @@ async def main() -> None:
                     print("Goodbye!")
                     break
 
-                # 用户输入
-                request_state: ChatState = {
-                    "messages": [HumanMessage(content=user_input)],
-                    "llm": create_deepseek_llm(),
-                }
-
-                # 获取回复
+                # 执行工作流
                 update_messages = await execute_chat_workflow(
                     work_flow=create_chat_workflow(),
-                    context=context_state,
-                    request=request_state,
+                    context=chat_history,
+                    request=HumanMessage(content=user_input),
+                    llm=llm_instance,
                 )
 
-                # 测试用：记录上下文。
-                context_state["messages"].extend(request_state["messages"])
-                context_state["messages"].extend(update_messages)
+                # 更新聊天历史
+                chat_history.append(HumanMessage(content=user_input))
+                chat_history.extend(update_messages)
 
                 # 显示最新的AI回复
                 if update_messages:
@@ -88,7 +84,7 @@ async def main() -> None:
                     print(f"\nDeepSeek: {latest_response.content}")
 
                 logger.debug("*" * 50)
-                for message in context_state["messages"]:
+                for message in chat_history:
                     if isinstance(message, HumanMessage):
                         logger.info(f"User: {message.content}")
                     else:

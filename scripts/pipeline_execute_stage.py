@@ -249,14 +249,9 @@ async def orchestrate_actor_plans_and_update_stage(
     # 执行 Chat 工作流
     stage_execution_response = await handle_chat_workflow_execution(
         agent_name=stage_agent.name,
-        request={
-            "messages": [HumanMessage(content=stage_execute_prompt)],
-            "llm": create_deepseek_llm(),
-        },
-        context={
-            "messages": stage_agent.context.copy(),
-            "llm": create_deepseek_llm(),
-        },
+        context=stage_agent.context.copy(),
+        request=HumanMessage(content=stage_execute_prompt),
+        llm=create_deepseek_llm(),
     )
 
     assert len(stage_execution_response) > 0, "场景执行响应为空"

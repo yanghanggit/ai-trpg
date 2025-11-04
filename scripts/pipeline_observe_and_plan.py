@@ -283,14 +283,9 @@ async def _handle_single_actor_observe_and_plan(
 
     actors_observe_and_plan_response = await handle_chat_workflow_execution(
         agent_name=actor_agent.name,
-        context={
-            "messages": actor_agent.context.copy(),
-            "llm": create_deepseek_llm(),
-        },
-        request={
-            "messages": [HumanMessage(content=observe_and_plan_prompt)],
-            "llm": create_deepseek_llm(),
-        },
+        context=actor_agent.context.copy(),
+        request=HumanMessage(content=observe_and_plan_prompt),
+        llm=create_deepseek_llm(),
     )
 
     try:

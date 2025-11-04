@@ -5,7 +5,7 @@ load_dotenv()
 
 import traceback
 from typing import Annotated, Any, List, Optional
-from langchain_core.messages import BaseMessage
+from langchain_core.messages import BaseMessage, HumanMessage
 from langchain_deepseek import ChatDeepSeek
 from langgraph.graph import StateGraph
 from langgraph.graph.message import add_messages
@@ -63,27 +63,30 @@ def create_chat_workflow() -> CompiledStateGraph[ChatState, Any, ChatState, Chat
 ############################################################################################################
 async def execute_chat_workflow(
     work_flow: CompiledStateGraph[ChatState, Any, ChatState, ChatState],
-    context: ChatState,
-    request: ChatState,
+    context: List[BaseMessage],
+    request: HumanMessage,
+    llm: ChatDeepSeek,
 ) -> List[BaseMessage]:
     """执行聊天工作流并返回所有响应消息
 
     将聊天历史和用户输入合并后，通过编译好的状态图进行流式处理，
-    收集并返回所有生成的消息。
+    收集并返回所有生成的消息。ChatState 的创建被封装在函数内部。
 
     Args:
-        state_compiled_graph: 已编译的 LangGraph 状态图
-        chat_history_state: 包含历史消息的聊天状态
-        user_input_state: 包含用户当前输入的聊天状态
+        work_flow: 已编译的 LangGraph 状态图
+        context: 历史消息列表
+        request: 用户当前输入的消息
+        llm: ChatDeepSeek LLM 实例
 
     Returns:
         包含所有生成消息的列表
     """
     ret: List[BaseMessage] = []
 
+    # 在内部构造 ChatState（封装实现细节）
     merged_message_context: ChatState = {
-        "messages": context["messages"] + request["messages"],
-        "llm": context["llm"],  # 使用聊天历史状态中的LLM实例
+        "messages": context + [request],
+        "llm": llm,
     }
 
     async for event in work_flow.astream(merged_message_context):
