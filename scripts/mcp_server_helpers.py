@@ -11,60 +11,59 @@ MCP 服务器辅助函数模块
 
 import json
 from datetime import datetime
-from typing import Any, Dict, NamedTuple
 from loguru import logger
 from ai_trpg.demo import World
 
 
-class StageStateComponents(NamedTuple):
-    """场景状态组件"""
+# class StageStateComponents(NamedTuple):
+#     """场景状态组件"""
 
-    narrative: str
-    actor_states: str
-    environment: str
+#     narrative: str
+#     actor_states: str
+#     environment: str
 
 
-def parse_and_format_stage_state(state_data: str) -> StageStateComponents:
-    """
-    解析场景状态JSON并格式化角色状态为Markdown
+# def parse_and_format_stage_state(state_data: str) -> StageStateComponents:
+#     """
+#     解析场景状态JSON并格式化角色状态为Markdown
 
-    将JSON格式的场景状态解析为三个独立的文本组件，
-    其中角色状态会被格式化为Markdown列表格式。
+#     将JSON格式的场景状态解析为三个独立的文本组件，
+#     其中角色状态会被格式化为Markdown列表格式。
 
-    Args:
-        state_data: 场景状态的JSON字符串，包含以下字段：
-            - narrative: 场景叙事文本
-            - actor_states: 角色状态列表
-            - environment: 环境描述文本
+#     Args:
+#         state_data: 场景状态的JSON字符串，包含以下字段：
+#             - narrative: 场景叙事文本
+#             - actor_states: 角色状态列表
+#             - environment: 环境描述文本
 
-    Returns:
-        StageStateComponents: 包含三个组件的命名元组
-            - narrative: 场景叙事文本
-            - actor_states: Markdown格式的角色状态列表
-            - environment: 环境描述文本
-    """
-    state_dict: Dict[str, Any] = json.loads(state_data)
+#     Returns:
+#         StageStateComponents: 包含三个组件的命名元组
+#             - narrative: 场景叙事文本
+#             - actor_states: Markdown格式的角色状态列表
+#             - environment: 环境描述文本
+#     """
+#     state_dict: Dict[str, Any] = json.loads(state_data)
 
-    # 准备角色状态文本（格式化为Markdown）
-    actor_lines = []
-    for actor_state in state_dict.get("actor_states", []):
-        actor_name = actor_state.get("actor_name", "未知")
-        location = actor_state.get("location", "未知位置")
-        posture = actor_state.get("posture", "未知姿态")
-        status = actor_state.get("status", "")
+#     # 准备角色状态文本（格式化为Markdown）
+#     actor_lines = []
+#     for actor_state in state_dict.get("actor_states", []):
+#         actor_name = actor_state.get("actor_name", "未知")
+#         location = actor_state.get("location", "未知位置")
+#         posture = actor_state.get("posture", "未知姿态")
+#         status = actor_state.get("status", "")
 
-        line = f"**{actor_name}**: {location} | {posture}"
-        if status:
-            line += f" | {status}"
-        actor_lines.append(line)
+#         line = f"**{actor_name}**: {location} | {posture}"
+#         if status:
+#             line += f" | {status}"
+#         actor_lines.append(line)
 
-    actors_text = "\n".join(actor_lines)
-    environment_text = state_dict.get("environment", "")
-    narrative_text = state_dict.get("narrative", "")
+#     actors_text = "\n".join(actor_lines)
+#     environment_text = state_dict.get("environment", "")
+#     narrative_text = state_dict.get("narrative", "")
 
-    return StageStateComponents(
-        narrative=narrative_text, actor_states=actors_text, environment=environment_text
-    )
+#     return StageStateComponents(
+#         narrative=narrative_text, actor_states=actors_text, environment=environment_text
+#     )
 
 
 def get_actor_info_impl(world: World, actor_name: str) -> str:

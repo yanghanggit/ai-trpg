@@ -33,7 +33,7 @@ from ai_trpg.demo import clone_test_world1, Effect
 
 # 导入辅助函数模块
 from mcp_server_helpers import (
-    parse_and_format_stage_state,
+    # parse_and_format_stage_state,
     get_actor_info_impl,
     get_stage_info_impl,
 )
@@ -159,16 +159,20 @@ async def get_actor_info(actor_name: str) -> str:
 @app.tool()
 async def sync_stage_state(
     stage_name: str,
-    state_data: str,
+    narrative: str,
+    actor_states: str,
+    environment: str,
 ) -> str:
     """
     同步场景状态数据到MCP Server
 
-    接收场景状态的JSON数据并记录。
+    接收场景状态的各个组件并更新到服务器。
 
     Args:
         stage_name: 场景名称
-        state_data: 场景状态的JSON字符串
+        narrative: 场景叙事描述
+        actor_states: 角色状态字符串（格式：**角色名**: 位置 | 姿态 | 状态）
+        environment: 环境描述
 
     Returns:
         同步操作的结果（JSON格式）
@@ -184,18 +188,15 @@ async def sync_stage_state(
                 ensure_ascii=False,
             )
 
-        # 解析并格式化状态数据
-        components = parse_and_format_stage_state(state_data)
+        # 打印接收到的数据
+        logger.warning(f"narrative:\n{narrative}")
+        logger.warning(f"actor_states:\n{actor_states}")
+        logger.warning(f"environment:\n{environment}")
 
-        # 打印格式化后的组件
-        logger.warning(f"narrative:\n{components.narrative}")
-        logger.warning(f"actor_states:\n{components.actor_states}")
-        logger.warning(f"environment:\n{components.environment}")
-
-        # 更新Stage状态
-        stage.narrative = components.narrative
-        stage.actor_states = components.actor_states
-        stage.environment = components.environment
+        # 直接更新Stage状态（不需要额外解析）
+        stage.narrative = narrative
+        stage.actor_states = actor_states
+        stage.environment = environment
 
         return json.dumps(
             {

@@ -13,7 +13,7 @@ from agent_utils import GameAgent
 # 导入拆分后的流水线模块
 from pipeline_kickoff import handle_all_kickoff
 from pipeline_observe_and_plan import handle_all_actors_observe_and_plan
-from pipeline_execute_stage import orchestrate_actor_plans_and_update_stage
+from pipeline_execute_stage import handle_orchestrate_actor_plans_and_update_stage
 from pipeline_actor_self_update import handle_all_actors_self_update
 
 
@@ -76,7 +76,7 @@ async def handle_game_command(
         # /game stage:orchestrate_actor_plans_and_update_stage - 让场景代理执行所有角色的行动计划
         case "stage:orchestrate_actor_plans_and_update_stage":
 
-            await orchestrate_actor_plans_and_update_stage(
+            await handle_orchestrate_actor_plans_and_update_stage(
                 stage_agent=stage_agents[0],
                 actor_agents=actor_agents,
                 mcp_client=mcp_client,
@@ -130,7 +130,7 @@ async def handle_game_command(
 
             # 步骤2: 场景执行计划并生成新的状态快照
             # 输出的状态快照将成为下一轮的输入
-            await orchestrate_actor_plans_and_update_stage(
+            await handle_orchestrate_actor_plans_and_update_stage(
                 stage_agent=stage_agents[0],
                 actor_agents=actor_agents,
                 mcp_client=mcp_client,
