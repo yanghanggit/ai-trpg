@@ -48,7 +48,7 @@ RAG (Retrieval-Augmented Generation) 工作流实现
 - create_rag_workflow() -> CompiledStateGraph
     创建并编译 RAG 工作流状态图
 
-- execute_rag_workflow(graph, history, input) -> List[BaseMessage]
+- execute_rag_workflow(workflow, context, request, llm, retriever, ...) -> List[BaseMessage]
     执行 RAG 工作流并返回 AI 回答
     注意: 异常会向上传播，由调用方处理
 
@@ -92,12 +92,29 @@ class RAGState(TypedDict, total=False):
     messages: Annotated[List[BaseMessage], add_messages]
     llm: Optional[ChatDeepSeek]  # DeepSeek LLM实例，整个RAG流程共享
     document_retriever: Optional[DocumentRetriever]  # 文档检索器实例，支持依赖注入
-    user_query: str  # 用户原始查询
     retrieved_docs: List[str]  # 检索到的文档
     enhanced_context: str  # 增强后的上下文
     similarity_scores: List[float]  # 相似度分数（用于调试和分析）
     min_similarity_threshold: float  # 相似度阈值（低于此值的文档将被过滤）
     top_k_documents: int  # 检索文档数量
+
+
+############################################################################################################
+def _extract_user_query(state: RAGState) -> str:
+    """从消息列表中提取用户查询
+
+    Args:
+        state: RAG状态对象
+
+    Returns:
+        用户查询字符串，如果无法提取则返回空字符串
+    """
+    if state.get("messages"):
+        last_message = state["messages"][-1]
+        if isinstance(last_message, HumanMessage):
+            content = last_message.content
+            return content if isinstance(content, str) else str(content)
+    return ""
 
 
 ############################################################################################################
@@ -117,7 +134,6 @@ def _retrieval_node(state: RAGState) -> RAGState:
 
     Returns:
         更新后的 RAGState，包含：
-        - user_query: 用户查询
         - retrieved_docs: 检索到的文档列表
         - similarity_scores: 对应的相似度分数列表
 
@@ -127,16 +143,8 @@ def _retrieval_node(state: RAGState) -> RAGState:
     try:
         logger.info("🔍 [RETRIEVAL] 开始向量语义检索...")
 
-        # 提取用户查询
-        user_query = state.get("user_query", "")
-        if not user_query:
-            # 从最新消息中提取查询
-            if state["messages"]:
-                last_message = state["messages"][-1]
-                if isinstance(last_message, HumanMessage):
-                    content = last_message.content
-                    user_query = content if isinstance(content, str) else str(content)
-
+        # 从消息列表中提取用户查询
+        user_query = _extract_user_query(state)
         logger.info(f"🔍 [RETRIEVAL] 用户查询: {user_query}")
 
         # 从状态中获取配置值，如果没有则使用默认值
@@ -153,13 +161,13 @@ def _retrieval_node(state: RAGState) -> RAGState:
             error_msg = (
                 "🔍 [RETRIEVAL] 严重错误: 未提供 DocumentRetriever 实例！\n"
                 "RAG 工作流必须注入 DocumentRetriever 实例才能运行。\n"
-                "请在调用 execute_rag_workflow 时，在 user_input_state 或 chat_history_state 中提供 'document_retriever' 字段。"
+                "请在调用 execute_rag_workflow 时提供 'document_retriever' 参数。"
             )
             logger.error(error_msg)
             raise ValueError(
                 "DocumentRetriever is required but not provided in RAGState. "
                 "Please inject a DocumentRetriever instance (e.g., ChromaDBRetriever or MockDocumentRetriever) "
-                "into user_input_state or chat_history_state before executing the RAG workflow."
+                "when calling execute_rag_workflow."
             )
 
         # 使用注入的检索器实例
@@ -193,7 +201,6 @@ def _retrieval_node(state: RAGState) -> RAGState:
             logger.info(f"  📄 [{i}] 相似度: {score:.3f}, 内容: {doc[:60]}...")
 
         return {
-            "user_query": user_query,
             "retrieved_docs": filtered_docs,
             "similarity_scores": filtered_scores,
         }
@@ -201,7 +208,6 @@ def _retrieval_node(state: RAGState) -> RAGState:
     except Exception as e:
         logger.error(f"🔍 [RETRIEVAL] 检索节点错误: {e}\n{traceback.format_exc()}")
         return {
-            "user_query": state.get("user_query", ""),
             "retrieved_docs": ["检索过程中发生错误，将使用默认回复。"],
             "similarity_scores": [0.0],
         }
@@ -228,7 +234,8 @@ def _context_enhancement_node(state: RAGState) -> RAGState:
     try:
         logger.info("📝 [ENHANCEMENT] 开始增强上下文...")
 
-        user_query = state.get("user_query", "")
+        # 从消息列表中提取用户查询
+        user_query = _extract_user_query(state)
         retrieved_docs = state.get("retrieved_docs", [])
         similarity_scores = state.get("similarity_scores", [])
 
@@ -242,45 +249,39 @@ def _context_enhancement_node(state: RAGState) -> RAGState:
                 f"📝 [ENHANCEMENT] 平均相似度: {avg_similarity:.3f}, 最高相似度: {max_similarity:.3f}"
             )
 
-        # 构建增强的上下文prompt
-        context_parts = [
-            "请基于以下相关信息响应用户:",
-            "",
-            "相关信息 (按相似度排序):",
-        ]
-
-        # 将文档和相似度分数配对，并按相似度排序
+        # 构建文档列表（按相似度排序）
+        doc_list_items = []
         if similarity_scores and len(similarity_scores) == len(retrieved_docs):
+            # 将文档和相似度分数配对，并按相似度降序排序
             doc_score_pairs = list(zip(retrieved_docs, similarity_scores))
-            # 按相似度降序排序
             doc_score_pairs.sort(key=lambda x: x[1], reverse=True)
 
             for i, (doc, score) in enumerate(doc_score_pairs, 1):
-                # 添加相似度信息到上下文中（帮助LLM理解检索质量）
-                context_parts.append(f"{i}. [相似度: {score:.3f}] {doc}")
+                doc_list_items.append(f"{i}. [相似度: {score:.3f}] {doc}")
         else:
             # 回退到原来的格式（没有相似度信息）
             for i, doc in enumerate(retrieved_docs, 1):
-                context_parts.append(f"{i}. {doc}")
+                doc_list_items.append(f"{i}. {doc}")
 
-        context_parts.extend(
-            [
-                "",
-                f"用户输入: {user_query}",
-                "",
-                "## 响应要求",
-                "- 基于上述相关信息给出准确、有帮助的响应",
-                "- 对于确定的信息，直接自信地表达",
-                "- 对于不确定或信息不足的部分，诚实说明",
-                "- 用户的输入可能是问题、指令、对话、信息或行动描述等，请根据上下文灵活处理",
-                "",
-                "## 响应原则",
-                "✅ 内容层面：保持你的角色设定和语言风格（基于历史上下文和角色人格）",
-                "✅ 格式层面：如果用户在最新输入中明确要求特定格式（如JSON、Markdown、表格等），请严格按照要求输出",
-            ]
-        )
+        docs_section = "\n".join(doc_list_items)
 
-        enhanced_context = "\n".join(context_parts)
+        # 使用 f-string 多行字符串构建增强上下文
+        enhanced_context = f"""请基于以下相关信息响应用户:
+
+相关信息 (按相似度排序):
+{docs_section}
+
+用户输入: {user_query}
+
+## 响应要求
+- 基于上述相关信息给出准确、有帮助的响应
+- 对于确定的信息，直接自信地表达
+- 对于不确定或信息不足的部分，诚实说明
+- 用户的输入可能是问题、指令、对话、信息或行动描述等，请根据上下文灵活处理
+
+## 响应原则
+✅ 内容层面：保持你的角色设定和语言风格（基于历史上下文和角色人格）
+✅ 格式层面：如果用户在最新输入中明确要求特定格式（如JSON、Markdown、表格等），请严格按照要求输出"""
 
         logger.info("📝 [ENHANCEMENT] 上下文增强完成")
         logger.debug(f"📝 [ENHANCEMENT] 增强后的上下文:\n{enhanced_context}")
@@ -291,7 +292,9 @@ def _context_enhancement_node(state: RAGState) -> RAGState:
         logger.error(
             f"📝 [ENHANCEMENT] 上下文增强节点错误: {e}\n{traceback.format_exc()}"
         )
-        fallback_context = f"请响应用户以下输入: {state.get('user_query', '')}\n\n注意：由于检索服务暂时不可用，请基于你的知识回答。"
+        # 从消息列表中提取用户查询（用于 fallback）
+        user_query = _extract_user_query(state)
+        fallback_context = f"请响应用户以下输入: {user_query}\n\n注意：由于检索服务暂时不可用，请基于你的知识回答。"
         return {"enhanced_context": fallback_context}
 
 
@@ -376,62 +379,48 @@ def create_rag_workflow() -> CompiledStateGraph[RAGState, Any, RAGState, RAGStat
 ############################################################################################################
 async def execute_rag_workflow(
     work_flow: CompiledStateGraph[RAGState, Any, RAGState, RAGState],
-    context: RAGState,
-    request: RAGState,
+    context: List[BaseMessage],
+    request: HumanMessage,
+    llm: ChatDeepSeek,
+    document_retriever: DocumentRetriever,
+    min_similarity_threshold: float = MIN_SIMILARITY_THRESHOLD,
+    top_k_documents: int = TOP_K_DOCUMENTS,
 ) -> List[BaseMessage]:
-    """
-    执行RAG状态图并返回结果
+    """执行RAG工作流并返回所有响应消息
+
+    将聊天历史和用户输入合并后，通过编译好的状态图进行RAG检索增强处理，
+    收集并返回所有生成的消息。RAGState 的创建被封装在函数内部。
 
     Args:
-        rag_compiled_graph: 编译后的RAG状态图
-        chat_history_state: 聊天历史状态
-        user_input_state: 用户输入状态
+        work_flow: 已编译的 LangGraph 状态图
+        context: 历史消息列表
+        request: 用户当前输入的消息
+        llm: ChatDeepSeek LLM 实例
+        document_retriever: 文档检索器实例
+        min_similarity_threshold: 相似度阈值（默认使用全局配置 MIN_SIMILARITY_THRESHOLD）
+        top_k_documents: 检索文档数量（默认使用全局配置 TOP_K_DOCUMENTS）
 
     Returns:
-        包含LLM回复的消息列表
+        包含所有生成消息的列表
 
     Raises:
         任何在RAG流程中发生的异常都会向上传播，由调用方处理
     """
     logger.info("🚀 开始执行RAG流程...")
 
-    # 准备RAG状态
-    user_message = request["messages"][-1] if request["messages"] else None
-    user_query = ""
-    if user_message:
-        content = user_message.content
-        user_query = content if isinstance(content, str) else str(content)
-
-    # 优先使用 user_input_state 中的配置，如果没有则使用 chat_history_state，最后使用默认值
-    min_threshold = request.get(
-        "min_similarity_threshold",
-        context.get("min_similarity_threshold", MIN_SIMILARITY_THRESHOLD),
-    )
-    top_k = request.get(
-        "top_k_documents",
-        context.get("top_k_documents", TOP_K_DOCUMENTS),
-    )
-
-    assert (
-        request["document_retriever"] is not None
-        or context["document_retriever"] is not None
-    ), "DocumentRetriever instance must be provided in either user_input_state or chat_history_state."
-
+    # 在内部构造 RAGState（封装实现细节）
     rag_state: RAGState = {
-        "messages": context["messages"] + request["messages"],
-        "user_query": user_query,
+        "messages": context + [request],
         "retrieved_docs": [],
         "enhanced_context": "",
         "similarity_scores": [],
-        "llm": request["llm"],
-        "document_retriever": request.get(
-            "document_retriever", context.get("document_retriever")
-        ),
-        "min_similarity_threshold": min_threshold,
-        "top_k_documents": top_k,
+        "llm": llm,
+        "document_retriever": document_retriever,
+        "min_similarity_threshold": min_similarity_threshold,
+        "top_k_documents": top_k_documents,
     }
 
-    logger.info(f"🚀 RAG输入状态准备完成，用户查询: {user_query}")
+    logger.info(f"🚀 RAG输入状态准备完成，用户查询: {request.content}")
 
     # 执行RAG流程
     ret: List[BaseMessage] = []

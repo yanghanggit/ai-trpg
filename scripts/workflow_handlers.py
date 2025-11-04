@@ -13,11 +13,11 @@ from ai_trpg.deepseek import (
     McpState,
     execute_mcp_workflow,
     execute_chat_workflow,
-    RAGState,
     execute_rag_workflow,
     create_mcp_workflow,
     create_chat_workflow,
     create_rag_workflow,
+    DocumentRetriever,
 )
 
 
@@ -91,28 +91,37 @@ async def handle_chat_workflow_execution(
 #############################################################################################################
 async def handle_rag_workflow_execution(
     agent_name: str,
-    context: RAGState,
-    request: RAGState,
+    context: List[BaseMessage],
+    request: HumanMessage,
+    llm: ChatDeepSeek,
+    document_retriever: DocumentRetriever,
+    min_similarity_threshold: float = 0.05,
+    top_k_documents: int = 3,
 ) -> List[BaseMessage]:
     """执行 RAG 工作流
 
     Args:
-        user_input_state: 用户输入状态（包含用户消息、LLM实例和检索器）
-        chat_history_state: 聊天历史状态（包含历史消息、LLM实例和检索器）
-        work_flow: 编译后的 RAG 工作流状态图
-        should_append_to_history: 是否将本次对话追加到历史记录（默认True）
+        agent_name: 代理名称，用于日志输出
+        context: 历史消息列表
+        request: 用户当前输入的消息
+        llm: ChatDeepSeek LLM 实例
+        document_retriever: 文档检索器实例
+        min_similarity_threshold: 相似度阈值（默认 0.05）
+        top_k_documents: 检索文档数量（默认 3）
 
     Returns:
         List[BaseMessage]: AI响应消息列表
     """
-    user_message = request["messages"][0] if request.get("messages") else None
-    if user_message:
-        logger.debug(f"{agent_name}:\n{user_message.content}")
+    logger.debug(f"{agent_name}:\n{request.content}")
 
     rag_response = await execute_rag_workflow(
         work_flow=create_rag_workflow(),
         context=context,
         request=request,
+        llm=llm,
+        document_retriever=document_retriever,
+        min_similarity_threshold=min_similarity_threshold,
+        top_k_documents=top_k_documents,
     )
 
     # 显示最新的AI回复

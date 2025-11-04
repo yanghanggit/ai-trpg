@@ -320,16 +320,10 @@ async def main() -> None:
                 # RAG 的工作流
                 rag_response = await handle_rag_workflow_execution(
                     agent_name=current_agent.name,
-                    request={
-                        "messages": [HumanMessage(content=rag_content)],
-                        "llm": create_deepseek_llm(),
-                        "document_retriever": GameDocumentRetriever(),
-                    },
-                    context={
-                        "messages": current_agent.context.copy(),
-                        "llm": create_deepseek_llm(),
-                        "document_retriever": GameDocumentRetriever(),
-                    },
+                    context=current_agent.context.copy(),
+                    request=HumanMessage(content=rag_content),
+                    llm=create_deepseek_llm(),
+                    document_retriever=GameDocumentRetriever(),
                 )
 
                 # 更新当前代理的对话历史

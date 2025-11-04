@@ -17,6 +17,7 @@ ChromaDB增强版RAG聊天系统启动脚本
 
 import os
 import sys
+from typing import List
 
 # 将 src 目录添加到模块搜索路径
 sys.path.insert(
@@ -24,11 +25,10 @@ sys.path.insert(
 )
 
 # 导入必要的模块
-from langchain.schema import HumanMessage
+from langchain.schema import HumanMessage, BaseMessage
 from loguru import logger
 
 from ai_trpg.deepseek import (
-    RAGState,
     create_rag_workflow,
     execute_rag_workflow,
     create_deepseek_llm,
@@ -40,11 +40,10 @@ async def main() -> None:
 
     try:
 
-        context_state: RAGState = {
-            "messages": [],
-            "llm": create_deepseek_llm(),
-            "document_retriever": GameDocumentRetriever(),  # 注入检索器
-        }
+        # 初始化：聊天历史、LLM实例和检索器实例
+        chat_history: List[BaseMessage] = []
+        llm_instance = create_deepseek_llm()
+        retriever_instance = GameDocumentRetriever()
 
         # 步骤4: 开始交互循环
         while True:
@@ -56,23 +55,18 @@ async def main() -> None:
                     print("Goodbye!")
                     break
 
-                # 用户输入
-                request_state: RAGState = {
-                    "messages": [HumanMessage(content=user_input)],
-                    "llm": create_deepseek_llm(),  # 使用同一个LLM实例
-                    "document_retriever": GameDocumentRetriever(),  # 注入检索器
-                }
-
                 # 执行RAG流程
                 rag_response = await execute_rag_workflow(
                     work_flow=create_rag_workflow(),
-                    context=context_state,
-                    request=request_state,
+                    context=chat_history,
+                    request=HumanMessage(content=user_input),
+                    llm=llm_instance,
+                    document_retriever=retriever_instance,
                 )
 
                 # 更新聊天历史
-                context_state["messages"].extend(request_state["messages"])
-                context_state["messages"].extend(rag_response)
+                chat_history.append(HumanMessage(content=user_input))
+                chat_history.extend(rag_response)
 
                 # 显示最新的AI回复
                 if rag_response:
