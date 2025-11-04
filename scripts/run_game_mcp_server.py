@@ -341,6 +341,161 @@ async def add_actor_effect(
         )
 
 
+@app.tool()
+async def remove_actor_effects(actor_name: str, effect_name: str) -> str:
+    """
+    移除指定Actor身上所有匹配指定名称的Effect（效果/状态）
+
+    Args:
+        actor_name: 要移除效果的Actor名称
+        effect_name: 要移除的效果名称（所有匹配此名称的效果都会被移除）
+
+    Returns:
+        移除操作的结果信息（JSON格式），包含移除的效果数量
+    """
+    try:
+        # 查找Actor
+        actor, current_stage = test_world.find_actor_with_stage(actor_name)
+        if not actor or not current_stage:
+            error_msg = f"错误：未找到名为 '{actor_name}' 的Actor"
+            logger.warning(error_msg)
+            return json.dumps(
+                {
+                    "success": False,
+                    "error": error_msg,
+                    "timestamp": datetime.now().isoformat(),
+                },
+                ensure_ascii=False,
+                indent=2,
+            )
+
+        # 找出所有匹配名称的效果
+        effects_to_remove = [
+            effect for effect in actor.effects if effect.name == effect_name
+        ]
+
+        # 如果没有找到匹配的效果
+        if not effects_to_remove:
+            info_msg = f"{actor_name} 身上没有名为 '{effect_name}' 的效果"
+            logger.info(info_msg)
+            return json.dumps(
+                {
+                    "success": True,
+                    "message": info_msg,
+                    "actor": actor_name,
+                    "removed_count": 0,
+                    "timestamp": datetime.now().isoformat(),
+                },
+                ensure_ascii=False,
+                indent=2,
+            )
+
+        # 移除所有匹配的效果
+        removed_count = 0
+        for effect in effects_to_remove:
+            actor.effects.remove(effect)
+            removed_count += 1
+
+        success_msg = (
+            f"成功从 {actor_name} 移除了 {removed_count} 个名为 '{effect_name}' 的效果"
+        )
+        logger.info(success_msg)
+
+        return json.dumps(
+            {
+                "success": True,
+                "message": success_msg,
+                "actor": actor_name,
+                "effect_name": effect_name,
+                "removed_count": removed_count,
+                "timestamp": datetime.now().isoformat(),
+            },
+            ensure_ascii=False,
+            indent=2,
+        )
+
+    except Exception as e:
+        logger.error(f"移除Actor效果失败: {e}")
+        return json.dumps(
+            {
+                "success": False,
+                "error": f"移除Actor效果失败 - {str(e)}",
+                "timestamp": datetime.now().isoformat(),
+            },
+            ensure_ascii=False,
+            indent=2,
+        )
+
+
+@app.tool()
+async def update_actor_health(actor_name: str, new_health: int) -> str:
+    """
+    更新指定Actor的生命值（health）
+
+    Args:
+        actor_name: 要更新生命值的Actor名称
+        new_health: 新的生命值（会被限制在 0 到 max_health 之间）
+
+    Returns:
+        更新操作的结果信息（JSON格式），包含旧生命值和新生命值
+    """
+    try:
+        # 查找Actor
+        actor, current_stage = test_world.find_actor_with_stage(actor_name)
+        if not actor or not current_stage:
+            error_msg = f"错误：未找到名为 '{actor_name}' 的Actor"
+            logger.warning(error_msg)
+            return json.dumps(
+                {
+                    "success": False,
+                    "error": error_msg,
+                    "timestamp": datetime.now().isoformat(),
+                },
+                ensure_ascii=False,
+                indent=2,
+            )
+
+        # 保存旧的生命值
+        old_health = actor.attributes.health
+        max_health = actor.attributes.max_health
+
+        # 限制生命值在 0 到 max_health 之间
+        clamped_health = max(0, min(new_health, max_health))
+
+        # 更新Actor的health值
+        actor.attributes.health = clamped_health
+
+        # 记录日志
+        logger.info(
+            f"更新 {actor_name} 生命值: {old_health} → {clamped_health}/{max_health}"
+        )
+
+        return json.dumps(
+            {
+                "success": True,
+                "actor": actor_name,
+                "old_health": old_health,
+                "new_health": clamped_health,
+                "max_health": max_health,
+                "timestamp": datetime.now().isoformat(),
+            },
+            ensure_ascii=False,
+            indent=2,
+        )
+
+    except Exception as e:
+        logger.error(f"更新Actor生命值失败: {e}")
+        return json.dumps(
+            {
+                "success": False,
+                "error": f"更新Actor生命值失败 - {str(e)}",
+                "timestamp": datetime.now().isoformat(),
+            },
+            ensure_ascii=False,
+            indent=2,
+        )
+
+
 # @app.tool()
 async def move_actor(actor_name: str, target_stage_name: str) -> str:
     """
