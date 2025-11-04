@@ -35,15 +35,7 @@ def _gen_compressed_observe_and_plan_prompt(actor_name: str) -> str:
     """
     return f"""# {actor_name} 角色观察与行动规划
 
-你观察了当前场景状态，并基于角色设定与自身状态。规划了行动！
-
-## 输出格式
-```json
-{{
-    "observation": "步骤2的观察内容（第一人称，约70字，体现属性信息）",
-    "plan": "步骤3的行动计划（第一人称，约80字，考虑属性可行性）"
-}}
-```"""
+你观察了当前场景，并基于角色设定与自身状态。规划了行动！"""
 
 
 ########################################################################################################################
@@ -230,7 +222,7 @@ async def _handle_single_actor_observe_and_plan(
 
 **{actor_info['name']}**
 - 战斗数据: 生命值 {actor_info['health']}/{actor_info['max_health']} | 攻击力 {actor_info['attack']}
-- 状态效果: {actor_info['effects_str']}
+- 效果: {actor_info['effects_str']}
 - 外观: {actor_info['appearance']}
 
 ### 当前场景信息
@@ -319,11 +311,13 @@ async def _handle_single_actor_observe_and_plan(
                 content=_gen_compressed_observe_and_plan_prompt(actor_agent.name)
             )
         )
-        assert len(actors_observe_and_plan_response) > 0, "角色观察与规划响应为空"
+        # assert len(actors_observe_and_plan_response) > 0, "角色观察与规划响应为空"
 
         # 步骤3: 将结果添加到角色的对话历史
         actor_agent.context.append(
-            AIMessage(content=str(actors_observe_and_plan_response[-1].content))
+            AIMessage(
+                content=f"""{formatted_data.observation}\n\n{formatted_data.plan}"""
+            )
         )
 
         # 记录角色的计划到属性中，方便后续使用

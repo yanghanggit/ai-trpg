@@ -21,13 +21,13 @@ def _gen_self_update_request_prompt_test_v1(actor_name: str) -> str:
     因为测试模式下需要强制执行更新外观和添加效果。
     """
 
-    return f"""# {actor_name} 状态更新
+    return f"""# {actor_name} 更新
 
 ## ⚠️ 强制要求（测试模式）
 
 **必须执行以下操作**：
-1. 必须调用 `update_actor_appearance` 工具更新外观
-2. 必须调用至少1个 `add_actor_effect` 工具添加效果
+1. 必须调用 `update_actor_appearance` 工具 更新外观!
+2. 必须调用至少1个 `add_actor_effect` 工具 添加效果!
 
 ## 第一步：内部分析（仅思考，不输出）
 

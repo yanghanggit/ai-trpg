@@ -48,7 +48,7 @@ class StageExecutionResult(BaseModel):
 
     narrative: str  # 场景执行描述（叙事层）
     actor_states: List[ActorState]  # 角色状态列表
-    environment: str  # 环境状态描述
+    environment: str  # 环境描述
 
 
 ########################################################################################################################
@@ -63,7 +63,7 @@ async def _build_actor_plan_prompt(
     **角色名**
     - 行动计划: xxx
     - 战斗数据: 生命值 X/Y | 攻击力 Z
-    - 状态效果: 效果1(描述), 效果2(描述) 或 无
+    - 效果: 效果1(描述), 效果2(描述) 或 无
     - 外观: xxx
     """
 
@@ -110,7 +110,7 @@ async def _build_actor_plan_prompt(
         return f"""**{name}**
 - 行动计划: {actor_agent.plans[-1]}
 - 战斗数据: 生命值 {health}/{max_health} | 攻击力 {attack}
-- 状态效果: {effects_str}
+- 效果: {effects_str}
 - 外观: {appearance}"""
 
     except Exception as e:
@@ -234,7 +234,7 @@ async def orchestrate_actor_plans_and_update_stage(
 3. actor_states数组：必须包含所有角色的状态
 4. environment字段：完整的环境快照，是下一轮场景更新的起点
 
-**环境状态更新原则**：
+**环境更新原则**：
 
 - 基准：使用上方'当前环境'部分提供的环境描述作为更新基准
 - 保持未变化部分，更新有变化部分，添加新增感官元素
@@ -273,9 +273,7 @@ async def orchestrate_actor_plans_and_update_stage(
             f"✅ 场景 {stage_agent.name} 执行结果 = \n{formatted_data.narrative}"
         )
         stage_agent.context.append(
-            HumanMessage(
-                content="**注意**！场景状态已更新，请在下轮执行中考虑这些变化。"
-            )
+            HumanMessage(content="**注意**！场景已更新，请在下轮执行中考虑这些变化。")
         )
 
         # 步骤5: 通知所有角色代理场景执行结果
