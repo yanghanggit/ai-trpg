@@ -30,162 +30,16 @@ import mcp.types as types
 from ai_trpg.mcp import mcp_config
 from fastapi import Request, Response, status
 from ai_trpg.demo import clone_test_world1, Effect
-from typing import Any, Dict, NamedTuple
 
+# 导入辅助函数模块
+from mcp_server_helpers import (
+    parse_and_format_stage_state,
+    get_actor_info_impl,
+    get_stage_info_impl,
+)
 
-# 辅助函数！！！
-
+# 初始化游戏世界
 test_world = clone_test_world1()
-
-
-class StageStateComponents(NamedTuple):
-    """场景状态组件"""
-
-    narrative: str
-    actor_states: str
-    environment: str
-
-
-def _parse_and_format_stage_state(state_data: str) -> StageStateComponents:
-    """
-    解析场景状态JSON并格式化角色状态为Markdown
-
-    将JSON格式的场景状态解析为三个独立的文本组件，
-    其中角色状态会被格式化为Markdown列表格式。
-
-    Args:
-        state_data: 场景状态的JSON字符串，包含以下字段：
-            - narrative: 场景叙事文本
-            - actor_states: 角色状态列表
-            - environment: 环境描述文本
-
-    Returns:
-        StageStateComponents: 包含三个组件的命名元组
-            - narrative: 场景叙事文本
-            - actor_states: Markdown格式的角色状态列表
-            - environment: 环境描述文本
-    """
-    state_dict: Dict[str, Any] = json.loads(state_data)
-
-    # 准备角色状态文本（格式化为Markdown）
-    actor_lines = []
-    for actor_state in state_dict.get("actor_states", []):
-        actor_name = actor_state.get("actor_name", "未知")
-        location = actor_state.get("location", "未知位置")
-        posture = actor_state.get("posture", "未知姿态")
-        status = actor_state.get("status", "")
-
-        line = f"**{actor_name}**: {location} | {posture}"
-        if status:
-            line += f" | {status}"
-        actor_lines.append(line)
-
-    actors_text = "\n".join(actor_lines)
-    environment_text = state_dict.get("environment", "")
-    narrative_text = state_dict.get("narrative", "")
-
-    return StageStateComponents(
-        narrative=narrative_text, actor_states=actors_text, environment=environment_text
-    )
-
-
-def _get_actor_info_impl(actor_name: str) -> str:
-    """
-    获取Actor信息的内部实现（辅助函数）
-
-    Args:
-        actor_name: 角色名称
-
-    Returns:
-        Actor的JSON数据，包含名称、外观描述和角色属性（生命值、攻击力等）
-    """
-    try:
-        actor, _ = test_world.find_actor_with_stage(actor_name)
-        if actor:
-            logger.info(f"获取Actor数据: {actor_name}")
-
-            result = {
-                "name": actor.name,
-                "appearance": actor.appearance,
-                "attributes": {
-                    "health": actor.attributes.health,
-                    "max_health": actor.attributes.max_health,
-                    "attack": actor.attributes.attack,
-                },
-                "effects": [effect.model_dump() for effect in actor.effects],
-            }
-            return json.dumps(result, ensure_ascii=False, indent=2)
-        else:
-            error_msg = f"错误：未找到名为 '{actor_name}' 的Actor"
-            logger.warning(error_msg)
-            return json.dumps(
-                {"error": error_msg, "timestamp": datetime.now().isoformat()},
-                ensure_ascii=False,
-                indent=2,
-            )
-    except Exception as e:
-        logger.error(f"获取Actor信息失败: {e}")
-        return json.dumps(
-            {
-                "error": f"无法获取Actor数据 - {str(e)}",
-                "timestamp": datetime.now().isoformat(),
-            },
-            ensure_ascii=False,
-            indent=2,
-        )
-
-
-def _get_stage_info_impl(stage_name: str) -> str:
-    """
-    获取Stage信息的内部实现（辅助函数）
-
-    Args:
-        stage_name: 场景名称
-
-    Returns:
-        Stage的JSON数据，包含场景的所有属性（名称、叙事、环境、角色外观等）
-    """
-    try:
-        stage = test_world.find_stage(stage_name)
-        if stage:
-            logger.info(f"获取Stage数据: {stage_name}")
-            # 构建角色外观信息列表
-            actors_appearance = [
-                {
-                    "name": actor.name,
-                    "appearance": actor.appearance,
-                }
-                for actor in stage.actors
-            ]
-
-            # 构建返回结果
-            result = {
-                "name": stage.name,
-                "narrative": stage.narrative,
-                "environment": stage.environment,
-                "actor_states": stage.actor_states,
-                "actors_appearance": actors_appearance,
-            }
-
-            return json.dumps(result, ensure_ascii=False, indent=2)
-        else:
-            error_msg = f"错误：未找到名为 '{stage_name}' 的Stage"
-            logger.warning(error_msg)
-            return json.dumps(
-                {"error": error_msg, "timestamp": datetime.now().isoformat()},
-                ensure_ascii=False,
-                indent=2,
-            )
-    except Exception as e:
-        logger.error(f"获取Stage信息失败: {e}")
-        return json.dumps(
-            {
-                "error": f"无法获取Stage数据 - {str(e)}",
-                "timestamp": datetime.now().isoformat(),
-            },
-            ensure_ascii=False,
-            indent=2,
-        )
 
 
 # ============================================================================
@@ -285,7 +139,7 @@ async def get_stage_info(stage_name: str) -> str:
         Stage的完整JSON数据，包含场景的所有属性（名称、叙事、环境、子场景等）
         以及场景中角色的简要信息（仅包含角色名称和外观描述，不包含档案和已知角色列表）
     """
-    return _get_stage_info_impl(stage_name)
+    return get_stage_info_impl(test_world, stage_name)
 
 
 @app.tool()
@@ -299,7 +153,7 @@ async def get_actor_info(actor_name: str) -> str:
     Returns:
         Actor的JSON数据，包含名称、外观描述和角色属性（生命值、攻击力等）
     """
-    return _get_actor_info_impl(actor_name)
+    return get_actor_info_impl(test_world, actor_name)
 
 
 @app.tool()
@@ -331,7 +185,7 @@ async def sync_stage_state(
             )
 
         # 解析并格式化状态数据
-        components = _parse_and_format_stage_state(state_data)
+        components = parse_and_format_stage_state(state_data)
 
         # 打印格式化后的组件
         logger.warning(f"narrative:\n{components.narrative}")
@@ -588,93 +442,6 @@ async def move_actor(actor_name: str, target_stage_name: str) -> str:
 # ============================================================================
 
 
-@app.resource("game://config")
-async def get_game_config() -> str:
-    """获取游戏配置（静态资源）"""
-    try:
-        config = {
-            "game_version": "1.0.0",
-            "game_mode": "adventure",
-            "max_players": 4,
-            "difficulty": "normal",
-            "server_config": {
-                "host": mcp_config.mcp_server_host,
-                "port": mcp_config.mcp_server_port,
-            },
-        }
-        logger.info("读取游戏配置资源")
-        return json.dumps(config, ensure_ascii=False, indent=2)
-
-    except Exception as e:
-        logger.error(f"获取游戏配置失败: {e}")
-        return f"错误：{str(e)}"
-
-
-@app.resource("game://entity/{entity_name}")
-async def get_entity_resource(entity_name: str) -> str:
-    """
-    获取游戏世界实体资源（根据名称获取World、Stage或Actor的完整数据）
-
-    Args:
-        entity_name: 实体名称（可以是World名称、Stage名称或Actor名称）
-
-    Returns:
-        对应实体的完整JSON数据，包含所有嵌套信息
-    """
-    # URL 解码实体名称（处理中文等特殊字符）
-    decoded_entity_name = unquote(entity_name)
-    logger.debug(f"原始 entity_name: {entity_name}, 解码后: {decoded_entity_name}")
-
-    try:
-        # 检查是否是World
-        if decoded_entity_name == test_world.name:
-            logger.info(f"获取World数据: {decoded_entity_name}")
-            return test_world.model_dump_json(indent=2, ensure_ascii=False)
-
-        # 尝试查找Stage
-        stage = test_world.find_stage(decoded_entity_name)
-        if stage:
-            logger.info(f"获取Stage数据: {decoded_entity_name}")
-            return stage.model_dump_json(indent=2, ensure_ascii=False)
-
-        # 尝试查找Actor
-        actor, stage = test_world.find_actor_with_stage(decoded_entity_name)
-        if actor and stage:
-            logger.info(
-                f"获取Actor数据: {decoded_entity_name}, 所在Stage: {stage.name}"
-            )
-            # 将Actor和其所在的Stage信息打包
-            result = {
-                "actor": actor.model_dump(),
-                "stage": {
-                    "name": stage.name,
-                    "profile": stage.profile,
-                    "environment": stage.environment,
-                },
-            }
-            return json.dumps(result, ensure_ascii=False, indent=2)
-
-        # 未找到任何匹配
-        error_msg = f"错误：未找到名为 '{decoded_entity_name}' 的World、Stage或Actor"
-        logger.warning(error_msg)
-        return json.dumps(
-            {"error": error_msg, "timestamp": datetime.now().isoformat()},
-            ensure_ascii=False,
-            indent=2,
-        )
-
-    except Exception as e:
-        logger.error(f"获取游戏世界实体失败: {e}")
-        return json.dumps(
-            {
-                "error": f"无法获取游戏世界实体数据 - {str(e)}",
-                "timestamp": datetime.now().isoformat(),
-            },
-            ensure_ascii=False,
-            indent=2,
-        )
-
-
 @app.resource("game://actor/{actor_name}")
 async def get_actor_resource(actor_name: str) -> str:
     """
@@ -690,7 +457,7 @@ async def get_actor_resource(actor_name: str) -> str:
     decoded_actor_name = unquote(actor_name)
     logger.debug(f"原始 actor_name: {actor_name}, 解码后: {decoded_actor_name}")
 
-    return _get_actor_info_impl(decoded_actor_name)
+    return get_actor_info_impl(test_world, decoded_actor_name)
 
 
 @app.resource("game://stage/{stage_name}")
@@ -708,7 +475,7 @@ async def get_stage_resource(stage_name: str) -> str:
     decoded_stage_name = unquote(stage_name)
     logger.debug(f"原始 stage_name: {stage_name}, 解码后: {decoded_stage_name}")
 
-    return _get_stage_info_impl(decoded_stage_name)
+    return get_stage_info_impl(test_world, decoded_stage_name)
 
 
 @app.resource("game://world")
@@ -744,7 +511,8 @@ async def get_world_resource() -> str:
 # ============================================================================
 # 注册提示词模板
 # ============================================================================
-# game_system_prompt_example --player_name=张三 --current_stage=客厅 --world_name=测试世界
+
+
 @app.prompt()
 async def game_system_prompt_example() -> types.GetPromptResult:
     """
@@ -752,6 +520,7 @@ async def game_system_prompt_example() -> types.GetPromptResult:
 
     这是一个示例提示词模板，展示如何使用参数化的提示词。
     实际使用时，客户端可以传入具体的参数值来替换模板中的占位符。
+    测试用例: game_system_prompt_example --player_name=张三 --current_stage=客厅 --world_name=测试世界
     """
 
     prompt_example = """# 游戏系统提示词模板（示例）
