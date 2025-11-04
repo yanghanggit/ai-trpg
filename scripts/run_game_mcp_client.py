@@ -37,9 +37,6 @@ from ai_trpg.mcp import (
 )
 
 from ai_trpg.demo import (
-    World,
-    Actor,
-    Stage,
     GLOBAL_GAME_MECHANICS,
     gen_world_system_message,
     gen_actor_system_message,
@@ -76,7 +73,7 @@ test_world = clone_test_world1()
 # 创建游戏角色代理
 world_agent: Final[GameAgent] = GameAgent(
     name=test_world.name,
-    type=World.__name__,
+    # type=World.__name__,
     context=[
         SystemMessage(
             content=gen_world_system_message(test_world, GLOBAL_GAME_MECHANICS)
@@ -96,7 +93,7 @@ actor_agents: List[GameAgent] = []
 for actor in all_actors:
     agent = GameAgent(
         name=actor.name,
-        type=Actor.__name__,
+        # type=Actor.__name__,
         context=[
             SystemMessage(
                 content=gen_actor_system_message(
@@ -111,7 +108,7 @@ stage_agents: List[GameAgent] = []
 for stage in all_stages:
     agent = GameAgent(
         name=stage.name,
-        type=Stage.__name__,
+        # type=Stage.__name__,
         context=[
             SystemMessage(
                 content=gen_stage_system_message(
@@ -138,7 +135,7 @@ for agent in all_agents:
             [
                 HumanMessage(content=kickoff_messages),
                 AIMessage(
-                    content="我是艾琳。我在 奥顿教堂墓地。我的目标是 狩猎 加斯科因！因为斯科因已经兽化，所以必须消灭他。我决定要马上行动！"
+                    content="我是艾琳。我在 奥顿教堂墓地。我的目标是 狩猎 加斯科因！因为斯科因已经兽化，所以必须消灭他。我决定要马上出手一击必杀！"
                 ),
             ]
         )

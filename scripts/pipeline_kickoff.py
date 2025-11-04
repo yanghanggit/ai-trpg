@@ -55,11 +55,17 @@ async def handle_all_kickoff(
         
 {narrative}"""
 
-        stage_agent.context.append(HumanMessage(content=kickoff_prompt))
-        logger.info(f"✅ 场景 {stage_agent.name} kickoff = \n{kickoff_prompt}")
+        if not stage_agent.is_kicked_off:
+            stage_agent.context.append(HumanMessage(content=kickoff_prompt))
+            stage_agent.is_kicked_off = True
+            logger.info(f"✅ 场景 {stage_agent.name} kickoff = \n{kickoff_prompt}")
 
         for actor_agent in actor_agents:
+
+            if actor_agent.is_kicked_off:
+                continue
             actor_agent.context.append(HumanMessage(content=kickoff_prompt))
+            actor_agent.is_kicked_off = True
             logger.debug(f"✅ 角色 {actor_agent.name} kickoff = \n{kickoff_prompt}")
 
     except Exception as e:

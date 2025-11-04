@@ -15,9 +15,9 @@ class GameAgent(BaseModel):
     """游戏代理模型"""
 
     name: str
-    type: str
     context: List[BaseMessage] = []
-    plans: List[str] = []
+    plan: str = ""
+    is_kicked_off: bool = False  # 代理是否已完成开局初始化, 防止重复
 
 
 def switch_agent(

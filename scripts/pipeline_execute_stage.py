@@ -46,7 +46,8 @@ class StageExecutionResult(BaseModel):
     用于验证和解析场景执行的JSON输出，包含叙事描述、角色状态和环境状态。
     """
 
-    narrative: str  # 场景执行描述（叙事层）
+    calculation_log: str  # 计算过程日志（包含战斗计算、互动效果等）- 优先计算
+    narrative: str  # 场景执行描述（叙事层）- 基于计算结果生成
     actor_states: List[ActorState]  # 角色状态列表
     environment: str  # 环境描述
 
@@ -67,7 +68,10 @@ async def _build_actor_plan_prompt(
     - 外观: xxx
     """
 
-    if len(actor_agent.plans) == 0:
+    # if len(actor_agent.plans) == 0:
+    #     return ""
+
+    if actor_agent.plan == "":
         return ""
 
     try:
@@ -108,7 +112,7 @@ async def _build_actor_plan_prompt(
 
         # 构建美化后的提示词
         return f"""**{name}**
-- 行动计划: {actor_agent.plans[-1]}
+- 行动计划: {actor_agent.plan}
 - 战斗数据: 生命值 {health}/{max_health} | 攻击力 {attack}
 - 效果: {effects_str}
 - 外观: {appearance}"""
@@ -208,7 +212,8 @@ async def orchestrate_actor_plans_and_update_stage(
 
 ```json
 {{
-    "narrative": "第三人称全知视角的场景执行描述，按时间顺序叙述各角色行动的实际过程、互动效果、环境变化。如有冲突需合理描述结果。生动具体的完整自然段，展现执行效果而非重复计划。",
+    "calculation_log": "【优先计算】记录本轮执行的计算过程。战斗场景：逐一记录攻击者、防御者、基础攻击力、效果加成（若有）、最终伤害，应用战斗公式（当前生命值 - 伤害 = 剩余生命值），记录每个角色最终生命值。非战斗场景：简要说明互动过程和结果。",
+    "narrative": "【基于计算结果生成】第三人称全知视角的场景执行描述，按时间顺序叙述各角色行动的实际过程、互动效果、环境变化。如有冲突需合理描述结果。生动具体的完整自然段，展现执行效果而非重复计划。",
     "actor_states": [
         {{
             "actor_name": "角色名1",
@@ -230,9 +235,10 @@ async def orchestrate_actor_plans_and_update_stage(
 **重要**：
 
 1. 只输出JSON代码块，不要有其他文本
-2. narrative字段：生动叙事，展现执行过程
-3. actor_states数组：必须包含所有角色的状态
-4. environment字段：完整的环境快照，是下一轮场景更新的起点
+2. calculation_log字段：**首先计算**，应用战斗公式（当前生命值 - 伤害 = 剩余生命值），记录所有角色的最终生命值
+3. narrative字段：**基于calculation_log的计算结果**生成叙事，确保叙事与计算结果一致
+4. actor_states数组：必须包含所有角色的状态
+5. environment字段：完整的环境快照，是下一轮场景更新的起点
 
 **环境更新原则**：
 

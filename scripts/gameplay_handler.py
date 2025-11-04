@@ -137,8 +137,8 @@ async def handle_game_command(
             )
 
             # 步骤3: 所有角色进行状态更新
-            await handle_all_actors_self_update(
-                actor_agents=actor_agents,
-                mcp_client=mcp_client,
-                use_concurrency=True,
-            )
+            # await handle_all_actors_self_update(
+            #     actor_agents=actor_agents,
+            #     mcp_client=mcp_client,
+            #     use_concurrency=True,
+            # )

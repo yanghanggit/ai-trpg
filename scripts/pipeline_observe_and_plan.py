@@ -321,7 +321,7 @@ async def _handle_single_actor_observe_and_plan(
         )
 
         # 记录角色的计划到属性中，方便后续使用
-        actor_agent.plans = [formatted_data.plan]
+        actor_agent.plan = str(formatted_data.plan)
 
     except Exception as e:
         logger.error(f"JSON解析错误: {e}")
