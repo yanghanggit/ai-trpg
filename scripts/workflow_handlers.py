@@ -10,7 +10,6 @@ from langchain.schema import AIMessage, BaseMessage, HumanMessage
 from langchain_deepseek import ChatDeepSeek
 from loguru import logger
 from ai_trpg.deepseek import (
-    McpState,
     execute_mcp_workflow,
     execute_chat_workflow,
     execute_rag_workflow,
@@ -19,23 +18,37 @@ from ai_trpg.deepseek import (
     create_rag_workflow,
     DocumentRetriever,
 )
+from ai_trpg.mcp import McpClient
 
 
 #############################################################################################################
 async def handle_mcp_workflow_execution(
     agent_name: str,
-    context: McpState,
-    request: McpState,
+    context: List[BaseMessage],
+    request: HumanMessage,
+    llm: ChatDeepSeek,
+    mcp_client: McpClient,
 ) -> List[BaseMessage]:
-    """处理普通用户消息：发送给AI处理"""
-    user_message = request["messages"][0] if request.get("messages") else None
-    if user_message:
-        logger.debug(f"{agent_name}:\n{user_message.content}")
+    """处理MCP工具调用工作流
+
+    Args:
+        agent_name: 代理名称，用于日志输出
+        context: 历史消息列表
+        request: 用户当前输入的消息
+        llm: ChatDeepSeek LLM 实例
+        mcp_client: MCP 客户端实例
+
+    Returns:
+        List[BaseMessage]: AI响应消息列表
+    """
+    logger.debug(f"{agent_name}:\n{request.content}")
 
     mcp_response = await execute_mcp_workflow(
         work_flow=create_mcp_workflow(),
         context=context,
         request=request,
+        llm=llm,
+        mcp_client=mcp_client,
     )
 
     # 显示最新的AI回复

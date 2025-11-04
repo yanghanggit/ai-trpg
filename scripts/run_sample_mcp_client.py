@@ -29,6 +29,7 @@ import os
 import sys
 import traceback
 from typing import Any, List
+from langchain.schema import BaseMessage
 
 
 # 将 src 目录添加到模块搜索路径
@@ -99,18 +100,26 @@ def print_available_tools() -> None:
     print()
 
 
-def print_chat_history(chat_history_state: McpState) -> None:
-    """打印对话历史"""
-    messages = chat_history_state["messages"]
+def print_context(
+    context: List[BaseMessage],
+    available_tools_count: int,
+    mcp_client: McpClient | None,
+) -> None:
+    """打印对话历史
 
-    if not messages:
+    Args:
+        chat_history: 消息列表
+        available_tools_count: 可用工具数量
+        mcp_client: MCP 客户端实例（可选）
+    """
+    if not context:
         print("\n📜 对话历史为空")
         return
 
     print("\n📜 对话历史：")
     print("-" * 60)
 
-    for i, message in enumerate(messages, 1):
+    for i, message in enumerate(context, 1):
         if isinstance(message, HumanMessage):
             print(f"👤 用户 [{i}]: {message.content}")
         else:
@@ -122,15 +131,14 @@ def print_chat_history(chat_history_state: McpState) -> None:
         print()
 
     print(f"📊 统计信息：")
-    print(f"   • 总消息数: {len(messages)}")
+    print(f"   • 总消息数: {len(context)}")
     print(
-        f"   • 用户消息: {sum(1 for msg in messages if isinstance(msg, HumanMessage))}"
+        f"   • 用户消息: {sum(1 for msg in context if isinstance(msg, HumanMessage))}"
     )
     print(
-        f"   • AI回复: {sum(1 for msg in messages if not isinstance(msg, HumanMessage))}"
+        f"   • AI回复: {sum(1 for msg in context if not isinstance(msg, HumanMessage))}"
     )
-    print(f"   • 可用工具: {len(chat_history_state.get('available_tools', []))}")
-    mcp_client = chat_history_state.get("mcp_client")
+    print(f"   • 可用工具: {available_tools_count}")
     print(f"   • MCP状态: {'已连接' if mcp_client is not None else '未连接'}")
     print("-" * 60)
 
@@ -225,19 +233,17 @@ async def handle_resources_command(
 
 async def handle_analyze_command(
     mcp_client: McpClient,
-    available_tools: List[McpToolInfo],
     llm: ChatDeepSeek,
-    context_state: McpState,
+    context: List[BaseMessage],
     mcp_workflow: CompiledStateGraph[McpState, Any, McpState, McpState],
 ) -> None:
     """处理 /analyze 命令：使用提示词模板进行系统分析
 
     Args:
         mcp_client: MCP 客户端实例
-        available_tools: 可用工具列表
         llm: DeepSeek LLM 实例
-        chat_history_state: 聊天历史状态
-        compiled_mcp_stage_graph: 编译后的状态图
+        chat_history: 聊天历史消息列表
+        mcp_workflow: 编译后的 MCP 工作流
     """
     print("\n🔍 系统分析演示（使用提示词模板）")
     print("-" * 50)
@@ -304,26 +310,22 @@ async def handle_analyze_command(
         )
 
         if should_analyze == "y":
-            # 创建用户输入状态
-            analysis_state: McpState = {
-                "messages": [HumanMessage(content=filled_prompt)],
-                "llm": llm,  # 使用共享的 LLM 实例
-                "mcp_client": mcp_client,
-                "available_tools": available_tools,
-                "tool_outputs": [],
-            }
+            # 创建分析请求消息
+            analysis_request = HumanMessage(content=filled_prompt)
 
             # 获取 AI 分析
             print("\n⏳ AI 正在分析...")
             analysis_mcp_response = await execute_mcp_workflow(
                 work_flow=mcp_workflow,
-                context=context_state,
-                request=analysis_state,
+                context=context,
+                request=analysis_request,
+                llm=llm,
+                mcp_client=mcp_client,
             )
 
             # 更新聊天历史
-            context_state["messages"].extend(analysis_state["messages"])
-            context_state["messages"].extend(analysis_mcp_response)
+            context.append(analysis_request)
+            context.extend(analysis_mcp_response)
 
             # 显示分析结果
             if analysis_mcp_response:
@@ -343,33 +345,35 @@ async def handle_analyze_command(
 
 
 async def handle_user_message(
-    request_state: McpState,
-    context_state: McpState,
+    request: HumanMessage,
+    context: List[BaseMessage],
+    llm: ChatDeepSeek,
+    mcp_client: McpClient,
     mcp_workflow: CompiledStateGraph[McpState, Any, McpState, McpState],
 ) -> None:
     """处理普通用户消息：发送给AI处理
 
     Args:
-        user_input_state: 已构建好的用户输入状态（包含消息、工具等）
-        chat_history_state: 聊天历史状态
-        compiled_mcp_stage_graph: 编译后的状态图
+        request: 用户输入的消息
+        chat_history: 聊天历史消息列表
+        llm: DeepSeek LLM 实例
+        mcp_client: MCP 客户端实例
+        mcp_workflow: 编译后的 MCP 工作流
     """
-    # 获取 AI 回复（包含可能的工具调用）
-    user_message = (
-        request_state["messages"][0] if request_state.get("messages") else None
-    )
-    if user_message:
-        logger.success(f"处理用户输入: {user_message.content}")
+    logger.success(f"处理用户输入: {request.content}")
 
+    # 获取 AI 回复（包含可能的工具调用）
     mcp_response = await execute_mcp_workflow(
         work_flow=mcp_workflow,
-        context=context_state,
-        request=request_state,
+        context=context,
+        request=request,
+        llm=llm,
+        mcp_client=mcp_client,
     )
 
     # 更新聊天历史（包含用户输入和AI回复）
-    context_state["messages"].extend(request_state["messages"])
-    context_state["messages"].extend(mcp_response)
+    context.append(request)
+    context.extend(mcp_response)
 
     # 显示最新的AI回复
     if mcp_response:
@@ -379,9 +383,7 @@ async def handle_user_message(
         print("\n❌ 抱歉，没有收到回复。")
 
     # 提示用户可以使用 /history 查看对话历史
-    logger.debug(
-        f"💬 当前对话历史包含 {len(context_state['messages'])} 条消息，使用 /history 查看详情"
-    )
+    logger.debug(f"💬 当前对话历史包含 {len(context)} 条消息，使用 /history 查看详情")
 
 
 async def main() -> None:
@@ -439,18 +441,14 @@ async def main() -> None:
             )
             return
 
-        # 初始化 MCP 聊天历史状态
-        context_state: McpState = {
-            "messages": [
-                SystemMessage(
-                    content="""# 你作为一个人工智能助手要扮演一个海盗，你需要用海盗的语气来回答问题。"""
-                )
-            ],
-            "llm": create_deepseek_llm(0.7),  # 包含共享的 LLM 实例
-            "mcp_client": mcp_client,
-            "available_tools": available_tools,
-            "tool_outputs": [],
-        }
+        # 初始化聊天历史和共享资源
+        context: List[BaseMessage] = [
+            SystemMessage(
+                content="""# 你作为一个人工智能助手要扮演一个海盗，你需要用海盗的语气来回答问题。"""
+            )
+        ]
+        llm = create_deepseek_llm(0.7)
+        mcp_workflow = create_mcp_workflow()
 
         while True:
             try:
@@ -469,7 +467,7 @@ async def main() -> None:
 
                 # 处理历史记录命令
                 elif user_input.lower() == "/history":
-                    print_chat_history(context_state)
+                    print_context(context, len(available_tools), mcp_client)
                     continue
 
                 # 处理提示词模板命令
@@ -486,10 +484,9 @@ async def main() -> None:
                 elif user_input.lower() == "/analyze":
                     await handle_analyze_command(
                         mcp_client,
-                        available_tools,
-                        create_deepseek_llm(0.7),
-                        context_state,
-                        create_mcp_workflow(),
+                        llm,
+                        context,
+                        mcp_workflow,
                     )
                     continue
 
@@ -504,19 +501,14 @@ async def main() -> None:
                     continue
 
                 # 处理普通用户消息
-                # 构建用户输入状态
-                user_input_state: McpState = {
-                    "messages": [HumanMessage(content=user_input)],
-                    "llm": create_deepseek_llm(0.7),  # 使用共享的 LLM 实例
-                    "mcp_client": mcp_client,
-                    "available_tools": available_tools,
-                    "tool_outputs": [],
-                }
+                user_message = HumanMessage(content=user_input)
 
                 await handle_user_message(
-                    request_state=user_input_state,
-                    context_state=context_state,
-                    mcp_workflow=create_mcp_workflow(),
+                    request=user_message,
+                    context=context,
+                    llm=llm,
+                    mcp_client=mcp_client,
+                    mcp_workflow=mcp_workflow,
                 )
 
             except KeyboardInterrupt:

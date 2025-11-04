@@ -260,26 +260,14 @@ async def main() -> None:
 
                 # 格式化用户输入
                 format_user_input = format_user_input_prompt(mcp_content)
-                available_tools = await mcp_client.list_tools()
-                assert available_tools is not None, "获取 MCP 可用工具失败"
 
                 # mcp 的工作流
                 mcp_response = await handle_mcp_workflow_execution(
                     agent_name=current_agent.name,
-                    context={
-                        "messages": current_agent.context.copy(),
-                        "llm": create_deepseek_llm(),
-                        "mcp_client": mcp_client,
-                        "available_tools": available_tools,
-                        "tool_outputs": [],
-                    },
-                    request={
-                        "messages": [HumanMessage(content=format_user_input)],
-                        "llm": create_deepseek_llm(),
-                        "mcp_client": mcp_client,
-                        "available_tools": available_tools,
-                        "tool_outputs": [],
-                    },
+                    context=current_agent.context.copy(),
+                    request=HumanMessage(content=format_user_input),
+                    llm=create_deepseek_llm(),
+                    mcp_client=mcp_client,
                 )
 
                 # 更新当前代理的对话历史

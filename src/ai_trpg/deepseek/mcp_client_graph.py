@@ -895,38 +895,40 @@ def create_mcp_workflow() -> CompiledStateGraph[McpState, Any, McpState, McpStat
 ############################################################################################################
 async def execute_mcp_workflow(
     work_flow: CompiledStateGraph[McpState, Any, McpState, McpState],
-    context: McpState,
-    request: McpState,
+    context: List[BaseMessage],
+    request: HumanMessage,
+    llm: ChatDeepSeek,
+    mcp_client: McpClient,
 ) -> List[BaseMessage]:
-    """
-    流式处理 MCP 图更新
+    """执行MCP工作流并返回所有响应消息
 
-    **关键改进**：不再依赖节点名称，而是从最终状态的 final_response 字段获取结果
+    将聊天历史和用户输入合并后，通过编译好的状态图进行MCP工具调用处理，
+    收集并返回所有生成的消息。McpState 的创建被封装在函数内部。
 
     Args:
-        work_flow: 编译后的状态图
-        context: 聊天历史状态
-        request: 用户输入状态
+        work_flow: 已编译的 LangGraph 状态图
+        context: 历史消息列表
+        request: 用户当前输入的消息
+        llm: ChatDeepSeek LLM 实例
+        mcp_client: MCP 客户端实例
 
     Returns:
-        List[BaseMessage]: 响应消息列表
+        包含所有生成消息的列表
     """
     ret: List[BaseMessage] = []
 
-    # 合并状态，保持 MCP 相关信息
-    llm_instance = request.get("llm") or context.get("llm")
-    assert (
-        llm_instance is not None
-    ), "LLM instance is required in either chat history or user input state"
+    # 在函数内部获取可用工具列表
+    available_tools = await mcp_client.list_tools()
+    if available_tools is None:
+        available_tools = []
 
+    # 在内部构造 McpState（封装实现细节）
     merged_message_context: McpState = {
-        "messages": context["messages"] + request["messages"],
-        "llm": llm_instance,  # 确保LLM实例存在
-        "mcp_client": request.get("mcp_client", context.get("mcp_client")),
-        "available_tools": request.get(
-            "available_tools", context.get("available_tools", [])
-        ),
-        "tool_outputs": context.get("tool_outputs", []),
+        "messages": context + [request],
+        "llm": llm,
+        "mcp_client": mcp_client,
+        "available_tools": available_tools,
+        "tool_outputs": [],
     }
 
     try:

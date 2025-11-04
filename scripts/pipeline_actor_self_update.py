@@ -100,20 +100,10 @@ async def _handle_single_actor_self_update(
     # mcp 的工作流
     await handle_mcp_workflow_execution(
         agent_name=actor_agent.name,
-        context={
-            "messages": actor_agent.context.copy(),
-            "llm": create_deepseek_llm(),
-            "mcp_client": mcp_client,
-            "available_tools": available_tools,
-            "tool_outputs": [],
-        },
-        request={
-            "messages": [HumanMessage(content=self_update_request_prompt)],
-            "llm": create_deepseek_llm(),
-            "mcp_client": mcp_client,
-            "available_tools": available_tools,
-            "tool_outputs": [],
-        },
+        context=actor_agent.context.copy(),
+        request=HumanMessage(content=self_update_request_prompt),
+        llm=create_deepseek_llm(),
+        mcp_client=mcp_client,
     )
 
     # 在这里注意，不要添加任何新的对话历史，所有的更新都在 MCP 工作流中完成！
