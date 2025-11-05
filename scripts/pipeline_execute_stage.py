@@ -58,15 +58,15 @@ class StageExecutionResult(BaseModel):
 ########################################################################################################################
 ########################################################################################################################
 class SimplifiedStageExecutionResult(BaseModel):
-    """简化的场景执行结果（仅核心叙事信息）
+    """简化的场景执行结果（工具调用摘要）
 
     用于 MCP Workflow 模式下的最终响应解析。
-    LLM 会自主调用工具同步 actor_states 和 environment，
-    因此最终响应只需要返回 calculation_log 和 narrative。
+    LLM 会自主调用工具保存所有状态变化，
+    最终响应只返回工具调用摘要和简短总结。
     """
 
-    calculation_log: str  # 计算过程日志
-    narrative: str  # 场景叙事描述
+    tools_called: List[str]  # 已调用的工具名称列表
+    summary: str  # 执行摘要（一句话描述发生了什么）
 
 
 ########################################################################################################################
@@ -219,63 +219,90 @@ async def handle_orchestrate_actor_plans_and_update_stage(
 
 {stage_info_json.get("environment", "")}
 
-## 任务要求
+## 执行流程（严格按顺序）
 
-### 第一步：内部推理
+### 第一步：内部分析（不输出）
 
-请先思考并准备以下内容（按优先级顺序）：
+分析并准备以下数据：
 
-1. **calculation_log**（最优先）：计算战斗伤害或互动结果
-   - 战斗场景：记录攻击者、防御者、伤害计算（基础攻击力 + 效果加成）、最终生命值
+1. **计算战斗或互动结果**（calculation_log）
+   - 战斗场景：计算伤害（攻击力 + 效果加成），确定新生命值
    - 战斗公式：当前生命值 - 伤害 = 新生命值
-   - 非战斗场景：记录互动过程和结果
+   - 非战斗场景：分析互动过程和结果
 
-2. **narrative**：基于 calculation_log，生成第三人称场景叙事
-   - 按时间顺序描述各角色行动的实际过程、互动效果、环境变化
+2. **构建场景叙事**（narrative）
+   - 第三人称描述各角色行动过程、互动效果、环境变化
 
-3. **actor_states**：基于 calculation_log 和 narrative，生成角色状态字符串
-   - 格式：每行一个角色，`**角色名**: 位置 | 姿态 | 状态`
-   - 位置：描述角色相对于地标、方位和距离
-   - 姿态：描述角色的动作或体态
-   - 状态：特殊状态用【】标记，如【隐藏】，无特殊状态则留空
+3. **确定角色状态变化**（actor_states）
+   - 格式：`**角色名**: 位置 | 姿态 | 状态`
+   - 记录每个角色的新位置、姿态和特殊状态
 
-4. **environment**：基于场景变化，更新环境描述
-   - 保持未变化部分，更新有变化部分，添加新增感官元素
+4. **更新环境描述**（environment）
+   - 保持未变化部分，更新有变化部分
 
-### 第二步：同步状态到服务器
+---
 
-你需要将上述准备好的内容同步到游戏服务器：
+### 第二步：调用工具保存状态（必须完成，禁止跳过）
 
-1. **必须同步场景状态**：
-   - 场景名称：{stage_agent.name}
-   - 场景叙事：narrative
-   - 角色状态：actor_states（字符串格式，使用换行符分隔多个角色）
-   - 环境描述：environment
+**🚨 严格要求：你必须按照以下步骤操作**
 
-2. **如果有角色生命值变化**，需要更新每个角色的生命值：
-   - 角色名称
-   - 新的生命值（整数，0-max_health）
+1. 完成第一步的内部分析
+2. **立即调用工具**（不要返回任何 JSON）
+3. 等待工具执行完成
+4. 才能进入第三步
 
-3. **如果有效果被消耗**（如战斗中的增益效果触发后消失），需要移除这些效果：
-   - 角色名称
-   - 效果名称
+**❌ 禁止的行为**：
+- ❌ 不要在工具调用之前返回 JSON
+- ❌ 不要跳过工具调用直接进入第三步
+- ❌ 不要假装调用了工具
 
-### 第三步：最终响应
+**✅ 正确的流程**：
+你现在必须调用工具来保存状态，而不是返回 JSON。
 
-所有状态同步完成后，只返回以下 JSON：
+#### 必须完成的任务
+
+**任务 1：保存场景状态**（必须调用）
+   - 调用工具同步：calculation_log（战斗计算日志）、narrative（场景叙事）、actor_states（角色状态）、environment（环境描述）
+   - 这个工具调用是强制的，无论场景是否变化
+
+**任务 2：更新角色生命值**（如果战斗中有伤害）
+   - 为每个生命值变化的角色调用工具
+   - 传入新的生命值（整数，0 到最大生命值之间）
+
+**任务 3：移除失效效果**（如果有效果被消耗）
+   - 为每个需要移除的效果调用工具
+   - 例如：一次性效果（如"暗影突袭"）触发后必须移除
+
+**⚠️ 调用工具后，你会收到执行结果，然后系统会要求你继续第三步**
+
+---
+
+### 第三步：返回执行摘要（仅在工具调用完成后）
+
+**前置条件检查**：
+- ✅ 第二步的所有工具是否已调用？
+- ✅ 是否收到了工具执行结果？
+
+**如果还没有调用工具，请立即返回第二步调用工具，不要继续！**
+
+---
+
+**如果工具已全部调用完成，现在返回以下 JSON**：
 
 ```json
 {{
-    "calculation_log": "你的计算日志",
-    "narrative": "你的场景叙事"
+    "tools_called": ["实际调用的工具1", "实际调用的工具2", ...],
+    "summary": "一句话总结场景中发生的事件"
 }}
 ```
 
-**重要说明**：
+**字段说明**：
+- `tools_called`：列出你在第二步**实际调用**的工具名称（不要编造）
+- `summary`：一句话概括场景执行结果（例如："艾琳成功击败加斯科因"）
 
-- actor_states 和 environment 已通过服务器同步，无需在最终响应中返回
-- 使用可用的工具来完成状态同步任务
-- 确保按顺序完成：推理 → 同步 → 返回"""
+**重要提醒**：
+- 所有详细状态（calculation_log, narrative, actor_states, environment）已通过工具保存
+- 这是最终响应，只在工具调用完成后返回"""
 
     # 执行 MCP 工作流（改用支持工具调用的工作流）
     stage_execution_response = await handle_mcp_workflow_execution(
@@ -292,30 +319,45 @@ async def handle_orchestrate_actor_plans_and_update_stage(
         # 步骤1: 从JSON代码块中提取字符串
         json_str = strip_json_code_block(str(stage_execution_response[-1].content))
 
-        # 步骤2: 使用Pydantic解析和验证（简化版，只包含 calculation_log 和 narrative）
+        # 步骤2: 使用Pydantic解析和验证（简化版，只包含 tools_called 和 summary）
         simplified_result = SimplifiedStageExecutionResult.model_validate_json(json_str)
 
-        # 步骤3: 更新场景代理的对话历史（压缩提示词）
+        # 步骤3: 从 MCP 资源重新读取 stage 数据以获取最新的 narrative
+        stage_resource_response_updated = await mcp_client.read_resource(
+            stage_resource_uri
+        )
+        if (
+            stage_resource_response_updated is None
+            or stage_resource_response_updated.text is None
+        ):
+            logger.error(f"❌ 未能读取更新后的资源: {stage_resource_uri}")
+            return
+
+        stage_info_updated = json.loads(stage_resource_response_updated.text)
+        narrative = stage_info_updated.get("narrative", "")
+
+        # 步骤4: 更新场景代理的对话历史（压缩提示词）
         stage_agent.context.append(
             HumanMessage(content=_gen_compressed_stage_execute_prompt(stage_agent.name))
         )
 
-        # 步骤4: 记录场景执行结果到场景代理的对话历史
-        stage_agent.context.append(AIMessage(content=simplified_result.narrative))
+        # 步骤5: 记录场景执行结果到场景代理的对话历史
+        stage_agent.context.append(AIMessage(content=narrative))
+        logger.debug(f"✅ 场景 {stage_agent.name} 执行结果 = \n{narrative}")
         logger.debug(
-            f"✅ 场景 {stage_agent.name} 执行结果 = \n{simplified_result.narrative}"
+            f"✅ 工具调用摘要 = {simplified_result.tools_called} | {simplified_result.summary}"
         )
         stage_agent.context.append(
             HumanMessage(content="**注意**！场景已更新，请在下轮执行中考虑这些变化。")
         )
 
-        # 步骤5: 通知所有角色代理场景执行结果
+        # 步骤6: 通知所有角色代理场景执行结果
         for actor_agent in actor_agents:
 
             notify_prompt = f"""# {stage_agent.name} 场景发生事件：
             
 ## 叙事
-{simplified_result.narrative}
+{narrative}
             
 以上事件已发生并改变了场景状态，这将直接影响你的下一步观察与规划。"""
 

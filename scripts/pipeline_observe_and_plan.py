@@ -306,7 +306,6 @@ async def _handle_single_actor_observe_and_plan(
                 content=_gen_compressed_observe_and_plan_prompt(actor_agent.name)
             )
         )
-        # assert len(actors_observe_and_plan_response) > 0, "角色观察与规划响应为空"
 
         # 步骤3: 将结果添加到角色的对话历史
         actor_agent.context.append(
@@ -317,6 +316,7 @@ async def _handle_single_actor_observe_and_plan(
 
         # 记录角色的计划到属性中，方便后续使用
         actor_agent.plan = str(formatted_data.plan)
+        assert actor_agent.plan != "", "角色计划不能为空!!!!!!"
 
     except Exception as e:
         logger.error(f"JSON解析错误: {e}")
@@ -336,6 +336,8 @@ async def handle_all_actors_observe_and_plan(
     让每个角色从第一人称视角观察场景，并立即规划下一步行动。
     使用JSON格式输出，便于解析和后续处理。
 
+    注意：已死亡的角色（is_dead=True）将被自动跳过。
+
     Args:
         stage_agent: 场景代理
         actor_agents: 角色代理列表
@@ -343,22 +345,34 @@ async def handle_all_actors_observe_and_plan(
         use_concurrency: 是否使用并行处理，默认False（顺序执行）
     """
 
+    # 过滤出存活的角色，已死亡的角色不参与观察和规划
+    alive_actor_agents = [agent for agent in actor_agents if not agent.is_dead]
+    dead_actor_count = len(actor_agents) - len(alive_actor_agents)
+
+    if dead_actor_count > 0:
+        dead_names = [agent.name for agent in actor_agents if agent.is_dead]
+        logger.info(f"💀 跳过 {dead_actor_count} 个已死亡角色: {', '.join(dead_names)}")
+
+    if not alive_actor_agents:
+        logger.warning("⚠️ 没有存活的角色需要进行观察和规划")
+        return
+
     if use_concurrency:
         # 并行处理所有角色
-        logger.debug(f"🔄 并行处理 {len(actor_agents)} 个角色的观察和规划")
+        logger.debug(f"🔄 并行处理 {len(alive_actor_agents)} 个角色的观察和规划")
         tasks = [
             _handle_single_actor_observe_and_plan(
                 stage_agent=stage_agent,
                 actor_agent=actor_agent,
                 mcp_client=mcp_client,
             )
-            for actor_agent in actor_agents
+            for actor_agent in alive_actor_agents
         ]
         await asyncio.gather(*tasks)
     else:
         # 顺序处理所有角色
-        logger.debug(f"🔄 顺序处理 {len(actor_agents)} 个角色的观察和规划")
-        for actor_agent in actor_agents:
+        logger.debug(f"🔄 顺序处理 {len(alive_actor_agents)} 个角色的观察和规划")
+        for actor_agent in alive_actor_agents:
             await _handle_single_actor_observe_and_plan(
                 stage_agent=stage_agent,
                 actor_agent=actor_agent,

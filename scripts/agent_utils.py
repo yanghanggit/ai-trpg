@@ -18,6 +18,7 @@ class GameAgent(BaseModel):
     context: List[BaseMessage] = []
     plan: str = ""
     is_kicked_off: bool = False  # 代理是否已完成开局初始化, 防止重复
+    is_dead: bool = False  # 代理是否已死亡
 
 
 def switch_agent(

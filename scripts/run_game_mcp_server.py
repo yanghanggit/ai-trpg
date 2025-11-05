@@ -162,20 +162,23 @@ async def sync_stage_state(
     narrative: str,
     actor_states: str,
     environment: str,
+    calculation_log: str,
 ) -> str:
     """
-    同步场景状态数据到MCP Server
+    更新场景的动态状态信息
 
-    接收场景状态的各个组件并更新到服务器。
+    将场景的叙事、角色状态和环境描述更新为最新内容。
+    用于在场景执行后保存场景的当前状态。
 
     Args:
         stage_name: 场景名称
         narrative: 场景叙事描述
         actor_states: 角色状态字符串（格式：**角色名**: 位置 | 姿态 | 状态）
         environment: 环境描述
+        calculation_log: 战斗计算或互动过程的日志记录
 
     Returns:
-        同步操作的结果（JSON格式）
+        更新操作的结果（JSON格式）
     """
     try:
         # 验证Stage存在
@@ -189,6 +192,7 @@ async def sync_stage_state(
             )
 
         # 打印接收到的数据
+        logger.warning(f"calculation_log:\n{calculation_log}")
         logger.warning(f"narrative:\n{narrative}")
         logger.warning(f"actor_states:\n{actor_states}")
         logger.warning(f"environment:\n{environment}")
