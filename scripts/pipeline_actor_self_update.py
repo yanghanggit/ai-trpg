@@ -16,6 +16,91 @@ from agent_utils import GameAgent
 from workflow_handlers import handle_mcp_workflow_execution
 
 
+def _gen_self_update_request_prompt(actor_name: str, actor_info: Dict[str, Any]) -> str:
+    """
+    生成角色自我状态更新请求提示词（正式版）
+
+    让LLM根据场景执行结果自主判断是否需要更新外观和添加效果。
+    """
+
+    # 提取角色属性信息
+    attributes = actor_info.get("attributes", {})
+    health = attributes.get("health", 0)
+    max_health = attributes.get("max_health", 0)
+    attack = attributes.get("attack", 0)
+
+    # 提取角色效果信息
+    effects = actor_info.get("effects", [])
+    effects_text = ""
+    if effects:
+        effects_list = []
+        for effect in effects:
+            effect_name = effect.get("name", "")
+            effect_desc = effect.get("description", "")
+            effects_list.append(f"- **{effect_name}**: {effect_desc}")
+        effects_text = "\n".join(effects_list)
+    else:
+        effects_text = "- 当前无效果"
+
+    return f"""# {actor_name} 状态更新
+
+## 📋 当前状态
+
+**属性**: 生命值 {health}/{max_health} | 攻击力 {attack}
+
+**效果**: {effects_text if effects else "无"}
+
+---
+
+## 🎯 任务
+
+基于刚发生的场景事件，判断是否需要：
+1. **更新外观**（受伤、环境影响、装备变化等）
+2. **添加效果**（伤势、增益/减益、心理状态等，避免重复）
+
+💡 无明显变化可不更新
+
+---
+
+## 🔄 执行流程
+
+**整体**: 分析场景变化 → 按需调用工具 → 输出确认
+
+### 步骤 1️⃣: 分析（准备阶段）
+
+判断外观和效果是否需要更新，参考当前生命值 {health}/{max_health}
+
+⚠️ 不要输出分析过程
+
+### 步骤 2️⃣: 工具调用（按需）
+
+**分析完成 → 按需调用工具 → 保存状态**
+
+- **需要更新外观**：生成新的完整外观描述（80-120字）
+- **需要添加效果**：添加1-3个效果，名称2-6字，描述20-40字
+- **无需更新**：不调用工具
+
+💡 查看工具列表，docstring 会告诉你如何使用
+
+### 步骤 3️⃣: 确认
+
+**工具调用完成 → 输出确认**
+
+```json
+{{
+    "appearance": "是/否",
+    "effects": ["效果1", "效果2"] 或 []
+}}
+```
+
+---
+
+## ✅ 输出要求
+
+- JSON格式如实反映实际操作
+- 不解释过程"""
+
+
 def _gen_self_update_request_prompt_test_v1(
     actor_name: str, actor_info: Dict[str, Any]
 ) -> str:
@@ -43,72 +128,76 @@ def _gen_self_update_request_prompt_test_v1(
     else:
         effects_text = "- 当前无效果"
 
-    return f"""# {actor_name} 更新
+    return f"""# {actor_name} 状态更新
 
-## 当前角色状态
+## 📋 当前角色状态
 
-### 属性
-```
-生命值: {health}/{max_health}
-攻击力: {attack}
-```
+**属性**
+- 生命值: {health}/{max_health}
+- 攻击力: {attack}
 
-### 当前效果
-```
+**当前效果**
 {effects_text}
-```
+
+---
 
 ## ⚠️ 强制要求（测试模式）
 
-**必须执行以下操作**：
-1. 必须调用 `update_actor_appearance` 工具 更新外观!
-2. 必须调用至少1个 `add_actor_effect` 工具 添加效果!
+**本次必须完成的任务**：
+1. ✅ 更新角色外观描述（必须）
+2. ✅ 添加至少1个新状态效果（必须）
 
-## 第一步：内部分析（仅思考，不输出）
+💡 **提示**：即使场景中变化很小，也必须执行上述任务。这是测试模式的强制要求。
 
-基于场景执行结果和当前角色状态，确定：
-- **外观更新内容**：受伤痕迹、衣物变化、装备状态、环境影响等
-  - 参考当前生命值状态（{health}/{max_health}）
-  - 参考当前已有效果
-- **新增效果内容**：伤势、增益/减益、环境效果、心理状态等
-  - 避免与当前已有效果重复
-  - 考虑属性变化带来的影响
+---
 
-## 第二步：执行工具调用（必须）
+## 🔄 执行流程
 
-**必须执行以下工具调用**：
+**整体流程**：分析当前状态 → 调用工具更新数据 → 输出确认结果
 
-1. 调用 `update_actor_appearance` 工具
-   - 参数：新的完整的外观描述（80-120字）
-   - 基于原有外观 + 场景中的变化
-   - 需体现当前生命值状态和已有效果的影响
+### 步骤 1️⃣：准备阶段
 
-2. 调用 `add_actor_effect` 工具（至少1次）
-   - 参数：效果名称（2-6字）、效果描述（20-40字）
-   - 可以是战斗相关、心理状态、环境影响等
-   - 如需添加多个效果，多次调用此工具
-   - 避免与已有效果名称重复
+**任务**：基于场景执行结果和当前状态，规划需要更新的内容
+- **外观更新**：受伤痕迹、衣物变化、装备状态、环境影响等（参考生命值 {health}/{max_health}）
+- **效果更新**：新增伤势、增益/减益、环境效果、心理状态等（避免与已有效果重复）
 
-## 第三步：收集工具返回结果
+⚠️ **注意**：这是思考阶段，不要输出分析过程
 
-记录所有工具调用的返回信息，用于第四步输出。
+### 步骤 2️⃣：工具调用阶段
 
-## 第四步：输出最终JSON结果（必须）
+**任务**：调用工具保存状态更新
+
+**流程**：准备完成 → 调用工具 → 保存状态
+
+- **更新外观**：生成新的完整外观描述（80-120字），体现当前生命值和效果的影响
+- **添加效果**：添加1-2个新状态效果，每个效果包含名称（2-6字）和描述（20-40字）
+
+💡 **提示**：查看可用工具列表，工具的 docstring 会告诉你如何使用它们
+
+### 步骤 3️⃣：确认阶段
+
+**任务**：输出更新确认（JSON格式）
+
+**流程**：工具执行完成 → 收集结果 → 输出确认
 
 ```json
 {{
-    "appearance": "是否更新了外观？仅回答：是/否",
-    "effects": [
-        "添加的效果名称1",
-        "添加的效果名称2"
-    ]
+    "appearance": "是",
+    "effects": ["效果1", "效果2"]
 }}
+```
 
-### 注意!
+**说明**：
+- `appearance`: 固定填写 "是"（测试模式强制更新）
+- `effects`: 列出所有新添加的效果名称
 
-- 请严格按照上述格式输出JSON结果，确保 JSON 格式正确无误。
-- appearance 填写调用 update_actor_appearance 工具后返回的外观描述
-- effects 填写所有调用 add_actor_effect 工具添加的效果名称列表"""
+---
+
+## ✅ 输出要求
+
+- ✅ 使用 JSON 格式输出确认结果
+- ✅ 确保所有工具调用都已执行
+- ❌ 不要解释工具调用过程"""
 
 
 ########################################################################################################################
@@ -143,7 +232,11 @@ async def _handle_single_actor_self_update(
     available_tools = await mcp_client.list_tools()
     assert available_tools is not None, "获取 MCP 可用工具失败"
 
-    self_update_request_prompt = _gen_self_update_request_prompt_test_v1(
+    # self_update_request_prompt = _gen_self_update_request_prompt_test_v1(
+    #     actor_agent.name, actor_info
+    # )
+
+    self_update_request_prompt = _gen_self_update_request_prompt(
         actor_agent.name, actor_info
     )
 
