@@ -54,9 +54,9 @@ def _gen_self_update_request_prompt(actor_name: str, actor_info: Dict[str, Any])
 
 ## 🎯 任务
 
-基于刚发生的场景事件，判断是否需要：
+基于场景事件，判断是否需要：
 1. **更新外观**（受伤、环境影响、装备变化等）
-2. **添加效果**（伤势、增益/减益、心理状态等，避免重复）
+2. **添加效果**（伤势、增益/减益、心理状态等）
 
 💡 无明显变化可不更新
 
@@ -64,27 +64,35 @@ def _gen_self_update_request_prompt(actor_name: str, actor_info: Dict[str, Any])
 
 ## 🔄 执行流程
 
-**整体**: 分析场景变化 → 按需调用工具 → 输出确认
+**整体**: 分析场景变化 → 调用工具保存数据 → 输出确认
 
-### 步骤 1️⃣: 分析（准备阶段）
+### 步骤 1️⃣: 判断是否需要更新
 
-判断外观和效果是否需要更新，参考当前生命值 {health}/{max_health}
+参考当前生命值 {health}/{max_health}，判断外观和效果是否需要更新
 
 ⚠️ 不要输出分析过程
 
-### 步骤 2️⃣: 工具调用（按需）
+### 步骤 2️⃣: 调用工具（如需更新）
 
-**分析完成 → 按需调用工具 → 保存状态**
+**🚨 重要**: 如果步骤1判断需要更新，**必须调用工具**，不能只在JSON中声明
 
-- **需要更新外观**：生成新的完整外观描述（80-120字）
-- **需要添加效果**：添加1-3个效果，名称2-6字，描述20-40字
-- **无需更新**：不调用工具
+#### 情况A：需要更新外观
+- **必须**调用工具更新外观
+- 生成完整外观描述（80-120字）
 
-💡 查看工具列表，docstring 会告诉你如何使用
+#### 情况B：需要添加效果  
+- **必须**为每个效果调用工具添加
+- 效果名称2-6字，描述20-40字
+- 一个效果 = 一次工具调用
 
-### 步骤 3️⃣: 确认
+#### 情况C：无需更新
+- 不调用任何工具
 
-**工具调用完成 → 输出确认**
+💡 查看工具列表，docstring告诉你如何使用
+
+### 步骤 3️⃣: 输出确认
+
+**工具调用完成 → 输出JSON确认**
 
 ```json
 {{
@@ -92,6 +100,8 @@ def _gen_self_update_request_prompt(actor_name: str, actor_info: Dict[str, Any])
     "effects": ["效果1", "效果2"] 或 []
 }}
 ```
+
+⚠️ **注意**: JSON中的 "是/否" 和 effects列表必须如实反映**实际调用的工具**，不能声明未执行的操作
 
 ---
 
@@ -227,7 +237,7 @@ async def _handle_single_actor_self_update(
 
     # 解析角色数据
     actor_info: Dict[str, Any] = json.loads(actor_resource_response.text)
-    logger.debug(f"🔄 角色 {actor_agent.name} 当前数据: {actor_info}")
+    # logger.debug(f"🔄 角色 {actor_agent.name} 当前数据: {actor_info}")
 
     available_tools = await mcp_client.list_tools()
     assert available_tools is not None, "获取 MCP 可用工具失败"
