@@ -18,13 +18,15 @@ preprocess → llm_invoke → tool_parse → [条件判断]
 2. **预处理增强**: 添加工具指令 → `enhanced_messages`
 3. **第一次推理**: LLM决定调用工具 → `llm_response`
 4. **工具执行**: 并发执行工具 → `tool_outputs`
-5. **二次推理** ⭐: 重构上下文，按正确时序组织消息
+5. **二次推理** ⭐: 保持完整对话历史，追加工具结果
    ```
    [SystemMessage(角色), SystemMessage(工具说明),
-    HumanMessage(用户问题), AIMessage(第一次响应),
-    AIMessage(工具结果)]  # ← 关键：使用AIMessage而非SystemMessage
+    HumanMessage(用户问题1), AIMessage(AI回答1),  # ← 保留完整历史
+    HumanMessage(用户问题2), AIMessage(AI回答2),  # ← 保留完整历史
+    HumanMessage(当前问题), AIMessage(工具调用决策),
+    AIMessage(工具执行结果)]  # ← 关键：使用AIMessage而非SystemMessage
    ```
-6. **最终响应**: 基于工具结果的智能回答 → `final_response`
+6. **最终响应**: 基于完整上下文和工具结果的智能回答 → `final_response`
 
 ### 关键设计
 - **消息类型**: 工具结果用 `AIMessage`（AI的观察）而非 `SystemMessage`
@@ -178,6 +180,11 @@ async def _preprocess_node(state: McpState) -> McpState:
                 "你是一个智能助手，具有使用工具的能力。\n\n" + tool_instruction_prompt
             )
             enhanced_messages.insert(0, SystemMessage(content=default_role_prompt))
+
+            # 走到这里基本就是错了，警告下，因为会影响角色设定！
+            logger.warning(
+                "⚠️ 系统消息缺失，已自动添加默认角色设定和工具说明，走到这里基本就是错了，警告下，因为会影响角色设定！"
+            )
 
         result: McpState = {
             "messages": [],  # 预处理节点不返回消息，避免重复累积
@@ -504,28 +511,31 @@ async def _llm_re_invoke_node(state: McpState) -> McpState:
 
 注意：用户的输入可能是问题、指令、对话、信息、行动描述等多种形式，请根据上下文灵活响应。"""
 
-        # 创建二次推理的消息列表，保持正确的时序逻辑
+        # 创建二次推理的消息列表，保持完整的对话历史
         re_invoke_messages: List[BaseMessage] = []
 
-        # 第1步：从原始消息中提取角色设定和工具说明（SystemMessage）
-        # 只有核心设定才使用 SystemMessage，保持在开头位置
+        # 关键改进：保留完整的原始消息序列，维持对话连贯性
+        # 不再选择性过滤消息类型，避免丢失历史 AIMessage
+        # 原始消息包含：SystemMessage(角色+工具说明) + 完整的历史对话
         for msg in original_messages:
-            if isinstance(msg, SystemMessage):
-                re_invoke_messages.append(msg)
+            re_invoke_messages.append(msg)
 
-        # 第2步：添加用户的问题（HumanMessage）- 这是触发工具调用的原因
-        for msg in original_messages:
-            if isinstance(msg, HumanMessage):
-                re_invoke_messages.append(msg)
+        # 注意：original_messages 通常不包含第一次 LLM 响应（llm_response）
+        # 因为 original_messages 来自 enhanced_messages，而 enhanced_messages
+        # 是在预处理节点构建的，不包括第一次 LLM 调用的结果
+        # 因此我们需要显式添加第一次推理的响应
 
-        # 第3步：添加AI第一次响应（如果存在）- 展示AI决定调用工具的过程
+        # 检查是否需要添加第一次 LLM 响应（工具调用决策）
+        # 这一步很重要：展示 AI 决定调用哪些工具的过程
         llm_first_response = state.get("llm_response")
         if llm_first_response:
-            re_invoke_messages.append(llm_first_response)
+            # 安全检查：确保不重复添加（虽然通常不会重复）
+            if not re_invoke_messages or re_invoke_messages[-1] != llm_first_response:
+                re_invoke_messages.append(llm_first_response)
 
-        # 第4步：添加工具执行结果作为 AIMessage（而不是 SystemMessage）
+        # 最后添加工具执行结果作为 AIMessage（而不是 SystemMessage）
         # 表示"AI观察到工具执行的结果"，而不是系统级指令
-        # 这样保持了对话流的连贯性：User → AI(调用工具) → AI(观察结果) → AI(最终回答)
+        # 这样保持了对话流的连贯性：历史对话 → User(问题) → AI(调用工具) → AI(观察结果) → AI(最终回答)
         re_invoke_messages.append(AIMessage(content=tool_analysis_prompt))
 
         # 二次调用 LLM

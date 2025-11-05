@@ -63,15 +63,12 @@ async def _build_actor_plan_prompt(
 
     生成格式：
     **角色名**
-    
+
     - 行动计划: xxx
     - 战斗数据: 生命值 X/Y | 攻击力 Z
     - 效果: 效果1(描述), 效果2(描述) 或 无
     - 外观: xxx
     """
-
-    # if len(actor_agent.plans) == 0:
-    #     return ""
 
     if actor_agent.plan == "":
         return ""
@@ -114,6 +111,7 @@ async def _build_actor_plan_prompt(
 
         # 构建美化后的提示词
         return f"""**{name}**
+
 - 行动计划: {actor_agent.plan}
 - 战斗数据: 生命值 {health}/{max_health} | 攻击力 {attack}
 - 效果: {effects_str}
