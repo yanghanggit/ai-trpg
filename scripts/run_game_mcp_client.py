@@ -271,8 +271,8 @@ async def main() -> None:
                 )
 
                 # 更新当前代理的对话历史
-                current_agent.context.append(HumanMessage(content=format_user_input))
-                current_agent.context.extend(mcp_response)
+                # current_agent.context.append(HumanMessage(content=format_user_input))
+                # current_agent.context.extend(mcp_response)
                 continue
 
             elif user_input.startswith("/chat"):
@@ -294,8 +294,8 @@ async def main() -> None:
                 )
 
                 # 更新当前代理的对话历史
-                current_agent.context.append(HumanMessage(content=format_user_input))
-                current_agent.context.extend(chat_response)
+                # current_agent.context.append(HumanMessage(content=format_user_input))
+                # current_agent.context.extend(chat_response)
                 continue
 
             elif user_input.startswith("/rag"):
@@ -315,8 +315,8 @@ async def main() -> None:
                 )
 
                 # 更新当前代理的对话历史
-                current_agent.context.append(HumanMessage(content=rag_content))
-                current_agent.context.extend(rag_response)
+                # current_agent.context.append(HumanMessage(content=rag_content))
+                # current_agent.context.extend(rag_response)
                 continue
 
             elif user_input.startswith("/game"):

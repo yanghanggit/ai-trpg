@@ -7,7 +7,7 @@ from .system_messages import (
     gen_actor_system_message,
     gen_stage_system_message,
 )
-from .world import clone_test_world1
+from .world1 import clone_test_world1
 
 __all__ = [
     "Effect",

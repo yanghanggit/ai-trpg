@@ -81,10 +81,10 @@ from .document_retriever import DocumentRetriever
 # 相似度阈值（低于此值的文档将被过滤）
 # 注意：使用 1/(1+distance) 转换公式时，相似度通常在 0.04-0.15 之间
 # 因此阈值设置为 0.05 较为合理，可以过滤掉完全不相关的文档
-MIN_SIMILARITY_THRESHOLD: Final[float] = 0.05
+DEFAULT_SIMILARITY_SCORE: Final[float] = 0.05
 
 # 检索文档数量（预留给后续真实检索使用）
-TOP_K_DOCUMENTS: Final[int] = 3
+DEFAULT_RETRIEVAL_LIMIT: Final[int] = 3
 
 
 ############################################################################################################
@@ -148,8 +148,8 @@ def _retrieval_node(state: RAGState) -> RAGState:
         logger.info(f"🔍 [RETRIEVAL] 用户查询: {user_query}")
 
         # 从状态中获取配置值，如果没有则使用默认值
-        min_threshold = state.get("min_similarity_threshold", MIN_SIMILARITY_THRESHOLD)
-        top_k = state.get("top_k_documents", TOP_K_DOCUMENTS)
+        min_threshold = state.get("min_similarity_threshold", DEFAULT_SIMILARITY_SCORE)
+        top_k = state.get("top_k_documents", DEFAULT_RETRIEVAL_LIMIT)
 
         logger.info(
             f"🔍 [RETRIEVAL] 使用配置 - 相似度阈值: {min_threshold}, Top-K: {top_k}"
@@ -383,8 +383,8 @@ async def execute_rag_workflow(
     request: HumanMessage,
     llm: ChatDeepSeek,
     document_retriever: DocumentRetriever,
-    min_similarity_threshold: float = MIN_SIMILARITY_THRESHOLD,
-    top_k_documents: int = TOP_K_DOCUMENTS,
+    min_similarity_threshold: float = DEFAULT_SIMILARITY_SCORE,
+    top_k_documents: int = DEFAULT_RETRIEVAL_LIMIT,
 ) -> List[BaseMessage]:
     """执行RAG工作流并返回所有响应消息
 

@@ -24,7 +24,7 @@ from ai_trpg.rag.knowledge_retrieval import (
     load_knowledge_base_to_vector_db,
     search_similar_documents,
 )
-from ai_trpg.demo.world import test_knowledge_base
+from ai_trpg.demo.world1 import test_knowledge_base1
 from ai_trpg.embedding_model import multilingual_model
 
 
@@ -90,7 +90,7 @@ def _setup_chromadb() -> None:
         # 加载测试知识库数据到向量数据库
         # logger.info("🔄 加载测试知识库到向量数据库...")
         success = load_knowledge_base_to_vector_db(
-            knowledge_base=test_knowledge_base,
+            knowledge_base=test_knowledge_base1,
             embedding_model=multilingual_model,
             collection=get_default_collection(),
         )
