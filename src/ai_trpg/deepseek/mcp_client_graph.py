@@ -171,26 +171,25 @@ async def _preprocess_node(state: McpState) -> McpState:
     tool_instruction_prompt = _build_tool_instruction_prompt(available_tools)
     logger.debug(f"🛠️ 工具指令提示:\n{tool_instruction_prompt}")
 
-    # 智能添加系统消息：如果已有系统消息则追加，否则插入到开头
-    enhanced_messages = messages.copy()
-    if enhanced_messages and isinstance(enhanced_messages[0], SystemMessage):
+    # 智能添加系统消息：直接修改 messages
+    if messages and isinstance(messages[0], SystemMessage):
         # 已经有系统消息在开头，追加新的工具说明
-        enhanced_messages.insert(1, SystemMessage(content=tool_instruction_prompt))
+        messages.insert(1, SystemMessage(content=tool_instruction_prompt))
     else:
         # 没有系统消息，插入默认角色设定和工具说明到开头
         default_role_prompt = (
             "你是一个智能助手，具有使用工具的能力。\n\n" + tool_instruction_prompt
         )
-        enhanced_messages.insert(0, SystemMessage(content=default_role_prompt))
+        messages.insert(0, SystemMessage(content=default_role_prompt))
 
         # 走到这里基本就是错了，警告下，因为会影响角色设定！
         logger.warning(
             "⚠️ 系统消息缺失，已自动添加默认角色设定和工具说明，走到这里基本就是错了，警告下，因为会影响角色设定！"
         )
 
-    # 关键改变：直接将增强后的消息保存到 messages 中
+    # messages 已直接修改，通过返回让 LangGraph 感知变化
     result: McpState = {
-        "messages": enhanced_messages,  # 直接保存增强后的消息
+        "messages": messages,
         "llm": state["llm"],
         "mcp_client": state["mcp_client"],
         "available_tools": available_tools,
@@ -360,6 +359,33 @@ async def _tool_execution_node(state: McpState) -> McpState:
 
 
 ############################################################################################################
+def _build_tool_context(tool_outputs: List[Dict[str, Any]]) -> str:
+    """
+    构建工具执行结果的上下文字符串
+
+    Args:
+        tool_outputs: 工具执行结果列表
+
+    Returns:
+        str: 格式化的工具结果上下文
+    """
+    tool_context_parts = []
+    for i, output in enumerate(tool_outputs, 1):
+        tool_name = output.get("tool", "未知工具")
+        success = output.get("success", False)
+        result_data = output.get("result", "无结果")
+        exec_time = output.get("execution_time", 0.0)
+
+        status = "成功" if success else "失败"
+        tool_context_parts.append(
+            f"工具{i}: {tool_name} (执行{status}, 耗时{exec_time:.2f}s)\n"
+            f"结果: {result_data}"
+        )
+
+    return "\n\n".join(tool_context_parts)
+
+
+############################################################################################################
 async def _llm_re_invoke_node(state: McpState) -> McpState:
     """
     二次推理节点：基于工具执行结果重新调用LLM进行智能分析
@@ -367,7 +393,9 @@ async def _llm_re_invoke_node(state: McpState) -> McpState:
     这是新架构的核心节点，解决了工具结果只是简单拼接的问题。
     让AI能够基于工具结果进行深度分析和个性化回答。
 
-    约束：只读取 messages，不添加任何内容
+    约束：
+    - 只读取 messages，不添加任何内容
+    - 异常向上传播到 execute_mcp_workflow
 
     Args:
         state: 当前状态
@@ -375,134 +403,53 @@ async def _llm_re_invoke_node(state: McpState) -> McpState:
     Returns:
         McpState: 更新后的状态
     """
-    try:
-        llm = state["llm"]
-        tool_outputs = state.get("tool_outputs", [])
-        # 直接使用 messages（已在预处理中增强）
-        original_messages = state["messages"]
+    tool_outputs = state.get("tool_outputs", [])
 
-        if not tool_outputs:
-            # 没有工具输出，直接使用第一次推理响应
-            original_response = state.get("first_llm_response")
-            if original_response:
-                no_tool_result: McpState = {
-                    "messages": state["messages"],  # 保持不变
-                    "llm": llm,
-                    "mcp_client": state["mcp_client"],
-                    "available_tools": state.get("available_tools", []),
-                    "tool_outputs": [],
-                    "final_response": original_response,  # 标记为最终响应
-                }
-                return no_tool_result
+    # 没有工具输出时，直接返回第一次推理结果
+    if not tool_outputs:
+        first_llm_response = state.get("first_llm_response")
+        assert first_llm_response is not None, "first_llm_response 必须存在"
+        return {"final_response": first_llm_response}
 
-        # 构建包含工具结果的上下文消息
-        tool_context_parts = []
+    # 有工具输出，进行二次推理
+    llm = state["llm"]
 
-        for i, output in enumerate(tool_outputs, 1):
-            tool_name = output.get("tool", "未知工具")
-            success = output.get("success", False)
-            result_data = output.get("result", "无结果")
-            exec_time = output.get("execution_time", 0.0)
+    # 构建工具结果上下文
+    tool_context = _build_tool_context(tool_outputs)
 
-            status = "成功" if success else "失败"
-            tool_context_parts.append(
-                f"工具{i}: {tool_name} (执行{status}, 耗时{exec_time:.2f}s)\n"
-                f"结果: {result_data}"
-            )
+    # 拆分消息：AIMessage(工具结果) + HumanMessage(约束和要求)
+    tool_result_message = AIMessage(content=tool_context)
 
-        tool_context = "\n\n".join(tool_context_parts)
-
-        # 构建二次推理的提示（灵活处理，适用于游戏场景的多样化交互）
-        tool_analysis_prompt = f"""
-## 📊 工具执行结果
-
-{tool_context}
+    user_feedback_message = HumanMessage(
+        content="""基于上述工具执行结果，请直接响应用户输入。
 
 ---
 
 ## ⚠️ 约束条件
 
 - **禁止再次调用工具** - 所有工具已执行完成
-- **禁止输出工具调用格式** - 不要生成 {{"tool_call": ...}} 这样的JSON结构
+- **禁止输出工具调用格式** - 不要生成 {"tool_call": ...} 这样的JSON结构
 
 ## ✅ 响应要求
 
-1. **内容**: 基于上述工具结果直接响应用户输入，保持你的角色设定和语言风格
+1. **内容**: 基于工具结果直接响应用户输入，保持你的角色设定和语言风格
 2. **格式**: 如果用户明确要求特定输出格式(JSON/Markdown/表格等)，严格遵守
-3. **风格**: 根据上下文灵活响应，无需解释工具调用过程
+3. **风格**: 自然融合工具结果进行回应，无需解释工具调用过程
 
-💡 **提示**: 用户输入可能是问题、指令、对话或行动描述，请自然地融合工具结果进行回应。"""
+💡 **提示**: 用户输入可能是问题、指令、对话或行动描述，请根据上下文灵活响应。"""
+    )
 
-        # 创建二次推理的消息列表，保持完整的对话历史
-        re_invoke_messages: List[BaseMessage] = []
+    # 直接修改 state["messages"]，添加工具结果和用户反馈
+    messages = state["messages"]
+    messages.append(tool_result_message)
+    messages.append(user_feedback_message)
 
-        # 关键改进：保留完整的原始消息序列，维持对话连贯性
-        # 不再选择性过滤消息类型，避免丢失历史 AIMessage
-        # 原始消息包含：SystemMessage(角色+工具说明) + 完整的历史对话
-        for msg in original_messages:
-            re_invoke_messages.append(msg)
+    # 二次调用 LLM（异常向上传播）
+    logger.info("🔄 开始二次推理，基于工具结果生成智能回答...")
+    re_invoke_response = llm.invoke(messages)
+    logger.info("✅ 二次推理完成")
 
-        # 注意：original_messages 通常不包含第一次 LLM 响应（first_llm_response）
-        # 因为 original_messages 来自 messages（在预处理节点构建），
-        # 不包括第一次 LLM 调用的结果
-        # 因此我们需要显式添加第一次推理的响应
-
-        # 检查是否需要添加第一次 LLM 响应（工具调用决策）
-        # 这一步很重要：展示 AI 决定调用哪些工具的过程
-        llm_first_response = state.get("first_llm_response")
-        if llm_first_response:
-            # 安全检查：确保不重复添加（虽然通常不会重复）
-            if not re_invoke_messages or re_invoke_messages[-1] != llm_first_response:
-                re_invoke_messages.append(llm_first_response)
-
-        # 最后添加工具执行结果作为 AIMessage（而不是 SystemMessage）
-        # 表示"AI观察到工具执行的结果"，而不是系统级指令
-        # 这样保持了对话流的连贯性：历史对话 → User(问题) → AI(调用工具) → AI(观察结果) → AI(最终回答)
-        re_invoke_messages.append(AIMessage(content=tool_analysis_prompt))
-
-        # 二次调用 LLM
-        logger.info("🔄 开始二次推理，基于工具结果生成智能回答...")
-        re_invoke_response = llm.invoke(re_invoke_messages)
-
-        logger.info("✅ 二次推理完成")
-
-        re_invoke_result: McpState = {
-            "messages": state["messages"],  # 保持不变，不添加内容
-            "llm": llm,
-            "mcp_client": state["mcp_client"],
-            "available_tools": state.get("available_tools", []),
-            "tool_outputs": tool_outputs,
-            "final_response": re_invoke_response,  # 标记为最终响应
-        }
-        return re_invoke_result
-
-    except Exception as e:
-        logger.error(f"二次推理节点错误: {e}")
-        # 降级处理：使用第一次推理响应合成
-        original_response = state.get("first_llm_response")
-        if original_response and state.get("tool_outputs"):
-            from ..mcp.response import synthesize_response_with_tools
-
-            synthesized_content = synthesize_response_with_tools(
-                str(original_response.content) if original_response.content else "",
-                state.get("tool_outputs", []),
-                state.get("parsed_tool_calls", []),
-            )
-            original_response.content = synthesized_content
-
-        error_fallback_response = original_response or AIMessage(
-            content=f"抱歉，二次推理时发生错误：{str(e)}"
-        )
-
-        error_result: McpState = {
-            "messages": state["messages"],  # 保持原消息不变
-            "llm": state["llm"],
-            "mcp_client": state["mcp_client"],
-            "available_tools": state.get("available_tools", []),
-            "tool_outputs": state.get("tool_outputs", []),
-            "final_response": error_fallback_response,  # 添加 final_response
-        }
-        return error_result
+    return {"final_response": re_invoke_response}
 
 
 ############################################################################################################
@@ -626,7 +573,7 @@ async def execute_mcp_workflow(
     """执行MCP工作流并返回所有响应消息
 
     将聊天历史和用户输入合并后，通过编译好的状态图进行MCP工具调用处理，
-    收集并返回所有生成的消息。McpState 的创建被封装在函数内部。
+    收集并返回所有生成的消息。
 
     Args:
         work_flow: 已编译的 LangGraph 状态图
@@ -645,8 +592,8 @@ async def execute_mcp_workflow(
     if available_tools is None:
         available_tools = []
 
-    # 在内部构造 McpState（封装实现细节）
-    merged_message_context: McpState = {
+    # 构造 McpState（context + [request] 创建新列表，避免修改传入参数）
+    workflow_state_context: McpState = {
         "messages": context + [request],
         "llm": llm,
         "mcp_client": mcp_client,
@@ -657,10 +604,10 @@ async def execute_mcp_workflow(
     try:
 
         # 最终状态
-        final_state = None
+        final_state: Optional[McpState] = None
 
         # 流式处理所有节点的更新
-        async for event in work_flow.astream(merged_message_context):
+        async for event in work_flow.astream(workflow_state_context):
             for node_name, value in event.items():
                 # 持续更新状态，最后一个就是最终状态
                 final_state = value
