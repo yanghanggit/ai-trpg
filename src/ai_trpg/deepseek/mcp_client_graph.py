@@ -270,141 +270,93 @@ async def _tool_parse_node(state: McpState) -> McpState:
 ############################################################################################################
 async def _tool_execution_node(state: McpState) -> McpState:
     """
-    工具执行节点：执行解析出的工具调用（增强版）
+    工具执行节点：并发执行工具调用，返回执行结果
+
+    核心职责：改变 tool_outputs 字段
+    约束：
+    - asyncio.gather(return_exceptions=True) 已处理单个工具异常
+    - 异常向上传播到 execute_mcp_workflow
 
     Args:
         state: 当前状态
 
     Returns:
-        McpState: 更新后的状态
+        McpState: 更新后的状态（仅包含 tool_outputs）
     """
-    try:
-        parsed_tool_calls = state.get("parsed_tool_calls", [])
-        mcp_client = state["mcp_client"]
+    parsed_tool_calls = state.get("parsed_tool_calls", [])
+    mcp_client = state["mcp_client"]
 
-        tool_outputs = []
+    # 没有工具调用，返回空结果
+    if not parsed_tool_calls:
+        return {"tool_outputs": []}
 
-        if parsed_tool_calls:
-            logger.info(f"🔧 开始执行 {len(parsed_tool_calls)} 个工具调用")
+    # 并发执行所有工具
+    logger.info(f"🔧 开始执行 {len(parsed_tool_calls)} 个工具调用")
 
-            # 使用 asyncio.gather() 统一处理所有工具调用（真正并发执行）
-            tasks = []
-            for tool_call in parsed_tool_calls:
-                task = execute_mcp_tool(
-                    tool_call["name"],
-                    tool_call["args"],
-                    mcp_client,
-                    timeout=30.0,
-                    max_retries=2,  # 统一使用2次重试
-                )
-                tasks.append((tool_call, task))
+    tasks = [
+        execute_mcp_tool(
+            call["name"],
+            call["args"],
+            mcp_client,
+            timeout=30.0,
+            max_retries=2,
+        )
+        for call in parsed_tool_calls
+    ]
 
-            # 真正并发执行所有任务
-            try:
-                execution_results = await asyncio.gather(
-                    *[task for _, task in tasks], return_exceptions=True
-                )
+    # asyncio.gather 已经处理异常 (return_exceptions=True)
+    results = await asyncio.gather(*tasks, return_exceptions=True)
 
-                for (tool_call, _), exec_result in zip(tasks, execution_results):
-                    if isinstance(exec_result, Exception):
-                        logger.error(
-                            f"工具执行任务失败: {tool_call['name']}, 错误: {exec_result}"
-                        )
-                        tool_outputs.append(
-                            {
-                                "tool": tool_call["name"],
-                                "args": tool_call["args"],
-                                "result": f"执行失败: {str(exec_result)}",
-                                "success": False,
-                                "execution_time": 0.0,
-                            }
-                        )
-                    elif isinstance(exec_result, tuple) and len(exec_result) == 3:
-                        success, task_result, exec_time = exec_result
-                        tool_outputs.append(
-                            {
-                                "tool": tool_call["name"],
-                                "args": tool_call["args"],
-                                "result": task_result,
-                                "success": success,
-                                "execution_time": exec_time,
-                            }
-                        )
-                    else:
-                        # 意外的结果类型
-                        logger.error(
-                            f"工具执行返回意外结果类型: {tool_call['name']}, 结果: {exec_result}"
-                        )
-                        tool_outputs.append(
-                            {
-                                "tool": tool_call["name"],
-                                "args": tool_call["args"],
-                                "result": f"意外结果类型: {type(exec_result)}",
-                                "success": False,
-                                "execution_time": 0.0,
-                            }
-                        )
-            except Exception as e:
-                logger.error(f"并发执行工具失败: {e}")
-                # 降级处理：为所有工具调用记录错误
-                for tool_call in parsed_tool_calls:
-                    tool_outputs.append(
-                        {
-                            "tool": tool_call["name"],
-                            "args": tool_call["args"],
-                            "result": f"并发执行失败: {str(e)}",
-                            "success": False,
-                            "execution_time": 0.0,
-                        }
-                    )
-
-            # 统计执行结果
-            successful_calls = sum(1 for output in tool_outputs if output["success"])
-            total_time = sum(output["execution_time"] for output in tool_outputs)
-
-            logger.info(
-                f"✅ 工具执行完成: {successful_calls}/{len(tool_outputs)} 成功, "
-                f"总耗时: {total_time:.2f}s"
-            )
-
-            # 记录工具执行详细信息
-            logger.debug(
-                f"工具执行记录: {json.dumps(tool_outputs, indent=2, ensure_ascii=False)}"
-            )
-
-        final_result: McpState = {
-            "messages": [],  # 工具执行节点不返回消息,避免重复累积
-            "llm": state["llm"],  # 传递LLM实例
-            "mcp_client": mcp_client,
-            "available_tools": state.get("available_tools", []),
-            "tool_outputs": tool_outputs,
-            "parsed_tool_calls": parsed_tool_calls,
-        }
-        # 如果 first_llm_response 存在且类型正确，传递它
-        if "first_llm_response" in state:
-            final_result["first_llm_response"] = state["first_llm_response"]
-        return final_result
-
-    except Exception as e:
-        logger.error(f"工具执行节点错误: {e}")
-        # 即使执行失败，也要返回状态以继续流程
-        error_result: McpState = {
-            "messages": [],
-            "llm": state["llm"],  # 传递LLM实例
-            "mcp_client": state["mcp_client"],
-            "available_tools": state.get("available_tools", []),
-            "tool_outputs": [
+    # 构建 tool_outputs
+    tool_outputs = []
+    for call, result in zip(parsed_tool_calls, results):
+        if isinstance(result, Exception):
+            logger.error(f"工具执行失败: {call['name']}, 错误: {result}")
+            tool_outputs.append(
                 {
-                    "tool": "系统",
-                    "args": {},
-                    "result": f"工具执行节点发生错误: {str(e)}",
+                    "tool": call["name"],
+                    "args": call["args"],
+                    "result": f"执行失败: {str(result)}",
                     "success": False,
                     "execution_time": 0.0,
                 }
-            ],
-            "parsed_tool_calls": state.get("parsed_tool_calls", []),
-        }
-        return error_result
+            )
+        elif isinstance(result, tuple) and len(result) == 3:
+            success, task_result, exec_time = result
+            tool_outputs.append(
+                {
+                    "tool": call["name"],
+                    "args": call["args"],
+                    "result": task_result,
+                    "success": success,
+                    "execution_time": exec_time,
+                }
+            )
+        else:
+            # 意外的结果类型，记录错误
+            logger.error(f"工具返回意外结果类型: {call['name']}, 结果: {result}")
+            tool_outputs.append(
+                {
+                    "tool": call["name"],
+                    "args": call["args"],
+                    "result": f"意外结果类型: {type(result)}",
+                    "success": False,
+                    "execution_time": 0.0,
+                }
+            )
+
+    # 统计日志
+    successful = sum(1 for o in tool_outputs if o["success"])
+    total_time = sum(o["execution_time"] for o in tool_outputs)
+    logger.info(
+        f"✅ 工具执行完成: {successful}/{len(tool_outputs)} 成功, 总耗时: {total_time:.2f}s"
+    )
+    logger.debug(
+        f"工具执行记录: {json.dumps(tool_outputs, indent=2, ensure_ascii=False)}"
+    )
+
+    # 只返回改变的字段
+    return {"tool_outputs": tool_outputs}
 
 
 ############################################################################################################
@@ -562,9 +514,11 @@ async def _response_synthesis_node(state: McpState) -> McpState:
     根据设计哲学：
     1. 优先使用 final_response（来自二次推理）
     2. 如果没有 final_response，回退到 first_llm_response
-    3. 在所有分支都设置 final_response 字段
+    3. first_llm_response 必须存在（来自 llm_invoke_node）
 
-    约束：只读取 messages，不添加任何内容
+    约束：
+    - 只读取 messages，不添加任何内容
+    - 所有 AIMessage 必须来自真实的 LLM 推理，不允许模拟
 
     Args:
         state: 当前状态
@@ -584,19 +538,15 @@ async def _response_synthesis_node(state: McpState) -> McpState:
 
     # 回退到 first_llm_response（未调用工具的情况）
     first_llm_response = state.get("first_llm_response")
+    assert first_llm_response is not None, (
+        "first_llm_response 必须存在。"
+        "所有 AIMessage 必须来自真实的 LLM 推理，不允许模拟。"
+    )
 
-    if first_llm_response:
-        # 使用第一次推理结果作为最终响应
-        return {
-            "messages": [first_llm_response],
-            "final_response": first_llm_response,
-        }
-
-    # 极端情况：两个响应都没有，返回错误消息
-    error_message = AIMessage(content="抱歉，没有收到有效的响应。")
+    # 使用第一次推理结果作为最终响应
     return {
-        "messages": [error_message],
-        "final_response": error_message,
+        "messages": [first_llm_response],
+        "final_response": first_llm_response,
     }
 
 
