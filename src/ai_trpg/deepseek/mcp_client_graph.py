@@ -449,52 +449,10 @@ async def _llm_re_invoke_node(state: McpState) -> McpState:
     re_invoke_response = llm.invoke(messages)
     logger.info("✅ 二次推理完成")
 
+    # 将最终响应也加入 messages，保持完整链路
+    messages.append(re_invoke_response)
+
     return {"final_response": re_invoke_response}
-
-
-############################################################################################################
-############################################################################################################
-async def _response_synthesis_node(state: McpState) -> McpState:
-    """
-    响应合成节点：处理最终响应输出
-
-    根据设计哲学：
-    1. 优先使用 final_response（来自二次推理）
-    2. 如果没有 final_response，回退到 first_llm_response
-    3. first_llm_response 必须存在（来自 llm_invoke_node）
-
-    约束：
-    - 只读取 messages，不添加任何内容
-    - 所有 AIMessage 必须来自真实的 LLM 推理，不允许模拟
-
-    Args:
-        state: 当前状态
-
-    Returns:
-        McpState: 更新后的状态，包含 final_response
-    """
-    # 优先使用 final_response（来自二次推理或 llm_re_invoke 的 no_tool 分支）
-    final_response = state.get("final_response")
-
-    if final_response:
-        # 已经有最终响应，直接返回
-        return {
-            "messages": [final_response],
-            "final_response": final_response,
-        }
-
-    # 回退到 first_llm_response（未调用工具的情况）
-    first_llm_response = state.get("first_llm_response")
-    assert first_llm_response is not None, (
-        "first_llm_response 必须存在。"
-        "所有 AIMessage 必须来自真实的 LLM 推理，不允许模拟。"
-    )
-
-    # 使用第一次推理结果作为最终响应
-    return {
-        "messages": [first_llm_response],
-        "final_response": first_llm_response,
-    }
 
 
 ############################################################################################################
@@ -517,9 +475,12 @@ def create_mcp_workflow() -> CompiledStateGraph[McpState, Any, McpState, McpStat
     """
     创建带 MCP 支持的编译状态图（多节点架构）
 
-    Args:
-        workflow_name: 工作流名称标识
-        mcp_client: MCP客户端实例
+    工作流架构：
+    preprocess → llm_invoke → tool_parse → [条件判断]
+                                             ↓ (需要工具)
+                                        tool_execution → llm_re_invoke (结束)
+                                             ↓ (不需要工具)
+                                        llm_invoke (结束)
 
     Returns:
         CompiledStateGraph: 编译后的状态图
@@ -534,30 +495,25 @@ def create_mcp_workflow() -> CompiledStateGraph[McpState, Any, McpState, McpStat
     graph_builder.add_node("tool_parse", _tool_parse_node)
     graph_builder.add_node("tool_execution", _tool_execution_node)
     graph_builder.add_node("llm_re_invoke", _llm_re_invoke_node)
-    graph_builder.add_node("response_synthesis", _response_synthesis_node)
 
     # 设置流程路径
     graph_builder.set_entry_point("preprocess")
     graph_builder.add_edge("preprocess", "llm_invoke")
     graph_builder.add_edge("llm_invoke", "tool_parse")
 
-    # 添加条件路由：工具解析后判断是否需要执行工具
+    # 条件路由：工具解析后判断是否需要执行工具
     graph_builder.add_conditional_edges(
         "tool_parse",
         _should_execute_tools,
         {
-            "tool_execution": "tool_execution",
-            "response_synthesis": "response_synthesis",
+            "tool_execution": "tool_execution",  # 需要工具 → 工具执行
+            "llm_invoke": "__end__",  # 不需要工具 → 直接结束
         },
     )
 
-    # 新架构：工具执行后进入二次推理
+    # 工具执行后进入二次推理，然后结束
     graph_builder.add_edge("tool_execution", "llm_re_invoke")
-
-    # 二次推理后直接到响应合成
-    graph_builder.add_edge("llm_re_invoke", "response_synthesis")
-
-    graph_builder.set_finish_point("response_synthesis")
+    graph_builder.add_edge("llm_re_invoke", "__end__")
 
     return graph_builder.compile()  # type: ignore[return-value]
 
