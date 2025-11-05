@@ -73,12 +73,12 @@ class McpState(TypedDict, total=False):
     tool_outputs: List[Dict[str, Any]]  # 工具执行结果
 
     # 工作流程字段
-    llm_response: Optional[BaseMessage]  # LLM原始响应
+    first_llm_response: AIMessage  # 第一次推理结果（决定是否调用工具）
     parsed_tool_calls: List[Dict[str, Any]]  # 解析出的工具调用
     needs_tool_execution: bool  # 是否需要执行工具
 
-    # 二次推理架构新增字段
-    final_response: Optional[BaseMessage]  # 最终响应（来自二次推理或原始响应）
+    # 最终结果
+    final_response: Optional[BaseMessage]  # 最终响应（来自二次推理或第一次推理）
 
 
 ############################################################################################################
@@ -202,9 +202,11 @@ async def _preprocess_node(state: McpState) -> McpState:
 ############################################################################################################
 async def _llm_invoke_node(state: McpState) -> McpState:
     """
-    LLM调用节点：调用DeepSeek生成响应
+    LLM调用节点：第一次推理，决定是否调用工具
 
-    约束：只读取 messages，不添加任何内容
+    约束：
+    - 正常时：设置 first_llm_response 并加入 messages
+    - 异常时：让异常向上传播到 execute_mcp_workflow，final_response 保持 None
 
     Args:
         state: 当前状态
@@ -212,94 +214,57 @@ async def _llm_invoke_node(state: McpState) -> McpState:
     Returns:
         McpState: 更新后的状态
     """
-    try:
-        # 使用状态中的 ChatDeepSeek 实例
-        llm = state["llm"]
+    llm = state["llm"]
+    messages = state["messages"]
 
-        # 直接使用 messages（已经在预处理节点中增强过）
-        messages = state["messages"]
+    # 调用 LLM（如果异常，直接向上传播）
+    response = llm.invoke(messages)
+    assert isinstance(response, AIMessage), "LLM 返回的响应必须是 AIMessage 类型"
 
-        # 调用 LLM
-        response = llm.invoke(messages)
-
-        result: McpState = {
-            "messages": messages,  # 保持不变，不添加内容
-            "llm": llm,
-            "mcp_client": state["mcp_client"],
-            "available_tools": state.get("available_tools", []),
-            "tool_outputs": state.get("tool_outputs", []),
-            "llm_response": response,  # 保存LLM响应供后续处理
-        }
-        return result
-
-    except Exception as e:
-        logger.error(f"LLM调用节点错误: {e}")
-        error_message = AIMessage(content=f"抱歉，处理请求时发生错误：{str(e)}")
-        llm_error_result: McpState = {
-            "messages": state["messages"],  # 保持原消息不变
-            "llm": state["llm"],
-            "mcp_client": state["mcp_client"],
-            "available_tools": state.get("available_tools", []),
-            "tool_outputs": [],
-            "final_response": error_message,  # 直接设置为最终响应
-        }
-        return llm_error_result
+    return {
+        "messages": [response],  # 加入 messages，保持上下文连贯
+        "first_llm_response": response,  # 保存引用供后续节点使用
+    }
 
 
 ############################################################################################################
 async def _tool_parse_node(state: McpState) -> McpState:
     """
-    工具解析节点：使用增强解析器解析LLM响应中的工具调用
+    工具解析节点：解析LLM响应中的工具调用
+
+    约束：
+    - first_llm_response 必须存在（从 llm_invoke_node 传来）
+    - 解析失败时异常向上传播
 
     Args:
         state: 当前状态
 
     Returns:
-        McpState: 更新后的状态
+        McpState: 更新后的状态（仅包含 parsed_tool_calls 和 needs_tool_execution）
     """
-    try:
-        llm_response = state.get("llm_response")
-        available_tools = state.get("available_tools", [])
+    first_llm_response = state.get("first_llm_response")
+    assert first_llm_response is not None, "first_llm_response 必须存在"
 
-        parsed_tool_calls = []
+    available_tools = state.get("available_tools", [])
+    parsed_tool_calls = []
 
-        if llm_response and available_tools:
-            response_content = str(llm_response.content) if llm_response.content else ""
+    # 只有在有可用工具时才解析
+    if available_tools:
+        response_content = str(first_llm_response.content or "")
 
-            # 使用增强的工具调用解析器
-            parser = ToolCallParser(available_tools)
-            parsed_tool_calls = parser.parse_tool_calls(response_content)
+        # 使用增强的工具调用解析器（如果解析失败，让异常向上传播）
+        parser = ToolCallParser(available_tools)
+        parsed_tool_calls = parser.parse_tool_calls(response_content)
 
-            logger.info(f"📋 解析到 {len(parsed_tool_calls)} 个工具调用")
-            for call in parsed_tool_calls:
-                logger.debug(f"   - {call['name']}: {call['args']}")
+        logger.info(f"📋 解析到 {len(parsed_tool_calls)} 个工具调用")
+        for call in parsed_tool_calls:
+            logger.debug(f"   - {call['name']}: {call['args']}")
 
-        result: McpState = {
-            "messages": [],  # 工具解析节点不返回消息，避免重复累积
-            "llm": state["llm"],  # 传递LLM实例
-            "mcp_client": state["mcp_client"],
-            "available_tools": available_tools,
-            "tool_outputs": state.get("tool_outputs", []),
-            "llm_response": llm_response,
-            "parsed_tool_calls": parsed_tool_calls,
-            "needs_tool_execution": len(parsed_tool_calls) > 0,
-        }
-        return result
-
-    except Exception as e:
-        logger.error(f"工具解析节点错误: {e}")
-        # 发生错误时，继续流程但不执行工具
-        error_result: McpState = {
-            "messages": [],
-            "llm": state["llm"],  # 传递LLM实例
-            "mcp_client": state["mcp_client"],
-            "available_tools": state.get("available_tools", []),
-            "tool_outputs": state.get("tool_outputs", []),
-            "llm_response": state.get("llm_response"),
-            "parsed_tool_calls": [],
-            "needs_tool_execution": False,
-        }
-        return error_result
+    # 只返回改变的字段，LangGraph 自动继承其他字段
+    return {
+        "parsed_tool_calls": parsed_tool_calls,
+        "needs_tool_execution": len(parsed_tool_calls) > 0,
+    }
 
 
 ############################################################################################################
@@ -408,14 +373,16 @@ async def _tool_execution_node(state: McpState) -> McpState:
             )
 
         final_result: McpState = {
-            "messages": [],  # 工具执行节点不返回消息，避免重复累积
+            "messages": [],  # 工具执行节点不返回消息,避免重复累积
             "llm": state["llm"],  # 传递LLM实例
             "mcp_client": mcp_client,
             "available_tools": state.get("available_tools", []),
             "tool_outputs": tool_outputs,
-            "llm_response": state.get("llm_response"),
             "parsed_tool_calls": parsed_tool_calls,
         }
+        # 如果 first_llm_response 存在且类型正确，传递它
+        if "first_llm_response" in state:
+            final_result["first_llm_response"] = state["first_llm_response"]
         return final_result
 
     except Exception as e:
@@ -435,7 +402,6 @@ async def _tool_execution_node(state: McpState) -> McpState:
                     "execution_time": 0.0,
                 }
             ],
-            "llm_response": state.get("llm_response"),
             "parsed_tool_calls": state.get("parsed_tool_calls", []),
         }
         return error_result
@@ -464,8 +430,8 @@ async def _llm_re_invoke_node(state: McpState) -> McpState:
         original_messages = state["messages"]
 
         if not tool_outputs:
-            # 没有工具输出，直接使用原始LLM响应
-            original_response = state.get("llm_response")
+            # 没有工具输出，直接使用第一次推理响应
+            original_response = state.get("first_llm_response")
             if original_response:
                 no_tool_result: McpState = {
                     "messages": state["messages"],  # 保持不变
@@ -524,14 +490,14 @@ async def _llm_re_invoke_node(state: McpState) -> McpState:
         for msg in original_messages:
             re_invoke_messages.append(msg)
 
-        # 注意：original_messages 通常不包含第一次 LLM 响应（llm_response）
+        # 注意：original_messages 通常不包含第一次 LLM 响应（first_llm_response）
         # 因为 original_messages 来自 messages（在预处理节点构建），
         # 不包括第一次 LLM 调用的结果
         # 因此我们需要显式添加第一次推理的响应
 
         # 检查是否需要添加第一次 LLM 响应（工具调用决策）
         # 这一步很重要：展示 AI 决定调用哪些工具的过程
-        llm_first_response = state.get("llm_response")
+        llm_first_response = state.get("first_llm_response")
         if llm_first_response:
             # 安全检查：确保不重复添加（虽然通常不会重复）
             if not re_invoke_messages or re_invoke_messages[-1] != llm_first_response:
@@ -560,8 +526,8 @@ async def _llm_re_invoke_node(state: McpState) -> McpState:
 
     except Exception as e:
         logger.error(f"二次推理节点错误: {e}")
-        # 降级处理：使用原始响应合成
-        original_response = state.get("llm_response")
+        # 降级处理：使用第一次推理响应合成
+        original_response = state.get("first_llm_response")
         if original_response and state.get("tool_outputs"):
             from ..mcp.response import synthesize_response_with_tools
 
@@ -582,20 +548,21 @@ async def _llm_re_invoke_node(state: McpState) -> McpState:
             "mcp_client": state["mcp_client"],
             "available_tools": state.get("available_tools", []),
             "tool_outputs": state.get("tool_outputs", []),
+            "final_response": error_fallback_response,  # 添加 final_response
         }
         return error_result
 
 
 ############################################################################################################
+############################################################################################################
 async def _response_synthesis_node(state: McpState) -> McpState:
     """
     响应合成节点：处理最终响应输出
 
-    在新架构中，这个节点主要负责：
-    1. 对于有工具执行的情况，接收二次推理的结果
-    2. 对于无工具执行的情况，直接使用原始LLM响应
-    3. 确保最终响应的格式正确
-    4. **关键改进**：确保在所有分支都设置 final_response 字段
+    根据设计哲学：
+    1. 优先使用 final_response（来自二次推理）
+    2. 如果没有 final_response，回退到 first_llm_response
+    3. 在所有分支都设置 final_response 字段
 
     约束：只读取 messages，不添加任何内容
 
@@ -603,87 +570,34 @@ async def _response_synthesis_node(state: McpState) -> McpState:
         state: 当前状态
 
     Returns:
-        McpState: 更新后的状态
+        McpState: 更新后的状态，包含 final_response
     """
-    try:
-        # 检查是否有来自二次推理的最终响应
-        final_response = state.get("final_response")
-        if final_response:
-            # 有二次推理结果，直接使用
-            # ⚠️ 重要：传递所有调试字段，确保 _print_full_context_chain 可以访问完整上下文
-            final_result: McpState = {
-                "messages": [final_response],
-                "llm": state["llm"],
-                "mcp_client": state["mcp_client"],
-                "available_tools": state.get("available_tools", []),
-                "tool_outputs": state.get("tool_outputs", []),
-                "final_response": final_response,  # 保持 final_response
-                # 传递调试所需的关键字段（不再使用 enhanced_messages）
-                "llm_response": state.get("llm_response"),
-                "parsed_tool_calls": state.get("parsed_tool_calls", []),
-            }
-            return final_result
+    # 优先使用 final_response（来自二次推理或 llm_re_invoke 的 no_tool 分支）
+    final_response = state.get("final_response")
 
-        # 没有二次推理结果，使用原始LLM响应
-        llm_response = state.get("llm_response")
-        tool_outputs = state.get("tool_outputs", [])
-        parsed_tool_calls = state.get("parsed_tool_calls", [])
-
-        if not llm_response:
-            error_message = AIMessage(content="抱歉，没有收到LLM响应。")
-            synthesis_error_result: McpState = {
-                "messages": [error_message],
-                "llm": state["llm"],
-                "mcp_client": state["mcp_client"],
-                "available_tools": state.get("available_tools", []),
-                "tool_outputs": tool_outputs,
-                "final_response": error_message,  # 设置 final_response
-                # 传递调试字段（不再使用 enhanced_messages）
-                "llm_response": state.get("llm_response"),
-                "parsed_tool_calls": parsed_tool_calls,
-            }
-            return synthesis_error_result
-
-        response_content = str(llm_response.content) if llm_response.content else ""
-
-        # 如果有工具被执行但没有二次推理结果，使用降级处理
-        if tool_outputs:
-            logger.warning("⚠️ 发现工具输出但没有二次推理结果，使用降级处理")
-            from ..mcp.response import synthesize_response_with_tools
-
-            synthesized_content = synthesize_response_with_tools(
-                response_content, tool_outputs, parsed_tool_calls
-            )
-            llm_response.content = synthesized_content
-
-        synthesis_result: McpState = {
-            "messages": [llm_response],
-            "llm": state["llm"],
-            "mcp_client": state["mcp_client"],
-            "available_tools": state.get("available_tools", []),
-            "tool_outputs": tool_outputs,
-            "final_response": llm_response,  # 设置 final_response
-            # 传递调试字段（不再使用 enhanced_messages）
-            "llm_response": llm_response,
-            "parsed_tool_calls": parsed_tool_calls,
+    if final_response:
+        # 已经有最终响应，直接返回
+        return {
+            "messages": [final_response],
+            "final_response": final_response,
         }
-        return synthesis_result
 
-    except Exception as e:
-        logger.error(f"响应合成节点错误: {e}")
-        error_message = AIMessage(content=f"抱歉，合成响应时发生错误：{str(e)}")
-        synthesis_exception_result: McpState = {
-            "messages": [error_message],
-            "llm": state["llm"],
-            "mcp_client": state["mcp_client"],
-            "available_tools": state.get("available_tools", []),
-            "tool_outputs": [],
-            "final_response": error_message,  # 设置 final_response
-            # 传递调试字段（不再使用 enhanced_messages）
-            "llm_response": state.get("llm_response"),
-            "parsed_tool_calls": state.get("parsed_tool_calls", []),
+    # 回退到 first_llm_response（未调用工具的情况）
+    first_llm_response = state.get("first_llm_response")
+
+    if first_llm_response:
+        # 使用第一次推理结果作为最终响应
+        return {
+            "messages": [first_llm_response],
+            "final_response": first_llm_response,
         }
-        return synthesis_exception_result
+
+    # 极端情况：两个响应都没有，返回错误消息
+    error_message = AIMessage(content="抱歉，没有收到有效的响应。")
+    return {
+        "messages": [error_message],
+        "final_response": error_message,
+    }
 
 
 ############################################################################################################
