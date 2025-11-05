@@ -2,36 +2,31 @@
 MCP Client Graph - 基于 LangGraph 的 MCP 工具调用工作流
 
 ## 工作流架构
-preprocess → llm_invoke → tool_parse → [条件判断]
+preprocess → llm_invoke → tool_parse → [条件路由]
                                           ↓ (需要工具)
-                                    tool_execution → llm_re_invoke → response_synthesis
-                                          ↓ (不需要工具)
-                                    response_synthesis
+                                    tool_execution → llm_re_invoke → END
+                                          ↓ (无需工具)
+                                        END
 
-## 上下文变化链路（Context Chain）
+## 核心设计：二次推理（Re-invoke）模式
+让 AI 基于工具结果进行深度分析，而不是简单拼接。
 
-### 核心改进：二次推理（Re-invoke）模式
-让AI基于工具结果进行深度分析，而不是简单拼接。
+## messages 上下文演变
+1. **初始化**: `context + [request]`
+2. **preprocess**: 插入 `SystemMessage(工具说明)`
+3. **llm_invoke**: 追加 `AIMessage(first_llm_response)`
+4. **tool_parse**: 解析工具调用（不修改 messages）
+5. **tool_execution**: 并发执行工具（不修改 messages）
+6. **llm_re_invoke**: 追加 `AIMessage(工具结果)` + `HumanMessage(反馈)` + `AIMessage(re_invoke_response)`
 
-### 上下文演变（6个阶段）
-1. **初始上下文**: `context["messages"] + request["messages"]`
-2. **预处理增强**: 添加工具指令 → 直接保存到 `messages`
-3. **第一次推理**: LLM决定调用工具 → `llm_response`
-4. **工具执行**: 并发执行工具 → `tool_outputs`
-5. **二次推理** ⭐: 保持完整对话历史，追加工具结果
-   ```
-   [SystemMessage(角色), SystemMessage(工具说明),
-    HumanMessage(用户问题1), AIMessage(AI回答1),  # ← 保留完整历史
-    HumanMessage(用户问题2), AIMessage(AI回答2),  # ← 保留完整历史
-    HumanMessage(当前问题), AIMessage(工具调用决策),
-    AIMessage(工具执行结果)]  # ← 关键：使用AIMessage而非SystemMessage
-   ```
-6. **最终响应**: 基于完整上下文和工具结果的智能回答 → `final_response`
+## 关键字段
+- `first_llm_response`: 第一次推理结果（用于提取）
+- `re_invoke_response`: 二次推理结果（用于提取）
+- `messages`: 完整上下文链路（全局唯一真相源）
 
-### 关键设计
-- **消息类型**: 工具结果用 `AIMessage`（AI的观察）而非 `SystemMessage`
-- **消息顺序**: 用户问题 → AI响应 → 工具结果（符合因果关系）
-- **调试功能**: `_print_full_context_chain()` 打印完整链路（DEBUG级别）
+## 返回逻辑
+- 有工具执行 → 返回 `re_invoke_response`
+- 无工具执行 → 返回 `first_llm_response`
 """
 
 from dotenv import load_dotenv
@@ -76,9 +71,7 @@ class McpState(TypedDict, total=False):
     first_llm_response: AIMessage  # 第一次推理结果（决定是否调用工具）
     parsed_tool_calls: List[Dict[str, Any]]  # 解析出的工具调用
     needs_tool_execution: bool  # 是否需要执行工具
-
-    # 最终结果
-    final_response: Optional[BaseMessage]  # 最终响应（来自二次推理或第一次推理）
+    re_invoke_response: AIMessage  # 二次推理结果（仅在执行工具后存在）
 
 
 ############################################################################################################
@@ -153,10 +146,9 @@ def _build_tool_instruction_prompt(available_tools: List[McpToolInfo]) -> str:
 ############################################################################################################
 async def _preprocess_node(state: McpState) -> McpState:
     """
-    预处理节点：准备系统提示和增强消息
+    预处理节点：注入工具说明到 messages
 
-    关键职责：直接修改 messages 上下文，注入工具说明
-    后续节点只能读取 messages，不能再添加任何内容
+    messages 变化：插入 SystemMessage(工具说明)
 
     Args:
         state: 当前状态
@@ -201,17 +193,15 @@ async def _preprocess_node(state: McpState) -> McpState:
 ############################################################################################################
 async def _llm_invoke_node(state: McpState) -> McpState:
     """
-    LLM调用节点：第一次推理，决定是否调用工具
+    第一次推理节点：决定是否调用工具
 
-    约束：
-    - 正常时：设置 first_llm_response 并加入 messages
-    - 异常时：让异常向上传播到 execute_mcp_workflow，final_response 保持 None
+    messages 变化：追加 AIMessage(first_llm_response)
 
     Args:
         state: 当前状态
 
     Returns:
-        McpState: 更新后的状态
+        McpState: 包含 first_llm_response 的状态
     """
     llm = state["llm"]
     messages = state["messages"]
@@ -229,17 +219,15 @@ async def _llm_invoke_node(state: McpState) -> McpState:
 ############################################################################################################
 async def _tool_parse_node(state: McpState) -> McpState:
     """
-    工具解析节点：解析LLM响应中的工具调用
+    工具解析节点：解析 LLM 响应中的工具调用
 
-    约束：
-    - first_llm_response 必须存在（从 llm_invoke_node 传来）
-    - 解析失败时异常向上传播
+    messages 变化：无（只读取）
 
     Args:
         state: 当前状态
 
     Returns:
-        McpState: 更新后的状态（仅包含 parsed_tool_calls 和 needs_tool_execution）
+        McpState: 包含 parsed_tool_calls 和 needs_tool_execution
     """
     first_llm_response = state.get("first_llm_response")
     assert first_llm_response is not None, "first_llm_response 必须存在"
@@ -269,18 +257,15 @@ async def _tool_parse_node(state: McpState) -> McpState:
 ############################################################################################################
 async def _tool_execution_node(state: McpState) -> McpState:
     """
-    工具执行节点：并发执行工具调用，返回执行结果
+    工具执行节点：并发执行工具调用
 
-    核心职责：改变 tool_outputs 字段
-    约束：
-    - asyncio.gather(return_exceptions=True) 已处理单个工具异常
-    - 异常向上传播到 execute_mcp_workflow
+    messages 变化：无（只读取）
 
     Args:
         state: 当前状态
 
     Returns:
-        McpState: 更新后的状态（仅包含 tool_outputs）
+        McpState: 包含 tool_outputs
     """
     parsed_tool_calls = state.get("parsed_tool_calls", [])
     mcp_client = state["mcp_client"]
@@ -388,30 +373,25 @@ def _build_tool_context(tool_outputs: List[Dict[str, Any]]) -> str:
 ############################################################################################################
 async def _llm_re_invoke_node(state: McpState) -> McpState:
     """
-    二次推理节点：基于工具执行结果重新调用LLM进行智能分析
+    二次推理节点：基于工具结果重新调用 LLM
 
-    这是新架构的核心节点，解决了工具结果只是简单拼接的问题。
-    让AI能够基于工具结果进行深度分析和个性化回答。
-
-    约束：
-    - 只读取 messages，不添加任何内容
-    - 异常向上传播到 execute_mcp_workflow
+    messages 变化：
+    - 追加 AIMessage(工具结果)
+    - 追加 HumanMessage(用户反馈)
+    - 追加 AIMessage(re_invoke_response)
 
     Args:
         state: 当前状态
 
     Returns:
-        McpState: 更新后的状态
+        McpState: 包含 re_invoke_response
     """
     tool_outputs = state.get("tool_outputs", [])
 
-    # 没有工具输出时，直接返回第一次推理结果
-    if not tool_outputs:
-        first_llm_response = state.get("first_llm_response")
-        assert first_llm_response is not None, "first_llm_response 必须存在"
-        return {"final_response": first_llm_response}
+    # 断言：此节点只应在有工具输出时被调用
+    assert tool_outputs, "二次推理节点要求必须有工具输出"
 
-    # 有工具输出，进行二次推理
+    # 进行二次推理
     llm = state["llm"]
 
     # 构建工具结果上下文
@@ -447,12 +427,34 @@ async def _llm_re_invoke_node(state: McpState) -> McpState:
     # 二次调用 LLM（异常向上传播）
     logger.info("🔄 开始二次推理，基于工具结果生成智能回答...")
     re_invoke_response = llm.invoke(messages)
+    assert isinstance(
+        re_invoke_response, AIMessage
+    ), "二次推理返回必须是 AIMessage 类型"
     logger.info("✅ 二次推理完成")
 
-    # 将最终响应也加入 messages，保持完整链路
+    # 将二次推理响应加入 messages，保持完整链路
     messages.append(re_invoke_response)
 
-    return {"final_response": re_invoke_response}
+    return {
+        "messages": messages,  # 必须返回，让 LangGraph 更新状态
+        "re_invoke_response": re_invoke_response,
+    }
+
+
+############################################################################################################
+def print_full_message_chain(state: McpState) -> None:
+    """
+    打印完整的消息链路，用于调试和追踪对话流程
+
+    Args:
+        state: 当前状态
+    """
+    messages = state.get("messages", [])
+    logger.info(f"📜 完整消息链路 (共 {len(messages)} 条消息)")
+    for i, msg in enumerate(messages, 0):
+        logger.debug(
+            f"[{i}] 完整内容:\n{msg.model_dump_json(indent=2, ensure_ascii=False)}\n"
+        )
 
 
 ############################################################################################################
@@ -464,23 +466,23 @@ def _should_execute_tools(state: McpState) -> str:
         state: 当前状态
 
     Returns:
-        str: 下一个节点名称
+        str: "tool_execution" 或 "__end__"
     """
     needs_tool_execution = state.get("needs_tool_execution", False)
-    return "tool_execution" if needs_tool_execution else "response_synthesis"
+    return "tool_execution" if needs_tool_execution else "__end__"
 
 
 ############################################################################################################
 def create_mcp_workflow() -> CompiledStateGraph[McpState, Any, McpState, McpState]:
     """
-    创建带 MCP 支持的编译状态图（多节点架构）
+    创建 MCP 工作流状态图
 
-    工作流架构：
-    preprocess → llm_invoke → tool_parse → [条件判断]
+    工作流：
+    preprocess → llm_invoke → tool_parse → [条件路由]
                                              ↓ (需要工具)
-                                        tool_execution → llm_re_invoke (结束)
-                                             ↓ (不需要工具)
-                                        llm_invoke (结束)
+                                        tool_execution → llm_re_invoke → END
+                                             ↓ (无需工具)
+                                        END
 
     Returns:
         CompiledStateGraph: 编译后的状态图
@@ -507,7 +509,7 @@ def create_mcp_workflow() -> CompiledStateGraph[McpState, Any, McpState, McpStat
         _should_execute_tools,
         {
             "tool_execution": "tool_execution",  # 需要工具 → 工具执行
-            "llm_invoke": "__end__",  # 不需要工具 → 直接结束
+            "__end__": "__end__",  # 无需工具 → 直接结束
         },
     )
 
@@ -526,20 +528,22 @@ async def execute_mcp_workflow(
     llm: ChatDeepSeek,
     mcp_client: McpClient,
 ) -> List[BaseMessage]:
-    """执行MCP工作流并返回所有响应消息
+    """
+    执行 MCP 工作流
 
-    将聊天历史和用户输入合并后，通过编译好的状态图进行MCP工具调用处理，
-    收集并返回所有生成的消息。
+    返回逻辑：
+    - 有工具执行 → 返回 re_invoke_response
+    - 无工具执行 → 返回 first_llm_response
 
     Args:
-        work_flow: 已编译的 LangGraph 状态图
+        work_flow: 已编译的状态图
         context: 历史消息列表
-        request: 用户当前输入的消息
-        llm: ChatDeepSeek LLM 实例
+        request: 用户当前输入
+        llm: ChatDeepSeek 实例
         mcp_client: MCP 客户端实例
 
     Returns:
-        包含所有生成消息的列表
+        List[BaseMessage]: 响应消息列表
     """
     ret: List[BaseMessage] = []
 
@@ -568,16 +572,23 @@ async def execute_mcp_workflow(
                 # 持续更新状态，最后一个就是最终状态
                 final_state = value
 
-        # ✅ 关键改进：从最终状态的 final_response 字段获取结果，不依赖节点名称
+        # 最终选择：清晰判断返回哪个响应
         if final_state:
-            final_response = final_state.get("final_response")
-            if final_response:
-                logger.info("✅ 从状态的 final_response 字段获取最终响应")
-                ret.append(final_response)
+            re_invoke_response = final_state.get("re_invoke_response")
+            if re_invoke_response:
+                logger.info("✅ 返回二次推理结果")
+                ret.append(re_invoke_response)
             else:
-                logger.error(
-                    "❌ final_response 不存在，这不应该发生（所有节点都应该设置 final_response）"
-                )
+                first_llm_response = final_state.get("first_llm_response")
+                if first_llm_response:
+                    logger.info("✅ 返回第一次推理结果")
+                    ret.append(first_llm_response)
+                else:
+                    logger.error("❌ 无可用响应")
+
+            # 调试：打印完整消息链路
+            print_full_message_chain(final_state)
+
         else:
             logger.error("❌ 未获取到最终状态")
 
