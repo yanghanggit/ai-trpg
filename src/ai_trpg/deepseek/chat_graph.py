@@ -112,7 +112,7 @@ async def execute_chat_workflow(
             assert isinstance(last_state["llm_response"], AIMessage)
             ret = [last_state["llm_response"]]
 
-            print_full_message_chain(last_state)  # 打印完整消息链路用于调试
+            # print_full_message_chain(last_state)  # 打印完整消息链路用于调试
 
     except Exception as e:
         logger.error(

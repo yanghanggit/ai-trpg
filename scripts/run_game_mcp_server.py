@@ -105,7 +105,7 @@ async def health_check(request: Request) -> Response:
 
 
 @app.tool()
-async def get_world_info() -> str:
+async def get_world_info(world_name: str) -> str:
     """
     获取游戏世界（World）的完整信息
 
@@ -113,8 +113,15 @@ async def get_world_info() -> str:
         World的完整JSON数据，包含所有场景和角色的嵌套信息
     """
     try:
-        logger.info(f"获取World数据: {test_world.name}")
+
+        if world_name != test_world.name:
+            logger.error(
+                f"World名称不匹配: 请求的 {world_name}, 现有的 {test_world.name}???!"
+            )
+
+        logger.info(f"获取World数据: {world_name}")
         return test_world.model_dump_json(indent=2, ensure_ascii=False)
+
     except Exception as e:
         logger.error(f"获取World信息失败: {e}")
         return json.dumps(

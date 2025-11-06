@@ -401,9 +401,7 @@ async def _llm_re_invoke_node(state: McpState) -> McpState:
     tool_result_message = AIMessage(content=tool_context)
 
     user_feedback_message = HumanMessage(
-        content="""基于上述工具执行结果，请直接响应用户输入。
-
----
+        content="""# 基于上述工具执行结果，请直接响应用户输入!
 
 ## ⚠️ 约束条件
 
@@ -413,7 +411,7 @@ async def _llm_re_invoke_node(state: McpState) -> McpState:
 ## ✅ 响应要求
 
 1. **内容**: 基于工具结果直接响应用户输入，保持你的角色设定和语言风格
-2. **格式**: 如果用户明确要求特定输出格式(JSON/Markdown/表格等)，严格遵守
+2. **格式**: 如果用户明确要求特定输出格式(JSON/Markdown/表格等)，严格遵守!!
 3. **风格**: 自然融合工具结果进行回应，无需解释工具调用过程
 
 💡 **提示**: 用户输入可能是问题、指令、对话或行动描述，请根据上下文灵活响应。"""
@@ -425,12 +423,12 @@ async def _llm_re_invoke_node(state: McpState) -> McpState:
     messages.append(user_feedback_message)
 
     # 二次调用 LLM（异常向上传播）
-    logger.info("🔄 开始二次推理，基于工具结果生成智能回答...")
+    logger.debug("🔄 开始二次推理，基于工具结果生成智能回答...")
     re_invoke_response = llm.invoke(messages)
     assert isinstance(
         re_invoke_response, AIMessage
     ), "二次推理返回必须是 AIMessage 类型"
-    logger.info("✅ 二次推理完成")
+    logger.success("✅ 二次推理完成")
 
     # 将二次推理响应加入 messages，保持完整链路
     messages.append(re_invoke_response)
@@ -595,11 +593,11 @@ async def execute_mcp_workflow(
 
             # 3. 日志：明确最终返回的是哪个
             if re_invoke_response:
-                logger.info(
+                logger.debug(
                     "✅ 返回顺序: [first_llm_response, re_invoke_response]，使用 ret[-1] 获取二次推理结果"
                 )
             elif first_llm_response:
-                logger.info(
+                logger.debug(
                     "✅ 返回顺序: [first_llm_response]，使用 ret[-1] 获取第一次推理结果"
                 )
             else:
