@@ -553,7 +553,7 @@ async def execute_mcp_workflow(
         available_tools = []
 
     # 构造 McpState（context + [request] 创建新列表，避免修改传入参数）
-    workflow_state_context: McpState = {
+    workflow_context: McpState = {
         "messages": context + [request],
         "llm": llm,
         "mcp_client": mcp_client,
@@ -567,24 +567,43 @@ async def execute_mcp_workflow(
         final_state: Optional[McpState] = None
 
         # 流式处理所有节点的更新
-        async for event in work_flow.astream(workflow_state_context):
+        async for event in work_flow.astream(workflow_context):
             for node_name, value in event.items():
                 # 持续更新状态，最后一个就是最终状态
                 final_state = value
 
-        # 最终选择：清晰判断返回哪个响应
+        # 按顺序收集响应：[first_llm_response, re_invoke_response]
+        # 外部使用 ret[-1] 获取最终响应
         if final_state:
+            # 1. 先添加第一次推理结果（如果存在）
+            first_llm_response = final_state.get("first_llm_response")
+            if first_llm_response:
+                assert isinstance(
+                    first_llm_response, AIMessage
+                ), "first_llm_response 必须是 AIMessage 类型"
+                ret.append(first_llm_response)
+                logger.debug("📌 已收集 first_llm_response")
+
+            # 2. 再添加二次推理结果（如果存在）
             re_invoke_response = final_state.get("re_invoke_response")
             if re_invoke_response:
-                logger.info("✅ 返回二次推理结果")
+                assert isinstance(
+                    re_invoke_response, AIMessage
+                ), "re_invoke_response 必须是 AIMessage 类型"
                 ret.append(re_invoke_response)
+                logger.debug("📌 已收集 re_invoke_response")
+
+            # 3. 日志：明确最终返回的是哪个
+            if re_invoke_response:
+                logger.info(
+                    "✅ 返回顺序: [first_llm_response, re_invoke_response]，使用 ret[-1] 获取二次推理结果"
+                )
+            elif first_llm_response:
+                logger.info(
+                    "✅ 返回顺序: [first_llm_response]，使用 ret[-1] 获取第一次推理结果"
+                )
             else:
-                first_llm_response = final_state.get("first_llm_response")
-                if first_llm_response:
-                    logger.info("✅ 返回第一次推理结果")
-                    ret.append(first_llm_response)
-                else:
-                    logger.error("❌ 无可用响应")
+                logger.error("❌ 无可用响应，返回空列表")
 
             # 调试：打印完整消息链路
             print_full_message_chain(final_state)
