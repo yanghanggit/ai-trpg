@@ -564,19 +564,19 @@ async def execute_mcp_workflow(
     try:
 
         # 最终状态
-        final_state: Optional[McpState] = None
+        last_state: Optional[McpState] = None
 
         # 流式处理所有节点的更新
         async for event in work_flow.astream(workflow_context):
             for node_name, value in event.items():
                 # 持续更新状态，最后一个就是最终状态
-                final_state = value
+                last_state = value
 
         # 按顺序收集响应：[first_llm_response, re_invoke_response]
         # 外部使用 ret[-1] 获取最终响应
-        if final_state:
+        if last_state:
             # 1. 先添加第一次推理结果（如果存在）
-            first_llm_response = final_state.get("first_llm_response")
+            first_llm_response = last_state.get("first_llm_response")
             if first_llm_response:
                 assert isinstance(
                     first_llm_response, AIMessage
@@ -585,7 +585,7 @@ async def execute_mcp_workflow(
                 logger.debug("📌 已收集 first_llm_response")
 
             # 2. 再添加二次推理结果（如果存在）
-            re_invoke_response = final_state.get("re_invoke_response")
+            re_invoke_response = last_state.get("re_invoke_response")
             if re_invoke_response:
                 assert isinstance(
                     re_invoke_response, AIMessage
@@ -606,7 +606,7 @@ async def execute_mcp_workflow(
                 logger.error("❌ 无可用响应，返回空列表")
 
             # 调试：打印完整消息链路
-            print_full_message_chain(final_state)
+            print_full_message_chain(last_state)
 
         else:
             logger.error("❌ 未获取到最终状态")
