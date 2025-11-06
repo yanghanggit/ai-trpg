@@ -101,9 +101,7 @@ def _gen_self_update_request_prompt(actor_name: str, actor_info: Dict[str, Any])
 - 一个 效果/状态 = 一次工具调用
 
 #### 情况C：无需更新
-- 不调用任何工具
-
-💡 查看工具列表，docstring告诉你如何使用"""
+- 不调用任何工具"""
 
 
 def _gen_self_update_confirmation_instruction() -> str:
@@ -128,7 +126,7 @@ def _gen_self_update_confirmation_instruction() -> str:
 ```json
 {
     "appearance": "是/否",
-    "effects": ["Effect名称1", "Effect名称2"] 或 []
+    "effects": ["效果/状态1", "效果/状态2"] 或 []
 }
 ```
 
@@ -139,81 +137,81 @@ def _gen_self_update_confirmation_instruction() -> str:
 ⚠️ **注意**: JSON中的内容必须如实反映**实际调用的工具**，不能声明未执行的操作"""
 
 
-def _gen_self_update_request_prompt_test_v1(
-    actor_name: str, actor_info: Dict[str, Any]
-) -> str:
-    """
-    生成角色自我状态更新请求提示词（测试版v1 - 步骤1-2：强制工具调用）
+# def _gen_self_update_request_prompt_test_v1(
+#     actor_name: str, actor_info: Dict[str, Any]
+# ) -> str:
+#     """
+#     生成角色自我状态更新请求提示词（测试版v1 - 步骤1-2：强制工具调用）
 
-    测试模式：强制要求必须更新外观和添加 效果/状态，即使场景变化不明显也要创造理由。
-    用于测试工作流的完整衔接性。
-    """
+#     测试模式：强制要求必须更新外观和添加 效果/状态，即使场景变化不明显也要创造理由。
+#     用于测试工作流的完整衔接性。
+#     """
 
-    # 提取角色属性信息
-    attributes = actor_info.get("attributes", {})
-    health = attributes.get("health", 0)
-    max_health = attributes.get("max_health", 0)
-    attack = attributes.get("attack", 0)
+#     # 提取角色属性信息
+#     attributes = actor_info.get("attributes", {})
+#     health = attributes.get("health", 0)
+#     max_health = attributes.get("max_health", 0)
+#     attack = attributes.get("attack", 0)
 
-    # 提取角色效果信息
-    effects = actor_info.get("effects", [])
-    effects_text = ""
-    if effects:
-        effects_list = []
-        for effect in effects:
-            effect_name = effect.get("name", "")
-            effect_desc = effect.get("description", "")
-            effects_list.append(f"- **{effect_name}**: {effect_desc}")
-        effects_text = "\n".join(effects_list)
-    else:
-        effects_text = "- 当前无效果"
+#     # 提取角色效果信息
+#     effects = actor_info.get("effects", [])
+#     effects_text = ""
+#     if effects:
+#         effects_list = []
+#         for effect in effects:
+#             effect_name = effect.get("name", "")
+#             effect_desc = effect.get("description", "")
+#             effects_list.append(f"- **{effect_name}**: {effect_desc}")
+#         effects_text = "\n".join(effects_list)
+#     else:
+#         effects_text = "- 当前无效果"
 
-    return f"""# {actor_name} 状态更新（测试模式）
+#     return f"""# {actor_name} 状态更新（测试模式）
 
-## 📋 当前状态
+# ## 📋 当前状态
 
-**属性**: 生命值 {health}/{max_health} | 攻击力 {attack}
+# **属性**: 生命值 {health}/{max_health} | 攻击力 {attack}
 
-**效果**: {effects_text if effects else "无"}
+# **效果**: {effects_text if effects else "无"}
 
----
+# ---
 
-## 🎯 任务（⚠️ 测试模式 - 强制执行）
+# ## 🎯 任务（⚠️ 测试模式 - 强制执行）
 
-**本次必须完成**：
-1. **更新外观**（必须 - 即使变化不明显也要更新）
-2. **添加效果**（必须 - 至少添加1个新效果）
+# **本次必须完成**：
+# 1. **更新外观**（必须 - 即使变化不明显也要更新）
+# 2. **添加效果**（必须 - 至少添加1个新效果）
 
-💡 如果场景变化不明显，请创造合理的更新理由（如环境影响、心理状态、细微变化等）
+# 💡 如果场景变化不明显，请创造合理的更新理由（如环境影响、心理状态、细微变化等）
 
----
+# ---
 
-## 🔄 执行流程
+# ## 🔄 执行流程
 
-**整体**: 分析场景变化 → 调用工具保存数据
+# **整体**: 分析场景变化 → 调用工具保存数据
 
-### 步骤 1️⃣: 判断如何更新（必须找到理由）
+# ### 步骤 1️⃣: 判断如何更新（必须找到理由）
 
-参考当前生命值 {health}/{max_health}，**必须**找到合理的理由来更新外观和效果
+# 参考当前生命值 {health}/{max_health}，**必须**找到合理的理由来更新外观和效果
 
-⚠️ 不要输出分析过程
+# ⚠️ 不要输出分析过程
 
-### 步骤 2️⃣: 调用工具（强制执行）
+# ### 步骤 2️⃣: 调用工具（强制执行）
 
-**🚨 重要**: 测试模式下**必须调用工具**，不能跳过
+# **🚨 重要**: 测试模式下**必须调用工具**，不能跳过
 
-#### 情况A：更新外观（必须）
-- **必须**调用工具更新外观
-- 生成完整外观描述（80-120字）
-- 即使变化不大，也要体现细微差异
+# #### 情况A：更新外观（必须）
+# - **必须**调用工具更新外观
+# - 生成完整外观描述（80-120字）
+# - 即使变化不大，也要体现细微差异
 
-#### 情况B：添加效果（必须）
-- **必须**至少添加1个新效果
-- 效果名称2-6字，描述20-40字
-- 一个效果 = 一次工具调用
-- 可以是心理状态、环境影响、细微变化等
+# #### 情况B：添加效果（必须）
+# - **必须**至少添加1个新效果
+# - 效果名称2-6字，描述20-40字
+# - 一个效果 = 一次工具调用
+# - 可以是心理状态、环境影响、细微变化等
 
-💡 查看工具列表"""
+# 💡 查看工具列表"""
 
 
 ########################################################################################################################

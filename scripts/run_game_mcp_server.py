@@ -177,8 +177,6 @@ async def sync_stage_state(
     将场景的叙事、角色状态和环境描述更新为最新内容。
     用于在场景执行后保存场景的当前状态。
 
-    ⚠️ 调用限制：此工具仅供 Stage（场景）实体调用，Actor（角色）实体不应调用此工具。
-
     Args:
         stage_name: 场景名称
         narrative: 场景叙事描述
@@ -232,8 +230,6 @@ async def sync_stage_state(
 async def update_actor_appearance(actor_name: str, new_appearance: str) -> str:
     """
     更新指定Actor的外观描述
-
-    ⚠️ 调用限制：此工具仅供 Actor（角色）实体调用，用于更新自身的外观描述。Stage（场景）实体不应调用此工具。
 
     Args:
         actor_name: 要更新的Actor名称
@@ -300,8 +296,6 @@ async def add_actor_effect(
     """
     为指定Actor添加一个新的效果/状态
 
-    ⚠️ 调用限制：此工具仅供 Actor（角色）实体调用，用于为自身添加效果或状态。Stage（场景）实体不应调用此工具。
-
     Args:
         actor_name: 要添加效果的Actor名称
         effect_name: 效果名称
@@ -363,8 +357,6 @@ async def add_actor_effect(
 async def remove_actor_effects(actor_name: str, effect_name: str) -> str:
     """
     移除指定Actor身上所有匹配指定名称的效果/状态
-
-    ⚠️ 调用限制：此工具可由 Actor（角色）或 Stage（场景）实体调用。Actor 可用于移除自身的效果，Stage 可用于移除场景中角色的效果。
 
     Args:
         actor_name: 要移除效果的Actor名称
@@ -451,8 +443,6 @@ async def remove_actor_effects(actor_name: str, effect_name: str) -> str:
 async def update_actor_health(actor_name: str, new_health: int) -> str:
     """
     更新指定Actor的生命值（health）
-
-    ⚠️ 调用限制：此工具仅供 Stage（场景）实体调用，用于在场景执行过程中更新角色生命值。Actor（角色）实体不应调用此工具。
 
     Args:
         actor_name: 要更新生命值的Actor名称
