@@ -27,6 +27,33 @@ preprocess → llm_invoke → tool_parse → [条件路由]
 ## 返回逻辑
 - 有工具执行 → 返回 `re_invoke_response`
 - 无工具执行 → 返回 `first_llm_response`
+
+## ⚠️ LangGraph 状态合并机制（重要！）
+
+**关键规则**：
+1. ✅ 带 `Annotated` 修饰符的字段（如 `messages`）会自动累积合并
+2. ❌ 普通字段（如 `llm`, `mcp_client`）**完全替换，不合并**
+3. 🚨 **如果节点返回值中缺少某个字段，该字段会从状态中丢失！**
+
+**正确做法**：
+```python
+# ✅ 节点必须返回所有需要保持的字段
+return {
+    "messages": state["messages"],      # 保持
+    "llm": state["llm"],                # 保持
+    "mcp_client": state["mcp_client"],  # 保持
+    "new_field": new_value,             # 新增/更新
+}
+
+# ❌ 错误：只返回新字段会导致其他字段丢失
+return {
+    "new_field": new_value,  # 其他字段会从状态中消失！
+}
+```
+
+**对比其他 Graph**：
+- `chat_graph.py` 和 `rag_graph.py` 的节点都正确保持了所有必要字段
+- 本文件之前的实现存在字段丢失问题，已修复
 """
 
 from dotenv import load_dotenv
@@ -207,7 +234,7 @@ async def _preprocess_node(state: McpState) -> McpState:
             "⚠️ 系统消息缺失，已自动添加默认角色设定和工具说明，走到这里基本就是错了，警告下，因为会影响角色设定！"
         )
 
-    # messages 已直接修改，通过返回让 LangGraph 感知变化
+    # ✅ 必须保持所有必要的状态字段！
     result: McpState = {
         "messages": messages,
         "llm": state["llm"],
@@ -238,9 +265,14 @@ async def _llm_invoke_node(state: McpState) -> McpState:
     response = llm.invoke(messages)
     assert isinstance(response, AIMessage), "LLM 返回的响应必须是 AIMessage 类型"
 
+    # ✅ 保持所有必要字段
     return {
-        "messages": [response],  # 加入 messages，保持上下文连贯
-        "first_llm_response": response,  # 保存引用供后续节点使用
+        "messages": [response],  # add_messages 会自动合并
+        "llm": llm,
+        "mcp_client": state["mcp_client"],
+        "available_tools": state.get("available_tools", []),
+        "tool_outputs": state.get("tool_outputs", []),
+        "first_llm_response": response,  # 新增字段
     }
 
 
@@ -275,10 +307,16 @@ async def _tool_parse_node(state: McpState) -> McpState:
         for call in parsed_tool_calls:
             logger.debug(f"   - {call['name']}: {call['args']}")
 
-    # 只返回改变的字段，LangGraph 自动继承其他字段
+    # ✅ 保持所有必要字段
     return {
-        "parsed_tool_calls": parsed_tool_calls,
-        "needs_tool_execution": len(parsed_tool_calls) > 0,
+        "messages": state["messages"],
+        "llm": state["llm"],
+        "mcp_client": state["mcp_client"],
+        "available_tools": available_tools,
+        "tool_outputs": state.get("tool_outputs", []),
+        "first_llm_response": first_llm_response,
+        "parsed_tool_calls": parsed_tool_calls,  # 新增字段
+        "needs_tool_execution": len(parsed_tool_calls) > 0,  # 新增字段
     }
 
 
@@ -298,9 +336,18 @@ async def _tool_execution_node(state: McpState) -> McpState:
     parsed_tool_calls = state.get("parsed_tool_calls", [])
     mcp_client = state["mcp_client"]
 
-    # 没有工具调用，返回空结果
+    # 没有工具调用，返回空结果（但保持所有字段）
     if not parsed_tool_calls:
-        return {"tool_outputs": []}
+        return {
+            "messages": state["messages"],
+            "llm": state["llm"],
+            "mcp_client": mcp_client,
+            "available_tools": state.get("available_tools", []),
+            "first_llm_response": state["first_llm_response"],
+            "parsed_tool_calls": parsed_tool_calls,
+            "needs_tool_execution": state.get("needs_tool_execution", False),
+            "tool_outputs": [],
+        }
 
     # 并发执行所有工具
     logger.info(f"🔧 开始执行 {len(parsed_tool_calls)} 个工具调用")
@@ -367,8 +414,17 @@ async def _tool_execution_node(state: McpState) -> McpState:
         f"工具执行记录: {json.dumps(tool_outputs, indent=2, ensure_ascii=False)}"
     )
 
-    # 只返回改变的字段
-    return {"tool_outputs": tool_outputs}
+    # ✅ 保持所有必要字段
+    return {
+        "messages": state["messages"],
+        "llm": state["llm"],
+        "mcp_client": mcp_client,
+        "available_tools": state.get("available_tools", []),
+        "first_llm_response": state["first_llm_response"],
+        "parsed_tool_calls": parsed_tool_calls,
+        "needs_tool_execution": state.get("needs_tool_execution", False),
+        "tool_outputs": tool_outputs,  # 更新字段
+    }
 
 
 ############################################################################################################
@@ -451,9 +507,17 @@ async def _llm_re_invoke_node(state: McpState) -> McpState:
     # 将二次推理响应加入 messages，保持完整链路
     messages.append(re_invoke_response)
 
+    # ✅ 保持所有必要字段
     return {
-        "messages": messages,  # 必须返回，让 LangGraph 更新状态
-        "re_invoke_response": re_invoke_response,
+        "messages": messages,
+        "llm": llm,
+        "mcp_client": state["mcp_client"],
+        "available_tools": state.get("available_tools", []),
+        "tool_outputs": tool_outputs,
+        "first_llm_response": state["first_llm_response"],
+        "parsed_tool_calls": state.get("parsed_tool_calls", []),
+        "needs_tool_execution": state.get("needs_tool_execution", False),
+        "re_invoke_response": re_invoke_response,  # 新增字段
     }
 
 

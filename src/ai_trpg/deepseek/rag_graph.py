@@ -148,10 +148,17 @@ def _retrieval_node(state: RAGState) -> RAGState:
     for i, (doc, score) in enumerate(zip(filtered_docs, filtered_scores), 1):
         logger.info(f"  📄 [{i}] 相似度: {score:.3f}, 内容: {doc[:60]}...")
 
+    # ✅ 保持所有必要字段，确保状态完整传递到下一个节点
     return {
-        "messages": state.get("messages", []),  # 保持消息上下文传递
-        "retrieved_docs": filtered_docs,
-        "similarity_scores": filtered_scores,
+        "messages": state.get("messages", []),
+        "llm": state["llm"],
+        "document_retriever": state["document_retriever"],
+        "similarity_threshold": state.get(
+            "similarity_threshold", DEFAULT_SIMILARITY_SCORE
+        ),
+        "retrieval_limit": state.get("retrieval_limit", DEFAULT_RETRIEVAL_LIMIT),
+        "retrieved_docs": filtered_docs,  # 新增字段
+        "similarity_scores": filtered_scores,  # 新增字段
     }
 
 
@@ -207,9 +214,18 @@ def _context_enhancement_node(state: RAGState) -> RAGState:
 
     logger.info("📝 [ENHANCEMENT] 上下文增强完成")
 
+    # ✅ 保持所有必要字段，确保状态完整传递到下一个节点
     return {
-        "messages": state.get("messages", []),  # 保持消息上下文传递
-        "enhanced_context": enhanced_context,
+        "messages": state.get("messages", []),
+        "llm": state["llm"],
+        "document_retriever": state["document_retriever"],
+        "retrieved_docs": state.get("retrieved_docs", []),
+        "similarity_scores": state.get("similarity_scores", []),
+        "similarity_threshold": state.get(
+            "similarity_threshold", DEFAULT_SIMILARITY_SCORE
+        ),
+        "retrieval_limit": state.get("retrieval_limit", DEFAULT_RETRIEVAL_LIMIT),
+        "enhanced_context": enhanced_context,  # 新增字段
     }
 
 
@@ -249,7 +265,20 @@ def _rag_llm_node(state: RAGState) -> RAGState:
     assert isinstance(response, AIMessage), "LLM响应必须是 AIMessage 类型"
     logger.success("🤖 [LLM] DeepSeek回答生成完成")
 
-    return {"messages": [response], "llm_response": response}
+    # ✅ 保持所有必要字段，确保状态完整传递到终点
+    return {
+        "messages": [response],  # add_messages 会自动合并
+        "llm": llm,
+        "document_retriever": state["document_retriever"],
+        "retrieved_docs": state.get("retrieved_docs", []),
+        "enhanced_context": state.get("enhanced_context", ""),
+        "similarity_scores": state.get("similarity_scores", []),
+        "similarity_threshold": state.get(
+            "similarity_threshold", DEFAULT_SIMILARITY_SCORE
+        ),
+        "retrieval_limit": state.get("retrieval_limit", DEFAULT_RETRIEVAL_LIMIT),
+        "llm_response": response,  # 新增字段
+    }
 
 
 ############################################################################################################

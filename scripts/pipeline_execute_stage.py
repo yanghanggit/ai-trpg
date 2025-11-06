@@ -16,6 +16,7 @@ from agent_utils import GameAgent
 from workflow_handlers import (
     handle_mcp_workflow_execution,
 )
+from ai_trpg.utils.json_format import strip_json_code_block
 
 
 def _gen_compressed_stage_execute_prompt(stage_name: str) -> str:
@@ -51,6 +52,19 @@ class StageExecutionResult(BaseModel):
     narrative: str  # 场景执行描述（叙事层）- 基于计算结果生成
     actor_states: List[ActorState]  # 角色状态列表
     environment: str  # 环境描述
+
+
+########################################################################################################################
+########################################################################################################################
+########################################################################################################################
+class StageExecutionSummary(BaseModel):
+    """场景执行总结的数据模型（用于二次推理指令输出）
+
+    用于解析和验证步骤3的JSON输出，包含执行总结和工具调用列表。
+    """
+
+    summary: str  # 场景执行的简短总结（一句话）
+    tools_executed: List[str]  # 已执行的工具名称列表
 
 
 ########################################################################################################################
@@ -228,7 +242,7 @@ async def handle_orchestrate_actor_plans_and_update_stage(
 
 3. **角色状态**
    - 格式：`**角色名**: 位置 | 姿态 | 状态`
-   - 基于叙事内容更新位置、姿态、特殊状态
+   - 基于叙事内容更新位置、姿态、特殊状态(如"隐藏")
 
 4. **环境更新**
    - 基于叙事内容更新环境变化
@@ -282,6 +296,15 @@ async def handle_orchestrate_actor_plans_and_update_stage(
     assert len(stage_execution_response) > 0, "场景执行响应为空"
 
     try:
+
+        formattted_response = StageExecutionSummary.model_validate_json(
+            strip_json_code_block(str(stage_execution_response[-1].content))
+        )
+
+        logger.debug(
+            f"✅ 场景执行结果解析成功: {formattted_response.model_dump_json(indent=2)}"
+        )
+
         # 步骤1: 从 MCP 资源重新读取 stage 数据以获取最新的 narrative
         stage_resource_response_updated = await mcp_client.read_resource(
             stage_resource_uri
@@ -314,6 +337,7 @@ async def handle_orchestrate_actor_plans_and_update_stage(
             notify_prompt = f"""# {stage_agent.name} 场景发生事件：
 
 ## 叙事
+
 {narrative}
     
 以上事件已发生并改变了场景状态，这将直接影响你的下一步观察与规划。"""
