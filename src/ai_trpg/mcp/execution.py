@@ -77,10 +77,10 @@ async def execute_mcp_tool(
             execution_time = time.time() - start_time
 
             if result.success:
-                logger.info(
-                    f"🔧 MCP工具执行成功: {tool_name} | 参数: {tool_args} | "
-                    f"耗时: {execution_time:.2f}s | 尝试: {attempt + 1}/{max_retries + 1}"
-                )
+                # logger.info(
+                #     f"🔧 MCP工具执行成功: {tool_name} | 参数: {tool_args} | "
+                #     f"耗时: {execution_time:.2f}s | 尝试: {attempt + 1}/{max_retries + 1}"
+                # )
                 return True, str(result.result), execution_time
             else:
                 error_msg = f"工具执行失败: {tool_name} | 错误: {result.error}"

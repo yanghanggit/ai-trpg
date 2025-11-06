@@ -303,9 +303,9 @@ async def _tool_parse_node(state: McpState) -> McpState:
         parser = ToolCallParser(available_tools)
         parsed_tool_calls = parser.parse_tool_calls(response_content)
 
-        logger.info(f"📋 解析到 {len(parsed_tool_calls)} 个工具调用")
-        for call in parsed_tool_calls:
-            logger.debug(f"   - {call['name']}: {call['args']}")
+        # logger.info(f"📋 解析到 {len(parsed_tool_calls)} 个工具调用")
+        # for call in parsed_tool_calls:
+        #     logger.debug(f"   - {call['name']}: {call['args']}")
 
     # ✅ 保持所有必要字段
     return {
@@ -350,7 +350,7 @@ async def _tool_execution_node(state: McpState) -> McpState:
         }
 
     # 并发执行所有工具
-    logger.info(f"🔧 开始执行 {len(parsed_tool_calls)} 个工具调用")
+    # logger.info(f"🔧 开始执行 {len(parsed_tool_calls)} 个工具调用")
 
     tasks = [
         execute_mcp_tool(
@@ -497,12 +497,12 @@ async def _llm_re_invoke_node(state: McpState) -> McpState:
     messages.append(re_invoke_instruction)
 
     # 二次调用 LLM（异常向上传播）
-    logger.debug("🔄 开始二次推理，基于工具结果生成智能回答...")
+    # logger.debug("🔄 开始二次推理，基于工具结果生成智能回答...")
     re_invoke_response = llm.invoke(messages)
     assert isinstance(
         re_invoke_response, AIMessage
     ), "二次推理返回必须是 AIMessage 类型"
-    logger.success("✅ 二次推理完成")
+    # logger.success("✅ 二次推理完成")
 
     # 将二次推理响应加入 messages，保持完整链路
     messages.append(re_invoke_response)
@@ -665,7 +665,7 @@ async def execute_mcp_workflow(
                     first_llm_response, AIMessage
                 ), "first_llm_response 必须是 AIMessage 类型"
                 ret.append(first_llm_response)
-                logger.debug("📌 已收集 first_llm_response")
+                # logger.debug("📌 已收集 first_llm_response")
 
             # 2. 再添加二次推理结果（如果存在）
             re_invoke_response = last_state.get("re_invoke_response")
@@ -674,22 +674,22 @@ async def execute_mcp_workflow(
                     re_invoke_response, AIMessage
                 ), "re_invoke_response 必须是 AIMessage 类型"
                 ret.append(re_invoke_response)
-                logger.debug("📌 已收集 re_invoke_response")
+                # logger.debug("📌 已收集 re_invoke_response")
 
             # 3. 日志：明确最终返回的是哪个
-            if re_invoke_response:
-                logger.debug(
-                    "✅ 返回顺序: [first_llm_response, re_invoke_response]，使用 ret[-1] 获取二次推理结果"
-                )
-            elif first_llm_response:
-                logger.debug(
-                    "✅ 返回顺序: [first_llm_response]，使用 ret[-1] 获取第一次推理结果"
-                )
-            else:
-                logger.error("❌ 无可用响应，返回空列表")
+            # if re_invoke_response:
+            #     logger.debug(
+            #         "✅ 返回顺序: [first_llm_response, re_invoke_response]，使用 ret[-1] 获取二次推理结果"
+            #     )
+            # elif first_llm_response:
+            #     logger.debug(
+            #         "✅ 返回顺序: [first_llm_response]，使用 ret[-1] 获取第一次推理结果"
+            #     )
+            # else:
+            #     logger.error("❌ 无可用响应，返回空列表")
 
             # 调试：打印完整消息链路
-            print_full_message_chain(last_state)
+            # print_full_message_chain(last_state)
 
         else:
             logger.error("❌ 未获取到最终状态")

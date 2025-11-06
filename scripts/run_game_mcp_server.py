@@ -104,7 +104,7 @@ async def health_check(request: Request) -> Response:
 # ============================================================================
 
 
-@app.tool()
+# @app.tool()
 async def get_world_info(world_name: str) -> str:
     """
     获取游戏世界（World）的完整信息
@@ -134,7 +134,7 @@ async def get_world_info(world_name: str) -> str:
         )
 
 
-@app.tool()
+# @app.tool()
 async def get_stage_info(stage_name: str) -> str:
     """
     根据场景名称获取Stage的完整信息（角色信息为精简版）
@@ -149,7 +149,7 @@ async def get_stage_info(stage_name: str) -> str:
     return get_stage_info_impl(test_world, stage_name)
 
 
-@app.tool()
+# @app.tool()
 async def get_actor_info(actor_name: str) -> str:
     """
     根据角色名称获取Actor的信息
@@ -176,6 +176,8 @@ async def sync_stage_state(
 
     将场景的叙事、角色状态和环境描述更新为最新内容。
     用于在场景执行后保存场景的当前状态。
+
+    ⚠️ 调用限制：此工具仅供 Stage（场景）实体调用，Actor（角色）实体不应调用此工具。
 
     Args:
         stage_name: 场景名称
@@ -230,6 +232,8 @@ async def sync_stage_state(
 async def update_actor_appearance(actor_name: str, new_appearance: str) -> str:
     """
     更新指定Actor的外观描述
+
+    ⚠️ 调用限制：此工具仅供 Actor（角色）实体调用，用于更新自身的外观描述。Stage（场景）实体不应调用此工具。
 
     Args:
         actor_name: 要更新的Actor名称
@@ -294,7 +298,9 @@ async def add_actor_effect(
     actor_name: str, effect_name: str, effect_description: str
 ) -> str:
     """
-    为指定Actor添加一个新的Effect（效果/状态）
+    为指定Actor添加一个新的效果/状态
+
+    ⚠️ 调用限制：此工具仅供 Actor（角色）实体调用，用于为自身添加效果或状态。Stage（场景）实体不应调用此工具。
 
     Args:
         actor_name: 要添加效果的Actor名称
@@ -356,7 +362,9 @@ async def add_actor_effect(
 @app.tool()
 async def remove_actor_effects(actor_name: str, effect_name: str) -> str:
     """
-    移除指定Actor身上所有匹配指定名称的Effect（效果/状态）
+    移除指定Actor身上所有匹配指定名称的效果/状态
+
+    ⚠️ 调用限制：此工具可由 Actor（角色）或 Stage（场景）实体调用。Actor 可用于移除自身的效果，Stage 可用于移除场景中角色的效果。
 
     Args:
         actor_name: 要移除效果的Actor名称
@@ -443,6 +451,8 @@ async def remove_actor_effects(actor_name: str, effect_name: str) -> str:
 async def update_actor_health(actor_name: str, new_health: int) -> str:
     """
     更新指定Actor的生命值（health）
+
+    ⚠️ 调用限制：此工具仅供 Stage（场景）实体调用，用于在场景执行过程中更新角色生命值。Actor（角色）实体不应调用此工具。
 
     Args:
         actor_name: 要更新生命值的Actor名称
