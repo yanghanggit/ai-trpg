@@ -5,7 +5,7 @@
 提供各种工作流（MCP、Chat、RAG）的执行函数。
 """
 
-from typing import List
+from typing import List, Optional
 from langchain.schema import AIMessage, BaseMessage, HumanMessage
 from langchain_deepseek import ChatDeepSeek
 from loguru import logger
@@ -28,6 +28,7 @@ async def handle_mcp_workflow_execution(
     request: HumanMessage,
     llm: ChatDeepSeek,
     mcp_client: McpClient,
+    re_invoke_instruction: Optional[HumanMessage] = None,
 ) -> List[BaseMessage]:
     """处理MCP工具调用工作流
 
@@ -37,6 +38,7 @@ async def handle_mcp_workflow_execution(
         request: 用户当前输入的消息
         llm: ChatDeepSeek LLM 实例
         mcp_client: MCP 客户端实例
+        re_invoke_instruction: 自定义二次推理指令（可选，用于二次推理阶段）
 
     Returns:
         List[BaseMessage]: AI响应消息列表
@@ -49,6 +51,7 @@ async def handle_mcp_workflow_execution(
         request=request,
         llm=llm,
         mcp_client=mcp_client,
+        re_invoke_instruction=re_invoke_instruction,
     )
 
     # 显示最新的AI回复

@@ -17,7 +17,7 @@ preprocess → llm_invoke → tool_parse → [条件路由]
 3. **llm_invoke**: 追加 `AIMessage(first_llm_response)`
 4. **tool_parse**: 解析工具调用（不修改 messages）
 5. **tool_execution**: 并发执行工具（不修改 messages）
-6. **llm_re_invoke**: 追加 `AIMessage(工具结果)` + `HumanMessage(反馈)` + `AIMessage(re_invoke_response)`
+6. **llm_re_invoke**: 追加 `AIMessage(工具结果)` + `HumanMessage(二次推理指令)` + `AIMessage(re_invoke_response)`
 
 ## 关键字段
 - `first_llm_response`: 第一次推理结果（用于提取）
@@ -35,7 +35,7 @@ from dotenv import load_dotenv
 load_dotenv()
 
 import asyncio
-from typing import Annotated, Any, Dict, List, Optional
+from typing import Annotated, Any, Dict, Final, List, Optional
 from langchain.schema import AIMessage, SystemMessage, HumanMessage
 from langchain_core.messages import BaseMessage
 from langchain_deepseek import ChatDeepSeek
@@ -56,41 +56,30 @@ import json
 
 
 ############################################################################################################
-class McpState(TypedDict, total=False):
-    """
-    MCP 增强的状态，包含消息和 MCP 客户端相关信息
-    """
+# 默认的二次推理指令模板（常量）
+DEFAULT_RE_INVOKE_INSTRUCTION: Final[
+    str
+] = """# 基于上述工具执行结果，响应用户输入!
 
-    messages: Annotated[List[BaseMessage], add_messages]
-    llm: ChatDeepSeek  # DeepSeek LLM实例，整个graph流程共享（必需）
-    mcp_client: McpClient  # MCP 客户端（必需）
-    available_tools: List[McpToolInfo]  # 可用的 MCP 工具
-    tool_outputs: List[Dict[str, Any]]  # 工具执行结果
+## ⚠️ 约束条件
 
-    # 工作流程字段
-    first_llm_response: AIMessage  # 第一次推理结果（决定是否调用工具）
-    parsed_tool_calls: List[Dict[str, Any]]  # 解析出的工具调用
-    needs_tool_execution: bool  # 是否需要执行工具
-    re_invoke_response: AIMessage  # 二次推理结果（仅在执行工具后存在）
+- **禁止再次调用工具** - 所有工具已执行完成
+- **禁止输出工具调用格式** - 不要生成 {"tool_call": ...} 这样的JSON结构
+
+## ✅ 响应要求
+
+1. **内容**: 基于工具结果直接响应用户输入，保持你的角色设定和语言风格
+2. **格式**: 如果用户在最近一次的请求中明确要求特定输出格式(JSON/Markdown/表格等)，严格遵守
+3. **风格**: 自然融合工具结果进行回应，无需解释工具调用过程
+
+💡 **提示**: 用户输入可能是问题、指令、对话或行动描述，请根据上下文灵活响应。"""
 
 
 ############################################################################################################
-def _build_tool_instruction_prompt(available_tools: List[McpToolInfo]) -> str:
-    """
-    构建系统提示，仅支持JSON格式工具调用
-
-    Args:
-        available_tools: 可用工具列表
-
-    Returns:
-        str: 构建好的系统提示
-    """
-    # 先检查是否有工具，没有工具就直接返回简单提示
-    if not available_tools:
-        return "⚠️ 当前没有可用工具，请仅使用你的知识回答问题。"
-
-    # 有工具时，才构建完整的工具调用说明
-    tool_instruction_prompt = """当你需要获取实时信息或执行特定操作时，可以调用相应的工具。
+# 工具调用指令模板（常量）
+TOOL_CALL_INSTRUCTION: Final[
+    str
+] = """当你需要获取实时信息或执行特定操作时，可以调用相应的工具。
 
 ## 工具调用格式
 
@@ -127,7 +116,46 @@ def _build_tool_instruction_prompt(available_tools: List[McpToolInfo]) -> str:
 **禁止行为**：
 - ❌ 不要在未调用工具的情况下假设或推测工具执行结果"""
 
-    # 构建工具描述 - 简化版本，统一使用线性展示
+
+############################################################################################################
+class McpState(TypedDict, total=False):
+    """
+    MCP 增强的状态，包含消息和 MCP 客户端相关信息
+    """
+
+    messages: Annotated[List[BaseMessage], add_messages]
+    llm: ChatDeepSeek  # DeepSeek LLM实例，整个graph流程共享（必需）
+    mcp_client: McpClient  # MCP 客户端（必需）
+    available_tools: List[McpToolInfo]  # 可用的 MCP 工具
+    tool_outputs: List[Dict[str, Any]]  # 工具执行结果
+
+    # 工作流程字段
+    first_llm_response: AIMessage  # 第一次推理结果（决定是否调用工具）
+    parsed_tool_calls: List[Dict[str, Any]]  # 解析出的工具调用
+    needs_tool_execution: bool  # 是否需要执行工具
+    re_invoke_response: AIMessage  # 二次推理结果（仅在执行工具后存在）
+    re_invoke_instruction: Optional[HumanMessage]  # 二次推理指令消息（可选）
+
+
+############################################################################################################
+def _build_tool_instruction_prompt(available_tools: List[McpToolInfo]) -> str:
+    """
+    构建系统提示，仅支持JSON格式工具调用
+
+    Args:
+        available_tools: 可用工具列表
+
+    Returns:
+        str: 构建好的系统提示
+    """
+    # 先检查是否有工具，没有工具就直接返回简单提示
+    if not available_tools:
+        return "⚠️ 当前没有可用工具，请仅使用你的知识回答问题。"
+
+    # 使用常量模板作为基础
+    tool_instruction_prompt = str(TOOL_CALL_INSTRUCTION)
+
+    # 添加可用工具列表
     tool_instruction_prompt += "\n\n## 可用工具"
 
     # 直接列表展示所有工具，无需分类
@@ -137,7 +165,7 @@ def _build_tool_instruction_prompt(available_tools: List[McpToolInfo]) -> str:
 
     # 添加工具调用示例
     example_tool = available_tools[0]
-    tool_instruction_prompt += f"\n\n## 调用示例\n\n"
+    tool_instruction_prompt += "\n\n## 调用示例\n\n"
     tool_instruction_prompt += build_json_tool_example(example_tool)
 
     return tool_instruction_prompt
@@ -161,7 +189,7 @@ async def _preprocess_node(state: McpState) -> McpState:
 
     # 构建系统提示
     tool_instruction_prompt = _build_tool_instruction_prompt(available_tools)
-    logger.debug(f"🛠️ 工具指令提示:\n{tool_instruction_prompt}")
+    # logger.debug(f"🛠️ 工具指令提示:\n{tool_instruction_prompt}")
 
     # 智能添加系统消息：直接修改 messages
     if messages and isinstance(messages[0], SystemMessage):
@@ -377,7 +405,7 @@ async def _llm_re_invoke_node(state: McpState) -> McpState:
 
     messages 变化：
     - 追加 AIMessage(工具结果)
-    - 追加 HumanMessage(用户反馈)
+    - 追加 HumanMessage(二次推理指令)
     - 追加 AIMessage(re_invoke_response)
 
     Args:
@@ -400,27 +428,17 @@ async def _llm_re_invoke_node(state: McpState) -> McpState:
     # 拆分消息：AIMessage(工具结果) + HumanMessage(约束和要求)
     tool_result_message = AIMessage(content=tool_context)
 
-    user_feedback_message = HumanMessage(
-        content="""# 基于上述工具执行结果，请直接响应用户输入!
+    # 使用默认二次推理指令或自定义指令
+    instruction_content = state.get("re_invoke_instruction")
+    if instruction_content is None:
+        re_invoke_instruction = HumanMessage(content=DEFAULT_RE_INVOKE_INSTRUCTION)
+    else:
+        re_invoke_instruction = instruction_content
 
-## ⚠️ 约束条件
-
-- **禁止再次调用工具** - 所有工具已执行完成
-- **禁止输出工具调用格式** - 不要生成 {"tool_call": ...} 这样的JSON结构
-
-## ✅ 响应要求
-
-1. **内容**: 基于工具结果直接响应用户输入，保持你的角色设定和语言风格
-2. **格式**: 如果用户明确要求特定输出格式(JSON/Markdown/表格等)，严格遵守!!
-3. **风格**: 自然融合工具结果进行回应，无需解释工具调用过程
-
-💡 **提示**: 用户输入可能是问题、指令、对话或行动描述，请根据上下文灵活响应。"""
-    )
-
-    # 直接修改 state["messages"]，添加工具结果和用户反馈
+    # 直接修改 state["messages"]，添加工具结果和二次推理指令
     messages = state["messages"]
     messages.append(tool_result_message)
-    messages.append(user_feedback_message)
+    messages.append(re_invoke_instruction)
 
     # 二次调用 LLM（异常向上传播）
     logger.debug("🔄 开始二次推理，基于工具结果生成智能回答...")
@@ -525,6 +543,7 @@ async def execute_mcp_workflow(
     request: HumanMessage,
     llm: ChatDeepSeek,
     mcp_client: McpClient,
+    re_invoke_instruction: Optional[HumanMessage] = None,
 ) -> List[BaseMessage]:
     """
     执行 MCP 工作流
@@ -539,6 +558,7 @@ async def execute_mcp_workflow(
         request: 用户当前输入
         llm: ChatDeepSeek 实例
         mcp_client: MCP 客户端实例
+        re_invoke_instruction: 自定义二次推理指令（可选，默认使用内置模板）
 
     Returns:
         List[BaseMessage]: 响应消息列表
@@ -557,6 +577,7 @@ async def execute_mcp_workflow(
         "mcp_client": mcp_client,
         "available_tools": available_tools,
         "tool_outputs": [],
+        "re_invoke_instruction": re_invoke_instruction,  # 直接传入，可能是 None
     }
 
     try:
