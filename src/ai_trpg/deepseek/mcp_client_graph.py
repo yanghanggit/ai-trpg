@@ -553,7 +553,7 @@ async def execute_mcp_workflow(
         available_tools = []
 
     # 构造 McpState（context + [request] 创建新列表，避免修改传入参数）
-    workflow_context: McpState = {
+    workflow_state: McpState = {
         "messages": context + [request],
         "llm": llm,
         "mcp_client": mcp_client,
@@ -567,7 +567,7 @@ async def execute_mcp_workflow(
         last_state: Optional[McpState] = None
 
         # 流式处理所有节点的更新
-        async for event in work_flow.astream(workflow_context):
+        async for event in work_flow.astream(workflow_state):
             for node_name, value in event.items():
                 # 持续更新状态，最后一个就是最终状态
                 last_state = value

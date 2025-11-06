@@ -108,8 +108,8 @@ async def handle_rag_workflow_execution(
     request: HumanMessage,
     llm: ChatDeepSeek,
     document_retriever: DocumentRetriever,
-    min_similarity_threshold: float = 0.05,
-    top_k_documents: int = 3,
+    similarity_threshold: float = 0.05,
+    retrieval_limit: int = 3,
 ) -> List[BaseMessage]:
     """执行 RAG 工作流
 
@@ -119,8 +119,8 @@ async def handle_rag_workflow_execution(
         request: 用户当前输入的消息
         llm: ChatDeepSeek LLM 实例
         document_retriever: 文档检索器实例
-        min_similarity_threshold: 相似度阈值（默认 0.05）
-        top_k_documents: 检索文档数量（默认 3）
+        similarity_threshold: 相似度阈值（默认 0.05）
+        retrieval_limit: 检索文档数量上限（默认 3）
 
     Returns:
         List[BaseMessage]: AI响应消息列表
@@ -133,8 +133,8 @@ async def handle_rag_workflow_execution(
         request=request,
         llm=llm,
         document_retriever=document_retriever,
-        min_similarity_threshold=min_similarity_threshold,
-        top_k_documents=top_k_documents,
+        similarity_threshold=similarity_threshold,
+        retrieval_limit=retrieval_limit,
     )
 
     # 显示最新的AI回复

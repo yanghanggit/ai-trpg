@@ -1,58 +1,20 @@
 """
 RAG (Retrieval-Augmented Generation) 工作流实现
 
-本模块实现了基于 LangGraph 的 RAG 检索增强生成工作流，用于结合知识库检索和
-大语言模型生成来提供更准确、更有依据的 AI 回答。
+基于 LangGraph 的 RAG 检索增强生成工作流,结合向量检索和 LLM 生成提供准确回答。
 
-═══════════════════════════════════════════════════════════════════════════════
-📊 RAG WORKFLOW 流程图
-═══════════════════════════════════════════════════════════════════════════════
-
-工作流程：
+工作流程:
     [START] → retrieval → enhancement → llm → [END]
 
-节点说明：
-    - retrieval (_retrieval_node): 向量检索节点，获取相关文档
-    - enhancement (_context_enhancement_node): 上下文增强节点，构建增强提示词
-    - llm (_rag_llm_node): LLM生成节点，生成最终响应
+核心特性:
+    - 三阶段处理: 检索 → 上下文增强 → LLM生成
+    - 完整消息上下文: messages 保留所有历史对话
+    - 外层错误处理: 节点专注业务逻辑,异常由执行层统一处理
+    - 响应追踪: llm_response 字段记录最终 AI 响应
 
-
-═══════════════════════════════════════════════════════════════════════════════
-🔧 核心组件说明
-═══════════════════════════════════════════════════════════════════════════════
-
-1. RAGState (TypedDict):
-   - 整个工作流的状态容器
-   - 使用 total=False 允许部分字段更新
-   - 节点间通过状态传递数据
-
-2. 节点设计原则:
-   - 输入: RAGState
-   - 输出: RAGState (部分更新)
-   - 职责单一: 每个节点只负责一个明确的任务
-   - Fail-fast: 遇到无法处理的情况立即抛出异常
-
-3. 配置参数:
-   - min_similarity_threshold: 控制检索质量
-   - top_k_documents: 控制检索数量
-   - 支持运行时动态配置 (user_input_state 优先级最高)
-
-4. 错误处理:
-   - 节点内部: 捕获并记录错误，返回降级数据或抛出异常
-   - 执行层: 不捕获异常，由调用方处理
-
-═══════════════════════════════════════════════════════════════════════════════
-📦 主要 API
-═══════════════════════════════════════════════════════════════════════════════
-
-- create_rag_workflow() -> CompiledStateGraph
-    创建并编译 RAG 工作流状态图
-
-- execute_rag_workflow(workflow, context, request, llm, retriever, ...) -> List[BaseMessage]
-    执行 RAG 工作流并返回 AI 回答
-    注意: 异常会向上传播，由调用方处理
-
-═══════════════════════════════════════════════════════════════════════════════
+主要 API:
+    - create_rag_workflow(): 创建并编译工作流状态图
+    - execute_rag_workflow(): 执行工作流并返回 AI 响应
 """
 
 from dotenv import load_dotenv
@@ -89,271 +51,210 @@ DEFAULT_RETRIEVAL_LIMIT: Final[int] = 3
 
 ############################################################################################################
 class RAGState(TypedDict, total=False):
-    messages: Annotated[List[BaseMessage], add_messages]
-    llm: Optional[ChatDeepSeek]  # DeepSeek LLM实例，整个RAG流程共享
-    document_retriever: Optional[DocumentRetriever]  # 文档检索器实例，支持依赖注入
-    retrieved_docs: List[str]  # 检索到的文档
-    enhanced_context: str  # 增强后的上下文
-    similarity_scores: List[float]  # 相似度分数（用于调试和分析）
-    min_similarity_threshold: float  # 相似度阈值（低于此值的文档将被过滤）
-    top_k_documents: int  # 检索文档数量
+    """RAG 工作流状态定义
 
-
-############################################################################################################
-def _extract_user_query(state: RAGState) -> str:
-    """从消息列表中提取用户查询
-
-    Args:
-        state: RAG状态对象
-
-    Returns:
-        用户查询字符串，如果无法提取则返回空字符串
+    Attributes:
+        messages: 完整消息列表(历史+当前),使用 add_messages 自动合并
+        llm: DeepSeek LLM 实例
+        document_retriever: 文档检索器实例
+        retrieved_docs: 检索到的文档列表
+        enhanced_context: 增强后的上下文提示词
+        similarity_scores: 文档相似度分数
+        similarity_threshold: 相似度过滤阈值
+        retrieval_limit: 检索文档数量上限
+        llm_response: LLM 生成的响应消息
     """
-    if state.get("messages"):
-        last_message = state["messages"][-1]
-        if isinstance(last_message, HumanMessage):
-            content = last_message.content
-            return content if isinstance(content, str) else str(content)
-    return ""
+
+    messages: Annotated[List[BaseMessage], add_messages]
+    llm: ChatDeepSeek
+    document_retriever: DocumentRetriever
+    retrieved_docs: List[str]
+    enhanced_context: str
+    similarity_scores: List[float]
+    similarity_threshold: float
+    retrieval_limit: int
+    llm_response: AIMessage
 
 
-############################################################################################################
-############################################################################################################
 ############################################################################################################
 def _retrieval_node(state: RAGState) -> RAGState:
-    """
-    向量检索节点
+    """向量检索节点
 
-    功能：
-    1. 使用 Mock 数据进行测试检索
-    2. 相似度过滤和排序
-    3. 完整的错误处理和日志记录
+    从文档库中检索与用户查询相关的文档,并按相似度过滤和排序。
 
     Args:
         state: RAG状态对象
 
     Returns:
-        更新后的 RAGState，包含：
-        - retrieved_docs: 检索到的文档列表
-        - similarity_scores: 对应的相似度分数列表
-
-    Note:
-        通过依赖注入的 DocumentRetriever 进行检索（支持 ChromaDBRetriever 或 MockDocumentRetriever）
+        更新后的状态,包含 retrieved_docs 和 similarity_scores
     """
-    try:
-        logger.info("🔍 [RETRIEVAL] 开始向量语义检索...")
+    logger.info("🔍 [RETRIEVAL] 开始向量语义检索...")
 
-        # 从消息列表中提取用户查询
-        user_query = _extract_user_query(state)
-        logger.info(f"🔍 [RETRIEVAL] 用户查询: {user_query}")
+    # 提取用户查询
+    messages = state.get("messages", [])
+    assert len(messages) > 0, "消息列表不能为空"
+    if not messages:
+        logger.warning("🔍 [RETRIEVAL] 消息列表为空")
+        return {
+            "messages": [],
+            "retrieved_docs": [],
+            "similarity_scores": [],
+        }
 
-        # 从状态中获取配置值，如果没有则使用默认值
-        min_threshold = state.get("min_similarity_threshold", DEFAULT_SIMILARITY_SCORE)
-        top_k = state.get("top_k_documents", DEFAULT_RETRIEVAL_LIMIT)
+    last_message = messages[-1]
+    assert isinstance(
+        last_message, HumanMessage
+    ), "最后一条消息必须是 HumanMessage 类型"
+    user_query = str(last_message.content)
+    logger.info(f"🔍 [RETRIEVAL] 用户查询: {user_query}")
 
+    # 从状态中获取配置值，如果没有则使用默认值
+    min_threshold = state.get("similarity_threshold", DEFAULT_SIMILARITY_SCORE)
+    top_k = state.get("retrieval_limit", DEFAULT_RETRIEVAL_LIMIT)
+
+    logger.info(
+        f"🔍 [RETRIEVAL] 使用配置 - 相似度阈值: {min_threshold}, Top-K: {top_k}"
+    )
+
+    # 获取文档检索器实例
+    document_retriever = state["document_retriever"]
+    logger.info(f"🔍 [RETRIEVAL] 使用检索器: {type(document_retriever).__name__}")
+
+    retrieved_docs, similarity_scores = document_retriever.retrieve_documents(
+        user_query=user_query, top_k=top_k, min_similarity=min_threshold
+    )
+
+    # 过滤低相似度结果
+    filtered_docs = []
+    filtered_scores = []
+
+    for doc, score in zip(retrieved_docs, similarity_scores):
+        if score >= min_threshold:
+            filtered_docs.append(doc)
+            filtered_scores.append(score)
+
+    # 如果过滤后没有文档，至少保留最高分的文档
+    if not filtered_docs and retrieved_docs:
+        filtered_docs = [retrieved_docs[0]]
+        filtered_scores = [similarity_scores[0]]
         logger.info(
-            f"🔍 [RETRIEVAL] 使用配置 - 相似度阈值: {min_threshold}, Top-K: {top_k}"
+            f"🔍 [RETRIEVAL] 所有结果低于阈值({min_threshold})，"
+            f"保留最高分文档 (相似度: {similarity_scores[0]:.3f})"
         )
 
-        # 获取文档检索器实例（严格检查，必须提供）
-        document_retriever = state.get("document_retriever")
-        if document_retriever is None:
-            error_msg = (
-                "🔍 [RETRIEVAL] 严重错误: 未提供 DocumentRetriever 实例！\n"
-                "RAG 工作流必须注入 DocumentRetriever 实例才能运行。\n"
-                "请在调用 execute_rag_workflow 时提供 'document_retriever' 参数。"
-            )
-            logger.error(error_msg)
-            raise ValueError(
-                "DocumentRetriever is required but not provided in RAGState. "
-                "Please inject a DocumentRetriever instance (e.g., ChromaDBRetriever or MockDocumentRetriever) "
-                "when calling execute_rag_workflow."
-            )
+    logger.success(f"🔍 [RETRIEVAL] 检索完成，共返回 {len(filtered_docs)} 个文档")
 
-        # 使用注入的检索器实例
-        logger.info(f"🔍 [RETRIEVAL] 使用检索器: {type(document_retriever).__name__}")
-        retrieved_docs, similarity_scores = document_retriever.retrieve_documents(
-            user_query=user_query, top_k=top_k, min_similarity=min_threshold
-        )
+    # 记录详细信息
+    for i, (doc, score) in enumerate(zip(filtered_docs, filtered_scores), 1):
+        logger.info(f"  📄 [{i}] 相似度: {score:.3f}, 内容: {doc[:60]}...")
 
-        # 过滤低相似度结果
-        filtered_docs = []
-        filtered_scores = []
-
-        for doc, score in zip(retrieved_docs, similarity_scores):
-            if score >= min_threshold:
-                filtered_docs.append(doc)
-                filtered_scores.append(score)
-
-        # 如果过滤后没有文档，至少保留最高分的文档
-        if not filtered_docs and retrieved_docs:
-            filtered_docs = [retrieved_docs[0]]
-            filtered_scores = [similarity_scores[0]]
-            logger.info(
-                f"🔍 [RETRIEVAL] 所有结果低于阈值({min_threshold})，"
-                f"保留最高分文档 (相似度: {similarity_scores[0]:.3f})"
-            )
-
-        logger.success(f"🔍 [RETRIEVAL] 检索完成，共返回 {len(filtered_docs)} 个文档")
-
-        # 记录详细信息
-        for i, (doc, score) in enumerate(zip(filtered_docs, filtered_scores), 1):
-            logger.info(f"  📄 [{i}] 相似度: {score:.3f}, 内容: {doc[:60]}...")
-
-        return {
-            "retrieved_docs": filtered_docs,
-            "similarity_scores": filtered_scores,
-        }
-
-    except Exception as e:
-        logger.error(f"🔍 [RETRIEVAL] 检索节点错误: {e}\n{traceback.format_exc()}")
-        return {
-            "retrieved_docs": ["检索过程中发生错误，将使用默认回复。"],
-            "similarity_scores": [0.0],
-        }
+    return {
+        "messages": state.get("messages", []),  # 保持消息上下文传递
+        "retrieved_docs": filtered_docs,
+        "similarity_scores": filtered_scores,
+    }
 
 
 ############################################################################################################
 def _context_enhancement_node(state: RAGState) -> RAGState:
-    """
-    上下文增强节点（支持相似度信息）
+    """上下文增强节点
 
-    功能增强：
-    1. 保持原有的上下文构建逻辑
-    2. 添加相似度分数信息到上下文中
-    3. 提供更丰富的检索质量信息
-    4. 为LLM提供更好的参考依据
+    将检索到的文档和相似度信息构建为结构化的增强提示词。
 
     Args:
         state: RAG状态对象
 
     Returns:
-        更新后的 RAGState，包含：
-        - enhanced_context: 增强后的上下文
+        更新后的状态,包含 enhanced_context
     """
-    try:
-        logger.info("📝 [ENHANCEMENT] 开始增强上下文...")
+    logger.info("📝 [ENHANCEMENT] 开始增强上下文...")
 
-        # 从消息列表中提取用户查询
-        user_query = _extract_user_query(state)
-        retrieved_docs = state.get("retrieved_docs", [])
-        similarity_scores = state.get("similarity_scores", [])
+    # 从消息列表中提取用户查询
+    retrieved_docs = state.get("retrieved_docs", [])
+    similarity_scores = state.get("similarity_scores", [])
 
-        logger.info(f"📝 [ENHANCEMENT] 处理查询: {user_query}")
-        logger.info(f"📝 [ENHANCEMENT] 检索到的文档数量: {len(retrieved_docs)}")
+    # 构建文档列表（按相似度排序）
+    doc_list_items = []
+    if similarity_scores and len(similarity_scores) == len(retrieved_docs):
+        # 将文档和相似度分数配对，并按相似度降序排序
+        doc_score_pairs = list(zip(retrieved_docs, similarity_scores))
+        doc_score_pairs.sort(key=lambda x: x[1], reverse=True)
 
-        if similarity_scores:
-            avg_similarity = sum(similarity_scores) / len(similarity_scores)
-            max_similarity = max(similarity_scores)
-            logger.info(
-                f"📝 [ENHANCEMENT] 平均相似度: {avg_similarity:.3f}, 最高相似度: {max_similarity:.3f}"
-            )
+        for i, (doc, score) in enumerate(doc_score_pairs, 1):
+            doc_list_items.append(f"{i}. [相似度: {score:.3f}] {doc}")
+    else:
+        # 回退到原来的格式（没有相似度信息）
+        for i, doc in enumerate(retrieved_docs, 1):
+            doc_list_items.append(f"{i}. {doc}")
 
-        # 构建文档列表（按相似度排序）
-        doc_list_items = []
-        if similarity_scores and len(similarity_scores) == len(retrieved_docs):
-            # 将文档和相似度分数配对，并按相似度降序排序
-            doc_score_pairs = list(zip(retrieved_docs, similarity_scores))
-            doc_score_pairs.sort(key=lambda x: x[1], reverse=True)
+    docs_section = "\n".join(doc_list_items)
 
-            for i, (doc, score) in enumerate(doc_score_pairs, 1):
-                doc_list_items.append(f"{i}. [相似度: {score:.3f}] {doc}")
-        else:
-            # 回退到原来的格式（没有相似度信息）
-            for i, doc in enumerate(retrieved_docs, 1):
-                doc_list_items.append(f"{i}. {doc}")
+    enhanced_context = f"""# 根据用户输入，查询到以下相关信息：
 
-        docs_section = "\n".join(doc_list_items)
-
-        # 使用 f-string 多行字符串构建增强上下文
-        enhanced_context = f"""请基于以下相关信息响应用户:
-
-相关信息 (按相似度排序):
 {docs_section}
 
-用户输入: {user_query}
-
 ## 响应要求
+
 - 基于上述相关信息给出准确、有帮助的响应
 - 对于确定的信息，直接自信地表达
 - 对于不确定或信息不足的部分，诚实说明
 - 用户的输入可能是问题、指令、对话、信息或行动描述等，请根据上下文灵活处理
 
 ## 响应原则
+
 ✅ 内容层面：保持你的角色设定和语言风格（基于历史上下文和角色人格）
 ✅ 格式层面：如果用户在最新输入中明确要求特定格式（如JSON、Markdown、表格等），请严格按照要求输出"""
 
-        logger.info("📝 [ENHANCEMENT] 上下文增强完成")
-        logger.debug(f"📝 [ENHANCEMENT] 增强后的上下文:\n{enhanced_context}")
+    logger.info("📝 [ENHANCEMENT] 上下文增强完成")
 
-        return {"enhanced_context": enhanced_context}
-
-    except Exception as e:
-        logger.error(
-            f"📝 [ENHANCEMENT] 上下文增强节点错误: {e}\n{traceback.format_exc()}"
-        )
-        # 从消息列表中提取用户查询（用于 fallback）
-        user_query = _extract_user_query(state)
-        fallback_context = f"请响应用户以下输入: {user_query}\n\n注意：由于检索服务暂时不可用，请基于你的知识回答。"
-        return {"enhanced_context": fallback_context}
+    return {
+        "messages": state.get("messages", []),  # 保持消息上下文传递
+        "enhanced_context": enhanced_context,
+    }
 
 
 ############################################################################################################
 def _rag_llm_node(state: RAGState) -> RAGState:
-    """
-    RAG版本的LLM节点
+    """LLM 生成节点
 
-    功能：
-    使用增强后的上下文调用 DeepSeek LLM 生成回答
+    使用完整对话上下文(messages)和增强信息调用 DeepSeek LLM 生成响应。
 
     Args:
         state: RAG状态对象
 
     Returns:
-        更新后的 RAGState，包含：
-        - messages: 包含LLM生成的回答消息
+        更新后的状态,包含 messages 和 llm_response
     """
-    try:
-        logger.info("🤖 [LLM] 开始生成回答...")
+    logger.info("🤖 [LLM] 开始生成回答...")
 
-        # 使用状态中的 DeepSeek LLM 实例
-        llm = state["llm"]
-        assert llm is not None, "LLM instance is None in state"
+    # 使用状态中的 DeepSeek LLM 实例
+    llm = state["llm"]
 
-        # 使用增强的上下文替换原始消息
-        enhanced_context = state.get("enhanced_context", "")
-        if not enhanced_context:
-            error_msg = "🤖 [LLM] 增强上下文为空，RAG流程异常，无法继续"
-            logger.error(error_msg)
-            raise ValueError(
-                "Enhanced context is empty. RAG workflow failed in context enhancement node."
-            )
+    # 验证增强上下文
+    enhanced_context = state.get("enhanced_context", "")
+    if not enhanced_context:
+        logger.error("🤖 [LLM] 增强上下文为空，RAG流程异常，无法继续")
+        raise ValueError(
+            "Enhanced context is empty. RAG workflow failed in context enhancement node."
+        )
 
-        # 创建增强消息
-        enhanced_message = HumanMessage(content=enhanced_context)
+    # 构建完整消息列表: 保留所有历史消息(messages) + 增强信息
+    enhanced_message = HumanMessage(content=enhanced_context)
+    full_messages = state.get("messages", []) + [enhanced_message]
 
-        # 构建完整消息列表：历史消息（排除最后一条用户消息）+ 增强消息
-        history_messages = state.get("messages", [])[:-1]
-        full_messages = history_messages + [enhanced_message]
+    logger.info("🤖 [LLM] 使用完整对话上下文调用DeepSeek")
 
-        logger.info("🤖 [LLM] 使用完整对话上下文调用DeepSeek")
+    # 调用LLM
+    response = llm.invoke(full_messages)
+    assert isinstance(response, AIMessage), "LLM响应必须是 AIMessage 类型"
+    logger.success("🤖 [LLM] DeepSeek回答生成完成")
 
-        # 调用LLM
-        response = llm.invoke(full_messages)
-        logger.success("🤖 [LLM] DeepSeek回答生成完成")
-
-        return {"messages": [response]}
-
-    except Exception as e:
-        logger.error(f"🤖 [LLM] LLM节点错误: {e}\n{traceback.format_exc()}")
-        error_response = AIMessage(content="抱歉，生成回答时发生错误，请稍后重试。")
-        return {"messages": [error_response]}
+    return {"messages": [response], "llm_response": response}
 
 
 ############################################################################################################
 def create_rag_workflow() -> CompiledStateGraph[RAGState, Any, RAGState, RAGState]:
-    """创建RAG测试版本的状态图"""
-    # 创建状态图
+    """创建并编译 RAG 工作流状态图"""
     graph_builder = StateGraph(RAGState)
 
     # 添加三个节点
@@ -377,38 +278,53 @@ def create_rag_workflow() -> CompiledStateGraph[RAGState, Any, RAGState, RAGStat
 
 
 ############################################################################################################
+def print_full_message_chain(state: RAGState) -> None:
+    """打印完整消息链路用于调试
+
+    Args:
+        state: RAG状态对象
+    """
+    messages = state.get("messages", [])
+    logger.info(f"📜 完整消息链路 (共 {len(messages)} 条消息)")
+    for i, msg in enumerate(messages, 0):
+        logger.debug(
+            f"[{i}] 完整内容:\n{msg.model_dump_json(indent=2, ensure_ascii=False)}\n"
+        )
+
+
+############################################################################################################
 async def execute_rag_workflow(
     work_flow: CompiledStateGraph[RAGState, Any, RAGState, RAGState],
     context: List[BaseMessage],
     request: HumanMessage,
     llm: ChatDeepSeek,
     document_retriever: DocumentRetriever,
-    min_similarity_threshold: float = DEFAULT_SIMILARITY_SCORE,
-    top_k_documents: int = DEFAULT_RETRIEVAL_LIMIT,
+    similarity_threshold: float = DEFAULT_SIMILARITY_SCORE,
+    retrieval_limit: int = DEFAULT_RETRIEVAL_LIMIT,
 ) -> List[BaseMessage]:
-    """执行RAG工作流并返回所有响应消息
+    """执行 RAG 工作流并返回 AI 响应
 
-    将聊天历史和用户输入合并后，通过编译好的状态图进行RAG检索增强处理，
-    收集并返回所有生成的消息。RAGState 的创建被封装在函数内部。
+    将历史消息和用户输入合并为完整上下文,通过 RAG 三阶段流程处理,
+    最终返回 LLM 生成的响应消息。
 
     Args:
         work_flow: 已编译的 LangGraph 状态图
-        context: 历史消息列表
-        request: 用户当前输入的消息
+        context: 历史消息列表(完整对话上下文)
+        request: 用户当前输入消息
         llm: ChatDeepSeek LLM 实例
         document_retriever: 文档检索器实例
-        min_similarity_threshold: 相似度阈值（默认使用全局配置 MIN_SIMILARITY_THRESHOLD）
-        top_k_documents: 检索文档数量（默认使用全局配置 TOP_K_DOCUMENTS）
+        similarity_threshold: 相似度阈值
+        retrieval_limit: 检索文档数量上限
 
     Returns:
-        包含所有生成消息的列表
+        包含 AI 响应的消息列表,通过 last_state["llm_response"] 获取
 
     Raises:
-        任何在RAG流程中发生的异常都会向上传播，由调用方处理
+        异常会被捕获并记录,由调用方根据返回空列表判断失败
     """
     logger.info("🚀 开始执行RAG流程...")
 
-    # 在内部构造 RAGState（封装实现细节）
+    # 构造 RAGState: messages 包含完整历史上下文 + 当前请求
     rag_state: RAGState = {
         "messages": context + [request],
         "retrieved_docs": [],
@@ -416,24 +332,31 @@ async def execute_rag_workflow(
         "similarity_scores": [],
         "llm": llm,
         "document_retriever": document_retriever,
-        "min_similarity_threshold": min_similarity_threshold,
-        "top_k_documents": top_k_documents,
+        "similarity_threshold": similarity_threshold,
+        "retrieval_limit": retrieval_limit,
     }
 
     logger.info(f"🚀 RAG输入状态准备完成，用户查询: {request.content}")
 
-    # 执行RAG流程
     ret: List[BaseMessage] = []
-    async for event in work_flow.astream(rag_state):
-        logger.debug(f"🚀 RAG流程事件: {list(event.keys())}")
-        for node_name, node_output in event.items():
-            if "messages" in node_output:
-                ret.extend(node_output["messages"])
-                logger.info(
-                    f"🚀 节点 [{node_name}] 输出消息数量: {len(node_output['messages'])}"
-                )
 
-    logger.success("🚀 RAG流程执行完成")
+    try:
+
+        last_state: Optional[RAGState] = None
+
+        async for event in work_flow.astream(rag_state):
+            for value in event.values():
+                last_state = value
+
+        # 从 last_state 中提取 llm_response
+        if last_state and "llm_response" in last_state:
+            assert isinstance(last_state["llm_response"], AIMessage)
+            ret = [last_state["llm_response"]]
+            print_full_message_chain(last_state)
+
+    except Exception as e:
+        logger.error(f"🚀 RAG流程执行错误: {e}\n{traceback.format_exc()}")
+
     return ret
 
 
