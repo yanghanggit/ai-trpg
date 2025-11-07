@@ -1,4 +1,4 @@
-from typing import List, Final
+from typing import Dict, List, Final
 from .models import Actor, Stage, World, Effect
 import copy
 from langchain.schema import HumanMessage, AIMessage, BaseMessage
@@ -101,7 +101,7 @@ test_knowledge_base1: Final[dict[str, List[str]]] = {
 # ============================================================================
 KICKOFF_MESSAGES: Final[str] = """# 游戏开始！你是谁？你在哪里？你的目标是什么？"""
 
-actor_initial_contexts1: Final[dict[str, List[BaseMessage]]] = {
+actor_initial_contexts1: Final[Dict[str, List[BaseMessage]]] = {
     "艾琳": [
         HumanMessage(content=KICKOFF_MESSAGES),
         AIMessage(

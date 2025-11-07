@@ -5,10 +5,9 @@
 提供游戏玩法相关的功能处理，包括游戏指令的执行和处理。
 """
 
-from typing import List
 from loguru import logger
 from ai_trpg.mcp import McpClient
-from agent_utils import GameAgent
+from agent_utils import GameAgentManager
 
 # 导入拆分后的流水线模块
 from pipeline_kickoff import handle_all_kickoff
@@ -24,30 +23,21 @@ from pipeline_actor_self_update import handle_all_actors_self_update
 ########################################################################################################################
 async def handle_game_command(
     command: str,
-    current_agent: GameAgent,
-    all_agents: List[GameAgent],
-    world_agent: GameAgent,
-    stage_agents: List[GameAgent],
-    actor_agents: List[GameAgent],
+    agent_manager: GameAgentManager,
     mcp_client: McpClient,
 ) -> None:
     """处理游戏指令
 
     Args:
         command: 游戏指令内容
-        current_agent: 当前激活的代理
-        all_agents: 所有可用的代理列表
-        llm: DeepSeek LLM 实例
+        agent_manager: 游戏代理管理器
         mcp_client: MCP 客户端实例
-        available_tools: 可用的工具列表
-        available_prompts: 可用的提示词模板列表
-        available_resources: 可用的资源列表
-        mcp_workflow: MCP 工作流状态图
-        chat_workflow: Chat 工作流状态图
-        rag_workflow: RAG 工作流状态图
-        game_retriever: 游戏文档检索器
     """
     logger.info(f"🎮 游戏指令: {command}")
+
+    # 从代理管理器获取代理列表
+    stage_agents = agent_manager.stage_agents
+    actor_agents = agent_manager.actor_agents
 
     assert len(stage_agents) > 0, "没有可用的场景代理"
     assert len(actor_agents) > 0, "没有可用的角色代理"

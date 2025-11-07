@@ -22,9 +22,8 @@ sys.path.insert(
 
 # 导入必要的模块
 import traceback
-from typing import Final, List
 import asyncio
-from langchain.schema import HumanMessage, SystemMessage, AIMessage
+from langchain.schema import HumanMessage
 from loguru import logger
 
 
@@ -38,9 +37,6 @@ from ai_trpg.mcp import (
 
 from ai_trpg.demo import (
     GLOBAL_GAME_MECHANICS,
-    gen_world_system_message,
-    gen_actor_system_message,
-    gen_stage_system_message,
     clone_test_world1,
     actor_initial_contexts1,
 )
@@ -50,7 +46,7 @@ from ai_trpg.rag.game_retriever import GameDocumentRetriever
 from ai_trpg.configuration.game import setup_logger
 
 # 导入本地工具模块
-from agent_utils import GameAgent, switch_agent
+from agent_utils import GameAgentManager
 from mcp_command_handlers import (
     handle_tools_command,
     handle_prompts_command,
@@ -67,70 +63,17 @@ from io_utils import format_user_input_prompt, log_history, dump_history
 from mcp_client_init import initialize_mcp_client_with_config
 from gameplay_handler import handle_game_command
 
-test_world = clone_test_world1()
+test_world1 = clone_test_world1()
 
 
 ########################################################################################################################
-# 创建游戏角色代理
-world_agent: Final[GameAgent] = GameAgent(
-    name=test_world.name,
-    # type=World.__name__,
-    context=[
-        SystemMessage(
-            content=gen_world_system_message(test_world, GLOBAL_GAME_MECHANICS)
-        )
-    ],
+# 创建游戏代理管理器
+agent_manager: GameAgentManager = GameAgentManager()
+agent_manager.create_agents_from_world(
+    test_world1,
+    GLOBAL_GAME_MECHANICS,
+    actor_initial_contexts1,
 )
-
-# 获取游戏世界中的所有角色
-all_actors = test_world.get_all_actors()
-logger.info(f"游戏世界中的所有角色: {[actor.name for actor in all_actors]}")
-
-all_stages = test_world.get_all_stages()
-logger.info(f"游戏世界中的所有场景: {[stage.name for stage in all_stages]}")
-
-# 创建每个角色的代理
-actor_agents: List[GameAgent] = []
-for actor in all_actors:
-    agent = GameAgent(
-        name=actor.name,
-        # type=Actor.__name__,
-        context=[
-            SystemMessage(
-                content=gen_actor_system_message(
-                    actor, test_world, GLOBAL_GAME_MECHANICS
-                )
-            )
-        ],
-    )
-    actor_agents.append(agent)
-
-stage_agents: List[GameAgent] = []
-for stage in all_stages:
-    agent = GameAgent(
-        name=stage.name,
-        # type=Stage.__name__,
-        context=[
-            SystemMessage(
-                content=gen_stage_system_message(
-                    stage, test_world, GLOBAL_GAME_MECHANICS
-                )
-            )
-        ],
-    )
-    stage_agents.append(agent)
-
-
-# 所有代理列表
-all_agents: List[GameAgent] = [world_agent] + actor_agents + stage_agents
-
-
-for agent in all_agents:
-    logger.info(f"已创建代理: {agent.name}")
-
-    # 如果该代理在初始化对话字典中，则扩展其上下文
-    if agent.name in actor_initial_contexts1:
-        agent.context.extend(actor_initial_contexts1[agent.name])
 
 
 # ============================================================================
@@ -145,8 +88,9 @@ async def main() -> None:
         setup_logger()
         logger.debug("✅ Logger 设置成功")
 
-        # 默认激活的代理是世界观代理
-        current_agent: GameAgent = world_agent
+        # 验证代理管理器已正确初始化
+        if agent_manager.current_agent is None:
+            raise ValueError("❌ 代理管理器未正确初始化")
 
         # 初始化 MCP 客户端并获取可用资源
         mcp_client = await initialize_mcp_client_with_config(mcp_config)
@@ -165,7 +109,7 @@ async def main() -> None:
         # 对话循环
         while True:
 
-            user_input = input(f"[{current_agent.name}]:").strip()
+            user_input = input(f"[{agent_manager.current_agent.name}]:").strip()
 
             # 处理退出命令
             if user_input.lower() in ["/quit", "/exit", "/q"]:
@@ -179,16 +123,22 @@ async def main() -> None:
 
             # 处理历史记录命令
             elif user_input.lower() == "/log":
-                logger.info(f"📜 打印当前代理 [{current_agent.name}] 的对话历史")
+                logger.info(
+                    f"📜 打印当前代理 [{agent_manager.current_agent.name}] 的对话历史"
+                )
                 log_history(
-                    agent_name=current_agent.name, messages=current_agent.context
+                    agent_name=agent_manager.current_agent.name,
+                    messages=agent_manager.current_agent.context,
                 )
                 continue
 
             elif user_input.lower() == "/dump":
-                logger.info(f"💾 保存当前代理 [{current_agent.name}] 的对话历史")
+                logger.info(
+                    f"💾 保存当前代理 [{agent_manager.current_agent.name}] 的对话历史"
+                )
                 dump_history(
-                    agent_name=current_agent.name, messages=current_agent.context
+                    agent_name=agent_manager.current_agent.name,
+                    messages=agent_manager.current_agent.context,
                 )
                 continue
 
@@ -217,10 +167,8 @@ async def main() -> None:
 
                 logger.info(f"🎭 尝试切换到代理: {target_name}")
 
-                # 尝试切换代理
-                new_agent = switch_agent(all_agents, target_name, current_agent)
-                if new_agent is not None:
-                    current_agent = new_agent
+                # 使用代理管理器切换代理
+                agent_manager.switch_agent(target_name)
 
                 continue
 
@@ -236,8 +184,8 @@ async def main() -> None:
 
                 # mcp 的工作流
                 mcp_response = await handle_mcp_workflow_execution(
-                    agent_name=current_agent.name,
-                    context=current_agent.context.copy(),
+                    agent_name=agent_manager.current_agent.name,
+                    context=agent_manager.current_agent.context.copy(),
                     request=HumanMessage(content=format_user_input),
                     llm=create_deepseek_llm(),
                     mcp_client=mcp_client,
@@ -260,8 +208,8 @@ async def main() -> None:
 
                 # 聊天的工作流
                 chat_response = await handle_chat_workflow_execution(
-                    agent_name=current_agent.name,
-                    context=current_agent.context.copy(),
+                    agent_name=agent_manager.current_agent.name,
+                    context=agent_manager.current_agent.context.copy(),
                     request=HumanMessage(content=format_user_input),
                     llm=create_deepseek_llm(),
                 )
@@ -280,8 +228,8 @@ async def main() -> None:
 
                 # RAG 的工作流
                 rag_response = await handle_rag_workflow_execution(
-                    agent_name=current_agent.name,
-                    context=current_agent.context.copy(),
+                    agent_name=agent_manager.current_agent.name,
+                    context=agent_manager.current_agent.context.copy(),
                     request=HumanMessage(content=rag_content),
                     llm=create_deepseek_llm(),
                     document_retriever=GameDocumentRetriever(),
@@ -303,13 +251,7 @@ async def main() -> None:
                 # 调用游戏指令处理器
                 await handle_game_command(
                     command=command,
-                    # 游戏上下文
-                    current_agent=current_agent,
-                    all_agents=all_agents,
-                    world_agent=world_agent,
-                    stage_agents=stage_agents,
-                    actor_agents=actor_agents,
-                    # mcp 上下文
+                    agent_manager=agent_manager,
                     mcp_client=mcp_client,
                 )
                 continue
