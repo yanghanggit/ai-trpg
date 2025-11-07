@@ -164,25 +164,25 @@ async def get_actor_info(actor_name: str) -> str:
 
 
 @app.tool()
-async def sync_stage_state(
+async def update_stage_execution_result(
     stage_name: str,
+    calculation_log: str,
     narrative: str,
     actor_states: str,
     environment: str,
-    calculation_log: str,
 ) -> str:
     """
-    更新场景的动态状态信息
+    保存场景执行结果
 
-    将场景的叙事、角色状态和环境描述更新为最新内容。
-    用于在场景执行后保存场景的当前状态。
+    将场景执行后的计算日志、叙事描述、角色状态和环境变化保存到游戏世界。
+    这个工具用于持久化场景执行的完整结果。
 
     Args:
         stage_name: 场景名称
+        calculation_log: 战斗计算或互动过程的日志记录
         narrative: 场景叙事描述
         actor_states: 角色状态字符串（格式：**角色名**: 位置 | 姿态 | 状态）
         environment: 环境描述
-        calculation_log: 战斗计算或互动过程的日志记录
 
     Returns:
         更新操作的结果（JSON格式）
