@@ -1,5 +1,5 @@
 from typing import Final
-from .models import Actor, Stage, World
+from .models import Actor, Stage, World, Effect
 
 
 # ============================================================================
@@ -13,7 +13,9 @@ GLOBAL_GAME_MECHANICS: Final[
 
 2. **世界结构**：World 包含 Stage，Stage 包含 Actor 和子 Stage。Actor 必须位于 Stage 中，只能与同一 Stage 的 Actor 直接互动。
 
-3. **沉浸叙事**：你知晓所有规则，但禁止使用"根据游戏规则"、"按照设定"等元游戏语言。规则应通过角色行为和故事自然呈现，始终保持角色视角。"""
+3. **沉浸叙事**：你知晓所有规则，但禁止使用"根据游戏规则"、"按照设定"等元游戏语言。规则应通过角色行为和故事自然呈现，始终保持角色视角。
+
+4. **效果系统**：Actor 可以拥有多个 Effect（效果），每个 Effect 包含名称和描述。效果可以是增益、减益、状态标记、持续伤害、持续治疗等，影响角色的能力和行为。在叙事中应自然体现效果的影响，而非直接说明效果名称。"""
 
 
 def gen_world_system_message(world: World, global_game_mechanics: str) -> str:

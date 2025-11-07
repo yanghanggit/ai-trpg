@@ -21,7 +21,9 @@ from workflow_handlers import handle_chat_workflow_execution
 ########################################################################################################################
 ########################################################################################################################
 ########################################################################################################################
-def _gen_compressed_observe_and_plan_prompt(actor_name: str) -> str:
+def _gen_compressed_observe_and_plan_prompt(
+    actor_name: str, original_message: str
+) -> str:
     """创建压缩版本的观察与规划提示词，用于保存到历史记录
 
     这个压缩版本保留了提示词的结构框架（标题和输出格式要求），
@@ -29,13 +31,16 @@ def _gen_compressed_observe_and_plan_prompt(actor_name: str) -> str:
 
     Args:
         actor_name: 角色名称
+        original_message: 原始的完整提示词内容
 
     Returns:
         压缩后的提示词字符串
     """
-    return f"""# {actor_name} 角色观察与行动规划
+    compressed_message = f"""# {actor_name} 角色观察与行动规划
 
 你观察了当前场景，并基于角色设定与自身状态。规划了行动！"""
+    logger.debug(f"{original_message}=>\n{compressed_message}")
+    return compressed_message
 
 
 ########################################################################################################################
@@ -303,7 +308,9 @@ async def _handle_single_actor_observe_and_plan(
         # 更新角色代理的对话历史
         actor_agent.context.append(
             HumanMessage(
-                content=_gen_compressed_observe_and_plan_prompt(actor_agent.name)
+                content=_gen_compressed_observe_and_plan_prompt(
+                    actor_agent.name, observe_and_plan_prompt
+                )
             )
         )
 

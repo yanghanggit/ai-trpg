@@ -354,7 +354,7 @@ async def add_actor_effect(
 
 
 @app.tool()
-async def remove_actor_effects(actor_name: str, effect_name: str) -> str:
+async def remove_actor_effect(actor_name: str, effect_name: str) -> str:
     """
     移除指定Actor身上所有匹配指定名称的效果/状态
 

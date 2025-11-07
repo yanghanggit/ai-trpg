@@ -19,9 +19,11 @@ from workflow_handlers import (
 from ai_trpg.utils.json_format import strip_json_code_block
 
 
-def _gen_compressed_stage_execute_prompt(stage_name: str) -> str:
-
-    return f"""# {stage_name} 场景发生事件！请生成事件内容！"""
+#
+def _gen_compressed_stage_execute_prompt(stage_name: str, original_message: str) -> str:
+    compressed_message = f"""# {stage_name} 场景发生事件！请生成事件内容！"""
+    logger.debug(f"{original_message}=>\n{compressed_message}")
+    return compressed_message
 
 
 ########################################################################################################################
@@ -321,7 +323,11 @@ async def handle_orchestrate_actor_plans_and_update_stage(
 
         # 步骤2: 更新场景代理的对话历史（压缩提示词）
         stage_agent.context.append(
-            HumanMessage(content=_gen_compressed_stage_execute_prompt(stage_agent.name))
+            HumanMessage(
+                content=_gen_compressed_stage_execute_prompt(
+                    stage_agent.name, step1_2_instruction
+                )
+            )
         )
 
         # 步骤3: 记录场景执行结果到场景代理的对话历史

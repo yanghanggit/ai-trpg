@@ -142,3 +142,21 @@ async def handle_game_command(
             #     mcp_client=mcp_client,
             #     use_concurrency=True,
             # )
+
+        # /game pipeline:test2 - 测试流水线2: 开局→所有角色自我更新
+        # 注意: 假设第0帧 已通过初始化注入stage_agent
+        case "pipeline:test2":
+
+            # 步骤0: 所有角色开始行动（Kickoff）
+            await handle_all_kickoff(
+                stage_agent=stage_agents[0],
+                actor_agents=actor_agents,
+                mcp_client=mcp_client,
+            )
+
+            # 步骤1: 所有角色进行状态更新
+            await handle_all_actors_self_update(
+                actor_agents=actor_agents,
+                mcp_client=mcp_client,
+                use_concurrency=True,
+            )
