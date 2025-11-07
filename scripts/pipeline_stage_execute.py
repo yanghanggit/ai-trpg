@@ -66,7 +66,7 @@ class StageExecutionSummary(BaseModel):
     """
 
     summary: str  # 场景执行的简短总结（一句话）
-    tools_executed: List[str]  # 已执行的工具名称列表
+    # tools_executed: List[str]  # 已执行的工具名称列表
 
 
 ########################################################################################################################
@@ -274,8 +274,7 @@ async def handle_actor_plans_and_update_stage(
 
 ```json
 {
-  "summary": "场景执行的简短总结（一句话）",
-  "tools_executed": ["工具名称1", "工具名称2", "工具名称3"]
+  "summary": "场景执行的简短总结（一句话）"
 }
 ```"""
     )
