@@ -36,10 +36,8 @@ def _gen_compressed_observe_and_plan_prompt(
     Returns:
         压缩后的提示词字符串
     """
-    compressed_message = f"""# {actor_name} 角色观察与行动规划
-
-你观察了当前场景，并基于角色设定与自身状态。规划了行动！"""
-    logger.debug(f"{original_message}=>\n{compressed_message}")
+    compressed_message = f"""# 指令！你（{actor_name}）开始观察，然后思考并规划行动！"""
+    # logger.debug(f"{original_message}=>\n{compressed_message}")
     return compressed_message
 
 

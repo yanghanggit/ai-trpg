@@ -12,8 +12,10 @@ from agent_utils import GameAgent
 
 # 导入拆分后的流水线模块
 from pipeline_kickoff import handle_all_kickoff
-from pipeline_observe_and_plan import handle_all_actors_observe_and_plan
-from pipeline_execute_stage import handle_orchestrate_actor_plans_and_update_stage
+from pipeline_actor_observe_and_plan import handle_all_actors_observe_and_plan
+from pipeline_stage_execute import (
+    handle_orchestrate_actor_plans_and_update_stage,
+)
 from pipeline_actor_self_update import handle_all_actors_self_update
 
 
@@ -137,11 +139,11 @@ async def handle_game_command(
             )
 
             # 步骤3: 所有角色进行状态更新
-            # await handle_all_actors_self_update(
-            #     actor_agents=actor_agents,
-            #     mcp_client=mcp_client,
-            #     use_concurrency=True,
-            # )
+            await handle_all_actors_self_update(
+                actor_agents=actor_agents,
+                mcp_client=mcp_client,
+                use_concurrency=True,
+            )
 
         # /game pipeline:test2 - 测试流水线2: 开局→所有角色自我更新
         # 注意: 假设第0帧 已通过初始化注入stage_agent

@@ -21,8 +21,8 @@ from ai_trpg.utils.json_format import strip_json_code_block
 
 #
 def _gen_compressed_stage_execute_prompt(stage_name: str, original_message: str) -> str:
-    compressed_message = f"""# {stage_name} 场景发生事件！请生成事件内容！"""
-    logger.debug(f"{original_message}=>\n{compressed_message}")
+    compressed_message = f"""# 指令！你（{stage_name}）场景发生事件！请输出事件内容！"""
+    # logger.debug(f"{original_message}=>\n{compressed_message}")
     return compressed_message
 
 
@@ -204,7 +204,7 @@ async def handle_orchestrate_actor_plans_and_update_stage(
         return
 
     # 构建行动执行提示词（MCP Workflow 版本 - 专注于分析和工具调用）
-    step1_2_instruction = f"""# {stage_agent.name} 场景行动执行与状态更新
+    step1_2_instruction = f"""# 指令！你（{stage_agent.name}）场景行动执行与使用工具同步状态
 
 ## 📊 输入数据
 
@@ -264,14 +264,7 @@ async def handle_orchestrate_actor_plans_and_update_stage(
 
     # 构建二次推理指令（独立的输出约束 - 不依赖主提示词结构）
     step3_instruction = HumanMessage(
-        content="""# 请输出工具调用总结
-
-**工具调用完成 → 输出JSON总结**
-
-## ⚠️ 约束条件
-
-- **禁止再次调用工具** - 所有工具已执行完成
-- **禁止输出工具调用格式** - 不要生成 {"tool_call": ...} 这样的JSON结构
+        content="""# 指令！请输出工具调用总结
 
 ## ✅ 响应要求
 
@@ -296,18 +289,22 @@ async def handle_orchestrate_actor_plans_and_update_stage(
     )
 
     assert len(stage_execution_response) > 0, "场景执行响应为空"
+    if len(stage_execution_response) < 2:
+        logger.error("必须是2条消息，1次工具调用，2次总结输出，否则就不要进行了！")
+        return
 
     try:
 
-        formattted_response = StageExecutionSummary.model_validate_json(
+        # 必须2次总结输出的格式是合理的 StageExecutionSummary
+        stage_execution_summary = StageExecutionSummary.model_validate_json(
             strip_json_code_block(str(stage_execution_response[-1].content))
         )
 
         logger.debug(
-            f"✅ 场景执行结果解析成功: {formattted_response.model_dump_json(indent=2)}"
+            f"✅ 场景执行结果解析成功: {stage_execution_summary.model_dump_json(indent=2)}"
         )
 
-        # 步骤1: 从 MCP 资源重新读取 stage 数据以获取最新的 narrative
+        # TODO 步骤1: 从 MCP 资源重新读取 stage 数据以获取最新的 narrative
         stage_resource_response_updated = await mcp_client.read_resource(
             stage_resource_uri
         )
@@ -331,16 +328,22 @@ async def handle_orchestrate_actor_plans_and_update_stage(
         )
 
         # 步骤3: 记录场景执行结果到场景代理的对话历史
-        stage_agent.context.append(AIMessage(content=narrative))
+        stage_agent.context.append(
+            AIMessage(
+                content=f"""# 我（{stage_agent.name}） 场景内发生事件（执行结果）如下 \n\n {narrative}"""
+            )
+        )
         logger.debug(f"✅ 场景 {stage_agent.name} 执行结果 = \n{narrative}")
         stage_agent.context.append(
-            HumanMessage(content="**注意**！场景已更新，请在下轮执行中考虑这些变化。")
+            HumanMessage(
+                content=f"**注意**！你（{stage_agent.name}），场景信息已更新，请在下轮执行中考虑这些变化。"
+            )
         )
 
         # 步骤4: 通知所有角色代理场景执行结果
         for actor_agent in actor_agents:
 
-            notify_prompt = f"""# {stage_agent.name} 场景发生事件：
+            scene_event_notification = f"""# 通知！{stage_agent.name} 场景发生事件：
 
 ## 叙事
 
@@ -349,9 +352,9 @@ async def handle_orchestrate_actor_plans_and_update_stage(
 以上事件已发生并改变了场景状态，这将直接影响你的下一步观察与规划。"""
 
             # 更新角色代理的对话历史
-            actor_agent.context.append(HumanMessage(content=notify_prompt))
+            actor_agent.context.append(HumanMessage(content=scene_event_notification))
             logger.debug(
-                f"✅ 角色 {actor_agent.name} 收到场景执行结果通知 = \n{notify_prompt}"
+                f"✅ 角色 {actor_agent.name} 收到场景执行结果通知 = \n{scene_event_notification}"
             )
 
     except Exception as e:

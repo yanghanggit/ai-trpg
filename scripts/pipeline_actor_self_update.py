@@ -91,7 +91,9 @@ def _gen_self_update_request_prompt(actor_name: str, actor_info: Dict[str, Any])
 
 ### 情况C - 无需更新
 
-输出: **"无需更新外观与Effect"**"""
+**仅输出以下文本（不要添加任何解释或额外内容）**：
+
+无需更新外观与Effect"""
 
 
 ########################################################################################################################
@@ -118,6 +120,72 @@ def _gen_self_update_confirmation_instruction() -> str:
 
 - `appearance`: 是否更新了外观
 - `effects`: 新添加的 Effect 名称列表"""
+
+
+########################################################################################################################
+########################################################################################################################
+########################################################################################################################
+def _gen_self_update_request_prompt_test(
+    actor_name: str, actor_info: Dict[str, Any]
+) -> str:
+    """
+    生成角色自我状态更新请求提示词（测试版本 - 强制更新）
+
+    **测试用途**: 强制要求 LLM 必须更新外观和添加至少一个 Effect。
+    """
+
+    # 提取角色属性信息
+    attributes = actor_info.get("attributes", {})
+    health = attributes.get("health", 0)
+    max_health = attributes.get("max_health", 0)
+    attack = attributes.get("attack", 0)
+
+    # 提取角色效果信息
+    effects = actor_info.get("effects", [])
+    effects_text = ""
+    if effects:
+        effects_list = []
+        for effect in effects:
+            effect_name = effect.get("name", "")
+            effect_desc = effect.get("description", "")
+            effects_list.append(f"- **{effect_name}**: {effect_desc}")
+        effects_text = "\n".join(effects_list)
+    else:
+        effects_text = "无"
+
+    return f"""# 指令！你({actor_name}) 外观和Effect更新（测试模式）
+
+## 📋 当前状态
+
+**属性**: 生命值 {health}/{max_health} | 攻击力 {attack}
+
+**Effect**: {effects_text}
+
+---
+
+## 🎯 任务（必须执行）
+
+基于场景事件，**必须完成以下两项更新**：
+1. **更新外观描述**（受伤、环境影响、装备变化等） - **必须调用一次**
+2. **添加新的 Effect**（伤势、增益、减益、心理状态等） - **至少添加一个**
+
+💡 **参考依据**：当前生命值 {health}/{max_health}、场景描述、角色行为
+
+---
+
+## 🔄 执行方式（按顺序执行）
+
+### 步骤1 - 更新外观（必须）
+
+使用可用工具更新角色的外观描述（生成完整描述，80-120字）
+
+### 步骤2 - 添加 Effect（必须）
+
+使用可用工具为角色添加至少一个 Effect（名称2-6字，描述20-40字，每个独立添加）
+
+---
+
+⚠️ **测试模式说明**：本提示词用于测试，必须执行所有更新操作，不可跳过。"""
 
 
 ########################################################################################################################
@@ -154,6 +222,9 @@ async def _handle_single_actor_self_update(
 
     # 步骤1-2: 分析与工具调用
     step1_2_instruction = _gen_self_update_request_prompt(actor_agent.name, actor_info)
+    # step1_2_instruction = _gen_self_update_request_prompt_test(
+    #     actor_agent.name, actor_info
+    # )
 
     # 步骤3: 二次推理输出确认（独立指令）
     step3_instruction = HumanMessage(
@@ -184,8 +255,17 @@ async def _handle_single_actor_self_update(
         # C. LLM 输出非预期内容（异常）
         first_response_content = str(self_update_response[0].content).strip()
 
-        # 精确匹配指定文本
-        if first_response_content == "无需更新外观与Effect":
+        # 移除可能的 Markdown 格式（如 **文本**）并清理空白
+        cleaned_content = (
+            first_response_content.replace("**", "")
+            .replace("*", "")
+            .strip()
+            .split("\n")[0]
+            .strip()
+        )
+
+        # 精确匹配指定文本（支持带/不带 Markdown 格式）
+        if cleaned_content == "无需更新外观与Effect":
             logger.info(f"✅ 角色 {actor_agent.name} 无需更新（明确声明）")
         elif "tool_call" in first_response_content.lower():
             logger.warning(
@@ -239,6 +319,7 @@ async def _handle_single_actor_self_update(
 ########################################################################################################################
 async def _update_actor_death_status(
     actor_agent: GameAgent,
+    actor_agents: List[GameAgent],
     mcp_client: McpClient,
 ) -> None:
     """检查单个角色是否死亡
@@ -261,11 +342,22 @@ async def _update_actor_death_status(
     health = attributes.get("health", 0)
 
     if health <= 0:
+
+        # 角色死亡处理
         actor_agent.is_dead = True
         logger.warning(f"💀 角色 {actor_agent.name} 已死亡！")
+
+        # 通知自己
         actor_agent.context.append(
-            HumanMessage(content=f"# 你（{actor_agent.name}）已经死亡！")
+            HumanMessage(content=f"# 通知！你（{actor_agent.name}）已经死亡！")
         )
+
+        # 通知其他角色
+        for other_agent in actor_agents:
+            if other_agent.name != actor_agent.name:
+                other_agent.context.append(
+                    HumanMessage(content=f"# 通知！角色 {actor_agent.name} 已经死亡！")
+                )
 
     else:
         actor_agent.is_dead = False
@@ -303,6 +395,7 @@ async def handle_all_actors_self_update(
         tasks2 = [
             _update_actor_death_status(
                 actor_agent=actor_agent,
+                actor_agents=actor_agents,
                 mcp_client=mcp_client,
             )
             for actor_agent in actor_agents
@@ -319,6 +412,7 @@ async def handle_all_actors_self_update(
             )
             await _update_actor_death_status(
                 actor_agent=actor_agent,
+                actor_agents=actor_agents,
                 mcp_client=mcp_client,
             )
 
