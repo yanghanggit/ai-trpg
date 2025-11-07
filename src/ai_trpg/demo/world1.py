@@ -1,6 +1,7 @@
 from typing import List, Final
 from .models import Actor, Stage, World, Effect
 import copy
+from langchain.schema import HumanMessage, AIMessage, BaseMessage
 
 # ============================================================================
 # 游戏世界实例
@@ -92,6 +93,32 @@ test_knowledge_base1: Final[dict[str, List[str]]] = {
         "墓地中央的天使雕像并非装饰，而是一个机关。当血月达到最高点时，雕像会旋转打开，露出通往古老祭坛的暗道。只有持有教会钥匙的人才能激活这个机关。",
         "加斯科因神父的妻子维奥拉曾是一名普通的雅南市民，她在兽疫爆发前就已预见灾难，并留下了一个音乐盒。这个音乐盒能唤起加斯科因残存的人性记忆，暂时压制他体内的兽性。",
         "艾琳的慈悲之刃是由陨铁锻造，刀身铭刻着已故猎人的真名。传说每杀死一个堕落的猎人，刀刃上就会浮现新的名字，这是乌鸦猎人代代相传的诅咒与荣耀。",
+    ],
+}
+
+# ============================================================================
+# 角色初始化对话
+# ============================================================================
+KICKOFF_MESSAGES: Final[str] = """# 游戏开始！你是谁？你在哪里？你的目标是什么？"""
+
+actor_initial_contexts1: Final[dict[str, List[BaseMessage]]] = {
+    "艾琳": [
+        HumanMessage(content=KICKOFF_MESSAGES),
+        AIMessage(
+            content="我是艾琳。我在 奥顿教堂墓地。我的目标是 狩猎 加斯科因！因为斯科因已经兽化，所以必须消灭他。我决定要马上出手一击必杀！"
+        ),
+    ],
+    "加斯科因": [
+        HumanMessage(content=KICKOFF_MESSAGES),
+        AIMessage(
+            content="我是加斯科因。我在 奥顿教堂墓地。我的目标是 杀死任何闯入者！毫不犹豫，直接发起攻击！"
+        ),
+    ],
+    "外乡人": [
+        HumanMessage(content=KICKOFF_MESSAGES),
+        AIMessage(
+            content="我是外乡人。我在 奥顿教堂墓地。我的目标是 探索这里的秘密并自保，尽量回避危险，必要时可以反击！"
+        ),
     ],
 }
 

@@ -42,6 +42,7 @@ from ai_trpg.demo import (
     gen_actor_system_message,
     gen_stage_system_message,
     clone_test_world1,
+    actor_initial_contexts1,
 )
 
 from ai_trpg.utils import parse_command_with_params
@@ -124,40 +125,12 @@ for stage in all_stages:
 all_agents: List[GameAgent] = [world_agent] + actor_agents + stage_agents
 
 
-kickoff_messages = """# 游戏开始！你是谁？你在哪里？你的目标是什么？"""
-
-
 for agent in all_agents:
     logger.info(f"已创建代理: {agent.name}")
 
-    if agent.name == "艾琳":
-        agent.context.extend(
-            [
-                HumanMessage(content=kickoff_messages),
-                AIMessage(
-                    content="我是艾琳。我在 奥顿教堂墓地。我的目标是 狩猎 加斯科因！因为斯科因已经兽化，所以必须消灭他。我决定要马上出手一击必杀！"
-                ),
-            ]
-        )
-
-    elif agent.name == "加斯科因":
-        agent.context.extend(
-            [
-                HumanMessage(content=kickoff_messages),
-                AIMessage(
-                    content="我是加斯科因。我在 奥顿教堂墓地。我的目标是 杀死任何闯入者！毫不犹豫，直接攻击他们。"
-                ),
-            ]
-        )
-    elif agent.name == "外乡人":
-        agent.context.extend(
-            [
-                HumanMessage(content=kickoff_messages),
-                AIMessage(
-                    content="我是外乡人。我在 奥顿教堂墓地。我的目标是 探索这里的秘密并自保，尽量回避危险，必要时可以反击！"
-                ),
-            ]
-        )
+    # 如果该代理在初始化对话字典中，则扩展其上下文
+    if agent.name in actor_initial_contexts1:
+        agent.context.extend(actor_initial_contexts1[agent.name])
 
 
 # ============================================================================
