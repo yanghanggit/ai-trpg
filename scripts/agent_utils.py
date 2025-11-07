@@ -28,6 +28,34 @@ class GameAgent(BaseModel):
     is_dead: bool = False  # 代理是否已死亡
 
 
+class WorldAgent(GameAgent):
+    """世界代理
+
+    代表整个游戏世界的代理，负责世界观、全局规则和世界状态的管理。
+    """
+
+    pass
+
+
+class ActorAgent(GameAgent):
+    """角色代理
+
+    代表游戏中的单个角色，负责角色的行为、对话和状态管理。
+    """
+
+    pass
+
+
+class StageAgent(GameAgent):
+    """场景代理
+
+    代表游戏中的场景，负责场景内的环境、事件和角色交互管理。
+    包含该场景中的所有角色代理列表。
+    """
+
+    actor_agents: List[ActorAgent] = []  # 该场景中的角色代理列表
+
+
 class GameAgentManager:
     """游戏代理管理器
 
@@ -37,9 +65,8 @@ class GameAgentManager:
 
     def __init__(self) -> None:
         """初始化代理管理器"""
-        self._world_agent: Optional[GameAgent] = None
-        self._actor_agents: List[GameAgent] = []
-        self._stage_agents: List[GameAgent] = []
+        self._world_agent: Optional[WorldAgent] = None
+        self._stage_agents: List[StageAgent] = []
         self._current_agent: Optional[GameAgent] = None
 
     def create_agents_from_world(
@@ -52,7 +79,7 @@ class GameAgentManager:
         logger.info("🏗️ 开始创建游戏代理...")
 
         # 创建世界观代理
-        self._world_agent = GameAgent(
+        self._world_agent = WorldAgent(
             name=world.name,
             context=[
                 SystemMessage(
@@ -69,26 +96,11 @@ class GameAgentManager:
         all_stages = world.get_all_stages()
         logger.info(f"游戏世界中的所有场景: {[stage.name for stage in all_stages]}")
 
-        # 创建每个角色的代理
-        self._actor_agents = []
-        for actor in all_actors:
-            agent = GameAgent(
-                name=actor.name,
-                context=[
-                    SystemMessage(
-                        content=gen_actor_system_message(
-                            actor, world, global_game_mechanics
-                        )
-                    )
-                ],
-            )
-            self._actor_agents.append(agent)
-            logger.info(f"已创建角色代理: {agent.name}")
-
-        # 创建每个场景的代理
+        # 创建每个场景的代理，并同时创建场景中的角色代理
         self._stage_agents = []
         for stage in all_stages:
-            agent = GameAgent(
+            # 创建场景代理
+            stage_agent = StageAgent(
                 name=stage.name,
                 context=[
                     SystemMessage(
@@ -98,15 +110,39 @@ class GameAgentManager:
                     )
                 ],
             )
-            self._stage_agents.append(agent)
-            logger.info(f"已创建场景代理: {agent.name}")
+
+            # 为该场景中的每个角色创建代理
+            for actor in stage.actors:
+                actor_agent = ActorAgent(
+                    name=actor.name,
+                    context=[
+                        SystemMessage(
+                            content=gen_actor_system_message(
+                                actor, world, global_game_mechanics
+                            )
+                        )
+                    ],
+                )
+                # 将角色代理添加到场景代理的列表中
+                stage_agent.actor_agents.append(actor_agent)
+                logger.info(
+                    f"已创建角色代理: {actor_agent.name} (所属场景: {stage_agent.name})"
+                )
+
+            self._stage_agents.append(stage_agent)
+            logger.info(
+                f"已创建场景代理: {stage_agent.name} (包含 {len(stage_agent.actor_agents)} 个角色)"
+            )
 
         # 应用初始对话上下文
         if actor_initial_contexts:
-            for agent in self._actor_agents:
-                if agent.name in actor_initial_contexts:
-                    agent.context.extend(actor_initial_contexts[agent.name])
-                    logger.debug(f"已为代理 {agent.name} 应用初始对话上下文")
+            for stage_agent in self._stage_agents:
+                for actor_agent in stage_agent.actor_agents:
+                    if actor_agent.name in actor_initial_contexts:
+                        actor_agent.context.extend(
+                            actor_initial_contexts[actor_agent.name]
+                        )
+                        logger.debug(f"已为代理 {actor_agent.name} 应用初始对话上下文")
 
         # 默认激活世界观代理
         self._current_agent = self._world_agent
@@ -115,27 +151,30 @@ class GameAgentManager:
         logger.success("✅ 所有游戏代理创建完成")
 
     @property
-    def world_agent(self) -> Optional[GameAgent]:
+    def world_agent(self) -> Optional[WorldAgent]:
         """获取世界观代理"""
         return self._world_agent
 
     @property
-    def actor_agents(self) -> List[GameAgent]:
-        """获取所有角色代理"""
-        return self._actor_agents
+    def actor_agents(self) -> List[ActorAgent]:
+        """获取所有角色代理（从所有场景中提取）"""
+        all_actor_agents: List[ActorAgent] = []
+        for stage_agent in self._stage_agents:
+            all_actor_agents.extend(stage_agent.actor_agents)
+        return all_actor_agents
 
     @property
-    def stage_agents(self) -> List[GameAgent]:
+    def stage_agents(self) -> List[StageAgent]:
         """获取所有场景代理"""
         return self._stage_agents
 
     @property
     def all_agents(self) -> List[GameAgent]:
         """获取所有代理"""
-        agents = []
+        agents: List[GameAgent] = []
         if self._world_agent:
             agents.append(self._world_agent)
-        agents.extend(self._actor_agents)
+        agents.extend(self.actor_agents)  # 使用属性而不是私有变量
         agents.extend(self._stage_agents)
         return agents
 

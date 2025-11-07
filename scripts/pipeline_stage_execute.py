@@ -12,7 +12,7 @@ from pydantic import BaseModel
 from langchain.schema import HumanMessage, AIMessage
 from ai_trpg.deepseek import create_deepseek_llm
 from ai_trpg.mcp import McpClient
-from agent_utils import GameAgent
+from agent_utils import StageAgent, ActorAgent
 from workflow_handlers import (
     handle_mcp_workflow_execution,
 )
@@ -73,7 +73,7 @@ class StageExecutionSummary(BaseModel):
 ########################################################################################################################
 ########################################################################################################################
 async def _build_actor_plan_prompt(
-    actor_agent: GameAgent, mcp_client: McpClient
+    actor_agent: ActorAgent, mcp_client: McpClient
 ) -> str:
     """构建角色计划提示词（优化版）
 
@@ -143,7 +143,7 @@ async def _build_actor_plan_prompt(
 ########################################################################################################################
 ########################################################################################################################
 async def _collect_actor_plan_prompts(
-    actor_agents: List[GameAgent], mcp_client: McpClient
+    actor_agents: List[ActorAgent], mcp_client: McpClient
 ) -> List[str]:
     """收集所有角色的行动计划
 
@@ -171,8 +171,8 @@ async def _collect_actor_plan_prompts(
 ########################################################################################################################
 ########################################################################################################################
 async def handle_orchestrate_actor_plans_and_update_stage(
-    stage_agent: GameAgent,
-    actor_agents: List[GameAgent],
+    stage_agent: StageAgent,
+    actor_agents: List[ActorAgent],
     mcp_client: McpClient,
 ) -> None:
     """处理场景执行指令

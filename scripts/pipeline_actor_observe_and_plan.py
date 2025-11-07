@@ -14,7 +14,7 @@ from langchain.schema import HumanMessage, AIMessage
 from ai_trpg.deepseek import create_deepseek_llm
 from ai_trpg.mcp import McpClient
 from ai_trpg.utils.json_format import strip_json_code_block
-from agent_utils import GameAgent
+from agent_utils import StageAgent, ActorAgent
 from workflow_handlers import handle_chat_workflow_execution
 
 
@@ -168,8 +168,8 @@ def _format_other_actors_appearance(
 ########################################################################################################################
 ########################################################################################################################
 async def _handle_single_actor_observe_and_plan(
-    stage_agent: GameAgent,
-    actor_agent: GameAgent,
+    stage_agent: StageAgent,
+    actor_agent: ActorAgent,
     mcp_client: McpClient,
 ) -> None:
     """处理单个角色的观察和行动规划
@@ -330,8 +330,8 @@ async def _handle_single_actor_observe_and_plan(
 ########################################################################################################################
 ########################################################################################################################
 async def handle_all_actors_observe_and_plan(
-    stage_agent: GameAgent,
-    actor_agents: List[GameAgent],
+    stage_agent: StageAgent,
+    actor_agents: List[ActorAgent],
     mcp_client: McpClient,
     use_concurrency: bool = False,
 ) -> None:

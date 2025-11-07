@@ -10,15 +10,15 @@ from typing import List
 from loguru import logger
 from langchain.schema import HumanMessage
 from ai_trpg.mcp import McpClient
-from agent_utils import GameAgent
+from agent_utils import StageAgent, ActorAgent
 
 
 ########################################################################################################################
 ########################################################################################################################
 ########################################################################################################################
 async def handle_all_kickoff(
-    stage_agent: GameAgent,
-    actor_agents: List[GameAgent],
+    stage_agent: StageAgent,
+    actor_agents: List[ActorAgent],
     mcp_client: McpClient,
 ) -> None:
     """处理所有代理的开局初始化

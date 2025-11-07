@@ -13,7 +13,7 @@ from pydantic import BaseModel
 from langchain.schema import HumanMessage
 from ai_trpg.deepseek import create_deepseek_llm
 from ai_trpg.mcp import McpClient
-from agent_utils import GameAgent
+from agent_utils import ActorAgent
 from workflow_handlers import handle_mcp_workflow_execution
 from ai_trpg.utils.json_format import strip_json_code_block
 
@@ -192,7 +192,7 @@ def _gen_self_update_request_prompt_test(
 ########################################################################################################################
 ########################################################################################################################
 async def _handle_single_actor_self_update(
-    actor_agent: GameAgent,
+    actor_agent: ActorAgent,
     mcp_client: McpClient,
 ) -> None:
     """处理单个角色的自我状态更新
@@ -318,8 +318,8 @@ async def _handle_single_actor_self_update(
 ########################################################################################################################
 ########################################################################################################################
 async def _update_actor_death_status(
-    actor_agent: GameAgent,
-    actor_agents: List[GameAgent],
+    actor_agent: ActorAgent,
+    all_actor_agents: List[ActorAgent],
     mcp_client: McpClient,
 ) -> None:
     """检查单个角色是否死亡
@@ -353,7 +353,7 @@ async def _update_actor_death_status(
         )
 
         # 通知其他角色
-        for other_agent in actor_agents:
+        for other_agent in all_actor_agents:
             if other_agent.name != actor_agent.name:
                 other_agent.context.append(
                     HumanMessage(content=f"# 通知！角色 {actor_agent.name} 已经死亡！")
@@ -368,7 +368,7 @@ async def _update_actor_death_status(
 ########################################################################################################################
 ########################################################################################################################
 async def handle_all_actors_self_update(
-    actor_agents: List[GameAgent],
+    actor_agents: List[ActorAgent],
     mcp_client: McpClient,
     use_concurrency: bool = False,
 ) -> None:
@@ -395,7 +395,7 @@ async def handle_all_actors_self_update(
         tasks2 = [
             _update_actor_death_status(
                 actor_agent=actor_agent,
-                actor_agents=actor_agents,
+                all_actor_agents=actor_agents,
                 mcp_client=mcp_client,
             )
             for actor_agent in actor_agents
@@ -412,7 +412,7 @@ async def handle_all_actors_self_update(
             )
             await _update_actor_death_status(
                 actor_agent=actor_agent,
-                actor_agents=actor_agents,
+                all_actor_agents=actor_agents,
                 mcp_client=mcp_client,
             )
 
