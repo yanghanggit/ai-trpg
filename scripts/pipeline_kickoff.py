@@ -66,7 +66,7 @@ async def handle_all_kickoff(
                 continue
             actor_agent.context.append(HumanMessage(content=kickoff_prompt))
             actor_agent.is_kicked_off = True
-            logger.debug(f"✅ 角色 {actor_agent.name} kickoff = \n{kickoff_prompt}")
+            logger.info(f"✅ 角色 {actor_agent.name} kickoff = \n{kickoff_prompt}")
 
     except Exception as e:
         logger.error(f"❌ 读取资源时发生错误: {e}")

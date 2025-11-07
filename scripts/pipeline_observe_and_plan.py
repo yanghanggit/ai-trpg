@@ -113,11 +113,11 @@ def _format_actor_info(actor_info_json: Dict[str, Any]) -> Dict[str, Any]:
     max_health = actor_attributes.get("max_health", 0)
     attack = actor_attributes.get("attack", 0)
 
-    # 格式化状态效果
+    # 格式化 Effect
     if actor_effects:
         effect_parts = []
         for effect in actor_effects:
-            effect_name = effect.get("name", "未知效果")
+            effect_name = effect.get("name", "未知Effect")
             effect_desc = effect.get("description", "")
             if effect_desc:
                 effect_parts.append(f"{effect_name}({effect_desc})")
@@ -219,7 +219,7 @@ async def _handle_single_actor_observe_and_plan(
     # 格式化其他角色的外观
     other_actors_str = _format_other_actors_appearance(stage_actors_appearance)
 
-    observe_and_plan_prompt = f"""# {actor_agent.name} 角色观察与行动规划
+    observe_and_plan_prompt = f"""# 指令！你（{actor_agent.name}）进行观察与规划行动
 
 ## 第一步: 你的角色信息 与 当前场景信息
 
@@ -227,7 +227,7 @@ async def _handle_single_actor_observe_and_plan(
 
 **{actor_info['name']}**
 - 战斗数据: 生命值 {actor_info['health']}/{actor_info['max_health']} | 攻击力 {actor_info['attack']}
-- 效果: {actor_info['effects_str']}
+- Effect: {actor_info['effects_str']}
 - 外观: {actor_info['appearance']}
 
 ### 当前场景信息
@@ -241,7 +241,6 @@ async def _handle_single_actor_observe_and_plan(
 {stage_actor_states}
 
 **场景中的其他角色**:
-
 {other_actors_str}
 
 ---

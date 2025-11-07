@@ -689,7 +689,7 @@ async def execute_mcp_workflow(
             #     logger.error("❌ 无可用响应，返回空列表")
 
             # 调试：打印完整消息链路
-            print_full_message_chain(last_state)
+            # print_full_message_chain(last_state)
 
         else:
             logger.error("❌ 未获取到最终状态")

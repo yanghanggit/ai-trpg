@@ -1,5 +1,5 @@
 from typing import Final
-from .models import Actor, Stage, World, Effect
+from .models import Actor, Stage, World
 
 
 # ============================================================================

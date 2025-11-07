@@ -82,7 +82,7 @@ async def _build_actor_plan_prompt(
 
     - 行动计划: xxx
     - 战斗数据: 生命值 X/Y | 攻击力 Z
-    - 效果: 效果1(描述), 效果2(描述) 或 无
+    - Effect: Effect1(描述), Effect2(描述) 或 无
     - 外观: xxx
     """
 
@@ -110,12 +110,12 @@ async def _build_actor_plan_prompt(
         max_health = attributes.get("max_health", 0)
         attack = attributes.get("attack", 0)
 
-        # 格式化效果（紧凑型，包含名称和描述）
+        # 格式化 Effect（紧凑型，包含名称和描述）
         if effects:
             # 每个effect是一个dict，包含name和description
             effect_parts = []
             for effect in effects:
-                effect_name = effect.get("name", "未知效果")
+                effect_name = effect.get("name", "未知Effect")
                 effect_desc = effect.get("description", "")
                 if effect_desc:
                     effect_parts.append(f"{effect_name}({effect_desc})")
@@ -130,7 +130,7 @@ async def _build_actor_plan_prompt(
 
 - 行动计划: {actor_agent.plan}
 - 战斗数据: 生命值 {health}/{max_health} | 攻击力 {attack}
-- 效果: {effects_str}
+- Effect: {effects_str}
 - 外观: {appearance}"""
 
     except Exception as e:
@@ -235,7 +235,7 @@ async def handle_orchestrate_actor_plans_and_update_stage(
 按顺序完成以下4项分析（后续步骤依赖前置结果）：
 
 1. **计算结果**
-   - 战斗：伤害 = 攻击力 + 效果加成，新生命值 = 当前生命值 - 伤害（≤0则死亡）
+   - 战斗：伤害 = 攻击力 + Effect 加成，新生命值 = 当前生命值 - 伤害（≤0则死亡）
    - 互动：分析过程和结果
 
 2. **构建叙事**
@@ -258,7 +258,7 @@ async def handle_orchestrate_actor_plans_and_update_stage(
 
 1. **同步场景状态** - 保存计算日志、叙事、角色状态、环境描述
 2. **更新角色生命值** - 如计算日志中有生命值变化，为每个角色调用一次工具
-3. **移除已消耗效果** - 如计算日志中有效果消耗，为每个效果调用一次工具
+3. **移除已消耗 Effect** - 如计算日志中有 Effect 消耗，为每个 Effect 调用一次工具
 
 💡 查看可用工具列表和 docstring 了解使用方法。"""
 

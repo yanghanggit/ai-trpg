@@ -105,7 +105,7 @@ def _gen_self_update_confirmation_instruction() -> str:
 
     这是独立的二次推理指令，用于在工具调用完成后输出确认结果。
     """
-    return """# 输出确认结果
+    return """# 指令！输出确认结果
 
 工具已执行完成，请输出以下 JSON 格式：
 
