@@ -192,29 +192,66 @@ async def _handle_single_actor_self_update(
         re_invoke_instruction=step3_instruction,  # 传入步骤3的二次推理指令
     )
 
-    if len(self_update_response) == 0:
+    # 🎯 根据响应长度判断执行路径
+    response_count = len(self_update_response)
+
+    if response_count == 0:
         logger.error(f"❌ 角色 {actor_agent.name} 自我更新未收到回复")
         return
 
-    # 验证响应格式
-    try:
+    elif response_count == 1:
+        # 情况1: 只有第一次推理，可能是以下两种情况：
+        # A. LLM 判断无需更新（正常）
+        # B. LLM 尝试调用工具但工具流程失败（异常，但安全截断）
+        first_response_content = str(self_update_response[0].content)
+        
+        # 检测是否包含工具调用尝试（简单启发式判断）
+        has_tool_call_attempt = "tool_call" in first_response_content.lower()
+        
+        if has_tool_call_attempt:
+            logger.warning(
+                f"⚠️ 角色 {actor_agent.name} 工具调用流程中断 (安全截断)\n"
+                f"   可能原因: 工具解析失败/执行失败/网络错误\n"
+                f"   LLM 输出: {first_response_content[:150]}..."
+            )
+        else:
+            logger.info(
+                f"✅ 角色 {actor_agent.name} 无需更新状态 (LLM 判断)\n"
+                f"   LLM 输出: {first_response_content[:100]}..."
+            )
+        return
 
-        # 验证 JSON 格式
-        confirmation = ActorSelfUpdateConfirmation.model_validate_json(
-            strip_json_code_block(str(self_update_response[-1].content))
+    elif response_count == 2:
+        # 情况2: 完整流程 (第一次推理 + 工具调用 + 二次推理)
+        try:
+            # 验证二次推理的 JSON 格式
+            confirmation = ActorSelfUpdateConfirmation.model_validate_json(
+                strip_json_code_block(str(self_update_response[-1].content))
+            )
+
+            logger.success(
+                f"✅ 角色 {actor_agent.name} 状态更新完成\n"
+                f"   外观更新: {confirmation.appearance}\n"
+                f"   新增效果: {confirmation.effects}"
+            )
+
+            # 在这里注意，不要添加任何新的对话历史，所有的更新都在 MCP 工作流中完成！
+            logger.debug(
+                f"💡 角色 {actor_agent.name} 的所有更新已通过 MCP 工具持久化，对话历史未变更"
+            )
+
+        except Exception as e:
+            logger.error(
+                f"❌ 角色 {actor_agent.name} 二次推理 JSON 解析失败: {e}\n"
+                f"   响应内容: {self_update_response[-1].content}"
+            )
+
+    else:
+        # 情况3: 异常情况（不应该出现）
+        logger.error(
+            f"❌ 角色 {actor_agent.name} 响应数量异常: {response_count}\n"
+            f"   期望: 1 (无需更新) 或 2 (完整流程)，实际: {response_count}"
         )
-
-        logger.debug(
-            f"✅ 角色 {actor_agent.name}:\n {confirmation.model_dump_json(indent=2)}"
-        )
-
-        # 在这里注意，不要添加任何新的对话历史，所有的更新都在 MCP 工作流中完成！
-        logger.warning(
-            f"✅ 角色 {actor_agent.name} 自我状态更新完成, 注意对话历史未变更，所有更新在 MCP 工作流中完成"
-        )
-
-    except Exception as e:
-        logger.error(f"❌ 角色 {actor_agent.name} 更新确认解析失败: {e}")
 
 
 ########################################################################################################################
