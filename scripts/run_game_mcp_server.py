@@ -294,12 +294,12 @@ async def add_actor_effect(
     actor_name: str, effect_name: str, effect_description: str
 ) -> str:
     """
-    为指定Actor添加一个新的效果/状态
+    为指定Actor添加一个新的 Effect
 
     Args:
-        actor_name: 要添加效果的Actor名称
-        effect_name: 效果名称
-        effect_description: 效果描述
+        actor_name: 要添加 Effect 的Actor名称
+        effect_name: Effect 名称
+        effect_description: Effect 描述
 
     Returns:
         添加操作的结果信息（JSON格式）
@@ -356,14 +356,14 @@ async def add_actor_effect(
 @app.tool()
 async def remove_actor_effect(actor_name: str, effect_name: str) -> str:
     """
-    移除指定Actor身上所有匹配指定名称的效果/状态
+    移除指定Actor身上所有匹配指定名称的 Effect
 
     Args:
-        actor_name: 要移除效果的Actor名称
-        effect_name: 要移除的效果名称（所有匹配此名称的效果都会被移除）
+        actor_name: 要移除 Effect 的Actor名称
+        effect_name: 要移除的 Effect 名称（所有匹配此名称的 Effect 都会被移除）
 
     Returns:
-        移除操作的结果信息（JSON格式），包含移除的效果数量
+        移除操作的结果信息（JSON格式），包含移除的 Effect 数量
     """
     try:
         # 查找Actor
