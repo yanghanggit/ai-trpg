@@ -329,9 +329,9 @@ async def _handle_single_actor_observe_and_plan(
 ########################################################################################################################
 ########################################################################################################################
 ########################################################################################################################
-async def handle_all_actors_observe_and_plan(
+async def handle_actors_observe_and_plan(
     stage_agent: StageAgent,
-    actor_agents: List[ActorAgent],
+    # actor_agents: List[ActorAgent],
     mcp_client: McpClient,
     use_concurrency: bool = False,
 ) -> None:
@@ -350,11 +350,13 @@ async def handle_all_actors_observe_and_plan(
     """
 
     # 过滤出存活的角色，已死亡的角色不参与观察和规划
-    alive_actor_agents = [agent for agent in actor_agents if not agent.is_dead]
-    dead_actor_count = len(actor_agents) - len(alive_actor_agents)
+    alive_actor_agents = [
+        agent for agent in stage_agent.actor_agents if not agent.is_dead
+    ]
+    dead_actor_count = len(stage_agent.actor_agents) - len(alive_actor_agents)
 
     if dead_actor_count > 0:
-        dead_names = [agent.name for agent in actor_agents if agent.is_dead]
+        dead_names = [agent.name for agent in stage_agent.actor_agents if agent.is_dead]
         logger.info(f"💀 跳过 {dead_actor_count} 个已死亡角色: {', '.join(dead_names)}")
 
     if not alive_actor_agents:

@@ -170,9 +170,9 @@ async def _collect_actor_plan_prompts(
 ########################################################################################################################
 ########################################################################################################################
 ########################################################################################################################
-async def handle_orchestrate_actor_plans_and_update_stage(
+async def handle_actor_plans_and_update_stage(
     stage_agent: StageAgent,
-    actor_agents: List[ActorAgent],
+    # actor_agents: List[ActorAgent],
     mcp_client: McpClient,
 ) -> None:
     """处理场景执行指令
@@ -184,7 +184,7 @@ async def handle_orchestrate_actor_plans_and_update_stage(
         actor_agents: 角色代理列表
         mcp_client: MCP 客户端
     """
-    assert len(actor_agents) > 0, "没有可用的角色代理"
+    assert len(stage_agent.actor_agents) > 0, "没有可用的角色代理"
 
     logger.info(f"🎬 场景执行: {stage_agent.name}")
 
@@ -195,7 +195,9 @@ async def handle_orchestrate_actor_plans_and_update_stage(
         return
 
     # 收集所有角色的行动计划
-    actor_plans = await _collect_actor_plan_prompts(actor_agents, mcp_client)
+    actor_plans = await _collect_actor_plan_prompts(
+        stage_agent.actor_agents, mcp_client
+    )
 
     stage_info_json: Dict[str, Any] = json.loads(stage_resource_response.text)
 
@@ -341,7 +343,7 @@ async def handle_orchestrate_actor_plans_and_update_stage(
         )
 
         # 步骤4: 通知所有角色代理场景执行结果
-        for actor_agent in actor_agents:
+        for actor_agent in stage_agent.actor_agents:
 
             scene_event_notification = f"""# 通知！{stage_agent.name} 场景发生事件：
 

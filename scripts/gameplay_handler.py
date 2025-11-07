@@ -10,12 +10,12 @@ from ai_trpg.mcp import McpClient
 from agent_utils import GameAgentManager
 
 # 导入拆分后的流水线模块
-from pipeline_kickoff import handle_all_kickoff
-from pipeline_actor_observe_and_plan import handle_all_actors_observe_and_plan
+from pipeline_kickoff import handle_kickoff
+from pipeline_actor_observe_and_plan import handle_actors_observe_and_plan
 from pipeline_stage_execute import (
-    handle_orchestrate_actor_plans_and_update_stage,
+    handle_actor_plans_and_update_stage,
 )
-from pipeline_actor_self_update import handle_all_actors_self_update
+from pipeline_actor_self_update import handle_actors_self_update
 
 
 ########################################################################################################################
@@ -37,11 +37,9 @@ async def handle_game_command(
 
     # 从代理管理器获取代理列表
     stage_agents = agent_manager.stage_agents
-    actor_agents = agent_manager.actor_agents
-
     assert len(stage_agents) > 0, "没有可用的场景代理"
-    assert len(actor_agents) > 0, "没有可用的角色代理"
 
+    # 获取 MCP 可用工具列表
     available_tools = await mcp_client.list_tools()
     assert available_tools is not None, "获取 MCP 可用工具失败"
 
@@ -50,105 +48,107 @@ async def handle_game_command(
         # /game all:kickoff - 让所有的代理开始行动（Kickoff）
         case "all:kickoff":
 
-            await handle_all_kickoff(
-                stage_agent=stage_agents[0],
-                actor_agents=actor_agents,
-                mcp_client=mcp_client,
-            )
+            for stage_agent in stage_agents:
 
-        # /game all_actors:observe_and_plan - 让所有角色代理观察场景并规划行动
-        case "all_actors:observe_and_plan":
-            await handle_all_actors_observe_and_plan(
-                stage_agent=stage_agents[0],
-                actor_agents=actor_agents,
-                mcp_client=mcp_client,
-                use_concurrency=True,
-            )
+                await handle_kickoff(
+                    stage_agent=stage_agent,
+                    mcp_client=mcp_client,
+                )
 
-        # /game stage:orchestrate_actor_plans_and_update_stage - 让场景代理执行所有角色的行动计划
-        case "stage:orchestrate_actor_plans_and_update_stage":
+        # /game all:actors_observe_and_plan - 让所有角色代理观察场景并规划行动
+        case "all:actors_observe_and_plan":
 
-            await handle_orchestrate_actor_plans_and_update_stage(
-                stage_agent=stage_agents[0],
-                actor_agents=actor_agents,
-                mcp_client=mcp_client,
-            )
+            for stage_agent in stage_agents:
 
-        # /game all_actors:self_update - 让所有角色进行自我更新
-        case "all_actors:self_update":
+                await handle_actors_observe_and_plan(
+                    stage_agent=stage_agent,
+                    mcp_client=mcp_client,
+                    use_concurrency=True,
+                )
 
-            await handle_all_actors_self_update(
-                actor_agents=actor_agents,
-                mcp_client=mcp_client,
-                use_concurrency=True,
-            )
+        # /game all:actor_plans_and_update_stage - 让场景代理执行所有角色的行动计划
+        case "all:actor_plans_and_update_stage":
+
+            for stage_agent in stage_agents:
+                await handle_actor_plans_and_update_stage(
+                    stage_agent=stage_agent,
+                    mcp_client=mcp_client,
+                )
+
+        # /game all:actors_self_update - 让所有角色进行自我更新
+        case "all:actors_self_update":
+
+            for stage_agent in stage_agents:
+
+                await handle_actors_self_update(
+                    stage_agent=stage_agent,
+                    mcp_client=mcp_client,
+                    use_concurrency=True,
+                )
 
         # /game pipeline:test0 - 测试流水线0: 开局→观察规划
         case "pipeline:test0":
 
             # 步骤0: 所有角色开始行动（Kickoff）
-            await handle_all_kickoff(
-                stage_agent=stage_agents[0],
-                actor_agents=actor_agents,
-                mcp_client=mcp_client,
-            )
+            for stage_agent in stage_agents:
+                await handle_kickoff(
+                    stage_agent=stage_agent,
+                    mcp_client=mcp_client,
+                )
 
-            # 步骤1: 所有角色观察场景并规划行动
-            await handle_all_actors_observe_and_plan(
-                stage_agent=stage_agents[0],
-                actor_agents=actor_agents,
-                mcp_client=mcp_client,
-                use_concurrency=True,
-            )
+                # 步骤1: 所有角色观察场景并规划行动
+                await handle_actors_observe_and_plan(
+                    stage_agent=stage_agent,
+                    mcp_client=mcp_client,
+                    use_concurrency=True,
+                )
 
         # /game pipeline:test1 - 测试流水线1: 开局→观察规划→执行更新循环
         # 注意: 假设第0帧 已通过初始化注入stage_agent
         case "pipeline:test1":
 
             # 步骤0: 所有角色开始行动（Kickoff）
-            await handle_all_kickoff(
-                stage_agent=stage_agents[0],
-                actor_agents=actor_agents,
-                mcp_client=mcp_client,
-            )
+            for stage_agent in stage_agents:
+                await handle_kickoff(
+                    stage_agent=stage_agent,
+                    mcp_client=mcp_client,
+                )
 
-            # 步骤1: 所有角色观察场景并规划行动
-            await handle_all_actors_observe_and_plan(
-                stage_agent=stage_agents[0],
-                actor_agents=actor_agents,
-                mcp_client=mcp_client,
-                use_concurrency=True,
-            )
+                # 步骤1: 所有角色观察场景并规划行动
+                await handle_actors_observe_and_plan(
+                    stage_agent=stage_agent,
+                    mcp_client=mcp_client,
+                    use_concurrency=True,
+                )
 
-            # 步骤2: 场景执行计划并生成新的状态快照
-            # 输出的状态快照将成为下一轮的输入
-            await handle_orchestrate_actor_plans_and_update_stage(
-                stage_agent=stage_agents[0],
-                actor_agents=actor_agents,
-                mcp_client=mcp_client,
-            )
+                # 步骤2: 场景执行计划并生成新的状态快照
+                # 输出的状态快照将成为下一轮的输入
+                await handle_actor_plans_and_update_stage(
+                    stage_agent=stage_agent,
+                    mcp_client=mcp_client,
+                )
 
-            # 步骤3: 所有角色进行状态更新
-            await handle_all_actors_self_update(
-                actor_agents=actor_agents,
-                mcp_client=mcp_client,
-                use_concurrency=True,
-            )
+                # 步骤3: 所有角色进行状态更新
+                await handle_actors_self_update(
+                    stage_agent=stage_agent,
+                    mcp_client=mcp_client,
+                    use_concurrency=True,
+                )
 
         # /game pipeline:test2 - 测试流水线2: 开局→所有角色自我更新
         # 注意: 假设第0帧 已通过初始化注入stage_agent
         case "pipeline:test2":
 
             # 步骤0: 所有角色开始行动（Kickoff）
-            await handle_all_kickoff(
-                stage_agent=stage_agents[0],
-                actor_agents=actor_agents,
-                mcp_client=mcp_client,
-            )
+            for stage_agent in stage_agents:
+                await handle_kickoff(
+                    stage_agent=stage_agent,
+                    mcp_client=mcp_client,
+                )
 
-            # 步骤1: 所有角色进行状态更新
-            await handle_all_actors_self_update(
-                actor_agents=actor_agents,
-                mcp_client=mcp_client,
-                use_concurrency=True,
-            )
+                # 步骤1: 所有角色进行状态更新
+                await handle_actors_self_update(
+                    stage_agent=stage_agent,
+                    mcp_client=mcp_client,
+                    use_concurrency=True,
+                )

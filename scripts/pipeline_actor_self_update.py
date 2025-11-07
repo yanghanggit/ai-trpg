@@ -13,7 +13,7 @@ from pydantic import BaseModel
 from langchain.schema import HumanMessage
 from ai_trpg.deepseek import create_deepseek_llm
 from ai_trpg.mcp import McpClient
-from agent_utils import ActorAgent
+from agent_utils import ActorAgent, StageAgent
 from workflow_handlers import handle_mcp_workflow_execution
 from ai_trpg.utils.json_format import strip_json_code_block
 
@@ -367,8 +367,9 @@ async def _update_actor_death_status(
 ########################################################################################################################
 ########################################################################################################################
 ########################################################################################################################
-async def handle_all_actors_self_update(
-    actor_agents: List[ActorAgent],
+async def handle_actors_self_update(
+    # actor_agents: List[ActorAgent],
+    stage_agent: StageAgent,
     mcp_client: McpClient,
     use_concurrency: bool = False,
 ) -> None:
@@ -382,37 +383,37 @@ async def handle_all_actors_self_update(
 
     if use_concurrency:
 
-        logger.debug(f"🔄 并行处理 {len(actor_agents)} 个角色的自我更新")
+        logger.debug(f"🔄 并行处理 {len(stage_agent.actor_agents)} 个角色的自我更新")
         tasks1 = [
             _handle_single_actor_self_update(
                 actor_agent=actor_agent,
                 mcp_client=mcp_client,
             )
-            for actor_agent in actor_agents
+            for actor_agent in stage_agent.actor_agents
         ]
         await asyncio.gather(*tasks1)
 
         tasks2 = [
             _update_actor_death_status(
                 actor_agent=actor_agent,
-                all_actor_agents=actor_agents,
+                all_actor_agents=stage_agent.actor_agents,
                 mcp_client=mcp_client,
             )
-            for actor_agent in actor_agents
+            for actor_agent in stage_agent.actor_agents
         ]
         await asyncio.gather(*tasks2)
 
     else:
 
-        logger.debug(f"🔄 顺序处理 {len(actor_agents)} 个角色的自我更新")
-        for actor_agent in actor_agents:
+        logger.debug(f"🔄 顺序处理 {len(stage_agent.actor_agents)} 个角色的自我更新")
+        for actor_agent in stage_agent.actor_agents:
             await _handle_single_actor_self_update(
                 actor_agent=actor_agent,
                 mcp_client=mcp_client,
             )
             await _update_actor_death_status(
                 actor_agent=actor_agent,
-                all_actor_agents=actor_agents,
+                all_actor_agents=stage_agent.actor_agents,
                 mcp_client=mcp_client,
             )
 

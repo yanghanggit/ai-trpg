@@ -6,19 +6,18 @@
 """
 
 import json
-from typing import List
 from loguru import logger
 from langchain.schema import HumanMessage
 from ai_trpg.mcp import McpClient
-from agent_utils import StageAgent, ActorAgent
+from agent_utils import StageAgent
 
 
 ########################################################################################################################
 ########################################################################################################################
 ########################################################################################################################
-async def handle_all_kickoff(
+async def handle_kickoff(
     stage_agent: StageAgent,
-    actor_agents: List[ActorAgent],
+    # actor_agents: List[ActorAgent],
     mcp_client: McpClient,
 ) -> None:
     """处理所有代理的开局初始化
@@ -27,7 +26,6 @@ async def handle_all_kickoff(
 
     Args:
         stage_agent: 场景代理
-        actor_agents: 角色代理列表
         mcp_client: MCP 客户端
     """
 
@@ -60,7 +58,7 @@ async def handle_all_kickoff(
             stage_agent.is_kicked_off = True
             logger.info(f"✅ 场景 {stage_agent.name} kickoff = \n{kickoff_prompt}")
 
-        for actor_agent in actor_agents:
+        for actor_agent in stage_agent.actor_agents:
 
             if actor_agent.is_kicked_off:
                 continue
