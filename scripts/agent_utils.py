@@ -5,7 +5,7 @@
 提供游戏代理相关的工具函数，包括代理切换、管理等功能。
 """
 
-from typing import List, Optional, Dict
+from typing import List, Optional
 from loguru import logger
 from pydantic import BaseModel
 from langchain.schema import BaseMessage, SystemMessage
@@ -73,7 +73,7 @@ class GameAgentManager:
         self,
         world: World,
         global_game_mechanics: str,
-        actor_initial_contexts: Dict[str, List[BaseMessage]],
+        # actor_initial_contexts: Dict[str, List[BaseMessage]],
     ) -> None:
         """从游戏世界创建所有代理 - 直接创建，简单直接"""
         logger.info("🏗️ 开始创建游戏代理...")
@@ -129,20 +129,13 @@ class GameAgentManager:
                     f"已创建角色代理: {actor_agent.name} (所属场景: {stage_agent.name})"
                 )
 
+                actor_agent.context.extend(actor.initial_context)
+                logger.debug(f"已为代理 {actor_agent.name} 应用初始对话上下文")
+
             self._stage_agents.append(stage_agent)
             logger.info(
                 f"已创建场景代理: {stage_agent.name} (包含 {len(stage_agent.actor_agents)} 个角色)"
             )
-
-        # 应用初始对话上下文
-        if actor_initial_contexts:
-            for stage_agent in self._stage_agents:
-                for actor_agent in stage_agent.actor_agents:
-                    if actor_agent.name in actor_initial_contexts:
-                        actor_agent.context.extend(
-                            actor_initial_contexts[actor_agent.name]
-                        )
-                        logger.debug(f"已为代理 {actor_agent.name} 应用初始对话上下文")
 
         # 默认激活世界观代理
         self._current_agent = self._world_agent

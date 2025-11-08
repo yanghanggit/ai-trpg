@@ -24,7 +24,7 @@ from ai_trpg.rag.knowledge_retrieval import (
     load_knowledge_base_to_vector_db,
     search_similar_documents,
 )
-from ai_trpg.demo.world1 import test_knowledge_base1
+from ai_trpg.demo import test_knowledge_base1
 from ai_trpg.embedding_model import multilingual_model
 
 

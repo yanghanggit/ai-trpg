@@ -37,8 +37,8 @@ from ai_trpg.mcp import (
 
 from ai_trpg.demo import (
     GLOBAL_GAME_MECHANICS,
-    clone_test_world1,
-    actor_initial_contexts1,
+    create_test_world1,
+    # actor_initial_contexts1,
 )
 
 from ai_trpg.utils import parse_command_with_params
@@ -63,7 +63,7 @@ from io_utils import format_user_input_prompt, log_history, dump_history
 from mcp_client_init import initialize_mcp_client_with_config
 from gameplay_handler import handle_game_command
 
-test_world1 = clone_test_world1()
+test_world1 = create_test_world1()
 
 
 ########################################################################################################################
@@ -72,7 +72,7 @@ agent_manager: GameAgentManager = GameAgentManager()
 agent_manager.create_agents_from_world(
     test_world1,
     GLOBAL_GAME_MECHANICS,
-    actor_initial_contexts1,
+    # actor_initial_contexts1,
 )
 
 

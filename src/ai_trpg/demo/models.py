@@ -1,5 +1,6 @@
 from pydantic import BaseModel, Field
 from typing import List
+from langchain.schema import BaseMessage
 
 
 class Attributes(BaseModel):
@@ -25,6 +26,9 @@ class Actor(BaseModel):
     appearance: str = Field(description="外观描述")
     attributes: Attributes = Field(default_factory=Attributes, description="角色属性")
     effects: List[Effect] = Field(default_factory=list, description="角色当前效果状态")
+    initial_context: List[BaseMessage] = Field(
+        default_factory=list, description="角色初始对话上下文"
+    )
 
 
 class Stage(BaseModel):

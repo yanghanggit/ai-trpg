@@ -29,17 +29,16 @@ from mcp.server.fastmcp import FastMCP
 import mcp.types as types
 from ai_trpg.mcp import mcp_config
 from fastapi import Request, Response, status
-from ai_trpg.demo import clone_test_world1, Effect
+from ai_trpg.demo import create_test_world1, Effect, World
 
 # 导入辅助函数模块
 from mcp_server_helpers import (
-    # parse_and_format_stage_state,
     get_actor_info_impl,
     get_stage_info_impl,
 )
 
 # 初始化游戏世界
-test_world = clone_test_world1()
+test_world: World = create_test_world1()
 
 
 # ============================================================================
@@ -656,7 +655,7 @@ async def get_world_resource() -> str:
 
     # 创建游戏世界
     global test_world
-    test_world = clone_test_world1()
+    test_world = create_test_world1()
 
     try:
 

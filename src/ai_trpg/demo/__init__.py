@@ -7,15 +7,17 @@ from .system_messages import (
     gen_actor_system_message,
     gen_stage_system_message,
 )
-from .world1 import clone_test_world1, actor_initial_contexts1
+
+from .world1 import create_test_world1
+from .knowledge_base import test_knowledge_base1
 
 __all__ = [
     "Effect",
     "Actor",
     "Stage",
     "World",
-    "clone_test_world1",
-    "actor_initial_contexts1",
+    "create_test_world1",
+    "test_knowledge_base1",
     "GLOBAL_GAME_MECHANICS",
     "gen_world_system_message",
     "gen_actor_system_message",
