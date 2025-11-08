@@ -29,7 +29,7 @@ from mcp.server.fastmcp import FastMCP
 import mcp.types as types
 from ai_trpg.mcp import mcp_config
 from fastapi import Request, Response, status
-from ai_trpg.demo import create_test_world1, Effect, World
+from ai_trpg.demo import create_demo_world, Effect, World
 
 # 导入辅助函数模块
 from mcp_server_helpers import (
@@ -38,7 +38,7 @@ from mcp_server_helpers import (
 )
 
 # 初始化游戏世界
-test_world: World = create_test_world1()
+demo_world: World = create_demo_world()
 
 
 # ============================================================================
@@ -113,13 +113,13 @@ async def get_world_info(world_name: str) -> str:
     """
     try:
 
-        if world_name != test_world.name:
+        if world_name != demo_world.name:
             logger.error(
-                f"World名称不匹配: 请求的 {world_name}, 现有的 {test_world.name}???!"
+                f"World名称不匹配: 请求的 {world_name}, 现有的 {demo_world.name}???!"
             )
 
         logger.info(f"获取World数据: {world_name}")
-        return test_world.model_dump_json(indent=2, ensure_ascii=False)
+        return demo_world.model_dump_json(indent=2, ensure_ascii=False)
 
     except Exception as e:
         logger.error(f"获取World信息失败: {e}")
@@ -145,7 +145,7 @@ async def get_stage_info(stage_name: str) -> str:
         Stage的完整JSON数据，包含场景的所有属性（名称、叙事、环境、子场景等）
         以及场景中角色的简要信息（仅包含角色名称和外观描述，不包含档案和已知角色列表）
     """
-    return get_stage_info_impl(test_world, stage_name)
+    return get_stage_info_impl(demo_world, stage_name)
 
 
 # @app.tool()
@@ -159,7 +159,7 @@ async def get_actor_info(actor_name: str) -> str:
     Returns:
         Actor的JSON数据，包含名称、外观描述和角色属性（生命值、攻击力等）
     """
-    return get_actor_info_impl(test_world, actor_name)
+    return get_actor_info_impl(demo_world, actor_name)
 
 
 @app.tool()
@@ -188,7 +188,7 @@ async def update_stage_execution_result(
     """
     try:
         # 验证Stage存在
-        stage = test_world.find_stage(stage_name)
+        stage = demo_world.find_stage(stage_name)
         if not stage:
             error_msg = f"错误：未找到名为 '{stage_name}' 的Stage"
             logger.warning(error_msg)
@@ -239,7 +239,7 @@ async def update_actor_appearance(actor_name: str, new_appearance: str) -> str:
     """
     try:
         # 查找Actor
-        actor, current_stage = test_world.find_actor_with_stage(actor_name)
+        actor, current_stage = demo_world.find_actor_with_stage(actor_name)
         if not actor or not current_stage:
             error_msg = f"错误：未找到名为 '{actor_name}' 的Actor"
             logger.warning(error_msg)
@@ -305,7 +305,7 @@ async def add_actor_effect(
     """
     try:
         # 查找Actor
-        actor, current_stage = test_world.find_actor_with_stage(actor_name)
+        actor, current_stage = demo_world.find_actor_with_stage(actor_name)
         if not actor or not current_stage:
             error_msg = f"错误：未找到名为 '{actor_name}' 的Actor"
             logger.warning(error_msg)
@@ -366,7 +366,7 @@ async def remove_actor_effect(actor_name: str, effect_name: str) -> str:
     """
     try:
         # 查找Actor
-        actor, current_stage = test_world.find_actor_with_stage(actor_name)
+        actor, current_stage = demo_world.find_actor_with_stage(actor_name)
         if not actor or not current_stage:
             error_msg = f"错误：未找到名为 '{actor_name}' 的Actor"
             logger.warning(error_msg)
@@ -452,7 +452,7 @@ async def update_actor_health(actor_name: str, new_health: int) -> str:
     """
     try:
         # 查找Actor
-        actor, current_stage = test_world.find_actor_with_stage(actor_name)
+        actor, current_stage = demo_world.find_actor_with_stage(actor_name)
         if not actor or not current_stage:
             error_msg = f"错误：未找到名为 '{actor_name}' 的Actor"
             logger.warning(error_msg)
@@ -521,7 +521,7 @@ async def move_actor(actor_name: str, target_stage_name: str) -> str:
     """
     try:
         # 查找Actor当前所在的Stage
-        actor, current_stage = test_world.find_actor_with_stage(actor_name)
+        actor, current_stage = demo_world.find_actor_with_stage(actor_name)
         if not current_stage or not actor:
             error_msg = f"错误：未找到名为 '{actor_name}' 的Actor"
             logger.warning(error_msg)
@@ -536,7 +536,7 @@ async def move_actor(actor_name: str, target_stage_name: str) -> str:
             )
 
         # 查找目标Stage
-        target_stage = test_world.find_stage(target_stage_name)
+        target_stage = demo_world.find_stage(target_stage_name)
         if not target_stage:
             error_msg = f"错误：未找到名为 '{target_stage_name}' 的目标Stage"
             logger.warning(error_msg)
@@ -623,7 +623,7 @@ async def get_actor_resource(actor_name: str) -> str:
     decoded_actor_name = unquote(actor_name)
     logger.debug(f"原始 actor_name: {actor_name}, 解码后: {decoded_actor_name}")
 
-    return get_actor_info_impl(test_world, decoded_actor_name)
+    return get_actor_info_impl(demo_world, decoded_actor_name)
 
 
 @app.resource("game://stage/{stage_name}")
@@ -641,7 +641,7 @@ async def get_stage_resource(stage_name: str) -> str:
     decoded_stage_name = unquote(stage_name)
     logger.debug(f"原始 stage_name: {stage_name}, 解码后: {decoded_stage_name}")
 
-    return get_stage_info_impl(test_world, decoded_stage_name)
+    return get_stage_info_impl(demo_world, decoded_stage_name)
 
 
 @app.resource("game://world")
@@ -654,13 +654,13 @@ async def get_world_resource() -> str:
     """
 
     # 创建游戏世界
-    global test_world
-    test_world = create_test_world1()
+    global demo_world
+    demo_world = create_demo_world()
 
     try:
 
         # logger.info(f"获取World数据: {test_world.name}")
-        return test_world.model_dump_json(indent=2, ensure_ascii=False)
+        return demo_world.model_dump_json(indent=2, ensure_ascii=False)
 
     except Exception as e:
         logger.error(f"获取World信息失败: {e}")

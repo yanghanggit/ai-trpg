@@ -6,6 +6,7 @@
 """
 
 import json
+from typing import Any, Dict
 from loguru import logger
 from langchain.schema import HumanMessage
 from ai_trpg.mcp import McpClient
@@ -17,7 +18,6 @@ from agent_utils import StageAgent
 ########################################################################################################################
 async def handle_kickoff(
     stage_agent: StageAgent,
-    # actor_agents: List[ActorAgent],
     mcp_client: McpClient,
 ) -> None:
     """处理所有代理的开局初始化
@@ -37,13 +37,16 @@ async def handle_kickoff(
             logger.error(f"❌ 未能读取资源: {stage_resource_uri}")
             return
 
-        stage_info_data = json.loads(stage_resource_response.text)
+        stage_info_data: Dict[str, Any] = json.loads(stage_resource_response.text)
 
         narrative = stage_info_data.get("narrative", "")
         assert narrative != "", "场景叙事不能为空"
 
         actor_states = stage_info_data.get("actor_states", "")
-        assert actor_states != "", "场景角色状态不能为空"
+        if actor_states == "":
+            logger.warning(f"⚠️ 场景 {stage_agent.name} 角色状态为空")
+            assert len(stage_agent.actor_agents) == 0, "场景有角色但角色状态为空"
+        # assert actor_states != "", "场景角色状态不能为空"
 
         environment = stage_info_data.get("environment", "")
         assert environment != "", "场景环境状态不能为空"

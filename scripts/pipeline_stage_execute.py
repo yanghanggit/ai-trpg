@@ -172,7 +172,6 @@ async def _collect_actor_plan_prompts(
 ########################################################################################################################
 async def handle_actor_plans_and_update_stage(
     stage_agent: StageAgent,
-    # actor_agents: List[ActorAgent],
     mcp_client: McpClient,
 ) -> None:
     """处理场景执行指令
@@ -184,14 +183,12 @@ async def handle_actor_plans_and_update_stage(
         actor_agents: 角色代理列表
         mcp_client: MCP 客户端
     """
-    assert len(stage_agent.actor_agents) > 0, "没有可用的角色代理"
 
     logger.info(f"🎬 场景执行: {stage_agent.name}")
 
-    stage_resource_uri = f"game://stage/{stage_agent.name}"
-    stage_resource_response = await mcp_client.read_resource(stage_resource_uri)
-    if stage_resource_response is None or stage_resource_response.text is None:
-        logger.error(f"❌ 未能读取资源: {stage_resource_uri}")
+    # assert len(stage_agent.actor_agents) > 0, "没有可用的角色代理"
+    if len(stage_agent.actor_agents) == 0:
+        logger.warning("⚠️  没有角色代理，跳过场景执行")
         return
 
     # 收集所有角色的行动计划
@@ -199,11 +196,19 @@ async def handle_actor_plans_and_update_stage(
         stage_agent.actor_agents, mcp_client
     )
 
-    stage_info_json: Dict[str, Any] = json.loads(stage_resource_response.text)
-
     if not actor_plans:
         logger.warning("⚠️  没有角色有行动计划，跳过场景执行")
         return
+
+    # 读取场景资源以获取当前状态
+    stage_resource_uri = f"game://stage/{stage_agent.name}"
+    stage_resource_response = await mcp_client.read_resource(stage_resource_uri)
+    if stage_resource_response is None or stage_resource_response.text is None:
+        logger.error(f"❌ 未能读取资源: {stage_resource_uri}")
+        return
+
+    # 解析场景资源 JSON 数据
+    stage_info_json: Dict[str, Any] = json.loads(stage_resource_response.text)
 
     # 构建行动执行提示词（MCP Workflow 版本 - 专注于分析和工具调用）
     step1_2_instruction = f"""# 指令！你（{stage_agent.name}）场景行动执行与使用工具同步状态
