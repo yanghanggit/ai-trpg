@@ -38,7 +38,6 @@ from ai_trpg.mcp import (
 from ai_trpg.demo import (
     GLOBAL_GAME_MECHANICS,
     create_test_world1,
-    # actor_initial_contexts1,
 )
 
 from ai_trpg.utils import parse_command_with_params
