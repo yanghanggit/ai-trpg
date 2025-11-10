@@ -33,6 +33,7 @@ from ai_trpg.demo import create_demo_world, Effect, World
 
 # 导入辅助函数模块
 from mcp_server_helpers import (
+    get_world_info_impl,
     get_actor_info_impl,
     get_stage_info_impl,
 )
@@ -101,65 +102,6 @@ async def health_check(request: Request) -> Response:
 # ============================================================================
 # 注册工具
 # ============================================================================
-
-
-# @app.tool()
-# async def get_world_info(world_name: str) -> str:
-#     """
-#     获取游戏世界（World）的完整信息
-
-#     Returns:
-#         World的完整JSON数据，包含所有场景和角色的嵌套信息
-#     """
-#     try:
-
-#         if world_name != demo_world.name:
-#             logger.error(
-#                 f"World名称不匹配: 请求的 {world_name}, 现有的 {demo_world.name}???!"
-#             )
-
-#         logger.info(f"获取World数据: {world_name}")
-#         return demo_world.model_dump_json(indent=2, ensure_ascii=False)
-
-#     except Exception as e:
-#         logger.error(f"获取World信息失败: {e}")
-#         return json.dumps(
-#             {
-#                 "error": f"无法获取World数据 - {str(e)}",
-#                 "timestamp": datetime.now().isoformat(),
-#             },
-#             ensure_ascii=False,
-#             indent=2,
-#         )
-
-
-# @app.tool()
-async def get_stage_info(stage_name: str) -> str:
-    """
-    根据场景名称获取Stage的完整信息（角色信息为精简版）
-
-    Args:
-        stage_name: 场景名称
-
-    Returns:
-        Stage的完整JSON数据，包含场景的所有属性（名称、叙事、环境、子场景等）
-        以及场景中角色的简要信息（仅包含角色名称和外观描述，不包含档案和已知角色列表）
-    """
-    return get_stage_info_impl(demo_world, stage_name)
-
-
-# @app.tool()
-async def get_actor_info(actor_name: str) -> str:
-    """
-    根据角色名称获取Actor的信息
-
-    Args:
-        actor_name: 角色名称
-
-    Returns:
-        Actor的JSON数据，包含名称、外观描述和角色属性（生命值、攻击力等）
-    """
-    return get_actor_info_impl(demo_world, actor_name)
 
 
 @app.tool()
@@ -507,102 +449,6 @@ async def update_actor_health(actor_name: str, new_health: int) -> str:
         )
 
 
-# @app.tool()
-async def move_actor(actor_name: str, target_stage_name: str) -> str:
-    """
-    将指定的Actor从当前Stage移动到目标Stage
-
-    Args:
-        actor_name: 要移动的Actor名称
-        target_stage_name: 目标Stage名称
-
-    Returns:
-        移动操作的结果信息（JSON格式）
-    """
-    try:
-        # 查找Actor当前所在的Stage
-        actor, current_stage = demo_world.find_actor_with_stage(actor_name)
-        if not current_stage or not actor:
-            error_msg = f"错误：未找到名为 '{actor_name}' 的Actor"
-            logger.warning(error_msg)
-            return json.dumps(
-                {
-                    "success": False,
-                    "error": error_msg,
-                    "timestamp": datetime.now().isoformat(),
-                },
-                ensure_ascii=False,
-                indent=2,
-            )
-
-        # 查找目标Stage
-        target_stage = demo_world.find_stage(target_stage_name)
-        if not target_stage:
-            error_msg = f"错误：未找到名为 '{target_stage_name}' 的目标Stage"
-            logger.warning(error_msg)
-            return json.dumps(
-                {
-                    "success": False,
-                    "error": error_msg,
-                    "timestamp": datetime.now().isoformat(),
-                },
-                ensure_ascii=False,
-                indent=2,
-            )
-
-        # 检查是否已经在目标Stage
-        if current_stage.name == target_stage.name:
-            info_msg = f"{actor_name} 已经在 {target_stage_name} 中"
-            logger.warning(info_msg)
-            return json.dumps(
-                {
-                    "success": True,
-                    "message": info_msg,
-                    "actor": actor_name,
-                    "current_stage": current_stage.name,
-                    "timestamp": datetime.now().isoformat(),
-                },
-                ensure_ascii=False,
-                indent=2,
-            )
-
-        # 从当前Stage移除Actor
-        current_stage.actors.remove(actor)
-
-        # 添加Actor到目标Stage
-        target_stage.actors.append(actor)
-
-        success_msg = (
-            f"{actor_name} 成功从 {current_stage.name} 移动到 {target_stage_name}"
-        )
-        logger.warning(success_msg)
-
-        return json.dumps(
-            {
-                "success": True,
-                "message": success_msg,
-                "actor": actor_name,
-                "from_stage": current_stage.name,
-                "to_stage": target_stage.name,
-                "timestamp": datetime.now().isoformat(),
-            },
-            ensure_ascii=False,
-            indent=2,
-        )
-
-    except Exception as e:
-        logger.error(f"移动Actor失败: {e}")
-        return json.dumps(
-            {
-                "success": False,
-                "error": f"移动Actor失败 - {str(e)}",
-                "timestamp": datetime.now().isoformat(),
-            },
-            ensure_ascii=False,
-            indent=2,
-        )
-
-
 # ============================================================================
 # 注册资源
 # ============================================================================
@@ -658,34 +504,11 @@ async def get_world_resource() -> str:
         }
     """
 
-    # 创建游戏世界
+    # 重新创建游戏世界(重置世界状态)
     global demo_world
     demo_world = create_demo_world()
 
-    try:
-        # 获取核心数据
-        world_data = json.loads(demo_world.model_dump_json(ensure_ascii=False))
-        return json.dumps(
-            {
-                "data": world_data,
-                "error": None,
-                "timestamp": datetime.now().isoformat(),
-            },
-            ensure_ascii=False,
-            indent=2,
-        )
-
-    except Exception as e:
-        logger.error(f"获取World信息失败: {e}")
-        return json.dumps(
-            {
-                "data": None,
-                "error": f"无法获取World数据 - {str(e)}",
-                "timestamp": datetime.now().isoformat(),
-            },
-            ensure_ascii=False,
-            indent=2,
-        )
+    return get_world_info_impl(demo_world)
 
 
 # ============================================================================
