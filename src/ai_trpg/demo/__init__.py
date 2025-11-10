@@ -16,9 +16,9 @@ def create_demo_world() -> World:
     """Create a demo world instance combining world1 and world2."""
 
     # from .world1 import create_test_world1
-    from .world2 import create_test_world2
+    from .world2 import create_test_world_2_1
 
-    return create_test_world2()
+    return create_test_world_2_1()
 
 
 __all__ = [
