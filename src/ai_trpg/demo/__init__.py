@@ -1,11 +1,11 @@
 """Demo actors, stages, and world for the multi-agents game framework."""
 
 from .models import Effect, Actor, Stage, World
-from .system_messages import (
-    GLOBAL_GAME_MECHANICS,
-    gen_world_system_message,
-    gen_actor_system_message,
-    gen_stage_system_message,
+from .prompts import GLOBAL_GAME_MECHANICS
+from .prompt_generators import (
+    gen_world_system_prompt,
+    gen_actor_system_prompt,
+    gen_stage_system_prompt,
 )
 
 
@@ -28,7 +28,7 @@ __all__ = [
     "World",
     "test_knowledge_base1",
     "GLOBAL_GAME_MECHANICS",
-    "gen_world_system_message",
-    "gen_actor_system_message",
-    "gen_stage_system_message",
+    "gen_world_system_prompt",
+    "gen_actor_system_prompt",
+    "gen_stage_system_prompt",
 ]

@@ -11,9 +11,9 @@ from pydantic import BaseModel
 from langchain.schema import BaseMessage, SystemMessage
 from ai_trpg.demo import (
     World,
-    gen_world_system_message,
-    gen_actor_system_message,
-    gen_stage_system_message,
+    gen_world_system_prompt,
+    gen_actor_system_prompt,
+    gen_stage_system_prompt,
 )
 from langchain.schema import BaseMessage
 
@@ -73,7 +73,6 @@ class GameAgentManager:
         self,
         world: World,
         global_game_mechanics: str,
-        # actor_initial_contexts: Dict[str, List[BaseMessage]],
     ) -> None:
         """从游戏世界创建所有代理 - 直接创建，简单直接"""
         logger.info("🏗️ 开始创建游戏代理...")
@@ -83,7 +82,7 @@ class GameAgentManager:
             name=world.name,
             context=[
                 SystemMessage(
-                    content=gen_world_system_message(world, global_game_mechanics)
+                    content=gen_world_system_prompt(world, global_game_mechanics)
                 )
             ],
         )
@@ -104,7 +103,7 @@ class GameAgentManager:
                 name=stage.name,
                 context=[
                     SystemMessage(
-                        content=gen_stage_system_message(
+                        content=gen_stage_system_prompt(
                             stage, world, global_game_mechanics
                         )
                     )
@@ -117,7 +116,7 @@ class GameAgentManager:
                     name=actor.name,
                     context=[
                         SystemMessage(
-                            content=gen_actor_system_message(
+                            content=gen_actor_system_prompt(
                                 actor, world, global_game_mechanics
                             )
                         )

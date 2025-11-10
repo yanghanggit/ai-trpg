@@ -1,24 +1,7 @@
-from typing import Final
 from .models import Actor, Stage, World
 
 
-# ============================================================================
-# 全局游戏机制提示词
-# ============================================================================
-GLOBAL_GAME_MECHANICS: Final[
-    str
-] = """### 核心规则
-
-1. **名字精确匹配**：实体名字必须完全一致，不可添加前缀或后缀。例如角色名为"约翰"就不能称为"约翰船长"或"船长约翰"。
-
-2. **世界结构**：World 包含 Stage，Stage 包含 Actor 和子 Stage。Actor 必须位于 Stage 中，只能与同一 Stage 的 Actor 直接互动。
-
-3. **沉浸叙事**：你知晓所有规则，但禁止使用"根据游戏规则"、"按照设定"等元游戏语言。规则应通过角色行为和故事自然呈现，始终保持角色视角。
-
-4. **效果系统**：Actor 可以拥有多个 Effect（效果），每个 Effect 包含名称和描述。效果可以是增益、减益、状态标记、持续伤害、持续治疗等，影响角色的能力和行为。在叙事中应自然体现效果的影响，而非直接说明效果名称。"""
-
-
-def gen_world_system_message(world: World, global_game_mechanics: str) -> str:
+def gen_world_system_prompt(world: World, global_game_mechanics: str) -> str:
     """生成世界的系统消息
 
     Args:
@@ -44,7 +27,7 @@ def gen_world_system_message(world: World, global_game_mechanics: str) -> str:
 **职责**: 管理世界状态,遵守规则,响应玩家指令。"""
 
 
-def gen_actor_system_message(
+def gen_actor_system_prompt(
     actor_model: Actor, world: World, global_game_mechanics: str
 ) -> str:
     """生成角色的系统消息
@@ -80,7 +63,7 @@ def gen_actor_system_message(
 **职责**: 符合角色设定,推动故事发展,增加沉浸感。"""
 
 
-def gen_stage_system_message(
+def gen_stage_system_prompt(
     stage_model: Stage, world: World, global_game_mechanics: str
 ) -> str:
     """生成场景的系统消息
