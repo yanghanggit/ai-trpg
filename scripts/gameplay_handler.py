@@ -5,9 +5,10 @@
 提供游戏玩法相关的功能处理，包括游戏指令的执行和处理。
 """
 
+from typing import List
 from loguru import logger
 from ai_trpg.mcp import McpClient
-from agent_utils import GameAgentManager
+from agent_utils import GameAgentManager, StageAgent
 
 # 导入拆分后的流水线模块
 from pipeline_kickoff import handle_kickoff
@@ -16,6 +17,18 @@ from pipeline_stage_execute import (
     handle_actor_plans_and_update_stage,
 )
 from pipeline_actor_self_update import handle_actors_self_update
+
+
+########################################################################################################################
+########################################################################################################################
+########################################################################################################################
+async def _all_kickoff(stage_agents: List[StageAgent], mcp_client: McpClient) -> None:
+    """让所有的场景代理开始开局初始化（Kickoff）"""
+    for stage_agent in stage_agents:
+        await handle_kickoff(
+            stage_agent=stage_agent,
+            mcp_client=mcp_client,
+        )
 
 
 ########################################################################################################################
@@ -47,13 +60,14 @@ async def handle_game_command(
 
         # /game all:kickoff - 让所有的代理开始行动（Kickoff）
         case "all:kickoff":
+            await _all_kickoff(stage_agents, mcp_client)
 
-            for stage_agent in stage_agents:
+            # for stage_agent in stage_agents:
 
-                await handle_kickoff(
-                    stage_agent=stage_agent,
-                    mcp_client=mcp_client,
-                )
+            #     await handle_kickoff(
+            #         stage_agent=stage_agent,
+            #         mcp_client=mcp_client,
+            #     )
 
         # /game all:actors_observe_and_plan - 让所有角色代理观察场景并规划行动
         case "all:actors_observe_and_plan":
@@ -89,12 +103,14 @@ async def handle_game_command(
         # /game pipeline:test0 - 测试流水线0: 开局→观察规划
         case "pipeline:test0":
 
+            await _all_kickoff(stage_agents, mcp_client)
+
             # 步骤0: 所有角色开始行动（Kickoff）
             for stage_agent in stage_agents:
-                await handle_kickoff(
-                    stage_agent=stage_agent,
-                    mcp_client=mcp_client,
-                )
+                # await handle_kickoff(
+                #     stage_agent=stage_agent,
+                #     mcp_client=mcp_client,
+                # )
 
                 # 步骤1: 所有角色观察场景并规划行动
                 await handle_actors_observe_and_plan(
@@ -107,12 +123,14 @@ async def handle_game_command(
         # 注意: 假设第0帧 已通过初始化注入stage_agent
         case "pipeline:test1":
 
+            await _all_kickoff(stage_agents, mcp_client)
+
             # 步骤0: 所有角色开始行动（Kickoff）
             for stage_agent in stage_agents:
-                await handle_kickoff(
-                    stage_agent=stage_agent,
-                    mcp_client=mcp_client,
-                )
+                # await handle_kickoff(
+                #     stage_agent=stage_agent,
+                #     mcp_client=mcp_client,
+                # )
 
                 # 步骤1: 所有角色观察场景并规划行动
                 await handle_actors_observe_and_plan(
@@ -139,12 +157,14 @@ async def handle_game_command(
         # 注意: 假设第0帧 已通过初始化注入stage_agent
         case "pipeline:test2":
 
+            await _all_kickoff(stage_agents, mcp_client)
+
             # 步骤0: 所有角色开始行动（Kickoff）
             for stage_agent in stage_agents:
-                await handle_kickoff(
-                    stage_agent=stage_agent,
-                    mcp_client=mcp_client,
-                )
+                # await handle_kickoff(
+                #     stage_agent=stage_agent,
+                #     mcp_client=mcp_client,
+                # )
 
                 # 步骤1: 所有角色进行状态更新
                 await handle_actors_self_update(
