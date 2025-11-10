@@ -53,6 +53,7 @@ template_stage1: Final[Stage] = Stage(
     actors=[],
     narrative="",
     actor_states="",
+    connections="",
 )
 
 # 空间布局 (300平方米)
@@ -70,6 +71,7 @@ template_stage2: Final[Stage] = Stage(
     actors=[],
     narrative="",
     actor_states="",
+    connections="",
 )
 
 # ============================================================================

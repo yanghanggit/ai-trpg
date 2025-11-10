@@ -111,11 +111,12 @@ async def update_stage_execution_result(
     narrative: str,
     actor_states: str,
     environment: str,
+    connections: str,
 ) -> str:
     """
     保存场景执行结果
 
-    将场景执行后的计算日志、叙事描述、角色状态和环境变化保存到游戏世界。
+    将场景执行后的计算日志、叙事描述、角色状态、环境变化和场景连通性保存到游戏世界。
     这个工具用于持久化场景执行的完整结果。
 
     Args:
@@ -124,6 +125,7 @@ async def update_stage_execution_result(
         narrative: 场景叙事描述
         actor_states: 角色状态字符串（格式：**角色名**: 位置 | 姿态 | 状态）
         environment: 环境描述
+        connections: 场景连通性描述。可以保持原值不变，或根据场景事件更新（如门被打开/锁上、通道被发现/封闭等）
 
     Returns:
         更新操作的结果（JSON格式）
@@ -133,22 +135,24 @@ async def update_stage_execution_result(
         stage = demo_world.find_stage(stage_name)
         if not stage:
             error_msg = f"错误：未找到名为 '{stage_name}' 的Stage"
-            logger.warning(error_msg)
+            logger.error(error_msg)
             return json.dumps(
                 {"success": False, "error": error_msg},
                 ensure_ascii=False,
             )
 
         # 打印接收到的数据
-        logger.warning(f"calculation_log:\n{calculation_log}")
-        logger.warning(f"narrative:\n{narrative}")
-        logger.warning(f"actor_states:\n{actor_states}")
-        logger.warning(f"environment:\n{environment}")
+        logger.info(f"calculation_log:\n{calculation_log}")
+        logger.info(f"narrative:\n{narrative}")
+        logger.info(f"actor_states:\n{actor_states}")
+        logger.info(f"environment:\n{environment}")
+        logger.info(f"connections:\n{connections}")
 
         # 直接更新Stage状态（不需要额外解析）
         stage.narrative = narrative
         stage.actor_states = actor_states
         stage.environment = environment
+        stage.connections = connections
 
         return json.dumps(
             {

@@ -40,6 +40,10 @@ class Stage(BaseModel):
     actors: List[Actor] = Field(description="场景中的角色")
     narrative: str = Field(description="场景叙事")
     actor_states: str = Field(description="场景中角色状态描述")
+    connections: str = Field(
+        default="",
+        description="场景连通性：描述本场景与其他场景的连接关系、通道位置及通行条件",
+    )
 
     def find_actor(self, actor_name: str) -> Actor | None:
         """查找指定名称的Actor

@@ -158,6 +158,7 @@ def get_stage_info_impl(world: World, stage_name: str) -> str:
                 "narrative": stage.narrative,
                 "environment": stage.environment,
                 "actor_states": stage.actor_states,
+                "connections": stage.connections,
                 "actors_appearance": actors_appearance,
             }
 

@@ -42,6 +42,10 @@ def create_test_world2() -> World:
     # 设置角色状态
     instance_stage1.actor_states = f"""**{instance_actor3.name}**: 墓地西侧石阶顶端，教堂侧门门口 | 准备推门进入 | 左手持油灯，右手按在门上"""
 
+    # 设置场景连通性（两个场景使用统一的连通性描述）
+    stage_connections = """奥顿教堂墓地 ↔ 奥顿教堂大厅: 通过西侧石阶的教堂侧门连接(需要【教堂侧门钥匙】才能打开)"""
+    instance_stage1.connections = stage_connections
+
     #########################
 
     # 配置场景2：奥顿教堂大厅 #########################
@@ -53,6 +57,9 @@ def create_test_world2() -> World:
 
     # 设置角色状态（初始为空，外乡人进入后会更新）
     instance_stage2.actor_states = ""
+
+    # 设置场景连通性（与墓地使用相同的连通性描述）
+    instance_stage2.connections = stage_connections
 
     #########################
 
