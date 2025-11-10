@@ -104,33 +104,33 @@ async def health_check(request: Request) -> Response:
 
 
 # @app.tool()
-async def get_world_info(world_name: str) -> str:
-    """
-    获取游戏世界（World）的完整信息
+# async def get_world_info(world_name: str) -> str:
+#     """
+#     获取游戏世界（World）的完整信息
 
-    Returns:
-        World的完整JSON数据，包含所有场景和角色的嵌套信息
-    """
-    try:
+#     Returns:
+#         World的完整JSON数据，包含所有场景和角色的嵌套信息
+#     """
+#     try:
 
-        if world_name != demo_world.name:
-            logger.error(
-                f"World名称不匹配: 请求的 {world_name}, 现有的 {demo_world.name}???!"
-            )
+#         if world_name != demo_world.name:
+#             logger.error(
+#                 f"World名称不匹配: 请求的 {world_name}, 现有的 {demo_world.name}???!"
+#             )
 
-        logger.info(f"获取World数据: {world_name}")
-        return demo_world.model_dump_json(indent=2, ensure_ascii=False)
+#         logger.info(f"获取World数据: {world_name}")
+#         return demo_world.model_dump_json(indent=2, ensure_ascii=False)
 
-    except Exception as e:
-        logger.error(f"获取World信息失败: {e}")
-        return json.dumps(
-            {
-                "error": f"无法获取World数据 - {str(e)}",
-                "timestamp": datetime.now().isoformat(),
-            },
-            ensure_ascii=False,
-            indent=2,
-        )
+#     except Exception as e:
+#         logger.error(f"获取World信息失败: {e}")
+#         return json.dumps(
+#             {
+#                 "error": f"无法获取World数据 - {str(e)}",
+#                 "timestamp": datetime.now().isoformat(),
+#             },
+#             ensure_ascii=False,
+#             indent=2,
+#         )
 
 
 # @app.tool()
@@ -647,10 +647,15 @@ async def get_stage_resource(stage_name: str) -> str:
 @app.resource("game://world")
 async def get_world_resource() -> str:
     """
-    获取游戏世界（World）信息资源
+    获取游戏世界(World)信息资源
 
     Returns:
-        World的完整JSON数据，包含所有场景和角色的嵌套信息
+        统一格式的JSON响应:
+        {
+            "data": World的完整数据或null,
+            "error": 错误信息或null,
+            "timestamp": ISO格式时间戳
+        }
     """
 
     # 创建游戏世界
@@ -658,14 +663,23 @@ async def get_world_resource() -> str:
     demo_world = create_demo_world()
 
     try:
-
-        # logger.info(f"获取World数据: {test_world.name}")
-        return demo_world.model_dump_json(indent=2, ensure_ascii=False)
+        # 获取核心数据
+        world_data = json.loads(demo_world.model_dump_json(ensure_ascii=False))
+        return json.dumps(
+            {
+                "data": world_data,
+                "error": None,
+                "timestamp": datetime.now().isoformat(),
+            },
+            ensure_ascii=False,
+            indent=2,
+        )
 
     except Exception as e:
         logger.error(f"获取World信息失败: {e}")
         return json.dumps(
             {
+                "data": None,
                 "error": f"无法获取World数据 - {str(e)}",
                 "timestamp": datetime.now().isoformat(),
             },
