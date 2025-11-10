@@ -5,12 +5,12 @@
 负责处理游戏场景和角色的开局初始化（Kickoff）流程。
 """
 
-import json
 from typing import Any, Dict
 from loguru import logger
 from langchain.schema import HumanMessage
 from ai_trpg.mcp import McpClient
 from agent_utils import StageAgent
+from mcp_client_resource_helpers import read_stage_resource
 
 
 ########################################################################################################################
@@ -31,13 +31,10 @@ async def handle_kickoff(
 
     try:
 
-        stage_resource_uri = f"game://stage/{stage_agent.name}"
-        stage_resource_response = await mcp_client.read_resource(stage_resource_uri)
-        if stage_resource_response is None or stage_resource_response.text is None:
-            logger.error(f"❌ 未能读取资源: {stage_resource_uri}")
-            return
-
-        stage_info_data: Dict[str, Any] = json.loads(stage_resource_response.text)
+        # 使用统一的资源读取函数
+        stage_info_data: Dict[str, Any] = await read_stage_resource(
+            mcp_client, stage_agent.name
+        )
 
         narrative = stage_info_data.get("narrative", "")
         assert narrative != "", "场景叙事不能为空"

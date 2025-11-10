@@ -6,7 +6,6 @@
 """
 
 import asyncio
-import json
 from typing import Any, Dict, List
 from loguru import logger
 from pydantic import BaseModel
@@ -16,6 +15,7 @@ from ai_trpg.mcp import McpClient
 from ai_trpg.utils.json_format import strip_json_code_block
 from agent_utils import StageAgent, ActorAgent
 from workflow_handlers import handle_chat_workflow_execution
+from mcp_client_resource_helpers import read_actor_resource, read_stage_resource
 
 
 ########################################################################################################################
@@ -184,21 +184,9 @@ async def _handle_single_actor_observe_and_plan(
     """
     logger.warning(f"角色观察并规划: {actor_agent.name}")
 
-    stage_resource_uri = f"game://stage/{stage_agent.name}"
-    stage_resource_response = await mcp_client.read_resource(stage_resource_uri)
-    if stage_resource_response is None or stage_resource_response.text is None:
-        logger.error(f"❌ 未能读取资源: {stage_resource_uri}")
-        return
-
-    # 读取角色信息资源
-    actor_resource_uri = f"game://actor/{actor_agent.name}"
-    actor_resource_response = await mcp_client.read_resource(actor_resource_uri)
-    if actor_resource_response is None or actor_resource_response.text is None:
-        logger.error(f"❌ 未能读取资源: {actor_resource_uri}")
-        return
-
-    stage_info_json = json.loads(stage_resource_response.text)
-    actor_info_json = json.loads(actor_resource_response.text)
+    # 使用统一的资源读取函数
+    stage_info_json = await read_stage_resource(mcp_client, stage_agent.name)
+    actor_info_json = await read_actor_resource(mcp_client, actor_agent.name)
 
     # 过滤场景信息（移除冗余字段）
     filtered_stage_info = _filter_stage_info_for_actor(
@@ -331,7 +319,6 @@ async def _handle_single_actor_observe_and_plan(
 ########################################################################################################################
 async def handle_actors_observe_and_plan(
     stage_agent: StageAgent,
-    # actor_agents: List[ActorAgent],
     mcp_client: McpClient,
     use_concurrency: bool = False,
 ) -> None:
@@ -360,7 +347,7 @@ async def handle_actors_observe_and_plan(
         logger.info(f"💀 跳过 {dead_actor_count} 个已死亡角色: {', '.join(dead_names)}")
 
     if not alive_actor_agents:
-        logger.warning("⚠️ 没有存活的角色需要进行观察和规划")
+        logger.warning(f"⚠️ {stage_agent.name} 没有存活的角色需要进行观察和规划")
         return
 
     if use_concurrency:

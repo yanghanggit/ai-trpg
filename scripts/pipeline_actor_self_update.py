@@ -6,7 +6,6 @@
 """
 
 import asyncio
-import json
 from typing import Any, Dict, List
 from loguru import logger
 from pydantic import BaseModel
@@ -16,6 +15,7 @@ from ai_trpg.mcp import McpClient
 from agent_utils import ActorAgent, StageAgent
 from workflow_handlers import handle_mcp_workflow_execution
 from ai_trpg.utils.json_format import strip_json_code_block
+from mcp_client_resource_helpers import read_actor_resource
 
 
 ########################################################################################################################
@@ -208,13 +208,8 @@ async def _handle_single_actor_self_update(
         mcp_client: MCP 客户端
     """
 
-    actor_resource_uri = f"game://actor/{actor_agent.name}"
-    actor_resource_response = await mcp_client.read_resource(actor_resource_uri)
-    if actor_resource_response is None or actor_resource_response.text is None:
-        assert False, f"获取角色资源失败: {actor_resource_uri}"
-
-    # 解析角色数据
-    actor_info: Dict[str, Any] = json.loads(actor_resource_response.text)
+    # 使用统一的资源读取函数
+    actor_info: Dict[str, Any] = await read_actor_resource(mcp_client, actor_agent.name)
     # logger.debug(f"🔄 角色 {actor_agent.name} 当前数据: {actor_info}")
 
     available_tools = await mcp_client.list_tools()
@@ -331,13 +326,8 @@ async def _update_actor_death_status(
         mcp_client: MCP 客户端
     """
 
-    actor_resource_uri = f"game://actor/{actor_agent.name}"
-    actor_resource_response = await mcp_client.read_resource(actor_resource_uri)
-    if actor_resource_response is None or actor_resource_response.text is None:
-        assert False, f"获取角色资源失败: {actor_resource_uri}"
-
-    # 解析角色数据
-    actor_info: Dict[str, Any] = json.loads(actor_resource_response.text)
+    # 使用统一的资源读取函数
+    actor_info: Dict[str, Any] = await read_actor_resource(mcp_client, actor_agent.name)
     attributes = actor_info.get("attributes", {})
     health = attributes.get("health", 0)
 

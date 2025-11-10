@@ -5,7 +5,6 @@
 负责编排角色计划并更新场景状态。
 """
 
-import json
 from typing import Any, Dict, List
 from loguru import logger
 from pydantic import BaseModel
@@ -17,6 +16,7 @@ from workflow_handlers import (
     handle_mcp_workflow_execution,
 )
 from ai_trpg.utils.json_format import strip_json_code_block
+from mcp_client_resource_helpers import read_actor_resource, read_stage_resource
 
 
 #
@@ -90,14 +90,8 @@ async def _build_actor_plan_prompt(
         return ""
 
     try:
-        actor_resource_uri = f"game://actor/{actor_agent.name}"
-        actor_resource_response = await mcp_client.read_resource(actor_resource_uri)
-        if actor_resource_response is None or actor_resource_response.text is None:
-            logger.error(f"❌ 未能读取资源: {actor_resource_uri}")
-            return ""
-
-        # 解析角色数据
-        actor_info = json.loads(actor_resource_response.text)
+        # 使用统一的资源读取函数
+        actor_info = await read_actor_resource(mcp_client, actor_agent.name)
 
         # 提取基本信息
         name = actor_info.get("name", "未知")
@@ -199,15 +193,10 @@ async def _handle_actor_plans_and_update_stage(
         logger.warning("⚠️  没有角色有行动计划，跳过场景执行")
         return
 
-    # 读取场景资源以获取当前状态
-    stage_resource_uri = f"game://stage/{stage_agent.name}"
-    stage_resource_response = await mcp_client.read_resource(stage_resource_uri)
-    if stage_resource_response is None or stage_resource_response.text is None:
-        logger.error(f"❌ 未能读取资源: {stage_resource_uri}")
-        return
-
-    # 解析场景资源 JSON 数据
-    stage_info_json: Dict[str, Any] = json.loads(stage_resource_response.text)
+    # 使用统一的资源读取函数
+    stage_info_json: Dict[str, Any] = await read_stage_resource(
+        mcp_client, stage_agent.name
+    )
 
     # 构建行动执行提示词（MCP Workflow 版本 - 专注于分析和工具调用）
     step1_2_instruction = f"""# 指令！你（{stage_agent.name}）场景行动执行与使用工具同步状态
@@ -310,17 +299,7 @@ async def _handle_actor_plans_and_update_stage(
         )
 
         # TODO 步骤1: 从 MCP 资源重新读取 stage 数据以获取最新的 narrative
-        stage_resource_response_updated = await mcp_client.read_resource(
-            stage_resource_uri
-        )
-        if (
-            stage_resource_response_updated is None
-            or stage_resource_response_updated.text is None
-        ):
-            logger.error(f"❌ 未能读取更新后的资源: {stage_resource_uri}")
-            return
-
-        stage_info_updated = json.loads(stage_resource_response_updated.text)
+        stage_info_updated = await read_stage_resource(mcp_client, stage_agent.name)
         narrative = stage_info_updated.get("narrative", "")
 
         # 步骤2: 更新场景代理的对话历史（压缩提示词）

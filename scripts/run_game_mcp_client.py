@@ -14,7 +14,6 @@ Game MCP 客户端 - 简化版 DeepSeek + MCP 聊天系统
 
 import os
 import sys
-from typing import Any, Dict
 
 # 将 src 目录添加到模块搜索路径
 sys.path.insert(
@@ -26,13 +25,14 @@ import traceback
 import asyncio
 from langchain.schema import HumanMessage
 from loguru import logger
-import json
 
 from ai_trpg.deepseek import (
     create_deepseek_llm,
 )
+from mcp_client_resource_helpers import read_world_resource
 
 from ai_trpg.mcp import (
+    McpClient,
     mcp_config,
 )
 
@@ -81,7 +81,7 @@ agent_manager.create_agents_from_world(
 # ============================================================================
 
 
-async def initialize_world_resource(mcp_client: Any) -> World:
+async def initialize_world_resource(mcp_client: McpClient) -> World:
     """
     初始化世界资源并验证服务器响应
 
@@ -92,44 +92,28 @@ async def initialize_world_resource(mcp_client: Any) -> World:
         mcp_client: MCP 客户端实例
 
     Returns:
-        解析后的世界数据字典
+        解析后的世界数据对象(World)
 
     Raises:
         ValueError: 当资源读取失败、响应无效或服务器返回错误时
     """
 
-    # 读取世界资源
-    world_resource_uri = "game://world"
-    world_resource_response = await mcp_client.read_resource(world_resource_uri)
+    # 使用统一的资源读取函数
+    world_data_dict = await read_world_resource(mcp_client)
 
-    if world_resource_response is None or world_resource_response.text is None:
-        raise ValueError(f"❌ 未能读取资源: {world_resource_uri}")
+    # 验证并转换为 World 对象
+    world_data = World.model_validate(world_data_dict)
 
-    # 解析服务器返回的统一格式响应
-    try:
-        response_data: Any = json.loads(world_resource_response.text)
-        assert response_data is not None, "无法解析服务器响应"
+    # 计算所有场景中的角色总数
+    total_actors = sum(len(stage.actors) for stage in world_data.stages)
 
-        # 检查是否有错误
-        if response_data.get("error") is not None:
-            logger.error(f"❌ 服务器返回错误: {response_data['error']}")
-            logger.error(f"⏰ 时间戳: {response_data.get('timestamp')}")
-            raise ValueError(f"无法初始化世界资源: {response_data['error']}")
+    # 打印简要信息
+    logger.info(f"✅ 成功加载世界资源")
+    logger.info(f"🌍 世界名称: {world_data.name}")
+    logger.info(f"🎭 角色数量: {total_actors} 个角色")
+    logger.info(f"🗺️  场景数量: {len(world_data.stages)} 个场景")
 
-        # 成功获取数据,打印简要信息
-        world_data = World.model_validate(response_data.get("data"))
-        if world_data:
-            logger.debug(f"✅ 成功加载世界资源: {world_resource_uri}")
-            # logger.debug(f"✅ 成功加载世界资源: {world_data.model_dump_json()}")
-            logger.debug(f"⏰ 时间戳: {response_data.get('timestamp')}")
-            return world_data
-        else:
-            logger.warning("⚠️  世界数据为空")
-            raise ValueError("世界数据为空")
-
-    except json.JSONDecodeError as e:
-        logger.error(f"❌ 解析世界资源响应失败: {e}")
-        raise ValueError(f"无效的JSON响应: {world_resource_uri}")
+    return world_data
 
 
 # ============================================================================
