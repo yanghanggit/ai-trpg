@@ -172,6 +172,76 @@ async def update_stage_execution_result(
 
 
 @app.tool()
+async def move_actor_to_stage(actor_name: str, target_stage_name: str) -> str:
+    """
+    将角色从当前场景移动到目标场景
+
+    Args:
+        actor_name: 要移动的角色名称
+        target_stage_name: 目标场景名称
+
+    Returns:
+        操作结果的JSON字符串
+    """
+    try:
+        # 记录移动前的状态（用于日志）
+        actor, source_stage = demo_world.find_actor_with_stage(actor_name)
+        source_stage_name = source_stage.name if source_stage else "未知"
+
+        # 调用World的move_actor_to_stage方法
+        result_stage = demo_world.move_actor_to_stage(actor_name, target_stage_name)
+
+        # 如果返回None，表示操作失败
+        if result_stage is None:
+            error_msg = (
+                f"移动失败：角色 '{actor_name}' 或目标场景 '{target_stage_name}' 不存在"
+            )
+            logger.warning(error_msg)
+            return json.dumps(
+                {
+                    "success": False,
+                    "error": error_msg,
+                    "actor": actor_name,
+                    "target_stage": target_stage_name,
+                    "timestamp": datetime.now().isoformat(),
+                },
+                ensure_ascii=False,
+                indent=2,
+            )
+
+        # 成功移动
+        success_msg = f"成功将角色 '{actor_name}' 从场景 '{source_stage_name}' 移动到 '{result_stage.name}'"
+        logger.warning(success_msg)
+
+        return json.dumps(
+            {
+                "success": True,
+                "message": success_msg,
+                "actor": actor_name,
+                "source_stage": source_stage_name,
+                "target_stage": result_stage.name,
+                "timestamp": datetime.now().isoformat(),
+            },
+            ensure_ascii=False,
+            indent=2,
+        )
+
+    except Exception as e:
+        logger.error(f"移动角色失败: {e}")
+        return json.dumps(
+            {
+                "success": False,
+                "error": f"移动角色失败 - {str(e)}",
+                "actor": actor_name,
+                "target_stage": target_stage_name,
+                "timestamp": datetime.now().isoformat(),
+            },
+            ensure_ascii=False,
+            indent=2,
+        )
+
+
+@app.tool()
 async def update_actor_appearance(actor_name: str, new_appearance: str) -> str:
     """
     更新指定Actor的外观描述

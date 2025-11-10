@@ -1,5 +1,5 @@
 from pydantic import BaseModel, Field
-from typing import List
+from typing import List, Optional
 from langchain.schema import BaseMessage
 
 
@@ -121,3 +121,42 @@ class World(BaseModel):
             包含世界中所有Stage的列表
         """
         return self.stages.copy()
+
+    def move_actor_to_stage(
+        self, actor_name: str, target_stage_name: str
+    ) -> Optional[Stage]:
+        """将角色从当前场景移动到目标场景
+
+        这是一个纯粹的数据操作方法，只负责在 World 的数据结构中移动 Actor 对象。
+        不涉及任何游戏逻辑验证（如场景连通性检查）或状态更新（如 actor_states）。
+        这些逻辑应该由调用方或 LLM 代理负责。
+
+        Args:
+            actor_name: 要移动的角色名称
+            target_stage_name: 目标场景名称
+
+        Returns:
+            Stage | None:
+                - 成功：返回目标场景对象
+                - 失败：返回 None（角色不存在或目标场景不存在）
+        """
+        # 1. 查找角色及其当前场景
+        actor, source_stage = self.find_actor_with_stage(actor_name)
+        if not actor or not source_stage:
+            return None  # 角色不存在
+
+        # 2. 查找目标场景
+        target_stage = self.find_stage(target_stage_name)
+        if not target_stage:
+            return None  # 目标场景不存在
+
+        # 3. 如果已在目标场景，直接返回目标场景（幂等性）
+        if source_stage.name == target_stage.name:
+            return target_stage
+
+        # 4. 执行移动：从源场景移除，添加到目标场景
+        source_stage.actors.remove(actor)
+        target_stage.actors.append(actor)
+
+        # 5. 返回目标场景表示成功
+        return target_stage
