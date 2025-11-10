@@ -43,7 +43,7 @@ class ActorAgent(GameAgent):
     代表游戏中的单个角色，负责角色的行为、对话和状态管理。
     """
 
-    pass
+    stage_agent: "StageAgent"  # 该角色所属的场景代理
 
 
 class StageAgent(GameAgent):
@@ -71,7 +71,7 @@ class GameAgentManager:
 
     def create_agents_from_world(
         self,
-        world: World,
+        world_model: World,
         global_game_mechanics: str,
     ) -> None:
         """从游戏世界创建所有代理 - 直接创建，简单直接"""
@@ -79,45 +79,50 @@ class GameAgentManager:
 
         # 创建世界观代理
         self._world_agent = WorldAgent(
-            name=world.name,
+            name=world_model.name,
             context=[
                 SystemMessage(
-                    content=gen_world_system_prompt(world, global_game_mechanics)
+                    content=gen_world_system_prompt(world_model, global_game_mechanics)
                 )
             ],
         )
         logger.info(f"已创建世界观代理: {self._world_agent.name}")
 
         # 获取游戏世界中的所有角色
-        all_actors = world.get_all_actors()
-        logger.info(f"游戏世界中的所有角色: {[actor.name for actor in all_actors]}")
+        all_actors_model = world_model.get_all_actors()
+        logger.info(
+            f"游戏世界中的所有角色: {[actor.name for actor in all_actors_model]}"
+        )
 
-        all_stages = world.get_all_stages()
-        logger.info(f"游戏世界中的所有场景: {[stage.name for stage in all_stages]}")
+        all_stages_model = world_model.get_all_stages()
+        logger.info(
+            f"游戏世界中的所有场景: {[stage.name for stage in all_stages_model]}"
+        )
 
         # 创建每个场景的代理，并同时创建场景中的角色代理
         self._stage_agents = []
-        for stage in all_stages:
+        for stage_model in all_stages_model:
             # 创建场景代理
             stage_agent = StageAgent(
-                name=stage.name,
+                name=stage_model.name,
                 context=[
                     SystemMessage(
                         content=gen_stage_system_prompt(
-                            stage, world, global_game_mechanics
+                            stage_model, world_model, global_game_mechanics
                         )
                     )
                 ],
             )
 
             # 为该场景中的每个角色创建代理
-            for actor in stage.actors:
+            for actor_model in stage_model.actors:
                 actor_agent = ActorAgent(
-                    name=actor.name,
+                    name=actor_model.name,
+                    stage_agent=stage_agent,  # 创建时直接指定所属场景
                     context=[
                         SystemMessage(
                             content=gen_actor_system_prompt(
-                                actor, world, global_game_mechanics
+                                actor_model, world_model, global_game_mechanics
                             )
                         )
                     ],
@@ -128,7 +133,7 @@ class GameAgentManager:
                     f"已创建角色代理: {actor_agent.name} (所属场景: {stage_agent.name})"
                 )
 
-                actor_agent.context.extend(actor.initial_context)
+                actor_agent.context.extend(actor_model.initial_context)
                 logger.debug(f"已为代理 {actor_agent.name} 应用初始对话上下文")
 
             self._stage_agents.append(stage_agent)

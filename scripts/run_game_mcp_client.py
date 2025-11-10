@@ -284,7 +284,7 @@ async def main() -> None:
                 # 调用游戏指令处理器
                 await handle_game_command(
                     command=command,
-                    agent_manager=agent_manager,
+                    game_agent_manager=agent_manager,
                     mcp_client=mcp_client,
                 )
                 continue

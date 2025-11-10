@@ -12,7 +12,7 @@ from pydantic import BaseModel
 from langchain.schema import HumanMessage
 from ai_trpg.deepseek import create_deepseek_llm
 from ai_trpg.mcp import McpClient
-from agent_utils import ActorAgent, StageAgent
+from agent_utils import ActorAgent, GameAgentManager
 from workflow_handlers import handle_mcp_workflow_execution
 from ai_trpg.utils.json_format import strip_json_code_block
 from mcp_client_resource_helpers import read_actor_resource
@@ -191,7 +191,7 @@ def _gen_self_update_request_prompt_test(
 ########################################################################################################################
 ########################################################################################################################
 ########################################################################################################################
-async def _handle_single_actor_self_update(
+async def _handle_actor_self_update(
     actor_agent: ActorAgent,
     mcp_client: McpClient,
 ) -> None:
@@ -314,12 +314,12 @@ async def _handle_single_actor_self_update(
 ########################################################################################################################
 async def _update_actor_death_status(
     actor_agent: ActorAgent,
-    all_actor_agents: List[ActorAgent],
     mcp_client: McpClient,
 ) -> None:
     """检查单个角色是否死亡
 
     通过读取角色资源中的生命值属性判断角色是否死亡。
+    如果角色死亡，会通知角色自身和场景内的其他角色。
 
     Args:
         actor_agent: 角色代理
@@ -342,8 +342,8 @@ async def _update_actor_death_status(
             HumanMessage(content=f"# 通知！你（{actor_agent.name}）已经死亡！")
         )
 
-        # 通知其他角色
-        for other_agent in all_actor_agents:
+        # 通知场景内的其他角色
+        for other_agent in actor_agent.stage_agent.actor_agents:
             if other_agent.name != actor_agent.name:
                 other_agent.context.append(
                     HumanMessage(content=f"# 通知！角色 {actor_agent.name} 已经死亡！")
@@ -358,8 +358,8 @@ async def _update_actor_death_status(
 ########################################################################################################################
 ########################################################################################################################
 async def handle_actors_self_update(
-    # actor_agents: List[ActorAgent],
-    stage_agent: StageAgent,
+    # stage_agent: StageAgent,
+    game_agent_manager: GameAgentManager,
     mcp_client: McpClient,
     use_concurrency: bool = False,
 ) -> None:
@@ -371,39 +371,46 @@ async def handle_actors_self_update(
         use_concurrency: 是否使用并行处理，默认False（顺序执行）
     """
 
+    actor_agents = game_agent_manager.actor_agents
+    if len(actor_agents) == 0:
+        logger.warning("⚠️ 当前没有角色代理，跳过自我状态更新流程")
+        return
+
+    # logger.debug(f"🔄 开始处理 {len(actor_agents)} 个角色的自我更新")
+
     if use_concurrency:
 
-        logger.debug(f"🔄 并行处理 {len(stage_agent.actor_agents)} 个角色的自我更新")
+        logger.debug(f"🔄 并行处理 {len(actor_agents)} 个角色的自我更新")
         tasks1 = [
-            _handle_single_actor_self_update(
+            _handle_actor_self_update(
                 actor_agent=actor_agent,
                 mcp_client=mcp_client,
             )
-            for actor_agent in stage_agent.actor_agents
+            for actor_agent in actor_agents
         ]
         await asyncio.gather(*tasks1)
 
         tasks2 = [
             _update_actor_death_status(
                 actor_agent=actor_agent,
-                all_actor_agents=stage_agent.actor_agents,
                 mcp_client=mcp_client,
             )
-            for actor_agent in stage_agent.actor_agents
+            for actor_agent in actor_agents
         ]
         await asyncio.gather(*tasks2)
 
     else:
 
-        logger.debug(f"🔄 顺序处理 {len(stage_agent.actor_agents)} 个角色的自我更新")
-        for actor_agent in stage_agent.actor_agents:
-            await _handle_single_actor_self_update(
+        logger.debug(f"🔄 顺序处理 {len(actor_agents)} 个角色的自我更新")
+        for actor_agent in actor_agents:
+            await _handle_actor_self_update(
                 actor_agent=actor_agent,
                 mcp_client=mcp_client,
             )
+
+        for actor_agent in actor_agents:
             await _update_actor_death_status(
                 actor_agent=actor_agent,
-                all_actor_agents=stage_agent.actor_agents,
                 mcp_client=mcp_client,
             )
 
