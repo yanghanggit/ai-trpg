@@ -11,7 +11,7 @@ from typing import Final
 # ============================================================================
 GLOBAL_GAME_MECHANICS: Final[
     str
-] = """1. **实体类型**：世界-World、场景-Stage、角色-Actor、效果/影响-Effect、道具-Item。
+] = """1. **实体类型**：世界-World、场景-Stage、角色-Actor、效果-Effect、道具-Item。
 World 包含 Stage，Stage 包含 Actor 和子 Stage。
 Actor 必须位于 Stage 中，只能与同一 Stage 的 Actor 直接互动。
 Actor 可拥有多个 Effect，每个 Effect 包含名称和描述，用于表示增益、减益、状态标记等影响角色能力和行为的效果。
