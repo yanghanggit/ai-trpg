@@ -170,7 +170,7 @@ async def _collect_actor_plan_prompts(
 ########################################################################################################################
 ########################################################################################################################
 ########################################################################################################################
-async def handle_actor_plans_and_update_stage(
+async def _handle_actor_plans_and_update_stage(
     stage_agent: StageAgent,
     mcp_client: McpClient,
 ) -> None:
@@ -184,12 +184,11 @@ async def handle_actor_plans_and_update_stage(
         mcp_client: MCP 客户端
     """
 
-    logger.info(f"🎬 场景执行: {stage_agent.name}")
-
-    # assert len(stage_agent.actor_agents) > 0, "没有可用的角色代理"
-    if len(stage_agent.actor_agents) == 0:
-        logger.warning("⚠️  没有角色代理，跳过场景执行")
-        return
+    # logger.info(f"🎬 场景内执行: {stage_agent.name}")
+    assert len(stage_agent.actor_agents) > 0, "没有可用的角色代理!!!!!!"
+    # if len(stage_agent.actor_agents) == 0:
+    #     logger.warning("⚠️  没有角色代理，跳过场景执行")
+    #     return
 
     # 收集所有角色的行动计划
     actor_plans = await _collect_actor_plan_prompts(
@@ -365,3 +364,29 @@ async def handle_actor_plans_and_update_stage(
 
     except Exception as e:
         logger.error(f"JSON解析错误: {e}")
+
+
+########################################################################################################################
+########################################################################################################################
+########################################################################################################################
+async def handle_stage_execute(
+    stage_agent: StageAgent,
+    mcp_client: McpClient,
+) -> None:
+
+    if len(stage_agent.actor_agents) == 0:
+        logger.warning(f"{stage_agent.name} 没有角色代理，是否跳过场景执行？")
+        return
+
+    logger.debug(
+        f"🎬 场景执行: {stage_agent.name}, 场景内角色进行行动计划并更新场景状态"
+    )
+    await _handle_actor_plans_and_update_stage(
+        stage_agent=stage_agent,
+        mcp_client=mcp_client,
+    )
+
+
+########################################################################################################################
+########################################################################################################################
+########################################################################################################################

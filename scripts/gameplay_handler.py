@@ -14,7 +14,7 @@ from agent_utils import GameAgentManager, StageAgent
 from pipeline_kickoff import handle_kickoff
 from pipeline_actor_observe_and_plan import handle_actors_observe_and_plan
 from pipeline_stage_execute import (
-    handle_actor_plans_and_update_stage,
+    handle_stage_execute,
 )
 from pipeline_actor_self_update import handle_actors_self_update
 
@@ -62,13 +62,6 @@ async def handle_game_command(
         case "all:kickoff":
             await _all_kickoff(stage_agents, mcp_client)
 
-            # for stage_agent in stage_agents:
-
-            #     await handle_kickoff(
-            #         stage_agent=stage_agent,
-            #         mcp_client=mcp_client,
-            #     )
-
         # /game all:actors_observe_and_plan - 让所有角色代理观察场景并规划行动
         case "all:actors_observe_and_plan":
 
@@ -84,7 +77,7 @@ async def handle_game_command(
         case "all:actor_plans_and_update_stage":
 
             for stage_agent in stage_agents:
-                await handle_actor_plans_and_update_stage(
+                await handle_stage_execute(
                     stage_agent=stage_agent,
                     mcp_client=mcp_client,
                 )
@@ -107,10 +100,6 @@ async def handle_game_command(
 
             # 步骤0: 所有角色开始行动（Kickoff）
             for stage_agent in stage_agents:
-                # await handle_kickoff(
-                #     stage_agent=stage_agent,
-                #     mcp_client=mcp_client,
-                # )
 
                 # 步骤1: 所有角色观察场景并规划行动
                 await handle_actors_observe_and_plan(
@@ -127,10 +116,6 @@ async def handle_game_command(
 
             # 步骤0: 所有角色开始行动（Kickoff）
             for stage_agent in stage_agents:
-                # await handle_kickoff(
-                #     stage_agent=stage_agent,
-                #     mcp_client=mcp_client,
-                # )
 
                 # 步骤1: 所有角色观察场景并规划行动
                 await handle_actors_observe_and_plan(
@@ -141,7 +126,7 @@ async def handle_game_command(
 
                 # 步骤2: 场景执行计划并生成新的状态快照
                 # 输出的状态快照将成为下一轮的输入
-                await handle_actor_plans_and_update_stage(
+                await handle_stage_execute(
                     stage_agent=stage_agent,
                     mcp_client=mcp_client,
                 )
@@ -161,10 +146,6 @@ async def handle_game_command(
 
             # 步骤0: 所有角色开始行动（Kickoff）
             for stage_agent in stage_agents:
-                # await handle_kickoff(
-                #     stage_agent=stage_agent,
-                #     mcp_client=mcp_client,
-                # )
 
                 # 步骤1: 所有角色进行状态更新
                 await handle_actors_self_update(
