@@ -8,9 +8,6 @@ sys.path.insert(
     0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "src")
 )
 from loguru import logger
-from ai_trpg.mongodb import (
-    mongodb_clear_database,
-)
 from ai_trpg.pgsql import (
     pgsql_create_database,
     pgsql_drop_database,
@@ -193,15 +190,6 @@ def main() -> None:
         logger.success("✅ Redis 初始化完成")
     except Exception as e:
         logger.error(f"❌ Redis 初始化失败: {e}")
-
-    # MongoDB 相关操作
-    try:
-        logger.info("🚀 清空 MongoDB 数据库...")
-        mongodb_clear_database()
-        logger.success("✅ MongoDB 清空完成")
-
-    except Exception as e:
-        logger.error(f"❌ MongoDB 初始化失败: {e}")
 
     # ChromaDB 相关操作
     try:

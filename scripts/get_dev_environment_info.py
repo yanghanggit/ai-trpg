@@ -225,7 +225,7 @@ def get_network_and_services() -> None:
         8080: "HTTP备用端口",
         5432: "PostgreSQL数据库",
         6379: "Redis数据库",
-        27017: "MongoDB数据库",
+        # 27017: "MongoDB数据库",
         3306: "MySQL数据库",
         7687: "Neo4j Bolt协议",
         7474: "Neo4j HTTP Web界面",
