@@ -73,7 +73,7 @@ def _prepare_documents_for_vector_storage(
 
 
 ############################################################################################################
-def load_knowledge_base_to_vector_db(
+def chroma_load_knowledge_base_to_vector_db(
     knowledge_base: Dict[str, List[str]],
     embedding_model: SentenceTransformer,
     collection: Collection,
@@ -154,7 +154,7 @@ def load_knowledge_base_to_vector_db(
 
 ############################################################################################################
 ############################################################################################################
-def search_similar_documents(
+def chroma_search_similar_documents(
     query: str,
     collection: Collection,
     embedding_model: SentenceTransformer,

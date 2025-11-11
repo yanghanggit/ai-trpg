@@ -33,7 +33,7 @@ from ai_trpg.deepseek import (
     execute_rag_workflow,
     create_deepseek_llm,
 )
-from ai_trpg.rag.game_retriever import GameDocumentRetriever
+from ai_trpg.rag.chroma_game_retriever import ChromaGameDocumentRetriever
 
 
 async def main() -> None:
@@ -43,7 +43,7 @@ async def main() -> None:
         # 初始化：聊天历史、LLM实例和检索器实例
         chat_history: List[BaseMessage] = []
         llm_instance = create_deepseek_llm()
-        retriever_instance = GameDocumentRetriever()
+        retriever_instance = ChromaGameDocumentRetriever()
 
         # 步骤4: 开始交互循环
         while True:

@@ -20,9 +20,9 @@ from ai_trpg.redis.client import (
     redis_flushall,
 )
 from ai_trpg.chroma import reset_client, get_default_collection
-from ai_trpg.rag.knowledge_retrieval import (
-    load_knowledge_base_to_vector_db,
-    search_similar_documents,
+from ai_trpg.rag.chroma_knowledge_retrieval import (
+    chroma_load_knowledge_base_to_vector_db,
+    chroma_search_similar_documents,
 )
 from ai_trpg.demo import test_knowledge_base1
 from ai_trpg.embedding_model import multilingual_model
@@ -50,7 +50,7 @@ def _test_chromadb_search() -> None:
 
     for query in test_queries:
         logger.info(f"📝 测试查询: '{query}'")
-        documents, scores = search_similar_documents(
+        documents, scores = chroma_search_similar_documents(
             query=query,
             collection=get_default_collection(),
             embedding_model=multilingual_model,
@@ -89,7 +89,7 @@ def _setup_chromadb() -> None:
 
         # 加载测试知识库数据到向量数据库
         # logger.info("🔄 加载测试知识库到向量数据库...")
-        success = load_knowledge_base_to_vector_db(
+        success = chroma_load_knowledge_base_to_vector_db(
             knowledge_base=test_knowledge_base1,
             embedding_model=multilingual_model,
             collection=get_default_collection(),

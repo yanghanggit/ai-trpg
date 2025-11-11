@@ -43,7 +43,7 @@ from ai_trpg.demo import (
 )
 
 from ai_trpg.utils import parse_command_with_params
-from ai_trpg.rag.game_retriever import GameDocumentRetriever
+from ai_trpg.rag.chroma_game_retriever import ChromaGameDocumentRetriever
 from ai_trpg.configuration.game import setup_logger
 from actor_movement_log_manager import remove_actor_movement_log
 
@@ -275,7 +275,7 @@ async def main() -> None:
                     context=agent_manager.current_agent.context.copy(),
                     request=HumanMessage(content=rag_content),
                     llm=create_deepseek_llm(),
-                    document_retriever=GameDocumentRetriever(),
+                    document_retriever=ChromaGameDocumentRetriever(),
                 )
 
                 # 更新当前代理的对话历史

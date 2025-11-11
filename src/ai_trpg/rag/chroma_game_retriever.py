@@ -11,14 +11,14 @@ from typing import List
 from loguru import logger
 from ..deepseek import DocumentRetriever
 from ..chroma import get_default_collection
-from .knowledge_retrieval import search_similar_documents
+from .chroma_knowledge_retrieval import chroma_search_similar_documents
 from ..embedding_model import multilingual_model
 
 
 ############################################################################################################
 # 游戏文档检索器实现（使用 ChromaDB 和 SentenceTransformer）
 ############################################################################################################
-class GameDocumentRetriever(DocumentRetriever):
+class ChromaGameDocumentRetriever(DocumentRetriever):
     """
     游戏文档检索器实现
 
@@ -55,11 +55,8 @@ class GameDocumentRetriever(DocumentRetriever):
 
         try:
 
-            # embedding_model = get_embedding_model()
-            # assert embedding_model is not None, "嵌入模型未加载成功"
-
             # 使用 search_similar_documents 进行语义搜索
-            documents, scores = search_similar_documents(
+            documents, scores = chroma_search_similar_documents(
                 query=user_query,
                 collection=get_default_collection(),
                 embedding_model=multilingual_model,
