@@ -17,84 +17,12 @@ from ai_trpg.pgsql import (
 from ai_trpg.redis.client import (
     redis_flushall,
 )
-from ai_trpg.chroma import reset_client, get_default_collection
-from ai_trpg.rag.chroma_knowledge_retrieval import (
-    chroma_load_knowledge_base_to_vector_db,
-    chroma_search_similar_documents,
-)
 from ai_trpg.rag.pgvector_knowledge_retrieval import (
     pgvector_load_knowledge_base_to_vector_db,
     pgvector_search_similar_documents,
 )
 from ai_trpg.demo import test_knowledge_base1
 from ai_trpg.embedding_model import multilingual_model
-
-
-#######################################################################################################
-def _test_chromadb_search(test_queries: List[str]) -> None:
-    """
-    测试ChromaDB向量检索功能
-    验证语义搜索是否能正确检索到相关文档
-    """
-    logger.info("🔍 开始测试向量检索功能...")
-
-    for query in test_queries:
-        logger.info(f"📝 测试查询: '{query}'")
-        documents, scores = chroma_search_similar_documents(
-            query=query,
-            collection=get_default_collection(),
-            embedding_model=multilingual_model,
-            top_k=3,
-        )
-
-        if documents:
-            logger.success(f"✅ 找到 {len(documents)} 个相关文档")
-            for i, (doc, score) in enumerate(zip(documents, scores), 1):
-                logger.info(f"  [{i}] 相似度: {score:.3f}")
-                logger.info(f"      内容: {doc[:80]}...")
-        else:
-            logger.warning(f"⚠️ 未找到相关文档")
-
-        logger.info("")  # 空行分隔
-
-    logger.success("🎉 向量检索功能测试完成")
-
-
-#######################################################################################################
-def _setup_chromadb() -> None:
-    """
-    清理现有的ChromaDB数据，然后使用正式的知识库数据重新初始化.
-    包括向量数据库的设置和知识库数据的加载
-    """
-
-    try:
-
-        # 重置ChromaDB客户端，清理现有数据
-        reset_client()
-
-        # logger.info("🔄 加载测试知识库到向量数据库...")
-        success = chroma_load_knowledge_base_to_vector_db(
-            knowledge_base=test_knowledge_base1,
-            embedding_model=multilingual_model,
-            collection=get_default_collection(),
-        )
-
-        if success:
-            logger.success("✅ 测试知识库加载成功")
-
-            # 测试向量检索功能
-            # _test_chromadb_search(test_queries_for_knowledge_base1)
-
-        else:
-            logger.error("❌ 测试知识库加载失败")
-            raise Exception("知识库加载失败")
-
-    except ImportError as e:
-        logger.error(f"❌ 无法导入ChromaDB相关模块: {e}")
-        raise
-    except Exception as e:
-        logger.error(f"❌ ChromaDB初始化过程中发生错误: {e}")
-        raise
 
 
 #######################################################################################################
@@ -190,14 +118,6 @@ def main() -> None:
         logger.success("✅ Redis 初始化完成")
     except Exception as e:
         logger.error(f"❌ Redis 初始化失败: {e}")
-
-    # ChromaDB 相关操作
-    try:
-        logger.info("🚀 初始化ChromaDB...")
-        _setup_chromadb()
-        logger.success("✅ ChromaDB 初始化完成")
-    except Exception as e:
-        logger.error(f"❌ ChromaDB 初始化失败: {e}")
 
     logger.info("🎉 开发环境初始化完成")
 
