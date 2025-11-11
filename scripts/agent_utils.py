@@ -5,9 +5,10 @@
 提供游戏代理相关的工具函数，包括代理切换、管理等功能。
 """
 
+import asyncio
 from typing import List, Optional
 from loguru import logger
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
 from langchain.schema import BaseMessage, SystemMessage
 from ai_trpg.demo import (
     World,
@@ -16,12 +17,18 @@ from ai_trpg.demo import (
     gen_stage_system_prompt,
 )
 from langchain.schema import BaseMessage
+from ai_trpg.mcp import (
+    McpClient,
+)
 
 
 class GameAgent(BaseModel):
     """游戏代理模型"""
 
+    model_config = ConfigDict(arbitrary_types_allowed=True)
+
     name: str
+    mcp_client: McpClient
     context: List[BaseMessage] = []
     plan: str = ""
     is_kicked_off: bool = False  # 代理是否已完成开局初始化, 防止重复
@@ -69,7 +76,7 @@ class GameAgentManager:
         self._stage_agents: List[StageAgent] = []
         self._current_agent: Optional[GameAgent] = None
 
-    def create_agents_from_world(
+    async def create_agents_from_world(
         self,
         world_model: World,
         global_game_mechanics: str,
@@ -85,6 +92,7 @@ class GameAgentManager:
                     content=gen_world_system_prompt(world_model, global_game_mechanics)
                 )
             ],
+            mcp_client=await self._create_mcp_client(),
         )
         logger.debug(f"已创建世界观代理: {self._world_agent.name}")
 
@@ -112,6 +120,7 @@ class GameAgentManager:
                         )
                     )
                 ],
+                mcp_client=await self._create_mcp_client(),
             )
 
             # 为该场景中的每个角色创建代理
@@ -126,6 +135,7 @@ class GameAgentManager:
                             )
                         )
                     ],
+                    mcp_client=await self._create_mcp_client(),
                 )
                 # 将角色代理添加到场景代理的列表中
                 stage_agent.actor_agents.append(actor_agent)
@@ -146,6 +156,74 @@ class GameAgentManager:
         assert self._current_agent is not None, "当前激活的代理不能为空"
 
         logger.debug("✅ 所有游戏代理创建完成")
+
+    async def _create_mcp_client(self) -> McpClient:
+
+        from ai_trpg.mcp import (
+            mcp_config,
+        )
+        from mcp_client_init import create_mcp_client_with_config
+
+        return await create_mcp_client_with_config(
+            mcp_config=mcp_config, list_available=False, auto_connect=False
+        )
+
+    async def connect_all_agents(self) -> None:
+        """并发连接所有代理的 MCP 客户端
+
+        在 create_agents_from_world 之后调用，用于批量建立所有 MCP 连接。
+        使用 asyncio.gather 实现真正的并发连接，提高效率。
+        """
+        logger.info("🔗 开始并发连接所有代理的 MCP 客户端...")
+
+        # 收集所有需要连接的任务
+        connection_tasks = []
+
+        # 世界代理
+        if self._world_agent:
+            connection_tasks.append(self._connect_agent_client(self._world_agent))
+
+        # 场景代理和角色代理
+        for stage_agent in self._stage_agents:
+            connection_tasks.append(self._connect_agent_client(stage_agent))
+            for actor_agent in stage_agent.actor_agents:
+                connection_tasks.append(self._connect_agent_client(actor_agent))
+
+        # 并发执行所有连接
+        results = await asyncio.gather(*connection_tasks, return_exceptions=True)
+
+        # 统计连接结果
+        success_count = sum(1 for r in results if r is True)
+        failure_count = sum(1 for r in results if isinstance(r, Exception))
+
+        logger.info(
+            f"✅ MCP 客户端连接完成: "
+            f"成功 {success_count}/{len(connection_tasks)}, "
+            f"失败 {failure_count}/{len(connection_tasks)}"
+        )
+
+        # 如果有失败，记录详细错误
+        if failure_count > 0:
+            for i, result in enumerate(results):
+                if isinstance(result, Exception):
+                    logger.error(f"❌ 连接失败 [{i}]: {result}")
+
+    async def _connect_agent_client(self, agent: GameAgent) -> bool:
+        """连接单个代理的 MCP 客户端
+
+        Args:
+            agent: 要连接的游戏代理
+
+        Returns:
+            bool: 连接是否成功
+        """
+        try:
+            await agent.mcp_client.connect()
+            logger.debug(f"✅ 代理 [{agent.name}] MCP 客户端已连接")
+            return True
+        except Exception as e:
+            logger.error(f"❌ 代理 [{agent.name}] MCP 客户端连接失败: {e}")
+            raise
 
     @property
     def world_agent(self) -> Optional[WorldAgent]:

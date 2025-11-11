@@ -8,12 +8,9 @@ MCP (Model Context Protocol) 功能单元测试
 - 工具参数处理和错误处理
 """
 
-# from pathlib import Path
 import pytest
 from typing import List
 from unittest.mock import AsyncMock, MagicMock, patch
-
-
 from src.ai_trpg.deepseek.mcp_client_graph import (
     McpState,
 )
@@ -23,13 +20,8 @@ from src.ai_trpg.mcp import (
     McpToolResult,
     create_mcp_client,
     execute_mcp_tool,
-    # McpConfig,
     mcp_config,
-    # load_mcp_config,
 )
-
-
-# _mcp_config: Final[McpConfig] = load_mcp_config(Path("mcp_config.json"))
 
 
 class TestMcpClient:
@@ -99,9 +91,10 @@ class TestMcpClient:
             mock_client.connect.return_value = None
 
             client = await create_mcp_client(
-                mcp_config.mcp_server_url,
-                mcp_config.protocol_version,
-                mcp_config.mcp_timeout,
+                mcp_server_url=mcp_config.mcp_server_url,
+                mcp_protocol_version=mcp_config.protocol_version,
+                mcp_timeout=mcp_config.mcp_timeout,
+                auto_connect=True,
             )
 
             # Verify that the client was created with correct parameters

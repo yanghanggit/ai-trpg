@@ -16,7 +16,7 @@ async def create_mcp_client(
     mcp_server_url: str,
     mcp_protocol_version: str,
     mcp_timeout: int,
-    auto_connect: bool = True,
+    auto_connect: bool,
 ) -> McpClient:
     """
     初始化 MCP 客户端

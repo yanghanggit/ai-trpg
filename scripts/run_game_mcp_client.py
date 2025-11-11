@@ -69,12 +69,6 @@ demo_world: World = create_demo_world()
 
 
 ########################################################################################################################
-# 创建游戏代理管理器
-agent_manager: GameAgentManager = GameAgentManager()
-agent_manager.create_agents_from_world(
-    demo_world,
-    GLOBAL_GAME_MECHANICS,
-)
 
 
 # ============================================================================
@@ -126,22 +120,34 @@ async def main() -> None:
 
     try:
 
+        # 设定日志配置
         setup_logger()
-        # logger.debug("✅ Logger 设置成功")
+
+        # 清空角色移动日志文件
+        remove_actor_movement_log()
+
+        # 初始化 MCP 客户端并获取可用资源
+        mcp_client = await create_mcp_client_with_config(
+            mcp_config=mcp_config, list_available=True, auto_connect=True
+        )
+        assert mcp_client is not None, "MCP 客户端初始化失败"
+
+        # 创建游戏代理管理器
+        agent_manager: GameAgentManager = GameAgentManager()
+        await agent_manager.create_agents_from_world(
+            demo_world,
+            GLOBAL_GAME_MECHANICS,
+        )
 
         # 验证代理管理器已正确初始化
         if agent_manager.current_agent is None:
             raise ValueError("❌ 代理管理器未正确初始化")
 
-        # 初始化 MCP 客户端并获取可用资源
-        mcp_client = await create_mcp_client_with_config(mcp_config)
-        assert mcp_client is not None, "MCP 客户端初始化失败"
+        # 连接所有代理的 MCP 客户端
+        await agent_manager.connect_all_agents()
 
         # 初始化世界资源(会触发服务器重置世界状态)
         world_data = await initialize_world_resource(mcp_client)
-
-        # 清空角色移动日志文件
-        remove_actor_movement_log()
 
         # 对话循环
         while True:
