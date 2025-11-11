@@ -414,6 +414,7 @@ async def main() -> None:
                 mcp_server_url=mcp_config.mcp_server_url,
                 mcp_protocol_version=mcp_config.protocol_version,
                 mcp_timeout=mcp_config.mcp_timeout,
+                auto_connect=True,
             )
             tools_result = await mcp_client.list_tools()
             available_tools = tools_result if tools_result is not None else []
