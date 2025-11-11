@@ -14,9 +14,6 @@ from ai_trpg.pgsql import (
     pgsql_ensure_database_tables,
     postgresql_config,
 )
-from ai_trpg.redis.client import (
-    redis_flushall,
-)
 from ai_trpg.rag.pgvector_knowledge_retrieval import (
     pgvector_load_knowledge_base_to_vector_db,
     pgvector_search_similar_documents,
@@ -110,14 +107,6 @@ def main() -> None:
 
     except Exception as e:
         logger.error(f"❌ PostgreSQL 初始化失败: {e}")
-
-    # Redis 相关操作
-    try:
-        logger.info("🚀 清空 Redis 数据库...")
-        redis_flushall()
-        logger.success("✅ Redis 初始化完成")
-    except Exception as e:
-        logger.error(f"❌ Redis 初始化失败: {e}")
 
     logger.info("🎉 开发环境初始化完成")
 

@@ -62,7 +62,6 @@ dependencies = [
     { name = "mcp" },
     { name = "msgpack" },
     { name = "multidict" },
-    { name = "neo4j" },
     { name = "numpy" },
     { name = "oauthlib" },
     { name = "openai" },
@@ -91,7 +90,6 @@ dependencies = [
     { name = "python-jose" },
     { name = "pytz" },
     { name = "pyyaml" },
-    { name = "redis" },
     { name = "referencing" },
     { name = "regex" },
     { name = "replicate" },
@@ -137,7 +135,6 @@ dev = [
     { name = "types-python-jose" },
     { name = "types-pytz" },
     { name = "types-pyyaml" },
-    { name = "types-redis" },
     { name = "types-requests" },
     { name = "types-setuptools" },
 ]
@@ -198,7 +195,6 @@ requires-dist = [
     { name = "multidict", specifier = ">=6.0.5" },
     { name = "mypy", marker = "extra == 'dev'", specifier = ">=1.16.0" },
     { name = "mypy-extensions", marker = "extra == 'dev'", specifier = ">=1.0.0" },
-    { name = "neo4j", specifier = ">=5.28.1" },
     { name = "numpy", specifier = ">=1.26.4" },
     { name = "oauthlib", specifier = ">=3.3.1" },
     { name = "openai", specifier = ">=1.98.0" },
@@ -232,7 +228,6 @@ requires-dist = [
     { name = "python-jose", specifier = ">=3.5.0" },
     { name = "pytz", specifier = ">=2024.1" },
     { name = "pyyaml", specifier = ">=6.0.1" },
-    { name = "redis", specifier = ">=6.4.0" },
     { name = "referencing", specifier = ">=0.35.1" },
     { name = "regex", specifier = ">=2023.12.25" },
     { name = "replicate", specifier = ">=1.0.7" },
@@ -258,7 +253,6 @@ requires-dist = [
     { name = "types-python-jose", marker = "extra == 'dev'", specifier = ">=3.5.0.20250531" },
     { name = "types-pytz", marker = "extra == 'dev'", specifier = ">=2024.1.0.20240203" },
     { name = "types-pyyaml", marker = "extra == 'dev'", specifier = ">=6.0.12.12" },
-    { name = "types-redis", marker = "extra == 'dev'", specifier = ">=4.6.0.20241004" },
     { name = "types-requests", marker = "extra == 'dev'", specifier = ">=2.32.0.20240907" },
     { name = "types-setuptools", marker = "extra == 'dev'", specifier = ">=80.9.0.20250529" },
     { name = "typing-extensions", specifier = ">=4.12.2" },
@@ -1784,18 +1778,6 @@ wheels = [
 ]
 
 [[package]]
-name = "neo4j"
-version = "6.0.2"
-source = { registry = "https://pypi.org/simple" }
-dependencies = [
-    { name = "pytz" },
-]
-sdist = { url = "https://files.pythonhosted.org/packages/eb/34/485ab7c0252bd5d9c9ff0672f61153a8007490af2069f664d8766709c7ba/neo4j-6.0.2.tar.gz", hash = "sha256:c98734c855b457e7a976424dc04446d652838d00907d250d6e9a595e88892378", size = 240139, upload-time = "2025-10-02T11:31:06.724Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/75/4e/11813da186859070b0512e8071dac4796624ac4dc28e25e7c530df730d23/neo4j-6.0.2-py3-none-any.whl", hash = "sha256:dc3fc1c99f6da2293d9deefead1e31dd7429bbb513eccf96e4134b7dbf770243", size = 325761, upload-time = "2025-10-02T11:31:04.855Z" },
-]
-
-[[package]]
 name = "networkx"
 version = "3.5"
 source = { registry = "https://pypi.org/simple" }
@@ -3004,15 +2986,6 @@ wheels = [
 ]
 
 [[package]]
-name = "redis"
-version = "6.4.0"
-source = { registry = "https://pypi.org/simple" }
-sdist = { url = "https://files.pythonhosted.org/packages/0d/d6/e8b92798a5bd67d659d51a18170e91c16ac3b59738d91894651ee255ed49/redis-6.4.0.tar.gz", hash = "sha256:b01bc7282b8444e28ec36b261df5375183bb47a07eb9c603f284e89cbc5ef010", size = 4647399, upload-time = "2025-08-07T08:10:11.441Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/e8/02/89e2ed7e85db6c93dfa9e8f691c5087df4e3551ab39081a4d7c6d1f90e05/redis-6.4.0-py3-none-any.whl", hash = "sha256:f0544fa9604264e9464cdf4814e7d4830f74b165d52f2a330a760a88dd248b7f", size = 279847, upload-time = "2025-08-07T08:10:09.84Z" },
-]
-
-[[package]]
 name = "referencing"
 version = "0.37.0"
 source = { registry = "https://pypi.org/simple" }
@@ -3797,19 +3770,6 @@ source = { registry = "https://pypi.org/simple" }
 sdist = { url = "https://files.pythonhosted.org/packages/7e/69/3c51b36d04da19b92f9e815be12753125bd8bc247ba0470a982e6979e71c/types_pyyaml-6.0.12.20250915.tar.gz", hash = "sha256:0f8b54a528c303f0e6f7165687dd33fafa81c807fcac23f632b63aa624ced1d3", size = 17522, upload-time = "2025-09-15T03:01:00.728Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/bd/e0/1eed384f02555dde685fff1a1ac805c1c7dcb6dd019c916fe659b1c1f9ec/types_pyyaml-6.0.12.20250915-py3-none-any.whl", hash = "sha256:e7d4d9e064e89a3b3cae120b4990cd370874d2bf12fa5f46c97018dd5d3c9ab6", size = 20338, upload-time = "2025-09-15T03:00:59.218Z" },
-]
-
-[[package]]
-name = "types-redis"
-version = "4.6.0.20241004"
-source = { registry = "https://pypi.org/simple" }
-dependencies = [
-    { name = "cryptography" },
-    { name = "types-pyopenssl" },
-]
-sdist = { url = "https://files.pythonhosted.org/packages/3a/95/c054d3ac940e8bac4ca216470c80c26688a0e79e09f520a942bb27da3386/types-redis-4.6.0.20241004.tar.gz", hash = "sha256:5f17d2b3f9091ab75384153bfa276619ffa1cf6a38da60e10d5e6749cc5b902e", size = 49679, upload-time = "2024-10-04T02:43:59.224Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/55/82/7d25dce10aad92d2226b269bce2f85cfd843b4477cd50245d7d40ecf8f89/types_redis-4.6.0.20241004-py3-none-any.whl", hash = "sha256:ef5da68cb827e5f606c8f9c0b49eeee4c2669d6d97122f301d3a55dc6a63f6ed", size = 58737, upload-time = "2024-10-04T02:43:57.968Z" },
 ]
 
 [[package]]
