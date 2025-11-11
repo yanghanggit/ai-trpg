@@ -44,7 +44,7 @@ from ai_trpg.demo import (
 
 from ai_trpg.utils import parse_command_with_params
 from ai_trpg.rag.pgvector_game_retriever import PGVectorGameDocumentRetriever
-from ai_trpg.configuration.game import setup_logger
+from ai_trpg.configuration.logging_config import setup_logger
 from actor_movement_log_manager import remove_actor_movement_log
 
 # 导入本地工具模块

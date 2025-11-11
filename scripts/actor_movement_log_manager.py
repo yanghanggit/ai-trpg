@@ -10,7 +10,7 @@ from pathlib import Path
 from typing import List
 from loguru import logger
 from pydantic import BaseModel
-from ai_trpg.configuration.game import LOGS_DIR
+from ai_trpg.configuration.logging_config import LOGS_DIR
 
 
 class ActorMovementEvent(BaseModel):

@@ -10,7 +10,7 @@ from datetime import datetime
 from typing import List
 from langchain.schema import BaseMessage, HumanMessage, SystemMessage, AIMessage
 from loguru import logger
-from ai_trpg.configuration.game import LOGS_DIR
+from ai_trpg.configuration.logging_config import LOGS_DIR
 
 
 def format_user_input_prompt(user_input: str) -> str:
