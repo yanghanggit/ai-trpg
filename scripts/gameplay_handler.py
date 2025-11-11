@@ -17,6 +17,7 @@ from pipeline_stage_execute import (
     handle_stage_execute,
 )
 from pipeline_actor_self_update import handle_actors_self_update
+from pipeline_stage_self_update import handle_stage_self_update
 
 
 ########################################################################################################################
@@ -91,6 +92,15 @@ async def handle_game_command(
                 use_concurrency=True,
             )
 
+        # /game all:stage_self_update - 让所有场景进行自我更新
+        case "all:stage_self_update":
+
+            await handle_stage_self_update(
+                game_agent_manager=game_agent_manager,
+                mcp_client=mcp_client,
+                use_concurrency=True,
+            )
+
         # /game pipeline:test0 - 测试流水线0: 开局→观察规划
         case "pipeline:test0":
 
@@ -131,7 +141,13 @@ async def handle_game_command(
 
             # 步骤3: 所有角色进行状态更新
             await handle_actors_self_update(
-                # stage_agent=stage_agent,
+                game_agent_manager=game_agent_manager,
+                mcp_client=mcp_client,
+                use_concurrency=True,
+            )
+
+            # 步骤4: 所有场景进行状态更新
+            await handle_stage_self_update(
                 game_agent_manager=game_agent_manager,
                 mcp_client=mcp_client,
                 use_concurrency=True,
@@ -146,6 +162,13 @@ async def handle_game_command(
 
             # 步骤1: 所有角色进行状态更新
             await handle_actors_self_update(
+                game_agent_manager=game_agent_manager,
+                mcp_client=mcp_client,
+                use_concurrency=True,
+            )
+
+            # 步骤2: 所有场景进行状态更新
+            await handle_stage_self_update(
                 game_agent_manager=game_agent_manager,
                 mcp_client=mcp_client,
                 use_concurrency=True,

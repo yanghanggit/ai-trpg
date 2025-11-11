@@ -358,7 +358,6 @@ async def _update_actor_death_status(
 ########################################################################################################################
 ########################################################################################################################
 async def handle_actors_self_update(
-    # stage_agent: StageAgent,
     game_agent_manager: GameAgentManager,
     mcp_client: McpClient,
     use_concurrency: bool = False,
@@ -381,23 +380,23 @@ async def handle_actors_self_update(
     if use_concurrency:
 
         logger.debug(f"🔄 并行处理 {len(actor_agents)} 个角色的自我更新")
-        tasks1 = [
+        actor_update_tasks = [
             _handle_actor_self_update(
                 actor_agent=actor_agent,
                 mcp_client=mcp_client,
             )
             for actor_agent in actor_agents
         ]
-        await asyncio.gather(*tasks1)
+        await asyncio.gather(*actor_update_tasks, return_exceptions=True)
 
-        tasks2 = [
+        death_check_tasks = [
             _update_actor_death_status(
                 actor_agent=actor_agent,
                 mcp_client=mcp_client,
             )
             for actor_agent in actor_agents
         ]
-        await asyncio.gather(*tasks2)
+        await asyncio.gather(*death_check_tasks, return_exceptions=True)
 
     else:
 
