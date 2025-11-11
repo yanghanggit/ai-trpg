@@ -60,17 +60,13 @@ class VectorDocumentDB(UUIDBase):
         nullable=False,
     )
 
-    # 为向量字段创建索引以优化相似度搜索
+    # 索引配置 (移除向量索引以支持多维度灵活性)
+    # 注意: 对于小规模数据(<10000文档), 无向量索引的性能影响可忽略
+    # 如需优化大规模查询, 可为特定维度添加条件索引
+    # embedding_dim 索引已在字段定义中通过 index=True 创建
     __table_args__ = (
-        Index(
-            "ix_vector_documents_embedding",
-            "embedding",
-            postgresql_using="ivfflat",
-            postgresql_with={"lists": 100},
-        ),
         Index("ix_vector_documents_doc_type", "doc_type"),
         Index("ix_vector_documents_source", "source"),
-        Index("ix_vector_documents_embedding_dim", "embedding_dim"),
     )
 
 
@@ -133,6 +129,41 @@ def save_vector_document(
         db.rollback()
         logger.error(f"❌ 保存向量文档失败: {e}")
         raise e
+    finally:
+        db.close()
+
+
+def clear_all_vector_documents() -> bool:
+    """
+    清空 vector_documents 表中的所有文档
+
+    注意：此操作不可逆，仅适用于开发环境重置或数据迁移场景
+
+    返回:
+        bool: 清空是否成功
+    """
+    logger.info("🗑️ [CLEAR] 开始清空 vector_documents 表...")
+
+    db = SessionLocal()
+    try:
+        from sqlalchemy import func
+
+        count_before = db.query(func.count(VectorDocumentDB.id)).scalar()
+        logger.info(f"📊 [CLEAR] 清空前文档数量: {count_before}")
+
+        db.query(VectorDocumentDB).delete()
+        db.commit()
+
+        count_after = db.query(func.count(VectorDocumentDB.id)).scalar()
+        logger.success(
+            f"✅ [CLEAR] 表数据已清空 (删除了 {count_before} 条文档，剩余 {count_after} 条)"
+        )
+        return True
+
+    except Exception as e:
+        logger.error(f"❌ [CLEAR] 清空表数据失败: {e}")
+        db.rollback()
+        return False
     finally:
         db.close()
 

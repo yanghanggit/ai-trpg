@@ -7,7 +7,7 @@ from .prompt_generators import (
     gen_actor_system_prompt,
     gen_stage_system_prompt,
 )
-from .knowledge_base import test_knowledge_base1
+from .knowledge_base import test_knowledge_base1, test_queries_for_knowledge_base1
 
 
 def create_demo_world() -> World:
@@ -31,6 +31,7 @@ __all__ = [
     "Stage",
     "World",
     "test_knowledge_base1",
+    "test_queries_for_knowledge_base1",
     "GLOBAL_GAME_MECHANICS",
     "gen_world_system_prompt",
     "gen_actor_system_prompt",
