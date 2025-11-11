@@ -38,6 +38,12 @@ from mcp_server_helpers import (
     get_stage_info_impl,
 )
 
+# 导入角色移动日志管理模块
+from actor_movement_log_manager import (
+    ActorMovementEvent,
+    add_actor_movement_event,
+)
+
 # 初始化游戏世界
 demo_world: World = create_demo_world()
 
@@ -196,7 +202,7 @@ async def move_actor_to_stage(actor_name: str, target_stage_name: str) -> str:
             error_msg = (
                 f"移动失败：角色 '{actor_name}' 或目标场景 '{target_stage_name}' 不存在"
             )
-            logger.warning(error_msg)
+            logger.error(error_msg)
             return json.dumps(
                 {
                     "success": False,
@@ -211,7 +217,20 @@ async def move_actor_to_stage(actor_name: str, target_stage_name: str) -> str:
 
         # 成功移动
         success_msg = f"成功将角色 '{actor_name}' 从场景 '{source_stage_name}' 移动到 '{result_stage.name}'"
-        logger.warning(success_msg)
+        logger.info(success_msg)
+
+        # 记录移动事件到日志
+        try:
+            movement_event = ActorMovementEvent(
+                actor_name=actor_name,
+                from_stage=source_stage_name,
+                to_stage=result_stage.name,
+                description=success_msg,
+            )
+            add_actor_movement_event(movement_event)
+        except Exception as log_error:
+            # 即使日志记录失败，也不影响移动操作的成功
+            logger.warning(f"记录移动事件失败（不影响移动操作）: {log_error}")
 
         return json.dumps(
             {
@@ -258,7 +277,7 @@ async def update_actor_appearance(actor_name: str, new_appearance: str) -> str:
         actor, current_stage = demo_world.find_actor_with_stage(actor_name)
         if not actor or not current_stage:
             error_msg = f"错误：未找到名为 '{actor_name}' 的Actor"
-            logger.warning(error_msg)
+            logger.error(error_msg)
             return json.dumps(
                 {
                     "success": False,
@@ -276,7 +295,7 @@ async def update_actor_appearance(actor_name: str, new_appearance: str) -> str:
         actor.appearance = new_appearance
 
         success_msg = f"成功更新 {actor_name} 的外观描述"
-        logger.warning(
+        logger.info(
             f"{success_msg}\n旧外观: {old_appearance}\n\n新外观: {new_appearance}"
         )
 
@@ -324,7 +343,7 @@ async def add_actor_effect(
         actor, current_stage = demo_world.find_actor_with_stage(actor_name)
         if not actor or not current_stage:
             error_msg = f"错误：未找到名为 '{actor_name}' 的Actor"
-            logger.warning(error_msg)
+            logger.error(error_msg)
             return json.dumps(
                 {
                     "success": False,
@@ -342,7 +361,7 @@ async def add_actor_effect(
         actor.effects.append(new_effect)
 
         success_msg = f"成功为 {actor_name} 添加效果: {effect_name}"
-        logger.warning(f"{success_msg}\n效果描述: {effect_description}")
+        logger.info(f"{success_msg}\n效果描述: {effect_description}")
 
         return json.dumps(
             {
@@ -385,7 +404,7 @@ async def remove_actor_effect(actor_name: str, effect_name: str) -> str:
         actor, current_stage = demo_world.find_actor_with_stage(actor_name)
         if not actor or not current_stage:
             error_msg = f"错误：未找到名为 '{actor_name}' 的Actor"
-            logger.warning(error_msg)
+            logger.error(error_msg)
             return json.dumps(
                 {
                     "success": False,
@@ -404,7 +423,7 @@ async def remove_actor_effect(actor_name: str, effect_name: str) -> str:
         # 如果没有找到匹配的效果
         if not effects_to_remove:
             info_msg = f"{actor_name} 身上没有名为 '{effect_name}' 的效果"
-            logger.warning(info_msg)
+            logger.error(info_msg)
             return json.dumps(
                 {
                     "success": True,
@@ -426,7 +445,7 @@ async def remove_actor_effect(actor_name: str, effect_name: str) -> str:
         success_msg = (
             f"成功从 {actor_name} 移除了 {removed_count} 个名为 '{effect_name}' 的效果"
         )
-        logger.warning(success_msg)
+        logger.info(success_msg)
 
         return json.dumps(
             {
@@ -471,7 +490,7 @@ async def update_actor_health(actor_name: str, new_health: int) -> str:
         actor, current_stage = demo_world.find_actor_with_stage(actor_name)
         if not actor or not current_stage:
             error_msg = f"错误：未找到名为 '{actor_name}' 的Actor"
-            logger.warning(error_msg)
+            logger.error(error_msg)
             return json.dumps(
                 {
                     "success": False,
@@ -493,7 +512,7 @@ async def update_actor_health(actor_name: str, new_health: int) -> str:
         actor.attributes.health = clamped_health
 
         # 记录日志
-        logger.warning(
+        logger.info(
             f"更新 {actor_name} 生命值: {old_health} → {clamped_health}/{max_health}"
         )
 
