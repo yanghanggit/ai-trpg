@@ -8,13 +8,13 @@ MCP 客户端初始化模块
 from typing import Optional
 from loguru import logger
 from ai_trpg.mcp import (
-    initialize_mcp_client,
+    create_mcp_client,
     McpClient,
     McpConfig,
 )
 
 
-async def initialize_mcp_client_with_config(
+async def create_mcp_client_with_config(
     mcp_config: McpConfig,
 ) -> Optional[McpClient]:
     """初始化 MCP 客户端并获取所有可用资源
@@ -30,7 +30,7 @@ async def initialize_mcp_client_with_config(
     """
     try:
         # 初始化 MCP 客户端
-        mcp_client = await initialize_mcp_client(
+        mcp_client = await create_mcp_client(
             mcp_server_url=mcp_config.mcp_server_url,
             mcp_protocol_version=mcp_config.protocol_version,
             mcp_timeout=mcp_config.mcp_timeout,
@@ -62,6 +62,5 @@ async def initialize_mcp_client_with_config(
     except Exception as e:
         logger.error(f"❌ MCP 服务器连接失败: {e}")
         logger.info("💡 请先启动 MCP 服务器: python scripts/run_game_mcp_server.py")
-        # raise
 
     return None

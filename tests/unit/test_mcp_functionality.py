@@ -21,7 +21,7 @@ from src.ai_trpg.mcp import (
     McpClient,
     McpToolInfo,
     McpToolResult,
-    initialize_mcp_client,
+    create_mcp_client,
     execute_mcp_tool,
     # McpConfig,
     mcp_config,
@@ -97,9 +97,8 @@ class TestMcpClient:
             mock_client = AsyncMock()
             mock_client_class.return_value = mock_client
             mock_client.connect.return_value = None
-            mock_client.check_health.return_value = True
 
-            client = await initialize_mcp_client(
+            client = await create_mcp_client(
                 mcp_config.mcp_server_url,
                 mcp_config.protocol_version,
                 mcp_config.mcp_timeout,
@@ -112,7 +111,6 @@ class TestMcpClient:
                 timeout=mcp_config.mcp_timeout,
             )
             mock_client.connect.assert_called_once()
-            mock_client.check_health.assert_called_once()
             assert client == mock_client
 
     @pytest.mark.asyncio
@@ -288,12 +286,11 @@ class TestMcpState:
         """测试没有客户端的 MCP 状态"""
         state: McpState = {
             "messages": [],
-            "mcp_client": None,
             "available_tools": [],
             "tool_outputs": [],
         }
 
-        assert state["mcp_client"] is None, "没有客户端时应该为 None"
+        assert "mcp_client" not in state, "没有客户端时不应该包含 mcp_client 字段"
         assert len(state["available_tools"]) == 0, "没有客户端时应该没有可用工具"
 
 

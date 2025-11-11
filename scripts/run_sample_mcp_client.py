@@ -55,7 +55,7 @@ from ai_trpg.mcp import (
     McpToolInfo,
     McpPromptInfo,
     McpResourceInfo,
-    initialize_mcp_client,
+    create_mcp_client,
     mcp_config,
 )
 
@@ -410,7 +410,7 @@ async def main() -> None:
         available_resources: List[McpResourceInfo] = []
 
         try:
-            mcp_client = await initialize_mcp_client(
+            mcp_client = await create_mcp_client(
                 mcp_server_url=mcp_config.mcp_server_url,
                 mcp_protocol_version=mcp_config.protocol_version,
                 mcp_timeout=mcp_config.mcp_timeout,

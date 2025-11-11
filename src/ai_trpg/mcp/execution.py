@@ -12,8 +12,11 @@ from loguru import logger
 from .client import McpClient
 
 
-async def initialize_mcp_client(
-    mcp_server_url: str, mcp_protocol_version: str, mcp_timeout: int
+async def create_mcp_client(
+    mcp_server_url: str,
+    mcp_protocol_version: str,
+    mcp_timeout: int,
+    auto_connect: bool = True,
 ) -> McpClient:
     """
     初始化 MCP 客户端
@@ -22,6 +25,7 @@ async def initialize_mcp_client(
         mcp_server_url: MCP 服务器地址（Streamable HTTP 模式）
         mcp_protocol_version: MCP 协议版本
         mcp_timeout: 超时时间
+        auto_connect: 是否自动连接到服务器（默认: True）
 
     Returns:
         McpClient: 初始化后的 MCP 客户端
@@ -33,15 +37,13 @@ async def initialize_mcp_client(
         timeout=mcp_timeout,
     )
 
-    # 连接到服务器
-    await client.connect()
+    # 根据参数决定是否连接到服务器
+    if auto_connect:
+        await client.connect()
+        logger.info(f"MCP 客户端初始化成功: {mcp_server_url}")
+    else:
+        logger.info(f"MCP 客户端已创建（未连接）: {mcp_server_url}")
 
-    # 检查服务器健康状态
-    if not await client.check_health():
-        await client.disconnect()
-        raise ConnectionError(f"无法连接到 MCP 服务器: {mcp_server_url}")
-
-    logger.info(f"MCP 客户端初始化成功: {mcp_server_url}")
     return client
 
 

@@ -30,7 +30,7 @@ from .models import (
     McpResourceContent,
 )
 from .parser import ToolCallParser
-from .execution import initialize_mcp_client, execute_mcp_tool
+from .execution import create_mcp_client, execute_mcp_tool
 from .prompts import build_json_tool_example, format_tool_description_simple
 from .response import (
     remove_tool_call_markers,
@@ -54,7 +54,7 @@ __all__ = [
     # 解析器
     "ToolCallParser",
     # 执行相关
-    "initialize_mcp_client",
+    "create_mcp_client",
     "execute_mcp_tool",
     # 提示构建
     "build_json_tool_example",

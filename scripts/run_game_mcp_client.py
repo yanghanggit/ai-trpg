@@ -62,7 +62,7 @@ from workflow_handlers import (
     handle_rag_workflow_execution,
 )
 from io_utils import format_user_input_prompt, log_history, dump_history
-from mcp_client_init import initialize_mcp_client_with_config
+from mcp_client_init import create_mcp_client_with_config
 from gameplay_handler import handle_game_command
 
 demo_world: World = create_demo_world()
@@ -134,7 +134,7 @@ async def main() -> None:
             raise ValueError("❌ 代理管理器未正确初始化")
 
         # 初始化 MCP 客户端并获取可用资源
-        mcp_client = await initialize_mcp_client_with_config(mcp_config)
+        mcp_client = await create_mcp_client_with_config(mcp_config)
         assert mcp_client is not None, "MCP 客户端初始化失败"
 
         # 初始化世界资源(会触发服务器重置世界状态)
