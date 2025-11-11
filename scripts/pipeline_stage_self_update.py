@@ -7,7 +7,6 @@
 
 import asyncio
 from loguru import logger
-from ai_trpg.mcp import McpClient
 from agent_utils import GameAgentManager, StageAgent
 
 
@@ -16,7 +15,7 @@ from agent_utils import GameAgentManager, StageAgent
 ########################################################################################################################
 async def handle_stage_self_update(
     game_agent_manager: GameAgentManager,
-    mcp_client: McpClient,
+    # mcp_client: McpClient,
     use_concurrency: bool = False,
 ) -> None:
     """处理场景自我更新
@@ -40,7 +39,7 @@ async def handle_stage_self_update(
         stage_update_tasks = [
             _handle_stage_self_update(
                 stage_agent=stage_agent,
-                mcp_client=mcp_client,
+                # mcp_client=mcp_client,
             )
             for stage_agent in stage_agents
         ]
@@ -52,7 +51,7 @@ async def handle_stage_self_update(
         for stage_agent in stage_agents:
             await _handle_stage_self_update(
                 stage_agent=stage_agent,
-                mcp_client=mcp_client,
+                # mcp_client=mcp_client,
             )
 
     logger.info("✅ 场景自我更新流程完成")
@@ -63,7 +62,7 @@ async def handle_stage_self_update(
 ########################################################################################################################
 async def _handle_stage_self_update(
     stage_agent: StageAgent,
-    mcp_client: McpClient,
+    # mcp_client: McpClient,
 ) -> None:
     logger.debug(f"🔄 正在更新场景代理: {stage_agent.name}")
 

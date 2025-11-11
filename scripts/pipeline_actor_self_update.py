@@ -11,7 +11,6 @@ from loguru import logger
 from pydantic import BaseModel
 from langchain.schema import HumanMessage
 from ai_trpg.deepseek import create_deepseek_llm
-from ai_trpg.mcp import McpClient
 from agent_utils import ActorAgent, GameAgentManager
 from workflow_handlers import handle_mcp_workflow_execution
 from ai_trpg.utils.json_format import strip_json_code_block
@@ -193,7 +192,7 @@ def _gen_self_update_request_prompt_test(
 ########################################################################################################################
 async def _handle_actor_self_update(
     actor_agent: ActorAgent,
-    mcp_client: McpClient,
+    # mcp_client: McpClient,
 ) -> None:
     """处理单个角色的自我状态更新
 
@@ -209,10 +208,12 @@ async def _handle_actor_self_update(
     """
 
     # 使用统一的资源读取函数
-    actor_info: Dict[str, Any] = await read_actor_resource(mcp_client, actor_agent.name)
+    actor_info: Dict[str, Any] = await read_actor_resource(
+        actor_agent.mcp_client, actor_agent.name
+    )
     # logger.debug(f"🔄 角色 {actor_agent.name} 当前数据: {actor_info}")
 
-    available_tools = await mcp_client.list_tools()
+    available_tools = await actor_agent.mcp_client.list_tools()
     assert available_tools is not None, "获取 MCP 可用工具失败"
 
     # 步骤1-2: 分析与工具调用
@@ -232,7 +233,7 @@ async def _handle_actor_self_update(
         context=actor_agent.context.copy(),
         request=HumanMessage(content=step1_2_instruction),
         llm=create_deepseek_llm(),
-        mcp_client=mcp_client,
+        mcp_client=actor_agent.mcp_client,
         re_invoke_instruction=step3_instruction,  # 传入步骤3的二次推理指令
     )
 
@@ -314,7 +315,7 @@ async def _handle_actor_self_update(
 ########################################################################################################################
 async def _update_actor_death_status(
     actor_agent: ActorAgent,
-    mcp_client: McpClient,
+    # mcp_client: McpClient,
 ) -> None:
     """检查单个角色是否死亡
 
@@ -327,7 +328,9 @@ async def _update_actor_death_status(
     """
 
     # 使用统一的资源读取函数
-    actor_info: Dict[str, Any] = await read_actor_resource(mcp_client, actor_agent.name)
+    actor_info: Dict[str, Any] = await read_actor_resource(
+        actor_agent.mcp_client, actor_agent.name
+    )
     attributes = actor_info.get("attributes", {})
     health = attributes.get("health", 0)
 
@@ -359,7 +362,7 @@ async def _update_actor_death_status(
 ########################################################################################################################
 async def handle_actors_self_update(
     game_agent_manager: GameAgentManager,
-    mcp_client: McpClient,
+    # mcp_client: McpClient,
     use_concurrency: bool = False,
 ) -> None:
     """处理所有角色的自我状态更新
@@ -383,7 +386,7 @@ async def handle_actors_self_update(
         actor_update_tasks = [
             _handle_actor_self_update(
                 actor_agent=actor_agent,
-                mcp_client=mcp_client,
+                # mcp_client=mcp_client,
             )
             for actor_agent in actor_agents
         ]
@@ -392,7 +395,7 @@ async def handle_actors_self_update(
         death_check_tasks = [
             _update_actor_death_status(
                 actor_agent=actor_agent,
-                mcp_client=mcp_client,
+                # mcp_client=mcp_client,
             )
             for actor_agent in actor_agents
         ]
@@ -404,13 +407,13 @@ async def handle_actors_self_update(
         for actor_agent in actor_agents:
             await _handle_actor_self_update(
                 actor_agent=actor_agent,
-                mcp_client=mcp_client,
+                # mcp_client=mcp_client,
             )
 
         for actor_agent in actor_agents:
             await _update_actor_death_status(
                 actor_agent=actor_agent,
-                mcp_client=mcp_client,
+                # mcp_client=mcp_client,
             )
 
 

@@ -11,7 +11,6 @@ from loguru import logger
 from pydantic import BaseModel
 from langchain.schema import HumanMessage, AIMessage
 from ai_trpg.deepseek import create_deepseek_llm
-from ai_trpg.mcp import McpClient
 from ai_trpg.utils.json_format import strip_json_code_block
 from agent_utils import StageAgent, ActorAgent
 from workflow_handlers import handle_chat_workflow_execution
@@ -170,7 +169,7 @@ def _format_other_actors_appearance(
 async def _handle_actor_observe_and_plan(
     stage_agent: StageAgent,
     actor_agent: ActorAgent,
-    mcp_client: McpClient,
+    # mcp_client: McpClient,
 ) -> None:
     """处理单个角色的观察和行动规划
 
@@ -185,8 +184,12 @@ async def _handle_actor_observe_and_plan(
     # logger.info(f"角色观察并规划: {actor_agent.name}")
 
     # 使用统一的资源读取函数
-    stage_info_json = await read_stage_resource(mcp_client, stage_agent.name)
-    actor_info_json = await read_actor_resource(mcp_client, actor_agent.name)
+    stage_info_json = await read_stage_resource(
+        stage_agent.mcp_client, stage_agent.name
+    )
+    actor_info_json = await read_actor_resource(
+        actor_agent.mcp_client, actor_agent.name
+    )
 
     # 过滤场景信息（移除冗余字段）
     filtered_stage_info = _filter_stage_info_for_actor(
@@ -319,7 +322,7 @@ async def _handle_actor_observe_and_plan(
 ########################################################################################################################
 async def handle_actors_observe_and_plan(
     stage_agent: StageAgent,
-    mcp_client: McpClient,
+    # mcp_client: McpClient,
     use_concurrency: bool = False,
 ) -> None:
     """处理所有角色的观察和行动规划（合并版本，JSON输出）
@@ -357,7 +360,7 @@ async def handle_actors_observe_and_plan(
             _handle_actor_observe_and_plan(
                 stage_agent=stage_agent,
                 actor_agent=actor_agent,
-                mcp_client=mcp_client,
+                # mcp_client=mcp_client,
             )
             for actor_agent in alive_actor_agents
         ]
@@ -369,5 +372,5 @@ async def handle_actors_observe_and_plan(
             await _handle_actor_observe_and_plan(
                 stage_agent=stage_agent,
                 actor_agent=actor_agent,
-                mcp_client=mcp_client,
+                # mcp_client=mcp_client,
             )

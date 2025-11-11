@@ -295,7 +295,7 @@ async def main() -> None:
                 await handle_game_command(
                     command=command,
                     game_agent_manager=agent_manager,
-                    mcp_client=mcp_client,
+                    # mcp_client=mcp_client,
                 )
                 continue
 

@@ -8,7 +8,6 @@
 from typing import Any, Dict
 from loguru import logger
 from langchain.schema import HumanMessage
-from ai_trpg.mcp import McpClient
 from agent_utils import StageAgent
 from mcp_client_resource_helpers import read_stage_resource
 
@@ -18,7 +17,7 @@ from mcp_client_resource_helpers import read_stage_resource
 ########################################################################################################################
 async def handle_kickoff(
     stage_agent: StageAgent,
-    mcp_client: McpClient,
+    # mcp_client: McpClient,
 ) -> None:
     """处理所有代理的开局初始化
 
@@ -33,7 +32,7 @@ async def handle_kickoff(
 
         # 使用统一的资源读取函数
         stage_info_data: Dict[str, Any] = await read_stage_resource(
-            mcp_client, stage_agent.name
+            stage_agent.mcp_client, stage_agent.name
         )
 
         narrative = stage_info_data.get("narrative", "")

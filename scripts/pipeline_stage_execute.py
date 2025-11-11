@@ -166,7 +166,7 @@ async def _collect_actor_plan_prompts(
 ########################################################################################################################
 async def _handle_actor_plans_and_update_stage(
     stage_agent: StageAgent,
-    mcp_client: McpClient,
+    # mcp_client: McpClient,
 ) -> None:
     """处理场景执行指令
 
@@ -186,7 +186,7 @@ async def _handle_actor_plans_and_update_stage(
 
     # 收集所有角色的行动计划
     actor_plans = await _collect_actor_plan_prompts(
-        stage_agent.actor_agents, mcp_client
+        stage_agent.actor_agents, stage_agent.mcp_client
     )
 
     if not actor_plans:
@@ -195,7 +195,7 @@ async def _handle_actor_plans_and_update_stage(
 
     # 使用统一的资源读取函数
     stage_info_json: Dict[str, Any] = await read_stage_resource(
-        mcp_client, stage_agent.name
+        stage_agent.mcp_client, stage_agent.name
     )
 
     # 构建行动执行提示词（MCP Workflow 版本 - 专注于分析和工具调用）
@@ -289,7 +289,7 @@ async def _handle_actor_plans_and_update_stage(
         context=stage_agent.context.copy(),
         request=HumanMessage(content=step1_2_instruction),
         llm=create_deepseek_llm(),
-        mcp_client=mcp_client,  # 传入 MCP 客户端
+        mcp_client=stage_agent.mcp_client,  # 传入 MCP 客户端
         re_invoke_instruction=step3_instruction,  # 传入步骤3的二次推理指令
     )
 
@@ -310,7 +310,9 @@ async def _handle_actor_plans_and_update_stage(
         )
 
         # TODO 步骤1: 从 MCP 资源重新读取 stage 数据以获取最新的 narrative
-        stage_info_updated = await read_stage_resource(mcp_client, stage_agent.name)
+        stage_info_updated = await read_stage_resource(
+            stage_agent.mcp_client, stage_agent.name
+        )
         narrative = stage_info_updated.get("narrative", "")
 
         # 步骤2: 更新场景代理的对话历史（压缩提示词）
@@ -361,7 +363,7 @@ async def _handle_actor_plans_and_update_stage(
 ########################################################################################################################
 async def handle_stage_execute(
     stage_agent: StageAgent,
-    mcp_client: McpClient,
+    # mcp_client: McpClient,
 ) -> None:
 
     if len(stage_agent.actor_agents) == 0:
@@ -373,7 +375,7 @@ async def handle_stage_execute(
     # )
     await _handle_actor_plans_and_update_stage(
         stage_agent=stage_agent,
-        mcp_client=mcp_client,
+        # mcp_client=mcp_client,
     )
 
 
