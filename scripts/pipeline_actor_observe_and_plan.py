@@ -167,7 +167,7 @@ def _format_other_actors_appearance(
 ########################################################################################################################
 ########################################################################################################################
 ########################################################################################################################
-async def _handle_single_actor_observe_and_plan(
+async def _handle_actor_observe_and_plan(
     stage_agent: StageAgent,
     actor_agent: ActorAgent,
     mcp_client: McpClient,
@@ -182,7 +182,7 @@ async def _handle_single_actor_observe_and_plan(
         actor_agent: 角色代理
         mcp_client: MCP 客户端（用于读取角色信息资源）
     """
-    logger.warning(f"角色观察并规划: {actor_agent.name}")
+    # logger.info(f"角色观察并规划: {actor_agent.name}")
 
     # 使用统一的资源读取函数
     stage_info_json = await read_stage_resource(mcp_client, stage_agent.name)
@@ -354,7 +354,7 @@ async def handle_actors_observe_and_plan(
         # 并行处理所有角色
         logger.debug(f"🔄 并行处理 {len(alive_actor_agents)} 个角色的观察和规划")
         tasks = [
-            _handle_single_actor_observe_and_plan(
+            _handle_actor_observe_and_plan(
                 stage_agent=stage_agent,
                 actor_agent=actor_agent,
                 mcp_client=mcp_client,
@@ -366,7 +366,7 @@ async def handle_actors_observe_and_plan(
         # 顺序处理所有角色
         logger.debug(f"🔄 顺序处理 {len(alive_actor_agents)} 个角色的观察和规划")
         for actor_agent in alive_actor_agents:
-            await _handle_single_actor_observe_and_plan(
+            await _handle_actor_observe_and_plan(
                 stage_agent=stage_agent,
                 actor_agent=actor_agent,
                 mcp_client=mcp_client,

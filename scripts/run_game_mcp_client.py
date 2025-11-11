@@ -108,10 +108,10 @@ async def initialize_world_resource(mcp_client: McpClient) -> World:
     total_actors = sum(len(stage.actors) for stage in world_data.stages)
 
     # 打印简要信息
-    logger.info(f"✅ 成功加载世界资源")
-    logger.info(f"🌍 世界名称: {world_data.name}")
-    logger.info(f"🎭 角色数量: {total_actors} 个角色")
-    logger.info(f"🗺️  场景数量: {len(world_data.stages)} 个场景")
+    logger.debug(f"✅ 成功加载世界资源")
+    logger.debug(f"🌍 世界名称: {world_data.name}")
+    logger.debug(f"🎭 角色数量: {total_actors} 个角色")
+    logger.debug(f"🗺️  场景数量: {len(world_data.stages)} 个场景")
 
     return world_data
 
@@ -126,7 +126,7 @@ async def main() -> None:
     try:
 
         setup_logger()
-        logger.debug("✅ Logger 设置成功")
+        # logger.debug("✅ Logger 设置成功")
 
         # 验证代理管理器已正确初始化
         if agent_manager.current_agent is None:

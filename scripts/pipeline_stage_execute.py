@@ -368,9 +368,9 @@ async def handle_stage_execute(
         logger.warning(f"{stage_agent.name} 没有角色代理，是否跳过场景执行？")
         return
 
-    logger.debug(
-        f"🎬 场景执行: {stage_agent.name}, 场景内角色进行行动计划并更新场景状态"
-    )
+    # logger.debug(
+    #     f"🎬 场景执行: {stage_agent.name}, 场景内角色进行行动计划并更新场景状态"
+    # )
     await _handle_actor_plans_and_update_stage(
         stage_agent=stage_agent,
         mcp_client=mcp_client,

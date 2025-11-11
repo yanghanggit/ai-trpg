@@ -86,9 +86,9 @@ class McpClient:
             # 执行 MCP 初始化
             await self._initialize_mcp()
 
-            logger.success(
-                f"✅ MCP 客户端已连接 (transport: streamable-http, session: {self.session_id[:8] if self.session_id else 'no-session'}...)"
-            )
+            # logger.success(
+            #     f"✅ MCP 客户端已连接 (transport: streamable-http, session: {self.session_id[:8] if self.session_id else 'no-session'}...)"
+            # )
 
         except Exception as e:
             logger.error(f"❌ MCP 客户端连接失败: {e}")
@@ -121,7 +121,7 @@ class McpClient:
         if not self.session_id:
             raise RuntimeError("服务器未返回会话ID")
 
-        logger.info(f"🔗 MCP 会话已建立，会话ID: {self.session_id[:8]}...")
+        # logger.info(f"🔗 MCP 会话已建立，会话ID: {self.session_id[:8]}...")
 
         # 发送 initialized 通知
         notification_data = {"jsonrpc": "2.0", "method": "notifications/initialized"}

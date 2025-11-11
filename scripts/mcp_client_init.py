@@ -39,21 +39,21 @@ async def initialize_mcp_client_with_config(
         # 获取可用工具
         tools_result = await mcp_client.list_tools()
         available_tools = tools_result if tools_result is not None else []
-        logger.success(f"🔗 MCP 客户端连接成功，可用工具: {len(available_tools)}")
+        logger.debug(f"🔗 MCP 客户端连接成功，可用工具: {len(available_tools)}")
         for tool in available_tools:
             logger.debug(f"{tool.model_dump_json(indent=2, ensure_ascii=False)}")
 
         # 获取可用提示词模板
         prompts_result = await mcp_client.list_prompts()
         available_prompts = prompts_result if prompts_result is not None else []
-        logger.success(f"📝 获取到 {len(available_prompts)} 个提示词模板")
+        logger.debug(f"📝 获取到 {len(available_prompts)} 个提示词模板")
         for prompt in available_prompts:
             logger.debug(f"{prompt.model_dump_json(indent=2, ensure_ascii=False)}")
 
         # 获取可用资源
         resources_result = await mcp_client.list_resources()
         available_resources = resources_result if resources_result is not None else []
-        logger.success(f"📦 获取到 {len(available_resources)} 个资源")
+        logger.debug(f"📦 获取到 {len(available_resources)} 个资源")
         for resource in available_resources:
             logger.debug(f"{resource.model_dump_json(indent=2, ensure_ascii=False)}")
 

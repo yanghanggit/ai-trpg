@@ -417,19 +417,19 @@ async def main() -> None:
             )
             tools_result = await mcp_client.list_tools()
             available_tools = tools_result if tools_result is not None else []
-            logger.success(f"🔗 MCP 客户端连接成功，可用工具: {len(available_tools)}")
+            logger.info(f"🔗 MCP 客户端连接成功，可用工具: {len(available_tools)}")
 
             # 获取可用的提示词模板
             prompts_result = await mcp_client.list_prompts()
             available_prompts = prompts_result if prompts_result is not None else []
-            logger.success(f"📝 获取到 {len(available_prompts)} 个提示词模板")
+            logger.info(f"📝 获取到 {len(available_prompts)} 个提示词模板")
 
             # 获取可用的资源
             resources_result = await mcp_client.list_resources()
             available_resources = (
                 resources_result if resources_result is not None else []
             )
-            logger.success(f"📦 获取到 {len(available_resources)} 个资源")
+            logger.info(f"📦 获取到 {len(available_resources)} 个资源")
         except Exception as e:
             logger.error(f"❌ MCP 服务器连接失败: {e}")
             logger.info(

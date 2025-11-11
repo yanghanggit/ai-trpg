@@ -75,7 +75,7 @@ class GameAgentManager:
         global_game_mechanics: str,
     ) -> None:
         """从游戏世界创建所有代理 - 直接创建，简单直接"""
-        logger.info("🏗️ 开始创建游戏代理...")
+        logger.debug("🏗️ 开始创建游戏代理...")
 
         # 创建世界观代理
         self._world_agent = WorldAgent(
@@ -86,16 +86,16 @@ class GameAgentManager:
                 )
             ],
         )
-        logger.info(f"已创建世界观代理: {self._world_agent.name}")
+        logger.debug(f"已创建世界观代理: {self._world_agent.name}")
 
         # 获取游戏世界中的所有角色
         all_actors_model = world_model.get_all_actors()
-        logger.info(
+        logger.debug(
             f"游戏世界中的所有角色: {[actor.name for actor in all_actors_model]}"
         )
 
         all_stages_model = world_model.get_all_stages()
-        logger.info(
+        logger.debug(
             f"游戏世界中的所有场景: {[stage.name for stage in all_stages_model]}"
         )
 
@@ -129,7 +129,7 @@ class GameAgentManager:
                 )
                 # 将角色代理添加到场景代理的列表中
                 stage_agent.actor_agents.append(actor_agent)
-                logger.info(
+                logger.debug(
                     f"已创建角色代理: {actor_agent.name} (所属场景: {stage_agent.name})"
                 )
 
@@ -137,7 +137,7 @@ class GameAgentManager:
                 logger.debug(f"已为代理 {actor_agent.name} 应用初始对话上下文")
 
             self._stage_agents.append(stage_agent)
-            logger.info(
+            logger.debug(
                 f"已创建场景代理: {stage_agent.name} (包含 {len(stage_agent.actor_agents)} 个角色)"
             )
 
@@ -145,7 +145,7 @@ class GameAgentManager:
         self._current_agent = self._world_agent
         assert self._current_agent is not None, "当前激活的代理不能为空"
 
-        logger.success("✅ 所有游戏代理创建完成")
+        logger.debug("✅ 所有游戏代理创建完成")
 
     @property
     def world_agent(self) -> Optional[WorldAgent]:
