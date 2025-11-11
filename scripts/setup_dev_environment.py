@@ -99,7 +99,7 @@ def _setup_chromadb() -> None:
             logger.success("✅ 测试知识库加载成功")
 
             # 测试向量检索功能
-            # _test_chromadb_search()
+            _test_chromadb_search()
 
         else:
             logger.error("❌ 测试知识库加载失败")

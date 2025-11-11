@@ -31,10 +31,13 @@ class VectorDocumentDB(UUIDBase):
     # 文档类型/分类
     doc_type: Mapped[Optional[str]] = mapped_column(String(50), nullable=True)
 
-    # 向量嵌入 (假设使用1536维度的向量，如OpenAI的text-embedding-ada-002)
-    embedding: Mapped[Optional[List[float]]] = mapped_column(
-        Vector(1536), nullable=True
+    # 向量维度 (支持可配置维度: 384, 768, 1536等)
+    embedding_dim: Mapped[int] = mapped_column(
+        Integer, nullable=False, default=1536, index=True
     )
+
+    # 向量嵌入 (支持可配置维度，不再硬编码1536)
+    embedding: Mapped[Optional[List[float]]] = mapped_column(Vector(), nullable=True)
 
     # 文档大小/字符数
     content_length: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
@@ -67,6 +70,7 @@ class VectorDocumentDB(UUIDBase):
         ),
         Index("ix_vector_documents_doc_type", "doc_type"),
         Index("ix_vector_documents_source", "source"),
+        Index("ix_vector_documents_embedding_dim", "embedding_dim"),
     )
 
 
@@ -88,7 +92,7 @@ def save_vector_document(
 
     参数:
         content: 文档内容
-        embedding: 向量嵌入 (1536维)
+        embedding: 向量嵌入 (支持任意维度: 384, 768, 1536等)
         title: 文档标题
         source: 文档来源
         doc_type: 文档类型
@@ -99,13 +103,16 @@ def save_vector_document(
     """
     db = SessionLocal()
     try:
-        # 验证向量维度
-        if len(embedding) != 1536:
-            raise ValueError(f"向量维度必须是1536，当前维度: {len(embedding)}")
+        # 自动检测向量维度
+        embedding_dim = len(embedding)
+
+        if embedding_dim == 0:
+            raise ValueError("向量维度不能为0")
 
         document = VectorDocumentDB(
             content=content,
             embedding=embedding,
+            embedding_dim=embedding_dim,
             title=title,
             source=source,
             doc_type=doc_type,
@@ -117,7 +124,9 @@ def save_vector_document(
         db.commit()
         db.refresh(document)
 
-        logger.info(f"✅ 向量文档已保存: ID={document.id}, 内容长度={len(content)}")
+        logger.info(
+            f"✅ 向量文档已保存: ID={document.id}, 维度={embedding_dim}, 内容长度={len(content)}"
+        )
         return document
 
     except Exception as e:
@@ -138,23 +147,28 @@ def search_similar_documents(
     基于向量相似度搜索文档
 
     参数:
-        query_embedding: 查询向量
+        query_embedding: 查询向量 (支持任意维度)
         limit: 返回结果数量限制
-        doc_type_filter: 文档类型过滤
         similarity_threshold: 相似度阈值
+        doc_type_filter: 文档类型过滤
 
     返回:
         List[Tuple[VectorDocumentDB, float]]: (文档对象, 相似度分数) 的列表
     """
     db = SessionLocal()
     try:
-        if len(query_embedding) != 1536:
-            raise ValueError(
-                f"查询向量维度必须是1536，当前维度: {len(query_embedding)}"
-            )
+        # 自动检测查询向量维度
+        query_dim = len(query_embedding)
+
+        if query_dim == 0:
+            raise ValueError("查询向量维度不能为0")
 
         # 构建SQL条件
-        conditions = ["embedding IS NOT NULL"]
+        conditions = [
+            "embedding IS NOT NULL",
+            f"embedding_dim = {query_dim}",  # 只搜索相同维度的文档
+        ]
+
         # 将向量转换为PostgreSQL向量格式的字符串
         vector_str = "[" + ",".join(map(str, query_embedding)) + "]"
         params = {
@@ -188,7 +202,9 @@ def search_similar_documents(
             if doc:
                 documents_with_scores.append((doc, float(row.similarity)))
 
-        logger.info(f"🔍 找到 {len(documents_with_scores)} 个相似文档")
+        logger.info(
+            f"🔍 找到 {len(documents_with_scores)} 个相似文档 (维度={query_dim})"
+        )
         return documents_with_scores
 
     except Exception as e:
