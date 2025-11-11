@@ -45,6 +45,7 @@ from ai_trpg.demo import (
 from ai_trpg.utils import parse_command_with_params
 from ai_trpg.rag.game_retriever import GameDocumentRetriever
 from ai_trpg.configuration.game import setup_logger
+from actor_movement_log_manager import remove_actor_movement_log
 
 # 导入本地工具模块
 from agent_utils import GameAgentManager
@@ -138,6 +139,9 @@ async def main() -> None:
 
         # 初始化世界资源(会触发服务器重置世界状态)
         world_data = await initialize_world_resource(mcp_client)
+
+        # 清空角色移动日志文件
+        remove_actor_movement_log()
 
         # 对话循环
         while True:

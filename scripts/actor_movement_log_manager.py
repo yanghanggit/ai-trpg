@@ -157,3 +157,13 @@ def get_actor_movement_events(
         result.append(event)
 
     return result
+
+
+def remove_actor_movement_log() -> None:
+    """清空角色移动日志文件"""
+    filepath = _get_actor_movement_log_filepath()
+    if filepath.exists():
+        filepath.unlink()
+        logger.info(f"🗑️ 已清空角色移动日志文件: {filepath}")
+    else:
+        logger.warning(f"⚠️ 角色移动日志文件不存在，无需清空: {filepath}")
