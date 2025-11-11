@@ -13,15 +13,16 @@ from .knowledge_base import test_knowledge_base1
 def create_demo_world() -> World:
     """Create a demo world instance combining world1 and world2."""
 
-    from .world1 import create_test_world1
+    # from .world1 import create_test_world1
 
-    return create_test_world1()
+    # return create_test_world1()
 
     # from .world2 import create_test_world_2_1
     # return create_test_world_2_1()
 
-    # from .world2 import create_test_world_2_2
-    # return create_test_world_2_2()
+    from .world2 import create_test_world_2_2
+
+    return create_test_world_2_2()
 
 
 __all__ = [

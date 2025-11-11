@@ -20,6 +20,9 @@ class ActorMovementEvent(BaseModel):
     from_stage: str  # 来源场景名称
     to_stage: str  # 目标场景名称
     description: str  # 事件描述，例如 f"成功将角色 '{actor_name}' 从场景 '{source_stage_name}' 移动到 '{result_stage.name}'"
+    entry_posture_and_status: str = (
+        ""  # 进入姿态与状态：角色以什么姿态和状态进入目标场景。格式："姿态 | 状态"，如"左手持油灯，谨慎跨入 | 【隐藏】"
+    )
 
 
 class ActorMovementLog(BaseModel):

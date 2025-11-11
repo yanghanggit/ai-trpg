@@ -178,13 +178,16 @@ async def update_stage_execution_result(
 
 
 @app.tool()
-async def move_actor_to_stage(actor_name: str, target_stage_name: str) -> str:
+async def move_actor_to_stage(
+    actor_name: str, target_stage_name: str, entry_posture_and_status: str
+) -> str:
     """
     将角色从当前场景移动到目标场景
 
     Args:
         actor_name: 要移动的角色名称
         target_stage_name: 目标场景名称
+        entry_posture_and_status: 进入姿态与状态（格式：姿态 | 状态）
 
     Returns:
         操作结果的JSON字符串
@@ -217,15 +220,21 @@ async def move_actor_to_stage(actor_name: str, target_stage_name: str) -> str:
 
         # 成功移动
         success_msg = f"成功将角色 '{actor_name}' 从场景 '{source_stage_name}' 移动到 '{result_stage.name}'"
+        if entry_posture_and_status:
+            success_msg += f"（进入姿态与状态: {entry_posture_and_status}）"
         logger.info(success_msg)
 
         # 记录移动事件到日志
         try:
+            # 构建描述信息，包含进入姿态与状态
+            event_description = success_msg
+
             movement_event = ActorMovementEvent(
                 actor_name=actor_name,
                 from_stage=source_stage_name,
                 to_stage=result_stage.name,
-                description=success_msg,
+                description=event_description,
+                entry_posture_and_status=entry_posture_and_status,  # 保存进入姿态与状态
             )
             add_actor_movement_event(movement_event)
         except Exception as log_error:
@@ -239,6 +248,7 @@ async def move_actor_to_stage(actor_name: str, target_stage_name: str) -> str:
                 "actor": actor_name,
                 "source_stage": source_stage_name,
                 "target_stage": result_stage.name,
+                "entry_posture_and_status": entry_posture_and_status,  # 返回进入姿态与状态信息
                 "timestamp": datetime.now().isoformat(),
             },
             ensure_ascii=False,
