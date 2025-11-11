@@ -130,9 +130,9 @@ def save_vector_document(
 
 def search_similar_documents(
     query_embedding: List[float],
-    limit: int = 10,
+    limit: int,
+    similarity_threshold: float,
     doc_type_filter: Optional[str] = None,
-    similarity_threshold: float = 0.3,
 ) -> List[Tuple[VectorDocumentDB, float]]:
     """
     基于向量相似度搜索文档
@@ -193,82 +193,6 @@ def search_similar_documents(
 
     except Exception as e:
         logger.error(f"❌ 向量搜索失败: {e}")
-        raise e
-    finally:
-        db.close()
-
-
-##################################################################################################################
-# 游戏知识向量操作
-##################################################################################################################
-
-
-##################################################################################################################
-# 辅助工具函数
-##################################################################################################################
-
-
-def get_database_vector_stats() -> Dict[str, Any]:
-    """
-    获取数据库中向量数据的统计信息
-
-    返回:
-        Dict[str, Any]: 包含各表向量数据统计的字典
-    """
-    db = SessionLocal()
-    try:
-        stats = {}
-
-        # 向量文档统计
-        doc_count = db.query(VectorDocumentDB).count()
-        doc_with_vectors = (
-            db.query(VectorDocumentDB)
-            .filter(VectorDocumentDB.embedding.is_not(None))
-            .count()
-        )
-        stats["vector_documents"] = {
-            "total_count": doc_count,
-            "with_embeddings": doc_with_vectors,
-            "without_embeddings": doc_count - doc_with_vectors,
-        }
-
-        logger.info(f"📊 向量数据库统计: {stats}")
-        return stats
-
-    except Exception as e:
-        logger.error(f"❌ 获取向量统计失败: {e}")
-        raise e
-    finally:
-        db.close()
-
-
-def cleanup_empty_embeddings() -> Dict[str, int]:
-    """
-    清理没有向量嵌入的记录
-
-    返回:
-        Dict[str, int]: 清理的记录数统计
-    """
-    db = SessionLocal()
-    try:
-        cleanup_stats = {}
-
-        # 清理没有嵌入的文档
-        deleted_docs = (
-            db.query(VectorDocumentDB)
-            .filter(VectorDocumentDB.embedding.is_(None))
-            .delete()
-        )
-        cleanup_stats["deleted_documents"] = deleted_docs
-
-        db.commit()
-
-        logger.info(f"🧹 清理完成: {cleanup_stats}")
-        return cleanup_stats
-
-    except Exception as e:
-        db.rollback()
-        logger.error(f"❌ 清理向量数据失败: {e}")
         raise e
     finally:
         db.close()

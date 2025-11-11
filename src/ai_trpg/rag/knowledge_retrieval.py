@@ -158,7 +158,7 @@ def search_similar_documents(
     query: str,
     collection: Collection,
     embedding_model: SentenceTransformer,
-    top_k: int = 5,
+    top_k: int,
 ) -> Tuple[List[str], List[float]]:
     """
     执行语义搜索

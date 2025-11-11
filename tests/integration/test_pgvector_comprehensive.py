@@ -295,7 +295,7 @@ def test_vector_document_operations() -> None:
     from src.ai_trpg.pgsql.vector_document import (
         save_vector_document,
         search_similar_documents,
-        get_database_vector_stats,
+        # get_database_vector_stats,
     )
 
     logger.info("🧪 开始测试向量文档操作...")
@@ -372,8 +372,8 @@ def test_vector_document_operations() -> None:
         tutorial_docs = search_similar_documents(
             query_embedding=query_embedding,
             limit=3,
-            doc_type_filter="tutorial",
             similarity_threshold=0.0,
+            doc_type_filter="tutorial",
         )
 
         logger.info(f"📚 教程类文档搜索结果 ({len(tutorial_docs)} 个):")
@@ -382,13 +382,6 @@ def test_vector_document_operations() -> None:
 
     except Exception as e:
         logger.error(f"❌ 搜索测试失败: {e}")
-
-    # 3. 获取统计信息
-    try:
-        stats = get_database_vector_stats()
-        logger.info(f"📊 数据库统计: {stats}")
-    except Exception as e:
-        logger.error(f"❌ 获取统计失败: {e}")
 
 
 @pytest.mark.integration
@@ -522,15 +515,6 @@ def run_all_vector_tests() -> None:
         # 运行各项测试
         test_vector_document_operations()
         test_conversation_vector_operations()  # 现在是占位符函数
-        # test_game_knowledge_operations()       # 已移除
-
-        # 获取最终统计
-        from src.ai_trpg.pgsql.vector_document import (
-            get_database_vector_stats,
-        )
-
-        final_stats = get_database_vector_stats()
-        logger.info(f"🏁 测试完成，最终统计: {final_stats}")
 
     except Exception as e:
         logger.error(f"❌ 测试运行失败: {e}")
@@ -552,19 +536,6 @@ def run_all_demos() -> None:
         demo_document_rag_system()
         demo_conversation_memory()  # 现在是占位符函数
         demo_game_knowledge_system()  # 现在是占位符函数
-
-        # 显示最终统计
-        from src.ai_trpg.pgsql.vector_document import (
-            get_database_vector_stats,
-        )
-
-        logger.info("\n📊 最终数据库统计:")
-        stats = get_database_vector_stats()
-        for table_name, table_stats in stats.items():
-            logger.info(f"   {table_name}: {table_stats['with_embeddings']} 条向量记录")
-
-        logger.info("\n✅ pgvector集成演示完成！")
-        logger.info("🎉 您现在可以在项目中使用向量数据库功能了！")
 
     except Exception as e:
         logger.error(f"❌ 演示失败: {e}")
@@ -601,40 +572,6 @@ def test_comprehensive_pgvector_integration(setup_database_tables: Any) -> None:
 
     except Exception as e:
         logger.error(f"❌ 综合测试失败: {e}")
-        raise e
-
-
-@pytest.mark.integration
-@pytest.mark.demo
-@pytest.mark.slow
-def test_comprehensive_pgvector_demos(setup_database_tables: Any) -> None:
-    """运行完整的 pgvector 演示"""
-    logger.info("🚀 pgvector集成演示开始...")
-
-    try:
-        # 第三部分：实际应用演示
-        logger.info("\n" + "=" * 50)
-        logger.info("第三部分：实际应用场景演示")
-        logger.info("=" * 50)
-        demo_document_rag_system()
-        demo_conversation_memory()  # 现在是占位符函数
-        demo_game_knowledge_system()  # 现在是占位符函数
-
-        # 显示最终统计
-        from src.ai_trpg.pgsql.vector_document import (
-            get_database_vector_stats,
-        )
-
-        logger.info("\n📊 最终数据库统计:")
-        stats = get_database_vector_stats()
-        for table_name, table_stats in stats.items():
-            logger.info(f"   {table_name}: {table_stats['with_embeddings']} 条向量记录")
-
-        logger.info("\n✅ pgvector集成演示完成！")
-        logger.info("🎉 您现在可以在项目中使用向量数据库功能了！")
-
-    except Exception as e:
-        logger.error(f"❌ 演示失败: {e}")
         raise e
 
 
