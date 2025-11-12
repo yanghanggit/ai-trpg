@@ -148,7 +148,6 @@ async def handle_game_command(
             # 步骤4: 所有场景进行状态更新
             await handle_stage_self_update(
                 game_agent_manager=game_agent_manager,
-                # mcp_client=mcp_client,
                 use_concurrency=True,
             )
 
@@ -162,13 +161,11 @@ async def handle_game_command(
             # 步骤1: 所有角色进行状态更新
             await handle_actors_self_update(
                 game_agent_manager=game_agent_manager,
-                # mcp_client=mcp_client,
                 use_concurrency=True,
             )
 
             # 步骤2: 所有场景进行状态更新
             await handle_stage_self_update(
                 game_agent_manager=game_agent_manager,
-                # mcp_client=mcp_client,
                 use_concurrency=True,
             )
