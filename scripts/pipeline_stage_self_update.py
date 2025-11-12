@@ -118,20 +118,6 @@ async def _handle_stage_self_update(
     """
     logger.debug(f"🔄 正在更新场景代理: {stage_agent.name}")
 
-    """ 例子
-    {
-    "events": [
-        {
-        "actor_name": "外乡人",
-        "from_stage": "奥顿教堂墓地",
-        "to_stage": "奥顿教堂大厅",
-        "description": "成功将角色 '外乡人' 从场景 '奥顿教堂墓地' 移动到 '奥顿教堂大厅'（进入姿态与状态: 站立 | 手持油灯和符文手杖，保持警惕）",
-        "entry_posture_and_status": "站立 | 手持油灯和符文手杖，保持警惕"
-        }
-    ]
-    }
-    """
-
     # 检查是否有角色进入当前场景的事件
     movement_events = get_actor_movement_events(stage_agent.name)
 
@@ -319,6 +305,10 @@ async def _handle_stage_self_update(
 
             # 步骤8: 通知所有角色代理场景更新结果
             for actor_agent in stage_agent.actor_agents:
+
+                if actor_agent.is_dead:
+                    logger.debug(f"💀 跳过已死亡角色 {actor_agent.name} 的通知")
+                    continue
 
                 scene_event_notification = f"""# 通知！{stage_agent.name} 场景发生事件：
 

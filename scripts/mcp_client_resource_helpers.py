@@ -117,7 +117,7 @@ async def read_actor_resource(mcp_client: McpClient, actor_name: str) -> Dict[st
         if not isinstance(actor_data, dict):
             raise ValueError(f"角色 '{actor_name}' 数据格式错误: 期望字典类型")
 
-        #logger.debug(f"✅ 成功读取角色资源: {actor_name}")
+        # logger.debug(f"✅ 成功读取角色资源: {actor_name}")
         return actor_data
 
     except json.JSONDecodeError as e:
@@ -165,7 +165,7 @@ async def read_stage_resource(mcp_client: McpClient, stage_name: str) -> Dict[st
         if not isinstance(stage_data, dict):
             raise ValueError(f"场景 '{stage_name}' 数据格式错误: 期望字典类型")
 
-        #logger.debug(f"✅ 成功读取场景资源: {stage_name}")
+        # logger.debug(f"✅ 成功读取场景资源: {stage_name}")
         return stage_data
 
     except json.JSONDecodeError as e:
