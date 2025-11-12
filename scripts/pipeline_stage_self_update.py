@@ -75,6 +75,7 @@ async def handle_stage_self_update(
         stage_update_tasks = [
             _handle_stage_self_update(
                 stage_agent=stage_agent,
+                game_agent_manager=game_agent_manager,
             )
             for stage_agent in stage_agents
         ]
@@ -86,6 +87,7 @@ async def handle_stage_self_update(
         for stage_agent in stage_agents:
             await _handle_stage_self_update(
                 stage_agent=stage_agent,
+                game_agent_manager=game_agent_manager,
             )
 
     logger.info("✅ 场景自我更新流程完成")
@@ -96,6 +98,7 @@ async def handle_stage_self_update(
 ########################################################################################################################
 async def _handle_stage_self_update(
     stage_agent: StageAgent,
+    game_agent_manager: GameAgentManager,
 ) -> None:
     """处理单个场景的自我状态更新
 
@@ -123,8 +126,20 @@ async def _handle_stage_self_update(
     if stage_agent.name != "奥顿教堂大厅":
         logger.debug(f"ℹ️ 场景 {stage_agent.name} 无角色进入事件，跳过更新")
         return
-    
-    # TODO: 需要将 agent 做转移。
+
+    # 执行角色转移（目前使用写死的测试数据）
+    actor_name_to_move = "外乡人"
+    target_stage_name = "奥顿教堂大厅"
+
+    move_success = game_agent_manager.move_actor_to_stage(
+        actor_name=actor_name_to_move, target_stage_name=target_stage_name
+    )
+
+    if not move_success:
+        logger.warning(
+            f"⚠️ 角色 [{actor_name_to_move}] 移动到场景 [{target_stage_name}] 失败，跳过场景更新"
+        )
+        return
 
     try:
         # 步骤1: 读取场景资源
@@ -152,7 +167,7 @@ async def _handle_stage_self_update(
 
 ### 当前场景内已有角色状态
 
-{stage_info.get("actor_states", "")}
+{stage_info.get("actor_states", "无角色")}
 
 ### 当前环境
 
