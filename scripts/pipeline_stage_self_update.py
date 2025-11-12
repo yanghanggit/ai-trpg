@@ -15,6 +15,10 @@ from ai_trpg.utils.json_format import strip_json_code_block
 from agent_utils import GameAgentManager, StageAgent
 from workflow_handlers import handle_chat_workflow_execution
 from mcp_client_resource_helpers import read_stage_resource
+from actor_movement_log_manager import (
+    get_actor_movement_events,
+    remove_actor_movement_log,
+)
 
 
 #
@@ -92,6 +96,11 @@ async def handle_stage_self_update(
 
     logger.info("✅ 场景自我更新流程完成")
 
+    logger.debug(
+        "🧹 清理角色移动日志文件..., 因为在场景自我更新完成后，角色移动事件已处理完毕"
+    )
+    remove_actor_movement_log()
+
 
 ########################################################################################################################
 ########################################################################################################################
@@ -123,23 +132,27 @@ async def _handle_stage_self_update(
     }
     """
 
-    if stage_agent.name != "奥顿教堂大厅":
+    # 检查是否有角色进入当前场景的事件
+    movement_events = get_actor_movement_events(stage_agent.name)
+
+    if len(movement_events) == 0:
         logger.debug(f"ℹ️ 场景 {stage_agent.name} 无角色进入事件，跳过更新")
         return
 
-    # 执行角色转移（目前使用写死的测试数据）
-    actor_name_to_move = "外乡人"
-    target_stage_name = "奥顿教堂大厅"
-
-    move_success = game_agent_manager.move_actor_to_stage(
-        actor_name=actor_name_to_move, target_stage_name=target_stage_name
+    logger.debug(
+        f"📋 场景 {stage_agent.name} 检测到 {len(movement_events)} 个角色进入事件"
     )
 
-    if not move_success:
-        logger.warning(
-            f"⚠️ 角色 [{actor_name_to_move}] 移动到场景 [{target_stage_name}] 失败，跳过场景更新"
+    # 执行角色转移（遍历所有进入事件）
+    for event in movement_events:
+        move_success = game_agent_manager.move_actor_to_stage(
+            actor_name=event.actor_name, target_stage_name=event.to_stage
         )
-        return
+
+        if not move_success:
+            logger.warning(
+                f"⚠️ 角色 [{event.actor_name}] 移动到场景 [{event.to_stage}] 失败"
+            )
 
     try:
         # 步骤1: 读取场景资源
@@ -147,19 +160,32 @@ async def _handle_stage_self_update(
             stage_agent.mcp_client, stage_agent.name
         )
 
-        # 步骤2: 构建场景更新提示词
+        # 步骤2: 构建角色进入事件信息
+        # 构建进入事件列表的字符串
+        events_info = []
+        entering_actor_names = []
+        for event in movement_events:
+            events_info.append(
+                f"""- **角色名称**: {event.actor_name}
+- **来源场景**: {event.from_stage}
+- **目标场景**: {event.to_stage}
+- **进入姿态与状态**: {event.entry_posture_and_status}"""
+            )
+            entering_actor_names.append(f'"{event.actor_name}"')
+
+        events_section = "\n\n".join(events_info)
+        entering_actors_str = "、".join(entering_actor_names)
+
+        # 步骤3: 构建场景更新提示词
         stage_update_prompt = f"""# 指令！你（{stage_agent.name}）因角色进入事件需要更新场景状态
 
-## � 触发事件：角色进入场景
+## 🚪 触发事件：角色进入场景
 
-- **角色名称**: 外乡人
-- **来源场景**: 奥顿教堂墓地
-- **目标场景**: 奥顿教堂大厅
-- **进入姿态与状态**: 站立 | 手持油灯和符文手杖，保持警惕
+{events_section}
 
 ---
 
-## �📊 当前场景信息
+## 📊 当前场景信息
 
 ### 当前叙事
 
@@ -181,18 +207,19 @@ async def _handle_stage_self_update(
 
 ## 🎯 更新任务
 
-**触发原因**：场景内角色发生变化（新角色"外乡人"进入）
+**触发原因**：场景内角色发生变化（{len(movement_events)} 个新角色进入：{entering_actors_str}）
 
 **更新流程**（按顺序完成，后续步骤依赖前置结果）：
 
 1. **构建叙事（narrative）**
-   - 第三人称描述"外乡人"进入场景的过程和当前场景状态
+   - 第三人称描述新进入角色的过程和当前场景状态
    - 叙事应包含：进入方式、当前位置、周围环境反应
+   - 如有多个角色进入，需合理编排叙事顺序
 
 2. **更新角色状态（actor_states）**
    - 基于叙事内容，更新场景内所有角色的状态
    - 保留"当前场景内已有角色状态"中的所有老角色
-   - 添加新进入的角色"外乡人"（从叙事中提取位置、姿态、状态）
+   - 添加所有新进入的角色（从叙事和进入信息中提取位置、姿态、状态）
    - 格式统一为：`**角色名**: 位置 | 姿态 | 状态`
 
 3. **更新环境（environment）**
@@ -212,7 +239,7 @@ async def _handle_stage_self_update(
 ```json
 {{
     "narrative": "更新后的场景叙事描述",
-    "actor_states": "更新后的角色状态列表（包含老角色 + 新进入的外乡人）",
+    "actor_states": "更新后的角色状态列表（包含老角色 + 所有新进入的角色）",
     "environment": "更新后的环境描述",
     "connections": "更新后的场景连通性"
 }}
@@ -220,7 +247,7 @@ async def _handle_stage_self_update(
 
 **注意**：
 
-- **actor_states** 必须包含所有角色（老角色 + 新进入的"外乡人"）
+- **actor_states** 必须包含所有角色（老角色 + 所有新进入的角色）
 - 角色状态格式必须统一：`**角色名**: 位置 | 姿态 | 状态`
 - 叙事描述应该第三人称，简洁明了
 - 只更新因角色进入而实际发生变化的部分"""

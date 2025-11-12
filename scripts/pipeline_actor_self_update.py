@@ -213,8 +213,8 @@ async def _handle_actor_self_update(
     )
     # logger.debug(f"🔄 角色 {actor_agent.name} 当前数据: {actor_info}")
 
-    available_tools = await actor_agent.mcp_client.list_tools()
-    assert available_tools is not None, "获取 MCP 可用工具失败"
+    # available_tools = await actor_agent.mcp_client.list_tools()
+    # assert available_tools is not None, "获取 MCP 可用工具失败"
 
     # 步骤1-2: 分析与工具调用
     step1_2_instruction = _gen_self_update_request_prompt(actor_agent.name, actor_info)
@@ -362,7 +362,6 @@ async def _update_actor_death_status(
 ########################################################################################################################
 async def handle_actors_self_update(
     game_agent_manager: GameAgentManager,
-    # mcp_client: McpClient,
     use_concurrency: bool = False,
 ) -> None:
     """处理所有角色的自我状态更新
@@ -378,15 +377,12 @@ async def handle_actors_self_update(
         logger.warning("⚠️ 当前没有角色代理，跳过自我状态更新流程")
         return
 
-    # logger.debug(f"🔄 开始处理 {len(actor_agents)} 个角色的自我更新")
-
     if use_concurrency:
 
         logger.debug(f"🔄 并行处理 {len(actor_agents)} 个角色的自我更新")
         actor_update_tasks = [
             _handle_actor_self_update(
                 actor_agent=actor_agent,
-                # mcp_client=mcp_client,
             )
             for actor_agent in actor_agents
         ]
@@ -395,7 +391,6 @@ async def handle_actors_self_update(
         death_check_tasks = [
             _update_actor_death_status(
                 actor_agent=actor_agent,
-                # mcp_client=mcp_client,
             )
             for actor_agent in actor_agents
         ]
@@ -407,13 +402,11 @@ async def handle_actors_self_update(
         for actor_agent in actor_agents:
             await _handle_actor_self_update(
                 actor_agent=actor_agent,
-                # mcp_client=mcp_client,
             )
 
         for actor_agent in actor_agents:
             await _update_actor_death_status(
                 actor_agent=actor_agent,
-                # mcp_client=mcp_client,
             )
 
 

@@ -91,28 +91,23 @@ def _load_actor_movement_log(filepath: Path) -> ActorMovementLog:
         raise
 
 
-def has_actor_movement_event(actor_name: str, from_stage: str, to_stage: str) -> bool:
-    """检查是否存在指定的角色移动事件
+def has_actor_movement_event(actor_name: str) -> List[ActorMovementEvent]:
+    """获取指定角色的所有移动事件
 
     Args:
         actor_name: 角色名称
-        from_stage: 来源场景名称
-        to_stage: 目标场景名称
 
     Returns:
-        bool: 如果存在匹配的事件返回 True，否则返回 False
+        List[ActorMovementEvent]: 该角色的所有移动事件列表，如果没有则返回空列表
     """
     log = _load_actor_movement_log(_get_actor_movement_log_filepath())
+    result = []
 
     for event in log.events:
-        if (
-            event.actor_name == actor_name
-            and event.from_stage == from_stage
-            and event.to_stage == to_stage
-        ):
-            return True
+        if event.actor_name == actor_name:
+            result.append(event)
 
-    return False
+    return result
 
 
 def add_actor_movement_event(event: ActorMovementEvent) -> None:
@@ -130,34 +125,22 @@ def add_actor_movement_event(event: ActorMovementEvent) -> None:
     )
 
 
-def get_actor_movement_events(
-    actor_name: str | None = None,
-    from_stage: str | None = None,
-    to_stage: str | None = None,
-) -> List[ActorMovementEvent]:
-    """获取符合条件的角色移动事件列表
+def get_actor_movement_events(stage_name: str) -> List[ActorMovementEvent]:
+    """获取所有进入指定场景的角色移动事件
 
     Args:
-        actor_name: 角色名称（可选，不指定则不过滤）
-        from_stage: 来源场景名称（可选，不指定则不过滤）
-        to_stage: 目标场景名称（可选，不指定则不过滤）
+        stage_name: 目标场景名称
 
     Returns:
-        List[ActorMovementEvent]: 符合条件的事件列表
+        List[ActorMovementEvent]: 所有进入该场景的角色移动事件列表（to_stage == stage_name）
     """
     log = _load_actor_movement_log(_get_actor_movement_log_filepath())
     result = []
 
     for event in log.events:
-        # 如果指定了条件，则检查是否匹配
-        if actor_name is not None and event.actor_name != actor_name:
-            continue
-        if from_stage is not None and event.from_stage != from_stage:
-            continue
-        if to_stage is not None and event.to_stage != to_stage:
-            continue
-
-        result.append(event)
+        # 检查事件的目标场景是否匹配
+        if event.to_stage == stage_name:
+            result.append(event)
 
     return result
 
