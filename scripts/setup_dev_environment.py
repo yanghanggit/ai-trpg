@@ -18,7 +18,7 @@ from ai_trpg.rag.pgvector_knowledge_retrieval import (
     pgvector_load_knowledge_base_to_vector_db,
     pgvector_search_similar_documents,
 )
-from ai_trpg.demo import test_knowledge_base1
+from ai_trpg.demo import test_knowledge_base1, test_queries_for_knowledge_base1
 from ai_trpg.embedding_model import multilingual_model
 
 
@@ -52,7 +52,7 @@ def _test_pgvector_search(test_queries: List[str]) -> None:
 
 
 #######################################################################################################
-def _setup_pgvector() -> None:
+def _setup_pgvector(need_test: bool) -> None:
     """
     清理现有的 PostgreSQL 向量数据，然后使用正式的知识库数据重新初始化
     包括向量数据库的设置和知识库数据的加载
@@ -62,13 +62,15 @@ def _setup_pgvector() -> None:
         success = pgvector_load_knowledge_base_to_vector_db(
             knowledge_base=test_knowledge_base1,
             embedding_model=multilingual_model,
+            source="knowledge_base",
         )
 
         if success:
             logger.success("✅ PostgreSQL 测试知识库加载成功")
 
             # 测试向量检索功能
-            # _test_pgvector_search(test_queries_for_knowledge_base1)
+            if need_test:
+                _test_pgvector_search(test_queries_for_knowledge_base1)
 
         else:
             logger.error("❌ PostgreSQL 测试知识库加载失败")
@@ -102,7 +104,7 @@ def main() -> None:
 
         # PostgreSQL + pgvector RAG 系统
         logger.info("🚀 初始化 PostgreSQL + pgvector RAG 系统...")
-        _setup_pgvector()
+        _setup_pgvector(need_test=False)
         logger.success("✅ PostgreSQL + pgvector RAG 系统初始化完成")
 
     except Exception as e:

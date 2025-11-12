@@ -31,6 +31,7 @@ from ..pgsql.client import SessionLocal
 def _prepare_documents_for_vector_storage(
     knowledge_base: Dict[str, List[str]],
     embedding_model: SentenceTransformer,
+    source: str,
 ) -> List[Dict[str, Any]]:
     """
     准备知识库数据用于向量化和存储
@@ -38,6 +39,7 @@ def _prepare_documents_for_vector_storage(
     Args:
         knowledge_base: 知识库数据，格式为 {category: [documents]}
         embedding_model: SentenceTransformer 嵌入模型实例
+        source: 数据来源标识
 
     Returns:
         List[Dict]: 准备好的文档字典列表，每个字典包含存储所需的所有字段
@@ -79,7 +81,7 @@ def _prepare_documents_for_vector_storage(
                     "embedding": embedding.tolist(),
                     "title": metadata["title"],
                     "doc_type": metadata["category"],
-                    "source": "knowledge_base",
+                    "source": source,
                     "metadata": metadata,
                 }
             )
@@ -102,6 +104,7 @@ def _prepare_documents_for_vector_storage(
 def pgvector_load_knowledge_base_to_vector_db(
     knowledge_base: Dict[str, List[str]],
     embedding_model: SentenceTransformer,
+    source: str,
 ) -> bool:
     """
     初始化 PostgreSQL + pgvector RAG系统
@@ -113,6 +116,7 @@ def pgvector_load_knowledge_base_to_vector_db(
     Args:
         knowledge_base: 要加载的知识库数据，格式为 {category: [documents]}
         embedding_model: SentenceTransformer 嵌入模型实例
+        source: 数据来源标识
 
     Returns:
         bool: 初始化是否成功
@@ -129,7 +133,7 @@ def pgvector_load_knowledge_base_to_vector_db(
 
             # 2. 准备知识库数据
             documents_data = _prepare_documents_for_vector_storage(
-                knowledge_base, embedding_model
+                knowledge_base, embedding_model, source
             )
 
             if not documents_data:
