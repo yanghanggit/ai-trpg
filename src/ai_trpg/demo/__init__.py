@@ -18,11 +18,16 @@ def create_demo_world() -> World:
     # return create_test_world1()
 
     # from .world2 import create_test_world_2_1
+
     # return create_test_world_2_1()
 
-    from .world2 import create_test_world_2_2
+    # from .world2 import create_test_world_2_2
 
-    return create_test_world_2_2()
+    # return create_test_world_2_2()
+
+    from .world3 import create_test_world3
+
+    return create_test_world3()
 
 
 __all__ = [

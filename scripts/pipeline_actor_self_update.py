@@ -192,7 +192,6 @@ def _gen_self_update_request_prompt_test(
 ########################################################################################################################
 async def _handle_actor_self_update(
     actor_agent: ActorAgent,
-    # mcp_client: McpClient,
 ) -> None:
     """处理单个角色的自我状态更新
 
@@ -207,20 +206,17 @@ async def _handle_actor_self_update(
         mcp_client: MCP 客户端
     """
 
+    if actor_agent.is_dead:
+        logger.debug(f"💤 角色 {actor_agent.name} 已标记为死亡，跳过自我更新流程")
+        return
+
     # 使用统一的资源读取函数
     actor_info: Dict[str, Any] = await read_actor_resource(
         actor_agent.mcp_client, actor_agent.name
     )
-    # logger.debug(f"🔄 角色 {actor_agent.name} 当前数据: {actor_info}")
-
-    # available_tools = await actor_agent.mcp_client.list_tools()
-    # assert available_tools is not None, "获取 MCP 可用工具失败"
 
     # 步骤1-2: 分析与工具调用
     step1_2_instruction = _gen_self_update_request_prompt(actor_agent.name, actor_info)
-    # step1_2_instruction = _gen_self_update_request_prompt_test(
-    #     actor_agent.name, actor_info
-    # )
 
     # 步骤3: 二次推理输出确认（独立指令）
     step3_instruction = HumanMessage(
@@ -315,7 +311,6 @@ async def _handle_actor_self_update(
 ########################################################################################################################
 async def _update_actor_death_status(
     actor_agent: ActorAgent,
-    # mcp_client: McpClient,
 ) -> None:
     """检查单个角色是否死亡
 
@@ -326,6 +321,10 @@ async def _update_actor_death_status(
         actor_agent: 角色代理
         mcp_client: MCP 客户端
     """
+
+    if actor_agent.is_dead:
+        logger.debug(f"💤 角色 {actor_agent.name} 已标记为死亡，跳过死亡检查")
+        return
 
     # 使用统一的资源读取函数
     actor_info: Dict[str, Any] = await read_actor_resource(
@@ -353,7 +352,6 @@ async def _update_actor_death_status(
                 )
 
     else:
-        actor_agent.is_dead = False
         logger.debug(f"✅ 角色 {actor_agent.name} 仍然存活，当前生命值: {health}")
 
 

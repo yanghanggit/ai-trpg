@@ -316,7 +316,7 @@ class McpClient:
 
             # 缓存结果
             self._tools_cache = tools
-            logger.info(f"✅ 获取到 {len(tools)} 个工具")
+            # logger.info(f"✅ 获取到 {len(tools)} 个工具")
 
             return tools
 
