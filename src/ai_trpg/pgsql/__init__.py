@@ -13,6 +13,12 @@ from .base import *
 from .client import *
 from .user import *
 from .vector_document import VectorDocumentDB
+from .world import WorldDB
+from .stage import StageDB
+from .actor import ActorDB
+from .effect import EffectDB
+from .message import MessageDB
+from .attributes import AttributesDB
 from .config import PostgreSQLConfig, postgresql_config
 
 
@@ -32,4 +38,11 @@ __all__: List[str] = [
     "get_user",
     # Vector database models
     "VectorDocumentDB",
+    # World database models
+    "WorldDB",
+    "StageDB",
+    "ActorDB",
+    "EffectDB",
+    "MessageDB",
+    "AttributesDB",
 ]

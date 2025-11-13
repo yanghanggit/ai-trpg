@@ -79,6 +79,7 @@ def create_test_world3() -> World:
     instance_stage2 = copy.deepcopy(template_stage2)
     # 深拷贝世界，避免修改原始定义
     instance_world3 = copy.deepcopy(template_world1)
+    instance_world3.name = f"""{instance_world3.name}_3"""
 
     # 单独设置加斯科因 #########################
     instance_actor1.initial_context = [

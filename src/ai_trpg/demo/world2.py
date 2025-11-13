@@ -72,6 +72,7 @@ def create_test_world_2_1() -> World:
     instance_stage2 = copy.deepcopy(template_stage2)
     # 深拷贝世界，避免修改原始定义
     instance_world2 = copy.deepcopy(template_world1)
+    instance_world2.name = f"""{instance_world2.name}_2_1"""
 
     # 单独设置外乡人 #########################
     instance_actor3.initial_context = [
@@ -162,6 +163,7 @@ def create_test_world_2_2() -> World:
     instance_stage2 = copy.deepcopy(template_stage2)
     # 深拷贝世界，避免修改原始定义
     instance_world2 = copy.deepcopy(template_world1)
+    instance_world2.name = f"""{instance_world2.name}_2_2"""
 
     # 单独设置外乡人 #########################
     instance_actor3.initial_context = [
