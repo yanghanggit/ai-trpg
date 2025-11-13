@@ -105,3 +105,30 @@ def clear_multiple_actor_plans(world_id: UUID, actor_names: List[str]) -> int:
             db.rollback()
             logger.error(f"❌ 批量清空角色计划失败: {e}")
             raise
+
+
+def get_latest_actor_plan(world_id: UUID, actor_name: str) -> str:
+    """获取指定角色的最新计划内容
+
+    Args:
+        world_id: 世界ID
+        actor_name: 角色名称
+
+    Returns:
+        str: 最新的计划内容，如果没有计划则返回空字符串
+    """
+    with SessionLocal() as db:
+        try:
+            plan = (
+                db.query(ActorPlanDB)
+                .filter_by(world_id=world_id, actor_name=actor_name)
+                .order_by(ActorPlanDB.created_at.desc())
+                .first()
+            )
+            if plan:
+                logger.debug(f"📖 查询到角色 '{actor_name}' 的最新计划")
+                return plan.plan_content
+            return ""
+        except Exception as e:
+            logger.error(f"❌ 查询角色计划失败: {e}")
+            raise

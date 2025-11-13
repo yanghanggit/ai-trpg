@@ -85,7 +85,11 @@ async def _build_actor_plan_prompt(
     - 外观: xxx
     """
 
-    if actor_agent.plan == "":
+    # 从数据库获取最新计划
+    from ai_trpg.pgsql.actor_plan_operations import get_latest_actor_plan
+
+    current_plan = get_latest_actor_plan(actor_agent.world_id, actor_agent.name)
+    if current_plan == "":
         return ""
 
     try:
@@ -121,7 +125,7 @@ async def _build_actor_plan_prompt(
         # 构建美化后的提示词
         return f"""**{name}**
 
-- 行动计划: {actor_agent.plan}
+- 行动计划: {current_plan}
 - 战斗数据: 生命值 {health}/{max_health} | 攻击力 {attack}
 - Effect: {effects_str}
 - 外观: {appearance}"""

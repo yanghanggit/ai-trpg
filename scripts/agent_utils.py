@@ -50,7 +50,6 @@ class ActorAgent(GameAgent):
     """
 
     stage_agent: "StageAgent"  # 该角色所属的场景代理
-    plan: str = ""
     is_dead: bool = False  # 代理是否已死亡
 
 

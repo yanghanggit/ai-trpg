@@ -309,9 +309,23 @@ async def _handle_actor_observe_and_plan(
             )
         )
 
-        # 记录角色的计划到属性中，方便后续使用
-        actor_agent.plan = str(formatted_data.plan)
-        assert actor_agent.plan != "", "角色计划不能为空!!!!!!"
+        # 保存角色计划到数据库
+        from ai_trpg.pgsql.actor_plan_operations import (
+            clear_all_actor_plans,
+            add_actor_plan_to_db,
+        )
+
+        plan_content = str(formatted_data.plan)
+        assert plan_content != "", "角色计划不能为空!!!!!!"
+
+        # 先清空旧计划，再保存新计划
+        clear_all_actor_plans(actor_agent.world_id, actor_agent.name)
+        add_actor_plan_to_db(
+            world_id=actor_agent.world_id,
+            actor_name=actor_agent.name,
+            plan_content=plan_content,
+        )
+        logger.debug(f"💾 已将角色 '{actor_agent.name}' 的计划保存到数据库")
 
     except Exception as e:
         logger.error(f"JSON解析错误: {e}")

@@ -35,4 +35,5 @@ class ActorPlanDB(UUIDBase):
         Index(
             "idx_world_actor_plan", "world_id", "actor_name"
         ),  # 复合索引:按世界查询角色计划
+        {"prefixes": ["UNLOGGED"]},  # 声明为 unlogged table (必须是最后一个元素)
     )
