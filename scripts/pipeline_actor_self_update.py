@@ -341,8 +341,24 @@ async def _update_actor_death_status(
 
         # 通知自己
         actor_agent.context.append(
-            HumanMessage(content=f"# 通知！你（{actor_agent.name}）已经死亡！")
+            HumanMessage(content=f"# 通知!你({actor_agent.name})已经死亡!")
         )
+
+        # 测试:从数据库验证角色死亡状态
+        from ai_trpg.pgsql.actor_operations import get_actor_attributes, is_actor_dead
+
+        db_is_dead = is_actor_dead(actor_agent.world_id, actor_agent.name)
+        db_attributes = get_actor_attributes(actor_agent.world_id, actor_agent.name)
+
+        if db_attributes:
+            logger.debug(
+                f"🔍 数据库验证 - 角色 {actor_agent.name}:\n"
+                f"   is_dead={db_is_dead} (期望: True)\n"
+                f"   health={db_attributes.health} (期望: 0)\n"
+                f"   验证结果: {'✅ 通过' if db_is_dead and db_attributes.health == 0 else '❌ 失败'}"
+            )
+        else:
+            logger.error(f"❌ 无法从数据库获取角色 {actor_agent.name} 的属性信息")
 
         # 通知场景内的其他角色
         # for other_agent in actor_agent.stage_agent.actor_agents:

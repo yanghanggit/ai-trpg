@@ -4,10 +4,12 @@
 提供 Actor 的数据库操作
 """
 
+from typing import Optional
 from uuid import UUID
 from loguru import logger
 from .client import SessionLocal
 from .actor import ActorDB
+from .attributes import AttributesDB
 
 
 def update_actor_health(world_id: UUID, actor_name: str, new_health: int) -> bool:
@@ -54,4 +56,77 @@ def update_actor_health(world_id: UUID, actor_name: str, new_health: int) -> boo
         except Exception as e:
             db.rollback()
             logger.error(f"❌ 更新角色生命值失败: {e}")
+            raise
+
+
+def is_actor_dead(world_id: UUID, actor_name: str) -> bool:
+    """查询指定角色是否已死亡
+
+    Args:
+        world_id: 所属世界ID
+        actor_name: 角色名称
+
+    Returns:
+        bool: 角色是否已死亡，如果角色不存在则返回False
+    """
+    with SessionLocal() as db:
+        try:
+            # 查找角色
+            actor = (
+                db.query(ActorDB)
+                .join(ActorDB.stage)
+                .filter(ActorDB.name == actor_name)
+                .filter(ActorDB.stage.has(world_id=world_id))
+                .first()
+            )
+
+            if not actor:
+                logger.warning(f"⚠️ 未找到角色: {actor_name} (世界ID: {world_id})")
+                return False
+
+            is_dead = actor.is_dead
+            logger.debug(
+                f"📋 角色 '{actor_name}' 死亡状态: {'已死亡' if is_dead else '存活'}"
+            )
+            return is_dead
+
+        except Exception as e:
+            logger.error(f"❌ 查询角色死亡状态失败: {e}")
+            raise
+
+
+def get_actor_attributes(world_id: UUID, actor_name: str) -> Optional[AttributesDB]:
+    """获取指定角色的属性信息
+
+    Args:
+        world_id: 所属世界ID
+        actor_name: 角色名称
+
+    Returns:
+        Optional[AttributesDB]: 角色的属性对象，如果角色不存在则返回None
+    """
+    with SessionLocal() as db:
+        try:
+            # 查找角色
+            actor = (
+                db.query(ActorDB)
+                .join(ActorDB.stage)
+                .filter(ActorDB.name == actor_name)
+                .filter(ActorDB.stage.has(world_id=world_id))
+                .first()
+            )
+
+            if not actor:
+                logger.warning(f"⚠️ 未找到角色: {actor_name} (世界ID: {world_id})")
+                return None
+
+            # 返回角色属性
+            attributes = actor.attributes
+            logger.debug(
+                f"📊 角色 '{actor_name}' 属性: 生命值 {attributes.health}/{attributes.max_health}, 攻击力 {attributes.attack}"
+            )
+            return attributes
+
+        except Exception as e:
+            logger.error(f"❌ 查询角色属性失败: {e}")
             raise

@@ -556,6 +556,24 @@ async def update_actor_health(world_name: str, actor_name: str, new_health: int)
             f"更新 {actor_name} 生命值: {old_health} → {clamped_health}/{max_health}"
         )
 
+        # 同步更新到数据库
+        try:
+            # 获取当前世界的 world_id
+            world_id = get_world_id_by_name(demo_world.name)
+            assert world_id is not None, f"世界 '{demo_world.name}' 未在数据库中找到"
+
+            # 导入数据库操作函数
+            from ai_trpg.pgsql.actor_operations import (
+                update_actor_health as update_actor_health_db,
+            )
+
+            # 更新数据库中的生命值
+            update_actor_health_db(world_id, actor_name, clamped_health)
+            logger.debug(f"✅ 已同步 {actor_name} 生命值到数据库")
+        except Exception as db_error:
+            # 即使数据库更新失败，也不影响内存中的更新操作
+            logger.warning(f"同步生命值到数据库失败（不影响内存更新）: {db_error}")
+
         return json.dumps(
             {
                 "success": True,
