@@ -16,7 +16,6 @@ from agent_utils import GameAgentManager, StageAgent
 from workflow_handlers import handle_chat_workflow_execution
 from mcp_client_resource_helpers import read_stage_resource
 from ai_trpg.pgsql import (
-    get_world_id_by_name,
     get_actor_movement_events_by_stage,
     clear_all_actor_movement_events,
 )
@@ -101,14 +100,14 @@ async def handle_stage_self_update(
     logger.debug(
         "🧹 清理当前世界的角色移动事件数据库..., 因为在场景自我更新完成后，角色移动事件已处理完毕"
     )
-    if game_agent_manager.world_name:
-        world_id = get_world_id_by_name(game_agent_manager.world_name)
-        if world_id:
-            clear_all_actor_movement_events(world_id)
-        else:
-            logger.warning(
-                f"⚠️ 未找到世界 '{game_agent_manager.world_name}' 的数据库记录"
-            )
+    # if game_agent_manager.world_name:
+    #     world_id = get_world_id_by_name(game_agent_manager.world_name)
+    #     if world_id:
+    clear_all_actor_movement_events(game_agent_manager.world_id)
+    # else:
+    #     logger.warning(
+    #         f"⚠️ 未找到世界 '{game_agent_manager.world_name}' 的数据库记录"
+    #     )
 
 
 ########################################################################################################################
@@ -134,13 +133,15 @@ async def _handle_stage_self_update(
     #     logger.error("❌ GameAgentManager 未初始化 world_name,无法查询角色移动事件")
     #     return
 
-    world_id = get_world_id_by_name(game_agent_manager.world_name)
-    if world_id is None:
-        logger.error(f"❌ 未找到世界 '{game_agent_manager.world_name}' 的数据库记录")
-        return
+    # world_id = get_world_id_by_name(game_agent_manager.world_name)
+    # if world_id is None:
+    #     logger.error(f"❌ 未找到世界 '{game_agent_manager.world_name}' 的数据库记录")
+    #     return
 
     # 检查是否有角色进入当前场景的事件 (从数据库查询)
-    movement_events = get_actor_movement_events_by_stage(world_id, stage_agent.name)
+    movement_events = get_actor_movement_events_by_stage(
+        stage_agent.world_id, stage_agent.name
+    )
 
     if len(movement_events) == 0:
         logger.debug(f"ℹ️ 场景 {stage_agent.name} 无角色进入事件，跳过更新")

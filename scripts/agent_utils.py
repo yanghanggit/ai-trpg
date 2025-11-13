@@ -17,6 +17,10 @@ from langchain.schema import BaseMessage
 from ai_trpg.mcp import (
     McpClient,
 )
+from uuid import UUID
+from ai_trpg.pgsql import (
+    get_world_id_by_name,
+)
 
 
 class GameAgent(BaseModel):
@@ -26,10 +30,8 @@ class GameAgent(BaseModel):
 
     name: str
     mcp_client: McpClient
-    context: List[BaseMessage] = []
-    plan: str = ""
-    # is_kicked_off: bool = False  # 代理是否已完成开局初始化, 防止重复
-    is_dead: bool = False  # 代理是否已死亡
+    world_id: UUID
+    context: List[BaseMessage]
 
 
 class WorldAgent(GameAgent):
@@ -48,6 +50,8 @@ class ActorAgent(GameAgent):
     """
 
     stage_agent: "StageAgent"  # 该角色所属的场景代理
+    plan: str = ""
+    is_dead: bool = False  # 代理是否已死亡
 
 
 class StageAgent(GameAgent):
@@ -73,6 +77,7 @@ class GameAgentManager:
         self._stage_agents: List[StageAgent] = []
         self._current_agent: Optional[GameAgent] = None
         self._world_name: str = ""
+        self._world_id: Optional[UUID] = None
         self._is_kicked_off: bool = False  # 整个游戏是否已完成开局初始化
 
     async def create_agents_from_world(
@@ -87,11 +92,16 @@ class GameAgentManager:
         self._world_name = world_model.name
         logger.debug(f"✅ 保存世界名称: {self._world_name}")
 
+        self._world_id = get_world_id_by_name(self._world_name)
+        assert self._world_id is not None, "无法获取游戏世界 ID"
+        logger.debug(f"✅ 保存世界 ID: {self._world_id}")
+
         # 创建世界观代理
         self._world_agent = WorldAgent(
             name=world_model.name,
-            context=world_model.context,
             mcp_client=await self._create_mcp_client(),
+            world_id=self._world_id,
+            context=world_model.context,
         )
         logger.debug(f"已创建世界观代理: {self._world_agent.name}")
 
@@ -112,8 +122,9 @@ class GameAgentManager:
             # 创建场景代理
             stage_agent = StageAgent(
                 name=stage_model.name,
-                context=stage_model.context,
                 mcp_client=await self._create_mcp_client(),
+                world_id=self._world_id,
+                context=stage_model.context,
             )
 
             # 为该场景中的每个角色创建代理
@@ -121,8 +132,9 @@ class GameAgentManager:
                 actor_agent = ActorAgent(
                     name=actor_model.name,
                     stage_agent=stage_agent,  # 创建时直接指定所属场景
-                    context=actor_model.context,
                     mcp_client=await self._create_mcp_client(),
+                    world_id=self._world_id,
+                    context=actor_model.context,
                 )
                 # 将角色代理添加到场景代理的列表中
                 stage_agent.actor_agents.append(actor_agent)
@@ -221,6 +233,12 @@ class GameAgentManager:
         """获取游戏世界名称 (用于数据库操作的 world_id 查询)"""
         assert self._world_name != "", "游戏世界名称未设置"
         return self._world_name
+
+    @property
+    def world_id(self) -> UUID:
+        """获取游戏世界 ID (用于数据库操作)"""
+        assert self._world_id is not None, "游戏世界 ID 未设置"
+        return self._world_id
 
     @property
     def actor_agents(self) -> List[ActorAgent]:

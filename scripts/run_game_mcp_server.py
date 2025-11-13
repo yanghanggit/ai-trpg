@@ -637,10 +637,6 @@ async def get_world_resource() -> str:
         }
     """
 
-    # 重新创建游戏世界(重置世界状态)
-    global demo_world
-    demo_world = create_demo_world()
-
     return get_world_info_impl(demo_world)
 
 

@@ -5,9 +5,8 @@
 提供游戏玩法相关的功能处理，包括游戏指令的执行和处理。
 """
 
-from typing import List
 from loguru import logger
-from agent_utils import GameAgentManager, StageAgent
+from agent_utils import GameAgentManager
 
 # 导入拆分后的流水线模块
 from pipeline_kickoff import handle_kickoff
