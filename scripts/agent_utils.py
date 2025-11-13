@@ -28,7 +28,7 @@ class GameAgent(BaseModel):
     mcp_client: McpClient
     context: List[BaseMessage] = []
     plan: str = ""
-    is_kicked_off: bool = False  # 代理是否已完成开局初始化, 防止重复
+    # is_kicked_off: bool = False  # 代理是否已完成开局初始化, 防止重复
     is_dead: bool = False  # 代理是否已死亡
 
 
@@ -73,6 +73,7 @@ class GameAgentManager:
         self._stage_agents: List[StageAgent] = []
         self._current_agent: Optional[GameAgent] = None
         self._world_name: str = ""
+        self._is_kicked_off: bool = False  # 整个游戏是否已完成开局初始化
 
     async def create_agents_from_world(
         self,

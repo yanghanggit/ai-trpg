@@ -22,13 +22,13 @@ from pipeline_stage_self_update import handle_stage_self_update
 ########################################################################################################################
 ########################################################################################################################
 ########################################################################################################################
-async def _all_kickoff(stage_agents: List[StageAgent]) -> None:
-    """让所有的场景代理开始开局初始化（Kickoff）"""
-    for stage_agent in stage_agents:
-        await handle_kickoff(
-            stage_agent=stage_agent,
-            # mcp_client=mcp_client,
-        )
+# async def _all_kickoff(stage_agents: List[StageAgent]) -> None:
+#     """让所有的场景代理开始开局初始化（Kickoff）"""
+#     for stage_agent in stage_agents:
+#         await handle_kickoff(
+#             stage_agent=stage_agent,
+#             # mcp_client=mcp_client,
+#         )
 
 
 ########################################################################################################################
@@ -52,7 +52,7 @@ async def handle_game_command(
 
         # /game all:kickoff - 让所有的代理开始行动（Kickoff）
         case "all:kickoff":
-            await _all_kickoff(game_agent_manager.stage_agents)
+            await handle_kickoff(game_agent_manager)
 
         # /game all:actors_observe_and_plan - 让所有角色代理观察场景并规划行动
         case "all:actors_observe_and_plan":
@@ -75,7 +75,7 @@ async def handle_game_command(
         # /game all:actors_self_update - 让所有角色进行自我更新
         case "all:actors_self_update":
 
-            await _all_kickoff(game_agent_manager.stage_agents)
+            await handle_kickoff(game_agent_manager)
 
             await handle_actors_self_update(
                 game_agent_manager=game_agent_manager,
@@ -85,7 +85,7 @@ async def handle_game_command(
         # /game all:stage_self_update - 让所有场景进行自我更新
         case "all:stage_self_update":
 
-            await _all_kickoff(game_agent_manager.stage_agents)
+            await handle_kickoff(game_agent_manager)
 
             await handle_stage_self_update(
                 game_agent_manager=game_agent_manager,
@@ -95,7 +95,7 @@ async def handle_game_command(
         # /game pipeline:test0 - 测试流水线0: 开局→观察规划
         case "pipeline:test0":
 
-            await _all_kickoff(game_agent_manager.stage_agents)
+            await handle_kickoff(game_agent_manager)
 
             # 步骤0: 所有角色开始行动（Kickoff）
             for stage_agent in game_agent_manager.stage_agents:
@@ -110,7 +110,7 @@ async def handle_game_command(
         # 注意: 假设第0帧 已通过初始化注入stage_agent
         case "pipeline:test1":
 
-            await _all_kickoff(game_agent_manager.stage_agents)
+            await handle_kickoff(game_agent_manager)
 
             # 步骤0: 所有角色开始行动（Kickoff）
             for stage_agent in game_agent_manager.stage_agents:
