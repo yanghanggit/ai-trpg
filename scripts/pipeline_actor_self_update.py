@@ -345,11 +345,11 @@ async def _update_actor_death_status(
         )
 
         # 通知场景内的其他角色
-        for other_agent in actor_agent.stage_agent.actor_agents:
-            if other_agent.name != actor_agent.name:
-                other_agent.context.append(
-                    HumanMessage(content=f"# 通知！角色 {actor_agent.name} 已经死亡！")
-                )
+        # for other_agent in actor_agent.stage_agent.actor_agents:
+        #     if other_agent.name != actor_agent.name:
+        #         other_agent.context.append(
+        #             HumanMessage(content=f"# 通知！角色 {actor_agent.name} 已经死亡！")
+        #         )
 
     else:
         logger.debug(f"✅ 角色 {actor_agent.name} 仍然存活，当前生命值: {health}")
