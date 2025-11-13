@@ -125,16 +125,17 @@ class TestActorMovementEventOperations:
         """测试保存不带姿态信息的事件"""
         logger.info("🧪 测试 save_actor_movement_event_to_db - 空姿态")
 
-        # 保存事件（不指定 entry_posture_and_status）
+        # 保存事件（entry_posture_and_status 为空字符串）
         event_db = save_actor_movement_event_to_db(
             world_id=self.test_world_id,
             actor_name="角色A",
             from_stage="场景1",
             to_stage="场景2",
             description="简单移动",
+            entry_posture_and_status="",
         )
 
-        # 验证默认值
+        # 验证空字符串
         assert event_db.entry_posture_and_status == ""
 
         logger.success("✅ 空姿态测试通过")
@@ -150,6 +151,7 @@ class TestActorMovementEventOperations:
             from_stage="场景1",
             to_stage="场景2",
             description="第一次移动",
+            entry_posture_and_status="正常走入",
         )
         save_actor_movement_event_to_db(
             world_id=self.test_world_id,
@@ -157,6 +159,7 @@ class TestActorMovementEventOperations:
             from_stage="场景2",
             to_stage="场景3",
             description="第二次移动",
+            entry_posture_and_status="快速跑入",
         )
         save_actor_movement_event_to_db(
             world_id=self.test_world_id,
@@ -164,6 +167,7 @@ class TestActorMovementEventOperations:
             from_stage="场景1",
             to_stage="场景4",
             description="其他角色移动",
+            entry_posture_and_status="谨慎前行",
         )
 
         # 查询角色A的事件
@@ -198,6 +202,7 @@ class TestActorMovementEventOperations:
             from_stage="场景1",
             to_stage="目标场景",
             description="角色A进入",
+            entry_posture_and_status="从前门进入,状态正常",
         )
         save_actor_movement_event_to_db(
             world_id=self.test_world_id,
@@ -205,6 +210,7 @@ class TestActorMovementEventOperations:
             from_stage="场景2",
             to_stage="目标场景",
             description="角色B进入",
+            entry_posture_and_status="从后门潜入,状态警觉",
         )
         save_actor_movement_event_to_db(
             world_id=self.test_world_id,
@@ -212,6 +218,7 @@ class TestActorMovementEventOperations:
             from_stage="场景3",
             to_stage="其他场景",
             description="角色C去其他地方",
+            entry_posture_and_status="急匆离开,状态紧张",
         )
 
         # 查询进入"目标场景"的所有事件
@@ -252,6 +259,7 @@ class TestActorMovementEventOperations:
                 from_stage=f"场景{i}",
                 to_stage=f"场景{i+1}",
                 description=f"移动{i}",
+                entry_posture_and_status=f"测试姿态{i}",
             )
 
         # 验证事件已保存
@@ -360,6 +368,7 @@ class TestActorMovementEventOperations:
                 from_stage=f"场景{i}",
                 to_stage=f"场景{i+1}",
                 description=f"第{i+1}次移动",
+                entry_posture_and_status=f"第{i+1}次姿态",
             )
 
         # 查询所有事件
@@ -462,6 +471,7 @@ class TestActorMovementEventOperations:
                 from_stage="起点",
                 to_stage="终点",
                 description=f"{actor}的移动",
+                entry_posture_and_status=f"{actor}的进入姿态",
             )
 
         # 验证所有事件都正确保存
@@ -486,6 +496,7 @@ class TestActorMovementEventOperations:
                 from_stage=f"场景{i}",
                 to_stage=f"场景{i % 5}",  # 5个不同目标场景
                 description=f"移动{i}",
+                entry_posture_and_status=f"姿态{i % 3}",  # 3种不同姿态
             )
 
         # 查询特定角色（应该使用 actor_name 索引）

@@ -62,7 +62,7 @@ from workflow_handlers import (
 from io_utils import format_user_input_prompt, log_history, dump_history
 from mcp_client_init import create_mcp_client_with_config
 from gameplay_handler import handle_game_command
-from actor_movement_log_manager import remove_actor_movement_log
+from ai_trpg.pgsql import clear_all_actor_movement_events
 
 demo_world: World = create_demo_world()
 
@@ -145,9 +145,11 @@ async def main() -> None:
         # 初始化世界资源(会触发服务器重置世界状态)
         world_data = await initialize_world_resource(mcp_client)
 
-        # 清空角色移动日志文件
-        logger.info("🧹 清空角色移动日志文件...,因为是游戏刚刚启动，重置了世界状态")
-        remove_actor_movement_log()
+        # 清空所有世界的角色移动事件数据库记录
+        logger.info(
+            "🧹 清空所有世界的角色移动事件数据库...,因为是游戏刚刚启动，重置了世界状态"
+        )
+        clear_all_actor_movement_events()
 
         # 对话循环
         while True:

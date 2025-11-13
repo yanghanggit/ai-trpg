@@ -4,11 +4,13 @@ World 数据库操作模块
 提供 Pydantic World 模型与数据库之间的转换操作:
 - save_world_to_db: 保存 World 到数据库
 - load_world_from_db: 从数据库加载 World
+- get_world_id_by_name: 通过 world_name 获取数据库 world_id
 - delete_world: 删除 World
 """
 
 import json
 from typing import List, Optional
+from uuid import UUID
 from langchain.schema import BaseMessage, SystemMessage, HumanMessage, AIMessage
 from loguru import logger
 
@@ -193,6 +195,29 @@ def load_world_from_db(world_name: str) -> Optional[World]:
 
         except Exception as e:
             logger.error(f"❌ 加载 World '{world_name}' 失败: {e}")
+            raise
+
+
+def get_world_id_by_name(world_name: str) -> Optional[UUID]:
+    """通过 World 名称获取数据库中的 world_id
+
+    用于在迁移 JSON → Database 时快速获取 world_id,避免重复查询
+
+    Args:
+        world_name: World 名称 (World.name 是 UNIQUE 约束)
+
+    Returns:
+        UUID | None: 数据库中的 world_id,未找到则返回 None
+    """
+    with SessionLocal() as db:
+        try:
+            world_db = db.query(WorldDB).filter_by(name=world_name).first()
+            if not world_db:
+                logger.warning(f"⚠️ World '{world_name}' 不存在于数据库")
+                return None
+            return world_db.id
+        except Exception as e:
+            logger.error(f"❌ 获取 World '{world_name}' 的 ID 失败: {e}")
             raise
 
 

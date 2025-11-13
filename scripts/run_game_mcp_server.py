@@ -30,6 +30,10 @@ import mcp.types as types
 from ai_trpg.mcp import mcp_config
 from fastapi import Request, Response, status
 from ai_trpg.demo import create_demo_world, Effect, World
+from ai_trpg.pgsql import (
+    get_world_id_by_name,
+    save_actor_movement_event_to_db,
+)
 
 # 导入辅助函数模块
 from mcp_server_helpers import (
@@ -38,11 +42,8 @@ from mcp_server_helpers import (
     get_stage_info_impl,
 )
 
-# 导入角色移动日志管理模块
-from actor_movement_log_manager import (
-    ActorMovementEvent,
-    add_actor_movement_event,
-)
+# 导入角色移动日志管理模块 (Pydantic 模型保留用于数据验证)
+# from actor_movement_log_manager import ActorMovementEvent
 
 # 初始化游戏世界
 demo_world: World = create_demo_world()
@@ -235,21 +236,23 @@ async def move_actor_to_stage(
             success_msg += f"（进入姿态与状态: {entry_posture_and_status}）"
         logger.info(success_msg)
 
-        # 记录移动事件到日志
+        # 记录移动事件到数据库
         try:
-            # 构建描述信息，包含进入姿态与状态
-            event_description = success_msg
+            # 获取当前世界的 world_id
+            world_id = get_world_id_by_name(demo_world.name)
+            assert world_id is not None, f"世界 '{demo_world.name}' 未在数据库中找到"
 
-            movement_event = ActorMovementEvent(
+            # 保存到数据库
+            save_actor_movement_event_to_db(
+                world_id=world_id,
                 actor_name=actor_name,
                 from_stage=source_stage_name,
                 to_stage=result_stage.name,
-                description=event_description,
-                entry_posture_and_status=entry_posture_and_status,  # 保存进入姿态与状态
+                description=success_msg,
+                entry_posture_and_status=entry_posture_and_status,
             )
-            add_actor_movement_event(movement_event)
         except Exception as log_error:
-            # 即使日志记录失败，也不影响移动操作的成功
+            # 即使数据库记录失败，也不影响移动操作的成功
             logger.warning(f"记录移动事件失败（不影响移动操作）: {log_error}")
 
         return json.dumps(

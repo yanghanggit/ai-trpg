@@ -72,6 +72,7 @@ class GameAgentManager:
         self._world_agent: Optional[WorldAgent] = None
         self._stage_agents: List[StageAgent] = []
         self._current_agent: Optional[GameAgent] = None
+        self._world_name: str = ""
 
     async def create_agents_from_world(
         self,
@@ -80,6 +81,10 @@ class GameAgentManager:
     ) -> None:
         """从游戏世界创建所有代理 - 直接创建，简单直接"""
         logger.debug("🏗️ 开始创建游戏代理...")
+
+        # 保存世界名称 (用于后续数据库操作)
+        self._world_name = world_model.name
+        logger.debug(f"✅ 保存世界名称: {self._world_name}")
 
         # 创建世界观代理
         self._world_agent = WorldAgent(
@@ -209,6 +214,12 @@ class GameAgentManager:
     def world_agent(self) -> Optional[WorldAgent]:
         """获取世界观代理"""
         return self._world_agent
+
+    @property
+    def world_name(self) -> str:
+        """获取游戏世界名称 (用于数据库操作的 world_id 查询)"""
+        assert self._world_name != "", "游戏世界名称未设置"
+        return self._world_name
 
     @property
     def actor_agents(self) -> List[ActorAgent]:

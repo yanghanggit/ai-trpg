@@ -15,9 +15,10 @@ from ai_trpg.utils.json_format import strip_json_code_block
 from agent_utils import GameAgentManager, StageAgent
 from workflow_handlers import handle_chat_workflow_execution
 from mcp_client_resource_helpers import read_stage_resource
-from actor_movement_log_manager import (
-    get_actor_movement_events,
-    remove_actor_movement_log,
+from ai_trpg.pgsql import (
+    get_world_id_by_name,
+    get_actor_movement_events_by_stage,
+    clear_all_actor_movement_events,
 )
 
 
@@ -97,9 +98,9 @@ async def handle_stage_self_update(
     logger.info("✅ 场景自我更新流程完成")
 
     logger.debug(
-        "🧹 清理角色移动日志文件..., 因为在场景自我更新完成后，角色移动事件已处理完毕"
+        "🧹 清理所有世界的角色移动事件数据库..., 因为在场景自我更新完成后，角色移动事件已处理完毕"
     )
-    remove_actor_movement_log()
+    clear_all_actor_movement_events()
 
 
 ########################################################################################################################
@@ -115,11 +116,23 @@ async def _handle_stage_self_update(
 
     Args:
         stage_agent: 场景代理
+        game_agent_manager: 游戏代理管理器
     """
     logger.debug(f"🔄 正在更新场景代理: {stage_agent.name}")
 
-    # 检查是否有角色进入当前场景的事件
-    movement_events = get_actor_movement_events(stage_agent.name)
+    # 获取 world_id (用于数据库查询)
+    # world_name = game_agent_manager.world_name
+    # if world_name is None:
+    #     logger.error("❌ GameAgentManager 未初始化 world_name,无法查询角色移动事件")
+    #     return
+
+    world_id = get_world_id_by_name(game_agent_manager.world_name)
+    if world_id is None:
+        logger.error(f"❌ 未找到世界 '{game_agent_manager.world_name}' 的数据库记录")
+        return
+
+    # 检查是否有角色进入当前场景的事件 (从数据库查询)
+    movement_events = get_actor_movement_events_by_stage(world_id, stage_agent.name)
 
     if len(movement_events) == 0:
         logger.debug(f"ℹ️ 场景 {stage_agent.name} 无角色进入事件，跳过更新")

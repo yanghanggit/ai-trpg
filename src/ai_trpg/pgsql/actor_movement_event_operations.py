@@ -17,7 +17,7 @@ def save_actor_movement_event_to_db(
     from_stage: str,
     to_stage: str,
     description: str,
-    entry_posture_and_status: str = "",
+    entry_posture_and_status: str,
 ) -> ActorMovementEventDB:
     """保存角色移动事件到数据库
 
