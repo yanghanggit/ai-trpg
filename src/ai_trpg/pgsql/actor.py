@@ -1,6 +1,6 @@
 from typing import TYPE_CHECKING, List
 from uuid import UUID
-from sqlalchemy import String, Text, ForeignKey
+from sqlalchemy import String, Text, ForeignKey, Boolean
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from .base import UUIDBase
 
@@ -24,6 +24,7 @@ class ActorDB(UUIDBase):
     name: Mapped[str] = mapped_column(String(100), nullable=False)
     profile: Mapped[str] = mapped_column(Text, nullable=False)
     appearance: Mapped[str] = mapped_column(Text, nullable=False)
+    is_dead: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
 
     # 关系
     stage: Mapped["StageDB"] = relationship("StageDB", back_populates="actors")
