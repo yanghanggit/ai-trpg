@@ -19,9 +19,12 @@ Date: 2025-01-13
 """
 
 from typing import Generator
+from uuid import UUID
 import pytest
 from loguru import logger
 
+from src.ai_trpg.demo.world1 import create_test_world1
+from src.ai_trpg.pgsql.world_operations import save_world_to_db, delete_world
 from src.ai_trpg.pgsql.actor_movement_event_operations import (
     save_actor_movement_event_to_db,
     get_actor_movement_events_by_actor,
@@ -35,18 +38,55 @@ from src.ai_trpg.pgsql.actor_movement_event import ActorMovementEventDB
 class TestActorMovementEventOperations:
     """Actor Movement Event 数据库操作测试类"""
 
+    # 类变量存储测试 World信息(所有测试方法共享)
+    test_world_id: UUID
+    test_world_name: str
+
+    @pytest.fixture(scope="class", autouse=True)
+    def setup_test_world(self) -> Generator[None, None, None]:
+        """为整个测试类设置测试世界(class-scoped)"""
+        # 确保表存在
+        from src.ai_trpg.pgsql import pgsql_ensure_database_tables
+
+        pgsql_ensure_database_tables()
+        logger.info("✅ 数据库表已确保存在")
+
+        # 获取测试世界名称（避免硬编码）
+        test_world_name = create_test_world1().name
+
+        # 测试前：先清理可能存在的同名世界
+        try:
+            delete_world(test_world_name)
+            logger.info(f"🧹 已清理旧的测试世界: {test_world_name}")
+        except Exception:
+            pass  # 不存在也没关系
+
+        # 创建测试世界
+        test_world = create_test_world1()
+        TestActorMovementEventOperations.test_world_name = test_world.name
+        world_db = save_world_to_db(test_world)
+        TestActorMovementEventOperations.test_world_id = world_db.id
+        logger.info(
+            f"🌍 测试世界已创建: {TestActorMovementEventOperations.test_world_name} (ID: {TestActorMovementEventOperations.test_world_id})"
+        )
+
+        yield  # 运行所有测试
+
+        # 测试后：清理
+        clear_all_actor_movement_events()
+        delete_world(TestActorMovementEventOperations.test_world_name)
+        logger.info(
+            f"🧹 测试完成，已清理世界: {TestActorMovementEventOperations.test_world_name}"
+        )
+
     @pytest.fixture(autouse=True)
-    def cleanup_events(self) -> Generator[None, None, None]:
-        """测试前后自动清理所有移动事件"""
-        # 测试前清理
-        clear_all_actor_movement_events()
-        logger.info("🧹 测试前清理完成")
-
-        yield  # 运行测试
-
-        # 测试后清理
-        clear_all_actor_movement_events()
-        logger.info("🧹 测试后清理完成")
+    def clear_events_between_tests(self) -> None:
+        """每个测试方法之间清理移动事件"""
+        try:
+            clear_all_actor_movement_events()
+            logger.info("🧹 测试前已清理移动事件")
+        except Exception as e:
+            logger.warning(f"清理失败(可能表不存在): {e}")
 
     def test_save_actor_movement_event_basic(self) -> None:
         """测试基本的移动事件保存功能"""
@@ -54,6 +94,7 @@ class TestActorMovementEventOperations:
 
         # 保存移动事件
         event_db = save_actor_movement_event_to_db(
+            world_id=self.test_world_id,
             actor_name="测试角色",
             from_stage="起始场景",
             to_stage="目标场景",
@@ -86,6 +127,7 @@ class TestActorMovementEventOperations:
 
         # 保存事件（不指定 entry_posture_and_status）
         event_db = save_actor_movement_event_to_db(
+            world_id=self.test_world_id,
             actor_name="角色A",
             from_stage="场景1",
             to_stage="场景2",
@@ -103,18 +145,21 @@ class TestActorMovementEventOperations:
 
         # 保存多个角色的移动事件
         save_actor_movement_event_to_db(
+            world_id=self.test_world_id,
             actor_name="角色A",
             from_stage="场景1",
             to_stage="场景2",
             description="第一次移动",
         )
         save_actor_movement_event_to_db(
+            world_id=self.test_world_id,
             actor_name="角色A",
             from_stage="场景2",
             to_stage="场景3",
             description="第二次移动",
         )
         save_actor_movement_event_to_db(
+            world_id=self.test_world_id,
             actor_name="角色B",
             from_stage="场景1",
             to_stage="场景4",
@@ -122,7 +167,7 @@ class TestActorMovementEventOperations:
         )
 
         # 查询角色A的事件
-        events_a = get_actor_movement_events_by_actor("角色A")
+        events_a = get_actor_movement_events_by_actor(self.test_world_id, "角色A")
         assert len(events_a) == 2
         assert all(event.actor_name == "角色A" for event in events_a)
 
@@ -130,12 +175,14 @@ class TestActorMovementEventOperations:
         assert events_a[0].created_at <= events_a[1].created_at
 
         # 查询角色B的事件
-        events_b = get_actor_movement_events_by_actor("角色B")
+        events_b = get_actor_movement_events_by_actor(self.test_world_id, "角色B")
         assert len(events_b) == 1
         assert events_b[0].actor_name == "角色B"
 
         # 查询不存在的角色
-        events_none = get_actor_movement_events_by_actor("不存在的角色")
+        events_none = get_actor_movement_events_by_actor(
+            self.test_world_id, "不存在的角色"
+        )
         assert len(events_none) == 0
 
         logger.success("✅ 按角色查询测试通过")
@@ -146,18 +193,21 @@ class TestActorMovementEventOperations:
 
         # 保存多个进入相同场景的事件
         save_actor_movement_event_to_db(
+            world_id=self.test_world_id,
             actor_name="角色A",
             from_stage="场景1",
             to_stage="目标场景",
             description="角色A进入",
         )
         save_actor_movement_event_to_db(
+            world_id=self.test_world_id,
             actor_name="角色B",
             from_stage="场景2",
             to_stage="目标场景",
             description="角色B进入",
         )
         save_actor_movement_event_to_db(
+            world_id=self.test_world_id,
             actor_name="角色C",
             from_stage="场景3",
             to_stage="其他场景",
@@ -165,7 +215,9 @@ class TestActorMovementEventOperations:
         )
 
         # 查询进入"目标场景"的所有事件
-        events_target = get_actor_movement_events_by_stage("目标场景")
+        events_target = get_actor_movement_events_by_stage(
+            self.test_world_id, "目标场景"
+        )
         assert len(events_target) == 2
         assert all(event.to_stage == "目标场景" for event in events_target)
 
@@ -174,12 +226,16 @@ class TestActorMovementEventOperations:
         assert actor_names == {"角色A", "角色B"}
 
         # 查询进入"其他场景"的事件
-        events_other = get_actor_movement_events_by_stage("其他场景")
+        events_other = get_actor_movement_events_by_stage(
+            self.test_world_id, "其他场景"
+        )
         assert len(events_other) == 1
         assert events_other[0].actor_name == "角色C"
 
         # 查询不存在的场景
-        events_none = get_actor_movement_events_by_stage("不存在的场景")
+        events_none = get_actor_movement_events_by_stage(
+            self.test_world_id, "不存在的场景"
+        )
         assert len(events_none) == 0
 
         logger.success("✅ 按场景查询测试通过")
@@ -191,6 +247,7 @@ class TestActorMovementEventOperations:
         # 保存多个事件
         for i in range(5):
             save_actor_movement_event_to_db(
+                world_id=self.test_world_id,
                 actor_name=f"角色{i}",
                 from_stage=f"场景{i}",
                 to_stage=f"场景{i+1}",
@@ -236,6 +293,7 @@ class TestActorMovementEventOperations:
         # 模拟角色依次通过多个场景
         for i in range(len(stages) - 1):
             save_actor_movement_event_to_db(
+                world_id=self.test_world_id,
                 actor_name=actor_name,
                 from_stage=stages[i],
                 to_stage=stages[i + 1],
@@ -244,7 +302,7 @@ class TestActorMovementEventOperations:
             )
 
         # 查询该角色的所有移动记录
-        events = get_actor_movement_events_by_actor(actor_name)
+        events = get_actor_movement_events_by_actor(self.test_world_id, actor_name)
         assert len(events) == 4
 
         # 验证移动轨迹
@@ -268,6 +326,7 @@ class TestActorMovementEventOperations:
         # 模拟多个角色从不同地方来到集合点
         for i, actor in enumerate(actors):
             save_actor_movement_event_to_db(
+                world_id=self.test_world_id,
                 actor_name=actor,
                 from_stage=f"起点{i}",
                 to_stage=target_stage,
@@ -276,7 +335,7 @@ class TestActorMovementEventOperations:
             )
 
         # 查询进入集合点的所有事件
-        events = get_actor_movement_events_by_stage(target_stage)
+        events = get_actor_movement_events_by_stage(self.test_world_id, target_stage)
         assert len(events) == 4
 
         # 验证所有角色都到达了
@@ -296,6 +355,7 @@ class TestActorMovementEventOperations:
         # 快速连续保存多个事件
         for i in range(10):
             save_actor_movement_event_to_db(
+                world_id=self.test_world_id,
                 actor_name="时间测试角色",
                 from_stage=f"场景{i}",
                 to_stage=f"场景{i+1}",
@@ -303,7 +363,7 @@ class TestActorMovementEventOperations:
             )
 
         # 查询所有事件
-        events = get_actor_movement_events_by_actor("时间测试角色")
+        events = get_actor_movement_events_by_actor(self.test_world_id, "时间测试角色")
         assert len(events) == 10
 
         # 验证时间递增
@@ -318,6 +378,7 @@ class TestActorMovementEventOperations:
 
         # 使用中文保存事件
         event_db = save_actor_movement_event_to_db(
+            world_id=self.test_world_id,
             actor_name="李逍遥",
             from_stage="余杭镇客栈",
             to_stage="仙灵岛",
@@ -333,7 +394,7 @@ class TestActorMovementEventOperations:
         assert "担忧" in event_db.entry_posture_and_status
 
         # 从数据库查询验证
-        events = get_actor_movement_events_by_actor("李逍遥")
+        events = get_actor_movement_events_by_actor(self.test_world_id, "李逍遥")
         assert len(events) == 1
         assert events[0].actor_name == "李逍遥"
 
@@ -348,6 +409,7 @@ class TestActorMovementEventOperations:
         long_posture = "复杂姿态描述：" + "细节" * 50
 
         event_db = save_actor_movement_event_to_db(
+            world_id=self.test_world_id,
             actor_name="测试角色",
             from_stage="场景A",
             to_stage="场景B",
@@ -368,6 +430,7 @@ class TestActorMovementEventOperations:
 
         # 使用特殊字符
         event_db = save_actor_movement_event_to_db(
+            world_id=self.test_world_id,
             actor_name="角色@#123",
             from_stage="场景<1>",
             to_stage="场景{2}",
@@ -381,7 +444,7 @@ class TestActorMovementEventOperations:
         assert event_db.to_stage == "场景{2}"
 
         # 查询验证
-        events = get_actor_movement_events_by_actor("角色@#123")
+        events = get_actor_movement_events_by_actor(self.test_world_id, "角色@#123")
         assert len(events) == 1
 
         logger.success("✅ 特殊字符测试通过")
@@ -394,6 +457,7 @@ class TestActorMovementEventOperations:
         actors = [f"角色{i}" for i in range(20)]
         for actor in actors:
             save_actor_movement_event_to_db(
+                world_id=self.test_world_id,
                 actor_name=actor,
                 from_stage="起点",
                 to_stage="终点",
@@ -401,7 +465,7 @@ class TestActorMovementEventOperations:
             )
 
         # 验证所有事件都正确保存
-        events = get_actor_movement_events_by_stage("终点")
+        events = get_actor_movement_events_by_stage(self.test_world_id, "终点")
         assert len(events) == 20
 
         # 验证没有重复
@@ -417,6 +481,7 @@ class TestActorMovementEventOperations:
         # 插入大量数据
         for i in range(100):
             save_actor_movement_event_to_db(
+                world_id=self.test_world_id,
                 actor_name=f"角色{i % 10}",  # 10个不同角色
                 from_stage=f"场景{i}",
                 to_stage=f"场景{i % 5}",  # 5个不同目标场景
@@ -424,11 +489,11 @@ class TestActorMovementEventOperations:
             )
 
         # 查询特定角色（应该使用 actor_name 索引）
-        events_actor = get_actor_movement_events_by_actor("角色5")
+        events_actor = get_actor_movement_events_by_actor(self.test_world_id, "角色5")
         assert len(events_actor) == 10
 
         # 查询特定场景（应该使用 to_stage 索引）
-        events_stage = get_actor_movement_events_by_stage("场景3")
+        events_stage = get_actor_movement_events_by_stage(self.test_world_id, "场景3")
         assert len(events_stage) == 20
 
         # 验证查询结果正确性
@@ -442,11 +507,15 @@ class TestActorMovementEventOperations:
         logger.info("🧪 测试空查询结果")
 
         # 不插入任何数据，直接查询
-        events_actor = get_actor_movement_events_by_actor("不存在的角色")
+        events_actor = get_actor_movement_events_by_actor(
+            self.test_world_id, "不存在的角色"
+        )
         assert len(events_actor) == 0
         assert isinstance(events_actor, list)
 
-        events_stage = get_actor_movement_events_by_stage("不存在的场景")
+        events_stage = get_actor_movement_events_by_stage(
+            self.test_world_id, "不存在的场景"
+        )
         assert len(events_stage) == 0
         assert isinstance(events_stage, list)
 

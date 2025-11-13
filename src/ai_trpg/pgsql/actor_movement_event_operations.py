@@ -5,12 +5,14 @@
 """
 
 from typing import List
+from uuid import UUID
 from loguru import logger
 from .client import SessionLocal
 from .actor_movement_event import ActorMovementEventDB
 
 
 def save_actor_movement_event_to_db(
+    world_id: UUID,
     actor_name: str,
     from_stage: str,
     to_stage: str,
@@ -20,6 +22,7 @@ def save_actor_movement_event_to_db(
     """保存角色移动事件到数据库
 
     Args:
+        world_id: 所属世界ID
         actor_name: 角色名称
         from_stage: 来源场景
         to_stage: 目标场景
@@ -32,6 +35,7 @@ def save_actor_movement_event_to_db(
     with SessionLocal() as db:
         try:
             event_db = ActorMovementEventDB(
+                world_id=world_id,
                 actor_name=actor_name,
                 from_stage=from_stage,
                 to_stage=to_stage,
@@ -53,10 +57,13 @@ def save_actor_movement_event_to_db(
             raise
 
 
-def get_actor_movement_events_by_actor(actor_name: str) -> List[ActorMovementEventDB]:
-    """获取指定角色的所有移动事件
+def get_actor_movement_events_by_actor(
+    world_id: UUID, actor_name: str
+) -> List[ActorMovementEventDB]:
+    """获取指定世界中指定角色的所有移动事件
 
     Args:
+        world_id: 所属世界ID
         actor_name: 角色名称
 
     Returns:
@@ -66,11 +73,13 @@ def get_actor_movement_events_by_actor(actor_name: str) -> List[ActorMovementEve
         try:
             events = (
                 db.query(ActorMovementEventDB)
-                .filter_by(actor_name=actor_name)
+                .filter_by(world_id=world_id, actor_name=actor_name)
                 .order_by(ActorMovementEventDB.created_at)
                 .all()
             )
-            logger.debug(f"📖 查询到 {len(events)} 个角色 '{actor_name}' 的移动事件")
+            logger.debug(
+                f"📖 查询到 {len(events)} 个世界 '{world_id}' 中角色 '{actor_name}' 的移动事件"
+            )
             return events
 
         except Exception as e:
@@ -78,10 +87,13 @@ def get_actor_movement_events_by_actor(actor_name: str) -> List[ActorMovementEve
             raise
 
 
-def get_actor_movement_events_by_stage(stage_name: str) -> List[ActorMovementEventDB]:
-    """获取所有进入指定场景的移动事件
+def get_actor_movement_events_by_stage(
+    world_id: UUID, stage_name: str
+) -> List[ActorMovementEventDB]:
+    """获取指定世界中所有进入指定场景的移动事件
 
     Args:
+        world_id: 所属世界ID
         stage_name: 场景名称
 
     Returns:
@@ -91,12 +103,12 @@ def get_actor_movement_events_by_stage(stage_name: str) -> List[ActorMovementEve
         try:
             events = (
                 db.query(ActorMovementEventDB)
-                .filter_by(to_stage=stage_name)
+                .filter_by(world_id=world_id, to_stage=stage_name)
                 .order_by(ActorMovementEventDB.created_at)
                 .all()
             )
             logger.debug(
-                f"📖 查询到 {len(events)} 个进入场景 '{stage_name}' 的移动事件"
+                f"📖 查询到 {len(events)} 个世界 '{world_id}' 中进入场景 '{stage_name}' 的移动事件"
             )
             return events
 
