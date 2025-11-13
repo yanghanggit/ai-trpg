@@ -19,8 +19,15 @@ from .actor import ActorDB
 from .effect import EffectDB
 from .message import MessageDB
 from .attributes import AttributesDB
+from .actor_movement_event import ActorMovementEventDB
 from .config import PostgreSQLConfig, postgresql_config
 from .world_operations import save_world_to_db, load_world_from_db, delete_world
+from .actor_movement_event_operations import (
+    save_actor_movement_event_to_db,
+    get_actor_movement_events_by_actor,
+    get_actor_movement_events_by_stage,
+    clear_all_actor_movement_events,
+)
 
 
 __all__: List[str] = [
@@ -46,8 +53,15 @@ __all__: List[str] = [
     "EffectDB",
     "MessageDB",
     "AttributesDB",
+    # Actor movement event models
+    "ActorMovementEventDB",
     # World operations
     "save_world_to_db",
     "load_world_from_db",
     "delete_world",
+    # Actor movement event operations
+    "save_actor_movement_event_to_db",
+    "get_actor_movement_events_by_actor",
+    "get_actor_movement_events_by_stage",
+    "clear_all_actor_movement_events",
 ]
