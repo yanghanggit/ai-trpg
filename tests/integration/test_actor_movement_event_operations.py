@@ -73,7 +73,7 @@ class TestActorMovementEventOperations:
         yield  # 运行所有测试
 
         # 测试后：清理
-        clear_all_actor_movement_events()
+        clear_all_actor_movement_events(TestActorMovementEventOperations.test_world_id)
         delete_world(TestActorMovementEventOperations.test_world_name)
         logger.info(
             f"🧹 测试完成，已清理世界: {TestActorMovementEventOperations.test_world_name}"
@@ -83,7 +83,7 @@ class TestActorMovementEventOperations:
     def clear_events_between_tests(self) -> None:
         """每个测试方法之间清理移动事件"""
         try:
-            clear_all_actor_movement_events()
+            clear_all_actor_movement_events(self.test_world_id)
             logger.info("🧹 测试前已清理移动事件")
         except Exception as e:
             logger.warning(f"清理失败(可能表不存在): {e}")
@@ -268,7 +268,7 @@ class TestActorMovementEventOperations:
             assert count_before == 5
 
         # 清空所有事件
-        cleared_count = clear_all_actor_movement_events()
+        cleared_count = clear_all_actor_movement_events(self.test_world_id)
         assert cleared_count == 5
 
         # 验证已清空
@@ -283,10 +283,10 @@ class TestActorMovementEventOperations:
         logger.info("🧪 测试 clear_all_actor_movement_events - 空表")
 
         # 确保表为空
-        clear_all_actor_movement_events()
+        clear_all_actor_movement_events(self.test_world_id)
 
         # 再次清空空表
-        cleared_count = clear_all_actor_movement_events()
+        cleared_count = clear_all_actor_movement_events(self.test_world_id)
         assert cleared_count == 0
 
         logger.success("✅ 清空空表测试通过")
