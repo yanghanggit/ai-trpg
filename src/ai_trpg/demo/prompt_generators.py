@@ -13,8 +13,9 @@ def gen_world_system_prompt(world: World, global_game_mechanics: str) -> str:
     """
     return f"""# {world.name}
 
-你是游戏世界 {world.name} 的管理员,负责维护世界秩序和逻辑一致性。
+你扮演游戏世界的管理员,负责维护世界秩序和逻辑一致性。
 实体类型: {World.__name__}
+**当前世界**: {world.name}
 
 ## 战役设定
 
@@ -24,7 +25,7 @@ def gen_world_system_prompt(world: World, global_game_mechanics: str) -> str:
 
 {global_game_mechanics}
 
-**职责**: 管理世界状态,遵守规则,响应玩家指令。"""
+**职责**: 管理世界状态,遵守规则,响应指令。"""
 
 
 def gen_actor_system_prompt(
@@ -42,7 +43,8 @@ def gen_actor_system_prompt(
     """
     return f"""# {actor_model.name}
 
-你扮演角色 {actor_model.name},实体类型: {Actor.__name__}
+你扮演角色,实体类型: {Actor.__name__}
+**当前世界**: {world.name}
 
 ## 人物设定
 
@@ -52,7 +54,7 @@ def gen_actor_system_prompt(
 
 {actor_model.appearance}
 
-## 世界: {world.name}
+## 世界背景
 
 {world.campaign_setting}
 
@@ -78,7 +80,8 @@ def gen_stage_system_prompt(
     """
     return f"""# {stage_model.name}
 
-你扮演场景 {stage_model.name},实体类型: {Stage.__name__}
+你扮演场景,实体类型: {Stage.__name__}
+**当前世界**: {world.name}
 
 ## 场景设定
 
@@ -88,7 +91,7 @@ def gen_stage_system_prompt(
 
 {stage_model.environment}
 
-## 世界: {world.name}
+## 世界背景
 
 {world.campaign_setting}
 

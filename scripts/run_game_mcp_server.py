@@ -112,6 +112,7 @@ async def health_check(request: Request) -> Response:
 
 @app.tool()
 async def update_stage_execution_result(
+    world_name: str,
     stage_name: str,
     calculation_log: str,
     narrative: str,
@@ -126,6 +127,7 @@ async def update_stage_execution_result(
     这个工具用于持久化场景执行的完整结果。
 
     Args:
+        world_name: 游戏世界名称
         stage_name: 场景名称
         calculation_log: 战斗计算或互动过程的日志记录
         narrative: 场景叙事描述
@@ -137,6 +139,9 @@ async def update_stage_execution_result(
         更新操作的结果（JSON格式）
     """
     try:
+
+        assert world_name == demo_world.name, f"未知的世界名称: {world_name}"
+
         # 验证Stage存在
         stage = demo_world.find_stage(stage_name)
         if not stage:
@@ -179,12 +184,16 @@ async def update_stage_execution_result(
 
 @app.tool()
 async def move_actor_to_stage(
-    actor_name: str, target_stage_name: str, entry_posture_and_status: str
+    world_name: str,
+    actor_name: str,
+    target_stage_name: str,
+    entry_posture_and_status: str,
 ) -> str:
     """
     将角色从当前场景移动到目标场景
 
     Args:
+        world_name: 游戏世界名称
         actor_name: 要移动的角色名称
         target_stage_name: 目标场景名称
         entry_posture_and_status: 进入姿态与状态（格式：姿态 | 状态）
@@ -193,6 +202,8 @@ async def move_actor_to_stage(
         操作结果的JSON字符串
     """
     try:
+        assert world_name == demo_world.name, f"未知的世界名称: {world_name}"
+
         # 记录移动前的状态（用于日志）
         actor, source_stage = demo_world.find_actor_with_stage(actor_name)
         source_stage_name = source_stage.name if source_stage else "未知"
@@ -271,11 +282,14 @@ async def move_actor_to_stage(
 
 
 @app.tool()
-async def update_actor_appearance(actor_name: str, new_appearance: str) -> str:
+async def update_actor_appearance(
+    world_name: str, actor_name: str, new_appearance: str
+) -> str:
     """
     更新指定Actor的外观描述
 
     Args:
+        world_name: 游戏世界名称
         actor_name: 要更新的Actor名称
         new_appearance: 新的外观描述文本
 
@@ -283,6 +297,8 @@ async def update_actor_appearance(actor_name: str, new_appearance: str) -> str:
         更新操作的结果信息（JSON格式）
     """
     try:
+        assert world_name == demo_world.name, f"未知的世界名称: {world_name}"
+
         # 查找Actor
         actor, current_stage = demo_world.find_actor_with_stage(actor_name)
         if not actor or not current_stage:
@@ -335,12 +351,13 @@ async def update_actor_appearance(actor_name: str, new_appearance: str) -> str:
 
 @app.tool()
 async def add_actor_effect(
-    actor_name: str, effect_name: str, effect_description: str
+    world_name: str, actor_name: str, effect_name: str, effect_description: str
 ) -> str:
     """
     为指定Actor添加一个新的 Effect
 
     Args:
+        world_name: 游戏世界名称
         actor_name: 要添加 Effect 的Actor名称
         effect_name: Effect 名称
         effect_description: Effect 描述
@@ -349,6 +366,8 @@ async def add_actor_effect(
         添加操作的结果信息（JSON格式）
     """
     try:
+        assert world_name == demo_world.name, f"未知的世界名称: {world_name}"
+
         # 查找Actor
         actor, current_stage = demo_world.find_actor_with_stage(actor_name)
         if not actor or not current_stage:
@@ -398,11 +417,14 @@ async def add_actor_effect(
 
 
 @app.tool()
-async def remove_actor_effect(actor_name: str, effect_name: str) -> str:
+async def remove_actor_effect(
+    world_name: str, actor_name: str, effect_name: str
+) -> str:
     """
     移除指定Actor身上所有匹配指定名称的 Effect
 
     Args:
+        world_name: 游戏世界名称
         actor_name: 要移除 Effect 的Actor名称
         effect_name: 要移除的 Effect 名称（所有匹配此名称的 Effect 都会被移除）
 
@@ -410,6 +432,8 @@ async def remove_actor_effect(actor_name: str, effect_name: str) -> str:
         移除操作的结果信息（JSON格式），包含移除的 Effect 数量
     """
     try:
+        assert world_name == demo_world.name, f"未知的世界名称: {world_name}"
+
         # 查找Actor
         actor, current_stage = demo_world.find_actor_with_stage(actor_name)
         if not actor or not current_stage:
@@ -484,11 +508,12 @@ async def remove_actor_effect(actor_name: str, effect_name: str) -> str:
 
 
 @app.tool()
-async def update_actor_health(actor_name: str, new_health: int) -> str:
+async def update_actor_health(world_name: str, actor_name: str, new_health: int) -> str:
     """
     更新指定Actor的生命值（health）
 
     Args:
+        world_name: 游戏世界名称
         actor_name: 要更新生命值的Actor名称
         new_health: 新的生命值（会被限制在 0 到 max_health 之间）
 
@@ -496,6 +521,8 @@ async def update_actor_health(actor_name: str, new_health: int) -> str:
         更新操作的结果信息（JSON格式），包含旧生命值和新生命值
     """
     try:
+        assert world_name == demo_world.name, f"未知的世界名称: {world_name}"
+
         # 查找Actor
         actor, current_stage = demo_world.find_actor_with_stage(actor_name)
         if not actor or not current_stage:
