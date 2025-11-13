@@ -231,6 +231,17 @@ def delete_world(world_name: str) -> bool:
 
     Returns:
         bool: 删除成功返回 True,World 不存在返回 False
+
+
+    WorldDB (被删除)
+    ├── StageDB (CASCADE 删除)
+    │   ├── ActorDB (CASCADE 删除)
+    │   │   ├── AttributesDB (CASCADE 删除，一对一)
+    │   │   ├── EffectDB (CASCADE 删除，一对多)
+    │   │   └── MessageDB (CASCADE 删除，Actor 的对话上下文)
+    │   └── MessageDB (CASCADE 删除，Stage 的对话上下文)
+    └── MessageDB (CASCADE 删除，World 的对话上下文)
+
     """
     with SessionLocal() as db:
         try:
