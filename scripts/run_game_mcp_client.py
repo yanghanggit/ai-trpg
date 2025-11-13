@@ -182,7 +182,7 @@ async def main() -> None:
                 # )
 
                 for game_agent in agent_manager.all_agents:
-                    logger.info(f"💾 保存代理 [{game_agent.name}] 的对话历史")
+                    logger.debug(f"💾 保存代理 [{game_agent.name}] 的对话历史")
                     dump_history(
                         agent_name=game_agent.name,
                         messages=game_agent.context,

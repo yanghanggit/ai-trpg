@@ -123,62 +123,62 @@ def pgvector_load_knowledge_base_to_vector_db(
     """
     logger.info("🚀 [INIT] 开始初始化 PostgreSQL + pgvector RAG系统...")
 
-    db = SessionLocal()
-    try:
-        # 1. 检查数据库中是否已有数据
-        count = db.query(func.count(VectorDocumentDB.id)).scalar()
+    with SessionLocal() as db:
+        try:
+            # 1. 检查数据库中是否已有数据
+            count = db.query(func.count(VectorDocumentDB.id)).scalar()
 
-        if count == 0:
-            logger.info("📚 [INIT] 数据库为空，开始加载知识库数据...")
+            if count == 0:
+                logger.info("📚 [INIT] 数据库为空，开始加载知识库数据...")
 
-            # 2. 准备知识库数据
-            documents_data = _prepare_documents_for_vector_storage(
-                knowledge_base, embedding_model, source
+                # 2. 准备知识库数据
+                documents_data = _prepare_documents_for_vector_storage(
+                    knowledge_base, embedding_model, source
+                )
+
+                if not documents_data:
+                    logger.error("❌ [INIT] 知识库数据准备失败")
+                    return False
+
+                # 3. 批量保存到数据库
+                logger.info("💾 [INIT] 存储向量到 PostgreSQL 数据库...")
+                saved_count = 0
+
+                for doc_data in documents_data:
+                    try:
+                        save_vector_document(
+                            content=doc_data["content"],
+                            embedding=doc_data["embedding"],
+                            title=doc_data["title"],
+                            doc_type=doc_data["doc_type"],
+                            source=doc_data["source"],
+                            metadata=doc_data["metadata"],
+                        )
+                        saved_count += 1
+                    except Exception as e:
+                        logger.error(f"❌ [INIT] 保存文档失败: {e}")
+                        continue
+
+                logger.success(
+                    f"✅ [INIT] 成功加载 {saved_count}/{len(documents_data)} 个文档到向量数据库"
+                )
+
+                # 4. 验证数据加载
+                final_count = db.query(func.count(VectorDocumentDB.id)).scalar()
+                logger.info(f"📊 [INIT] 数据库中现有文档数量: {final_count}")
+
+            else:
+                logger.info(f"ℹ️ [INIT] 数据库中已有 {count} 条文档，跳过加载")
+
+            logger.success("🎉 [INIT] PostgreSQL + pgvector RAG系统初始化完成！")
+            return True
+
+        except Exception as e:
+            logger.error(
+                f"❌ [INIT] 初始化过程中发生错误: {e}\n{traceback.format_exc()}"
             )
-
-            if not documents_data:
-                logger.error("❌ [INIT] 知识库数据准备失败")
-                return False
-
-            # 3. 批量保存到数据库
-            logger.info("💾 [INIT] 存储向量到 PostgreSQL 数据库...")
-            saved_count = 0
-
-            for doc_data in documents_data:
-                try:
-                    save_vector_document(
-                        content=doc_data["content"],
-                        embedding=doc_data["embedding"],
-                        title=doc_data["title"],
-                        doc_type=doc_data["doc_type"],
-                        source=doc_data["source"],
-                        metadata=doc_data["metadata"],
-                    )
-                    saved_count += 1
-                except Exception as e:
-                    logger.error(f"❌ [INIT] 保存文档失败: {e}")
-                    continue
-
-            logger.success(
-                f"✅ [INIT] 成功加载 {saved_count}/{len(documents_data)} 个文档到向量数据库"
-            )
-
-            # 4. 验证数据加载
-            final_count = db.query(func.count(VectorDocumentDB.id)).scalar()
-            logger.info(f"📊 [INIT] 数据库中现有文档数量: {final_count}")
-
-        else:
-            logger.info(f"ℹ️ [INIT] 数据库中已有 {count} 条文档，跳过加载")
-
-        logger.success("🎉 [INIT] PostgreSQL + pgvector RAG系统初始化完成！")
-        return True
-
-    except Exception as e:
-        logger.error(f"❌ [INIT] 初始化过程中发生错误: {e}\n{traceback.format_exc()}")
-        logger.warning("⚠️ [INIT] 系统将回退到关键词匹配模式")
-        return False
-    finally:
-        db.close()
+            logger.warning("⚠️ [INIT] 系统将回退到关键词匹配模式")
+            return False
 
 
 ############################################################################################################

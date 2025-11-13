@@ -25,6 +25,11 @@ __all__: List[str] = [
     "pgsql_create_database",
     "pgsql_drop_database",
     "pgsql_ensure_database_tables",
+    # User database models and functions
+    "UserDB",
+    "save_user",
+    "has_user",
+    "get_user",
     # Vector database models
     "VectorDocumentDB",
 ]

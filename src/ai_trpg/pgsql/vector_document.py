@@ -97,40 +97,38 @@ def save_vector_document(
     返回:
         VectorDocumentDB: 保存的文档对象
     """
-    db = SessionLocal()
-    try:
-        # 自动检测向量维度
-        embedding_dim = len(embedding)
+    with SessionLocal() as db:
+        try:
+            # 自动检测向量维度
+            embedding_dim = len(embedding)
 
-        if embedding_dim == 0:
-            raise ValueError("向量维度不能为0")
+            if embedding_dim == 0:
+                raise ValueError("向量维度不能为0")
 
-        document = VectorDocumentDB(
-            content=content,
-            embedding=embedding,
-            embedding_dim=embedding_dim,
-            title=title,
-            source=source,
-            doc_type=doc_type,
-            content_length=len(content),
-            doc_metadata=json.dumps(metadata) if metadata else None,
-        )
+            document = VectorDocumentDB(
+                content=content,
+                embedding=embedding,
+                embedding_dim=embedding_dim,
+                title=title,
+                source=source,
+                doc_type=doc_type,
+                content_length=len(content),
+                doc_metadata=json.dumps(metadata) if metadata else None,
+            )
 
-        db.add(document)
-        db.commit()
-        db.refresh(document)
+            db.add(document)
+            db.commit()
+            db.refresh(document)
 
-        logger.info(
-            f"✅ 向量文档已保存: ID={document.id}, 维度={embedding_dim}, 内容长度={len(content)}"
-        )
-        return document
+            logger.info(
+                f"✅ 向量文档已保存: ID={document.id}, 维度={embedding_dim}, 内容长度={len(content)}"
+            )
+            return document
 
-    except Exception as e:
-        db.rollback()
-        logger.error(f"❌ 保存向量文档失败: {e}")
-        raise e
-    finally:
-        db.close()
+        except Exception as e:
+            db.rollback()
+            logger.error(f"❌ 保存向量文档失败: {e}")
+            raise e
 
 
 def clear_all_vector_documents() -> bool:
@@ -144,28 +142,26 @@ def clear_all_vector_documents() -> bool:
     """
     logger.info("🗑️ [CLEAR] 开始清空 vector_documents 表...")
 
-    db = SessionLocal()
-    try:
-        from sqlalchemy import func
+    with SessionLocal() as db:
+        try:
+            from sqlalchemy import func
 
-        count_before = db.query(func.count(VectorDocumentDB.id)).scalar()
-        logger.info(f"📊 [CLEAR] 清空前文档数量: {count_before}")
+            count_before = db.query(func.count(VectorDocumentDB.id)).scalar()
+            logger.info(f"📊 [CLEAR] 清空前文档数量: {count_before}")
 
-        db.query(VectorDocumentDB).delete()
-        db.commit()
+            db.query(VectorDocumentDB).delete()
+            db.commit()
 
-        count_after = db.query(func.count(VectorDocumentDB.id)).scalar()
-        logger.success(
-            f"✅ [CLEAR] 表数据已清空 (删除了 {count_before} 条文档，剩余 {count_after} 条)"
-        )
-        return True
+            count_after = db.query(func.count(VectorDocumentDB.id)).scalar()
+            logger.success(
+                f"✅ [CLEAR] 表数据已清空 (删除了 {count_before} 条文档，剩余 {count_after} 条)"
+            )
+            return True
 
-    except Exception as e:
-        logger.error(f"❌ [CLEAR] 清空表数据失败: {e}")
-        db.rollback()
-        return False
-    finally:
-        db.close()
+        except Exception as e:
+            logger.error(f"❌ [CLEAR] 清空表数据失败: {e}")
+            db.rollback()
+            return False
 
 
 def search_similar_documents(
@@ -186,60 +182,58 @@ def search_similar_documents(
     返回:
         List[Tuple[VectorDocumentDB, float]]: (文档对象, 相似度分数) 的列表
     """
-    db = SessionLocal()
-    try:
-        # 自动检测查询向量维度
-        query_dim = len(query_embedding)
+    with SessionLocal() as db:
+        try:
+            # 自动检测查询向量维度
+            query_dim = len(query_embedding)
 
-        if query_dim == 0:
-            raise ValueError("查询向量维度不能为0")
+            if query_dim == 0:
+                raise ValueError("查询向量维度不能为0")
 
-        # 构建SQL条件
-        conditions = [
-            "embedding IS NOT NULL",
-            f"embedding_dim = {query_dim}",  # 只搜索相同维度的文档
-        ]
+            # 构建SQL条件
+            conditions = [
+                "embedding IS NOT NULL",
+                f"embedding_dim = {query_dim}",  # 只搜索相同维度的文档
+            ]
 
-        # 将向量转换为PostgreSQL向量格式的字符串
-        vector_str = "[" + ",".join(map(str, query_embedding)) + "]"
-        params = {
-            "query_vector": vector_str,
-            "threshold": similarity_threshold,
-            "limit": limit,
-        }
+            # 将向量转换为PostgreSQL向量格式的字符串
+            vector_str = "[" + ",".join(map(str, query_embedding)) + "]"
+            params = {
+                "query_vector": vector_str,
+                "threshold": similarity_threshold,
+                "limit": limit,
+            }
 
-        if doc_type_filter:
-            conditions.append("doc_type = :doc_type_filter")
-            params["doc_type_filter"] = doc_type_filter
+            if doc_type_filter:
+                conditions.append("doc_type = :doc_type_filter")
+                params["doc_type_filter"] = doc_type_filter
 
-        where_clause = " AND ".join(conditions)
+            where_clause = " AND ".join(conditions)
 
-        # 直接使用原生SQL进行向量搜索
-        sql = f"""
-            SELECT *, (1 - (embedding <=> :query_vector)) as similarity
-            FROM vector_documents 
-            WHERE {where_clause}
-                AND (1 - (embedding <=> :query_vector)) >= :threshold
-            ORDER BY embedding <=> :query_vector
-            LIMIT :limit
-        """
+            # 直接使用原生SQL进行向量搜索
+            sql = f"""
+                SELECT *, (1 - (embedding <=> :query_vector)) as similarity
+                FROM vector_documents 
+                WHERE {where_clause}
+                    AND (1 - (embedding <=> :query_vector)) >= :threshold
+                ORDER BY embedding <=> :query_vector
+                LIMIT :limit
+            """
 
-        results = db.execute(text(sql), params).fetchall()
+            results = db.execute(text(sql), params).fetchall()
 
-        # 转换结果
-        documents_with_scores = []
-        for row in results:
-            doc = db.get(VectorDocumentDB, row.id)
-            if doc:
-                documents_with_scores.append((doc, float(row.similarity)))
+            # 转换结果
+            documents_with_scores = []
+            for row in results:
+                doc = db.get(VectorDocumentDB, row.id)
+                if doc:
+                    documents_with_scores.append((doc, float(row.similarity)))
 
-        logger.info(
-            f"🔍 找到 {len(documents_with_scores)} 个相似文档 (维度={query_dim})"
-        )
-        return documents_with_scores
+            logger.info(
+                f"🔍 找到 {len(documents_with_scores)} 个相似文档 (维度={query_dim})"
+            )
+            return documents_with_scores
 
-    except Exception as e:
-        logger.error(f"❌ 向量搜索失败: {e}")
-        raise e
-    finally:
-        db.close()
+        except Exception as e:
+            logger.error(f"❌ 向量搜索失败: {e}")
+            raise e

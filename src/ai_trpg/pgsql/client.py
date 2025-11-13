@@ -5,7 +5,12 @@ from .config import postgresql_config
 from .base import Base
 
 ############################################################################################################
-engine = create_engine(postgresql_config.connection_string)
+engine = create_engine(
+    postgresql_config.connection_string,
+    pool_size=5,  # 核心连接数：保持5个持久连接
+    max_overflow=10,  # 溢出连接数：最多额外创建10个临时连接
+    pool_pre_ping=True,  # 使用前检查连接是否存活（重要！）
+)
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
 

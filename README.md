@@ -31,3 +31,7 @@
 ## 激活uv环境
 
 source .venv/bin/activate
+
+## 查看本地数据库列表
+
+psql -l

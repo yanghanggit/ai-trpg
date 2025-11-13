@@ -9,12 +9,14 @@ from loguru import logger
 
 # 导入所有数据库模型以确保它们被注册到Base.metadata中
 from .vector_document import VectorDocumentDB
+from .user import UserDB
 
 # 可以在这里添加其他模型的导入
 # from .other_model import OtherModel
 
 __all__ = [
     "VectorDocumentDB",
+    "UserDB",
     "register_all_models",
 ]
 
@@ -27,5 +29,5 @@ def register_all_models() -> None:
     虽然模型在导入时就会自动注册，但这个函数提供了一个明确的入口点。
     """
     logger.debug("数据库模型注册完成")
-    logger.debug(f"已注册模型: VectorDocumentDB")
+    logger.debug(f"已注册模型: VectorDocumentDB, UserDB")
     # 可以在这里添加其他模型的日志
