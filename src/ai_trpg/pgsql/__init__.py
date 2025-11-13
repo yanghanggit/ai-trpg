@@ -11,7 +11,8 @@ This module provides:
 from typing import List
 from .base import *
 from .client import *
-from .user import *
+from .user import UserDB
+from .user_operations import save_user, has_user, get_user
 from .vector_document import VectorDocumentDB
 from .world import WorldDB
 from .stage import StageDB
