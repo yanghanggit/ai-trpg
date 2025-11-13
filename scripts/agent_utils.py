@@ -9,12 +9,9 @@ import asyncio
 from typing import List, Optional, Tuple
 from loguru import logger
 from pydantic import BaseModel, ConfigDict
-from langchain.schema import BaseMessage, SystemMessage
+from langchain.schema import BaseMessage
 from ai_trpg.demo import (
     World,
-    gen_world_system_prompt,
-    gen_actor_system_prompt,
-    gen_stage_system_prompt,
 )
 from langchain.schema import BaseMessage
 from ai_trpg.mcp import (
@@ -79,7 +76,7 @@ class GameAgentManager:
     async def create_agents_from_world(
         self,
         world_model: World,
-        global_game_mechanics: str,
+        # global_game_mechanics: str,
     ) -> None:
         """从游戏世界创建所有代理 - 直接创建，简单直接"""
         logger.debug("🏗️ 开始创建游戏代理...")
@@ -87,11 +84,7 @@ class GameAgentManager:
         # 创建世界观代理
         self._world_agent = WorldAgent(
             name=world_model.name,
-            context=[
-                SystemMessage(
-                    content=gen_world_system_prompt(world_model, global_game_mechanics)
-                )
-            ],
+            context=world_model.context,
             mcp_client=await self._create_mcp_client(),
         )
         logger.debug(f"已创建世界观代理: {self._world_agent.name}")
@@ -113,13 +106,7 @@ class GameAgentManager:
             # 创建场景代理
             stage_agent = StageAgent(
                 name=stage_model.name,
-                context=[
-                    SystemMessage(
-                        content=gen_stage_system_prompt(
-                            stage_model, world_model, global_game_mechanics
-                        )
-                    )
-                ],
+                context=stage_model.context,
                 mcp_client=await self._create_mcp_client(),
             )
 
@@ -128,13 +115,7 @@ class GameAgentManager:
                 actor_agent = ActorAgent(
                     name=actor_model.name,
                     stage_agent=stage_agent,  # 创建时直接指定所属场景
-                    context=[
-                        SystemMessage(
-                            content=gen_actor_system_prompt(
-                                actor_model, world_model, global_game_mechanics
-                            )
-                        )
-                    ],
+                    context=actor_model.context,
                     mcp_client=await self._create_mcp_client(),
                 )
                 # 将角色代理添加到场景代理的列表中
@@ -143,7 +124,6 @@ class GameAgentManager:
                     f"已创建角色代理: {actor_agent.name} (所属场景: {stage_agent.name})"
                 )
 
-                actor_agent.context.extend(actor_model.initial_context)
                 logger.debug(f"已为代理 {actor_agent.name} 应用初始对话上下文")
 
             self._stage_agents.append(stage_agent)

@@ -37,7 +37,6 @@ from ai_trpg.mcp import (
 )
 
 from ai_trpg.demo import (
-    GLOBAL_GAME_MECHANICS,
     create_demo_world,
     World,
 )
@@ -133,7 +132,7 @@ async def main() -> None:
         agent_manager: GameAgentManager = GameAgentManager()
         await agent_manager.create_agents_from_world(
             demo_world,
-            GLOBAL_GAME_MECHANICS,
+            # GLOBAL_GAME_MECHANICS,
         )
 
         # 验证代理管理器已正确初始化

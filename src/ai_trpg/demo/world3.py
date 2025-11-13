@@ -25,7 +25,13 @@ from .templates import (
     template_world1,
 )
 import copy
-from langchain.schema import HumanMessage, AIMessage
+from langchain.schema import SystemMessage, HumanMessage, AIMessage
+from .prompts import GLOBAL_GAME_MECHANICS
+from .prompt_generators import (
+    gen_world_system_prompt,
+    gen_actor_system_prompt,
+    gen_stage_system_prompt,
+)
 
 # ============================================================================
 # 游戏世界实例创建函数
@@ -82,7 +88,12 @@ def create_test_world3() -> World:
     instance_world3.name = f"""{instance_world3.name}_3"""
 
     # 单独设置加斯科因 #########################
-    instance_actor1.initial_context = [
+    instance_actor1.context = [
+        SystemMessage(
+            content=gen_actor_system_prompt(
+                instance_actor1, instance_world3, GLOBAL_GAME_MECHANICS
+            )
+        ),
         HumanMessage(content="""# 游戏开始！你是谁？你在哪里？你的目标是什么？"""),
         AIMessage(
             content=f"我是{instance_actor1.name}。我在 奥顿教堂墓地中央，靠近天使雕像的位置，正在来回踱步。我的目标是 杀死任何闯入者！毫不犹豫，直接发起攻击！"
@@ -93,7 +104,12 @@ def create_test_world3() -> World:
     #########################
 
     # 单独设置艾琳 #########################
-    instance_actor2.initial_context = [
+    instance_actor2.context = [
+        SystemMessage(
+            content=gen_actor_system_prompt(
+                instance_actor2, instance_world3, GLOBAL_GAME_MECHANICS
+            )
+        ),
         HumanMessage(content="""# 游戏开始！你是谁？你在哪里？你的目标是什么？"""),
         AIMessage(
             content=f"我是{instance_actor2.name}。我在 奥顿教堂墓地东侧，黑色铁门旁的墓碑阴影中，处于隐藏状态观察着目标。我的目标是 狩猎 {instance_actor1.name}！因为斯科因已经兽化，所以必须消灭他。我决定要马上出手一击必杀！"
@@ -110,7 +126,12 @@ def create_test_world3() -> World:
     #########################
 
     # 单独设置外乡人 #########################
-    instance_actor3.initial_context = [
+    instance_actor3.context = [
+        SystemMessage(
+            content=gen_actor_system_prompt(
+                instance_actor3, instance_world3, GLOBAL_GAME_MECHANICS
+            )
+        ),
         HumanMessage(content="""# 游戏开始！你是谁？你在哪里？你的目标是什么？"""),
         AIMessage(
             content=f"我是{instance_actor3.name}。我在 奥顿教堂墓地南侧入口内部约10米处，刚刚进入墓地。我注意到墓地西侧有石阶通向教堂侧门，门后应该就是{instance_stage2.name}。我的目标是 探索这里的秘密并自保，尽量回避危险，必要时可以反击。如果情况危险，我可以尝试前往西侧的教堂侧门寻求庇护。"
@@ -139,6 +160,14 @@ def create_test_world3() -> World:
 教堂侧门虚掩着，可以推开进入{instance_stage2.name}。"""
     instance_stage1.connections = stage_connections
 
+    instance_stage1.context = [
+        SystemMessage(
+            content=gen_stage_system_prompt(
+                instance_stage1, instance_world3, GLOBAL_GAME_MECHANICS
+            )
+        )
+    ]
+
     #########################
 
     # 配置场景2：奥顿教堂大厅（从world2的create_test_world_2_2继承）#########################
@@ -154,8 +183,21 @@ def create_test_world3() -> World:
     # 设置场景连通性（与墓地使用相同的连通性描述）
     instance_stage2.connections = stage_connections
 
+    instance_stage2.context = [
+        SystemMessage(
+            content=gen_stage_system_prompt(
+                instance_stage2, instance_world3, GLOBAL_GAME_MECHANICS
+            )
+        )
+    ]
+
     #########################
 
     instance_world3.stages = [instance_stage1, instance_stage2]
+    instance_world3.context = [
+        SystemMessage(
+            content=gen_world_system_prompt(instance_world3, GLOBAL_GAME_MECHANICS)
+        )
+    ]
 
     return instance_world3

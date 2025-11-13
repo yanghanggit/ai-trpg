@@ -22,7 +22,13 @@ from .templates import (
     template_world1,
 )
 import copy
-from langchain.schema import HumanMessage, AIMessage
+from langchain.schema import SystemMessage, HumanMessage, AIMessage
+from .prompts import GLOBAL_GAME_MECHANICS
+from .prompt_generators import (
+    gen_world_system_prompt,
+    gen_actor_system_prompt,
+    gen_stage_system_prompt,
+)
 
 # ============================================================================
 # 游戏世界实例创建函数
@@ -75,7 +81,12 @@ def create_test_world_2_1() -> World:
     instance_world2.name = f"""{instance_world2.name}_2_1"""
 
     # 单独设置外乡人 #########################
-    instance_actor3.initial_context = [
+    instance_actor3.context = [
+        SystemMessage(
+            content=gen_actor_system_prompt(
+                instance_actor3, instance_world2, GLOBAL_GAME_MECHANICS
+            )
+        ),
         HumanMessage(content="""# 游戏开始！你是谁？你在哪里？你的目标是什么？"""),
         AIMessage(
             content=f"我是{instance_actor3.name}。我在 {instance_stage1.name}的西侧石阶上，站在教堂侧门门口。我的目标是 进入教堂寻找关于这座城市的真相，尤其是教会档案室中可能隐藏的秘密文献。我已经穿过了墓地，现在准备尝试推开这个关闭的门。"
@@ -98,6 +109,14 @@ def create_test_world_2_1() -> World:
 目前教堂侧门已经被锁死，必须找到钥匙才能进入{instance_stage2.name}。"""
     instance_stage1.connections = stage_connections
 
+    instance_stage1.context = [
+        SystemMessage(
+            content=gen_stage_system_prompt(
+                instance_stage1, instance_world2, GLOBAL_GAME_MECHANICS
+            )
+        )
+    ]
+
     #########################
 
     # 配置场景2：奥顿教堂大厅 #########################
@@ -113,9 +132,22 @@ def create_test_world_2_1() -> World:
     # 设置场景连通性（与墓地使用相同的连通性描述）
     instance_stage2.connections = stage_connections
 
+    instance_stage2.context = [
+        SystemMessage(
+            content=gen_stage_system_prompt(
+                instance_stage2, instance_world2, GLOBAL_GAME_MECHANICS
+            )
+        )
+    ]
+
     #########################
 
     instance_world2.stages = [instance_stage1, instance_stage2]
+    instance_world2.context = [
+        SystemMessage(
+            content=gen_world_system_prompt(instance_world2, GLOBAL_GAME_MECHANICS)
+        )
+    ]
 
     return instance_world2
 
@@ -166,7 +198,12 @@ def create_test_world_2_2() -> World:
     instance_world2.name = f"""{instance_world2.name}_2_2"""
 
     # 单独设置外乡人 #########################
-    instance_actor3.initial_context = [
+    instance_actor3.context = [
+        SystemMessage(
+            content=gen_actor_system_prompt(
+                instance_actor3, instance_world2, GLOBAL_GAME_MECHANICS
+            )
+        ),
         HumanMessage(content="""# 游戏开始！你是谁？你在哪里？你的目标是什么？"""),
         AIMessage(
             content=f"我是{instance_actor3.name}。我在 {instance_stage1.name}的西侧石阶上，站在教堂侧门门口。我的目标是 **立即进入{instance_stage2.name}**，寻找关于这座城市的真相，尤其是教会档案室中可能隐藏的秘密文献。我已经穿过了墓地，现在**必须马上推开这扇虚掩的门，进入教堂内部**。这是我此刻唯一且最紧迫的行动目标。"
@@ -189,6 +226,14 @@ def create_test_world_2_2() -> World:
 教堂侧门虚掩着，可以推开进入{instance_stage2.name}。"""
     instance_stage1.connections = stage_connections
 
+    instance_stage1.context = [
+        SystemMessage(
+            content=gen_stage_system_prompt(
+                instance_stage1, instance_world2, GLOBAL_GAME_MECHANICS
+            )
+        )
+    ]
+
     #########################
 
     # 配置场景2：奥顿教堂大厅 #########################
@@ -204,8 +249,21 @@ def create_test_world_2_2() -> World:
     # 设置场景连通性（与墓地使用相同的连通性描述）
     instance_stage2.connections = stage_connections
 
+    instance_stage2.context = [
+        SystemMessage(
+            content=gen_stage_system_prompt(
+                instance_stage2, instance_world2, GLOBAL_GAME_MECHANICS
+            )
+        )
+    ]
+
     #########################
 
     instance_world2.stages = [instance_stage1, instance_stage2]
+    instance_world2.context = [
+        SystemMessage(
+            content=gen_world_system_prompt(instance_world2, GLOBAL_GAME_MECHANICS)
+        )
+    ]
 
     return instance_world2

@@ -26,8 +26,8 @@ class Actor(BaseModel):
     appearance: str = Field(description="外观描述")
     attributes: Attributes = Field(default_factory=Attributes, description="角色属性")
     effects: List[Effect] = Field(default_factory=list, description="角色当前效果状态")
-    initial_context: List[BaseMessage] = Field(
-        default_factory=list, description="角色初始对话上下文"
+    context: List[BaseMessage] = Field(
+        default_factory=list, description="角色的LLM对话上下文"
     )
 
 
@@ -43,6 +43,9 @@ class Stage(BaseModel):
     connections: str = Field(
         default="",
         description="场景连通性：描述本场景与其他场景的连接关系、通道位置及通行条件",
+    )
+    context: List[BaseMessage] = Field(
+        default_factory=list, description="场景的LLM对话上下文"
     )
 
     def find_actor(self, actor_name: str) -> Actor | None:
@@ -68,6 +71,9 @@ class World(BaseModel):
     name: str = Field(description="世界名称")
     campaign_setting: str = Field(description="战役设定/世界观描述")
     stages: List[Stage] = Field(description="世界中的场景列表")
+    context: List[BaseMessage] = Field(
+        default_factory=list, description="世界的LLM对话上下文"
+    )
 
     def find_stage(self, stage_name: str) -> Stage | None:
         """查找指定名称的Stage

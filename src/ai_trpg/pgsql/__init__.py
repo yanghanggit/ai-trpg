@@ -20,6 +20,7 @@ from .effect import EffectDB
 from .message import MessageDB
 from .attributes import AttributesDB
 from .config import PostgreSQLConfig, postgresql_config
+from .world_operations import save_world_to_db, load_world_from_db, delete_world
 
 
 __all__: List[str] = [
@@ -45,4 +46,8 @@ __all__: List[str] = [
     "EffectDB",
     "MessageDB",
     "AttributesDB",
+    # World operations
+    "save_world_to_db",
+    "load_world_from_db",
+    "delete_world",
 ]
