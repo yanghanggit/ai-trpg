@@ -177,13 +177,17 @@ async def main() -> None:
                 continue
 
             elif user_input.lower() == "/dump":
-                logger.info(
-                    f"💾 保存当前代理 [{agent_manager.current_agent.name}] 的对话历史"
-                )
-                dump_history(
-                    agent_name=agent_manager.current_agent.name,
-                    messages=agent_manager.current_agent.context,
-                )
+                # logger.info(
+                #     f"💾 保存当前代理 [{agent_manager.current_agent.name}] 的对话历史"
+                # )
+
+                for game_agent in agent_manager.all_agents:
+                    logger.info(f"💾 保存代理 [{game_agent.name}] 的对话历史")
+                    dump_history(
+                        agent_name=game_agent.name,
+                        messages=game_agent.context,
+                    )
+
                 continue
 
             # 处理提示词模板命令
