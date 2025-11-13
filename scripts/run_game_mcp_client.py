@@ -145,11 +145,17 @@ async def main() -> None:
         # 初始化世界资源(会触发服务器重置世界状态)
         world_data = await initialize_world_resource(mcp_client)
 
-        # 清空所有世界的角色移动事件数据库记录
+        # 清空当前世界的角色移动事件数据库记录
         logger.info(
-            "🧹 清空所有世界的角色移动事件数据库...,因为是游戏刚刚启动，重置了世界状态"
+            f"🧹 清空世界 '{demo_world.name}' 的角色移动事件数据库...,因为是游戏刚刚启动，重置了世界状态"
         )
-        clear_all_actor_movement_events()
+        from ai_trpg.pgsql import get_world_id_by_name
+
+        world_id = get_world_id_by_name(demo_world.name)
+        if world_id:
+            clear_all_actor_movement_events(world_id)
+        else:
+            logger.warning(f"⚠️ 未找到世界 '{demo_world.name}' 的数据库记录,跳过清理")
 
         # 对话循环
         while True:

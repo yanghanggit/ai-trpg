@@ -494,9 +494,11 @@ class TestWorldOperations:
             assert len(loaded_world.stages) == len(world.stages)
             assert len(loaded_world.stages) == 2
 
-            # 验证每个 Stage
-            for original_stage, loaded_stage in zip(world.stages, loaded_world.stages):
-                assert loaded_stage.name == original_stage.name
+            # 验证每个 Stage (按名称匹配,不依赖顺序)
+            original_stages_dict = {stage.name: stage for stage in world.stages}
+            for loaded_stage in loaded_world.stages:
+                assert loaded_stage.name in original_stages_dict
+                original_stage = original_stages_dict[loaded_stage.name]
                 assert len(loaded_stage.actors) == len(original_stage.actors)
 
             logger.success("✅ 多 Stage World 测试通过")

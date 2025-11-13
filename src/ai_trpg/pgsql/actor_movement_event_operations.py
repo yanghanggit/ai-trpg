@@ -117,19 +117,30 @@ def get_actor_movement_events_by_stage(
             raise
 
 
-def clear_all_actor_movement_events() -> int:
-    """清空所有角色移动事件（TRUNCATE unlogged table）
+def clear_all_actor_movement_events(world_id: UUID) -> int:
+    """清空角色移动事件
+
+    Args:
+        world_id: 世界ID。如果提供则只清除该世界的事件,否则清除所有世界的事件
 
     Returns:
         int: 删除的事件数量
     """
     with SessionLocal() as db:
         try:
-            count = db.query(ActorMovementEventDB).count()
-            db.query(ActorMovementEventDB).delete()
+            query = db.query(ActorMovementEventDB)
+            # if world_id is not None:
+            query = query.filter_by(world_id=world_id)
+            count = query.count()
+            query.delete()
             db.commit()
+            logger.info(f"🗑️ 已清空世界 '{world_id}' 的 {count} 个角色移动事件")
+            # else:
+            #     count = query.count()
+            #     query.delete()
+            #     db.commit()
+            #     logger.info(f"🗑️ 已清空所有世界的 {count} 个角色移动事件")
 
-            logger.info(f"🗑️ 已清空 {count} 个角色移动事件")
             return count
 
         except Exception as e:
