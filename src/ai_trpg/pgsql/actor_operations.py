@@ -14,6 +14,53 @@ from sqlalchemy.orm import joinedload
 from .stage import StageDB
 
 
+def update_actor_appearance(
+    world_id: UUID, actor_name: str, new_appearance: str
+) -> Optional[str]:
+    """更新角色的外观描述
+
+    Args:
+        world_id: 所属世界ID
+        actor_name: 角色名称
+        new_appearance: 新的外观描述
+
+    Returns:
+        Optional[str]: 旧的外观描述，如果角色不存在则返回 None
+    """
+    with SessionLocal() as db:
+        try:
+            # 查找角色
+            actor = (
+                db.query(ActorDB)
+                .join(ActorDB.stage)
+                .filter(ActorDB.name == actor_name)
+                .filter(ActorDB.stage.has(world_id=world_id))
+                .first()
+            )
+
+            if not actor:
+                logger.error(f"❌ 未找到角色: {actor_name} (世界ID: {world_id})")
+                return None
+
+            # 保存旧的外观描述
+            old_appearance = actor.appearance
+
+            # 更新外观描述
+            actor.appearance = new_appearance
+
+            logger.info(
+                f"✨ 角色 '{actor_name}' 外观已更新\n旧外观: {old_appearance}\n\n新外观: {new_appearance}"
+            )
+
+            db.commit()
+            return old_appearance
+
+        except Exception as e:
+            db.rollback()
+            logger.error(f"❌ 更新角色外观失败: {e}")
+            raise
+
+
 def update_actor_health(
     world_id: UUID, actor_name: str, new_health: int
 ) -> Optional[Tuple[int, int, int]]:

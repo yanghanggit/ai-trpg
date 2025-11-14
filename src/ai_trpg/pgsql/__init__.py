@@ -48,6 +48,7 @@ from .message_operations import (
 )
 
 from .stage_operations import update_stage_info, get_stage_by_name
+from .actor_operations import update_actor_appearance, update_actor_health
 
 
 __all__: List[str] = [
@@ -99,4 +100,7 @@ __all__: List[str] = [
     # Stage operations
     "update_stage_info",
     "get_stage_by_name",
+    # Actor operations
+    "update_actor_appearance",
+    "update_actor_health",
 ]

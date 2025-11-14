@@ -45,7 +45,9 @@ from mcp_server_helpers import (
 
 from ai_trpg.pgsql.actor_operations import (
     update_actor_health as update_actor_health_db,
+    update_actor_appearance as update_actor_appearance_db,
 )
+
 
 # 导入角色移动日志管理模块 (Pydantic 模型保留用于数据验证)
 # from actor_movement_log_manager import ActorMovementEvent
@@ -308,12 +310,17 @@ async def update_actor_appearance(
         更新操作的结果信息（JSON格式）
     """
     try:
-        assert world_name == demo_world.name, f"未知的世界名称: {world_name}"
+        # 步骤1: 获取 world_id
+        world_id = get_world_id_by_name(world_name)
+        assert world_id is not None, f"世界 '{world_name}' 未在数据库中找到"
 
-        # 查找Actor
-        actor, current_stage = demo_world.find_actor_with_stage(actor_name)
-        if not actor or not current_stage:
-            error_msg = f"错误：未找到名为 '{actor_name}' 的Actor"
+        # 步骤2: 执行数据库更新（返回旧的外观描述）
+
+        old_appearance = update_actor_appearance_db(
+            world_id, actor_name, new_appearance
+        )
+        if old_appearance is None:
+            error_msg = f"错误：未找到名为 '{actor_name}' 的Actor或更新失败"
             logger.error(error_msg)
             return json.dumps(
                 {
@@ -325,21 +332,14 @@ async def update_actor_appearance(
                 indent=2,
             )
 
-        # 保存旧的外观描述以便日志记录
-        old_appearance = actor.appearance
-
-        # 更新Actor的appearance字段
-        actor.appearance = new_appearance
-
         success_msg = f"成功更新 {actor_name} 的外观描述"
-        logger.info(
-            f"{success_msg}\n旧外观: {old_appearance}\n\n新外观: {new_appearance}"
-        )
+        logger.info(success_msg)
 
         return json.dumps(
             {
                 "success": True,
                 "actor": actor_name,
+                "old_appearance": old_appearance,
                 "new_appearance": new_appearance,
                 "timestamp": datetime.now().isoformat(),
             },
