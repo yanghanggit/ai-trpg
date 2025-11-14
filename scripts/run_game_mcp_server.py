@@ -46,11 +46,10 @@ from mcp_server_helpers import (
 from ai_trpg.pgsql.actor_operations import (
     update_actor_health as update_actor_health_db,
     update_actor_appearance as update_actor_appearance_db,
+    add_actor_effect as add_actor_effect_db,
+    remove_actor_effect as remove_actor_effect_db,
 )
 
-
-# 导入角色移动日志管理模块 (Pydantic 模型保留用于数据验证)
-# from actor_movement_log_manager import ActorMovementEvent
 
 # 初始化游戏世界
 demo_world: World = create_demo_world()
@@ -377,12 +376,17 @@ async def add_actor_effect(
         添加操作的结果信息（JSON格式）
     """
     try:
-        assert world_name == demo_world.name, f"未知的世界名称: {world_name}"
+        # 步骤1: 获取 world_id
+        world_id = get_world_id_by_name(world_name)
+        assert world_id is not None, f"世界 '{world_name}' 未在数据库中找到"
 
-        # 查找Actor
-        actor, current_stage = demo_world.find_actor_with_stage(actor_name)
-        if not actor or not current_stage:
-            error_msg = f"错误：未找到名为 '{actor_name}' 的Actor"
+        # 步骤2: 执行数据库添加操作
+
+        success = add_actor_effect_db(
+            world_id, actor_name, effect_name, effect_description
+        )
+        if not success:
+            error_msg = f"错误：未找到名为 '{actor_name}' 的Actor或添加失败"
             logger.error(error_msg)
             return json.dumps(
                 {
@@ -394,20 +398,17 @@ async def add_actor_effect(
                 indent=2,
             )
 
-        # 创建新的 Effect
-        new_effect = Effect(name=effect_name, description=effect_description)
-
-        # 添加效果到Actor
-        actor.effects.append(new_effect)
-
         success_msg = f"成功为 {actor_name} 添加效果: {effect_name}"
-        logger.info(f"{success_msg}\n效果描述: {effect_description}")
+        logger.info(success_msg)
 
         return json.dumps(
             {
                 "success": True,
                 "actor": actor_name,
-                "effect": new_effect.model_dump(),
+                "effect": {
+                    "name": effect_name,
+                    "description": effect_description,
+                },
                 "timestamp": datetime.now().isoformat(),
             },
             ensure_ascii=False,
@@ -443,11 +444,14 @@ async def remove_actor_effect(
         移除操作的结果信息（JSON格式），包含移除的 Effect 数量
     """
     try:
-        assert world_name == demo_world.name, f"未知的世界名称: {world_name}"
+        
+        # 步骤1: 获取 world_id
+        world_id = get_world_id_by_name(world_name)
+        assert world_id is not None, f"世界 '{world_name}' 未在数据库中找到"
 
-        # 查找Actor
-        actor, current_stage = demo_world.find_actor_with_stage(actor_name)
-        if not actor or not current_stage:
+        # 步骤2: 执行数据库删除操作
+        removed_count = remove_actor_effect_db(world_id, actor_name, effect_name)
+        if removed_count == -1:
             error_msg = f"错误：未找到名为 '{actor_name}' 的Actor"
             logger.error(error_msg)
             return json.dumps(
@@ -460,15 +464,9 @@ async def remove_actor_effect(
                 indent=2,
             )
 
-        # 找出所有匹配名称的效果
-        effects_to_remove = [
-            effect for effect in actor.effects if effect.name == effect_name
-        ]
-
-        # 如果没有找到匹配的效果
-        if not effects_to_remove:
+        if removed_count == 0:
             info_msg = f"{actor_name} 身上没有名为 '{effect_name}' 的效果"
-            logger.error(info_msg)
+            logger.info(info_msg)
             return json.dumps(
                 {
                     "success": True,
@@ -480,12 +478,6 @@ async def remove_actor_effect(
                 ensure_ascii=False,
                 indent=2,
             )
-
-        # 移除所有匹配的效果
-        removed_count = 0
-        for effect in effects_to_remove:
-            actor.effects.remove(effect)
-            removed_count += 1
 
         success_msg = (
             f"成功从 {actor_name} 移除了 {removed_count} 个名为 '{effect_name}' 的效果"

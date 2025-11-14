@@ -10,6 +10,7 @@ from loguru import logger
 from .client import SessionLocal
 from .actor import ActorDB
 from .attributes import AttributesDB
+from .effect import EffectDB
 from sqlalchemy.orm import joinedload
 from .stage import StageDB
 
@@ -243,4 +244,107 @@ def get_actors_in_world(
 
         except Exception as e:
             logger.error(f"❌ 查询世界角色失败: {e}")
+            raise
+
+
+def add_actor_effect(
+    world_id: UUID, actor_name: str, effect_name: str, effect_description: str
+) -> bool:
+    """为角色添加一个新的效果
+
+    Args:
+        world_id: 所属世界ID
+        actor_name: 角色名称
+        effect_name: 效果名称
+        effect_description: 效果描述
+
+    Returns:
+        bool: 添加是否成功
+    """
+    with SessionLocal() as db:
+        try:
+            # 查找角色
+            actor = (
+                db.query(ActorDB)
+                .join(ActorDB.stage)
+                .filter(ActorDB.name == actor_name)
+                .filter(ActorDB.stage.has(world_id=world_id))
+                .first()
+            )
+
+            if not actor:
+                logger.error(f"❌ 未找到角色: {actor_name} (世界ID: {world_id})")
+                return False
+
+            # 创建新的效果
+            new_effect = EffectDB(
+                actor_id=actor.id,
+                name=effect_name,
+                description=effect_description,
+            )
+
+            db.add(new_effect)
+            db.commit()
+
+            logger.info(
+                f"✨ 成功为角色 '{actor_name}' 添加效果: {effect_name}\n效果描述: {effect_description}"
+            )
+            return True
+
+        except Exception as e:
+            db.rollback()
+            logger.error(f"❌ 添加角色效果失败: {e}")
+            raise
+
+
+def remove_actor_effect(world_id: UUID, actor_name: str, effect_name: str) -> int:
+    """移除角色身上所有匹配指定名称的效果
+
+    Args:
+        world_id: 所属世界ID
+        actor_name: 角色名称
+        effect_name: 要移除的效果名称（所有匹配此名称的效果都会被移除）
+
+    Returns:
+        int: 移除的效果数量，如果角色不存在则返回 -1
+    """
+    with SessionLocal() as db:
+        try:
+            # 查找角色
+            actor = (
+                db.query(ActorDB)
+                .join(ActorDB.stage)
+                .filter(ActorDB.name == actor_name)
+                .filter(ActorDB.stage.has(world_id=world_id))
+                .first()
+            )
+
+            if not actor:
+                logger.error(f"❌ 未找到角色: {actor_name} (世界ID: {world_id})")
+                return -1
+
+            # 查找并删除所有匹配名称的效果
+            removed_count = (
+                db.query(EffectDB)
+                .filter(EffectDB.actor_id == actor.id)
+                .filter(EffectDB.name == effect_name)
+                .delete()
+            )
+
+            db.commit()
+
+            if removed_count > 0:
+                logger.info(
+                    f"🗑️ 成功从角色 '{actor_name}' 移除了 {removed_count} 个名为 '{effect_name}' 的效果"
+                )
+            else:
+                logger.info(
+                    f"ℹ️ 角色 '{actor_name}' 身上没有名为 '{effect_name}' 的效果"
+                )
+
+            return removed_count
+
+        except Exception as e:
+            db.rollback()
+            logger.error(f"❌ 移除角色效果失败: {e}")
             raise
