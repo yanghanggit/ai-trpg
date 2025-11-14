@@ -6,16 +6,20 @@
 """
 
 import asyncio
-from typing import Any, Dict, List
+from uuid import UUID
 from loguru import logger
 from pydantic import BaseModel
 from langchain.schema import HumanMessage, AIMessage
 from ai_trpg.deepseek import create_deepseek_llm
 from ai_trpg.utils.json_format import strip_json_code_block
-from agent_utils import StageAgent, ActorAgent
 from workflow_handlers import handle_chat_workflow_execution
-from mcp_client_resource_helpers import read_actor_resource, read_stage_resource
 from ai_trpg.pgsql import get_actor_context, add_actor_context
+from ai_trpg.pgsql.actor_operations import get_actors_in_world
+from ai_trpg.pgsql.actor import ActorDB
+from ai_trpg.pgsql.actor_plan_operations import (
+    clear_all_actor_plans,
+    add_actor_plan_to_db,
+)
 
 
 ########################################################################################################################
@@ -57,178 +61,66 @@ class ActorObservationAndPlan(BaseModel):
 ########################################################################################################################
 ########################################################################################################################
 ########################################################################################################################
-def _filter_stage_info_for_actor(
-    stage_info_json: Dict[str, Any], actor_name: str
-) -> Dict[str, Any]:
-    """过滤场景信息，移除对当前角色冗余的数据
-
-    Args:
-        stage_info_json: 完整的场景信息JSON
-        actor_name: 当前角色名称
-
-    Returns:
-        过滤后的场景信息字典
-    """
-    filtered_stage_info: Dict[str, Any] = {}
-
-    # 复制需要的字段
-    for key in ["name", "environment", "actor_states"]:
-        if key in stage_info_json:
-            filtered_stage_info[key] = stage_info_json[key]
-
-    # 过滤掉当前角色的外观信息（冗余）
-    if "actors_appearance" in stage_info_json:
-        actors_appearance = stage_info_json["actors_appearance"]
-        if isinstance(actors_appearance, list):
-            filtered_stage_info["actors_appearance"] = [
-                actor for actor in actors_appearance if actor.get("name") != actor_name
-            ]
-        else:
-            filtered_stage_info["actors_appearance"] = actors_appearance
-
-    return filtered_stage_info
-
-
-########################################################################################################################
-########################################################################################################################
-########################################################################################################################
-def _format_actor_info(actor_info_json: Dict[str, Any]) -> Dict[str, Any]:
-    """格式化角色信息用于显示
-
-    Args:
-        actor_info_json: 角色信息JSON
-
-    Returns:
-        包含格式化字段的字典：name, appearance, health, max_health, attack, effects_str
-    """
-    actor_name = actor_info_json.get("name", "未知")
-    actor_appearance = actor_info_json.get("appearance", "无描述")
-    actor_attributes = actor_info_json.get("attributes", {})
-    actor_effects = actor_info_json.get("effects", [])
-
-    # 格式化战斗数据
-    health = actor_attributes.get("health", 0)
-    max_health = actor_attributes.get("max_health", 0)
-    attack = actor_attributes.get("attack", 0)
-
-    # 格式化 Effect
-    if actor_effects:
-        effect_parts = []
-        for effect in actor_effects:
-            effect_name = effect.get("name", "未知Effect")
-            effect_desc = effect.get("description", "")
-            if effect_desc:
-                effect_parts.append(f"{effect_name}({effect_desc})")
-            else:
-                effect_parts.append(effect_name)
-        effects_str = ", ".join(effect_parts)
-    else:
-        effects_str = "无"
-
-    return {
-        "name": actor_name,
-        "appearance": actor_appearance,
-        "health": health,
-        "max_health": max_health,
-        "attack": attack,
-        "effects_str": effects_str,
-    }
-
-
-########################################################################################################################
-########################################################################################################################
-########################################################################################################################
-def _format_other_actors_appearance(
-    stage_actors_appearance: List[Dict[str, Any]],
-) -> str:
-    """格式化其他角色的外观信息
-
-    Args:
-        stage_actors_appearance: 场景中其他角色的外观数据列表
-            （来自 MCP Server 的 _get_stage_info_impl，保证是列表类型）
-
-    Returns:
-        格式化后的 Markdown 字符串
-    """
-    if not stage_actors_appearance:
-        return "无其他角色"
-
-    other_actors_parts = []
-    for actor in stage_actors_appearance:
-        actor_name = actor.get("name", "未知")
-        actor_appearance = actor.get("appearance", "无描述")
-        other_actors_parts.append(
-            f"""**{actor_name}**
-- 外观: {actor_appearance}"""
-        )
-    return "\n\n".join(other_actors_parts)
-
-
-########################################################################################################################
-########################################################################################################################
-########################################################################################################################
 async def _handle_actor_observe_and_plan(
-    stage_agent: StageAgent,
-    actor_agent: ActorAgent,
-    # mcp_client: McpClient,
+    world_id: UUID,
+    actor_db: ActorDB,
 ) -> None:
     """处理单个角色的观察和行动规划
 
     让角色从第一人称视角观察场景，并立即规划下一步行动。
     使用JSON格式输出，便于解析和后续处理。
+    直接使用 ActorDB 的预加载数据，无需 MCP Resource 调用。
 
     Args:
-        stage_agent: 场景代理
-        actor_agent: 角色代理
-        mcp_client: MCP 客户端（用于读取角色信息资源）
+        world_id: 世界ID
+        actor_db: 角色数据库对象（已预加载 stage, attributes, effects 等关系）
     """
-    # logger.info(f"角色观察并规划: {actor_agent.name}")
+    # logger.info(f"角色观察并规划: {actor_db.name}")
 
-    # 使用统一的资源读取函数
-    stage_info_json = await read_stage_resource(
-        stage_agent.mcp_client, stage_agent.name
-    )
-    actor_info_json = await read_actor_resource(
-        actor_agent.mcp_client, actor_agent.name
-    )
+    # 直接从 ActorDB 获取数据（已通过 joinedload 预加载）
+    stage_db = actor_db.stage
+    actor_name = actor_db.name
 
-    # 过滤场景信息（移除冗余字段）
-    filtered_stage_info = _filter_stage_info_for_actor(
-        stage_info_json, actor_agent.name
-    )
+    # 直接格式化 effects 字符串
+    if actor_db.effects:
+        effect_parts = [
+            f"{e.name}({e.description})" if e.description else e.name
+            for e in actor_db.effects
+        ]
+        effects_str = ", ".join(effect_parts)
+    else:
+        effects_str = "无"
 
-    # 格式化角色信息
-    actor_info = _format_actor_info(actor_info_json)
+    # 直接格式化其他角色外观（过滤掉当前角色）
+    other_actors = [a for a in stage_db.actors if a.name != actor_name]
+    if other_actors:
+        other_actors_parts = [
+            f"**{a.name}**\n- 外观: {a.appearance}" for a in other_actors
+        ]
+        other_actors_str = "\n\n".join(other_actors_parts)
+    else:
+        other_actors_str = "无其他角色"
 
-    # 格式化场景信息
-    stage_name = filtered_stage_info.get("name", "未知场景")
-    stage_environment = filtered_stage_info.get("environment", "无描述")
-    stage_actor_states = filtered_stage_info.get("actor_states", "无角色状态")
-    stage_actors_appearance = filtered_stage_info.get("actors_appearance", [])
-
-    # 格式化其他角色的外观
-    other_actors_str = _format_other_actors_appearance(stage_actors_appearance)
-
-    observe_and_plan_prompt = f"""# 指令！你（{actor_agent.name}）进行观察与规划行动
+    observe_and_plan_prompt = f"""# 指令！你（{actor_name}）进行观察与规划行动
 
 ## 第一步: 你的角色信息 与 当前场景信息
 
 ### 你的角色信息
 
-**{actor_info['name']}**
-- 战斗数据: 生命值 {actor_info['health']}/{actor_info['max_health']} | 攻击力 {actor_info['attack']}
-- Effect: {actor_info['effects_str']}
-- 外观: {actor_info['appearance']}
+**{actor_name}**
+- 战斗数据: 生命值 {actor_db.attributes.health}/{actor_db.attributes.max_health} | 攻击力 {actor_db.attributes.attack}
+- Effect: {effects_str}
+- 外观: {actor_db.appearance}
 
 ### 当前场景信息
 
-**场景**: {stage_name}
+**场景**: {stage_db.name}
 
 **环境描述**:
-{stage_environment}
+{stage_db.environment}
 
 **场景中的角色位置与状态**:
-{stage_actor_states}
+{stage_db.actor_states}
 
 **场景中的其他角色**:
 {other_actors_str}
@@ -276,10 +168,10 @@ async def _handle_actor_observe_and_plan(
 **要求**：基于第一步提供的角色信息 → 观察场景 → 规划行动 → 输出JSON"""
 
     # 从数据库读取上下文
-    actor_context = get_actor_context(actor_agent.world_id, actor_agent.name)
+    actor_context = get_actor_context(world_id, actor_name)
 
     actors_observe_and_plan_response = await handle_chat_workflow_execution(
-        agent_name=actor_agent.name,
+        agent_name=actor_name,
         context=actor_context,
         request=HumanMessage(content=observe_and_plan_prompt),
         llm=create_deepseek_llm(),
@@ -290,21 +182,18 @@ async def _handle_actor_observe_and_plan(
         assert len(actors_observe_and_plan_response) > 0, "角色观察与规划响应为空"
 
         # 步骤1: 从JSON代码块中提取字符串
-        json_str = strip_json_code_block(
-            str(actors_observe_and_plan_response[-1].content)
+        formatted_data = ActorObservationAndPlan.model_validate_json(
+            strip_json_code_block(str(actors_observe_and_plan_response[-1].content))
         )
-
-        # 步骤2: 使用Pydantic解析和验证
-        formatted_data = ActorObservationAndPlan.model_validate_json(json_str)
 
         # 批量添加两条消息到数据库
         add_actor_context(
-            actor_agent.world_id,
-            actor_agent.name,
+            world_id,
+            actor_name,
             [
                 HumanMessage(
                     content=_gen_compressed_observe_and_plan_prompt(
-                        actor_agent.name, observe_and_plan_prompt
+                        actor_name, observe_and_plan_prompt
                     )
                 ),
                 AIMessage(
@@ -313,23 +202,14 @@ async def _handle_actor_observe_and_plan(
             ],
         )
 
-        # 保存角色计划到数据库
-        from ai_trpg.pgsql.actor_plan_operations import (
-            clear_all_actor_plans,
-            add_actor_plan_to_db,
-        )
-
-        plan_content = str(formatted_data.plan)
-        assert plan_content != "", "角色计划不能为空!!!!!!"
-
         # 先清空旧计划，再保存新计划
-        clear_all_actor_plans(actor_agent.world_id, actor_agent.name)
+        clear_all_actor_plans(world_id, actor_name)
         add_actor_plan_to_db(
-            world_id=actor_agent.world_id,
-            actor_name=actor_agent.name,
-            plan_content=plan_content,
+            world_id=world_id,
+            actor_name=actor_name,
+            plan_content=str(formatted_data.plan),
         )
-        logger.debug(f"💾 已将角色 '{actor_agent.name}' 的计划保存到数据库")
+        logger.debug(f"💾 已将角色 '{actor_name}' 的计划保存到数据库")
 
     except Exception as e:
         logger.error(f"JSON解析错误: {e}")
@@ -339,56 +219,49 @@ async def _handle_actor_observe_and_plan(
 ########################################################################################################################
 ########################################################################################################################
 async def handle_actors_observe_and_plan(
-    stage_agent: StageAgent,
-    # mcp_client: McpClient,
+    world_id: UUID,
     use_concurrency: bool = False,
 ) -> None:
-    """处理所有角色的观察和行动规划（合并版本，JSON输出）
+    """处理所有角色的观察和行动规划（数据库驱动版本）
 
-    让每个角色从第一人称视角观察场景，并立即规划下一步行动。
-    使用JSON格式输出，便于解析和后续处理。
+    从数据库一次性获取所有存活角色，让每个角色从第一人称视角观察场景，
+    并立即规划下一步行动。使用JSON格式输出，便于解析和后续处理。
 
-    注意：已死亡的角色（is_dead=True）将被自动跳过。
+    已死亡的角色（is_dead=True）会被自动跳过（通过数据库查询过滤）。
 
     Args:
-        stage_agent: 场景代理
-        actor_agents: 角色代理列表
-        mcp_client: MCP 客户端（用于读取角色信息资源）
+        world_id: 世界ID
         use_concurrency: 是否使用并行处理，默认False（顺序执行）
     """
 
-    # 过滤出存活的角色，已死亡的角色不参与观察和规划
-    alive_actor_agents = [
-        agent for agent in stage_agent.actor_agents if not agent.is_dead
-    ]
-    dead_actor_count = len(stage_agent.actor_agents) - len(alive_actor_agents)
+    # 从数据库一次性获取所有存活的角色（已预加载 stage, attributes, effects 等关系）
+    alive_actors_db = get_actors_in_world(world_id=world_id, is_dead=False)
 
-    if dead_actor_count > 0:
-        dead_names = [agent.name for agent in stage_agent.actor_agents if agent.is_dead]
-        logger.info(f"💀 跳过 {dead_actor_count} 个已死亡角色: {', '.join(dead_names)}")
-
-    if not alive_actor_agents:
-        logger.warning(f"⚠️ {stage_agent.name} 没有存活的角色需要进行观察和规划")
+    if not alive_actors_db:
+        logger.warning(f"⚠️ 世界 {world_id} 没有存活的角色需要进行观察和规划")
         return
+
+    logger.info(
+        f"🎭 世界 {world_id} 中有 {len(alive_actors_db)} 个存活角色需要观察和规划: "
+        f"{', '.join([a.name for a in alive_actors_db])}"
+    )
 
     if use_concurrency:
         # 并行处理所有角色
-        logger.debug(f"🔄 并行处理 {len(alive_actor_agents)} 个角色的观察和规划")
+        logger.debug(f"🔄 并行处理 {len(alive_actors_db)} 个角色的观察和规划")
         tasks = [
             _handle_actor_observe_and_plan(
-                stage_agent=stage_agent,
-                actor_agent=actor_agent,
-                # mcp_client=mcp_client,
+                world_id=world_id,
+                actor_db=actor_db,
             )
-            for actor_agent in alive_actor_agents
+            for actor_db in alive_actors_db
         ]
         await asyncio.gather(*tasks)
     else:
         # 顺序处理所有角色
-        logger.debug(f"🔄 顺序处理 {len(alive_actor_agents)} 个角色的观察和规划")
-        for actor_agent in alive_actor_agents:
+        logger.debug(f"🔄 顺序处理 {len(alive_actors_db)} 个角色的观察和规划")
+        for actor_db in alive_actors_db:
             await _handle_actor_observe_and_plan(
-                stage_agent=stage_agent,
-                actor_agent=actor_agent,
-                # mcp_client=mcp_client,
+                world_id=world_id,
+                actor_db=actor_db,
             )

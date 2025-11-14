@@ -139,8 +139,7 @@ def get_actors_in_world(
 ) -> List[ActorDB]:
     """获取指定世界中的所有角色，可选过滤死亡状态
 
-    预加载每个 Actor 的 Stage，以及 Stage 上的所有 Actors，
-    确保在会话外可以访问完整的关系链。
+    预加载每个 Actor 的完整关系数据，确保在会话外可以访问。
 
     Args:
         world_id: 世界ID
@@ -153,15 +152,21 @@ def get_actors_in_world(
         List[ActorDB]: 符合条件的角色列表，每个 ActorDB 预加载了：
             - actor.stage (StageDB)
             - actor.stage.actors (List[ActorDB])
+            - actor.attributes (AttributesDB)
+            - actor.effects (List[EffectDB])
     """
     with SessionLocal() as db:
         try:
 
             # 构建基础查询：通过 Stage 关联查询 World 下的所有 Actor
-            # 使用 joinedload 预加载 actor.stage 和 stage.actors
+            # 使用 joinedload 预加载所有需要的关系
             query = (
                 db.query(ActorDB)
-                .options(joinedload(ActorDB.stage).joinedload(StageDB.actors))
+                .options(
+                    joinedload(ActorDB.stage).joinedload(StageDB.actors),
+                    joinedload(ActorDB.attributes),
+                    joinedload(ActorDB.effects),
+                )
                 .join(ActorDB.stage)
                 .filter(ActorDB.stage.has(world_id=world_id))
             )

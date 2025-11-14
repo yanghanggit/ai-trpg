@@ -44,12 +44,10 @@ async def handle_game_command(
         # /game all:actors_observe_and_plan - 让所有角色代理观察场景并规划行动
         case "all:actors_observe_and_plan":
 
-            for stage_agent in game_agent_manager.stage_agents:
-
-                await handle_actors_observe_and_plan(
-                    stage_agent=stage_agent,
-                    use_concurrency=True,
-                )
+            await handle_actors_observe_and_plan(
+                world_id=game_agent_manager.world_id,
+                use_concurrency=True,
+            )
 
         # /game all:actor_plans_and_update_stage - 让场景代理执行所有角色的行动计划
         case "all:actor_plans_and_update_stage":
@@ -82,16 +80,14 @@ async def handle_game_command(
         # /game pipeline:test0 - 测试流水线0: 开局→观察规划
         case "pipeline:test0":
 
+            # 步骤0: 所有角色开始行动（Kickoff）
             await handle_kickoff(game_agent_manager)
 
-            # 步骤0: 所有角色开始行动（Kickoff）
-            for stage_agent in game_agent_manager.stage_agents:
-
-                # 步骤1: 所有角色观察场景并规划行动
-                await handle_actors_observe_and_plan(
-                    stage_agent=stage_agent,
-                    use_concurrency=True,
-                )
+            # 步骤1: 所有角色观察场景并规划行动
+            await handle_actors_observe_and_plan(
+                world_id=game_agent_manager.world_id,
+                use_concurrency=True,
+            )
 
         # /game pipeline:test1 - 测试流水线1: 开局→观察规划→执行更新循环
         # 注意: 假设第0帧 已通过初始化注入stage_agent
@@ -100,16 +96,15 @@ async def handle_game_command(
             await handle_kickoff(game_agent_manager)
 
             # 步骤0: 所有角色开始行动（Kickoff）
+            # 步骤1: 所有角色观察场景并规划行动
+            await handle_actors_observe_and_plan(
+                world_id=game_agent_manager.world_id,
+                use_concurrency=True,
+            )
+
+            # 步骤2: 场景执行计划并生成新的状态快照
+            # 输出的状态快照将成为下一轮的输入
             for stage_agent in game_agent_manager.stage_agents:
-
-                # 步骤1: 所有角色观察场景并规划行动
-                await handle_actors_observe_and_plan(
-                    stage_agent=stage_agent,
-                    use_concurrency=True,
-                )
-
-                # 步骤2: 场景执行计划并生成新的状态快照
-                # 输出的状态快照将成为下一轮的输入
                 await handle_stage_execute(
                     stage_agent=stage_agent,
                 )
