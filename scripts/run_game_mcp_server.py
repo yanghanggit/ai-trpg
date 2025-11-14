@@ -641,21 +641,21 @@ async def get_stage_resource(stage_name: str) -> str:
     return get_stage_info_impl(demo_world, decoded_stage_name)
 
 
-@app.resource("game://world")
-async def get_world_resource() -> str:
-    """
-    获取游戏世界(World)信息资源
+# @app.resource("game://world")
+# async def get_world_resource() -> str:
+#     """
+#     获取游戏世界(World)信息资源
 
-    Returns:
-        统一格式的JSON响应:
-        {
-            "data": World的完整数据或null,
-            "error": 错误信息或null,
-            "timestamp": ISO格式时间戳
-        }
-    """
+#     Returns:
+#         统一格式的JSON响应:
+#         {
+#             "data": World的完整数据或null,
+#             "error": 错误信息或null,
+#             "timestamp": ISO格式时间戳
+#         }
+#     """
 
-    return get_world_info_impl(demo_world)
+#     return get_world_info_impl(demo_world)
 
 
 # ============================================================================
