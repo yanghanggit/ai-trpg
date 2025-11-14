@@ -59,9 +59,7 @@ def create_test_world1() -> World:
             )
         ),
         HumanMessage(
-            content=f"""# 游戏开始！{instance_stage1.name} 
-            
-请描述当前场景叙事。"""
+            content=f"""# 游戏开始！{instance_stage1.name}\n请描述当前场景叙事。"""
         ),
         AIMessage(content=str(instance_stage1.narrative)),
     ]
