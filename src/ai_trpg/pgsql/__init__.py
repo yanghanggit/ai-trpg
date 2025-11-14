@@ -34,6 +34,14 @@ from .actor_movement_event_operations import (
     get_actor_movement_events_by_stage,
     clear_all_actor_movement_events,
 )
+from .message_operations import (
+    get_actor_context,
+    get_stage_context,
+    get_world_context,
+    add_actor_context,
+    add_stage_context,
+    add_world_context,
+)
 
 
 __all__: List[str] = [
@@ -71,4 +79,11 @@ __all__: List[str] = [
     "get_actor_movement_events_by_actor",
     "get_actor_movement_events_by_stage",
     "clear_all_actor_movement_events",
+    # Message operations
+    "get_actor_context",
+    "get_stage_context",
+    "get_world_context",
+    "add_actor_context",
+    "add_stage_context",
+    "add_world_context",
 ]

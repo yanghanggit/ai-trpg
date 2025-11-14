@@ -8,10 +8,8 @@ World 数据库操作模块
 - delete_world: 删除 World
 """
 
-import json
-from typing import List, Optional
+from typing import Optional
 from uuid import UUID
-from langchain.schema import BaseMessage, SystemMessage, HumanMessage, AIMessage
 from loguru import logger
 
 from ..demo.models import World, Stage, Actor, Attributes, Effect
@@ -21,7 +19,7 @@ from .stage import StageDB
 from .actor import ActorDB
 from .attributes import AttributesDB
 from .effect import EffectDB
-from .message import MessageDB
+from .message import MessageDB, messages_db_to_langchain
 
 
 def save_world_to_db(world: World) -> WorldDB:
@@ -145,20 +143,7 @@ def load_world_from_db(world_name: str) -> Optional[World]:
                     ]
 
                     # 转换 Messages (initial_context)
-                    initial_context: List[BaseMessage] = []
-                    for message_db in actor_db.context:
-                        msg_dict = json.loads(message_db.message_json)
-                        msg_type = msg_dict.get("type", "human")
-                        if msg_type == "system":
-                            initial_context.append(
-                                SystemMessage.model_validate(msg_dict)
-                            )
-                        elif msg_type == "ai":
-                            initial_context.append(AIMessage.model_validate(msg_dict))
-                        else:
-                            initial_context.append(
-                                HumanMessage.model_validate(msg_dict)
-                            )
+                    initial_context = messages_db_to_langchain(actor_db.context)
 
                     # 创建 Actor
                     actor = Actor(

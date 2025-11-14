@@ -1,7 +1,9 @@
-from typing import TYPE_CHECKING, Optional
+import json
+from typing import TYPE_CHECKING, Any, Dict, Optional, List
 from uuid import UUID
 from sqlalchemy import Text, Integer, ForeignKey, UniqueConstraint, CheckConstraint
 from sqlalchemy.orm import Mapped, mapped_column, relationship
+from langchain.schema import BaseMessage, SystemMessage, HumanMessage, AIMessage
 from .base import UUIDBase
 
 if TYPE_CHECKING:
@@ -61,3 +63,37 @@ class MessageDB(UUIDBase):
         # Actor 的 sequence 唯一
         UniqueConstraint("actor_id", "sequence", name="uq_actor_sequence"),
     )
+
+
+def messages_db_to_langchainake(message_dbs: List["MessageDB"]) -> List[BaseMessage]:
+    """将 MessageDB 列表转换为 LangChain BaseMessage 列表
+
+    统一的转换函数，用于所有需要从数据库读取消息并转换为 LangChain 格式的场景
+
+    Args:
+        message_dbs: MessageDB 对象列表
+
+    Returns:
+        List[BaseMessage]: 转换后的 BaseMessage 列表
+
+    Raises:
+        ValueError: 当消息类型不是 system/ai/human 之一时抛出
+    """
+    messages: List[BaseMessage] = []
+    for message_db in message_dbs:
+        msg_dict: Dict[str, Any] = json.loads(message_db.message_json)
+        msg_type = msg_dict.get("type")
+
+        match msg_type:
+            case "system":
+                messages.append(SystemMessage.model_validate(msg_dict))
+            case "ai":
+                messages.append(AIMessage.model_validate(msg_dict))
+            case "human":
+                messages.append(HumanMessage.model_validate(msg_dict))
+            case _:
+                raise ValueError(
+                    f"未知的消息类型: {msg_type}, 只支持 'system'/'ai'/'human'"
+                )
+
+    return messages
