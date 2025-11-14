@@ -100,3 +100,31 @@ def gen_stage_system_prompt(
 {global_game_mechanics}
 
 **职责**: 描述场景氛围和角色互动,推动故事发展。"""
+
+
+def gen_actor_kickoff_prompt(
+    actor_name: str,
+    stage_name: str,
+    narrative: str,
+) -> str:
+    """生成角色的 kickoff 提示词
+
+    Args:
+        actor_name: 角色名称
+        stage_name: 角色所属场景名称
+        narrative: 场景叙述文本
+
+    Returns:
+        格式化的角色 kickoff 提示词字符串
+    """
+    return f"""# 游戏开始！ {actor_name} 
+
+## 所在场景: {stage_name}
+
+## 场景叙事
+
+{narrative}
+
+## 指令
+
+你是谁？你在哪里？你的目标是什么？"""

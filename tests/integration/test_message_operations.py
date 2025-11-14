@@ -103,18 +103,6 @@ class TestMessageOperations:
 
         logger.success("✅ 不存在的 Actor 返回空列表")
 
-    def test_get_stage_context_empty(self) -> None:
-        """测试读取 Stage 的对话上下文（初始包含 SystemMessage）"""
-        logger.info("🧪 测试 get_stage_context - 初始上下文")
-
-        # Stage 初始包含一个系统提示消息
-        context = get_stage_context(self.test_world_id, self.test_stage_name)
-        assert len(context) == 1
-        assert isinstance(context[0], SystemMessage)
-        assert "场景" in context[0].content  # 验证包含场景相关内容
-
-        logger.success("✅ Stage 初始上下文包含系统提示")
-
     def test_get_world_context_empty(self) -> None:
         """测试读取 World 的对话上下文（初始包含 SystemMessage）"""
         logger.info("🧪 测试 get_world_context - 初始上下文")

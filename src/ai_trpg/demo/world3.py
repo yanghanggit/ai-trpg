@@ -31,6 +31,7 @@ from .prompt_generators import (
     gen_world_system_prompt,
     gen_actor_system_prompt,
     gen_stage_system_prompt,
+    gen_actor_kickoff_prompt,
 )
 
 # ============================================================================
@@ -85,65 +86,20 @@ def create_test_world3() -> World:
     instance_stage2 = copy.deepcopy(template_stage2)
     # 深拷贝世界，避免修改原始定义
     instance_world3 = copy.deepcopy(template_world1)
+
+    # 创建世界
     instance_world3.name = f"""{instance_world3.name}_3"""
-
-    # 单独设置加斯科因 #########################
-    instance_actor1.context = [
+    instance_world3.context = [
         SystemMessage(
-            content=gen_actor_system_prompt(
-                instance_actor1, instance_world3, GLOBAL_GAME_MECHANICS
-            )
-        ),
-        HumanMessage(content="""# 游戏开始！你是谁？你在哪里？你的目标是什么？"""),
-        AIMessage(
-            content=f"我是{instance_actor1.name}。我在 奥顿教堂墓地中央，靠近天使雕像的位置，正在来回踱步。我的目标是 杀死任何闯入者！毫不犹豫，直接发起攻击！"
-        ),
-    ]
-
-    instance_actor1.attributes.health = 5
-    #########################
-
-    # 单独设置艾琳 #########################
-    instance_actor2.context = [
-        SystemMessage(
-            content=gen_actor_system_prompt(
-                instance_actor2, instance_world3, GLOBAL_GAME_MECHANICS
-            )
-        ),
-        HumanMessage(content="""# 游戏开始！你是谁？你在哪里？你的目标是什么？"""),
-        AIMessage(
-            content=f"我是{instance_actor2.name}。我在 奥顿教堂墓地东侧，黑色铁门旁的墓碑阴影中，处于隐藏状态观察着目标。我的目标是 狩猎 {instance_actor1.name}！因为斯科因已经兽化，所以必须消灭他。我决定要马上出手一击必杀！"
-        ),
-    ]
-
-    instance_actor2.attributes.attack = 50
-    instance_actor2.effects.append(
-        Effect(
-            name="暗影突袭",
-            description="从隐藏状态脱离时，第一次攻击威力提升200%。触发后效果消失。",
+            content=gen_world_system_prompt(instance_world3, GLOBAL_GAME_MECHANICS)
         )
-    )
-    #########################
-
-    # 单独设置外乡人 #########################
-    instance_actor3.context = [
-        SystemMessage(
-            content=gen_actor_system_prompt(
-                instance_actor3, instance_world3, GLOBAL_GAME_MECHANICS
-            )
-        ),
-        HumanMessage(content="""# 游戏开始！你是谁？你在哪里？你的目标是什么？"""),
-        AIMessage(
-            content=f"我是{instance_actor3.name}。我在 奥顿教堂墓地南侧入口内部约10米处，刚刚进入墓地。我注意到墓地西侧有石阶通向教堂侧门，门后应该就是{instance_stage2.name}。我的目标是 探索这里的秘密并自保，尽量回避危险，必要时可以反击。如果情况危险，我可以尝试前往西侧的教堂侧门寻求庇护。"
-        ),
     ]
 
-    #########################
+    # 设置场景连通性（从world2的create_test_world_2_2继承可通行配置）
+    stage_connections = f"""{instance_stage1.name} -> {instance_stage2.name}: 通过西侧石阶的教堂侧门连接
+教堂侧门虚掩着，可以推开进入{instance_stage2.name}。"""
 
-    # 配置场景1：奥顿教堂墓地 #########################
-    instance_stage1.actors = [instance_actor1, instance_actor2, instance_actor3]
-
-    # 设置场景叙事（在world1基础上增加教堂侧门的描述）
+    # 创建场景1：奥顿教堂墓地
     instance_stage1.narrative = f"""血月高悬，墓地笼罩在诡异的暗红色雾气中。
 **{instance_actor1.name}**: 手中的猎人斧随着他沉重的步伐不时触碰地面，发出金属摩擦的刺耳声响。他时而仰望血月，时而低头凝视地面，像一头困在笼中的野兽，理智与疯狂在他体内激烈交战。
 **{instance_actor2.name}**: 乌鸦羽毛斗篷与夜色完全融为一体，无法被其他人察觉。她如同死神般静立，一动不动地观察着墓地内的一切，尤其是她的猎物——{instance_actor1.name}。
@@ -155,49 +111,119 @@ def create_test_world3() -> World:
 **{instance_actor2.name}**: 墓地东侧，黑色铁门旁的墓碑阴影中 | 隐藏状态 | 保持静止观察
 **{instance_actor3.name}**: 墓地南侧入口，距铁栅栏门约10米 | 站立 | 环顾四周"""
 
-    # 设置场景连通性（从world2的create_test_world_2_2继承可通行配置）
-    stage_connections = f"""{instance_stage1.name} -> {instance_stage2.name}: 通过西侧石阶的教堂侧门连接
-教堂侧门虚掩着，可以推开进入{instance_stage2.name}。"""
+    # 设置场景连通性
     instance_stage1.connections = stage_connections
 
+    # 设置上下文！
     instance_stage1.context = [
         SystemMessage(
             content=gen_stage_system_prompt(
                 instance_stage1, instance_world3, GLOBAL_GAME_MECHANICS
             )
-        )
+        ),
+        HumanMessage(
+            content=f"""# 游戏开始！{instance_stage1.name} 
+            
+请描述当前场景叙事。"""
+        ),
+        AIMessage(content=str(instance_stage1.narrative)),
     ]
 
-    #########################
-
-    # 配置场景2：奥顿教堂大厅（从world2的create_test_world_2_2继承）#########################
-    instance_stage2.actors = []  # 初始时无角色，等待角色从墓地进入
-
-    # 设置场景叙事
+    # 创建场景2：奥顿教堂大厅
     instance_stage2.narrative = """教堂内空无一人，只有祭坛前的圣火发出微弱的光芒。彩色玻璃窗在血月照射下映出诡异的光影，整个大厅笼罩在一种神圣与恐怖交织的氛围中。
 教堂大厅保持着诡异的宁静，石柱间的阴影似乎在缓慢蠕动。祭坛上的银十字架反射着圣火的光芒，忏悔室的木门微微晃动，仿佛有什么东西在里面。入口方向传来门外的风声，那扇虚掩的侧门轻轻摇晃。右侧档案室的铁门关闭，符文锁散发着微弱的蓝光。后方通往钟楼的螺旋楼梯传来阵阵冷风。"""
 
     # 设置角色状态（初始为空，角色进入后会更新）
     instance_stage2.actor_states = ""
 
-    # 设置场景连通性（与墓地使用相同的连通性描述）
+    # 设置场景连通性
     instance_stage2.connections = stage_connections
 
+    # 设置上下文！
     instance_stage2.context = [
         SystemMessage(
             content=gen_stage_system_prompt(
                 instance_stage2, instance_world3, GLOBAL_GAME_MECHANICS
             )
-        )
+        ),
+        HumanMessage(
+            content=f"""# 游戏开始！{instance_stage2.name} 
+            
+请描述当前场景叙事。"""
+        ),
+        AIMessage(content=str(instance_stage2.narrative)),
     ]
 
-    #########################
-
-    instance_world3.stages = [instance_stage1, instance_stage2]
-    instance_world3.context = [
+    # 加斯科因
+    instance_actor1.context = [
         SystemMessage(
-            content=gen_world_system_prompt(instance_world3, GLOBAL_GAME_MECHANICS)
-        )
+            content=gen_actor_system_prompt(
+                instance_actor1, instance_world3, GLOBAL_GAME_MECHANICS
+            )
+        ),
+        HumanMessage(
+            content=gen_actor_kickoff_prompt(
+                actor_name=instance_actor1.name,
+                stage_name=instance_stage1.name,
+                narrative=instance_stage1.narrative,
+            )
+        ),
+        AIMessage(
+            content=f"我是{instance_actor1.name}。我在 {instance_stage1.name} 中央，靠近天使雕像的位置，正在来回踱步。我的目标是 杀死任何闯入者！毫不犹豫，直接发起攻击！"
+        ),
     ]
+
+    instance_actor1.attributes.health = 5
+
+    # 艾琳
+    instance_actor2.context = [
+        SystemMessage(
+            content=gen_actor_system_prompt(
+                instance_actor2, instance_world3, GLOBAL_GAME_MECHANICS
+            )
+        ),
+        HumanMessage(
+            content=gen_actor_kickoff_prompt(
+                actor_name=instance_actor2.name,
+                stage_name=instance_stage1.name,
+                narrative=instance_stage1.narrative,
+            )
+        ),
+        AIMessage(
+            content=f"我是{instance_actor2.name}。我在 {instance_stage1.name} 东侧，黑色铁门旁的墓碑阴影中，处于隐藏状态观察着目标。我的目标是 狩猎 {instance_actor1.name}！因为斯科因已经兽化，所以必须消灭他。我决定要马上出手一击必杀！"
+        ),
+    ]
+
+    instance_actor2.attributes.attack = 50
+    instance_actor2.effects.append(
+        Effect(
+            name="暗影突袭",
+            description="从隐藏状态脱离时，第一次攻击威力提升200%。触发后效果消失。",
+        )
+    )
+
+    # 外乡人
+    instance_actor3.context = [
+        SystemMessage(
+            content=gen_actor_system_prompt(
+                instance_actor3, instance_world3, GLOBAL_GAME_MECHANICS
+            )
+        ),
+        HumanMessage(
+            content=gen_actor_kickoff_prompt(
+                actor_name=instance_actor3.name,
+                stage_name=instance_stage1.name,
+                narrative=instance_stage1.narrative,
+            )
+        ),
+        AIMessage(
+            content=f"我是{instance_actor3.name}。我在 {instance_stage1.name} 南侧入口内部约10米处，刚刚进入墓地。我注意到墓地西侧有石阶通向教堂侧门，门后应该就是{instance_stage2.name}。我的目标是 探索这里的秘密并自保，尽量回避危险，必要时可以反击。如果情况危险，我可以尝试前往西侧的教堂侧门寻求庇护。"
+        ),
+    ]
+
+    # 最终拼接！
+    instance_stage1.actors = [instance_actor1, instance_actor2, instance_actor3]
+    instance_stage2.actors = []
+    instance_world3.stages = [instance_stage1, instance_stage2]
 
     return instance_world3

@@ -28,6 +28,7 @@ from .prompt_generators import (
     gen_world_system_prompt,
     gen_actor_system_prompt,
     gen_stage_system_prompt,
+    gen_actor_kickoff_prompt,
 )
 
 # ============================================================================
@@ -78,76 +79,92 @@ def create_test_world_2_1() -> World:
     instance_stage2 = copy.deepcopy(template_stage2)
     # 深拷贝世界，避免修改原始定义
     instance_world2 = copy.deepcopy(template_world1)
+
+    # 创建世界
     instance_world2.name = f"""{instance_world2.name}_2_1"""
-
-    # 单独设置外乡人 #########################
-    instance_actor3.context = [
+    instance_world2.context = [
         SystemMessage(
-            content=gen_actor_system_prompt(
-                instance_actor3, instance_world2, GLOBAL_GAME_MECHANICS
-            )
-        ),
-        HumanMessage(content="""# 游戏开始！你是谁？你在哪里？你的目标是什么？"""),
-        AIMessage(
-            content=f"我是{instance_actor3.name}。我在 {instance_stage1.name}的西侧石阶上，站在教堂侧门门口。我的目标是 进入教堂寻找关于这座城市的真相，尤其是教会档案室中可能隐藏的秘密文献。我已经穿过了墓地，现在准备尝试推开这个关闭的门。"
-        ),
+            content=gen_world_system_prompt(instance_world2, GLOBAL_GAME_MECHANICS)
+        )
     ]
-    #########################
 
-    # 配置场景1：奥顿教堂墓地 #########################
-    instance_stage1.actors = [instance_actor3]
+    # 设置场景连通性（两个场景使用统一的连通性描述）
+    stage_connections = f"""{instance_stage1.name} -> {instance_stage2.name}: 通过西侧石阶的教堂侧门连接
+目前教堂侧门已经被锁死，必须找到钥匙才能进入{instance_stage2.name}。"""
 
-    # 设置场景叙事
+    # 配置场景1：奥顿教堂墓地
     instance_stage1.narrative = f"""血月高悬，墓地笼罩在诡异的暗红色雾气中。墓碑间静谧无声，偶尔传来远处的兽吼。
 **{instance_actor3.name}**: 已经穿过了墓地，小心翼翼地站在西侧石阶顶端的教堂侧门前，手持油灯。这扇关闭的门后就是教堂内部。他回望身后，墓地中央的天使雕像在血月下投射出扭曲的阴影。他深吸一口气，伸手按在门上，准备尝试推开。"""
 
     # 设置角色状态
     instance_stage1.actor_states = f"""**{instance_actor3.name}**: 墓地西侧石阶顶端，教堂侧门门口 | 准备尝试推门 | 左手持油灯，右手按在门上"""
 
-    # 设置场景连通性（两个场景使用统一的连通性描述）
-    stage_connections = f"""{instance_stage1.name} -> {instance_stage2.name}: 通过西侧石阶的教堂侧门连接
-目前教堂侧门已经被锁死，必须找到钥匙才能进入{instance_stage2.name}。"""
+    # 设置场景连通性
     instance_stage1.connections = stage_connections
 
+    # 设置上下文！
     instance_stage1.context = [
         SystemMessage(
             content=gen_stage_system_prompt(
                 instance_stage1, instance_world2, GLOBAL_GAME_MECHANICS
             )
-        )
+        ),
+        HumanMessage(
+            content=f"""# 游戏开始！{instance_stage1.name} 
+            
+请描述当前场景叙事。"""
+        ),
+        AIMessage(content=str(instance_stage1.narrative)),
     ]
 
-    #########################
-
-    # 配置场景2：奥顿教堂大厅 #########################
-    instance_stage2.actors = []  # 初始时外乡人不在教堂内，需要从墓地进入
-
-    # 设置场景叙事
+    # 配置场景2：奥顿教堂大厅
     instance_stage2.narrative = """教堂内空无一人，只有祭坛前的圣火发出微弱的光芒。彩色玻璃窗在血月照射下映出诡异的光影，整个大厅笼罩在一种神圣与恐怖交织的氛围中。
 教堂大厅保持着诡异的宁静，石柱间的阴影似乎在缓慢蠕动。祭坛上的银十字架反射着圣火的光芒，忏悔室的木门微微晃动，仿佛有什么东西在里面。入口方向传来门外的风声，那扇关闭的侧门依然紧闭。右侧档案室的铁门关闭，符文锁散发着微弱的蓝光。后方通往钟楼的螺旋楼梯传来阵阵冷风。"""
 
     # 设置角色状态（初始为空，外乡人进入后会更新）
     instance_stage2.actor_states = ""
 
-    # 设置场景连通性（与墓地使用相同的连通性描述）
+    # 设置场景连通性
     instance_stage2.connections = stage_connections
 
+    # 设置上下文！
     instance_stage2.context = [
         SystemMessage(
             content=gen_stage_system_prompt(
                 instance_stage2, instance_world2, GLOBAL_GAME_MECHANICS
             )
-        )
+        ),
+        HumanMessage(
+            content=f"""# 游戏开始！{instance_stage2.name} 
+            
+请描述当前场景叙事。"""
+        ),
+        AIMessage(content=str(instance_stage2.narrative)),
     ]
 
-    #########################
-
-    instance_world2.stages = [instance_stage1, instance_stage2]
-    instance_world2.context = [
+    # 外乡人
+    instance_actor3.context = [
         SystemMessage(
-            content=gen_world_system_prompt(instance_world2, GLOBAL_GAME_MECHANICS)
-        )
+            content=gen_actor_system_prompt(
+                instance_actor3, instance_world2, GLOBAL_GAME_MECHANICS
+            )
+        ),
+        HumanMessage(
+            content=gen_actor_kickoff_prompt(
+                actor_name=instance_actor3.name,
+                stage_name=instance_stage1.name,
+                narrative=instance_stage1.narrative,
+            )
+        ),
+        AIMessage(
+            content=f"我是{instance_actor3.name}。我在 {instance_stage1.name}的西侧石阶上，站在教堂侧门门口。我的目标是 进入教堂寻找关于这座城市的真相，尤其是教会档案室中可能隐藏的秘密文献。我已经穿过了墓地，现在准备尝试推开这个关闭的门。"
+        ),
     ]
+
+    # 最终拼接！
+    instance_stage1.actors = [instance_actor3]
+    instance_stage2.actors = []
+    instance_world2.stages = [instance_stage1, instance_stage2]
 
     return instance_world2
 
@@ -195,75 +212,91 @@ def create_test_world_2_2() -> World:
     instance_stage2 = copy.deepcopy(template_stage2)
     # 深拷贝世界，避免修改原始定义
     instance_world2 = copy.deepcopy(template_world1)
+
+    # 创建世界
     instance_world2.name = f"""{instance_world2.name}_2_2"""
-
-    # 单独设置外乡人 #########################
-    instance_actor3.context = [
+    instance_world2.context = [
         SystemMessage(
-            content=gen_actor_system_prompt(
-                instance_actor3, instance_world2, GLOBAL_GAME_MECHANICS
-            )
-        ),
-        HumanMessage(content="""# 游戏开始！你是谁？你在哪里？你的目标是什么？"""),
-        AIMessage(
-            content=f"我是{instance_actor3.name}。我在 {instance_stage1.name}的西侧石阶上，站在教堂侧门门口。我的目标是 **立即进入{instance_stage2.name}**，寻找关于这座城市的真相，尤其是教会档案室中可能隐藏的秘密文献。我已经穿过了墓地，现在**必须马上推开这扇虚掩的门，进入教堂内部**。这是我此刻唯一且最紧迫的行动目标。"
-        ),
+            content=gen_world_system_prompt(instance_world2, GLOBAL_GAME_MECHANICS)
+        )
     ]
-    #########################
 
-    # 配置场景1：奥顿教堂墓地 #########################
-    instance_stage1.actors = [instance_actor3]
+    # 设置场景连通性（两个场景使用统一的连通性描述）- 关键修改：门可以推开
+    stage_connections = f"""{instance_stage1.name} -> {instance_stage2.name}: 通过西侧石阶的教堂侧门连接
+教堂侧门虚掩着，可以推开进入{instance_stage2.name}。"""
 
-    # 设置场景叙事
+    # 配置场景1：奥顿教堂墓地
     instance_stage1.narrative = f"""血月高悬，墓地笼罩在诡异的暗红色雾气中。墓碑间静谧无声，偶尔传来远处的兽吼。
 **{instance_actor3.name}**: 已经穿过了墓地，现在站在西侧石阶顶端的教堂侧门前，手持油灯。这扇虚掩的门后就是他要去的{instance_stage2.name}。他目光坚定，已经下定决心——必须立刻推开这扇门，进入教堂内部探索。他伸手用力按在门上，准备用力推开它，毫不犹豫地跨入{instance_stage2.name}。"""
 
     # 设置角色状态
     instance_stage1.actor_states = f"""**{instance_actor3.name}**: 墓地西侧石阶顶端，教堂侧门门口 | 正准备推门进入{instance_stage2.name} | 左手持油灯，右手用力按在门上，身体前倾准备跨入"""
 
-    # 设置场景连通性（两个场景使用统一的连通性描述）- 关键修改：门可以推开
-    stage_connections = f"""{instance_stage1.name} -> {instance_stage2.name}: 通过西侧石阶的教堂侧门连接
-教堂侧门虚掩着，可以推开进入{instance_stage2.name}。"""
+    # 设置场景连通性
     instance_stage1.connections = stage_connections
 
+    # 设置上下文！
     instance_stage1.context = [
         SystemMessage(
             content=gen_stage_system_prompt(
                 instance_stage1, instance_world2, GLOBAL_GAME_MECHANICS
             )
-        )
+        ),
+        HumanMessage(
+            content=f"""# 游戏开始！{instance_stage1.name} 
+            
+请描述当前场景叙事。"""
+        ),
+        AIMessage(content=str(instance_stage1.narrative)),
     ]
 
-    #########################
-
-    # 配置场景2：奥顿教堂大厅 #########################
-    instance_stage2.actors = []  # 初始时外乡人不在教堂内，需要从墓地进入
-
-    # 设置场景叙事
+    # 配置场景2：奥顿教堂大厅
     instance_stage2.narrative = """教堂内空无一人，只有祭坛前的圣火发出微弱的光芒。彩色玻璃窗在血月照射下映出诡异的光影，整个大厅笼罩在一种神圣与恐怖交织的氛围中。
 教堂大厅保持着诡异的宁静，石柱间的阴影似乎在缓慢蠕动。祭坛上的银十字架反射着圣火的光芒，忏悔室的木门微微晃动，仿佛有什么东西在里面。入口方向传来门外的风声，那扇虚掩的侧门轻轻摇晃。右侧档案室的铁门关闭，符文锁散发着微弱的蓝光。后方通往钟楼的螺旋楼梯传来阵阵冷风。"""
 
     # 设置角色状态（初始为空，外乡人进入后会更新）
     instance_stage2.actor_states = ""
 
-    # 设置场景连通性（与墓地使用相同的连通性描述）
+    # 设置场景连通性
     instance_stage2.connections = stage_connections
 
+    # 设置上下文！
     instance_stage2.context = [
         SystemMessage(
             content=gen_stage_system_prompt(
                 instance_stage2, instance_world2, GLOBAL_GAME_MECHANICS
             )
-        )
+        ),
+        HumanMessage(
+            content=f"""# 游戏开始！{instance_stage2.name} 
+            
+请描述当前场景叙事。"""
+        ),
+        AIMessage(content=str(instance_stage2.narrative)),
     ]
 
-    #########################
-
-    instance_world2.stages = [instance_stage1, instance_stage2]
-    instance_world2.context = [
+    # 外乡人
+    instance_actor3.context = [
         SystemMessage(
-            content=gen_world_system_prompt(instance_world2, GLOBAL_GAME_MECHANICS)
-        )
+            content=gen_actor_system_prompt(
+                instance_actor3, instance_world2, GLOBAL_GAME_MECHANICS
+            )
+        ),
+        HumanMessage(
+            content=gen_actor_kickoff_prompt(
+                actor_name=instance_actor3.name,
+                stage_name=instance_stage1.name,
+                narrative=instance_stage1.narrative,
+            )
+        ),
+        AIMessage(
+            content=f"我是{instance_actor3.name}。我在 {instance_stage1.name}的西侧石阶上，站在教堂侧门门口。我的目标是 **立即进入{instance_stage2.name}**，寻找关于这座城市的真相，尤其是教会档案室中可能隐藏的秘密文献。我已经穿过了墓地，现在**必须马上推开这扇虚掩的门，进入教堂内部**。这是我此刻唯一且最紧迫的行动目标。"
+        ),
     ]
+
+    # 最终拼接！
+    instance_stage1.actors = [instance_actor3]
+    instance_stage2.actors = []
+    instance_world2.stages = [instance_stage1, instance_stage2]
 
     return instance_world2
