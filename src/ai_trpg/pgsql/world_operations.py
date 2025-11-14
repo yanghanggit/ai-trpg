@@ -8,7 +8,7 @@ World 数据库操作模块
 - delete_world: 删除 World
 """
 
-from typing import Optional
+from typing import Optional, Tuple, List
 from uuid import UUID
 from loguru import logger
 
@@ -328,4 +328,46 @@ def get_world_kickoff(world_name: str) -> Optional[bool]:
 
         except Exception as e:
             logger.error(f"❌ 获取 World '{world_name}' 的 kickoff 失败: {e}")
+            raise
+
+
+def get_world_stages_and_actors(world_id: UUID) -> Tuple[List[StageDB], List[ActorDB]]:
+    """获取指定世界中的所有 Stage 和 Actor 对象
+
+    Args:
+        world_id: 世界ID
+
+    Returns:
+        Tuple[List[StageDB], List[ActorDB]]: 包含所有 Stage 和 Actor 的元组
+            - 第一个元素是 StageDB 列表
+            - 第二个元素是 ActorDB 列表
+
+    Raises:
+        Exception: 数据库操作失败时抛出异常
+    """
+    with SessionLocal() as db:
+        try:
+            # 查询所有属于该 World 的 Stage
+            stages = db.query(StageDB).filter(StageDB.world_id == world_id).all()
+
+            # 查询所有属于该 World 的 Actor（通过 Stage 关联）
+            # 使用 joinedload 预加载 stage 关系，避免懒加载问题
+            from sqlalchemy.orm import joinedload
+
+            actors = (
+                db.query(ActorDB)
+                .options(joinedload(ActorDB.stage))
+                .join(ActorDB.stage)
+                .filter(StageDB.world_id == world_id)
+                .all()
+            )
+
+            logger.debug(
+                f"📋 查询世界 {world_id} 中的所有对象：{len(stages)} 个 Stage，{len(actors)} 个 Actor"
+            )
+
+            return stages, actors
+
+        except Exception as e:
+            logger.error(f"❌ 查询世界 Stage 和 Actor 失败: {e}")
             raise

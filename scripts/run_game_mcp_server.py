@@ -37,7 +37,6 @@ from ai_trpg.pgsql import (
 
 # 导入辅助函数模块
 from mcp_server_helpers import (
-    get_world_info_impl,
     get_actor_info_impl,
     get_stage_info_impl,
 )

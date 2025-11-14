@@ -4,12 +4,14 @@
 提供 Actor 的数据库操作
 """
 
-from typing import Optional
+from typing import Optional, List
 from uuid import UUID
 from loguru import logger
 from .client import SessionLocal
 from .actor import ActorDB
 from .attributes import AttributesDB
+from sqlalchemy.orm import joinedload
+from .stage import StageDB
 
 
 def update_actor_health(world_id: UUID, actor_name: str, new_health: int) -> bool:
@@ -129,4 +131,57 @@ def get_actor_attributes(world_id: UUID, actor_name: str) -> Optional[Attributes
 
         except Exception as e:
             logger.error(f"❌ 查询角色属性失败: {e}")
+            raise
+
+
+def get_actors_in_world(
+    world_id: UUID, is_dead: Optional[bool] = None
+) -> List[ActorDB]:
+    """获取指定世界中的所有角色，可选过滤死亡状态
+
+    预加载每个 Actor 的 Stage，以及 Stage 上的所有 Actors，
+    确保在会话外可以访问完整的关系链。
+
+    Args:
+        world_id: 世界ID
+        is_dead: 可选的死亡状态过滤条件
+            - None: 返回所有角色（默认）
+            - True: 只返回已死亡的角色
+            - False: 只返回存活的角色
+
+    Returns:
+        List[ActorDB]: 符合条件的角色列表，每个 ActorDB 预加载了：
+            - actor.stage (StageDB)
+            - actor.stage.actors (List[ActorDB])
+    """
+    with SessionLocal() as db:
+        try:
+
+            # 构建基础查询：通过 Stage 关联查询 World 下的所有 Actor
+            # 使用 joinedload 预加载 actor.stage 和 stage.actors
+            query = (
+                db.query(ActorDB)
+                .options(joinedload(ActorDB.stage).joinedload(StageDB.actors))
+                .join(ActorDB.stage)
+                .filter(ActorDB.stage.has(world_id=world_id))
+            )
+
+            # 如果指定了 is_dead 过滤条件
+            if is_dead is not None:
+                query = query.filter(ActorDB.is_dead == is_dead)
+
+            actors = query.all()
+
+            # 日志输出
+            status_desc = (
+                "已死亡" if is_dead is True else "存活" if is_dead is False else "所有"
+            )
+            logger.debug(
+                f"📋 查询世界 {world_id} 中的{status_desc}角色，共 {len(actors)} 个"
+            )
+
+            return actors
+
+        except Exception as e:
+            logger.error(f"❌ 查询世界角色失败: {e}")
             raise

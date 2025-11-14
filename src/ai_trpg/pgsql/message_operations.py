@@ -147,10 +147,6 @@ def add_actor_context(
         bool: 添加成功返回 True，Actor 不存在返回 False
     """
 
-    # assert len(messages) > 0 and isinstance(
-    #     messages[0], SystemMessage
-    # ), "添加到 Actor 上下文的第一条消息必须是 SystemMessage"
-
     with SessionLocal() as db:
         try:
             # 查找 Actor
@@ -194,10 +190,6 @@ def add_stage_context(
         bool: 添加成功返回 True，Stage 不存在返回 False
     """
 
-    # assert len(messages) > 0 and isinstance(
-    #     messages[0], SystemMessage
-    # ), "添加到 Stage 上下文的第一条消息必须是 SystemMessage"
-
     with SessionLocal() as db:
         try:
             # 查找 Stage
@@ -236,10 +228,6 @@ def add_world_context(world_id: UUID, messages: List[BaseMessage]) -> bool:
     Returns:
         bool: 添加成功返回 True，World 不存在返回 False
     """
-
-    # assert len(messages) > 0 and isinstance(
-    #     messages[0], SystemMessage
-    # ), "添加到 World 上下文的第一条消息必须是 SystemMessage"
 
     with SessionLocal() as db:
         try:

@@ -29,6 +29,7 @@ from .world_operations import (
     delete_world,
     set_world_kickoff,
     get_world_kickoff,
+    get_world_stages_and_actors,
 )
 from .actor_movement_event_operations import (
     save_actor_movement_event_to_db,
@@ -78,6 +79,7 @@ __all__: List[str] = [
     "delete_world",
     "set_world_kickoff",
     "get_world_kickoff",
+    "get_world_stages_and_actors",
     # Actor movement event operations
     "save_actor_movement_event_to_db",
     "get_actor_movement_events_by_actor",
