@@ -11,7 +11,12 @@ from loguru import logger
 from langchain.schema import HumanMessage
 from agent_utils import StageAgent, GameAgentManager
 from mcp_client_resource_helpers import read_stage_resource
-from ai_trpg.pgsql import add_stage_context, add_actor_context
+from ai_trpg.pgsql import (
+    add_stage_context,
+    add_actor_context,
+    get_world_kickoff,
+    set_world_kickoff,
+)
 
 
 ########################################################################################################################
@@ -79,7 +84,8 @@ async def handle_kickoff(
         use_concurrency: 是否使用并发处理
     """
 
-    if game_agent_manager._is_kicked_off:
+    # 从数据库检查 kickoff 状态
+    if get_world_kickoff(game_agent_manager.world_name):
         logger.info("⚠️ 游戏已完成开局初始化，跳过重复执行 kickoff 流程")
         return
 
@@ -101,6 +107,6 @@ async def handle_kickoff(
         for stage_agent in stage_agents:
             await _kickoff_stage_agent(stage_agent)
 
-    # 标记整个游戏已完成开局初始化
-    game_agent_manager._is_kicked_off = True
+    # 标记整个游戏已完成开局初始化（保存到数据库）
+    set_world_kickoff(game_agent_manager.world_name, True)
     logger.info("✅ 开局初始化流程完成")

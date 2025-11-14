@@ -271,3 +271,61 @@ def delete_world(world_name: str) -> bool:
             db.rollback()
             logger.error(f"❌ 删除 World '{world_name}' 失败: {e}")
             raise
+
+
+def set_world_kickoff(world_name: str, kickoff: bool) -> bool:
+    """设置 World 的 kickoff 状态
+
+    Args:
+        world_name: World 名称
+        kickoff: kickoff 状态值
+
+    Returns:
+        bool: 设置成功返回 True,World 不存在返回 False
+
+    Raises:
+        Exception: 数据库操作失败时抛出异常
+    """
+    with SessionLocal() as db:
+        try:
+            world_db = db.query(WorldDB).filter_by(name=world_name).first()
+            if not world_db:
+                logger.warning(f"⚠️ World '{world_name}' 不存在于数据库")
+                return False
+
+            world_db.is_kicked_off = kickoff
+            db.commit()
+
+            logger.success(f"✅ World '{world_name}' 的 kickoff 已设置为 {kickoff}")
+            return True
+
+        except Exception as e:
+            db.rollback()
+            logger.error(f"❌ 设置 World '{world_name}' 的 kickoff 失败: {e}")
+            raise
+
+
+def get_world_kickoff(world_name: str) -> Optional[bool]:
+    """获取 World 的 kickoff 状态
+
+    Args:
+        world_name: World 名称
+
+    Returns:
+        bool | None: World 的 kickoff 状态,未找到则返回 None
+
+    Raises:
+        Exception: 数据库操作失败时抛出异常
+    """
+    with SessionLocal() as db:
+        try:
+            world_db = db.query(WorldDB).filter_by(name=world_name).first()
+            if not world_db:
+                logger.warning(f"⚠️ World '{world_name}' 不存在于数据库")
+                return None
+
+            return world_db.is_kicked_off
+
+        except Exception as e:
+            logger.error(f"❌ 获取 World '{world_name}' 的 kickoff 失败: {e}")
+            raise

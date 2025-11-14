@@ -118,12 +118,10 @@ class GameAgentManager:
         self._current_agent: Optional[GameAgent] = None
         self._world_name: str = ""
         self._world_id: Optional[UUID] = None
-        self._is_kicked_off: bool = False  # 整个游戏是否已完成开局初始化
 
     async def create_agents_from_world(
         self,
         world_model: World,
-        # global_game_mechanics: str,
     ) -> None:
         """从游戏世界创建所有代理 - 直接创建，简单直接"""
         logger.debug("🏗️ 开始创建游戏代理...")

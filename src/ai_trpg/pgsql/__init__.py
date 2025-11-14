@@ -27,6 +27,8 @@ from .world_operations import (
     load_world_from_db,
     get_world_id_by_name,
     delete_world,
+    set_world_kickoff,
+    get_world_kickoff,
 )
 from .actor_movement_event_operations import (
     save_actor_movement_event_to_db,
@@ -74,6 +76,8 @@ __all__: List[str] = [
     "load_world_from_db",
     "get_world_id_by_name",
     "delete_world",
+    "set_world_kickoff",
+    "get_world_kickoff",
     # Actor movement event operations
     "save_actor_movement_event_to_db",
     "get_actor_movement_events_by_actor",

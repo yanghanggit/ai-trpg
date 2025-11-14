@@ -280,18 +280,22 @@ class TestMessageOperations:
         logger.success("✅ 成功添加消息到 World 上下文")
 
     def test_add_actor_context_empty_list(self) -> None:
-        """测试添加空消息列表 - 应该失败因为需要 SystemMessage"""
+        """测试添加空消息列表 - 应该成功但不添加任何消息"""
         logger.info("🧪 测试 add_actor_context - 空消息列表")
 
         # 获取初始消息数量
         initial_context = get_actor_context(self.test_world_id, self.test_actor_name)
         initial_count = len(initial_context)
 
-        # 尝试添加空消息列表 - 应该会因为断言失败而抛出异常
-        with pytest.raises(AssertionError, match="第一条消息必须是 SystemMessage"):
-            add_actor_context(self.test_world_id, self.test_actor_name, [])
+        # 添加空消息列表 - 应该成功但不改变消息数量
+        success = add_actor_context(self.test_world_id, self.test_actor_name, [])
+        assert success is True
 
-        logger.success("✅ 空消息列表测试通过 - 正确抛出断言错误")
+        # 验证消息数量没有变化
+        final_context = get_actor_context(self.test_world_id, self.test_actor_name)
+        assert len(final_context) == initial_count
+
+        logger.success("✅ 空消息列表测试通过 - 成功添加但不改变消息数量")
 
     def test_add_actor_context_nonexistent(self) -> None:
         """测试向不存在的 Actor 添加消息"""

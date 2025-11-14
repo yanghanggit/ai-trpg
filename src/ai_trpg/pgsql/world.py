@@ -1,6 +1,6 @@
 from datetime import datetime
 from typing import TYPE_CHECKING, List
-from sqlalchemy import String, Text, DateTime, func
+from sqlalchemy import String, Text, DateTime, Boolean, func
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from .base import UUIDBase
 
@@ -16,6 +16,7 @@ class WorldDB(UUIDBase):
 
     name: Mapped[str] = mapped_column(String(200), unique=True, nullable=False)
     campaign_setting: Mapped[str] = mapped_column(Text, nullable=False)
+    is_kicked_off: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
 
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), nullable=False
