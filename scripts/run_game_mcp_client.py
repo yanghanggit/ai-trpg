@@ -44,7 +44,7 @@ from ai_trpg.rag.pgvector_game_retriever import PGVectorGameDocumentRetriever
 from ai_trpg.configuration.logging_config import setup_logger
 
 # 导入本地工具模块
-from agent_utils import GameAgentManager
+from agent_utils import GameAgentManager, get_agent_context
 from mcp_command_handlers import (
     handle_tools_command,
     handle_prompts_command,
@@ -179,22 +179,20 @@ async def main() -> None:
                 logger.info(
                     f"📜 打印当前代理 [{game_agent_manager.current_agent.name}] 的对话历史"
                 )
+                current_context = get_agent_context(game_agent_manager.current_agent)
                 log_history(
                     agent_name=game_agent_manager.current_agent.name,
-                    messages=game_agent_manager.current_agent.context,
+                    messages=current_context,
                 )
                 continue
 
             elif user_input.lower() == "/dump":
-                # logger.info(
-                #     f"💾 保存当前代理 [{agent_manager.current_agent.name}] 的对话历史"
-                # )
-
                 for game_agent in game_agent_manager.all_agents:
                     logger.debug(f"💾 保存代理 [{game_agent.name}] 的对话历史")
+                    agent_context = get_agent_context(game_agent)
                     dump_history(
                         agent_name=game_agent.name,
-                        messages=game_agent.context,
+                        messages=agent_context,
                     )
 
                 continue
@@ -239,10 +237,13 @@ async def main() -> None:
                 # 格式化用户输入
                 format_user_input = format_user_input_prompt(mcp_content)
 
+                # 从数据库读取上下文
+                current_context = get_agent_context(game_agent_manager.current_agent)
+
                 # mcp 的工作流
                 mcp_response = await handle_mcp_workflow_execution(
                     agent_name=game_agent_manager.current_agent.name,
-                    context=game_agent_manager.current_agent.context.copy(),
+                    context=current_context,
                     request=HumanMessage(content=format_user_input),
                     llm=create_deepseek_llm(),
                     mcp_client=mcp_client,
@@ -263,10 +264,13 @@ async def main() -> None:
                 # 格式化用户输入
                 format_user_input = format_user_input_prompt(chat_content)
 
+                # 从数据库读取上下文
+                current_context = get_agent_context(game_agent_manager.current_agent)
+
                 # 聊天的工作流
                 chat_response = await handle_chat_workflow_execution(
                     agent_name=game_agent_manager.current_agent.name,
-                    context=game_agent_manager.current_agent.context.copy(),
+                    context=current_context,
                     request=HumanMessage(content=format_user_input),
                     llm=create_deepseek_llm(),
                 )
@@ -283,10 +287,13 @@ async def main() -> None:
                     logger.error("💡 请输入有效的内容，格式: /rag 内容")
                     continue
 
+                # 从数据库读取上下文
+                current_context = get_agent_context(game_agent_manager.current_agent)
+
                 # RAG 的工作流
                 rag_response = await handle_rag_workflow_execution(
                     agent_name=game_agent_manager.current_agent.name,
-                    context=game_agent_manager.current_agent.context.copy(),
+                    context=current_context,
                     request=HumanMessage(content=rag_content),
                     llm=create_deepseek_llm(),
                     document_retriever=PGVectorGameDocumentRetriever(),

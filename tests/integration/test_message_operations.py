@@ -104,24 +104,28 @@ class TestMessageOperations:
         logger.success("✅ 不存在的 Actor 返回空列表")
 
     def test_get_stage_context_empty(self) -> None:
-        """测试读取 Stage 的对话上下文（初始为空）"""
-        logger.info("🧪 测试 get_stage_context - 空上下文")
+        """测试读取 Stage 的对话上下文（初始包含 SystemMessage）"""
+        logger.info("🧪 测试 get_stage_context - 初始上下文")
 
-        # Stage 初始没有对话上下文
+        # Stage 初始包含一个系统提示消息
         context = get_stage_context(self.test_world_id, self.test_stage_name)
-        assert context == []
+        assert len(context) == 1
+        assert isinstance(context[0], SystemMessage)
+        assert "场景" in context[0].content  # 验证包含场景相关内容
 
-        logger.success("✅ Stage 初始上下文为空")
+        logger.success("✅ Stage 初始上下文包含系统提示")
 
     def test_get_world_context_empty(self) -> None:
-        """测试读取 World 的对话上下文（初始为空）"""
-        logger.info("🧪 测试 get_world_context - 空上下文")
+        """测试读取 World 的对话上下文（初始包含 SystemMessage）"""
+        logger.info("🧪 测试 get_world_context - 初始上下文")
 
-        # World 初始没有对话上下文
+        # World 初始包含一个系统提示消息
         context = get_world_context(self.test_world_id)
-        assert context == []
+        assert len(context) == 1
+        assert isinstance(context[0], SystemMessage)
+        assert "世界" in context[0].content  # 验证包含世界相关内容
 
-        logger.success("✅ World 初始上下文为空")
+        logger.success("✅ World 初始上下文包含系统提示")
 
     def test_add_actor_context_basic(self) -> None:
         """测试添加消息到 Actor 的上下文"""
@@ -221,6 +225,10 @@ class TestMessageOperations:
             HumanMessage(content="场景中的对话"),
         ]
 
+        # 获取初始消息数量（demo world 有一个初始的 SystemMessage）
+        initial_context = get_stage_context(self.test_world_id, self.test_stage_name)
+        initial_count = len(initial_context)
+
         # 添加消息
         success = add_stage_context(
             self.test_world_id, self.test_stage_name, new_messages
@@ -229,9 +237,10 @@ class TestMessageOperations:
 
         # 验证消息已添加
         context = get_stage_context(self.test_world_id, self.test_stage_name)
-        assert len(context) == len(new_messages)
-        assert context[0].content == "场景系统消息"
-        assert context[1].content == "场景中的对话"
+        assert len(context) == initial_count + len(new_messages)
+        # 验证新添加的消息内容（在初始消息之后）
+        assert context[-2].content == "场景系统消息"
+        assert context[-1].content == "场景中的对话"
 
         logger.success("✅ 成功添加消息到 Stage 上下文")
 
@@ -245,15 +254,20 @@ class TestMessageOperations:
             AIMessage(content="世界叙述"),
         ]
 
+        # 获取初始消息数量（demo world 有一个初始的 SystemMessage）
+        initial_context = get_world_context(self.test_world_id)
+        initial_count = len(initial_context)
+
         # 添加消息
         success = add_world_context(self.test_world_id, new_messages)
         assert success is True
 
         # 验证消息已添加
         context = get_world_context(self.test_world_id)
-        assert len(context) == len(new_messages)
-        assert context[0].content == "世界级别的系统消息"
-        assert context[1].content == "世界叙述"
+        assert len(context) == initial_count + len(new_messages)
+        # 验证新添加的消息内容（在初始消息之后）
+        assert context[-2].content == "世界级别的系统消息"
+        assert context[-1].content == "世界叙述"
 
         logger.success("✅ 成功添加消息到 World 上下文")
 

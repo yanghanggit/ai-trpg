@@ -224,15 +224,18 @@ async def _preprocess_node(state: McpState) -> McpState:
         messages.insert(1, SystemMessage(content=tool_instruction_prompt))
     else:
         # 没有系统消息，插入默认角色设定和工具说明到开头
-        default_role_prompt = (
-            "你是一个智能助手，具有使用工具的能力。\n\n" + tool_instruction_prompt
-        )
-        messages.insert(0, SystemMessage(content=default_role_prompt))
+        # default_role_prompt = (
+        #     "你是一个智能助手，具有使用工具的能力。\n\n" + tool_instruction_prompt
+        # )
+        # messages.insert(0, SystemMessage(content=default_role_prompt))
 
-        # 走到这里基本就是错了，警告下，因为会影响角色设定！
-        logger.warning(
+        # # 走到这里基本就是错了，警告下，因为会影响角色设定！
+        logger.error(
             "⚠️ 系统消息缺失，已自动添加默认角色设定和工具说明，走到这里基本就是错了，警告下，因为会影响角色设定！"
         )
+        assert (
+            False
+        ), "系统消息缺失，已自动添加默认角色设定和工具说明，走到这里基本就是错了，警告下，因为会影响角色设定！"
 
     # ✅ 必须保持所有必要的状态字段！
     result: McpState = {

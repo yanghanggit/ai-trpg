@@ -18,6 +18,9 @@ from mcp_client_resource_helpers import read_stage_resource
 from ai_trpg.pgsql import (
     get_actor_movement_events_by_stage,
     clear_all_actor_movement_events,
+    get_stage_context,
+    add_stage_context,
+    add_actor_context,
 )
 
 
@@ -260,10 +263,13 @@ async def _handle_stage_self_update(
 - 叙事描述应该第三人称，简洁明了
 - 只更新因角色进入而实际发生变化的部分"""
 
+        # 从数据库读取上下文
+        stage_context = get_stage_context(stage_agent.world_id, stage_agent.name)
+
         # 步骤3: 调用 Chat Workflow 进行推理
         stage_update_response = await handle_chat_workflow_execution(
             agent_name=stage_agent.name,
-            context=stage_agent.context.copy(),
+            context=stage_context,
             request=HumanMessage(content=stage_update_prompt),
             llm=create_deepseek_llm(),
         )
@@ -301,31 +307,29 @@ async def _handle_stage_self_update(
 
             logger.info(f"✅ 场景 {stage_agent.name} 状态已同步到服务器")
 
-            # 步骤6: 更新场景代理的对话历史（压缩提示词）
-            stage_agent.context.append(
-                HumanMessage(
-                    content=_gen_compressed_stage_update_prompt(
-                        stage_agent.name, stage_update_prompt
-                    )
-                )
-            )
-
-            # 步骤7: 记录场景更新结果到场景代理的对话历史
-            stage_agent.context.append(
-                AIMessage(
-                    content=f"""# 我（{stage_agent.name}）场景内发生事件（角色进入）如下 \n\n {stage_update_result.narrative}"""
-                )
+            # 批量添加场景消息到数据库
+            add_stage_context(
+                stage_agent.world_id,
+                stage_agent.name,
+                [
+                    HumanMessage(
+                        content=_gen_compressed_stage_update_prompt(
+                            stage_agent.name, stage_update_prompt
+                        )
+                    ),
+                    AIMessage(
+                        content=f"""# 我（{stage_agent.name}）场景内发生事件（角色进入）如下 \n\n {stage_update_result.narrative}"""
+                    ),
+                    HumanMessage(
+                        content=f"**注意**！你（{stage_agent.name}），场景信息已更新，请在下轮执行中考虑这些变化。"
+                    ),
+                ],
             )
             logger.debug(
                 f"✅ 场景 {stage_agent.name} 更新结果 = \n{stage_update_result.narrative}"
             )
-            stage_agent.context.append(
-                HumanMessage(
-                    content=f"**注意**！你（{stage_agent.name}），场景信息已更新，请在下轮执行中考虑这些变化。"
-                )
-            )
 
-            # 步骤8: 通知所有角色代理场景更新结果
+            # 批量通知所有角色代理场景更新结果
             for actor_agent in stage_agent.actor_agents:
 
                 if actor_agent.is_dead:
@@ -340,9 +344,10 @@ async def _handle_stage_self_update(
     
 以上事件已发生并改变了场景状态，这将直接影响你的下一步观察与规划。"""
 
-                # 更新角色代理的对话历史
-                actor_agent.context.append(
-                    HumanMessage(content=scene_event_notification)
+                add_actor_context(
+                    actor_agent.world_id,
+                    actor_agent.name,
+                    [HumanMessage(content=scene_event_notification)],
                 )
                 logger.debug(
                     f"✅ 角色 {actor_agent.name} 收到场景更新结果通知 = \n{scene_event_notification}"

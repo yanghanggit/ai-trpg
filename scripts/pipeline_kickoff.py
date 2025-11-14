@@ -11,6 +11,7 @@ from loguru import logger
 from langchain.schema import HumanMessage
 from agent_utils import StageAgent, GameAgentManager
 from mcp_client_resource_helpers import read_stage_resource
+from ai_trpg.pgsql import add_stage_context, add_actor_context
 
 
 ########################################################################################################################
@@ -44,16 +45,21 @@ async def _kickoff_stage_agent(stage_agent: StageAgent) -> None:
         
 {narrative}"""
 
-        # if not stage_agent.is_kicked_off:
-        stage_agent.context.append(HumanMessage(content=kickoff_prompt))
-        # stage_agent.is_kicked_off = True
+        # 添加 kickoff 消息到数据库
+        add_stage_context(
+            stage_agent.world_id,
+            stage_agent.name,
+            [HumanMessage(content=kickoff_prompt)],
+        )
         logger.info(f"✅ 场景 {stage_agent.name} kickoff = \n{kickoff_prompt}")
 
+        # 批量添加所有角色的 kickoff 消息到数据库
         for actor_agent in stage_agent.actor_agents:
-            # if actor_agent.is_kicked_off:
-            #     continue
-            actor_agent.context.append(HumanMessage(content=kickoff_prompt))
-            # actor_agent.is_kicked_off = True
+            add_actor_context(
+                actor_agent.world_id,
+                actor_agent.name,
+                [HumanMessage(content=kickoff_prompt)],
+            )
             logger.info(f"✅ 角色 {actor_agent.name} kickoff = \n{kickoff_prompt}")
 
     except Exception as e:

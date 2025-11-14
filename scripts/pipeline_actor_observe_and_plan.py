@@ -15,6 +15,7 @@ from ai_trpg.utils.json_format import strip_json_code_block
 from agent_utils import StageAgent, ActorAgent
 from workflow_handlers import handle_chat_workflow_execution
 from mcp_client_resource_helpers import read_actor_resource, read_stage_resource
+from ai_trpg.pgsql import get_actor_context, add_actor_context
 
 
 ########################################################################################################################
@@ -274,9 +275,12 @@ async def _handle_actor_observe_and_plan(
 
 **要求**：基于第一步提供的角色信息 → 观察场景 → 规划行动 → 输出JSON"""
 
+    # 从数据库读取上下文
+    actor_context = get_actor_context(actor_agent.world_id, actor_agent.name)
+
     actors_observe_and_plan_response = await handle_chat_workflow_execution(
         agent_name=actor_agent.name,
-        context=actor_agent.context.copy(),
+        context=actor_context,
         request=HumanMessage(content=observe_and_plan_prompt),
         llm=create_deepseek_llm(),
     )
@@ -293,20 +297,20 @@ async def _handle_actor_observe_and_plan(
         # 步骤2: 使用Pydantic解析和验证
         formatted_data = ActorObservationAndPlan.model_validate_json(json_str)
 
-        # 更新角色代理的对话历史
-        actor_agent.context.append(
-            HumanMessage(
-                content=_gen_compressed_observe_and_plan_prompt(
-                    actor_agent.name, observe_and_plan_prompt
-                )
-            )
-        )
-
-        # 步骤3: 将结果添加到角色的对话历史
-        actor_agent.context.append(
-            AIMessage(
-                content=f"""{formatted_data.observation}\n\n{formatted_data.plan}"""
-            )
+        # 批量添加两条消息到数据库
+        add_actor_context(
+            actor_agent.world_id,
+            actor_agent.name,
+            [
+                HumanMessage(
+                    content=_gen_compressed_observe_and_plan_prompt(
+                        actor_agent.name, observe_and_plan_prompt
+                    )
+                ),
+                AIMessage(
+                    content=f"""{formatted_data.observation}\n\n{formatted_data.plan}"""
+                ),
+            ],
         )
 
         # 保存角色计划到数据库

@@ -20,7 +20,49 @@ from ai_trpg.mcp import (
 from uuid import UUID
 from ai_trpg.pgsql import (
     get_world_id_by_name,
+    get_world_context,
+    get_stage_context,
+    get_actor_context,
+    add_world_context,
+    add_stage_context,
+    add_actor_context,
 )
+
+
+def get_agent_context(agent: "GameAgent") -> List[BaseMessage]:
+    """获取代理的上下文消息（从数据库读取）
+
+    Args:
+        agent: 游戏代理实例（WorldAgent/StageAgent/ActorAgent）
+
+    Returns:
+        List[BaseMessage]: 该代理的上下文消息列表
+    """
+    if isinstance(agent, WorldAgent):
+        return get_world_context(agent.world_id)
+    elif isinstance(agent, StageAgent):
+        return get_stage_context(agent.world_id, agent.name)
+    elif isinstance(agent, ActorAgent):
+        return get_actor_context(agent.world_id, agent.name)
+    else:
+        raise TypeError(f"未知的代理类型: {type(agent)}")
+
+
+def add_agent_context(agent: "GameAgent", messages: List[BaseMessage]) -> None:
+    """添加消息到代理的上下文（写入数据库）
+
+    Args:
+        agent: 游戏代理实例（WorldAgent/StageAgent/ActorAgent）
+        messages: 要添加的消息列表
+    """
+    if isinstance(agent, WorldAgent):
+        add_world_context(agent.world_id, messages)
+    elif isinstance(agent, StageAgent):
+        add_stage_context(agent.world_id, agent.name, messages)
+    elif isinstance(agent, ActorAgent):
+        add_actor_context(agent.world_id, agent.name, messages)
+    else:
+        raise TypeError(f"未知的代理类型: {type(agent)}")
 
 
 class GameAgent(BaseModel):
@@ -31,7 +73,6 @@ class GameAgent(BaseModel):
     name: str
     mcp_client: McpClient
     world_id: UUID
-    context: List[BaseMessage]
 
 
 class WorldAgent(GameAgent):
@@ -100,7 +141,6 @@ class GameAgentManager:
             name=world_model.name,
             mcp_client=await self._create_mcp_client(),
             world_id=self._world_id,
-            context=world_model.context,
         )
         logger.debug(f"已创建世界观代理: {self._world_agent.name}")
 
@@ -123,7 +163,6 @@ class GameAgentManager:
                 name=stage_model.name,
                 mcp_client=await self._create_mcp_client(),
                 world_id=self._world_id,
-                context=stage_model.context,
             )
 
             # 为该场景中的每个角色创建代理
@@ -133,15 +172,12 @@ class GameAgentManager:
                     stage_agent=stage_agent,  # 创建时直接指定所属场景
                     mcp_client=await self._create_mcp_client(),
                     world_id=self._world_id,
-                    context=actor_model.context,
                 )
                 # 将角色代理添加到场景代理的列表中
                 stage_agent.actor_agents.append(actor_agent)
                 logger.debug(
                     f"已创建角色代理: {actor_agent.name} (所属场景: {stage_agent.name})"
                 )
-
-                logger.debug(f"已为代理 {actor_agent.name} 应用初始对话上下文")
 
             self._stage_agents.append(stage_agent)
             logger.debug(

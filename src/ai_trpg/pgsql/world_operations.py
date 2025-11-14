@@ -44,6 +44,14 @@ def save_world_to_db(world: World) -> WorldDB:
                 campaign_setting=world.campaign_setting,
             )
 
+            # 1.5. 保存 World 的 context
+            for idx, message in enumerate(world.context):
+                message_db = MessageDB(
+                    sequence=idx,
+                    message_json=message.model_dump_json(),
+                )
+                world_db.context.append(message_db)
+
             # 2. 递归创建 Stages
             for stage in world.stages:
                 stage_db = StageDB(
@@ -55,6 +63,14 @@ def save_world_to_db(world: World) -> WorldDB:
                     connections=stage.connections,
                 )
                 world_db.stages.append(stage_db)
+
+                # 2.5. 保存 Stage 的 context
+                for idx, message in enumerate(stage.context):
+                    message_db = MessageDB(
+                        sequence=idx,
+                        message_json=message.model_dump_json(),
+                    )
+                    stage_db.context.append(message_db)
 
                 # 3. 递归创建 Actors
                 for actor in stage.actors:
@@ -156,6 +172,9 @@ def load_world_from_db(world_name: str) -> Optional[World]:
                     )
                     actors.append(actor)
 
+                # 转换 Stage 的 context
+                stage_context = messages_db_to_langchain(stage_db.context)
+
                 # 创建 Stage
                 stage = Stage(
                     name=stage_db.name,
@@ -165,14 +184,19 @@ def load_world_from_db(world_name: str) -> Optional[World]:
                     narrative=stage_db.narrative,
                     actor_states=stage_db.actor_states,
                     connections=stage_db.connections,
+                    context=stage_context,
                 )
                 stages.append(stage)
+
+            # 转换 World 的 context
+            world_context = messages_db_to_langchain(world_db.context)
 
             # 创建 World
             world = World(
                 name=world_db.name,
                 campaign_setting=world_db.campaign_setting,
                 stages=stages,
+                context=world_context,
             )
 
             logger.success(f"✅ World '{world_name}' 已从数据库加载")

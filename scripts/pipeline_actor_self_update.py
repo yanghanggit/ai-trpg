@@ -15,6 +15,7 @@ from agent_utils import ActorAgent, GameAgentManager
 from workflow_handlers import handle_mcp_workflow_execution
 from ai_trpg.utils.json_format import strip_json_code_block
 from mcp_client_resource_helpers import read_actor_resource
+from ai_trpg.pgsql import get_actor_context, add_actor_context
 
 
 ########################################################################################################################
@@ -223,10 +224,13 @@ async def _handle_actor_self_update(
         content=_gen_self_update_confirmation_instruction()
     )
 
+    # 从数据库读取上下文
+    actor_context = get_actor_context(actor_agent.world_id, actor_agent.name)
+
     # mcp 的工作流（传入二次推理指令）
     self_update_response = await handle_mcp_workflow_execution(
         agent_name=actor_agent.name,
-        context=actor_agent.context.copy(),
+        context=actor_context,
         request=HumanMessage(content=step1_2_instruction),
         llm=create_deepseek_llm(),
         mcp_client=actor_agent.mcp_client,
@@ -339,9 +343,11 @@ async def _update_actor_death_status(
         actor_agent.is_dead = True
         logger.warning(f"💀 角色 {actor_agent.name} 已死亡！")
 
-        # 通知自己
-        actor_agent.context.append(
-            HumanMessage(content=f"# 通知!你({actor_agent.name})已经死亡!")
+        # 通知自己（写入数据库）
+        add_actor_context(
+            actor_agent.world_id,
+            actor_agent.name,
+            [HumanMessage(content=f"# 通知!你({actor_agent.name})已经死亡!")],
         )
 
         # 测试:从数据库验证角色死亡状态
