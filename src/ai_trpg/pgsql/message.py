@@ -65,7 +65,7 @@ class MessageDB(UUIDBase):
     )
 
 
-def messages_db_to_langchainake(message_dbs: List["MessageDB"]) -> List[BaseMessage]:
+def messages_db_to_langchain(message_dbs: List["MessageDB"]) -> List[BaseMessage]:
     """将 MessageDB 列表转换为 LangChain BaseMessage 列表
 
     统一的转换函数，用于所有需要从数据库读取消息并转换为 LangChain 格式的场景
