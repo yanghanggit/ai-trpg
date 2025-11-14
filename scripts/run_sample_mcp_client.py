@@ -321,6 +321,8 @@ async def handle_analyze_command(
                 request=analysis_request,
                 llm=llm,
                 mcp_client=mcp_client,
+                re_invoke_instruction=None,
+                skip_re_invoke=False,
             )
 
             # 更新聊天历史
@@ -369,6 +371,8 @@ async def handle_user_message(
         request=request,
         llm=llm,
         mcp_client=mcp_client,
+        re_invoke_instruction=None,
+        skip_re_invoke=False,
     )
 
     # 更新聊天历史（包含用户输入和AI回复）

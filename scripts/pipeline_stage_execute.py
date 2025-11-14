@@ -15,7 +15,6 @@ from agent_utils import StageAgent, ActorAgent
 from workflow_handlers import (
     handle_mcp_workflow_execution,
 )
-from ai_trpg.utils.json_format import strip_json_code_block
 from mcp_client_resource_helpers import read_actor_resource, read_stage_resource
 from ai_trpg.pgsql import get_stage_context, add_stage_context, add_actor_context
 
@@ -303,23 +302,24 @@ async def _handle_actor_plans_and_update_stage(
         llm=create_deepseek_llm(),
         mcp_client=stage_agent.mcp_client,  # 传入 MCP 客户端
         re_invoke_instruction=step3_instruction,  # 传入步骤3的二次推理指令
+        skip_re_invoke=True,
     )
 
-    assert len(stage_execution_response) > 0, "场景执行响应为空"
-    if len(stage_execution_response) < 2:
-        logger.error("必须是2条消息，1次工具调用，2次总结输出，否则就不要进行了！")
-        return
+    # assert len(stage_execution_response) > 0, "场景执行响应为空"
+    # if len(stage_execution_response) < 2:
+    #     logger.error("必须是2条消息，1次工具调用，2次总结输出，否则就不要进行了！")
+    #     return
 
     try:
 
         # 必须2次总结输出的格式是合理的 StageExecutionSummary
-        stage_execution_summary = StageExecutionSummary.model_validate_json(
-            strip_json_code_block(str(stage_execution_response[-1].content))
-        )
+        # stage_execution_summary = StageExecutionSummary.model_validate_json(
+        #     strip_json_code_block(str(stage_execution_response[-1].content))
+        # )
 
-        logger.debug(
-            f"✅ 场景执行结果解析成功: {stage_execution_summary.model_dump_json(indent=2)}"
-        )
+        # logger.debug(
+        #     f"✅ 场景执行结果解析成功: {stage_execution_summary.model_dump_json(indent=2)}"
+        # )
 
         # TODO 步骤1: 从 MCP 资源重新读取 stage 数据以获取最新的 narrative
         stage_info_updated = await read_stage_resource(

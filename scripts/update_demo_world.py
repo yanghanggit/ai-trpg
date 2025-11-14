@@ -125,6 +125,53 @@ def _delete_all_demo_worlds() -> None:
             logger.info(f"ℹ️  数据库中不存在演示世界: {world_name}")
 
 
+def _test_demo_world(demo_world: World) -> None:
+    """
+    测试演示世界的合法性
+
+    检查每个实体的 context 的第一个 Message 类型一定是 SystemMessage
+
+    Args:
+        demo_world: 要测试的世界实例
+
+    Raises:
+        AssertionError: 如果检查失败
+    """
+    from langchain.schema import SystemMessage
+
+    logger.info("🔍 开始测试演示世界合法性...")
+
+    # 1. 检查 World 的 context
+    if demo_world.context and len(demo_world.context) > 0:
+        first_message = demo_world.context[0]
+        assert isinstance(
+            first_message, SystemMessage
+        ), f"World '{demo_world.name}' 的 context 第一条消息必须是 SystemMessage，实际类型: {type(first_message)}"
+        logger.debug(f"✅ World '{demo_world.name}' context 检查通过")
+
+    # 2. 遍历所有 Stage
+    for stage in demo_world.stages:
+        if stage.context and len(stage.context) > 0:
+            first_message = stage.context[0]
+            assert isinstance(
+                first_message, SystemMessage
+            ), f"Stage '{stage.name}' 的 context 第一条消息必须是 SystemMessage，实际类型: {type(first_message)}"
+            logger.debug(f"✅ Stage '{stage.name}' context 检查通过")
+
+        # 3. 遍历 Stage 中的所有 Actor
+        for actor in stage.actors:
+            if actor.context and len(actor.context) > 0:
+                first_message = actor.context[0]
+                assert isinstance(
+                    first_message, SystemMessage
+                ), f"Actor '{actor.name}' (Stage: '{stage.name}') 的 context 第一条消息必须是 SystemMessage，实际类型: {type(first_message)}"
+                logger.debug(
+                    f"✅ Actor '{actor.name}' (Stage: '{stage.name}') context 检查通过"
+                )
+
+    logger.success("✅ 演示世界合法性检查通过!")
+
+
 def main() -> None:
     """主函数: 更新演示世界到数据库"""
     try:
@@ -136,6 +183,9 @@ def main() -> None:
         # 1. 创建演示世界实例
         logger.info("📦 创建演示世界实例...")
         demo_world = create_demo_world()
+
+        # 1.5 测试演示世界
+        _test_demo_world(demo_world)
 
         # 2. 更新世界到数据库
         _update_world_to_db(demo_world)

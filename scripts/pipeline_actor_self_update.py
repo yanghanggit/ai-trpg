@@ -13,7 +13,6 @@ from langchain.schema import HumanMessage
 from ai_trpg.deepseek import create_deepseek_llm
 from agent_utils import ActorAgent, GameAgentManager
 from workflow_handlers import handle_mcp_workflow_execution
-from ai_trpg.utils.json_format import strip_json_code_block
 from mcp_client_resource_helpers import read_actor_resource
 from ai_trpg.pgsql import get_actor_context, add_actor_context
 
@@ -235,79 +234,80 @@ async def _handle_actor_self_update(
         llm=create_deepseek_llm(),
         mcp_client=actor_agent.mcp_client,
         re_invoke_instruction=step3_instruction,  # 传入步骤3的二次推理指令
+        skip_re_invoke=True,
     )
 
     # 🎯 根据响应长度判断执行路径
-    response_count = len(self_update_response)
+    # response_count = len(self_update_response)
 
-    if response_count == 0:
-        logger.error(f"❌ 角色 {actor_agent.name} 自我更新未收到回复")
-        return
+    # if response_count == 0:
+    #     logger.error(f"❌ 角色 {actor_agent.name} 自我更新未收到回复")
+    #     return
 
-    elif response_count == 1:
-        # 情况1: 只有第一次推理，可能是以下情况：
-        # A. LLM 判断无需更新，输出指定文本（正常）
-        # B. LLM 尝试调用工具但工具流程失败（异常，但安全截断）
-        # C. LLM 输出非预期内容（异常）
-        first_response_content = str(self_update_response[0].content).strip()
+    # elif response_count == 1:
+    #     # 情况1: 只有第一次推理，可能是以下情况：
+    #     # A. LLM 判断无需更新，输出指定文本（正常）
+    #     # B. LLM 尝试调用工具但工具流程失败（异常，但安全截断）
+    #     # C. LLM 输出非预期内容（异常）
+    #     first_response_content = str(self_update_response[0].content).strip()
 
-        # 移除可能的 Markdown 格式（如 **文本**）并清理空白
-        cleaned_content = (
-            first_response_content.replace("**", "")
-            .replace("*", "")
-            .strip()
-            .split("\n")[0]
-            .strip()
-        )
+    #     # 移除可能的 Markdown 格式（如 **文本**）并清理空白
+    #     cleaned_content = (
+    #         first_response_content.replace("**", "")
+    #         .replace("*", "")
+    #         .strip()
+    #         .split("\n")[0]
+    #         .strip()
+    #     )
 
-        # 精确匹配指定文本（支持带/不带 Markdown 格式）
-        if cleaned_content == "无需更新外观与Effect":
-            logger.info(f"✅ 角色 {actor_agent.name} 无需更新（明确声明）")
-        elif "tool_call" in first_response_content.lower():
-            logger.warning(
-                f"⚠️ 角色 {actor_agent.name} 工具调用流程中断 (安全截断)\n"
-                f"   可能原因: 工具解析失败/执行失败/网络错误\n"
-                f"   LLM 输出: {first_response_content[:150]}..."
-            )
-        else:
-            logger.warning(
-                f"⚠️ 角色 {actor_agent.name} 输出非预期内容\n"
-                f"   期望: '无需更新外观与Effect' 或工具调用\n"
-                f"   实际: {first_response_content[:150]}..."
-            )
-        return
+    #     # 精确匹配指定文本（支持带/不带 Markdown 格式）
+    #     if cleaned_content == "无需更新外观与Effect":
+    #         logger.info(f"✅ 角色 {actor_agent.name} 无需更新（明确声明）")
+    #     elif "tool_call" in first_response_content.lower():
+    #         logger.warning(
+    #             f"⚠️ 角色 {actor_agent.name} 工具调用流程中断 (安全截断)\n"
+    #             f"   可能原因: 工具解析失败/执行失败/网络错误\n"
+    #             f"   LLM 输出: {first_response_content[:150]}..."
+    #         )
+    #     else:
+    #         logger.warning(
+    #             f"⚠️ 角色 {actor_agent.name} 输出非预期内容\n"
+    #             f"   期望: '无需更新外观与Effect' 或工具调用\n"
+    #             f"   实际: {first_response_content[:150]}..."
+    #         )
+    #     return
 
-    elif response_count == 2:
-        # 情况2: 完整流程 (第一次推理 + 工具调用 + 二次推理)
-        try:
-            # 验证二次推理的 JSON 格式
-            confirmation = ActorSelfUpdateConfirmation.model_validate_json(
-                strip_json_code_block(str(self_update_response[-1].content))
-            )
+    # elif response_count == 2:
+    #     # 情况2: 完整流程 (第一次推理 + 工具调用 + 二次推理)
+    #     try:
+    #         # 验证二次推理的 JSON 格式
+    #         confirmation = ActorSelfUpdateConfirmation.model_validate_json(
+    #             strip_json_code_block(str(self_update_response[-1].content))
+    #         )
 
-            logger.success(
-                f"✅ 角色 {actor_agent.name} 状态更新完成\n"
-                f"   外观更新: {confirmation.appearance}\n"
-                f"   新增 Effect: {confirmation.effects}"
-            )
+    #         logger.success(
+    #             f"✅ 角色 {actor_agent.name} 状态更新完成\n"
+    #             f"   外观更新: {confirmation.appearance}\n"
+    #             f"   新增 Effect: {confirmation.effects}"
+    #         )
 
-            # 在这里注意，不要添加任何新的对话历史，所有的更新都在 MCP 工作流中完成！
-            logger.debug(
-                f"💡 角色 {actor_agent.name} 的所有更新已通过 MCP 工具持久化，对话历史未变更"
-            )
+    #         # 在这里注意，不要添加任何新的对话历史，所有的更新都在 MCP 工作流中完成！
+    #         logger.debug(
+    #             f"💡 角色 {actor_agent.name} 的所有更新已通过 MCP 工具持久化，对话历史未变更"
+    #         )
 
-        except Exception as e:
-            logger.error(
-                f"❌ 角色 {actor_agent.name} 二次推理 JSON 解析失败: {e}\n"
-                f"   响应内容: {self_update_response[-1].content}"
-            )
+    #     except Exception as e:
+    #         logger.error(
+    #             f"❌ 角色 {actor_agent.name} 二次推理 JSON 解析失败: {e}\n"
+    #             f"   响应内容: {self_update_response[-1].content}"
+    #         )
 
-    else:
-        # 情况3: 异常情况（不应该出现）
-        logger.error(
-            f"❌ 角色 {actor_agent.name} 响应数量异常: {response_count}\n"
-            f"   期望: 1 (无需更新) 或 2 (完整流程)，实际: {response_count}"
-        )
+    # else:
+    #     # 情况3: 异常情况（不应该出现）
+    #     logger.error(
+    #         f"❌ 角色 {actor_agent.name} 响应数量异常: {response_count}\n"
+    #         f"   期望: 1 (无需更新) 或 2 (完整流程)，实际: {response_count}"
+    #     )
 
 
 ########################################################################################################################

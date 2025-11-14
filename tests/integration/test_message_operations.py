@@ -131,8 +131,9 @@ class TestMessageOperations:
         """测试添加消息到 Actor 的上下文"""
         logger.info("🧪 测试 add_actor_context - 基本添加")
 
-        # 准备新消息
+        # 准备新消息 - 第一条必须是 SystemMessage
         new_messages = [
+            SystemMessage(content="测试系统消息"),
             HumanMessage(content="玩家的新消息"),
             AIMessage(content="AI 的回复"),
         ]
@@ -152,6 +153,7 @@ class TestMessageOperations:
         assert len(updated_context) == initial_count + len(new_messages)
 
         # 验证新消息的内容
+        assert updated_context[-3].content == "测试系统消息"
         assert updated_context[-2].content == "玩家的新消息"
         assert updated_context[-1].content == "AI 的回复"
 
@@ -161,12 +163,18 @@ class TestMessageOperations:
         """测试消息的 sequence 自动递增"""
         logger.info("🧪 测试 add_actor_context - sequence 递增")
 
-        # 添加第一批消息
-        messages1: List[BaseMessage] = [HumanMessage(content="第一批消息")]
+        # 添加第一批消息 - 第一条必须是 SystemMessage
+        messages1: List[BaseMessage] = [
+            SystemMessage(content="系统消息"),
+            HumanMessage(content="第一批消息"),
+        ]
         add_actor_context(self.test_world_id, self.test_actor_name, messages1)
 
-        # 添加第二批消息
-        messages2: List[BaseMessage] = [HumanMessage(content="第二批消息")]
+        # 添加第二批消息 - 第一条必须是 SystemMessage
+        messages2: List[BaseMessage] = [
+            SystemMessage(content="系统消息2"),
+            HumanMessage(content="第二批消息"),
+        ]
         add_actor_context(self.test_world_id, self.test_actor_name, messages2)
 
         # 验证数据库中的 sequence
@@ -272,28 +280,27 @@ class TestMessageOperations:
         logger.success("✅ 成功添加消息到 World 上下文")
 
     def test_add_actor_context_empty_list(self) -> None:
-        """测试添加空消息列表"""
+        """测试添加空消息列表 - 应该失败因为需要 SystemMessage"""
         logger.info("🧪 测试 add_actor_context - 空消息列表")
 
         # 获取初始消息数量
         initial_context = get_actor_context(self.test_world_id, self.test_actor_name)
         initial_count = len(initial_context)
 
-        # 添加空列表
-        success = add_actor_context(self.test_world_id, self.test_actor_name, [])
-        assert success is True
+        # 尝试添加空消息列表 - 应该会因为断言失败而抛出异常
+        with pytest.raises(AssertionError, match="第一条消息必须是 SystemMessage"):
+            add_actor_context(self.test_world_id, self.test_actor_name, [])
 
-        # 验证消息数量不变
-        updated_context = get_actor_context(self.test_world_id, self.test_actor_name)
-        assert len(updated_context) == initial_count
-
-        logger.success("✅ 空消息列表添加测试通过")
+        logger.success("✅ 空消息列表测试通过 - 正确抛出断言错误")
 
     def test_add_actor_context_nonexistent(self) -> None:
         """测试向不存在的 Actor 添加消息"""
         logger.info("🧪 测试 add_actor_context - 不存在的 Actor")
 
-        new_messages: List[BaseMessage] = [HumanMessage(content="测试消息")]
+        new_messages: List[BaseMessage] = [
+            SystemMessage(content="系统消息"),
+            HumanMessage(content="测试消息"),
+        ]
         success = add_actor_context(self.test_world_id, "不存在的角色", new_messages)
         assert success is False
 
@@ -303,7 +310,10 @@ class TestMessageOperations:
         """测试向不存在的 Stage 添加消息"""
         logger.info("🧪 测试 add_stage_context - 不存在的 Stage")
 
-        new_messages: List[BaseMessage] = [HumanMessage(content="测试消息")]
+        new_messages: List[BaseMessage] = [
+            SystemMessage(content="系统消息"),
+            HumanMessage(content="测试消息"),
+        ]
         success = add_stage_context(self.test_world_id, "不存在的场景", new_messages)
         assert success is False
 
@@ -316,80 +326,88 @@ class TestMessageOperations:
         from uuid import uuid4
 
         fake_world_id = uuid4()
-        new_messages: List[BaseMessage] = [HumanMessage(content="测试消息")]
+        new_messages: List[BaseMessage] = [
+            SystemMessage(content="系统消息"),
+            HumanMessage(content="测试消息"),
+        ]
         success = add_world_context(fake_world_id, new_messages)
         assert success is False
 
         logger.success("✅ 不存在的 World 添加失败测试通过")
 
     def test_message_order_preservation(self) -> None:
-        """测试消息顺序的保持"""
+        """测试消息顺序保持"""
         logger.info("🧪 测试消息顺序保持")
 
-        # 准备有序的消息
-        ordered_messages: List[BaseMessage] = [
-            HumanMessage(content=f"消息 {i}") for i in range(1, 6)
+        # 添加有序消息 - 第一条必须是 SystemMessage
+        ordered_messages = [
+            SystemMessage(content="系统消息"),
+            HumanMessage(content="消息1"),
+            AIMessage(content="消息2"),
+            HumanMessage(content="消息3"),
         ]
-
-        # 添加消息
         add_actor_context(self.test_world_id, self.test_actor_name, ordered_messages)
 
-        # 读取消息并验证顺序
+        # 验证顺序
         context = get_actor_context(self.test_world_id, self.test_actor_name)
-
-        # 验证最后5条消息的顺序
-        last_five = context[-5:]
-        for i, msg in enumerate(last_five, 1):
-            assert msg.content == f"消息 {i}"
+        last_four = context[-4:]
+        assert last_four[0].content == "系统消息"
+        assert last_four[1].content == "消息1"
+        assert last_four[2].content == "消息2"
+        assert last_four[3].content == "消息3"
 
         logger.success("✅ 消息顺序保持测试通过")
 
     def test_concurrent_context_updates(self) -> None:
-        """测试不同层级上下文的独立性"""
+        """测试不同层级上下文独立性"""
         logger.info("🧪 测试不同层级上下文独立性")
 
-        # 向 Actor, Stage, World 分别添加消息
-        actor_msg: List[BaseMessage] = [HumanMessage(content="Actor 消息")]
-        stage_msg: List[BaseMessage] = [SystemMessage(content="Stage 消息")]
-        world_msg: List[BaseMessage] = [AIMessage(content="World 消息")]
+        # 同时更新三个层级 - 第一条必须是 SystemMessage
+        actor_msg = [
+            SystemMessage(content="Actor 系统消息"),
+            HumanMessage(content="Actor 层级消息"),
+        ]
+        stage_msg = [
+            SystemMessage(content="Stage 系统消息"),
+            HumanMessage(content="Stage 层级消息"),
+        ]
+        world_msg = [
+            SystemMessage(content="World 系统消息"),
+            HumanMessage(content="World 层级消息"),
+        ]
 
         add_actor_context(self.test_world_id, self.test_actor_name, actor_msg)
         add_stage_context(self.test_world_id, self.test_stage_name, stage_msg)
         add_world_context(self.test_world_id, world_msg)
 
-        # 验证各自的上下文独立
+        # 验证各层级消息独立
         actor_context = get_actor_context(self.test_world_id, self.test_actor_name)
         stage_context = get_stage_context(self.test_world_id, self.test_stage_name)
         world_context = get_world_context(self.test_world_id)
 
-        # Actor 上下文包含其消息
-        assert any(msg.content == "Actor 消息" for msg in actor_context)
-
-        # Stage 上下文只包含 Stage 消息
-        assert len(stage_context) >= 1
-        assert any(msg.content == "Stage 消息" for msg in stage_context)
-
-        # World 上下文只包含 World 消息
-        assert len(world_context) >= 1
-        assert any(msg.content == "World 消息" for msg in world_context)
+        assert actor_context[-1].content == "Actor 层级消息"
+        assert stage_context[-1].content == "Stage 层级消息"
+        assert world_context[-1].content == "World 层级消息"
 
         logger.success("✅ 不同层级上下文独立性测试通过")
 
     def test_large_message_content(self) -> None:
-        """测试大内容消息的存储和读取"""
+        """测试大内容消息"""
         logger.info("🧪 测试大内容消息")
 
-        # 创建大内容消息（模拟长对话）
-        large_content = "这是一段很长的内容。" * 1000  # ~10KB
-        large_message: List[BaseMessage] = [HumanMessage(content=large_content)]
+        # 创建一个大内容消息(10KB) - 第一条必须是 SystemMessage
+        large_content = "测试内容" * 1000
+        large_message = [
+            SystemMessage(content="系统消息"),
+            HumanMessage(content=large_content),
+        ]
 
-        # 添加大消息
         success = add_actor_context(
             self.test_world_id, self.test_actor_name, large_message
         )
         assert success is True
 
-        # 读取并验证内容完整
+        # 验证大内容可以正常存储和读取
         context = get_actor_context(self.test_world_id, self.test_actor_name)
         assert context[-1].content == large_content
 
@@ -399,8 +417,9 @@ class TestMessageOperations:
         """测试批量添加多条消息"""
         logger.info("🧪 测试批量添加消息")
 
-        # 准备批量消息（模拟一次对话回合）
+        # 准备批量消息（模拟一次对话回合） - 第一条必须是 SystemMessage
         batch_messages = [
+            SystemMessage(content="批量消息系统消息"),
             HumanMessage(content="用户问题1"),
             AIMessage(content="AI回答1"),
             HumanMessage(content="用户问题2"),
@@ -423,8 +442,8 @@ class TestMessageOperations:
         assert len(updated_context) == initial_count + len(batch_messages)
 
         # 验证顺序和内容
-        last_six = updated_context[-6:]
-        for i, (expected, actual) in enumerate(zip(batch_messages, last_six)):
+        last_seven = updated_context[-7:]
+        for i, (expected, actual) in enumerate(zip(batch_messages, last_seven)):
             assert actual.content == expected.content
             assert type(actual) == type(expected)
 
@@ -469,17 +488,29 @@ class TestMessageOperations:
         temp_world_id = world_db.id
 
         try:
-            # 向各层级添加消息
-            add_world_context(temp_world_id, [HumanMessage(content="World 消息")])
+            # 向各层级添加消息 - 第一条必须是 SystemMessage
+            add_world_context(
+                temp_world_id,
+                [
+                    SystemMessage(content="World 系统消息"),
+                    HumanMessage(content="World 消息"),
+                ],
+            )
             add_stage_context(
                 temp_world_id,
                 temp_world.stages[0].name,
-                [HumanMessage(content="Stage 消息")],
+                [
+                    SystemMessage(content="Stage 系统消息"),
+                    HumanMessage(content="Stage 消息"),
+                ],
             )
             add_actor_context(
                 temp_world_id,
                 temp_world.stages[0].actors[0].name,
-                [HumanMessage(content="Actor 消息")],
+                [
+                    SystemMessage(content="Actor 系统消息"),
+                    HumanMessage(content="Actor 消息"),
+                ],
             )
 
             # 在 session 内获取所有相关 ID 并验证消息存在

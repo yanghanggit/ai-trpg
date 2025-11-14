@@ -6,7 +6,7 @@
 
 from typing import List, Optional
 from uuid import UUID
-from langchain.schema import BaseMessage
+from langchain.schema import BaseMessage, SystemMessage
 from loguru import logger
 from sqlalchemy import select
 from sqlalchemy.orm import Session
@@ -46,6 +46,9 @@ def get_actor_context(world_id: UUID, actor_name: str) -> List[BaseMessage]:
 
             # 转换 MessageDB → BaseMessage
             context = messages_db_to_langchain(actor.context)
+            assert len(context) > 0 and isinstance(
+                context[0], SystemMessage
+            ), "Actor 上下文的第一条消息必须是 SystemMessage"
             logger.debug(
                 f"📨 读取角色 '{actor_name}' 的对话上下文: {len(context)} 条消息"
             )
@@ -83,6 +86,9 @@ def get_stage_context(world_id: UUID, stage_name: str) -> List[BaseMessage]:
 
             # 转换 MessageDB → BaseMessage
             context = messages_db_to_langchain(stage.context)
+            assert len(context) > 0 and isinstance(
+                context[0], SystemMessage
+            ), "Stage 上下文的第一条消息必须是 SystemMessage"
             logger.debug(
                 f"📨 读取场景 '{stage_name}' 的对话上下文: {len(context)} 条消息"
             )
@@ -114,6 +120,9 @@ def get_world_context(world_id: UUID) -> List[BaseMessage]:
 
             # 转换 MessageDB → BaseMessage
             context = messages_db_to_langchain(world.context)
+            assert len(context) > 0 and isinstance(
+                context[0], SystemMessage
+            ), "World 上下文的第一条消息必须是 SystemMessage"
             logger.debug(
                 f"📨 读取世界 '{world.name}' 的对话上下文: {len(context)} 条消息"
             )
@@ -137,6 +146,11 @@ def add_actor_context(
     Returns:
         bool: 添加成功返回 True，Actor 不存在返回 False
     """
+
+    # assert len(messages) > 0 and isinstance(
+    #     messages[0], SystemMessage
+    # ), "添加到 Actor 上下文的第一条消息必须是 SystemMessage"
+
     with SessionLocal() as db:
         try:
             # 查找 Actor
@@ -179,6 +193,11 @@ def add_stage_context(
     Returns:
         bool: 添加成功返回 True，Stage 不存在返回 False
     """
+
+    # assert len(messages) > 0 and isinstance(
+    #     messages[0], SystemMessage
+    # ), "添加到 Stage 上下文的第一条消息必须是 SystemMessage"
+
     with SessionLocal() as db:
         try:
             # 查找 Stage
@@ -217,6 +236,11 @@ def add_world_context(world_id: UUID, messages: List[BaseMessage]) -> bool:
     Returns:
         bool: 添加成功返回 True，World 不存在返回 False
     """
+
+    # assert len(messages) > 0 and isinstance(
+    #     messages[0], SystemMessage
+    # ), "添加到 World 上下文的第一条消息必须是 SystemMessage"
+
     with SessionLocal() as db:
         try:
             # 查找 World

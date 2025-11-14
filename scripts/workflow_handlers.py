@@ -28,7 +28,8 @@ async def handle_mcp_workflow_execution(
     request: HumanMessage,
     llm: ChatDeepSeek,
     mcp_client: McpClient,
-    re_invoke_instruction: Optional[HumanMessage] = None,
+    re_invoke_instruction: Optional[HumanMessage],
+    skip_re_invoke: bool,
 ) -> List[BaseMessage]:
     """处理MCP工具调用工作流
 
@@ -52,6 +53,7 @@ async def handle_mcp_workflow_execution(
         llm=llm,
         mcp_client=mcp_client,
         re_invoke_instruction=re_invoke_instruction,
+        skip_re_invoke=skip_re_invoke,
     )
 
     # 显示最新的AI回复

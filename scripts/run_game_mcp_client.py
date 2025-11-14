@@ -247,6 +247,8 @@ async def main() -> None:
                     request=HumanMessage(content=format_user_input),
                     llm=create_deepseek_llm(),
                     mcp_client=mcp_client,
+                    re_invoke_instruction=None,
+                    skip_re_invoke=False,
                 )
 
                 # 更新当前代理的对话历史

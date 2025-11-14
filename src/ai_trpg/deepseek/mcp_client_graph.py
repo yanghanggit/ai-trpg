@@ -2,58 +2,13 @@
 MCP Client Graph - 基于 LangGraph 的 MCP 工具调用工作流
 
 ## 工作流架构
-preprocess → llm_invoke → tool_parse → [条件路由]
+preprocess → llm_invoke → tool_parse → [条件路由: 是否需要工具?]
                                           ↓ (需要工具)
-                                    tool_execution → llm_re_invoke → END
+                                    tool_execution → [条件路由: skip_re_invoke?]
+                                          ↓ (False)          ↓ (True)
+                                    llm_re_invoke → END     END
                                           ↓ (无需工具)
                                         END
-
-## 核心设计：二次推理（Re-invoke）模式
-让 AI 基于工具结果进行深度分析，而不是简单拼接。
-
-## messages 上下文演变
-1. **初始化**: `context + [request]`
-2. **preprocess**: 插入 `SystemMessage(工具说明)`
-3. **llm_invoke**: 追加 `AIMessage(first_llm_response)`
-4. **tool_parse**: 解析工具调用（不修改 messages）
-5. **tool_execution**: 并发执行工具（不修改 messages）
-6. **llm_re_invoke**: 追加 `AIMessage(工具结果)` + `HumanMessage(二次推理指令)` + `AIMessage(re_invoke_response)`
-
-## 关键字段
-- `first_llm_response`: 第一次推理结果（用于提取）
-- `re_invoke_response`: 二次推理结果（用于提取）
-- `messages`: 完整上下文链路（全局唯一真相源）
-
-## 返回逻辑
-- 有工具执行 → 返回 `re_invoke_response`
-- 无工具执行 → 返回 `first_llm_response`
-
-## ⚠️ LangGraph 状态合并机制（重要！）
-
-**关键规则**：
-1. ✅ 带 `Annotated` 修饰符的字段（如 `messages`）会自动累积合并
-2. ❌ 普通字段（如 `llm`, `mcp_client`）**完全替换，不合并**
-3. 🚨 **如果节点返回值中缺少某个字段，该字段会从状态中丢失！**
-
-**正确做法**：
-```python
-# ✅ 节点必须返回所有需要保持的字段
-return {
-    "messages": state["messages"],      # 保持
-    "llm": state["llm"],                # 保持
-    "mcp_client": state["mcp_client"],  # 保持
-    "new_field": new_value,             # 新增/更新
-}
-
-# ❌ 错误：只返回新字段会导致其他字段丢失
-return {
-    "new_field": new_value,  # 其他字段会从状态中消失！
-}
-```
-
-**对比其他 Graph**：
-- `chat_graph.py` 和 `rag_graph.py` 的节点都正确保持了所有必要字段
-- 本文件之前的实现存在字段丢失问题，已修复
 """
 
 from dotenv import load_dotenv
@@ -162,6 +117,7 @@ class McpState(TypedDict, total=False):
     needs_tool_execution: bool  # 是否需要执行工具
     re_invoke_response: AIMessage  # 二次推理结果（仅在执行工具后存在）
     re_invoke_instruction: Optional[HumanMessage]  # 二次推理指令消息（可选）
+    skip_re_invoke: bool  # 是否跳过二次推理（工具执行后直接返回）
 
 
 ############################################################################################################
@@ -244,6 +200,7 @@ async def _preprocess_node(state: McpState) -> McpState:
         "mcp_client": state["mcp_client"],
         "available_tools": available_tools,
         "tool_outputs": state.get("tool_outputs", []),
+        "skip_re_invoke": state.get("skip_re_invoke", False),
     }
     return result
 
@@ -275,6 +232,7 @@ async def _llm_invoke_node(state: McpState) -> McpState:
         "mcp_client": state["mcp_client"],
         "available_tools": state.get("available_tools", []),
         "tool_outputs": state.get("tool_outputs", []),
+        "skip_re_invoke": state.get("skip_re_invoke", False),
         "first_llm_response": response,  # 新增字段
     }
 
@@ -317,6 +275,7 @@ async def _tool_parse_node(state: McpState) -> McpState:
         "mcp_client": state["mcp_client"],
         "available_tools": available_tools,
         "tool_outputs": state.get("tool_outputs", []),
+        "skip_re_invoke": state.get("skip_re_invoke", False),
         "first_llm_response": first_llm_response,
         "parsed_tool_calls": parsed_tool_calls,  # 新增字段
         "needs_tool_execution": len(parsed_tool_calls) > 0,  # 新增字段
@@ -346,6 +305,7 @@ async def _tool_execution_node(state: McpState) -> McpState:
             "llm": state["llm"],
             "mcp_client": mcp_client,
             "available_tools": state.get("available_tools", []),
+            "skip_re_invoke": state.get("skip_re_invoke", False),
             "first_llm_response": state["first_llm_response"],
             "parsed_tool_calls": parsed_tool_calls,
             "needs_tool_execution": state.get("needs_tool_execution", False),
@@ -423,6 +383,7 @@ async def _tool_execution_node(state: McpState) -> McpState:
         "llm": state["llm"],
         "mcp_client": mcp_client,
         "available_tools": state.get("available_tools", []),
+        "skip_re_invoke": state.get("skip_re_invoke", False),
         "first_llm_response": state["first_llm_response"],
         "parsed_tool_calls": parsed_tool_calls,
         "needs_tool_execution": state.get("needs_tool_execution", False),
@@ -517,6 +478,7 @@ async def _llm_re_invoke_node(state: McpState) -> McpState:
         "mcp_client": state["mcp_client"],
         "available_tools": state.get("available_tools", []),
         "tool_outputs": tool_outputs,
+        "skip_re_invoke": state.get("skip_re_invoke", False),
         "first_llm_response": state["first_llm_response"],
         "parsed_tool_calls": state.get("parsed_tool_calls", []),
         "needs_tool_execution": state.get("needs_tool_execution", False),
@@ -553,6 +515,24 @@ def _should_execute_tools(state: McpState) -> str:
     """
     needs_tool_execution = state.get("needs_tool_execution", False)
     return "tool_execution" if needs_tool_execution else "__end__"
+
+
+############################################################################################################
+def _should_re_invoke(state: McpState) -> str:
+    """
+    条件路由：判断工具执行后是否需要二次推理
+
+    Args:
+        state: 当前状态
+
+    Returns:
+        str: "llm_re_invoke" 或 "__end__"
+    """
+    skip_re_invoke = state.get("skip_re_invoke", False)
+    if skip_re_invoke:
+        logger.warning("⏭️ skip_re_invoke=True，跳过二次推理节点")
+        return "__end__"
+    return "llm_re_invoke"
 
 
 ############################################################################################################
@@ -596,8 +576,17 @@ def create_mcp_workflow() -> CompiledStateGraph[McpState, Any, McpState, McpStat
         },
     )
 
-    # 工具执行后进入二次推理，然后结束
-    graph_builder.add_edge("tool_execution", "llm_re_invoke")
+    # 🆕 工具执行后添加条件路由：判断是否需要二次推理
+    graph_builder.add_conditional_edges(
+        "tool_execution",
+        _should_re_invoke,
+        {
+            "llm_re_invoke": "llm_re_invoke",  # 需要二次推理
+            "__end__": "__end__",  # 跳过二次推理，直接结束
+        },
+    )
+
+    # 二次推理完成后结束
     graph_builder.add_edge("llm_re_invoke", "__end__")
 
     return graph_builder.compile()  # type: ignore[return-value]
@@ -610,14 +599,16 @@ async def execute_mcp_workflow(
     request: HumanMessage,
     llm: ChatDeepSeek,
     mcp_client: McpClient,
-    re_invoke_instruction: Optional[HumanMessage] = None,
+    re_invoke_instruction: Optional[HumanMessage],
+    skip_re_invoke: bool,
 ) -> List[BaseMessage]:
     """
     执行 MCP 工作流
 
     返回逻辑：
-    - 有工具执行 → 返回 re_invoke_response
-    - 无工具执行 → 返回 first_llm_response
+    - 无工具调用 → [first_llm_response]
+    - skip_re_invoke=True → [first_llm_response, AIMessage(tool_context, tool_call=True)]
+    - 正常二次推理 → [first_llm_response, AIMessage(tool_context, tool_call=True), re_invoke_response]
 
     Args:
         work_flow: 已编译的状态图
@@ -626,6 +617,7 @@ async def execute_mcp_workflow(
         llm: ChatDeepSeek 实例
         mcp_client: MCP 客户端实例
         re_invoke_instruction: 自定义二次推理指令（可选，默认使用内置模板）
+        skip_re_invoke: 是否跳过二次推理（默认 False）
 
     Returns:
         List[BaseMessage]: 响应消息列表
@@ -645,6 +637,7 @@ async def execute_mcp_workflow(
         "available_tools": available_tools,
         "tool_outputs": [],
         "re_invoke_instruction": re_invoke_instruction,  # 直接传入，可能是 None
+        "skip_re_invoke": skip_re_invoke,  # 🆕 传入控制参数
     }
 
     try:
@@ -658,7 +651,7 @@ async def execute_mcp_workflow(
                 # 持续更新状态，最后一个就是最终状态
                 last_state = value
 
-        # 按顺序收集响应：[first_llm_response, re_invoke_response]
+        # 🆕 按顺序收集响应：[first_llm_response, tool_output_message, re_invoke_response]
         # 外部使用 ret[-1] 获取最终响应
         if last_state:
             # 1. 先添加第一次推理结果（如果存在）
@@ -668,28 +661,46 @@ async def execute_mcp_workflow(
                     first_llm_response, AIMessage
                 ), "first_llm_response 必须是 AIMessage 类型"
                 ret.append(first_llm_response)
-                # logger.debug("📌 已收集 first_llm_response")
 
-            # 2. 再添加二次推理结果（如果存在）
+            # 2. 添加工具执行结果（如果存在）
+            tool_outputs = last_state.get("tool_outputs", [])
+            if tool_outputs:
+                # 构建工具结果消息，带特殊标记
+                tool_context = _build_tool_context(tool_outputs)
+                successful_count = sum(1 for o in tool_outputs if o["success"])
+                total_time = sum(o["execution_time"] for o in tool_outputs)
+
+                tool_output_message = AIMessage(
+                    content=tool_context,
+                    tool_call=True,  # 🆕 特殊标记：这是工具输出
+                    tool_count=len(tool_outputs),
+                    successful_count=successful_count,
+                    total_execution_time=total_time,
+                )
+                ret.append(tool_output_message)
+                logger.debug(f"📌 已收集工具执行结果: {len(tool_outputs)} 个工具")
+
+            # 3. 添加二次推理结果（如果存在）
             re_invoke_response = last_state.get("re_invoke_response")
             if re_invoke_response:
                 assert isinstance(
                     re_invoke_response, AIMessage
                 ), "re_invoke_response 必须是 AIMessage 类型"
                 ret.append(re_invoke_response)
-                # logger.debug("📌 已收集 re_invoke_response")
+                logger.debug("📌 已收集二次推理结果")
 
-            # 3. 日志：明确最终返回的是哪个
-            # if re_invoke_response:
-            #     logger.debug(
-            #         "✅ 返回顺序: [first_llm_response, re_invoke_response]，使用 ret[-1] 获取二次推理结果"
-            #     )
-            # elif first_llm_response:
-            #     logger.debug(
-            #         "✅ 返回顺序: [first_llm_response]，使用 ret[-1] 获取第一次推理结果"
-            #     )
-            # else:
-            #     logger.error("❌ 无可用响应，返回空列表")
+            # 4. 日志：明确返回内容
+            skip_re_invoke = last_state.get("skip_re_invoke", False)
+            if tool_outputs and skip_re_invoke:
+                logger.warning(
+                    f"✅ 跳过二次推理，返回 [first, tool_output]，len={len(ret)}"
+                )
+            elif re_invoke_response:
+                logger.debug(
+                    f"✅ 正常二次推理，返回 [first, tool_output, re_invoke]，len={len(ret)}"
+                )
+            elif first_llm_response:
+                logger.debug(f"✅ 无工具调用，返回 [first]，len={len(ret)}")
 
             # 调试：打印完整消息链路
             # print_full_message_chain(last_state)
