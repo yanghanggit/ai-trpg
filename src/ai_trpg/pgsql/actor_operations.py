@@ -4,7 +4,7 @@
 提供 Actor 的数据库操作
 """
 
-from typing import Optional, List
+from typing import Optional, List, Tuple
 from uuid import UUID
 from loguru import logger
 from .client import SessionLocal
@@ -14,16 +14,18 @@ from sqlalchemy.orm import joinedload
 from .stage import StageDB
 
 
-def update_actor_health(world_id: UUID, actor_name: str, new_health: int) -> bool:
+def update_actor_health(
+    world_id: UUID, actor_name: str, new_health: int
+) -> Optional[Tuple[int, int, int]]:
     """更新角色的生命值，如果生命值降为0则标记角色为死亡
 
     Args:
         world_id: 所属世界ID
         actor_name: 角色名称
-        new_health: 新的生命值
+        new_health: 新的生命值（会被限制在 0 到 max_health 之间）
 
     Returns:
-        bool: 更新是否成功
+        Optional[Tuple[int, int, int]]: (old_health, new_health, max_health) 如果成功，否则返回 None
     """
     with SessionLocal() as db:
         try:
@@ -38,10 +40,15 @@ def update_actor_health(world_id: UUID, actor_name: str, new_health: int) -> boo
 
             if not actor:
                 logger.error(f"❌ 未找到角色: {actor_name} (世界ID: {world_id})")
-                return False
+                return None
 
-            # 更新生命值
-            actor.attributes.health = max(0, new_health)  # 确保生命值不为负
+            # 保存旧的生命值
+            old_health = actor.attributes.health
+            max_health = actor.attributes.max_health
+
+            # 更新生命值：限制在 0 到 max_health 之间
+            clamped_health = max(0, min(new_health, max_health))
+            actor.attributes.health = clamped_health
 
             # 如果生命值为0，标记为死亡
             if actor.attributes.health == 0:
@@ -53,7 +60,7 @@ def update_actor_health(world_id: UUID, actor_name: str, new_health: int) -> boo
                 )
 
             db.commit()
-            return True
+            return (old_health, clamped_health, max_health)
 
         except Exception as e:
             db.rollback()

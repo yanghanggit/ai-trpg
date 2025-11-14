@@ -30,6 +30,7 @@ from .world_operations import (
     set_world_kickoff,
     get_world_kickoff,
     get_world_stages_and_actors,
+    move_actor_to_stage_db,
 )
 from .actor_movement_event_operations import (
     save_actor_movement_event_to_db,
@@ -45,6 +46,8 @@ from .message_operations import (
     add_stage_context,
     add_world_context,
 )
+
+from .stage_operations import update_stage_info, get_stage_by_name
 
 
 __all__: List[str] = [
@@ -80,6 +83,7 @@ __all__: List[str] = [
     "set_world_kickoff",
     "get_world_kickoff",
     "get_world_stages_and_actors",
+    "move_actor_to_stage_db",
     # Actor movement event operations
     "save_actor_movement_event_to_db",
     "get_actor_movement_events_by_actor",
@@ -92,4 +96,7 @@ __all__: List[str] = [
     "add_actor_context",
     "add_stage_context",
     "add_world_context",
+    # Stage operations
+    "update_stage_info",
+    "get_stage_by_name",
 ]

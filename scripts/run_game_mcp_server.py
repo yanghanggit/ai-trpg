@@ -33,12 +33,18 @@ from ai_trpg.demo import create_demo_world, Effect, World
 from ai_trpg.pgsql import (
     get_world_id_by_name,
     save_actor_movement_event_to_db,
+    update_stage_info,
+    move_actor_to_stage_db,
 )
 
 # 导入辅助函数模块
 from mcp_server_helpers import (
     get_actor_info_impl,
     get_stage_info_impl,
+)
+
+from ai_trpg.pgsql.actor_operations import (
+    update_actor_health as update_actor_health_db,
 )
 
 # 导入角色移动日志管理模块 (Pydantic 模型保留用于数据验证)
@@ -140,30 +146,42 @@ async def update_stage_execution_result(
     """
     try:
 
-        assert world_name == demo_world.name, f"未知的世界名称: {world_name}"
+        # assert world_name == demo_world.name, f"未知的世界名称: {world_name}"
 
-        # 验证Stage存在
-        stage = demo_world.find_stage(stage_name)
-        if not stage:
-            error_msg = f"错误：未找到名为 '{stage_name}' 的Stage"
-            logger.error(error_msg)
-            return json.dumps(
-                {"success": False, "error": error_msg},
-                ensure_ascii=False,
-            )
+        # # 验证Stage存在
+        # stage = demo_world.find_stage(stage_name)
+        # if not stage:
+        #     error_msg = f"错误：未找到名为 '{stage_name}' 的Stage"
+        #     logger.error(error_msg)
+        #     return json.dumps(
+        #         {"success": False, "error": error_msg},
+        #         ensure_ascii=False,
+        #     )
 
         # 打印接收到的数据
-        logger.info(f"calculation_log:\n{calculation_log}")
+        logger.warning(f"calculation_log:\n{calculation_log}")
         logger.info(f"narrative:\n{narrative}")
         logger.info(f"actor_states:\n{actor_states}")
         logger.info(f"environment:\n{environment}")
         logger.info(f"connections:\n{connections}")
 
         # 直接更新Stage状态（不需要额外解析）
-        stage.narrative = narrative
-        stage.actor_states = actor_states
-        stage.environment = environment
-        stage.connections = connections
+        # stage.narrative = narrative
+        # stage.actor_states = actor_states
+        # stage.environment = environment
+        # stage.connections = connections
+
+        # 请在这个位置使用 update_stage_info 函数将更新同步到数据库
+        world_id = get_world_id_by_name(world_name=world_name)
+        assert world_id is not None, f"世界 '{world_name}' 未在数据库中找到"
+        update_stage_info(
+            world_id=world_id,
+            stage_name=stage_name,
+            environment=environment,
+            narrative=narrative,
+            actor_states=actor_states,
+            connections=connections,
+        )
 
         return json.dumps(
             {
@@ -202,17 +220,19 @@ async def move_actor_to_stage(
         操作结果的JSON字符串
     """
     try:
-        assert world_name == demo_world.name, f"未知的世界名称: {world_name}"
+        # 步骤1: 获取 world_id
+        world_id = get_world_id_by_name(world_name)
+        assert world_id is not None, f"世界 '{world_name}' 未在数据库中找到"
 
-        # 记录移动前的状态（用于日志）
-        actor, source_stage = demo_world.find_actor_with_stage(actor_name)
-        source_stage_name = source_stage.name if source_stage else "未知"
+        # 步骤2: 执行数据库层面的移动操作（同时返回源场景名称）
+        move_success, source_stage_name = move_actor_to_stage_db(
+            world_id=world_id,
+            actor_name=actor_name,
+            target_stage_name=target_stage_name,
+        )
 
-        # 调用World的move_actor_to_stage方法
-        result_stage = demo_world.move_actor_to_stage(actor_name, target_stage_name)
-
-        # 如果返回None，表示操作失败
-        if result_stage is None:
+        # 如果移动失败
+        if not move_success:
             error_msg = (
                 f"移动失败：角色 '{actor_name}' 或目标场景 '{target_stage_name}' 不存在"
             )
@@ -229,30 +249,19 @@ async def move_actor_to_stage(
                 indent=2,
             )
 
-        # 成功移动
-        success_msg = f"成功将角色 '{actor_name}' 从场景 '{source_stage_name}' 移动到 '{result_stage.name}'"
-        if entry_posture_and_status:
-            success_msg += f"（进入姿态与状态: {entry_posture_and_status}）"
+        # 步骤3: 移动成功，记录移动事件到数据库
+        success_msg = f"成功将角色 '{actor_name}' 从场景 '{source_stage_name}' 移动到 '{target_stage_name}', 进入姿态与状态: {entry_posture_and_status}）"
         logger.info(success_msg)
 
-        # 记录移动事件到数据库
-        try:
-            # 获取当前世界的 world_id
-            world_id = get_world_id_by_name(demo_world.name)
-            assert world_id is not None, f"世界 '{demo_world.name}' 未在数据库中找到"
-
-            # 保存到数据库
-            save_actor_movement_event_to_db(
-                world_id=world_id,
-                actor_name=actor_name,
-                from_stage=source_stage_name,
-                to_stage=result_stage.name,
-                description=success_msg,
-                entry_posture_and_status=entry_posture_and_status,
-            )
-        except Exception as log_error:
-            # 即使数据库记录失败，也不影响移动操作的成功
-            logger.warning(f"记录移动事件失败（不影响移动操作）: {log_error}")
+        # 步骤4: 存储一个临时事件，用于后续的通知！
+        save_actor_movement_event_to_db(
+            world_id=world_id,
+            actor_name=actor_name,
+            from_stage=source_stage_name,
+            to_stage=target_stage_name,
+            description=success_msg,
+            entry_posture_and_status=entry_posture_and_status,
+        )
 
         return json.dumps(
             {
@@ -260,8 +269,8 @@ async def move_actor_to_stage(
                 "message": success_msg,
                 "actor": actor_name,
                 "source_stage": source_stage_name,
-                "target_stage": result_stage.name,
-                "entry_posture_and_status": entry_posture_and_status,  # 返回进入姿态与状态信息
+                "target_stage": target_stage_name,
+                "entry_posture_and_status": entry_posture_and_status,
                 "timestamp": datetime.now().isoformat(),
             },
             ensure_ascii=False,
@@ -523,12 +532,13 @@ async def update_actor_health(world_name: str, actor_name: str, new_health: int)
         更新操作的结果信息（JSON格式），包含旧生命值和新生命值
     """
     try:
-        assert world_name == demo_world.name, f"未知的世界名称: {world_name}"
+        # 步骤1: 获取 world_id
+        world_id = get_world_id_by_name(world_name)
+        assert world_id is not None, f"世界 '{world_name}' 未在数据库中找到"
 
-        # 查找Actor
-        actor, current_stage = demo_world.find_actor_with_stage(actor_name)
-        if not actor or not current_stage:
-            error_msg = f"错误：未找到名为 '{actor_name}' 的Actor"
+        result = update_actor_health_db(world_id, actor_name, new_health)
+        if not result:
+            error_msg = f"错误：未找到名为 '{actor_name}' 的Actor或更新失败"
             logger.error(error_msg)
             return json.dumps(
                 {
@@ -540,38 +550,11 @@ async def update_actor_health(world_name: str, actor_name: str, new_health: int)
                 indent=2,
             )
 
-        # 保存旧的生命值
-        old_health = actor.attributes.health
-        max_health = actor.attributes.max_health
+        old_health, clamped_health, max_health = result
 
-        # 限制生命值在 0 到 max_health 之间
-        clamped_health = max(0, min(new_health, max_health))
-
-        # 更新Actor的health值
-        actor.attributes.health = clamped_health
-
-        # 记录日志
         logger.info(
             f"更新 {actor_name} 生命值: {old_health} → {clamped_health}/{max_health}"
         )
-
-        # 同步更新到数据库
-        try:
-            # 获取当前世界的 world_id
-            world_id = get_world_id_by_name(demo_world.name)
-            assert world_id is not None, f"世界 '{demo_world.name}' 未在数据库中找到"
-
-            # 导入数据库操作函数
-            from ai_trpg.pgsql.actor_operations import (
-                update_actor_health as update_actor_health_db,
-            )
-
-            # 更新数据库中的生命值
-            update_actor_health_db(world_id, actor_name, clamped_health)
-            logger.debug(f"✅ 已同步 {actor_name} 生命值到数据库")
-        except Exception as db_error:
-            # 即使数据库更新失败，也不影响内存中的更新操作
-            logger.warning(f"同步生命值到数据库失败（不影响内存更新）: {db_error}")
 
         return json.dumps(
             {

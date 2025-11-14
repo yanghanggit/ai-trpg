@@ -371,3 +371,80 @@ def get_world_stages_and_actors(world_id: UUID) -> Tuple[List[StageDB], List[Act
         except Exception as e:
             logger.error(f"❌ 查询世界 Stage 和 Actor 失败: {e}")
             raise
+
+
+def move_actor_to_stage_db(
+    world_id: UUID, actor_name: str, target_stage_name: str
+) -> Tuple[bool, str]:
+    """将 Actor 从当前 Stage 移动到目标 Stage（纯数据库操作）
+
+    这是一个纯粹的数据库操作函数，直接修改 ActorDB 的 stage_id 外键。
+    不涉及内存中的 Pydantic 模型，所有操作都在数据库层面完成。
+
+    Args:
+        world_id: 所属世界ID
+        actor_name: 要移动的角色名称
+        target_stage_name: 目标场景名称
+
+    Returns:
+        Tuple[bool, str]:
+            - 第一个元素: 移动是否成功
+            - 第二个元素: 源场景名称（失败时返回"未知"）
+
+    Raises:
+        Exception: 数据库操作失败时抛出异常
+    """
+    with SessionLocal() as db:
+        try:
+            # 1. 查找目标场景（必须属于指定世界）
+            target_stage = (
+                db.query(StageDB)
+                .filter(StageDB.name == target_stage_name)
+                .filter(StageDB.world_id == world_id)
+                .first()
+            )
+
+            if not target_stage:
+                logger.error(
+                    f"❌ 未找到目标场景: {target_stage_name} (世界ID: {world_id})"
+                )
+                return False, "未知"
+
+            # 2. 查找角色及其当前场景（必须属于指定世界）
+            actor = (
+                db.query(ActorDB)
+                .join(ActorDB.stage)
+                .filter(ActorDB.name == actor_name)
+                .filter(StageDB.world_id == world_id)
+                .first()
+            )
+
+            if not actor:
+                logger.error(f"❌ 未找到角色: {actor_name} (世界ID: {world_id})")
+                return False, "未知"
+
+            # 3. 记录源场景信息（用于返回和日志）
+            source_stage_name = actor.stage.name
+
+            # 4. 幂等性检查：如果已在目标场景，直接返回成功
+            if actor.stage_id == target_stage.id:
+                logger.info(
+                    f"✅ 角色 '{actor_name}' 已在目标场景 '{target_stage_name}'，无需移动"
+                )
+                return True, source_stage_name
+
+            # 5. 执行移动：更新 Actor 的 stage_id 外键
+            actor.stage_id = target_stage.id
+
+            # 6. 提交更改
+            db.commit()
+
+            logger.success(
+                f"✅ 角色 '{actor_name}' 已从场景 '{source_stage_name}' 移动到 '{target_stage_name}'"
+            )
+            return True, source_stage_name
+
+        except Exception as e:
+            db.rollback()
+            logger.error(f"❌ 移动角色失败: {e}")
+            raise

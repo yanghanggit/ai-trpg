@@ -15,46 +15,46 @@ from loguru import logger
 from ai_trpg.demo import World
 
 
-def get_world_info_impl(world: World) -> str:
-    """
-    获取World信息的内部实现（辅助函数）
+# def get_world_info_impl(world: World) -> str:
+#     """
+#     获取World信息的内部实现（辅助函数）
 
-    Args:
-        world: 游戏世界对象
+#     Args:
+#         world: 游戏世界对象
 
-    Returns:
-        统一格式的JSON响应:
-        {
-            "data": World的完整数据或null,
-            "error": 错误信息或null,
-            "timestamp": ISO格式时间戳
-        }
-    """
-    try:
-        # 获取核心数据
-        world_data = json.loads(world.model_dump_json(ensure_ascii=False))
+#     Returns:
+#         统一格式的JSON响应:
+#         {
+#             "data": World的完整数据或null,
+#             "error": 错误信息或null,
+#             "timestamp": ISO格式时间戳
+#         }
+#     """
+#     try:
+#         # 获取核心数据
+#         world_data = json.loads(world.model_dump_json(ensure_ascii=False))
 
-        return json.dumps(
-            {
-                "data": world_data,
-                "error": None,
-                "timestamp": datetime.now().isoformat(),
-            },
-            ensure_ascii=False,
-            indent=2,
-        )
+#         return json.dumps(
+#             {
+#                 "data": world_data,
+#                 "error": None,
+#                 "timestamp": datetime.now().isoformat(),
+#             },
+#             ensure_ascii=False,
+#             indent=2,
+#         )
 
-    except Exception as e:
-        logger.error(f"获取World信息失败: {e}")
-        return json.dumps(
-            {
-                "data": None,
-                "error": f"无法获取World数据 - {str(e)}",
-                "timestamp": datetime.now().isoformat(),
-            },
-            ensure_ascii=False,
-            indent=2,
-        )
+#     except Exception as e:
+#         logger.error(f"获取World信息失败: {e}")
+#         return json.dumps(
+#             {
+#                 "data": None,
+#                 "error": f"无法获取World数据 - {str(e)}",
+#                 "timestamp": datetime.now().isoformat(),
+#             },
+#             ensure_ascii=False,
+#             indent=2,
+#         )
 
 
 def get_actor_info_impl(world: World, actor_name: str) -> str:
