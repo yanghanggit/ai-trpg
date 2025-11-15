@@ -29,7 +29,7 @@ from mcp.server.fastmcp import FastMCP
 import mcp.types as types
 from ai_trpg.mcp import mcp_config
 from fastapi import Request, Response, status
-from ai_trpg.demo import create_demo_world, Effect, World
+from ai_trpg.demo import create_demo_world, World
 from ai_trpg.pgsql import (
     get_world_id_by_name,
     save_actor_movement_event_to_db,
@@ -444,7 +444,7 @@ async def remove_actor_effect(
         移除操作的结果信息（JSON格式），包含移除的 Effect 数量
     """
     try:
-        
+
         # 步骤1: 获取 world_id
         world_id = get_world_id_by_name(world_name)
         assert world_id is not None, f"世界 '{world_name}' 未在数据库中找到"

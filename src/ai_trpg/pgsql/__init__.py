@@ -53,6 +53,7 @@ from .actor_operations import (
     update_actor_health,
     add_actor_effect,
     remove_actor_effect,
+    get_actors_in_world,
 )
 
 
@@ -110,4 +111,5 @@ __all__: List[str] = [
     "update_actor_health",
     "add_actor_effect",
     "remove_actor_effect",
+    "get_actors_in_world",
 ]

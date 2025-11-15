@@ -6,57 +6,39 @@
 """
 
 import asyncio
-from typing import Any, Dict, List
+from uuid import UUID
 from loguru import logger
-from pydantic import BaseModel
 from langchain.schema import HumanMessage
 from ai_trpg.deepseek import create_deepseek_llm
-from agent_utils import ActorAgent, GameAgentManager
+from ai_trpg.mcp import McpClient
+from agent_utils import GameAgentManager
 from workflow_handlers import handle_mcp_workflow_execution
-from mcp_client_resource_helpers import read_actor_resource
-from ai_trpg.pgsql import get_actor_context, add_actor_context
+from ai_trpg.pgsql import get_actor_context, get_actors_in_world, ActorDB
 
 
-########################################################################################################################
-########################################################################################################################
-########################################################################################################################
-class ActorSelfUpdateConfirmation(BaseModel):
-    """角色自我状态更新确认的数据模型
-
-    用于验证和解析角色自我更新后的 JSON 输出。
-    """
-
-    appearance: str  # "是" 或 "否"
-    effects: List[str]  # 新添加的 Effect 名称列表，如无则为空数组
-
-
-def _gen_self_update_request_prompt(actor_name: str, actor_info: Dict[str, Any]) -> str:
+def _gen_self_update_request_prompt(actor_db: ActorDB) -> str:
     """
     生成角色自我状态更新请求提示词（步骤1-2：分析与工具调用）
 
     让LLM根据场景执行结果自主判断是否需要更新外观和添加 Effect。
+    直接使用 ActorDB 对象构建提示词，无需字典转换。
     """
 
-    # 提取角色属性信息
-    attributes = actor_info.get("attributes", {})
-    health = attributes.get("health", 0)
-    max_health = attributes.get("max_health", 0)
-    attack = attributes.get("attack", 0)
+    # 直接访问属性（已通过 joinedload 预加载）
+    health = actor_db.attributes.health
+    max_health = actor_db.attributes.max_health
+    attack = actor_db.attributes.attack
 
-    # 提取角色效果信息
-    effects = actor_info.get("effects", [])
-    effects_text = ""
-    if effects:
+    # 直接遍历 effects（List[EffectDB]）
+    if actor_db.effects:
         effects_list = []
-        for effect in effects:
-            effect_name = effect.get("name", "")
-            effect_desc = effect.get("description", "")
-            effects_list.append(f"- **{effect_name}**: {effect_desc}")
+        for effect in actor_db.effects:
+            effects_list.append(f"- **{effect.name}**: {effect.description}")
         effects_text = "\n".join(effects_list)
     else:
         effects_text = "无"
 
-    return f"""# 指令！你({actor_name}) 外观和Effect更新
+    return f"""# 指令！你({actor_db.name}) 外观和Effect更新
 
 ## 📋 当前状态
 
@@ -124,35 +106,29 @@ def _gen_self_update_confirmation_instruction() -> str:
 ########################################################################################################################
 ########################################################################################################################
 ########################################################################################################################
-def _gen_self_update_request_prompt_test(
-    actor_name: str, actor_info: Dict[str, Any]
-) -> str:
+def _gen_self_update_request_prompt_test(actor_db: ActorDB) -> str:
     """
     生成角色自我状态更新请求提示词（测试版本 - 强制更新）
 
     **测试用途**: 强制要求 LLM 必须更新外观和添加至少一个 Effect。
+    直接使用 ActorDB 对象构建提示词，无需字典转换。
     """
 
-    # 提取角色属性信息
-    attributes = actor_info.get("attributes", {})
-    health = attributes.get("health", 0)
-    max_health = attributes.get("max_health", 0)
-    attack = attributes.get("attack", 0)
+    # 直接访问属性
+    health = actor_db.attributes.health
+    max_health = actor_db.attributes.max_health
+    attack = actor_db.attributes.attack
 
-    # 提取角色效果信息
-    effects = actor_info.get("effects", [])
-    effects_text = ""
-    if effects:
+    # 直接遍历 effects
+    if actor_db.effects:
         effects_list = []
-        for effect in effects:
-            effect_name = effect.get("name", "")
-            effect_desc = effect.get("description", "")
-            effects_list.append(f"- **{effect_name}**: {effect_desc}")
+        for effect in actor_db.effects:
+            effects_list.append(f"- **{effect.name}**: {effect.description}")
         effects_text = "\n".join(effects_list)
     else:
         effects_text = "无"
 
-    return f"""# 指令！你({actor_name}) 外观和Effect更新（测试模式）
+    return f"""# 指令！你({actor_db.name}) 外观和Effect更新（测试模式）
 
 ## 📋 当前状态
 
@@ -191,7 +167,9 @@ def _gen_self_update_request_prompt_test(
 ########################################################################################################################
 ########################################################################################################################
 async def _handle_actor_self_update(
-    actor_agent: ActorAgent,
+    actor_db: ActorDB,
+    mcp_client: McpClient,
+    world_id: UUID,
 ) -> None:
     """处理单个角色的自我状态更新
 
@@ -202,21 +180,13 @@ async def _handle_actor_self_update(
     通过调用 MCP 工具实现状态更新。
 
     Args:
-        actor_agent: 角色代理
+        actor_db: 角色数据库对象
         mcp_client: MCP 客户端
+        world_id: 游戏世界 ID
     """
 
-    if actor_agent.is_dead:
-        logger.debug(f"💤 角色 {actor_agent.name} 已标记为死亡，跳过自我更新流程")
-        return
-
-    # 使用统一的资源读取函数
-    actor_info: Dict[str, Any] = await read_actor_resource(
-        actor_agent.mcp_client, actor_agent.name
-    )
-
-    # 步骤1-2: 分析与工具调用
-    step1_2_instruction = _gen_self_update_request_prompt(actor_agent.name, actor_info)
+    # 步骤1-2: 分析与工具调用（直接使用 ActorDB 对象）
+    step1_2_instruction = _gen_self_update_request_prompt(actor_db)
 
     # 步骤3: 二次推理输出确认（独立指令）
     step3_instruction = HumanMessage(
@@ -224,157 +194,18 @@ async def _handle_actor_self_update(
     )
 
     # 从数据库读取上下文
-    actor_context = get_actor_context(actor_agent.world_id, actor_agent.name)
+    actor_context = get_actor_context(world_id, actor_db.name)
 
     # mcp 的工作流（传入二次推理指令）
-    self_update_response = await handle_mcp_workflow_execution(
-        agent_name=actor_agent.name,
+    await handle_mcp_workflow_execution(
+        agent_name=actor_db.name,
         context=actor_context,
         request=HumanMessage(content=step1_2_instruction),
         llm=create_deepseek_llm(),
-        mcp_client=actor_agent.mcp_client,
+        mcp_client=mcp_client,
         re_invoke_instruction=step3_instruction,  # 传入步骤3的二次推理指令
         skip_re_invoke=True,
     )
-
-    # 🎯 根据响应长度判断执行路径
-    # response_count = len(self_update_response)
-
-    # if response_count == 0:
-    #     logger.error(f"❌ 角色 {actor_agent.name} 自我更新未收到回复")
-    #     return
-
-    # elif response_count == 1:
-    #     # 情况1: 只有第一次推理，可能是以下情况：
-    #     # A. LLM 判断无需更新，输出指定文本（正常）
-    #     # B. LLM 尝试调用工具但工具流程失败（异常，但安全截断）
-    #     # C. LLM 输出非预期内容（异常）
-    #     first_response_content = str(self_update_response[0].content).strip()
-
-    #     # 移除可能的 Markdown 格式（如 **文本**）并清理空白
-    #     cleaned_content = (
-    #         first_response_content.replace("**", "")
-    #         .replace("*", "")
-    #         .strip()
-    #         .split("\n")[0]
-    #         .strip()
-    #     )
-
-    #     # 精确匹配指定文本（支持带/不带 Markdown 格式）
-    #     if cleaned_content == "无需更新外观与Effect":
-    #         logger.info(f"✅ 角色 {actor_agent.name} 无需更新（明确声明）")
-    #     elif "tool_call" in first_response_content.lower():
-    #         logger.warning(
-    #             f"⚠️ 角色 {actor_agent.name} 工具调用流程中断 (安全截断)\n"
-    #             f"   可能原因: 工具解析失败/执行失败/网络错误\n"
-    #             f"   LLM 输出: {first_response_content[:150]}..."
-    #         )
-    #     else:
-    #         logger.warning(
-    #             f"⚠️ 角色 {actor_agent.name} 输出非预期内容\n"
-    #             f"   期望: '无需更新外观与Effect' 或工具调用\n"
-    #             f"   实际: {first_response_content[:150]}..."
-    #         )
-    #     return
-
-    # elif response_count == 2:
-    #     # 情况2: 完整流程 (第一次推理 + 工具调用 + 二次推理)
-    #     try:
-    #         # 验证二次推理的 JSON 格式
-    #         confirmation = ActorSelfUpdateConfirmation.model_validate_json(
-    #             strip_json_code_block(str(self_update_response[-1].content))
-    #         )
-
-    #         logger.success(
-    #             f"✅ 角色 {actor_agent.name} 状态更新完成\n"
-    #             f"   外观更新: {confirmation.appearance}\n"
-    #             f"   新增 Effect: {confirmation.effects}"
-    #         )
-
-    #         # 在这里注意，不要添加任何新的对话历史，所有的更新都在 MCP 工作流中完成！
-    #         logger.debug(
-    #             f"💡 角色 {actor_agent.name} 的所有更新已通过 MCP 工具持久化，对话历史未变更"
-    #         )
-
-    #     except Exception as e:
-    #         logger.error(
-    #             f"❌ 角色 {actor_agent.name} 二次推理 JSON 解析失败: {e}\n"
-    #             f"   响应内容: {self_update_response[-1].content}"
-    #         )
-
-    # else:
-    #     # 情况3: 异常情况（不应该出现）
-    #     logger.error(
-    #         f"❌ 角色 {actor_agent.name} 响应数量异常: {response_count}\n"
-    #         f"   期望: 1 (无需更新) 或 2 (完整流程)，实际: {response_count}"
-    #     )
-
-
-########################################################################################################################
-########################################################################################################################
-########################################################################################################################
-async def _update_actor_death_status(
-    actor_agent: ActorAgent,
-) -> None:
-    """检查单个角色是否死亡
-
-    通过读取角色资源中的生命值属性判断角色是否死亡。
-    如果角色死亡，会通知角色自身和场景内的其他角色。
-
-    Args:
-        actor_agent: 角色代理
-        mcp_client: MCP 客户端
-    """
-
-    if actor_agent.is_dead:
-        logger.debug(f"💤 角色 {actor_agent.name} 已标记为死亡，跳过死亡检查")
-        return
-
-    # 使用统一的资源读取函数
-    actor_info: Dict[str, Any] = await read_actor_resource(
-        actor_agent.mcp_client, actor_agent.name
-    )
-    attributes = actor_info.get("attributes", {})
-    health = attributes.get("health", 0)
-
-    if health <= 0:
-
-        # 角色死亡处理
-        actor_agent.is_dead = True
-        logger.warning(f"💀 角色 {actor_agent.name} 已死亡！")
-
-        # 通知自己（写入数据库）
-        add_actor_context(
-            actor_agent.world_id,
-            actor_agent.name,
-            [HumanMessage(content=f"# 通知!你({actor_agent.name})已经死亡!")],
-        )
-
-        # 测试:从数据库验证角色死亡状态
-        from ai_trpg.pgsql.actor_operations import get_actor_attributes, is_actor_dead
-
-        db_is_dead = is_actor_dead(actor_agent.world_id, actor_agent.name)
-        db_attributes = get_actor_attributes(actor_agent.world_id, actor_agent.name)
-
-        if db_attributes:
-            logger.debug(
-                f"🔍 数据库验证 - 角色 {actor_agent.name}:\n"
-                f"   is_dead={db_is_dead} (期望: True)\n"
-                f"   health={db_attributes.health} (期望: 0)\n"
-                f"   验证结果: {'✅ 通过' if db_is_dead and db_attributes.health == 0 else '❌ 失败'}"
-            )
-        else:
-            logger.error(f"❌ 无法从数据库获取角色 {actor_agent.name} 的属性信息")
-
-        # 通知场景内的其他角色
-        # for other_agent in actor_agent.stage_agent.actor_agents:
-        #     if other_agent.name != actor_agent.name:
-        #         other_agent.context.append(
-        #             HumanMessage(content=f"# 通知！角色 {actor_agent.name} 已经死亡！")
-        #         )
-
-    else:
-        logger.debug(f"✅ 角色 {actor_agent.name} 仍然存活，当前生命值: {health}")
 
 
 ########################################################################################################################
@@ -386,48 +217,56 @@ async def handle_actors_self_update(
 ) -> None:
     """处理所有角色的自我状态更新
 
+    从数据库获取所有存活角色，直接使用 ActorDB 对象进行更新。
+
     Args:
-        actor_agents: 角色代理列表
-        mcp_client: MCP 客户端
+        game_agent_manager: 游戏代理管理器
         use_concurrency: 是否使用并行处理，默认False（顺序执行）
     """
 
-    actor_agents = game_agent_manager.actor_agents
-    if len(actor_agents) == 0:
-        logger.warning("⚠️ 当前没有角色代理，跳过自我状态更新流程")
+    # 从数据库获取所有存活角色（is_dead=False）
+    alive_actors = get_actors_in_world(game_agent_manager.world_id, is_dead=False)
+
+    if len(alive_actors) == 0:
+        logger.warning("⚠️ 当前没有存活角色，跳过自我状态更新流程")
         return
 
     if use_concurrency:
+        logger.debug(f"🔄 并行处理 {len(alive_actors)} 个角色的自我更新")
+        actor_update_tasks = []
 
-        logger.debug(f"🔄 并行处理 {len(actor_agents)} 个角色的自我更新")
-        actor_update_tasks = [
-            _handle_actor_self_update(
-                actor_agent=actor_agent,
-            )
-            for actor_agent in actor_agents
-        ]
+        for actor_db in alive_actors:
+            # 通过角色名称获取对应的代理（用于获取 mcp_client）
+            agent = game_agent_manager.get_agent_by_name(actor_db.name)
+            assert agent is not None, f"未找到角色 {actor_db.name} 对应的代理"
+            if agent:
+                actor_update_tasks.append(
+                    _handle_actor_self_update(
+                        actor_db=actor_db,
+                        mcp_client=agent.mcp_client,
+                        world_id=game_agent_manager.world_id,
+                    )
+                )
+            else:
+                logger.warning(f"⚠️ 未找到角色 {actor_db.name} 对应的代理，跳过")
+
         await asyncio.gather(*actor_update_tasks, return_exceptions=True)
 
-        death_check_tasks = [
-            _update_actor_death_status(
-                actor_agent=actor_agent,
-            )
-            for actor_agent in actor_agents
-        ]
-        await asyncio.gather(*death_check_tasks, return_exceptions=True)
-
     else:
+        logger.debug(f"🔄 顺序处理 {len(alive_actors)} 个角色的自我更新")
 
-        logger.debug(f"🔄 顺序处理 {len(actor_agents)} 个角色的自我更新")
-        for actor_agent in actor_agents:
-            await _handle_actor_self_update(
-                actor_agent=actor_agent,
-            )
-
-        for actor_agent in actor_agents:
-            await _update_actor_death_status(
-                actor_agent=actor_agent,
-            )
+        for actor_db in alive_actors:
+            # 通过角色名称获取对应的代理（用于获取 mcp_client）
+            agent = game_agent_manager.get_agent_by_name(actor_db.name)
+            assert agent is not None, f"未找到角色 {actor_db.name} 对应的代理"
+            if agent:
+                await _handle_actor_self_update(
+                    actor_db=actor_db,
+                    mcp_client=agent.mcp_client,
+                    world_id=game_agent_manager.world_id,
+                )
+            else:
+                logger.warning(f"⚠️ 未找到角色 {actor_db.name} 对应的代理，跳过")
 
 
 ########################################################################################################################

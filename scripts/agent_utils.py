@@ -301,6 +301,20 @@ class GameAgentManager:
         """获取当前激活的代理"""
         return self._current_agent
 
+    def get_agent_by_name(self, agent_name: str) -> Optional[GameAgent]:
+        """根据名称查找代理
+
+        Args:
+            agent_name: 代理名称
+
+        Returns:
+            Optional[GameAgent]: 如果找到返回对应代理，否则返回 None
+        """
+        for agent in self.all_agents:
+            if agent.name == agent_name:
+                return agent
+        return None
+
     def switch_agent(self, target_name: str) -> Optional[GameAgent]:
         """切换到指定名称的代理
 

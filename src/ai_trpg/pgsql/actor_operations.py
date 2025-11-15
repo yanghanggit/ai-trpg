@@ -189,6 +189,46 @@ def get_actor_attributes(world_id: UUID, actor_name: str) -> Optional[Attributes
             raise
 
 
+def get_actor_by_name(world_id: UUID, actor_name: str) -> Optional[ActorDB]:
+    """根据名称获取角色完整信息
+
+    预加载 Actor 的所有关系数据，确保在会话外可以访问。
+
+    Args:
+        world_id: 所属世界ID
+        actor_name: 角色名称
+
+    Returns:
+        Optional[ActorDB]: 角色对象（预加载了 attributes 和 effects），如果不存在则返回 None
+    """
+    with SessionLocal() as db:
+        try:
+            # 查找角色并预加载关系数据
+            actor = (
+                db.query(ActorDB)
+                .options(
+                    joinedload(ActorDB.stage),
+                    joinedload(ActorDB.attributes),
+                    joinedload(ActorDB.effects),
+                )
+                .join(ActorDB.stage)
+                .filter(ActorDB.name == actor_name)
+                .filter(ActorDB.stage.has(world_id=world_id))
+                .first()
+            )
+
+            if not actor:
+                logger.warning(f"⚠️ 未找到角色: {actor_name} (世界ID: {world_id})")
+                return None
+
+            logger.debug(f"📋 已找到角色: {actor_name}")
+            return actor
+
+        except Exception as e:
+            logger.error(f"❌ 查询角色失败: {e}")
+            raise
+
+
 def get_actors_in_world(
     world_id: UUID, is_dead: Optional[bool] = None
 ) -> List[ActorDB]:
