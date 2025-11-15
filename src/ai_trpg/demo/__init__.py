@@ -16,7 +16,7 @@ from .world3 import create_test_world3
 def create_demo_world() -> World:
     """Create a demo world instance combining world1 and world2."""
 
-    return create_test_world1()
+    return create_test_world_2_1()
 
 
 __all__ = [

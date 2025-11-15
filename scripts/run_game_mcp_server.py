@@ -30,7 +30,6 @@ from mcp.server.fastmcp import FastMCP
 import mcp.types as types
 from ai_trpg.mcp import mcp_config
 from fastapi import Request, Response, status
-from ai_trpg.demo import create_demo_world, World
 from ai_trpg.pgsql import (
     get_world_id_by_name,
     save_actor_movement_event_to_db,
@@ -53,7 +52,7 @@ from ai_trpg.pgsql.actor_operations import (
 
 
 # 初始化游戏世界
-demo_world: World = create_demo_world()
+# demo_world: World = create_demo_world()
 
 
 # ============================================================================

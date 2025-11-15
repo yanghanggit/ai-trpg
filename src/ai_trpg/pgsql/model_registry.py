@@ -17,6 +17,7 @@ from .effect import EffectDB
 from .message import MessageDB
 from .attributes import AttributesDB
 from .actor_movement_event import ActorMovementEventDB
+from .actor_plan import ActorPlanDB
 
 # 可以在这里添加其他模型的导入
 # from .other_model import OtherModel
@@ -31,6 +32,7 @@ __all__ = [
     "MessageDB",
     "AttributesDB",
     "ActorMovementEventDB",
+    "ActorPlanDB",
     "register_all_models",
 ]
 
@@ -44,6 +46,6 @@ def register_all_models() -> None:
     """
     logger.debug("数据库模型注册完成")
     logger.debug(
-        f"已注册模型: VectorDocumentDB, UserDB, WorldDB, StageDB, ActorDB, EffectDB, MessageDB, AttributesDB, ActorMovementEventDB"
+        f"已注册模型: VectorDocumentDB, UserDB, WorldDB, StageDB, ActorDB, EffectDB, MessageDB, AttributesDB, ActorMovementEventDB, ActorPlanDB"
     )
     # 可以在这里添加其他模型的日志

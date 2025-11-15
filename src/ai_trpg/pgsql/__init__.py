@@ -21,6 +21,7 @@ from .effect import EffectDB
 from .message import MessageDB
 from .attributes import AttributesDB
 from .actor_movement_event import ActorMovementEventDB
+from .actor_plan import ActorPlanDB
 from .config import PostgreSQLConfig, postgresql_config
 from .world_operations import (
     save_world_to_db,
@@ -82,6 +83,8 @@ __all__: List[str] = [
     "AttributesDB",
     # Actor movement event models
     "ActorMovementEventDB",
+    # Actor plan models
+    "ActorPlanDB",
     # World operations
     "save_world_to_db",
     "load_world_from_db",
