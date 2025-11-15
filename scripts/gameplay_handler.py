@@ -51,7 +51,7 @@ async def handle_game_command(
 
             await handle_stage_execute(
                 game_agent_manager=game_agent_manager,
-                use_concurrency=False,
+                use_concurrency=True,
             )
 
         # /game all:actors_self_update - 让所有角色进行自我更新

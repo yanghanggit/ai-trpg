@@ -20,6 +20,7 @@ from ai_trpg.pgsql.actor_plan_operations import (
     get_latest_actor_plan,
 )
 from ai_trpg.pgsql import ActorDB, StageDB
+from uuid import UUID
 
 
 def _gen_compressed_stage_execute_prompt(stage_name: str, original_message: str) -> str:
@@ -31,7 +32,7 @@ def _gen_compressed_stage_execute_prompt(stage_name: str, original_message: str)
 ########################################################################################################################
 ########################################################################################################################
 ########################################################################################################################
-def _build_actor_plan_prompt(actor_db: ActorDB) -> str:
+def _build_actor_plan_prompt(actor_db: ActorDB, world_id: UUID) -> str:
     """构建角色计划提示词（优化版）
 
     生成格式：
@@ -49,7 +50,7 @@ def _build_actor_plan_prompt(actor_db: ActorDB) -> str:
     Returns:
         角色计划提示词字符串
     """
-    current_plan = get_latest_actor_plan(actor_db.stage.world_id, actor_db.name)
+    current_plan = get_latest_actor_plan(world_id, actor_db.name)
     if current_plan == "":
         return ""
 
@@ -92,7 +93,7 @@ def _build_actor_plan_prompt(actor_db: ActorDB) -> str:
 ########################################################################################################################
 ########################################################################################################################
 ########################################################################################################################
-def _collect_actor_plan_prompts(actors: List[ActorDB]) -> List[str]:
+def _collect_actor_plan_prompts(actors: List[ActorDB], world_id: UUID) -> List[str]:
     """收集所有角色的行动计划
 
     从角色数据库对象列表中提取每个角色的行动计划。
@@ -107,7 +108,7 @@ def _collect_actor_plan_prompts(actors: List[ActorDB]) -> List[str]:
     ret: List[str] = []
 
     for actor_db in actors:
-        prompt = _build_actor_plan_prompt(actor_db)
+        prompt = _build_actor_plan_prompt(actor_db, world_id)
         if prompt != "":
             ret.append(prompt)
 
@@ -136,7 +137,7 @@ async def _handle_single_stage_execute(
         return
 
     # 收集所有角色的行动计划
-    actor_plans = _collect_actor_plan_prompts(actors)
+    actor_plans = _collect_actor_plan_prompts(actors, world_id)
 
     if not actor_plans:
         logger.warning(f"⚠️ 场景 {stage_db.name} 没有角色有行动计划，跳过场景执行")
