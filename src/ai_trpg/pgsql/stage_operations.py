@@ -4,9 +4,10 @@
 提供 Stage 的数据库操作
 """
 
-from typing import Optional
+from typing import Optional, List
 from uuid import UUID
 from loguru import logger
+from sqlalchemy.orm import joinedload
 from .client import SessionLocal
 from .stage import StageDB
 
@@ -109,4 +110,34 @@ def get_stage_by_name(world_id: UUID, stage_name: str) -> Optional[StageDB]:
 
         except Exception as e:
             logger.error(f"❌ 查询场景失败: {e}")
+            raise
+
+
+def get_stages_in_world(world_id: UUID) -> List[StageDB]:
+    """获取指定世界中的所有场景
+
+    预加载每个 Stage 的角色列表，确保在会话外可以访问。
+
+    Args:
+        world_id: 世界ID
+
+    Returns:
+        List[StageDB]: 该世界中的所有场景列表，每个 StageDB 预加载了：
+            - stage.actors (List[ActorDB])
+    """
+    with SessionLocal() as db:
+        try:
+            # 查询所有场景并预加载角色列表
+            stages = (
+                db.query(StageDB)
+                .options(joinedload(StageDB.actors))
+                .filter(StageDB.world_id == world_id)
+                .all()
+            )
+
+            logger.debug(f"📋 查询世界 {world_id} 中的所有场景，共 {len(stages)} 个")
+            return stages
+
+        except Exception as e:
+            logger.error(f"❌ 查询世界场景失败: {e}")
             raise

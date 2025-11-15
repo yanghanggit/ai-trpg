@@ -6,7 +6,7 @@
 """
 
 import asyncio
-from typing import List, Optional, Tuple
+from typing import List, Optional
 from loguru import logger
 from pydantic import BaseModel, ConfigDict
 from langchain.schema import BaseMessage
@@ -347,89 +347,3 @@ class GameAgentManager:
         # 未找到目标代理
         logger.error(f"❌ 未找到角色代理: {target_name}")
         return None
-
-    def _find_actor_agent(
-        self, actor_name: str
-    ) -> Optional[Tuple[ActorAgent, StageAgent]]:
-        """查找指定名称的角色代理及其所属场景
-
-        Args:
-            actor_name: 角色名称
-
-        Returns:
-            Optional[tuple[ActorAgent, StageAgent]]: 如果找到返回 (角色代理, 所属场景代理)，否则返回 None
-        """
-        for stage in self._stage_agents:
-            for actor in stage.actor_agents:
-                if actor.name == actor_name:
-                    return (actor, stage)
-        return None
-
-    def _find_stage_agent(self, stage_name: str) -> Optional[StageAgent]:
-        """查找指定名称的场景代理
-
-        Args:
-            stage_name: 场景名称
-
-        Returns:
-            Optional[StageAgent]: 如果找到返回场景代理，否则返回 None
-        """
-        for stage in self._stage_agents:
-            if stage.name == stage_name:
-                return stage
-        return None
-
-    def move_actor_to_stage(self, actor_name: str, target_stage_name: str) -> bool:
-        """将指定角色从当前场景移动到目标场景
-
-        执行纯粹的数据转移，不做额外的验证、通知或上下文更新。
-        调用方应该在更高层处理并发控制。
-
-        Args:
-            actor_name: 要移动的角色名称
-            target_stage_name: 目标场景名称
-
-        Returns:
-            bool: 移动是否成功
-        """
-        # 1. 查找角色代理及其当前场景
-        result = self._find_actor_agent(actor_name)
-        if not result:
-            logger.error(f"❌ 未找到角色: {actor_name}")
-            return False
-
-        actor_agent, current_stage = result
-
-        # 2. 检查角色是否已死亡
-        if actor_agent.is_dead:
-            logger.warning(f"⚠️ 角色 [{actor_name}] 已死亡，无法移动")
-            return False
-
-        # 3. 查找目标场景
-        target_stage = self._find_stage_agent(target_stage_name)
-        if not target_stage:
-            logger.error(f"❌ 未找到目标场景: {target_stage_name}")
-            return False
-
-        # 4. 检查是否已在目标场景
-        if current_stage.name == target_stage_name:
-            logger.warning(
-                f"⚠️ 角色 [{actor_name}] 已在场景 [{target_stage_name}]，无需移动"
-            )
-            return False
-
-        # 5. 执行数据转移
-        # 从当前场景移除
-        current_stage.actor_agents.remove(actor_agent)
-
-        # 添加到目标场景
-        target_stage.actor_agents.append(actor_agent)
-
-        # 更新角色的场景引用
-        actor_agent.stage_agent = target_stage
-
-        logger.debug(
-            f"✅ 角色移动成功: [{actor_name}] "
-            f"从 [{current_stage.name}] → [{target_stage.name}]"
-        )
-        return True

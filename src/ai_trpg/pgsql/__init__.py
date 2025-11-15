@@ -47,7 +47,7 @@ from .message_operations import (
     add_world_context,
 )
 
-from .stage_operations import update_stage_info, get_stage_by_name
+from .stage_operations import update_stage_info, get_stage_by_name, get_stages_in_world
 from .actor_operations import (
     update_actor_appearance,
     update_actor_health,
@@ -106,6 +106,7 @@ __all__: List[str] = [
     # Stage operations
     "update_stage_info",
     "get_stage_by_name",
+    "get_stages_in_world",
     # Actor operations
     "update_actor_appearance",
     "update_actor_health",
