@@ -7,8 +7,6 @@
 
 from loguru import logger
 from agent_utils import GameAgentManager
-
-# 导入拆分后的流水线模块
 from pipeline_kickoff import handle_kickoff
 from pipeline_actor_observe_and_plan import handle_actors_observe_and_plan
 from pipeline_stage_execute import (
@@ -24,7 +22,6 @@ from pipeline_stage_self_update import handle_stage_self_update
 async def handle_game_command(
     command: str,
     game_agent_manager: GameAgentManager,
-    # mcp_client: McpClient,
 ) -> None:
     """处理游戏指令
 
@@ -45,17 +42,17 @@ async def handle_game_command(
         case "all:actors_observe_and_plan":
 
             await handle_actors_observe_and_plan(
-                world_id=game_agent_manager.world_id,
+                game_agent_manager=game_agent_manager,
                 use_concurrency=True,
             )
 
         # /game all:actor_plans_and_update_stage - 让场景代理执行所有角色的行动计划
         case "all:actor_plans_and_update_stage":
 
-            for stage_agent in game_agent_manager.stage_agents:
-                await handle_stage_execute(
-                    stage_agent=stage_agent,
-                )
+            await handle_stage_execute(
+                game_agent_manager=game_agent_manager,
+                use_concurrency=False,
+            )
 
         # /game all:actors_self_update - 让所有角色进行自我更新
         case "all:actors_self_update":
@@ -85,7 +82,7 @@ async def handle_game_command(
 
             # 步骤1: 所有角色观察场景并规划行动
             await handle_actors_observe_and_plan(
-                world_id=game_agent_manager.world_id,
+                game_agent_manager=game_agent_manager,
                 use_concurrency=True,
             )
 
@@ -98,16 +95,16 @@ async def handle_game_command(
             # 步骤0: 所有角色开始行动（Kickoff）
             # 步骤1: 所有角色观察场景并规划行动
             await handle_actors_observe_and_plan(
-                world_id=game_agent_manager.world_id,
+                game_agent_manager=game_agent_manager,
                 use_concurrency=True,
             )
 
             # 步骤2: 场景执行计划并生成新的状态快照
             # 输出的状态快照将成为下一轮的输入
-            for stage_agent in game_agent_manager.stage_agents:
-                await handle_stage_execute(
-                    stage_agent=stage_agent,
-                )
+            await handle_stage_execute(
+                game_agent_manager=game_agent_manager,
+                use_concurrency=False,
+            )
 
             # 步骤3: 所有角色进行状态更新
             await handle_actors_self_update(

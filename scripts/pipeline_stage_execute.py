@@ -5,21 +5,23 @@
 负责编排角色计划并更新场景状态。
 """
 
-from typing import Any, Dict, List
+import asyncio
+from typing import List
 from loguru import logger
-from pydantic import BaseModel
 from langchain.schema import HumanMessage, AIMessage
 from ai_trpg.deepseek import create_deepseek_llm
-from ai_trpg.mcp import McpClient
-from agent_utils import StageAgent, ActorAgent
+from agent_utils import GameAgentManager
 from workflow_handlers import (
     handle_mcp_workflow_execution,
 )
-from mcp_client_resource_helpers import read_actor_resource, read_stage_resource
 from ai_trpg.pgsql import get_stage_context, add_stage_context, add_actor_context
+from ai_trpg.pgsql.stage_operations import get_stage_by_name, get_stages_in_world
+from ai_trpg.pgsql.actor_plan_operations import (
+    get_latest_actor_plan,
+)
+from ai_trpg.pgsql import ActorDB, StageDB
 
 
-#
 def _gen_compressed_stage_execute_prompt(stage_name: str, original_message: str) -> str:
     compressed_message = f"""# 指令！你（{stage_name}）场景发生事件！请输出事件内容！"""
     # logger.debug(f"{original_message}=>\n{compressed_message}")
@@ -29,51 +31,7 @@ def _gen_compressed_stage_execute_prompt(stage_name: str, original_message: str)
 ########################################################################################################################
 ########################################################################################################################
 ########################################################################################################################
-class ActorState(BaseModel):
-    """单个角色的状态数据模型
-
-    用于描述角色在场景中的当前状态，包括位置、姿态和特殊状态标记。
-    """
-
-    actor_name: str
-    location: str  # 位置（相对地标/方位/距离）
-    posture: str  # 姿态
-    status: str  # 状态（如"【隐藏】"或空字符串）
-
-
-########################################################################################################################
-########################################################################################################################
-########################################################################################################################
-class StageExecutionResult(BaseModel):
-    """场景执行结果的数据模型（完整版 - 用于内部验证）
-
-    用于验证和解析场景执行的JSON输出，包含叙事描述、角色状态和环境状态。
-    """
-
-    calculation_log: str  # 计算过程日志（包含战斗计算、互动效果等）- 优先计算
-    narrative: str  # 场景执行描述（叙事层）- 基于计算结果生成
-    actor_states: List[ActorState]  # 角色状态列表
-    environment: str  # 环境描述
-
-
-########################################################################################################################
-########################################################################################################################
-########################################################################################################################
-class StageExecutionSummary(BaseModel):
-    """场景执行总结的数据模型（用于二次推理指令输出）
-
-    用于解析和验证步骤3的JSON输出，包含执行总结和工具调用列表。
-    """
-
-    summary: str  # 场景执行的简短总结（一句话）
-
-
-########################################################################################################################
-########################################################################################################################
-########################################################################################################################
-async def _build_actor_plan_prompt(
-    actor_agent: ActorAgent, mcp_client: McpClient
-) -> str:
+def _build_actor_plan_prompt(actor_db: ActorDB) -> str:
     """构建角色计划提示词（优化版）
 
     生成格式：
@@ -83,41 +41,36 @@ async def _build_actor_plan_prompt(
     - 战斗数据: 生命值 X/Y | 攻击力 Z
     - Effect: Effect1(描述), Effect2(描述) 或 无
     - 外观: xxx
+
+    Args:
+        actor_db: 角色数据库对象
+        world_id: 世界ID
+
+    Returns:
+        角色计划提示词字符串
     """
-
-    # 从数据库获取最新计划
-    from ai_trpg.pgsql.actor_plan_operations import get_latest_actor_plan
-
-    current_plan = get_latest_actor_plan(actor_agent.world_id, actor_agent.name)
+    current_plan = get_latest_actor_plan(actor_db.stage.world_id, actor_db.name)
     if current_plan == "":
         return ""
 
     try:
-        # 使用统一的资源读取函数
-        actor_info = await read_actor_resource(mcp_client, actor_agent.name)
-
-        # 提取基本信息
-        name = actor_info.get("name", "未知")
-        appearance = actor_info.get("appearance", "无描述")
-        attributes = actor_info.get("attributes", {})
-        effects = actor_info.get("effects", [])
+        # 直接使用 ActorDB 对象的属性
+        name = actor_db.name
+        appearance = actor_db.appearance
 
         # 格式化属性
-        health = attributes.get("health", 0)
-        max_health = attributes.get("max_health", 0)
-        attack = attributes.get("attack", 0)
+        health = actor_db.attributes.health if actor_db.attributes else 0
+        max_health = actor_db.attributes.max_health if actor_db.attributes else 0
+        attack = actor_db.attributes.attack if actor_db.attributes else 0
 
         # 格式化 Effect（紧凑型，包含名称和描述）
-        if effects:
-            # 每个effect是一个dict，包含name和description
+        if actor_db.effects:
             effect_parts = []
-            for effect in effects:
-                effect_name = effect.get("name", "未知Effect")
-                effect_desc = effect.get("description", "")
-                if effect_desc:
-                    effect_parts.append(f"{effect_name}({effect_desc})")
+            for effect in actor_db.effects:
+                if effect.description:
+                    effect_parts.append(f"{effect.name}({effect.description})")
                 else:
-                    effect_parts.append(effect_name)
+                    effect_parts.append(effect.name)
             effects_str = ", ".join(effect_parts)
         else:
             effects_str = "无"
@@ -131,7 +84,7 @@ async def _build_actor_plan_prompt(
 - 外观: {appearance}"""
 
     except Exception as e:
-        logger.error(f"❌ 读取资源时发生错误: {e}")
+        logger.error(f"❌ 构建角色计划提示词时发生错误: {e}")
 
     return ""
 
@@ -139,25 +92,22 @@ async def _build_actor_plan_prompt(
 ########################################################################################################################
 ########################################################################################################################
 ########################################################################################################################
-async def _collect_actor_plan_prompts(
-    actor_agents: List[ActorAgent], mcp_client: McpClient
-) -> List[str]:
+def _collect_actor_plan_prompts(actors: List[ActorDB]) -> List[str]:
     """收集所有角色的行动计划
 
-    从角色代理列表中提取每个角色的最后一条消息作为行动计划。
-    使用类型安全的ActorPlan模型返回数据。
+    从角色数据库对象列表中提取每个角色的行动计划。
 
     Args:
-        actor_agents: 角色代理列表
-        mcp_client: MCP 客户端
+        actors: 角色数据库对象列表
+        world_id: 世界ID
 
     Returns:
         角色计划提示词字符串列表
     """
     ret: List[str] = []
 
-    for actor_agent in actor_agents:
-        prompt = await _build_actor_plan_prompt(actor_agent, mcp_client)
+    for actor_db in actors:
+        prompt = _build_actor_plan_prompt(actor_db)
         if prompt != "":
             ret.append(prompt)
 
@@ -167,38 +117,39 @@ async def _collect_actor_plan_prompts(
 ########################################################################################################################
 ########################################################################################################################
 ########################################################################################################################
-async def _handle_actor_plans_and_update_stage(
-    stage_agent: StageAgent,
-    # mcp_client: McpClient,
+async def _handle_single_stage_execute(
+    stage_db: StageDB,
+    game_agent_manager: GameAgentManager,
 ) -> None:
-    """处理场景执行指令
-
-    收集所有角色的行动计划,由场景代理生成统一的行动执行描述。
+    """处理单个场景中角色的行动计划并更新场景状态
 
     Args:
-        stage_agent: 场景代理
-        actor_agents: 角色代理列表
-        mcp_client: MCP 客户端
+        stage_db: 场景数据库对象(已预加载actors)
+        game_agent_manager: 游戏代理管理器(用于获取mcp_client)
     """
+    world_id = game_agent_manager.world_id
 
-    assert len(stage_agent.actor_agents) > 0, "没有可用的角色代理!!!!!!"
-
-    # 收集所有角色的行动计划
-    actor_plans = await _collect_actor_plan_prompts(
-        stage_agent.actor_agents, stage_agent.mcp_client
-    )
-
-    if not actor_plans:
-        logger.warning("⚠️  没有角色有行动计划，跳过场景执行")
+    # 直接使用 stage_db.actors (已通过 joinedload 预加载)
+    actors = stage_db.actors
+    if not actors:
+        logger.warning(f"⚠️ 场景 {stage_db.name} 没有角色，跳过场景执行")
         return
 
-    # 使用统一的资源读取函数
-    stage_info_json: Dict[str, Any] = await read_stage_resource(
-        stage_agent.mcp_client, stage_agent.name
-    )
+    # 收集所有角色的行动计划
+    actor_plans = _collect_actor_plan_prompts(actors)
+
+    if not actor_plans:
+        logger.warning(f"⚠️ 场景 {stage_db.name} 没有角色有行动计划，跳过场景执行")
+        return
+
+    # 获取 stage_agent (需要用于 MCP workflow 工具调用)
+    stage_agent = game_agent_manager.get_agent_by_name(stage_db.name)
+    if not stage_agent:
+        logger.error(f"未找到场景代理: {stage_db.name}")
+        return
 
     # 构建行动执行提示词（MCP Workflow 版本 - 专注于分析和工具调用）
-    step1_2_instruction = f"""# 指令！你（{stage_agent.name}）场景行动执行与使用工具同步状态
+    step1_2_instruction = f"""# 指令！你（{stage_db.name}）场景行动执行与使用工具同步状态
 
 ## 📊 输入数据
 
@@ -208,15 +159,15 @@ async def _handle_actor_plans_and_update_stage(
 
 ### 当前角色状态
 
-{stage_info_json.get("actor_states", "")}
+{stage_db.actor_states}
 
 ### 当前环境
 
-{stage_info_json.get("environment", "")}
+{stage_db.environment}
 
 ### 当前场景连通性
 
-{stage_info_json.get("connections", "")}
+{stage_db.connections}
 
 ---
 
@@ -292,11 +243,11 @@ async def _handle_actor_plans_and_update_stage(
     )
 
     # 从数据库读取上下文
-    stage_context = get_stage_context(stage_agent.world_id, stage_agent.name)
+    stage_context = get_stage_context(world_id, stage_db.name)
 
     # 执行 MCP 工作流（改用支持工具调用的工作流，传入步骤3指令）
-    stage_execution_response = await handle_mcp_workflow_execution(
-        agent_name=stage_agent.name,
+    await handle_mcp_workflow_execution(
+        agent_name=stage_db.name,
         context=stage_context,
         request=HumanMessage(content=step1_2_instruction),
         llm=create_deepseek_llm(),
@@ -305,55 +256,41 @@ async def _handle_actor_plans_and_update_stage(
         skip_re_invoke=True,
     )
 
-    # assert len(stage_execution_response) > 0, "场景执行响应为空"
-    # if len(stage_execution_response) < 2:
-    #     logger.error("必须是2条消息，1次工具调用，2次总结输出，否则就不要进行了！")
-    #     return
-
     try:
+        # 执行后重新读取场景数据以获取最新的 narrative
+        updated_stage = get_stage_by_name(world_id, stage_db.name)
+        if not updated_stage:
+            logger.error(f"执行后未找到场景: {stage_db.name}")
+            return
 
-        # 必须2次总结输出的格式是合理的 StageExecutionSummary
-        # stage_execution_summary = StageExecutionSummary.model_validate_json(
-        #     strip_json_code_block(str(stage_execution_response[-1].content))
-        # )
-
-        # logger.debug(
-        #     f"✅ 场景执行结果解析成功: {stage_execution_summary.model_dump_json(indent=2)}"
-        # )
-
-        # TODO 步骤1: 从 MCP 资源重新读取 stage 数据以获取最新的 narrative
-        stage_info_updated = await read_stage_resource(
-            stage_agent.mcp_client, stage_agent.name
-        )
-        narrative = stage_info_updated.get("narrative", "")
+        narrative = updated_stage.narrative
 
         # 批量添加场景消息到数据库
         add_stage_context(
-            stage_agent.world_id,
-            stage_agent.name,
+            world_id,
+            stage_db.name,
             [
                 HumanMessage(
                     content=_gen_compressed_stage_execute_prompt(
-                        stage_agent.name, step1_2_instruction
+                        stage_db.name, step1_2_instruction
                     )
                 ),
                 AIMessage(
-                    content=f"""# 我（{stage_agent.name}） 场景内发生事件（执行结果）如下 \n\n {narrative}"""
+                    content=f"""# 我（{stage_db.name}） 场景内发生事件（执行结果）如下 \n\n {narrative}"""
                 ),
                 HumanMessage(
-                    content=f"**注意**！你（{stage_agent.name}），场景信息已更新，请在下轮执行中考虑这些变化。"
+                    content=f"**注意**！你（{stage_db.name}），场景信息已更新，请在下轮执行中考虑这些变化。"
                 ),
             ],
         )
-        logger.debug(f"✅ 场景 {stage_agent.name} 执行结果 = \n{narrative}")
+        logger.debug(f"✅ 场景 {stage_db.name} 执行结果 = \n{narrative}")
 
-        # 批量通知所有角色代理场景执行结果
-        for actor_agent in stage_agent.actor_agents:
-
-            if actor_agent.is_dead:
+        # 批量通知所有角色场景执行结果
+        for actor_db in actors:
+            if actor_db.is_dead:
                 continue
 
-            scene_event_notification = f"""# 通知！{stage_agent.name} 场景发生事件：
+            scene_event_notification = f"""# 通知！{stage_db.name} 场景发生事件：
 
 ## 叙事
 
@@ -362,12 +299,12 @@ async def _handle_actor_plans_and_update_stage(
 以上事件已发生并改变了场景状态，这将直接影响你的下一步观察与规划。"""
 
             add_actor_context(
-                actor_agent.world_id,
-                actor_agent.name,
+                world_id,
+                actor_db.name,
                 [HumanMessage(content=scene_event_notification)],
             )
             logger.debug(
-                f"✅ 角色 {actor_agent.name} 收到场景执行结果通知 = \n{scene_event_notification}"
+                f"✅ 角色 {actor_db.name} 收到场景执行结果通知 = \n{scene_event_notification}"
             )
 
     except Exception as e:
@@ -378,16 +315,31 @@ async def _handle_actor_plans_and_update_stage(
 ########################################################################################################################
 ########################################################################################################################
 async def handle_stage_execute(
-    stage_agent: StageAgent,
+    game_agent_manager: GameAgentManager,
+    use_concurrency: bool = False,
 ) -> None:
+    """执行所有场景中角色的行动计划并更新场景状态
 
-    if len(stage_agent.actor_agents) == 0:
-        logger.warning(f"{stage_agent.name} 没有角色代理，是否跳过场景执行？")
-        return
+    Args:
+        game_agent_manager: 游戏代理管理器
+        use_concurrency: 是否使用并发执行
+    """
+    world_id = game_agent_manager.world_id
 
-    await _handle_actor_plans_and_update_stage(
-        stage_agent=stage_agent,
-    )
+    # 一次性读取所有场景(包括预加载的actors)
+    stages = get_stages_in_world(world_id)
+
+    if use_concurrency:
+        # 并发处理所有场景
+        tasks = [
+            _handle_single_stage_execute(stage_db, game_agent_manager)
+            for stage_db in stages
+        ]
+        await asyncio.gather(*tasks)
+    else:
+        # 顺序处理所有场景
+        for stage_db in stages:
+            await _handle_single_stage_execute(stage_db, game_agent_manager)
 
 
 ########################################################################################################################

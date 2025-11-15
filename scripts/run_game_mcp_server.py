@@ -23,7 +23,8 @@ sys.path.insert(
 
 import json
 from datetime import datetime
-from urllib.parse import unquote
+
+# from urllib.parse import unquote
 from loguru import logger
 from mcp.server.fastmcp import FastMCP
 import mcp.types as types
@@ -38,10 +39,10 @@ from ai_trpg.pgsql import (
 )
 
 # 导入辅助函数模块
-from mcp_server_helpers import (
-    get_actor_info_impl,
-    get_stage_info_impl,
-)
+# from mcp_server_helpers import (
+#     get_actor_info_impl,
+#     get_stage_info_impl,
+# )
 
 from ai_trpg.pgsql.actor_operations import (
     update_actor_health as update_actor_health_db,
@@ -579,40 +580,40 @@ async def update_actor_health(world_name: str, actor_name: str, new_health: int)
 # ============================================================================
 
 
-@app.resource("game://actor/{actor_name}")
-async def get_actor_resource(actor_name: str) -> str:
-    """
-    获取Actor信息资源（根据角色名称获取Actor的信息）
+# @app.resource("game://actor/{actor_name}")
+# async def get_actor_resource(actor_name: str) -> str:
+#     """
+#     获取Actor信息资源（根据角色名称获取Actor的信息）
 
-    Args:
-        actor_name: 角色名称
+#     Args:
+#         actor_name: 角色名称
 
-    Returns:
-        Actor的JSON数据，包含名称、外观描述和角色属性（生命值、攻击力等）
-    """
-    # URL 解码角色名称（处理中文等特殊字符）
-    decoded_actor_name = unquote(actor_name)
-    logger.debug(f"原始 actor_name: {actor_name}, 解码后: {decoded_actor_name}")
+#     Returns:
+#         Actor的JSON数据，包含名称、外观描述和角色属性（生命值、攻击力等）
+#     """
+#     # URL 解码角色名称（处理中文等特殊字符）
+#     decoded_actor_name = unquote(actor_name)
+#     logger.debug(f"原始 actor_name: {actor_name}, 解码后: {decoded_actor_name}")
 
-    return get_actor_info_impl(demo_world, decoded_actor_name)
+#     return get_actor_info_impl(demo_world, decoded_actor_name)
 
 
-@app.resource("game://stage/{stage_name}")
-async def get_stage_resource(stage_name: str) -> str:
-    """
-    获取Stage信息资源（根据场景名称获取Stage的信息）
+# @app.resource("game://stage/{stage_name}")
+# async def get_stage_resource(stage_name: str) -> str:
+#     """
+#     获取Stage信息资源（根据场景名称获取Stage的信息）
 
-    Args:
-        stage_name: 场景名称
+#     Args:
+#         stage_name: 场景名称
 
-    Returns:
-        Stage的JSON数据，包含场景的所有属性（名称、叙事、环境等）
-    """
-    # URL 解码场景名称（处理中文等特殊字符）
-    decoded_stage_name = unquote(stage_name)
-    logger.debug(f"原始 stage_name: {stage_name}, 解码后: {decoded_stage_name}")
+#     Returns:
+#         Stage的JSON数据，包含场景的所有属性（名称、叙事、环境等）
+#     """
+#     # URL 解码场景名称（处理中文等特殊字符）
+#     decoded_stage_name = unquote(stage_name)
+#     logger.debug(f"原始 stage_name: {stage_name}, 解码后: {decoded_stage_name}")
 
-    return get_stage_info_impl(demo_world, decoded_stage_name)
+#     return get_stage_info_impl(demo_world, decoded_stage_name)
 
 
 # @app.resource("game://world")
