@@ -35,8 +35,7 @@ from ai_trpg.mcp import (
 )
 
 from ai_trpg.demo import (
-    create_demo_world,
-    World,
+    get_demo_world_name,
 )
 
 from ai_trpg.utils import parse_command_with_params
@@ -44,7 +43,7 @@ from ai_trpg.rag.pgvector_game_retriever import PGVectorGameDocumentRetriever
 from ai_trpg.configuration.logging_config import setup_logger
 
 # 导入本地工具模块
-from agent_utils import GameAgentManager, get_agent_context
+from agent_utils import GameWorld, get_agent_context
 from mcp_command_handlers import (
     handle_tools_command,
     handle_prompts_command,
@@ -61,57 +60,10 @@ from io_utils import format_user_input_prompt, log_history, dump_history
 from mcp_client_init import create_mcp_client_with_config
 from gameplay_handler import handle_game_command
 
-demo_world: World = create_demo_world()
-
-
-########################################################################################################################
-
-
-# ============================================================================
-# 辅助函数
-# ============================================================================
-
-
-# async def initialize_world_resource(mcp_client: McpClient) -> World:
-#     """
-#     初始化世界资源并验证服务器响应
-
-#     从 MCP 服务器读取世界资源,解析响应并验证数据有效性。
-#     这个函数会触发服务器重置世界状态。
-
-#     Args:
-#         mcp_client: MCP 客户端实例
-
-#     Returns:
-#         解析后的世界数据对象(World)
-
-#     Raises:
-#         ValueError: 当资源读取失败、响应无效或服务器返回错误时
-#     """
-
-#     # 使用统一的资源读取函数
-#     world_data_dict = await read_world_resource(mcp_client)
-
-#     # 验证并转换为 World 对象
-#     world_data = World.model_validate(world_data_dict)
-
-#     # 计算所有场景中的角色总数
-#     total_actors = sum(len(stage.actors) for stage in world_data.stages)
-
-#     # 打印简要信息
-#     logger.debug(f"✅ 成功加载世界资源")
-#     logger.debug(f"🌍 世界名称: {world_data.name}")
-#     logger.debug(f"🎭 角色数量: {total_actors} 个角色")
-#     logger.debug(f"🗺️  场景数量: {len(world_data.stages)} 个场景")
-
-#     return world_data
-
 
 # ============================================================================
 # 主函数
 # ============================================================================
-
-
 async def main() -> None:
 
     try:
@@ -125,44 +77,23 @@ async def main() -> None:
         )
         assert mcp_client is not None, "MCP 客户端初始化失败"
 
-        # 创建游戏代理管理器
-        game_agent_manager: GameAgentManager = GameAgentManager()
-        await game_agent_manager.create_agents_from_world(
-            demo_world,
-            # GLOBAL_GAME_MECHANICS,
+        # 创建游戏代理管理器 (从数据库加载)
+        game_world: GameWorld = GameWorld()
+        await game_world.load(
+            world_name=get_demo_world_name(),
         )
 
         # 验证代理管理器已正确初始化
-        if game_agent_manager.current_agent is None:
+        if game_world.current_agent is None:
             raise ValueError("❌ 代理管理器未正确初始化")
 
         # 连接所有代理的 MCP 客户端
-        await game_agent_manager.connect_all_agents()
-
-        # 初始化世界资源(会触发服务器重置世界状态)
-        # world_data = await initialize_world_resource(mcp_client)
-
-        # delete_result = delete_world(demo_world.name)
-        # if delete_result:
-        #     logger.success(f"✅ 已删除旧世界: {demo_world.name}")
-        # else:
-        #     logger.info(f"ℹ️  数据库中不存在旧世界: {demo_world.name}")
-
-        # # 2. 保存新的 World 实例到数据库
-        # world_db = save_world_to_db(demo_world)
-        # logger.info(f"💾 保存新世界到数据库: {world_db.name}")
-
-        # 清空当前世界的角色移动事件数据库记录
-        # logger.info(
-        #     f"🧹 清空世界 '{demo_world.name}' 的角色移动事件数据库...,因为是游戏刚刚启动，重置了世界状态"
-        # )
-
-        # clear_all_actor_movement_events(game_agent_manager.world_id)
+        await game_world.connect_all_agents()
 
         # 对话循环
         while True:
 
-            user_input = input(f"[{game_agent_manager.current_agent.name}]:").strip()
+            user_input = input(f"[{game_world.current_agent.name}]:").strip()
 
             # 处理退出命令
             if user_input.lower() in ["/quit", "/exit", "/q"]:
@@ -177,17 +108,17 @@ async def main() -> None:
             # 处理历史记录命令
             elif user_input.lower() == "/log":
                 logger.info(
-                    f"📜 打印当前代理 [{game_agent_manager.current_agent.name}] 的对话历史"
+                    f"📜 打印当前代理 [{game_world.current_agent.name}] 的对话历史"
                 )
-                current_context = get_agent_context(game_agent_manager.current_agent)
+                current_context = get_agent_context(game_world.current_agent)
                 log_history(
-                    agent_name=game_agent_manager.current_agent.name,
+                    agent_name=game_world.current_agent.name,
                     messages=current_context,
                 )
                 continue
 
             elif user_input.lower() == "/dump":
-                for game_agent in game_agent_manager.all_agents:
+                for game_agent in game_world.all_agents:
                     logger.debug(f"💾 保存代理 [{game_agent.name}] 的对话历史")
                     agent_context = get_agent_context(game_agent)
                     dump_history(
@@ -223,7 +154,7 @@ async def main() -> None:
                 logger.info(f"🎭 尝试切换到代理: {target_name}")
 
                 # 使用代理管理器切换代理
-                game_agent_manager.switch_agent(target_name)
+                game_world.switch_current_agent(target_name)
 
                 continue
 
@@ -238,11 +169,11 @@ async def main() -> None:
                 format_user_input = format_user_input_prompt(mcp_content)
 
                 # 从数据库读取上下文
-                current_context = get_agent_context(game_agent_manager.current_agent)
+                current_context = get_agent_context(game_world.current_agent)
 
                 # mcp 的工作流
                 mcp_response = await handle_mcp_workflow_execution(
-                    agent_name=game_agent_manager.current_agent.name,
+                    agent_name=game_world.current_agent.name,
                     context=current_context,
                     request=HumanMessage(content=format_user_input),
                     llm=create_deepseek_llm(),
@@ -267,11 +198,11 @@ async def main() -> None:
                 format_user_input = format_user_input_prompt(chat_content)
 
                 # 从数据库读取上下文
-                current_context = get_agent_context(game_agent_manager.current_agent)
+                current_context = get_agent_context(game_world.current_agent)
 
                 # 聊天的工作流
                 chat_response = await handle_chat_workflow_execution(
-                    agent_name=game_agent_manager.current_agent.name,
+                    agent_name=game_world.current_agent.name,
                     context=current_context,
                     request=HumanMessage(content=format_user_input),
                     llm=create_deepseek_llm(),
@@ -290,11 +221,11 @@ async def main() -> None:
                     continue
 
                 # 从数据库读取上下文
-                current_context = get_agent_context(game_agent_manager.current_agent)
+                current_context = get_agent_context(game_world.current_agent)
 
                 # RAG 的工作流
                 rag_response = await handle_rag_workflow_execution(
-                    agent_name=game_agent_manager.current_agent.name,
+                    agent_name=game_world.current_agent.name,
                     context=current_context,
                     request=HumanMessage(content=rag_content),
                     llm=create_deepseek_llm(),
@@ -317,7 +248,7 @@ async def main() -> None:
                 # 调用游戏指令处理器
                 await handle_game_command(
                     command=command,
-                    game_agent_manager=game_agent_manager,
+                    game_world=game_world,
                     # mcp_client=mcp_client,
                 )
                 continue

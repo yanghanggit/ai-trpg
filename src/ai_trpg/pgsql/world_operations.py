@@ -8,18 +8,17 @@ World 数据库操作模块
 - delete_world: 删除 World
 """
 
-from typing import Optional, Tuple, List
+from typing import Optional, Tuple
 from uuid import UUID
 from loguru import logger
-
-from ..demo.models import World, Stage, Actor, Attributes, Effect
+from ..demo.models import World
 from .client import SessionLocal
 from .world import WorldDB
 from .stage import StageDB
 from .actor import ActorDB
 from .attributes import AttributesDB
 from .effect import EffectDB
-from .message import MessageDB, messages_db_to_langchain
+from .message import MessageDB
 
 
 def save_world_to_db(world: World) -> WorldDB:
@@ -118,92 +117,6 @@ def save_world_to_db(world: World) -> WorldDB:
         except Exception as e:
             db.rollback()
             logger.error(f"❌ 保存 World '{world.name}' 失败: {e}")
-            raise
-
-
-def load_world_from_db(world_name: str) -> Optional[World]:
-    """从数据库加载 World
-
-    使用 SQLAlchemy relationship 自动加载嵌套关系
-
-    Args:
-        world_name: World 名称
-
-    Returns:
-        World | None: 加载的 Pydantic World 对象,未找到则返回 None
-    """
-    with SessionLocal() as db:
-        try:
-            # 1. 查询 WorldDB (relationship 自动加载 stages)
-            world_db = db.query(WorldDB).filter_by(name=world_name).first()
-            if not world_db:
-                logger.warning(f"⚠️ World '{world_name}' 不存在于数据库")
-                return None
-
-            # 2. 递归转换 WorldDB → World
-            stages = []
-            for stage_db in world_db.stages:
-                actors = []
-                for actor_db in stage_db.actors:
-                    # 转换 Attributes
-                    attributes = Attributes(
-                        health=actor_db.attributes.health,
-                        max_health=actor_db.attributes.max_health,
-                        attack=actor_db.attributes.attack,
-                    )
-
-                    # 转换 Effects
-                    effects = [
-                        Effect(name=effect_db.name, description=effect_db.description)
-                        for effect_db in actor_db.effects
-                    ]
-
-                    # 转换 Messages (initial_context)
-                    initial_context = messages_db_to_langchain(actor_db.context)
-
-                    # 创建 Actor
-                    actor = Actor(
-                        name=actor_db.name,
-                        profile=actor_db.profile,
-                        appearance=actor_db.appearance,
-                        attributes=attributes,
-                        effects=effects,
-                        context=initial_context,
-                    )
-                    actors.append(actor)
-
-                # 转换 Stage 的 context
-                stage_context = messages_db_to_langchain(stage_db.context)
-
-                # 创建 Stage
-                stage = Stage(
-                    name=stage_db.name,
-                    profile=stage_db.profile,
-                    environment=stage_db.environment,
-                    actors=actors,
-                    narrative=stage_db.narrative,
-                    actor_states=stage_db.actor_states,
-                    connections=stage_db.connections,
-                    context=stage_context,
-                )
-                stages.append(stage)
-
-            # 转换 World 的 context
-            world_context = messages_db_to_langchain(world_db.context)
-
-            # 创建 World
-            world = World(
-                name=world_db.name,
-                campaign_setting=world_db.campaign_setting,
-                stages=stages,
-                context=world_context,
-            )
-
-            logger.success(f"✅ World '{world_name}' 已从数据库加载")
-            return world
-
-        except Exception as e:
-            logger.error(f"❌ 加载 World '{world_name}' 失败: {e}")
             raise
 
 
@@ -331,49 +244,63 @@ def get_world_kickoff(world_name: str) -> Optional[bool]:
             raise
 
 
-def get_world_stages_and_actors(world_id: UUID) -> Tuple[List[StageDB], List[ActorDB]]:
-    """获取指定世界中的所有 Stage 和 Actor 对象
+def get_world(world_name: str) -> Optional[WorldDB]:
+    """获取完整的 WorldDB 对象（预加载所有关系）
+
+    预加载层级:
+    - WorldDB
+      ├── stages (List[StageDB])
+      │   └── actors (List[ActorDB])
+      │       ├── attributes (AttributesDB)
+      │       └── effects (List[EffectDB])
 
     Args:
-        world_id: 世界ID
+        world_name: 世界名称
 
     Returns:
-        Tuple[List[StageDB], List[ActorDB]]: 包含所有 Stage 和 Actor 的元组
-            - 第一个元素是 StageDB 列表
-            - 第二个元素是 ActorDB 列表
+        Optional[WorldDB]: 完整的 WorldDB 对象,未找到返回 None
 
     Raises:
         Exception: 数据库操作失败时抛出异常
     """
     with SessionLocal() as db:
         try:
-            # 查询所有属于该 World 的 Stage
-            stages = db.query(StageDB).filter(StageDB.world_id == world_id).all()
-
-            # 查询所有属于该 World 的 Actor（通过 Stage 关联）
-            # 使用 joinedload 预加载 stage 关系，避免懒加载问题
             from sqlalchemy.orm import joinedload
 
-            actors = (
-                db.query(ActorDB)
-                .options(joinedload(ActorDB.stage))
-                .join(ActorDB.stage)
-                .filter(StageDB.world_id == world_id)
-                .all()
+            world_db = (
+                db.query(WorldDB)
+                .options(
+                    # 预加载 stages 和 actors.attributes
+                    joinedload(WorldDB.stages)
+                    .joinedload(StageDB.actors)
+                    .joinedload(ActorDB.attributes),
+                    # 预加载 stages 和 actors.effects
+                    joinedload(WorldDB.stages)
+                    .joinedload(StageDB.actors)
+                    .joinedload(ActorDB.effects),
+                )
+                .filter(WorldDB.name == world_name)
+                .first()
             )
+
+            if not world_db:
+                logger.warning(f"⚠️ World '{world_name}' 不存在于数据库")
+                return None
 
             logger.debug(
-                f"📋 查询世界 {world_id} 中的所有对象：{len(stages)} 个 Stage，{len(actors)} 个 Actor"
+                f"📋 已加载 World '{world_name}': "
+                f"{len(world_db.stages)} 个 Stage, "
+                f"{sum(len(s.actors) for s in world_db.stages)} 个 Actor"
             )
 
-            return stages, actors
+            return world_db
 
         except Exception as e:
-            logger.error(f"❌ 查询世界 Stage 和 Actor 失败: {e}")
+            logger.error(f"❌ 加载 World '{world_name}' 失败: {e}")
             raise
 
 
-def move_actor_to_stage_db(
+def move_actor_to_stage(
     world_id: UUID, actor_name: str, target_stage_name: str
 ) -> Tuple[bool, str]:
     """将 Actor 从当前 Stage 移动到目标 Stage（纯数据库操作）

@@ -6,7 +6,7 @@
 """
 
 from loguru import logger
-from agent_utils import GameAgentManager
+from agent_utils import GameWorld
 from ai_trpg.pgsql import (
     get_world_kickoff,
     set_world_kickoff,
@@ -17,14 +17,14 @@ from ai_trpg.pgsql import (
 ########################################################################################################################
 ########################################################################################################################
 async def handle_kickoff(
-    game_agent_manager: GameAgentManager,
+    game_world: GameWorld,
 ) -> None:
     """处理所有代理的开局初始化"""
 
-    if get_world_kickoff(game_agent_manager.world_name):
+    if get_world_kickoff(game_world.world_name):
         logger.info("⚠️ 游戏已完成开局初始化，跳过重复执行 kickoff 流程")
         return
 
     logger.info("🎮 开始开局初始化流程...")
-    set_world_kickoff(game_agent_manager.world_name, True)
+    set_world_kickoff(game_world.world_name, True)
     logger.info("✅ 开局初始化流程完成")

@@ -6,7 +6,7 @@
 """
 
 from loguru import logger
-from agent_utils import GameAgentManager
+from agent_utils import GameWorld
 from pipeline_kickoff import handle_kickoff
 from pipeline_actor_observe_and_plan import handle_actors_observe_and_plan
 from pipeline_stage_execute import (
@@ -21,17 +21,17 @@ from pipeline_stage_self_update import handle_stage_self_update
 ########################################################################################################################
 async def handle_game_command(
     command: str,
-    game_agent_manager: GameAgentManager,
+    game_world: GameWorld,
 ) -> None:
     """处理游戏指令
 
     Args:
         command: 游戏指令内容
-        game_agent_manager: 游戏代理管理器
+        game_world: 游戏代理管理器
         mcp_client: MCP 客户端实例
     """
     logger.success(f"🎮 游戏指令 ====> : {command}")
-    await handle_kickoff(game_agent_manager)
+    await handle_kickoff(game_world)
 
     match command:
 
@@ -39,7 +39,7 @@ async def handle_game_command(
         case "all:actors_observe_and_plan":
 
             await handle_actors_observe_and_plan(
-                game_agent_manager=game_agent_manager,
+                game_world=game_world,
                 use_concurrency=True,
             )
 
@@ -47,7 +47,7 @@ async def handle_game_command(
         case "all:actor_plans_and_update_stage":
 
             await handle_stage_execute(
-                game_agent_manager=game_agent_manager,
+                game_world=game_world,
                 use_concurrency=True,
             )
 
@@ -55,7 +55,7 @@ async def handle_game_command(
         case "all:actors_self_update":
 
             await handle_actors_self_update(
-                game_agent_manager=game_agent_manager,
+                game_world=game_world,
                 use_concurrency=True,
             )
 
@@ -63,7 +63,7 @@ async def handle_game_command(
         case "all:stage_self_update":
 
             await handle_stage_self_update(
-                game_agent_manager=game_agent_manager,
+                game_world=game_world,
                 use_concurrency=True,
             )
 
@@ -72,25 +72,25 @@ async def handle_game_command(
 
             # 步骤1: 所有角色观察场景并规划行动
             await handle_actors_observe_and_plan(
-                game_agent_manager=game_agent_manager,
+                game_world=game_world,
                 use_concurrency=True,
             )
 
             # 步骤2: 场景执行计划并生成新的状态快照
             # 输出的状态快照将成为下一轮的输入
             await handle_stage_execute(
-                game_agent_manager=game_agent_manager,
+                game_world=game_world,
                 use_concurrency=False,
             )
 
             # 步骤3: 所有角色进行状态更新
             await handle_actors_self_update(
-                game_agent_manager=game_agent_manager,
+                game_world=game_world,
                 use_concurrency=True,
             )
 
             # 步骤4: 所有场景进行状态更新
             await handle_stage_self_update(
-                game_agent_manager=game_agent_manager,
+                game_world=game_world,
                 use_concurrency=True,
             )

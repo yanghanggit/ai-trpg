@@ -20,7 +20,7 @@ from ai_trpg.pgsql.actor_plan_operations import (
     clear_all_actor_plans,
     add_actor_plan_to_db,
 )
-from agent_utils import GameAgentManager
+from agent_utils import GameWorld
 
 
 ########################################################################################################################
@@ -220,7 +220,7 @@ async def _handle_actor_observe_and_plan(
 ########################################################################################################################
 ########################################################################################################################
 async def handle_actors_observe_and_plan(
-    game_agent_manager: GameAgentManager,
+    game_world: GameWorld,
     use_concurrency: bool = True,
 ) -> None:
     """处理所有角色的观察和行动规划（数据库驱动版本）
@@ -235,7 +235,7 @@ async def handle_actors_observe_and_plan(
         use_concurrency: 是否使用并行处理，默认False（顺序执行）
     """
 
-    world_id = game_agent_manager.world_id
+    world_id = game_world.world_id
     assert world_id is not None, "world_id不能为空"
 
     # 从数据库一次性获取所有存活的角色（已预加载 stage, attributes, effects 等关系）

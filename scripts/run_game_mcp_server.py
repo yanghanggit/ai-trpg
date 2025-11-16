@@ -34,7 +34,7 @@ from ai_trpg.pgsql import (
     get_world_id_by_name,
     save_actor_movement_event_to_db,
     update_stage_info,
-    move_actor_to_stage_db,
+    move_actor_to_stage as move_actor_to_stage_db,
 )
 
 # 导入辅助函数模块

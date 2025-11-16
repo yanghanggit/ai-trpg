@@ -11,7 +11,7 @@ from pydantic import BaseModel
 from langchain.schema import HumanMessage, AIMessage
 from ai_trpg.deepseek import create_deepseek_llm
 from ai_trpg.utils.json_format import strip_json_code_block
-from agent_utils import GameAgentManager
+from agent_utils import GameWorld
 from workflow_handlers import handle_chat_workflow_execution
 from ai_trpg.pgsql import (
     get_actor_movement_events_by_stage,
@@ -58,20 +58,20 @@ class StageUpdateResult(BaseModel):
 ########################################################################################################################
 ########################################################################################################################
 async def handle_stage_self_update(
-    game_agent_manager: GameAgentManager,
+    game_world: GameWorld,
     use_concurrency: bool = False,
 ) -> None:
     """处理场景自我更新
 
     Args:
-        game_agent_manager: 游戏代理管理器
+        game_world: 游戏代理管理器
         mcp_client: MCP 客户端实例
         use_concurrency: 是否使用并发处理
     """
     logger.info("🎭 开始场景自我更新流程...")
 
     # 从数据库获取所有场景
-    stages = get_stages_in_world(game_agent_manager.world_id)
+    stages = get_stages_in_world(game_world.world_id)
     if len(stages) == 0:
         logger.warning("⚠️ 没有可用的场景，无法进行场景自我更新")
         return
@@ -81,7 +81,6 @@ async def handle_stage_self_update(
         stage_update_tasks = [
             _handle_stage_self_update(
                 stage_db=stage_db,
-                # game_agent_manager=game_agent_manager,
             )
             for stage_db in stages
         ]
@@ -92,7 +91,6 @@ async def handle_stage_self_update(
         for stage_db in stages:
             await _handle_stage_self_update(
                 stage_db=stage_db,
-                # game_agent_manager=game_agent_manager,
             )
 
     logger.info("✅ 场景自我更新流程完成")
@@ -102,7 +100,7 @@ async def handle_stage_self_update(
         "🧹 清理当前世界的角色移动事件数据库..., 因为在场景自我更新完成后，角色移动事件已处理完毕"
     )
 
-    clear_all_actor_movement_events(game_agent_manager.world_id)
+    clear_all_actor_movement_events(game_world.world_id)
 
 
 ########################################################################################################################
@@ -110,7 +108,6 @@ async def handle_stage_self_update(
 ########################################################################################################################
 async def _handle_stage_self_update(
     stage_db: StageDB,
-    # game_agent_manager: GameAgentManager,
 ) -> None:
     """处理单个场景的自我状态更新
 
@@ -119,7 +116,7 @@ async def _handle_stage_self_update(
 
     Args:
         stage_db: 场景数据库对象
-        game_agent_manager: 游戏代理管理器
+        game_world: 游戏代理管理器
     """
     logger.debug(f"🔄 正在更新场景: {stage_db.name}")
     world_id = stage_db.world_id

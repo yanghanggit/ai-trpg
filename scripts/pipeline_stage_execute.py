@@ -10,7 +10,7 @@ from typing import List
 from loguru import logger
 from langchain.schema import HumanMessage, AIMessage
 from ai_trpg.deepseek import create_deepseek_llm
-from agent_utils import GameAgentManager
+from agent_utils import GameWorld
 from workflow_handlers import (
     handle_mcp_workflow_execution,
 )
@@ -120,15 +120,15 @@ def _collect_actor_plan_prompts(actors: List[ActorDB], world_id: UUID) -> List[s
 ########################################################################################################################
 async def _handle_single_stage_execute(
     stage_db: StageDB,
-    game_agent_manager: GameAgentManager,
+    game_world: GameWorld,
 ) -> None:
     """处理单个场景中角色的行动计划并更新场景状态
 
     Args:
         stage_db: 场景数据库对象(已预加载actors)
-        game_agent_manager: 游戏代理管理器(用于获取mcp_client)
+        game_world: 游戏代理管理器(用于获取mcp_client)
     """
-    world_id = game_agent_manager.world_id
+    world_id = game_world.world_id
 
     # 直接使用 stage_db.actors (已通过 joinedload 预加载)
     actors = stage_db.actors
@@ -144,7 +144,7 @@ async def _handle_single_stage_execute(
         return
 
     # 获取 stage_agent (需要用于 MCP workflow 工具调用)
-    stage_agent = game_agent_manager.get_agent_by_name(stage_db.name)
+    stage_agent = game_world.get_agent_by_name(stage_db.name)
     if not stage_agent:
         logger.error(f"未找到场景代理: {stage_db.name}")
         return
@@ -316,16 +316,16 @@ async def _handle_single_stage_execute(
 ########################################################################################################################
 ########################################################################################################################
 async def handle_stage_execute(
-    game_agent_manager: GameAgentManager,
+    game_world: GameWorld,
     use_concurrency: bool = False,
 ) -> None:
     """执行所有场景中角色的行动计划并更新场景状态
 
     Args:
-        game_agent_manager: 游戏代理管理器
+        game_world: 游戏代理管理器
         use_concurrency: 是否使用并发执行
     """
-    world_id = game_agent_manager.world_id
+    world_id = game_world.world_id
 
     # 一次性读取所有场景(包括预加载的actors)
     stages = get_stages_in_world(world_id)
@@ -333,14 +333,13 @@ async def handle_stage_execute(
     if use_concurrency:
         # 并发处理所有场景
         tasks = [
-            _handle_single_stage_execute(stage_db, game_agent_manager)
-            for stage_db in stages
+            _handle_single_stage_execute(stage_db, game_world) for stage_db in stages
         ]
         await asyncio.gather(*tasks)
     else:
         # 顺序处理所有场景
         for stage_db in stages:
-            await _handle_single_stage_execute(stage_db, game_agent_manager)
+            await _handle_single_stage_execute(stage_db, game_world)
 
 
 ########################################################################################################################

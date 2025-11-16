@@ -23,7 +23,6 @@ from src.ai_trpg.demo.world2 import create_test_world_2_1, create_test_world_2_2
 from src.ai_trpg.demo.world3 import create_test_world3
 from src.ai_trpg.pgsql.world_operations import (
     save_world_to_db,
-    load_world_from_db,
     delete_world,
 )
 from src.ai_trpg.pgsql.client import SessionLocal
@@ -201,8 +200,8 @@ class TestWorldOperations:
             self._cleanup_test_world(world_name)
 
     def test_load_world_from_db_basic(self) -> None:
-        """测试基本的 World 加载功能"""
-        logger.info("🧪 测试 load_world_from_db - 基本加载功能")
+        """测试基本的数据库查询功能"""
+        logger.info("🧪 测试数据库查询 - 基本查询功能")
 
         world = create_test_world1()
         world_name = world.name
@@ -211,30 +210,41 @@ class TestWorldOperations:
             # 保存到数据库
             save_world_to_db(world)
 
-            # 从数据库加载
-            loaded_world = load_world_from_db(world_name)
+            # 从数据库直接查询验证
+            with SessionLocal() as db:
+                from sqlalchemy.orm import joinedload
 
-            # 验证加载结果
-            assert loaded_world is not None
-            assert loaded_world.name == world_name
-            assert len(loaded_world.stages) == len(world.stages)
+                loaded_world = (
+                    db.query(WorldDB)
+                    .options(joinedload(WorldDB.stages).joinedload(StageDB.actors))
+                    .filter_by(name=world_name)
+                    .first()
+                )
 
-            logger.success("✅ load_world_from_db 基本加载功能测试通过")
+                # 验证查询结果
+                assert loaded_world is not None
+                assert loaded_world.name == world_name
+                assert len(loaded_world.stages) == len(world.stages)
+
+            logger.success("✅ 数据库查询基本功能测试通过")
 
         finally:
             self._cleanup_test_world(world_name)
 
     def test_load_world_not_exists(self) -> None:
-        """测试加载不存在的 World"""
-        logger.info("🧪 测试 load_world_from_db - 不存在的 World")
+        """测试查询不存在的 World"""
+        logger.info("🧪 测试数据库查询 - 不存在的 World")
 
         nonexistent_world_name = "definitely_does_not_exist_world_12345"
 
-        # 加载不存在的 World 应该返回 None
-        loaded_world = load_world_from_db(nonexistent_world_name)
-        assert loaded_world is None
+        # 查询不存在的 World 应该返回 None
+        with SessionLocal() as db:
+            loaded_world = (
+                db.query(WorldDB).filter_by(name=nonexistent_world_name).first()
+            )
+            assert loaded_world is None
 
-        logger.success("✅ 不存在的 World 加载测试通过")
+        logger.success("✅ 不存在的 World 查询测试通过")
 
     def test_delete_world_basic(self) -> None:
         """测试基本的 World 删除功能"""
@@ -336,8 +346,8 @@ class TestWorldOperations:
         logger.success("✅ 不存在的 World 删除测试通过")
 
     def test_data_integrity_after_save_and_load(self) -> None:
-        """测试保存后加载的数据完整性"""
-        logger.info("🧪 测试数据完整性 - save → load")
+        """测试保存后的数据完整性"""
+        logger.info("🧪 测试数据完整性 - save → query")
 
         world = create_test_world1()
         world_name = world.name
@@ -346,59 +356,79 @@ class TestWorldOperations:
             # 保存到数据库
             save_world_to_db(world)
 
-            # 从数据库加载
-            loaded_world = load_world_from_db(world_name)
-            assert loaded_world is not None
+            # 从数据库直接查询验证
+            with SessionLocal() as db:
+                from sqlalchemy.orm import joinedload
 
-            # 验证 World 基本属性
-            assert loaded_world.name == world.name
-            assert loaded_world.campaign_setting == world.campaign_setting
-
-            # 验证 Stages
-            assert len(loaded_world.stages) == len(world.stages)
-            for original_stage, loaded_stage in zip(world.stages, loaded_world.stages):
-                assert loaded_stage.name == original_stage.name
-                assert loaded_stage.profile == original_stage.profile
-                assert loaded_stage.environment == original_stage.environment
-
-                # 验证 Actors
-                assert len(loaded_stage.actors) == len(original_stage.actors)
-                for original_actor, loaded_actor in zip(
-                    original_stage.actors, loaded_stage.actors
-                ):
-                    assert loaded_actor.name == original_actor.name
-                    assert loaded_actor.profile == original_actor.profile
-                    assert loaded_actor.appearance == original_actor.appearance
-
-                    # 验证 Attributes
-                    assert (
-                        loaded_actor.attributes.health
-                        == original_actor.attributes.health
+                loaded_world = (
+                    db.query(WorldDB)
+                    .options(
+                        joinedload(WorldDB.stages)
+                        .joinedload(StageDB.actors)
+                        .joinedload(ActorDB.attributes),
+                        joinedload(WorldDB.stages)
+                        .joinedload(StageDB.actors)
+                        .joinedload(ActorDB.effects),
                     )
-                    assert (
-                        loaded_actor.attributes.max_health
-                        == original_actor.attributes.max_health
-                    )
-                    assert (
-                        loaded_actor.attributes.attack
-                        == original_actor.attributes.attack
-                    )
+                    .filter_by(name=world_name)
+                    .first()
+                )
+                assert loaded_world is not None
 
-                    # 验证 Effects
-                    assert len(loaded_actor.effects) == len(original_actor.effects)
-                    for original_effect, loaded_effect in zip(
-                        original_actor.effects, loaded_actor.effects
-                    ):
-                        assert loaded_effect.name == original_effect.name
-                        assert loaded_effect.description == original_effect.description
+                # 验证 World 基本属性
+                assert loaded_world.name == world.name
+                assert loaded_world.campaign_setting == world.campaign_setting
 
-                    # 验证 Context (Messages)
-                    assert len(loaded_actor.context) == len(original_actor.context)
-                    for original_msg, loaded_msg in zip(
-                        original_actor.context, loaded_actor.context
-                    ):
-                        assert type(loaded_msg) == type(original_msg)
-                        assert loaded_msg.content == original_msg.content
+                # 验证 Stages (按名称匹配，不依赖顺序)
+                assert len(loaded_world.stages) == len(world.stages)
+                original_stages_dict = {stage.name: stage for stage in world.stages}
+
+                for loaded_stage in loaded_world.stages:
+                    assert loaded_stage.name in original_stages_dict
+                    original_stage = original_stages_dict[loaded_stage.name]
+
+                    assert loaded_stage.profile == original_stage.profile
+                    assert loaded_stage.environment == original_stage.environment
+
+                    # 验证 Actors (按名称匹配，不依赖顺序)
+                    assert len(loaded_stage.actors) == len(original_stage.actors)
+                    original_actors_dict = {
+                        actor.name: actor for actor in original_stage.actors
+                    }
+
+                    for loaded_actor in loaded_stage.actors:
+                        assert loaded_actor.name in original_actors_dict
+                        original_actor = original_actors_dict[loaded_actor.name]
+
+                        assert loaded_actor.profile == original_actor.profile
+                        assert loaded_actor.appearance == original_actor.appearance
+
+                        # 验证 Attributes
+                        assert (
+                            loaded_actor.attributes.health
+                            == original_actor.attributes.health
+                        )
+                        assert (
+                            loaded_actor.attributes.max_health
+                            == original_actor.attributes.max_health
+                        )
+                        assert (
+                            loaded_actor.attributes.attack
+                            == original_actor.attributes.attack
+                        )
+
+                        # 验证 Effects (按名称匹配，不依赖顺序)
+                        assert len(loaded_actor.effects) == len(original_actor.effects)
+                        original_effects_dict = {
+                            effect.name: effect for effect in original_actor.effects
+                        }
+
+                        for loaded_effect in loaded_actor.effects:
+                            assert loaded_effect.name in original_effects_dict
+                            original_effect = original_effects_dict[loaded_effect.name]
+                            assert (
+                                loaded_effect.description == original_effect.description
+                            )
 
             logger.success("✅ 数据完整性测试通过")
 
@@ -406,8 +436,8 @@ class TestWorldOperations:
             self._cleanup_test_world(world_name)
 
     def test_multiple_worlds(self) -> None:
-        """测试同时保存和加载多个 World"""
-        logger.info("🧪 测试多个 World 的保存和加载")
+        """测试同时保存和查询多个 World"""
+        logger.info("🧪 测试多个 World 的保存和查询")
 
         worlds = [
             create_test_world1(),
@@ -427,21 +457,16 @@ class TestWorldOperations:
                 for world_name in world_names:
                     saved_world = db.query(WorldDB).filter_by(name=world_name).first()
                     assert saved_world is not None
+                    assert saved_world.name == world_name
 
-            # 加载所有 World
-            for world_name in world_names:
-                loaded_world = load_world_from_db(world_name)
-                assert loaded_world is not None
-                assert loaded_world.name == world_name
-
-            logger.success("✅ 多个 World 保存和加载测试通过")
+            logger.success("✅ 多个 World 保存和查询测试通过")
 
         finally:
             for world_name in world_names:
                 self._cleanup_test_world(world_name)
 
     def test_message_types_serialization(self) -> None:
-        """测试不同 Message 类型的序列化和反序列化"""
+        """测试不同 Message 类型的序列化"""
         logger.info("🧪 测试 Message 类型序列化 - SystemMessage/HumanMessage/AIMessage")
 
         world = create_test_world1()
@@ -452,22 +477,32 @@ class TestWorldOperations:
             # 保存到数据库
             save_world_to_db(world)
 
-            # 从数据库加载
-            loaded_world = load_world_from_db(world_name)
-            assert loaded_world is not None
+            # 从数据库直接查询验证
+            with SessionLocal() as db:
+                from sqlalchemy.orm import joinedload
 
-            loaded_actor = loaded_world.stages[0].actors[0]
+                loaded_world = (
+                    db.query(WorldDB)
+                    .options(
+                        joinedload(WorldDB.stages)
+                        .joinedload(StageDB.actors)
+                        .joinedload(ActorDB.context)
+                    )
+                    .filter_by(name=world_name)
+                    .first()
+                )
+                assert loaded_world is not None
 
-            # 验证 Message 类型和内容
-            assert len(loaded_actor.context) == len(first_actor.context)
-            for original_msg, loaded_msg in zip(
-                first_actor.context, loaded_actor.context
-            ):
-                # 验证类型一致
-                assert type(loaded_msg).__name__ == type(original_msg).__name__
+                loaded_actor = loaded_world.stages[0].actors[0]
 
-                # 验证内容一致
-                assert loaded_msg.content == original_msg.content
+                # 验证 Message 数量
+                assert len(loaded_actor.context) == len(first_actor.context)
+
+                # 验证 Message sequence 和 JSON 存储
+                for idx, message_db in enumerate(loaded_actor.context):
+                    assert message_db.sequence == idx
+                    assert message_db.message_json is not None
+                    assert len(message_db.message_json) > 0
 
             logger.success("✅ Message 类型序列化测试通过")
 
@@ -486,20 +521,28 @@ class TestWorldOperations:
             # 保存到数据库
             save_world_to_db(world)
 
-            # 从数据库加载
-            loaded_world = load_world_from_db(world_name)
-            assert loaded_world is not None
+            # 从数据库直接查询验证
+            with SessionLocal() as db:
+                from sqlalchemy.orm import joinedload
 
-            # 验证 Stages 数量
-            assert len(loaded_world.stages) == len(world.stages)
-            assert len(loaded_world.stages) == 2
+                loaded_world = (
+                    db.query(WorldDB)
+                    .options(joinedload(WorldDB.stages).joinedload(StageDB.actors))
+                    .filter_by(name=world_name)
+                    .first()
+                )
+                assert loaded_world is not None
 
-            # 验证每个 Stage (按名称匹配,不依赖顺序)
-            original_stages_dict = {stage.name: stage for stage in world.stages}
-            for loaded_stage in loaded_world.stages:
-                assert loaded_stage.name in original_stages_dict
-                original_stage = original_stages_dict[loaded_stage.name]
-                assert len(loaded_stage.actors) == len(original_stage.actors)
+                # 验证 Stages 数量
+                assert len(loaded_world.stages) == len(world.stages)
+                assert len(loaded_world.stages) == 2
+
+                # 验证每个 Stage (按名称匹配,不依赖顺序)
+                original_stages_dict = {stage.name: stage for stage in world.stages}
+                for loaded_stage in loaded_world.stages:
+                    assert loaded_stage.name in original_stages_dict
+                    original_stage = original_stages_dict[loaded_stage.name]
+                    assert len(loaded_stage.actors) == len(original_stage.actors)
 
             logger.success("✅ 多 Stage World 测试通过")
 

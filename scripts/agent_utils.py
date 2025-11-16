@@ -10,16 +10,11 @@ from typing import List, Optional
 from loguru import logger
 from pydantic import BaseModel, ConfigDict
 from langchain.schema import BaseMessage
-from ai_trpg.demo import (
-    World,
-)
-from langchain.schema import BaseMessage
 from ai_trpg.mcp import (
     McpClient,
 )
 from uuid import UUID
 from ai_trpg.pgsql import (
-    get_world_id_by_name,
     get_world_context,
     get_stage_context,
     get_actor_context,
@@ -90,21 +85,19 @@ class ActorAgent(GameAgent):
     代表游戏中的单个角色，负责角色的行为、对话和状态管理。
     """
 
-    stage_agent: "StageAgent"  # 该角色所属的场景代理
-    is_dead: bool = False  # 代理是否已死亡
+    pass
 
 
 class StageAgent(GameAgent):
     """场景代理
 
     代表游戏中的场景，负责场景内的环境、事件和角色交互管理。
-    包含该场景中的所有角色代理列表。
     """
 
-    actor_agents: List[ActorAgent] = []  # 该场景中的角色代理列表
+    pass
 
 
-class GameAgentManager:
+class GameWorld:
     """游戏代理管理器
 
     统一管理所有类型的游戏代理，提供类型安全的访问接口。
@@ -115,72 +108,68 @@ class GameAgentManager:
         """初始化代理管理器"""
         self._world_agent: Optional[WorldAgent] = None
         self._stage_agents: List[StageAgent] = []
+        self._actor_agents: List[ActorAgent] = []
         self._current_agent: Optional[GameAgent] = None
         self._world_name: str = ""
         self._world_id: Optional[UUID] = None
 
-    async def create_agents_from_world(
+    async def load(
         self,
-        world_model: World,
+        world_name: str,
     ) -> None:
-        """从游戏世界创建所有代理 - 直接创建，简单直接"""
+        """从数据库加载 WorldDB 并创建所有代理
+
+        Args:
+            world_name: 世界名称
+        """
         logger.debug("🏗️ 开始创建游戏代理...")
 
-        # 保存世界名称 (用于后续数据库操作)
-        self._world_name = world_model.name
-        logger.debug(f"✅ 保存世界名称: {self._world_name}")
+        # 从数据库加载完整的 WorldDB (预加载所有关系)
+        from ai_trpg.pgsql import get_world
 
-        self._world_id = get_world_id_by_name(self._world_name)
-        assert self._world_id is not None, "无法获取游戏世界 ID"
-        logger.debug(f"✅ 保存世界 ID: {self._world_id}")
+        world_db = get_world(world_name)
+        if not world_db:
+            raise ValueError(f"World '{world_name}' 不存在于数据库")
+
+        # 保存世界信息
+        self._world_name = world_db.name
+        self._world_id = world_db.id
+        logger.debug(f"✅ 世界名称: {self._world_name}")
+        logger.debug(f"✅ 世界 ID: {self._world_id}")
 
         # 创建世界观代理
         self._world_agent = WorldAgent(
-            name=world_model.name,
+            name=world_db.name,
             mcp_client=await self._create_mcp_client(),
             world_id=self._world_id,
         )
         logger.debug(f"已创建世界观代理: {self._world_agent.name}")
 
-        # 获取游戏世界中的所有角色
-        all_actors_model = world_model.get_all_actors()
-        logger.debug(
-            f"游戏世界中的所有角色: {[actor.name for actor in all_actors_model]}"
-        )
-
-        all_stages_model = world_model.get_all_stages()
-        logger.debug(
-            f"游戏世界中的所有场景: {[stage.name for stage in all_stages_model]}"
-        )
-
-        # 创建每个场景的代理，并同时创建场景中的角色代理
+        # 创建场景代理和角色代理
         self._stage_agents = []
-        for stage_model in all_stages_model:
+        self._actor_agents = []
+
+        for stage_db in world_db.stages:
             # 创建场景代理
             stage_agent = StageAgent(
-                name=stage_model.name,
+                name=stage_db.name,
                 mcp_client=await self._create_mcp_client(),
                 world_id=self._world_id,
             )
+            self._stage_agents.append(stage_agent)
+            logger.debug(f"已创建场景代理: {stage_agent.name}")
 
-            # 为该场景中的每个角色创建代理
-            for actor_model in stage_model.actors:
+            # 直接使用 stage_db.actors (已预加载 attributes 和 effects)
+            for actor_db in stage_db.actors:
                 actor_agent = ActorAgent(
-                    name=actor_model.name,
-                    stage_agent=stage_agent,  # 创建时直接指定所属场景
+                    name=actor_db.name,
                     mcp_client=await self._create_mcp_client(),
                     world_id=self._world_id,
                 )
-                # 将角色代理添加到场景代理的列表中
-                stage_agent.actor_agents.append(actor_agent)
+                self._actor_agents.append(actor_agent)
                 logger.debug(
                     f"已创建角色代理: {actor_agent.name} (所属场景: {stage_agent.name})"
                 )
-
-            self._stage_agents.append(stage_agent)
-            logger.debug(
-                f"已创建场景代理: {stage_agent.name} (包含 {len(stage_agent.actor_agents)} 个角色)"
-            )
 
         # 默认激活世界观代理
         self._current_agent = self._world_agent
@@ -214,11 +203,13 @@ class GameAgentManager:
         if self._world_agent:
             connection_tasks.append(self._connect_agent_client(self._world_agent))
 
-        # 场景代理和角色代理
+        # 场景代理
         for stage_agent in self._stage_agents:
             connection_tasks.append(self._connect_agent_client(stage_agent))
-            for actor_agent in stage_agent.actor_agents:
-                connection_tasks.append(self._connect_agent_client(actor_agent))
+
+        # 角色代理
+        for actor_agent in self._actor_agents:
+            connection_tasks.append(self._connect_agent_client(actor_agent))
 
         # 并发执行所有连接
         results = await asyncio.gather(*connection_tasks, return_exceptions=True)
@@ -275,25 +266,18 @@ class GameAgentManager:
 
     @property
     def actor_agents(self) -> List[ActorAgent]:
-        """获取所有角色代理（从所有场景中提取）"""
-        all_actor_agents: List[ActorAgent] = []
-        for stage_agent in self._stage_agents:
-            all_actor_agents.extend(stage_agent.actor_agents)
-        return all_actor_agents
-
-    @property
-    def stage_agents(self) -> List[StageAgent]:
-        """获取所有场景代理"""
-        return self._stage_agents
+        """获取所有角色代理"""
+        return self._actor_agents
 
     @property
     def all_agents(self) -> List[GameAgent]:
         """获取所有代理"""
         agents: List[GameAgent] = []
+        assert self._world_agent is not None, "世界观代理未设置"
         if self._world_agent:
             agents.append(self._world_agent)
-        agents.extend(self.actor_agents)  # 使用属性而不是私有变量
         agents.extend(self._stage_agents)
+        agents.extend(self._actor_agents)
         return agents
 
     @property
@@ -315,7 +299,7 @@ class GameAgentManager:
                 return agent
         return None
 
-    def switch_agent(self, target_name: str) -> Optional[GameAgent]:
+    def switch_current_agent(self, target_name: str) -> Optional[GameAgent]:
         """切换到指定名称的代理
 
         Args:

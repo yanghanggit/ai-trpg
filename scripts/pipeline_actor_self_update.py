@@ -11,7 +11,7 @@ from loguru import logger
 from langchain.schema import HumanMessage
 from ai_trpg.deepseek import create_deepseek_llm
 from ai_trpg.mcp import McpClient
-from agent_utils import GameAgentManager
+from agent_utils import GameWorld
 from workflow_handlers import handle_mcp_workflow_execution
 from ai_trpg.pgsql import get_actor_context, get_actors_in_world, ActorDB
 
@@ -212,7 +212,7 @@ async def _handle_actor_self_update(
 ########################################################################################################################
 ########################################################################################################################
 async def handle_actors_self_update(
-    game_agent_manager: GameAgentManager,
+    game_world: GameWorld,
     use_concurrency: bool = False,
 ) -> None:
     """处理所有角色的自我状态更新
@@ -220,12 +220,12 @@ async def handle_actors_self_update(
     从数据库获取所有存活角色，直接使用 ActorDB 对象进行更新。
 
     Args:
-        game_agent_manager: 游戏代理管理器
+        game_world: 游戏代理管理器
         use_concurrency: 是否使用并行处理，默认False（顺序执行）
     """
 
     # 从数据库获取所有存活角色（is_dead=False）
-    alive_actors = get_actors_in_world(game_agent_manager.world_id, is_dead=False)
+    alive_actors = get_actors_in_world(game_world.world_id, is_dead=False)
 
     if len(alive_actors) == 0:
         logger.warning("⚠️ 当前没有存活角色，跳过自我状态更新流程")
@@ -237,14 +237,14 @@ async def handle_actors_self_update(
 
         for actor_db in alive_actors:
             # 通过角色名称获取对应的代理（用于获取 mcp_client）
-            agent = game_agent_manager.get_agent_by_name(actor_db.name)
+            agent = game_world.get_agent_by_name(actor_db.name)
             assert agent is not None, f"未找到角色 {actor_db.name} 对应的代理"
             if agent:
                 actor_update_tasks.append(
                     _handle_actor_self_update(
                         actor_db=actor_db,
                         mcp_client=agent.mcp_client,
-                        world_id=game_agent_manager.world_id,
+                        world_id=game_world.world_id,
                     )
                 )
             else:
@@ -257,13 +257,13 @@ async def handle_actors_self_update(
 
         for actor_db in alive_actors:
             # 通过角色名称获取对应的代理（用于获取 mcp_client）
-            agent = game_agent_manager.get_agent_by_name(actor_db.name)
+            agent = game_world.get_agent_by_name(actor_db.name)
             assert agent is not None, f"未找到角色 {actor_db.name} 对应的代理"
             if agent:
                 await _handle_actor_self_update(
                     actor_db=actor_db,
                     mcp_client=agent.mcp_client,
-                    world_id=game_agent_manager.world_id,
+                    world_id=game_world.world_id,
                 )
             else:
                 logger.warning(f"⚠️ 未找到角色 {actor_db.name} 对应的代理，跳过")

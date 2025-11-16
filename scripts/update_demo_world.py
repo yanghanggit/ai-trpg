@@ -34,7 +34,6 @@ from ai_trpg.demo.models import World
 from ai_trpg.pgsql.world_operations import (
     save_world_to_db,
     delete_world,
-    load_world_from_db,
 )
 
 
@@ -77,19 +76,6 @@ def _update_world_to_db(world: World) -> None:
     logger.info(f"   - World ID: {world_db.id}")
     logger.info(f"   - World Name: {world_db.name}")
     logger.info(f"   - Campaign Setting: {world_db.campaign_setting}")
-
-    # 3. 验证保存结果
-    logger.info("🔍 验证保存结果...")
-    loaded_world = load_world_from_db(world_name)
-
-    if loaded_world:
-        logger.success(f"✅ 验证成功: 世界可以从数据库正确加载")
-        logger.info(f"   - 加载的 Stages: {len(loaded_world.stages)}")
-        total_actors = sum(len(stage.actors) for stage in loaded_world.stages)
-        logger.info(f"   - 总计 Actors: {total_actors}")
-    else:
-        logger.error(f"❌ 验证失败: 无法从数据库加载世界")
-        raise RuntimeError(f"Failed to verify world {world_name} in database")
 
 
 # 写一个函数，上述的所有create world全部删除一遍
