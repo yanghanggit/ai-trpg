@@ -110,9 +110,10 @@ def create_test_world_2_1() -> World:
             )
         ),
         HumanMessage(
-            content=f"""# 游戏开始！{instance_stage1.name}\n请描述当前场景叙事。"""
+            content=f"""# 游戏开始！{instance_stage1.name}\n请描述当前场景叙事。""",
+            kickoff=True,
         ),
-        AIMessage(content=str(instance_stage1.narrative)),
+        AIMessage(content=str(instance_stage1.narrative), kickoff=True),
     ]
 
     # 配置场景2：奥顿教堂大厅
@@ -133,9 +134,10 @@ def create_test_world_2_1() -> World:
             )
         ),
         HumanMessage(
-            content=f"""# 游戏开始！{instance_stage2.name}\n请描述当前场景叙事。"""
+            content=f"""# 游戏开始！{instance_stage2.name}\n请描述当前场景叙事。""",
+            kickoff=True,
         ),
-        AIMessage(content=str(instance_stage2.narrative)),
+        AIMessage(content=str(instance_stage2.narrative), kickoff=True),
     ]
 
     # 外乡人
@@ -150,10 +152,12 @@ def create_test_world_2_1() -> World:
                 actor_name=instance_actor3.name,
                 stage_name=instance_stage1.name,
                 narrative=instance_stage1.narrative,
-            )
+            ),
+            kickoff=True,
         ),
         AIMessage(
-            content=f"我是{instance_actor3.name}。我在 {instance_stage1.name}的西侧石阶上，站在教堂侧门门口。我的目标是 进入教堂寻找关于这座城市的真相，尤其是教会档案室中可能隐藏的秘密文献。我已经穿过了墓地，现在准备尝试推开这个关闭的门。"
+            content=f"我是{instance_actor3.name}。我在 {instance_stage1.name}的西侧石阶上，站在教堂侧门门口。我的目标是 进入教堂寻找关于这座城市的真相，尤其是教会档案室中可能隐藏的秘密文献。我已经穿过了墓地，现在准备尝试推开这个关闭的门。",
+            kickoff=True,
         ),
     ]
 
@@ -239,9 +243,10 @@ def create_test_world_2_2() -> World:
             )
         ),
         HumanMessage(
-            content=f"""# 游戏开始！{instance_stage1.name}\n请描述当前场景叙事。"""
+            content=f"""# 游戏开始！{instance_stage1.name}\n请描述当前场景叙事。""",
+            kickoff=True,
         ),
-        AIMessage(content=str(instance_stage1.narrative)),
+        AIMessage(content=str(instance_stage1.narrative), kickoff=True),
     ]
 
     # 配置场景2：奥顿教堂大厅
@@ -262,9 +267,10 @@ def create_test_world_2_2() -> World:
             )
         ),
         HumanMessage(
-            content=f"""# 游戏开始！{instance_stage2.name}\n请描述当前场景叙事。"""
+            content=f"""# 游戏开始！{instance_stage2.name}\n请描述当前场景叙事。""",
+            kickoff=True,
         ),
-        AIMessage(content=str(instance_stage2.narrative)),
+        AIMessage(content=str(instance_stage2.narrative), kickoff=True),
     ]
 
     # 外乡人
@@ -279,10 +285,12 @@ def create_test_world_2_2() -> World:
                 actor_name=instance_actor3.name,
                 stage_name=instance_stage1.name,
                 narrative=instance_stage1.narrative,
-            )
+            ),
+            kickoff=True,
         ),
         AIMessage(
-            content=f"我是{instance_actor3.name}。我在 {instance_stage1.name}的西侧石阶上，站在教堂侧门门口。我的目标是 **立即进入{instance_stage2.name}**，寻找关于这座城市的真相，尤其是教会档案室中可能隐藏的秘密文献。我已经穿过了墓地，现在**必须马上推开这扇虚掩的门，进入教堂内部**。这是我此刻唯一且最紧迫的行动目标。"
+            content=f"我是{instance_actor3.name}。我在 {instance_stage1.name}的西侧石阶上，站在教堂侧门门口。我的目标是 **立即进入{instance_stage2.name}**，寻找关于这座城市的真相，尤其是教会档案室中可能隐藏的秘密文献。我已经穿过了墓地，现在**必须马上推开这扇虚掩的门，进入教堂内部**。这是我此刻唯一且最紧迫的行动目标。",
+            kickoff=True,
         ),
     ]
 

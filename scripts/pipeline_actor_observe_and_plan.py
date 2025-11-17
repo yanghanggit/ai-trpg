@@ -26,9 +26,7 @@ from ai_trpg.agent import GameWorld
 ########################################################################################################################
 ########################################################################################################################
 ########################################################################################################################
-def _gen_compressed_observe_and_plan_prompt(
-    actor_name: str, original_message: str
-) -> str:
+def _gen_compressed_observe_and_plan_prompt(actor_name: str) -> str:
     """创建压缩版本的观察与规划提示词，用于保存到历史记录
 
     这个压缩版本保留了提示词的结构框架（标题和输出格式要求），
@@ -42,7 +40,6 @@ def _gen_compressed_observe_and_plan_prompt(
         压缩后的提示词字符串
     """
     compressed_message = f"""# 指令！你（{actor_name}）开始观察，然后思考并规划行动！"""
-    # logger.debug(f"{original_message}=>\n{compressed_message}")
     return compressed_message
 
 
@@ -193,9 +190,8 @@ async def _handle_actor_observe_and_plan(
             actor_name,
             [
                 HumanMessage(
-                    content=_gen_compressed_observe_and_plan_prompt(
-                        actor_name, observe_and_plan_prompt
-                    )
+                    content=_gen_compressed_observe_and_plan_prompt(actor_name),
+                    compressed_prompt=observe_and_plan_prompt,
                 ),
                 AIMessage(
                     content=f"""{formatted_data.observation}\n\n{formatted_data.plan}"""

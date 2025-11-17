@@ -25,7 +25,7 @@ from ai_trpg.pgsql import (
 )
 
 
-def _gen_compressed_stage_update_prompt(stage_name: str, original_message: str) -> str:
+def _gen_compressed_stage_update_prompt(stage_name: str) -> str:
     """生成压缩版本的场景更新提示词
 
     Args:
@@ -278,9 +278,8 @@ async def _handle_stage_self_update(
                 stage_db.name,
                 [
                     HumanMessage(
-                        content=_gen_compressed_stage_update_prompt(
-                            stage_db.name, stage_update_prompt
-                        )
+                        content=_gen_compressed_stage_update_prompt(stage_db.name),
+                        compressed_prompt=stage_update_prompt,
                     ),
                     AIMessage(
                         content=f"""# 我（{stage_db.name}）场景内发生事件（角色进入）如下 \n\n {stage_update_result.narrative}"""

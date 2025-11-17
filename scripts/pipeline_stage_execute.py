@@ -23,9 +23,8 @@ from ai_trpg.pgsql import ActorDB, StageDB
 from uuid import UUID
 
 
-def _gen_compressed_stage_execute_prompt(stage_name: str, original_message: str) -> str:
+def _gen_compressed_stage_execute_prompt(stage_name: str) -> str:
     compressed_message = f"""# 指令！你（{stage_name}）场景发生事件！请输出事件内容！"""
-    # logger.debug(f"{original_message}=>\n{compressed_message}")
     return compressed_message
 
 
@@ -272,9 +271,8 @@ async def _handle_single_stage_execute(
             stage_db.name,
             [
                 HumanMessage(
-                    content=_gen_compressed_stage_execute_prompt(
-                        stage_db.name, step1_2_instruction
-                    )
+                    content=_gen_compressed_stage_execute_prompt(stage_db.name),
+                    compressed_prompt=step1_2_instruction,
                 ),
                 AIMessage(
                     content=f"""# 我（{stage_db.name}） 场景内发生事件（执行结果）如下 \n\n {narrative}"""

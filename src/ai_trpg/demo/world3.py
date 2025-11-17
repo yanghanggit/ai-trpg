@@ -122,9 +122,10 @@ def create_test_world3() -> World:
             )
         ),
         HumanMessage(
-            content=f"""# 游戏开始！{instance_stage1.name}\n请描述当前场景叙事。"""
+            content=f"""# 游戏开始！{instance_stage1.name}\n请描述当前场景叙事。""",
+            kickoff=True,
         ),
-        AIMessage(content=str(instance_stage1.narrative)),
+        AIMessage(content=str(instance_stage1.narrative), kickoff=True),
     ]
 
     # 创建场景2：奥顿教堂大厅
@@ -145,9 +146,10 @@ def create_test_world3() -> World:
             )
         ),
         HumanMessage(
-            content=f"""# 游戏开始！{instance_stage2.name}\n请描述当前场景叙事。"""
+            content=f"""# 游戏开始！{instance_stage2.name}\n请描述当前场景叙事。""",
+            kickoff=True,
         ),
-        AIMessage(content=str(instance_stage2.narrative)),
+        AIMessage(content=str(instance_stage2.narrative), kickoff=True),
     ]
 
     # 加斯科因
@@ -162,10 +164,12 @@ def create_test_world3() -> World:
                 actor_name=instance_actor1.name,
                 stage_name=instance_stage1.name,
                 narrative=instance_stage1.narrative,
-            )
+            ),
+            kickoff=True,
         ),
         AIMessage(
-            content=f"我是{instance_actor1.name}。我在 {instance_stage1.name} 中央，靠近天使雕像的位置，正在来回踱步。我的目标是 杀死任何闯入者！毫不犹豫，直接发起攻击！"
+            content=f"我是{instance_actor1.name}。我在 {instance_stage1.name} 中央，靠近天使雕像的位置，正在来回踱步。我的目标是 杀死任何闯入者！毫不犹豫，直接发起攻击！",
+            kickoff=True,
         ),
     ]
 
@@ -183,10 +187,12 @@ def create_test_world3() -> World:
                 actor_name=instance_actor2.name,
                 stage_name=instance_stage1.name,
                 narrative=instance_stage1.narrative,
-            )
+            ),
+            kickoff=True,
         ),
         AIMessage(
-            content=f"我是{instance_actor2.name}。我在 {instance_stage1.name} 东侧，黑色铁门旁的墓碑阴影中，处于隐藏状态观察着目标。我的目标是 狩猎 {instance_actor1.name}！因为斯科因已经兽化，所以必须消灭他。我决定要马上出手一击必杀！"
+            content=f"我是{instance_actor2.name}。我在 {instance_stage1.name} 东侧，黑色铁门旁的墓碑阴影中，处于隐藏状态观察着目标。我的目标是 狩猎 {instance_actor1.name}！因为斯科因已经兽化，所以必须消灭他。我决定要马上出手一击必杀！",
+            kickoff=True,
         ),
     ]
 
@@ -210,10 +216,12 @@ def create_test_world3() -> World:
                 actor_name=instance_actor3.name,
                 stage_name=instance_stage1.name,
                 narrative=instance_stage1.narrative,
-            )
+            ),
+            kickoff=True,
         ),
         AIMessage(
-            content=f"我是{instance_actor3.name}。我在 {instance_stage1.name} 南侧入口内部约10米处，刚刚进入墓地。我注意到墓地西侧有石阶通向教堂侧门，门后应该就是{instance_stage2.name}。我的目标是 探索这里的秘密并自保，尽量回避危险，必要时可以反击。如果情况危险，我可以尝试前往西侧的教堂侧门寻求庇护。"
+            content=f"我是{instance_actor3.name}。我在 {instance_stage1.name} 南侧入口内部约10米处，刚刚进入墓地。我注意到墓地西侧有石阶通向教堂侧门，门后应该就是{instance_stage2.name}。我的目标是 探索这里的秘密并自保，尽量回避危险，必要时可以反击。如果情况危险，我可以尝试前往西侧的教堂侧门寻求庇护。",
+            kickoff=True,
         ),
     ]
 
