@@ -6,9 +6,9 @@
 """
 
 import asyncio
-from typing import List, Optional
+from abc import ABC, abstractmethod
+from typing import List, Optional, override
 from loguru import logger
-from pydantic import BaseModel, ConfigDict
 from langchain.schema import BaseMessage
 from ai_trpg.mcp import (
     McpClient,
@@ -24,50 +24,77 @@ from ai_trpg.pgsql import (
 )
 
 
-def get_agent_context(agent: "GameAgent") -> List[BaseMessage]:
-    """获取代理的上下文消息（从数据库读取）
+class AbstractGameAgent(ABC):
+    """游戏代理抽象基类
 
-    Args:
-        agent: 游戏代理实例（WorldAgent/StageAgent/ActorAgent）
-
-    Returns:
-        List[BaseMessage]: 该代理的上下文消息列表
+    定义所有游戏代理必须实现的接口。
     """
-    if isinstance(agent, WorldAgent):
-        return get_world_context(agent.world_id)
-    elif isinstance(agent, StageAgent):
-        return get_stage_context(agent.world_id, agent.name)
-    elif isinstance(agent, ActorAgent):
-        return get_actor_context(agent.world_id, agent.name)
-    else:
-        raise TypeError(f"未知的代理类型: {type(agent)}")
+
+    @abstractmethod
+    def get_context(self) -> List[BaseMessage]:
+        """获取代理的上下文消息（从数据库读取）
+
+        Returns:
+            List[BaseMessage]: 该代理的上下文消息列表
+        """
+        pass
+
+    @abstractmethod
+    def add_context(self, messages: List[BaseMessage]) -> None:
+        """添加消息到代理的上下文（写入数据库）
+
+        Args:
+            messages: 要添加的消息列表
+        """
+        pass
 
 
-def add_agent_context(agent: "GameAgent", messages: List[BaseMessage]) -> None:
-    """添加消息到代理的上下文（写入数据库）
-
-    Args:
-        agent: 游戏代理实例（WorldAgent/StageAgent/ActorAgent）
-        messages: 要添加的消息列表
-    """
-    if isinstance(agent, WorldAgent):
-        add_world_context(agent.world_id, messages)
-    elif isinstance(agent, StageAgent):
-        add_stage_context(agent.world_id, agent.name, messages)
-    elif isinstance(agent, ActorAgent):
-        add_actor_context(agent.world_id, agent.name, messages)
-    else:
-        raise TypeError(f"未知的代理类型: {type(agent)}")
-
-
-class GameAgent(BaseModel):
+class GameAgent(AbstractGameAgent):
     """游戏代理模型"""
 
-    model_config = ConfigDict(arbitrary_types_allowed=True)
+    def __init__(self, name: str, mcp_client: McpClient, world_id: UUID) -> None:
+        """初始化游戏代理
 
-    name: str
-    mcp_client: McpClient
-    world_id: UUID
+        Args:
+            name: 代理名称
+            mcp_client: MCP 客户端实例
+            world_id: 世界 ID
+        """
+        self.name = name
+        self.mcp_client = mcp_client
+        self.world_id = world_id
+
+    @override
+    def get_context(self) -> List[BaseMessage]:
+        """获取代理的上下文消息（从数据库读取）
+
+        Returns:
+            List[BaseMessage]: 该代理的上下文消息列表
+        """
+        if isinstance(self, WorldAgent):
+            return get_world_context(self.world_id)
+        elif isinstance(self, StageAgent):
+            return get_stage_context(self.world_id, self.name)
+        elif isinstance(self, ActorAgent):
+            return get_actor_context(self.world_id, self.name)
+        else:
+            raise TypeError(f"未知的代理类型: {type(self)}")
+
+    @override
+    def add_context(self, messages: List[BaseMessage]) -> None:
+        """添加消息到代理的上下文（写入数据库）
+
+        Args:
+            messages: 要添加的消息列表
+        """
+        if isinstance(self, WorldAgent):
+            add_world_context(self.world_id, messages)
+        elif isinstance(self, StageAgent):
+            add_stage_context(self.world_id, self.name, messages)
+        elif isinstance(self, ActorAgent):
+            add_actor_context(self.world_id, self.name, messages)
+        else:
+            raise TypeError(f"未知的代理类型: {type(self)}")
 
 
 class WorldAgent(GameAgent):

@@ -43,7 +43,7 @@ from ai_trpg.rag.pgvector_game_retriever import PGVectorGameDocumentRetriever
 from ai_trpg.configuration.logging_config import setup_logger
 
 # 导入本地工具模块
-from agent_utils import GameWorld, get_agent_context
+from agent_utils import GameWorld
 from mcp_command_handlers import (
     handle_tools_command,
     handle_prompts_command,
@@ -110,7 +110,7 @@ async def main() -> None:
                 logger.info(
                     f"📜 打印当前代理 [{game_world.current_agent.name}] 的对话历史"
                 )
-                current_context = get_agent_context(game_world.current_agent)
+                current_context = game_world.current_agent.get_context()
                 log_history(
                     agent_name=game_world.current_agent.name,
                     messages=current_context,
@@ -120,7 +120,7 @@ async def main() -> None:
             elif user_input.lower() == "/dump":
                 for game_agent in game_world.all_agents:
                     logger.debug(f"💾 保存代理 [{game_agent.name}] 的对话历史")
-                    agent_context = get_agent_context(game_agent)
+                    agent_context = game_agent.get_context()
                     dump_history(
                         agent_name=game_agent.name,
                         messages=agent_context,
@@ -169,7 +169,7 @@ async def main() -> None:
                 format_user_input = format_user_input_prompt(mcp_content)
 
                 # 从数据库读取上下文
-                current_context = get_agent_context(game_world.current_agent)
+                current_context = game_world.current_agent.get_context()
 
                 # mcp 的工作流
                 mcp_response = await handle_mcp_workflow_execution(
@@ -198,7 +198,7 @@ async def main() -> None:
                 format_user_input = format_user_input_prompt(chat_content)
 
                 # 从数据库读取上下文
-                current_context = get_agent_context(game_world.current_agent)
+                current_context = game_world.current_agent.get_context()
 
                 # 聊天的工作流
                 chat_response = await handle_chat_workflow_execution(
@@ -221,7 +221,7 @@ async def main() -> None:
                     continue
 
                 # 从数据库读取上下文
-                current_context = get_agent_context(game_world.current_agent)
+                current_context = game_world.current_agent.get_context()
 
                 # RAG 的工作流
                 rag_response = await handle_rag_workflow_execution(
