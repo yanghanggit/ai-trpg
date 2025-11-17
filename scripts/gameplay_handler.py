@@ -6,7 +6,7 @@
 """
 
 from loguru import logger
-from agent_utils import GameWorld
+from ai_trpg.agent import GameWorld
 from pipeline_kickoff import handle_kickoff
 from pipeline_actor_observe_and_plan import handle_actors_observe_and_plan
 from pipeline_stage_execute import (

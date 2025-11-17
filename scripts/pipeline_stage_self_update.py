@@ -11,7 +11,7 @@ from pydantic import BaseModel
 from langchain.schema import HumanMessage, AIMessage
 from ai_trpg.deepseek import create_deepseek_llm
 from ai_trpg.utils.json_format import strip_json_code_block
-from agent_utils import GameWorld
+from ai_trpg.agent import GameWorld
 from workflow_handlers import handle_chat_workflow_execution
 from ai_trpg.pgsql import (
     get_actor_movement_events_by_stage,

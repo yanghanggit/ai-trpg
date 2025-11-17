@@ -1,127 +1,12 @@
-#!/usr/bin/env python3
-"""
-代理工具模块
-
-提供游戏代理相关的工具函数，包括代理切换、管理等功能。
-"""
+"""游戏代理管理器"""
 
 import asyncio
-from abc import ABC, abstractmethod
-from typing import List, Optional, override
-from loguru import logger
-from langchain.schema import BaseMessage
-from ai_trpg.mcp import (
-    McpClient,
-)
+from typing import List, Optional
 from uuid import UUID
-from ai_trpg.pgsql import (
-    get_world_context,
-    get_stage_context,
-    get_actor_context,
-    add_world_context,
-    add_stage_context,
-    add_actor_context,
-)
-
-
-class AbstractGameAgent(ABC):
-    """游戏代理抽象基类
-
-    定义所有游戏代理必须实现的接口。
-    """
-
-    @abstractmethod
-    def get_context(self) -> List[BaseMessage]:
-        """获取代理的上下文消息（从数据库读取）
-
-        Returns:
-            List[BaseMessage]: 该代理的上下文消息列表
-        """
-        pass
-
-    @abstractmethod
-    def add_context(self, messages: List[BaseMessage]) -> None:
-        """添加消息到代理的上下文（写入数据库）
-
-        Args:
-            messages: 要添加的消息列表
-        """
-        pass
-
-
-class GameAgent(AbstractGameAgent):
-    """游戏代理模型"""
-
-    def __init__(self, name: str, mcp_client: McpClient, world_id: UUID) -> None:
-        """初始化游戏代理
-
-        Args:
-            name: 代理名称
-            mcp_client: MCP 客户端实例
-            world_id: 世界 ID
-        """
-        self.name = name
-        self.mcp_client = mcp_client
-        self.world_id = world_id
-
-    @override
-    def get_context(self) -> List[BaseMessage]:
-        """获取代理的上下文消息（从数据库读取）
-
-        Returns:
-            List[BaseMessage]: 该代理的上下文消息列表
-        """
-        if isinstance(self, WorldAgent):
-            return get_world_context(self.world_id)
-        elif isinstance(self, StageAgent):
-            return get_stage_context(self.world_id, self.name)
-        elif isinstance(self, ActorAgent):
-            return get_actor_context(self.world_id, self.name)
-        else:
-            raise TypeError(f"未知的代理类型: {type(self)}")
-
-    @override
-    def add_context(self, messages: List[BaseMessage]) -> None:
-        """添加消息到代理的上下文（写入数据库）
-
-        Args:
-            messages: 要添加的消息列表
-        """
-        if isinstance(self, WorldAgent):
-            add_world_context(self.world_id, messages)
-        elif isinstance(self, StageAgent):
-            add_stage_context(self.world_id, self.name, messages)
-        elif isinstance(self, ActorAgent):
-            add_actor_context(self.world_id, self.name, messages)
-        else:
-            raise TypeError(f"未知的代理类型: {type(self)}")
-
-
-class WorldAgent(GameAgent):
-    """世界代理
-
-    代表整个游戏世界的代理，负责世界观、全局规则和世界状态的管理。
-    """
-
-    pass
-
-
-class ActorAgent(GameAgent):
-    """角色代理
-
-    代表游戏中的单个角色，负责角色的行为、对话和状态管理。
-    """
-
-    pass
-
-
-class StageAgent(GameAgent):
-    """场景代理
-
-    代表游戏中的场景，负责场景内的环境、事件和角色交互管理。
-    """
-
-    pass
+from loguru import logger
+from .models import GameAgent, WorldAgent, ActorAgent, StageAgent
+from ..mcp import McpClient, mcp_config, create_mcp_client
+from ..pgsql import get_world
 
 
 class GameWorld:
@@ -152,7 +37,6 @@ class GameWorld:
         logger.debug("🏗️ 开始创建游戏代理...")
 
         # 从数据库加载完整的 WorldDB (预加载所有关系)
-        from ai_trpg.pgsql import get_world
 
         world_db = get_world(world_name)
         if not world_db:
@@ -205,14 +89,17 @@ class GameWorld:
         logger.debug("✅ 所有游戏代理创建完成")
 
     async def _create_mcp_client(self) -> McpClient:
+        """创建 MCP 客户端实例
 
-        from ai_trpg.mcp import (
-            mcp_config,
-        )
-        from mcp_client_init import create_mcp_client_with_config
+        Returns:
+            McpClient: 新创建的 MCP 客户端实例
+        """
 
-        return await create_mcp_client_with_config(
-            mcp_config=mcp_config, list_available=False, auto_connect=False
+        return await create_mcp_client(
+            mcp_server_url=mcp_config.mcp_server_url,
+            mcp_protocol_version=mcp_config.protocol_version,
+            mcp_timeout=mcp_config.mcp_timeout,
+            auto_connect=False,
         )
 
     async def connect_all_agents(self) -> None:

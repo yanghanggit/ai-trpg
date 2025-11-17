@@ -20,7 +20,7 @@ from ai_trpg.pgsql.actor_plan_operations import (
     clear_all_actor_plans,
     add_actor_plan_to_db,
 )
-from agent_utils import GameWorld
+from ai_trpg.agent import GameWorld
 
 
 ########################################################################################################################

@@ -10,7 +10,7 @@ from typing import List
 from loguru import logger
 from langchain.schema import HumanMessage, AIMessage
 from ai_trpg.deepseek import create_deepseek_llm
-from agent_utils import GameWorld
+from ai_trpg.agent import GameWorld
 from workflow_handlers import (
     handle_mcp_workflow_execution,
 )

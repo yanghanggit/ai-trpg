@@ -6,7 +6,7 @@
 """
 
 from loguru import logger
-from agent_utils import GameWorld
+from ai_trpg.agent import GameWorld
 from ai_trpg.pgsql import (
     get_world_kickoff,
     set_world_kickoff,
