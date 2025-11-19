@@ -31,11 +31,6 @@ class Actor(BaseModel):
     )
 
 
-class StageConnection(BaseModel):
-    target_stage_name: str = Field(description="目标场景名称")
-    description: str = Field(description="连接描述（包含通行条件等信息）")
-
-
 class Stage(BaseModel):
     """表示游戏中场景状态的模型"""
 
@@ -49,8 +44,9 @@ class Stage(BaseModel):
         default="",
         description="场景连通性：描述本场景与其他场景的连接关系、通道位置及通行条件",
     )
-    stage_connections: List[StageConnection] = Field(
-        default_factory=list, description="场景的连通连接"
+    stage_connections: List[str] = Field(
+        default_factory=list,
+        description="与当前场景连接的目标场景名称列表（用于图遍历和寻路算法）",
     )
     context: List[BaseMessage] = Field(
         default_factory=list, description="场景的LLM对话上下文"

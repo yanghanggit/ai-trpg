@@ -1,4 +1,4 @@
-from .models import World, Effect, StageConnection
+from .models import World, Effect
 from .templates import (
     template_actor1,
     template_actor2,

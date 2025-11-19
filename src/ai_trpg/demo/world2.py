@@ -14,7 +14,7 @@
 读取约束条件，而非仅根据角色意图就执行移动操作。
 """
 
-from .models import World, StageConnection
+from .models import World
 from .templates import (
     template_actor3,
     template_stage1,
@@ -103,11 +103,7 @@ def create_test_world_2_1() -> World:
     instance_stage1.connections = stage_connections
 
     # 填充 stage_connections 列表（准备图数据结构）
-    instance_stage1.stage_connections = [
-        StageConnection(
-            target_stage_name=instance_stage2.name, description=stage_connections
-        )
-    ]
+    instance_stage1.stage_connections = [instance_stage2.name]
 
     # 设置上下文！
     instance_stage1.context = [
@@ -134,11 +130,7 @@ def create_test_world_2_1() -> World:
     instance_stage2.connections = stage_connections
 
     # 填充 stage_connections 列表（准备图数据结构）
-    instance_stage2.stage_connections = [
-        StageConnection(
-            target_stage_name=instance_stage1.name, description=stage_connections
-        )
-    ]
+    instance_stage2.stage_connections = [instance_stage1.name]
 
     # 设置上下文！
     instance_stage2.context = [
@@ -250,11 +242,7 @@ def create_test_world_2_2() -> World:
     instance_stage1.connections = stage_connections
 
     # 填充 stage_connections 列表（准备图数据结构）
-    instance_stage1.stage_connections = [
-        StageConnection(
-            target_stage_name=instance_stage2.name, description=stage_connections
-        )
-    ]
+    instance_stage1.stage_connections = [instance_stage2.name]
 
     # 设置上下文！
     instance_stage1.context = [
@@ -281,11 +269,7 @@ def create_test_world_2_2() -> World:
     instance_stage2.connections = stage_connections
 
     # 填充 stage_connections 列表（准备图数据结构）
-    instance_stage2.stage_connections = [
-        StageConnection(
-            target_stage_name=instance_stage1.name, description=stage_connections
-        )
-    ]
+    instance_stage2.stage_connections = [instance_stage1.name]
 
     # 设置上下文！
     instance_stage2.context = [

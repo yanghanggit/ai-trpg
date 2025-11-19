@@ -111,23 +111,21 @@ def save_world_to_db(world: World) -> WorldDB:
             for stage in world.stages:
                 source_stage_db = stage_db_map[stage.name]
 
-                # 遍历每个场景的连接列表
-                for connection in stage.stage_connections:
+                # 遍历每个场景的连接列表（现在是场景名称字符串列表）
+                for target_stage_name in stage.stage_connections:
                     # 查找目标场景
-                    target_stage_db = stage_db_map.get(connection.target_stage_name)
+                    target_stage_db = stage_db_map.get(target_stage_name)
 
                     if target_stage_db:
-                        # 创建连接记录 - 使用关系而不是直接设置 ID
-                        connection_db = StageConnectionDB(
-                            description=connection.description,
-                        )
+                        # 创建连接记录（纯拓扑关系）
+                        connection_db = StageConnectionDB()
                         # 通过关系设置源和目标场景
                         connection_db.source_stage = source_stage_db
                         connection_db.target_stage = target_stage_db
                         db.add(connection_db)
                     else:
                         logger.warning(
-                            f"⚠️ 场景 '{stage.name}' 的连接目标 '{connection.target_stage_name}' 不存在，跳过"
+                            f"⚠️ 场景 '{stage.name}' 的连接目标 '{target_stage_name}' 不存在，跳过"
                         )
 
             # 7. 提交到数据库
