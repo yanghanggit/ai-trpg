@@ -15,6 +15,7 @@ from ..demo.models import World
 from .client import SessionLocal
 from .world import WorldDB
 from .stage import StageDB
+from .stage_connection import StageConnectionDB
 from .actor import ActorDB
 from .attributes import AttributesDB
 from .effect import EffectDB
@@ -52,6 +53,7 @@ def save_world_to_db(world: World) -> WorldDB:
                 world_db.context.append(message_db)
 
             # 2. 递归创建 Stages
+            stage_db_map = {}  # 用于后续创建连接时查找 StageDB
             for stage in world.stages:
                 stage_db = StageDB(
                     name=stage.name,
@@ -62,6 +64,7 @@ def save_world_to_db(world: World) -> WorldDB:
                     connections=stage.connections,
                 )
                 world_db.stages.append(stage_db)
+                stage_db_map[stage.name] = stage_db  # 记录 name -> StageDB 映射
 
                 # 2.5. 保存 Stage 的 context
                 for idx, message in enumerate(stage.context):
@@ -103,6 +106,28 @@ def save_world_to_db(world: World) -> WorldDB:
                             message_json=message.model_dump_json(),
                         )
                         actor_db.context.append(message_db)
+
+            # 6.5. 创建 StageConnections (场景图的边)
+            for stage in world.stages:
+                source_stage_db = stage_db_map[stage.name]
+
+                # 遍历每个场景的连接列表
+                for connection in stage.stage_connections:
+                    # 查找目标场景
+                    target_stage_db = stage_db_map.get(connection.target_stage_name)
+
+                    if target_stage_db:
+                        # 创建连接记录
+                        connection_db = StageConnectionDB(
+                            source_stage_id=source_stage_db.id,
+                            target_stage_id=target_stage_db.id,
+                            description=connection.description,
+                        )
+                        db.add(connection_db)
+                    else:
+                        logger.warning(
+                            f"⚠️ 场景 '{stage.name}' 的连接目标 '{connection.target_stage_name}' 不存在，跳过"
+                        )
 
             # 7. 提交到数据库
             db.add(world_db)

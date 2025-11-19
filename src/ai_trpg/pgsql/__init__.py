@@ -8,6 +8,7 @@ from .user_operations import save_user, has_user, get_user
 from .vector_document import VectorDocumentDB
 from .world import WorldDB
 from .stage import StageDB
+from .stage_connection import StageConnectionDB
 from .actor import ActorDB
 from .effect import EffectDB
 from .message import MessageDB
@@ -68,6 +69,7 @@ __all__: List[str] = [
     # World database models
     "WorldDB",
     "StageDB",
+    "StageConnectionDB",
     "ActorDB",
     "EffectDB",
     "MessageDB",

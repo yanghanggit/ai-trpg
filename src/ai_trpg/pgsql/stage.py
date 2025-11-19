@@ -8,6 +8,7 @@ if TYPE_CHECKING:
     from .actor import ActorDB
     from .world import WorldDB
     from .message import MessageDB
+    from .stage_connection import StageConnectionDB
 
 
 class StageDB(UUIDBase):
@@ -39,4 +40,17 @@ class StageDB(UUIDBase):
         cascade="all, delete-orphan",
         order_by="MessageDB.sequence",
         foreign_keys="MessageDB.stage_id",
+    )
+    # 关系：场景连接（图的边）
+    outgoing_connections: Mapped[List["StageConnectionDB"]] = relationship(
+        "StageConnectionDB",
+        foreign_keys="StageConnectionDB.source_stage_id",
+        back_populates="source_stage",
+        cascade="all, delete-orphan",
+    )
+    incoming_connections: Mapped[List["StageConnectionDB"]] = relationship(
+        "StageConnectionDB",
+        foreign_keys="StageConnectionDB.target_stage_id",
+        back_populates="target_stage",
+        cascade="all, delete-orphan",
     )
