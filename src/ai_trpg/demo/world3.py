@@ -15,7 +15,7 @@
 4. 追击/逃脱等跨场景战术行为
 """
 
-from .models import World, Effect
+from .models import World, Effect, StageConnection
 from .templates import (
     template_actor1,
     template_actor2,
@@ -114,6 +114,13 @@ def create_test_world3() -> World:
     # 设置场景连通性
     instance_stage1.connections = stage_connections
 
+    # 填充 stage_connections 列表（准备图数据结构）
+    instance_stage1.stage_connections = [
+        StageConnection(
+            target_stage_name=instance_stage2.name, description=stage_connections
+        )
+    ]
+
     # 设置上下文！
     instance_stage1.context = [
         SystemMessage(
@@ -137,6 +144,13 @@ def create_test_world3() -> World:
 
     # 设置场景连通性
     instance_stage2.connections = stage_connections
+
+    # 填充 stage_connections 列表（准备图数据结构）
+    instance_stage2.stage_connections = [
+        StageConnection(
+            target_stage_name=instance_stage1.name, description=stage_connections
+        )
+    ]
 
     # 设置上下文！
     instance_stage2.context = [

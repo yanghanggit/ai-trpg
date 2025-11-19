@@ -1,4 +1,4 @@
-from .models import World, Effect
+from .models import World, Effect, StageConnection
 from .templates import (
     template_actor1,
     template_actor2,
@@ -50,6 +50,9 @@ def create_test_world1() -> World:
     instance_stage1.actor_states = f"""**{instance_actor1.name}**: 墓地中央，靠近天使雕像 | 来回踱步 | 手持猎人斧
 **{instance_actor2.name}**: 墓地东侧，黑色铁门旁的墓碑阴影中 | 隐藏状态 | 保持静止观察
 **{instance_actor3.name}**: 墓地南侧入口，距铁栅栏门约10米 | 站立 | 环顾四周"""
+
+    # 填充 stage_connections 列表（world1 只有一个场景，无场景连接）
+    instance_stage1.stage_connections = []
 
     # 设置上下文！
     instance_stage1.context = [

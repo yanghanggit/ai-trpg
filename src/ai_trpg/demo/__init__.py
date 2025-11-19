@@ -14,7 +14,7 @@ from .world3 import create_test_world3
 
 
 def create_demo_world() -> World:
-    return create_test_world1()
+    return create_test_world_2_2()
 
 
 def get_demo_world_name() -> str:

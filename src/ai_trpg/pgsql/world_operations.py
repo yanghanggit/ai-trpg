@@ -117,12 +117,13 @@ def save_world_to_db(world: World) -> WorldDB:
                     target_stage_db = stage_db_map.get(connection.target_stage_name)
 
                     if target_stage_db:
-                        # 创建连接记录
+                        # 创建连接记录 - 使用关系而不是直接设置 ID
                         connection_db = StageConnectionDB(
-                            source_stage_id=source_stage_db.id,
-                            target_stage_id=target_stage_db.id,
                             description=connection.description,
                         )
+                        # 通过关系设置源和目标场景
+                        connection_db.source_stage = source_stage_db
+                        connection_db.target_stage = target_stage_db
                         db.add(connection_db)
                     else:
                         logger.warning(
