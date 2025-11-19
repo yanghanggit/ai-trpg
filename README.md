@@ -28,6 +28,11 @@
 
 如遇‘a_request error: Server disconnected without sending a response’ 检查vpn的情况，关掉vpn或者使用WireGuard（Astrill vpn）模式在重新运行。
 
+## PostgreSQL 数据库要求
+
+- PostgreSQL 版本: 14.18+
+- 必需扩展: pgvector 0.8.0+
+
 ## 激活uv环境
 
 source .venv/bin/activate
