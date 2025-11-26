@@ -6,7 +6,7 @@ JSON 格式化模块的兼容性和集成测试 - 仅函数式 API
 import json
 import pytest
 
-from src.ai_trpg.utils.json_format import (
+from src.ai_trpg.utils import (
     strip_json_code_block,
     combine_json_fragments,
     contains_duplicate_segments,
@@ -64,20 +64,20 @@ class TestJsonFormatCompatibility:
     def test_backwards_compatibility_with_module_import(self) -> None:
         """测试模块导入的向后兼容性"""
         # 测试通过模块方式的导入和使用
-        from src.ai_trpg.utils import json_format
+        from src.ai_trpg.utils import strip_json_code_block, combine_json_fragments
 
         test_response = """```json
         {"player_action": "cast_spell", "spell_name": "fireball"}
         ```"""
 
         # 使用现有的模块调用方式
-        cleaned = json_format.strip_json_code_block(test_response)
+        cleaned = strip_json_code_block(test_response)
         expected = '{"player_action": "cast_spell", "spell_name": "fireball"}'
 
         assert cleaned.strip() == expected
 
         # 验证新函数也可以通过模块访问
-        result = json_format.combine_json_fragments(cleaned)
+        result = combine_json_fragments(cleaned)
         assert result is not None
         assert result["player_action"] == "cast_spell"
         assert result["spell_name"] == "fireball"

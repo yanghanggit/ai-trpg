@@ -5,7 +5,7 @@
 import pytest
 from typing import List
 
-from src.ai_trpg.utils.json_format import (
+from src.ai_trpg.utils import (
     strip_json_code_block,
     clean_json_string,
     combine_json_fragments,
