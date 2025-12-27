@@ -6,7 +6,7 @@
 """
 
 from typing import List, Optional
-from langchain.schema import AIMessage, BaseMessage, HumanMessage
+from langchain_core.messages import AIMessage, BaseMessage, HumanMessage
 from langchain_deepseek import ChatDeepSeek
 from loguru import logger
 from ai_trpg.deepseek import (

@@ -2,7 +2,7 @@
 
 from abc import ABC, abstractmethod
 from typing import List
-from langchain.schema import BaseMessage
+from langchain_core.messages import BaseMessage
 
 
 class AbstractGameAgent(ABC):

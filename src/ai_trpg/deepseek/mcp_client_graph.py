@@ -18,7 +18,7 @@ load_dotenv()
 
 import asyncio
 from typing import Annotated, Any, Dict, Final, List, Optional
-from langchain.schema import AIMessage, SystemMessage, HumanMessage
+from langchain_core.messages import AIMessage, SystemMessage, HumanMessage
 from langchain_core.messages import BaseMessage
 from langchain_deepseek import ChatDeepSeek
 from langgraph.graph import StateGraph

@@ -8,7 +8,7 @@
 import asyncio
 from uuid import UUID
 from loguru import logger
-from langchain.schema import HumanMessage
+from langchain_core.messages import HumanMessage
 from ai_trpg.deepseek import create_deepseek_llm
 from ai_trpg.mcp import McpClient
 from ai_trpg.agent import GameWorld

@@ -2,7 +2,7 @@
 
 from typing import List, override
 from uuid import UUID
-from langchain.schema import BaseMessage
+from langchain_core.messages import BaseMessage
 
 from .base import AbstractGameAgent
 from ..mcp import McpClient

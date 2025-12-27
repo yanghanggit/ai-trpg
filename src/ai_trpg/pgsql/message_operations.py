@@ -6,7 +6,7 @@
 
 from typing import List, Optional
 from uuid import UUID
-from langchain.schema import BaseMessage, SystemMessage
+from langchain_core.messages import BaseMessage, SystemMessage
 from loguru import logger
 from sqlalchemy import select
 from sqlalchemy.orm import Session

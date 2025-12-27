@@ -25,7 +25,7 @@ load_dotenv()
 
 import traceback
 from typing import Annotated, Any, Final, List, Optional
-from langchain.schema import AIMessage, HumanMessage
+from langchain_core.messages import AIMessage, HumanMessage
 from langchain_core.messages import BaseMessage
 from langchain_deepseek import ChatDeepSeek
 from langgraph.graph import StateGraph

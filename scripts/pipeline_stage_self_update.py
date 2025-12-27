@@ -8,7 +8,7 @@
 import asyncio
 from loguru import logger
 from pydantic import BaseModel
-from langchain.schema import HumanMessage, AIMessage
+from langchain_core.messages import HumanMessage, AIMessage
 from ai_trpg.deepseek import create_deepseek_llm
 from ai_trpg.utils import strip_json_code_block
 from ai_trpg.agent import GameWorld

@@ -123,7 +123,7 @@ def _test_demo_world(demo_world: World) -> None:
     Raises:
         AssertionError: 如果检查失败
     """
-    from langchain.schema import SystemMessage
+    from langchain_core.messages import SystemMessage
 
     logger.info("🔍 开始测试演示世界合法性...")
 

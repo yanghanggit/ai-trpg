@@ -7,7 +7,7 @@ from .templates import (
     template_world1,
 )
 import copy
-from langchain.schema import SystemMessage, HumanMessage, AIMessage
+from langchain_core.messages import SystemMessage, HumanMessage, AIMessage
 from .prompts import GLOBAL_GAME_MECHANICS
 from .prompt_generators import (
     gen_world_system_prompt,

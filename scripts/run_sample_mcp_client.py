@@ -29,7 +29,7 @@ import os
 import sys
 import traceback
 from typing import Any, List
-from langchain.schema import BaseMessage
+from langchain_core.messages import BaseMessage
 
 
 # 将 src 目录添加到模块搜索路径
@@ -39,7 +39,7 @@ sys.path.insert(
 
 # 导入必要的模块
 import asyncio
-from langchain.schema import HumanMessage, SystemMessage
+from langchain_core.messages import HumanMessage, SystemMessage
 from langchain_deepseek import ChatDeepSeek
 from langgraph.graph.state import CompiledStateGraph
 from loguru import logger

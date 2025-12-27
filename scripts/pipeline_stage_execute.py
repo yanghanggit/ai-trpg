@@ -8,7 +8,7 @@
 import asyncio
 from typing import List
 from loguru import logger
-from langchain.schema import HumanMessage, AIMessage
+from langchain_core.messages import HumanMessage, AIMessage
 from ai_trpg.deepseek import create_deepseek_llm
 from ai_trpg.agent import GameWorld
 from workflow_handlers import (

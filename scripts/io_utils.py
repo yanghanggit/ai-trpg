@@ -8,7 +8,7 @@
 import json
 from datetime import datetime
 from typing import List
-from langchain.schema import BaseMessage, HumanMessage, SystemMessage, AIMessage
+from langchain_core.messages import BaseMessage, HumanMessage, SystemMessage, AIMessage
 from loguru import logger
 from ai_trpg.configuration.logging_config import LOGS_DIR
 

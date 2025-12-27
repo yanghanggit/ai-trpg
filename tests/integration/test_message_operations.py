@@ -18,7 +18,7 @@ from typing import Generator, List
 from uuid import UUID
 import pytest
 from loguru import logger
-from langchain.schema import BaseMessage, SystemMessage, HumanMessage, AIMessage
+from langchain_core.messages import BaseMessage, SystemMessage, HumanMessage, AIMessage
 
 from src.ai_trpg.demo.world1 import create_test_world1
 from src.ai_trpg.pgsql.world_operations import save_world_to_db, delete_world

@@ -1,6 +1,6 @@
 from pydantic import BaseModel, Field
 from typing import List, Optional
-from langchain.schema import BaseMessage
+from langchain_core.messages import BaseMessage
 
 
 class Attributes(BaseModel):

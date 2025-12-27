@@ -3,7 +3,7 @@ from typing import TYPE_CHECKING, Any, Dict, Optional, List
 from uuid import UUID
 from sqlalchemy import Text, Integer, ForeignKey, UniqueConstraint, CheckConstraint
 from sqlalchemy.orm import Mapped, mapped_column, relationship
-from langchain.schema import BaseMessage, SystemMessage, HumanMessage, AIMessage
+from langchain_core.messages import BaseMessage, SystemMessage, HumanMessage, AIMessage
 from .base import UUIDBase
 
 if TYPE_CHECKING:
