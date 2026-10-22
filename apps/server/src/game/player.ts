@@ -179,9 +179,9 @@ export async function playerAttack(
 ): Promise<ActorTurnResult> {
   const state = await getGameState(db, gameRef);
   const actor = findActor(state, actorRef);
-  const skill = actor.skills.find((candidate) => candidate.key === "attack");
+  const skill = actor.skills.find((candidate) => candidate.key === "use_item");
   if (!skill) {
-    throw new GameError("invalid_action", `actor 未掌握技能: attack`);
+    throw new GameError("invalid_action", `actor 未掌握技能: use_item`);
   }
   const plan: ActorPlan = {
     intents: [

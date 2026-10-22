@@ -1,10 +1,4 @@
-import {
-  ATTACK_SKILL,
-  GIVE_SKILL,
-  PICKUP_SKILL,
-  STEAL_SKILL,
-  USE_ITEM_SKILL,
-} from "../src/game/skills";
+import { GIVE_SKILL, PICKUP_SKILL, STEAL_SKILL, USE_ITEM_SKILL } from "../src/game/skills";
 import { SLEEPING_STATUS_KEY } from "../src/game/status";
 import type { StatusEffect, World } from "../src/game/types";
 
@@ -140,7 +134,7 @@ export const DARK_FANTASY_WORLD: World = {
           count: 1,
         },
       ],
-      skills: [ATTACK_SKILL, GIVE_SKILL],
+      skills: [USE_ITEM_SKILL, GIVE_SKILL],
       statusEffects: [],
     },
     {
@@ -155,7 +149,7 @@ export const DARK_FANTASY_WORLD: World = {
       defense: 1,
       speed: 7,
       items: [],
-      skills: [ATTACK_SKILL],
+      skills: [USE_ITEM_SKILL],
       statusEffects: [],
     },
     {
@@ -187,7 +181,7 @@ export const DARK_FANTASY_WORLD: World = {
       defense: 2,
       speed: 3,
       items: [],
-      skills: [ATTACK_SKILL, STEAL_SKILL, PICKUP_SKILL, USE_ITEM_SKILL],
+      skills: [USE_ITEM_SKILL, STEAL_SKILL, PICKUP_SKILL, USE_ITEM_SKILL],
       statusEffects: [],
     },
     {
@@ -203,7 +197,7 @@ export const DARK_FANTASY_WORLD: World = {
       defense: 100,
       speed: 8,
       items: [],
-      skills: [ATTACK_SKILL],
+      skills: [USE_ITEM_SKILL],
       statusEffects: [SLEEPING_STATUS],
     },
   ],

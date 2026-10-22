@@ -1,4 +1,4 @@
-import { ATTACK_SKILL } from "../src/game/skills";
+import { USE_ITEM_SKILL } from "../src/game/skills";
 import type { World } from "../src/game/types";
 
 /** 测试专用的小型世界；不随演示剧情变化。 */
@@ -49,7 +49,7 @@ export const TEST_WORLD: World = {
           block: 0,
         },
       ],
-      skills: [ATTACK_SKILL],
+      skills: [USE_ITEM_SKILL],
       statusEffects: [],
     },
     {
@@ -70,7 +70,7 @@ export const TEST_WORLD: World = {
           count: 1,
         },
       ],
-      skills: [ATTACK_SKILL],
+      skills: [USE_ITEM_SKILL],
       statusEffects: [],
     },
     {
@@ -91,7 +91,7 @@ export const TEST_WORLD: World = {
           count: 1,
         },
       ],
-      skills: [ATTACK_SKILL],
+      skills: [USE_ITEM_SKILL],
       statusEffects: [],
     },
   ],

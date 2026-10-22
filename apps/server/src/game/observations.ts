@@ -99,7 +99,7 @@ export async function appendSkillObservations(
       if (observer.id === target.id) {
         return {
           type: "human",
-          content: `# 你被攻击\n${attacker.name}对你使用${skill.name}${itemText}，造成${damage}点伤害；${
+          content: `# 你被攻击\n${attacker.name}对你使用攻击${itemText}，造成${damage}点伤害；${
             death ? "你倒下了" : `你剩余 HP ${remainingHp}/${target.maxHp}`
           }。`,
           metadata: {
@@ -111,7 +111,7 @@ export async function appendSkillObservations(
       }
       return {
         type: "human",
-        content: `# 战斗\n${attacker.name}对${target.name}使用${skill.name}${itemText}，造成${damage}点伤害；${
+        content: `# 战斗\n${attacker.name}对${target.name}使用攻击${itemText}，造成${damage}点伤害；${
           death ? `${target.name}倒下了` : `${target.name}剩余 HP ${remainingHp}/${target.maxHp}`
         }。`,
         metadata: {

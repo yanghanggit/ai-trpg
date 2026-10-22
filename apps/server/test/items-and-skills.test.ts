@@ -16,10 +16,10 @@ import {
   STEAL_SKILL,
   takeActorControl,
 } from "../src/game";
-import { ATTACK_SKILL, GIVE_SKILL, PICKUP_SKILL, USE_ITEM_SKILL } from "../src/game/skills";
+import { GIVE_SKILL, PICKUP_SKILL, USE_ITEM_SKILL } from "../src/game/skills";
 
 const testDatabaseUrl = process.env.TEST_DATABASE_URL?.trim();
-const ALL_SKILLS = [ATTACK_SKILL, STEAL_SKILL, GIVE_SKILL, PICKUP_SKILL, USE_ITEM_SKILL];
+const ALL_SKILLS = [STEAL_SKILL, GIVE_SKILL, PICKUP_SKILL, USE_ITEM_SKILL];
 
 const ITEM_WORLD = {
   ...TEST_WORLD,
@@ -145,7 +145,7 @@ describe.skipIf(!testDatabaseUrl)("item skills", () => {
     );
   });
 
-  it("adds weapon damage to the attack and weapon block to the target defense", async () => {
+  it("adds weapon damage but uses target defense as the only block", async () => {
     const created = await createGame(handle.db, {
       username: DEMO_USER.username,
       name: "武器伤害测试局",
@@ -163,8 +163,8 @@ describe.skipIf(!testDatabaseUrl)("item skills", () => {
     const monk = state.world.stages
       .flatMap((stage) => stage.actors)
       .find((actor) => actor.name === "提灯修士");
-    expect(monk?.hp).toBe(6);
-    expect(state.messages.at(-1)?.content).toContain("造成4点伤害");
+    expect(monk?.hp).toBe(4);
+    expect(state.messages.at(-1)?.content).toContain("造成6点伤害");
   });
 
   it("gives an owned item to a living actor in the same stage", async () => {

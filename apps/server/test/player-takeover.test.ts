@@ -170,7 +170,7 @@ describe.skipIf(!testDatabaseUrl)("player takeover", () => {
     expect(attacked.ok).toBe(true);
     expect(attacked.plan?.intents[0]).toMatchObject({
       kind: "skill",
-      skill: { key: "attack" },
+      skill: { key: "use_item" },
       itemNames: [],
       purpose: { kind: "damage", targetActorName: "提灯修士" },
     });

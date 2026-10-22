@@ -7,7 +7,7 @@ import {
   parseMovement,
   parseSkill,
 } from "../src/game/plan";
-import { ATTACK_SKILL } from "../src/game/skills";
+import { USE_ITEM_SKILL } from "../src/game/skills";
 import type { ActorPlan } from "../src/game/types";
 
 describe("actor plan intents", () => {
@@ -50,28 +50,28 @@ describe("actor plan intents", () => {
       plan,
       parseSkill(
         {
-          skill: "attack",
+          skill: "use_item",
           purpose: "damage",
           targetActorName: "提灯修士",
           itemNames: [],
         },
-        [ATTACK_SKILL],
+        [USE_ITEM_SKILL],
       ),
     );
 
     expect(plan.intents[1]).toMatchObject({
       kind: "skill",
-      skill: ATTACK_SKILL,
+      skill: USE_ITEM_SKILL,
       itemNames: [],
       purpose: { kind: "damage", targetActorName: "提灯修士" },
     });
     expect(() => addIntent(plan, parseMovement({ mode: "wait" }))).toThrow("行动类行动");
     expect(() =>
-      parseSkill({ skill: "attack", purpose: "damage", targetActorName: "  " }, [ATTACK_SKILL]),
+      parseSkill({ skill: "use_item", purpose: "damage", targetActorName: "  " }, [USE_ITEM_SKILL]),
     ).toThrow("targetActorName");
     expect(() =>
       parseSkill({ skill: "steal", purpose: "damage", targetActorName: "提灯修士" }, [
-        ATTACK_SKILL,
+        USE_ITEM_SKILL,
       ]),
     ).toThrow("未掌握技能");
   });
@@ -88,7 +88,7 @@ describe("actor plan intents", () => {
       defense: 2,
       speed: 4,
       death: false,
-      skills: [ATTACK_SKILL],
+      skills: [USE_ITEM_SKILL],
       statusEffects: [],
       items: [
         {

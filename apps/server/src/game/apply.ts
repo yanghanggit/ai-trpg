@@ -479,7 +479,7 @@ function skillFeedback(resolved: ResolvedSkill, damage: number, remainingHp: num
     remainingHp <= 0
       ? `${target.name}倒下了`
       : `${target.name}剩余 HP ${remainingHp}/${target.maxHp}`;
-  return `# 行动结果\n你使用${resolved.intent.skill.name}${itemText}对${target.name}，造成${damage}点伤害；${outcome}。`;
+  return `# 行动结果\n你使用攻击${itemText}对${target.name}，造成${damage}点伤害；${outcome}。`;
 }
 
 function movementFeedback(resolved: ResolvedMovement): string {
@@ -528,14 +528,11 @@ async function applyResolvedIntent(
       if (!resolved.target) {
         throw new GameError("invalid_action", "damage 技能缺少目标");
       }
-      const targetItems = await executor
-        .select()
-        .from(items)
-        .where(eq(items.actorId, resolved.target.id));
+      if (resolved.items.some((item) => item.kind !== "weapon")) {
+        throw new GameError("invalid_action", "damage 目的只能使用武器道具");
+      }
       const weaponDamage = resolved.items.reduce((total, item) => total + item.damage, 0);
-      const targetBlock =
-        resolved.target.defense + targetItems.reduce((total, item) => total + item.block, 0);
-      const damage = Math.max(0, actorRow.actor.attack + weaponDamage - targetBlock);
+      const damage = Math.max(0, actorRow.actor.attack + weaponDamage - resolved.target.defense);
       const remainingHp = Math.max(0, resolved.target.hp - damage);
       const death = remainingHp <= 0;
       await executor
@@ -550,9 +547,9 @@ async function applyResolvedIntent(
       const outcome = death
         ? `；${resolved.target.name}倒下了。`
         : `；${resolved.target.name}剩余 HP ${remainingHp}/${resolved.target.maxHp}。`;
-      const content = `${actorRow.actor.name}对${resolved.target.name}使用${skill.name}${itemText}，造成${damage}点伤害${outcome}`;
+      const content = `${actorRow.actor.name}对${resolved.target.name}使用攻击${itemText}，造成${damage}点伤害${outcome}`;
       await appendPublicMessage(executor, gameId, actorRow.actor.id, {
-        kind: skill.key,
+        kind: "attack",
         stageId: resolved.stage.id,
         targetActorId: resolved.target.id,
         visibility: skill.broadcast,

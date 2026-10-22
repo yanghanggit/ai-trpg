@@ -4,7 +4,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { DARK_FANTASY_WORLD, DEMO_USER } from "../seeds/dark-fantasy";
-import { ATTACK_SKILL } from "../src/game/skills";
+import { USE_ITEM_SKILL } from "../src/game/skills";
 import { TEST_WORLD } from "./test-world";
 import "../src/db/env";
 import { type DatabaseHandle, openDatabase } from "../src/db/connect";
@@ -27,7 +27,7 @@ const testDatabaseUrl = process.env.TEST_DATABASE_URL?.trim();
 function attackIntent(targetActorName: string): SkillIntent {
   return {
     kind: "skill",
-    skill: ATTACK_SKILL,
+    skill: USE_ITEM_SKILL,
     itemNames: [],
     purpose: { kind: "damage", targetActorName },
   };
@@ -357,7 +357,7 @@ describe.skipIf(!testDatabaseUrl)("memory-driven NPC slice", () => {
           defense: 0,
           speed: 1,
           items: [],
-          skills: [ATTACK_SKILL],
+          skills: [USE_ITEM_SKILL],
           statusEffects: [sleeping],
         },
       ],
@@ -477,7 +477,7 @@ describe.skipIf(!testDatabaseUrl)("memory-driven NPC slice", () => {
           defense: 1,
           speed: 2,
           items: [],
-          skills: [ATTACK_SKILL],
+          skills: [USE_ITEM_SKILL],
           statusEffects: [],
         },
       ],

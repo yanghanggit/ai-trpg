@@ -79,7 +79,7 @@ NPC 工具分为 GET、intent 与终止工具。`look_stage`、`get_stats`、`ge
 
 ## 技能动作
 
-`skill` 是 action 的第三个分支，和沟通、移动并列；当前包括 `attack`、`steal`、`give`、`pickup`、`use_item`。`get_actor` 可查看同场景目标的 stats、状态与背包，`steal` 为 private，只有发起者与目标进入 memory。
+`skill` 是 action 的第三个分支，和沟通、移动并列；当前包括 `use_item`、`steal`、`give`、`pickup`。`use_item` 用 purpose 区分伤害与使用。`get_actor` 可查看同场景目标的 stats、状态与背包，`steal` 为 private，只有发起者与目标进入 memory。
 
 技能定义包含：
 
@@ -90,7 +90,7 @@ NPC 工具分为 GET、intent 与终止工具。`look_stage`、`get_stats`、`ge
 - `purposeKinds`：技能支持的目的类型；
 - `itemPolicy`：道具是否必需。
 
-一次技能行动需要 `Skill`、选中的 `Item[]` 和 `SkillPurpose`。道具允许为空；技能自己声明是否必须有道具。当前 `attack` 的目的为 `{ kind: "damage", targetActorName }`，伤害为 `max(0, 攻击者 attack + 所选武器 damage - 目标 defense - 目标物品 block 合计)`，完全格挡时伤害为 0。武器是 `Item` 的子类型，`count` 固定为 1，额外携带 `damage` 与 `block`；当前没有装备槽，攻击时通过 `itemNames` 选武器。目标 HP 归零时同时写 `death=true`，actor 仍留在场景中，但不再执行 NPC loop，也不能再被攻击。
+一次技能行动需要 `Skill`、选中的 `Item[]` 和 `SkillPurpose`。道具允许为空；技能自己声明是否必须有道具。当前 `use_item` 支持 `{ kind: "damage", targetActorName }` 与 `{ kind: "use", itemName, targetActorName | targetStageName }`。伤害为 `max(0, 攻击者 attack + 所选武器 damage - 目标 defense)`；空手时不加武器 damage，目标 defense 是唯一 block，物品 block 不参与当前伤害。武器是 `Item` 的子类型，`count` 固定为 1，额外携带 `damage` 与 `block`；`block` 当前只存储，供未来防御/装备规则使用。目标 HP 归零时同时写 `death=true`，actor 仍留在场景中，但不再执行 NPC loop，也不能再被攻击。
 
 技能产生 `kind=<skill.key>` 的公共事件；`attack` 同场景公开。记忆按视角生成：发起者收到第一人称行动结果，目标收到“你被攻击/你剩余 HP”，旁观者收到第三人称战斗观察；三者描述同一事实但格式不同。不做跨场景信息广播。未来 `resolution=llm` 的技能必须在数据库事务外完成 GM 判定，再由统一应用层写入结果。
 
