@@ -4,7 +4,6 @@ import { actors, games, items, stageItems } from "../../db/schema";
 import { GameError } from "../errors";
 import { appendItemObservations, appendSkillObservations } from "../observations";
 import { SEALED_GATE_KEY_NAME, SEALED_GATE_STAGE_NAME } from "../skills";
-import { wakeSleepingActors } from "../status";
 import {
   appendPublicMessage,
   bumpGameVersion,
@@ -66,7 +65,6 @@ async function applyDamage(
     remainingHp,
     death,
   );
-  await wakeSleepingActors(executor, resolved.stage.id, now);
   return damageFeedback(resolved, damage, remainingHp);
 }
 
@@ -112,7 +110,6 @@ async function applyTransfer(
     transferItem.name,
     { target: { id: target.id, name: target.name }, broadcast: resolved.skill.broadcast },
   );
-  await wakeSleepingActors(executor, resolved.stage.id, now);
   return purpose.kind === "steal"
     ? stealFeedback(target.name, transferItem.name)
     : giveFeedback(target.name, transferItem.name);
@@ -157,7 +154,6 @@ async function applyPickup(
     stageItem.name,
     { broadcast: resolved.skill.broadcast },
   );
-  await wakeSleepingActors(executor, resolved.stage.id, now);
   return pickupFeedback(stageItem.name);
 }
 
@@ -224,7 +220,6 @@ async function applyUse(
       broadcast: resolved.skill.broadcast,
     },
   );
-  await wakeSleepingActors(executor, resolved.stage.id, now);
 
   const completed =
     targetStage?.name === SEALED_GATE_STAGE_NAME && transferItem.name === SEALED_GATE_KEY_NAME;

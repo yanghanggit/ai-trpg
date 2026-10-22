@@ -335,58 +335,6 @@ describe.skipIf(!testDatabaseUrl)("memory-driven NPC slice", () => {
     expect(created.messages[0]?.stageId).toBe(crypt?.id);
   });
 
-  it("wakes a sleeping actor on non-wait actions but not on wait", async () => {
-    const sleeping = {
-      key: "sleeping",
-      name: "沉睡",
-      description: "测试用沉睡状态。",
-      kind: "debuff" as const,
-    };
-    const world = {
-      ...TEST_WORLD,
-      actors: [
-        ...TEST_WORLD.actors,
-        {
-          stageKey: "gate",
-          name: "沉睡者",
-          profile: "一个正在沉睡的测试角色。",
-          appearance: "蜷缩在墙角。",
-          hp: 5,
-          maxHp: 5,
-          attack: 1,
-          defense: 0,
-          speed: 1,
-          items: [],
-          skills: [USE_ITEM_SKILL],
-          statusEffects: [sleeping],
-        },
-      ],
-    };
-    const created = await createGame(handle.db, {
-      username: DEMO_USER.username,
-      name: "沉睡规则测试局",
-      world,
-    });
-
-    await runNpcTurn(handle.db, created.game.slug, "守烬人", {
-      service: new ScriptedNpcService([{ intents: [{ kind: "movement", mode: "wait" }] }]),
-    });
-    const afterWait = await getGameState(handle.db, created.game.slug);
-    const sleeperAfterWait = afterWait.world.stages
-      .flatMap((stage) => stage.actors)
-      .find((actor) => actor.name === "沉睡者");
-    expect(sleeperAfterWait?.statusEffects.map((status) => status.key)).toEqual(["sleeping"]);
-
-    await runNpcTurn(handle.db, created.game.slug, "守烬人", {
-      service: new ScriptedNpcService([{ intents: [attackIntent("提灯修士")] }]),
-    });
-    const afterAttack = await getGameState(handle.db, created.game.slug);
-    const sleeperAfterAttack = afterAttack.world.stages
-      .flatMap((stage) => stage.actors)
-      .find((actor) => actor.name === "沉睡者");
-    expect(sleeperAfterAttack?.statusEffects).toEqual([]);
-  });
-
   it("marks a killed actor as dead and refuses to run its NPC loop", async () => {
     const world = {
       ...TEST_WORLD,

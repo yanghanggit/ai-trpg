@@ -55,7 +55,9 @@ describe("dark fantasy seed world", () => {
     expect(king?.hp).toBeGreaterThan(keeper?.hp ?? 0);
     expect(king?.attack).toBeGreaterThan(20);
     expect(king?.defense).toBeGreaterThan(king?.attack ?? 0);
-    expect(king?.statusEffects.map((status) => status.name)).toEqual(["沉睡"]);
+    expect(king?.statusEffects).toEqual([]);
+    expect(king?.profile).toContain("正在沉睡");
+    expect(king?.profile).toContain("只能包含 wait");
   });
 
   it("connects the graveyard, crypt, rat hall, pyre and sealed gate", () => {

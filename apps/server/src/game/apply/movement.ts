@@ -2,7 +2,6 @@ import { eq } from "drizzle-orm";
 import { actors } from "../../db/schema";
 import { GameError } from "../errors";
 import { appendActionObservations, appendEnvironmentObservations } from "../observations";
-import { wakeSleepingActors } from "../status";
 import { appendPublicMessage, bumpGameVersion, movementFeedback } from "./messages";
 import type { ActorWithStageRow, Executor, ResolvedMovement } from "./types";
 
@@ -35,8 +34,6 @@ async function applyMove(
     actorRow.actor.id,
     `# 环境变化\n${actorRow.actor.name}从${resolved.stage.name}进入了${targetStage.name}。`,
   );
-  await wakeSleepingActors(executor, resolved.stage.id, now);
-  await wakeSleepingActors(executor, targetStage.id, now);
   return movementFeedback(resolved);
 }
 

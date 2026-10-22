@@ -15,7 +15,7 @@ PostgreSQL 是游戏状态的唯一真相。`agent:game` 从数据库读取状�
 - `items`：角色持有的物品；`actor_id` 非空，不能脱离角色存在；与 `skills`、`status_effects` 共同构成 actor 的三个运行时队列。物品行包含 `count`、`damage` 与 `block`；`kind=weapon` 的物品使用武器字段。
 - `stage_items`：暂放在场景中的物品；`stage_id` 非空，当前只作为场景内容读取，已支持拾取并转入 actor 背包。物品行包含 `count`、`damage` 与 `block`。
 - actor 的 `skills`：技能队列，JSONB 数组；每项包含 `key`、`name`、`description`、`broadcast`、`resolution`、`purposeKinds` 与 `itemPolicy`。`use_item` 同时承载 `damage` 与 `use` 两种目的；`steal`、`give`、`pickup` 保持独立。
-- actor 的 `status_effects`：状态队列，JSONB 数组；每项包含 `key`、`name`、`description` 与 `kind`（buff/debuff）。当前只有鼠王的 `sleeping` 会参与规则：同场景发生任何非 `wait` 行为即移除该状态；这是硬编码规则，不是通用状态机。
+- actor 的 `status_effects`：状态队列，JSONB 数组；每项包含 `key`、`name`、`description` 与 `kind`（buff/debuff）。当前系统不解释状态行为，只提供容器；鼠王的沉睡是角色 profile 中的叙事约束，由 LLM 判断何时苏醒，不写入系统规则。
 - `game_messages`：公共消息流，按 `sequence` 追加；记录 `stage_id`、`speaker_actor_id`、`target_actor_id` 与 `visibility`，供客户端增量拉取与审计；不建立 session 表。
 - `agent_memories`：每个 agent 的私有上下文；当前 `owner_type` 为 `actor`，后续可扩展 stage / world。
 - `agent_memory_messages`：agent memory 的消息序列，保存 system / human / ai / tool 与 tool_calls、元数据。
@@ -40,7 +40,7 @@ NPC 回合是：数据库环境 → agent loop → `communicate` / `move` / `use
 
 第一版动作是 `wait`、`move`、`say`、`whisper`、`announce` 和技能 `use_item`、`steal`、`give`、`pickup`：等待、沿连接移动、沟通、战斗、物品转移、场景拾取与使用道具；它们被收进三个 intent 工具；每个成功应用的 intent 都会写一条公共事件。`use_item` 的 `damage` 目的、有无武器都可执行：伤害为 `max(0, 攻击者 attack + 所选武器 damage - 目标 defense)`；空手时不加武器 damage，目标 `defense` 是唯一 block，目标物品 block 与发起者物品 block 都不参与当前伤害计算。伤害事件仍以 `kind=attack` 记录。`use_item` 的 `use` 目的需要自身物品，目标只能是当前场景、自己或同场景角色。武器是物品的子类型，`count` 固定为 1，额外携带 `damage` 与 `block`；`damage` 参与伤害，`block` 当前只存储、不参与伤害。`steal` 为 private，只有发起者与目标进入 memory，允许从尸体取物；`give` 把自身物品交给同场景存活角色；`pickup` 把 `stage_items` 移入 actor 背包。当前钥匙通关硬编码 `场景.封骨之门` 与 `饰品.封骨钥匙`，成功后 `games.status=completed`。`say` 与 `whisper` 必须指定单个 `targetActorName`；`say` 向当前 stage 广播，`whisper` 只有发起者与目标收到 memory；`announce` 无目标，向当前 stage 广播。公共消息用 `visibility` 区分 `stage` 与 `private`；私密事件后续对客户端不可见。
 
-`agent:game npc --game <gameId|slug> --actor <actorId|actorName>` 推进一个 NPC；`--all` 跳过被玩家接管或已死亡的 actor。`agent:game take-control` / `release-control` 接管或释放一个 actor；`agent:game player-communicate --mode say|whisper|announce` 让被接管的 actor 直接执行三种沟通动作；`agent:game player-move --to <stageName>` 让被接管的 actor 沿连接移动；`agent:game player-skill --skill <key> [--target <actorName>] [--stage <stageName>] [--item <itemName>]` 让被接管的 actor 直接使用通用技能；`agent:game player-attack --target <actorName>` 保留为攻击快捷入口。`agent:game status` 读取完整状态；`agent:game snapshot` 导出快照，包含每个 actor 的 memory。睡眠的硬编码规则位于 `game/status.ts`：沟通、技能与移动都会惊醒同场景的沉睡 actor，`wait` 不会；移动同时检查起点与终点场景。
+`agent:game npc --game <gameId|slug> --actor <actorId|actorName>` 推进一个 NPC；`--all` 跳过被玩家接管或已死亡的 actor。`agent:game take-control` / `release-control` 接管或释放一个 actor；`agent:game player-communicate --mode say|whisper|announce` 让被接管的 actor 直接执行三种沟通动作；`agent:game player-move --to <stageName>` 让被接管的 actor 沿连接移动；`agent:game player-skill --skill <key> [--target <actorName>] [--stage <stageName>] [--item <itemName>]` 让被接管的 actor 直接使用通用技能；`agent:game player-attack --target <actorName>` 保留为攻击快捷入口。`agent:game status` 读取完整状态；`agent:game snapshot` 导出快照，包含每个 actor 的 memory。状态队列目前不驱动行动；沉睡与苏醒由 actor profile / system prompt 约束，并由 LLM 在正常 plan 中判断，系统不为特定状态维护唤醒规则。
 
 ## 迁移与重置
 

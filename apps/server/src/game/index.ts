@@ -9,5 +9,4 @@ export * from "./player";
 export * from "./service";
 export * from "./skills";
 export * from "./snapshot";
-export * from "./status";
 export * from "./types";

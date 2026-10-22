@@ -1,6 +1,5 @@
 import { visibilityForCommunication } from "../actions";
 import { appendCommunicationObservations } from "../observations";
-import { wakeSleepingActors } from "../status";
 import { appendPublicMessage, bumpGameVersion, communicationFeedback } from "./messages";
 import type { ActorWithStageRow, Executor, ResolvedCommunication } from "./types";
 
@@ -29,6 +28,5 @@ export async function applyCommunication(
     resolved.targetActor,
     resolved.intent.message,
   );
-  await wakeSleepingActors(executor, resolved.stage.id, now);
   return communicationFeedback(resolved);
 }

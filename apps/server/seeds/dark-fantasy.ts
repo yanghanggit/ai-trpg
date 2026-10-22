@@ -1,6 +1,5 @@
 import { GIVE_SKILL, PICKUP_SKILL, STEAL_SKILL, USE_ITEM_SKILL } from "../src/game/skills";
-import { SLEEPING_STATUS_KEY } from "../src/game/status";
-import type { StatusEffect, World } from "../src/game/types";
+import type { World } from "../src/game/types";
 
 /** 黑暗奇幻演示世界的初始内容定义；由 createGame 物化为具体游戏状态。 */
 
@@ -29,14 +28,6 @@ const SYSTEM_RULES = [
   "### 场景移动\n",
   "场景切换代表角色已完成移动；只能沿场景之间的连接前往相邻场景。",
 ].join("");
-
-/** 鼠王的初始状态；目前只承载叙事信息，唤醒机制尚未接入规则层。 */
-const SLEEPING_STATUS: StatusEffect = {
-  key: SLEEPING_STATUS_KEY,
-  name: "沉睡",
-  description: "呼吸深沉，对周围动静反应迟钝；被血味或幼崽的叫声惊醒后会陷入暴怒。",
-  kind: "debuff",
-};
 
 export const DARK_FANTASY_WORLD: World = {
   contentVersion: "dark-fantasy.v2",
@@ -188,7 +179,7 @@ export const DARK_FANTASY_WORLD: World = {
       stageKey: "rat-hall",
       name: "角色.鼠王",
       profile:
-        "地下鼠群的王，体型如小牛；它对一切非鼠类都怀有饥饿的敌意，唯独不伤灰尾小鼠。平日沉睡，被血味或幼崽叫醒后会追杀所有活物。普通刀剑伤不了它，只有火能烧穿它的毛皮。",
+        "地下鼠群的王，体型如小牛；它对一切非鼠类都怀有饥饿的敌意，唯独不伤灰尾小鼠。你正在沉睡：只有在你所在场景中有人对你说话、攻击你，或其他角色做出非等待行为后，你才会苏醒；苏醒前你的计划只能包含 wait，不能主动移动或攻击。普通刀剑伤不了你，只有火能烧穿你的毛皮。",
       appearance:
         "灰黑色的毛皮上结着骨渣与旧血，尾巴比人的手臂还粗；它闭着眼，胡须却随着每一声脚步轻轻抽动。",
       hp: 120,
@@ -198,7 +189,7 @@ export const DARK_FANTASY_WORLD: World = {
       speed: 8,
       items: [],
       skills: [USE_ITEM_SKILL],
-      statusEffects: [SLEEPING_STATUS],
+      statusEffects: [],
     },
   ],
 };
