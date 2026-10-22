@@ -1,4 +1,13 @@
-import { integer, jsonb, pgTable, text, timestamp, uniqueIndex, uuid } from "drizzle-orm/pg-core";
+import {
+  integer,
+  jsonb,
+  pgTable,
+  real,
+  text,
+  timestamp,
+  uniqueIndex,
+  uuid,
+} from "drizzle-orm/pg-core";
 
 export type JsonValue =
   | string
@@ -122,9 +131,6 @@ export const actors = pgTable("actors", {
   stageId: uuid("stage_id")
     .notNull()
     .references(() => stages.id, { onDelete: "cascade" }),
-  controllerPlayerId: uuid("controller_player_id").references(() => gamePlayers.id, {
-    onDelete: "set null",
-  }),
   name: text("name").notNull(),
   profile: text("profile").notNull(),
   appearance: text("appearance").notNull(),
@@ -157,13 +163,60 @@ export const gameMessages = pgTable(
       .references(() => games.id, { onDelete: "cascade" }),
     sequence: integer("sequence").notNull(),
     kind: text("kind").notNull(),
+    stageId: uuid("stage_id").references(() => stages.id, { onDelete: "set null" }),
     speakerActorId: uuid("speaker_actor_id").references(() => actors.id, {
+      onDelete: "set null",
+    }),
+    targetActorId: uuid("target_actor_id").references(() => actors.id, {
       onDelete: "set null",
     }),
     content: text("content").notNull(),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (table) => [uniqueIndex("game_messages_game_sequence_unique").on(table.gameId, table.sequence)],
+);
+
+export const agentMemories = pgTable(
+  "agent_memories",
+  {
+    id: uuid("id").primaryKey(),
+    gameId: uuid("game_id")
+      .notNull()
+      .references(() => games.id, { onDelete: "cascade" }),
+    ownerType: text("owner_type").notNull().default("actor"),
+    ownerId: uuid("owner_id").notNull(),
+    name: text("name").notNull(),
+    contextUsageRatio: real("context_usage_ratio").notNull().default(0),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    uniqueIndex("agent_memories_game_owner_unique").on(
+      table.gameId,
+      table.ownerType,
+      table.ownerId,
+    ),
+  ],
+);
+
+export const agentMemoryMessages = pgTable(
+  "agent_memory_messages",
+  {
+    id: uuid("id").primaryKey(),
+    memoryId: uuid("memory_id")
+      .notNull()
+      .references(() => agentMemories.id, { onDelete: "cascade" }),
+    sequence: integer("sequence").notNull(),
+    type: text("type").notNull(),
+    content: text("content").notNull(),
+    toolCalls: jsonb("tool_calls").$type<JsonValue>(),
+    toolCallId: text("tool_call_id"),
+    metadata: jsonb("metadata").$type<JsonValue>(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    uniqueIndex("agent_memory_messages_memory_sequence_unique").on(table.memoryId, table.sequence),
+  ],
 );
 
 export const schema = {
@@ -177,6 +230,8 @@ export const schema = {
   actors,
   items,
   gameMessages,
+  agentMemories,
+  agentMemoryMessages,
 };
 
 export type AppSchema = typeof schema;

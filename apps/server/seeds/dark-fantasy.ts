@@ -49,21 +49,68 @@ export const DARK_FANTASY_SEED: WorldSeed = {
       narrative: "铜钟的裂口里卡着一截发黑的手指，钟腹深处似乎还有微弱的回声。",
     },
   ],
-  connections: [{ from: "gate", to: "nave" }],
-  actor: {
-    stageKey: "gate",
-    name: "守烬人",
-    profile: "一个把自己裹在旧羊毛斗篷里的拾荒者，记得如何辨认灰烬中的脚印，也记得不要回应钟声。",
-    appearance: "斗篷边缘被烧焦，左手戴着三枚不同尺寸的铜戒，脸上覆着一层洗不净的灰。",
-    hp: 12,
-    maxHp: 12,
-    attack: 3,
-    defense: 2,
-    speed: 4,
-  },
-  item: {
-    name: "裂齿短刃",
-    description: "刃口崩了三处，握柄缠着发黑的布条；靠近时能闻到极淡的盐味。",
-    kind: "weapon",
-  },
+  connections: [
+    { from: "gate", to: "nave" },
+    { from: "nave", to: "gate" },
+  ],
+  actors: [
+    {
+      stageKey: "gate",
+      name: "守烬人",
+      profile: "一个把自己裹在旧羊毛斗篷里的拾荒者，记得如何辨认灰烬中的脚印，也记得不要回应钟声。",
+      appearance: "斗篷边缘被烧焦，左手戴着三枚不同尺寸的铜戒，脸上覆着一层洗不净的灰。",
+      hp: 12,
+      maxHp: 12,
+      attack: 3,
+      defense: 2,
+      speed: 4,
+      items: [
+        {
+          name: "裂齿短刃",
+          description: "刃口崩了三处，握柄缠着发黑的布条；靠近时能闻到极淡的盐味。",
+          kind: "weapon",
+        },
+      ],
+    },
+    {
+      stageKey: "gate",
+      name: "提灯修士",
+      profile:
+        "一个不肯摘下兜帽的修士，提着一盏用铅封住的旧灯；他相信灯里关着最后一缕没有被钟声污染的晨光。",
+      appearance:
+        "灰袍下摆浸着泥水，右手始终握着灯柄；兜帽阴影里只看得到一截苍白的下巴和干裂的嘴唇。",
+      hp: 10,
+      maxHp: 10,
+      attack: 2,
+      defense: 3,
+      speed: 3,
+      items: [
+        {
+          name: "铅封提灯",
+          description: "灯罩外缠着三道铅封，缝隙里透出极弱的暖光；靠近时听不见火焰的声音。",
+          kind: "relic",
+        },
+      ],
+    },
+    {
+      stageKey: "nave",
+      name: "缄默抄经人",
+      profile:
+        "一个在断钟旁抄写无字经文的老人，耳朵里塞着蜡块；他不确定自己是在记录钟声，还是在替钟声保守秘密。",
+      appearance:
+        "指节沾满黑蜡，膝上摊着一卷被灰压皱的空白经页；每翻一页，他都要先确认铜钟没有转动。",
+      hp: 9,
+      maxHp: 9,
+      attack: 1,
+      defense: 4,
+      speed: 2,
+      items: [
+        {
+          name: "无字经页",
+          description: "纸面空白，边缘却密密写着被擦去的指印；贴近耳朵时能听见极轻的纸响。",
+          kind: "relic",
+        },
+      ],
+    },
+  ],
 };

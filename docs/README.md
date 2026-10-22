@@ -34,9 +34,9 @@
 | [开发规范](conventions.md)               | 目录依赖、文件命名、API 字段、数据库与测试    |
 | [本地开发](dev-setup.md)                 | 启动、局域网访问、环境变量、测试、排错        |
 | [LLM 基础组件](llm.md)                   | provider 分层、失败模型、agent loop、对话留痕 |
-| [数据库](database.md)                    | PostgreSQL 状态源、迁移、开发数据、事务边界   |
+| [数据库](database.md)                    | PostgreSQL 状态源、NPC 记忆、迁移、事务边界   |
 | [开发期 Agent 工作流](debug-workflow.md) | 快照驱动推进、HTTP 走查、两套入口的共同边界   |
 
 ## 当前范围
 
-工程骨架、OpenAPI 契约链、LLM 基础组件、数据库基础层、第一条 game 垂直切片、开发期 Agent 工作流。后续玩法与内容随实现补充。
+工程骨架、OpenAPI 契约链、LLM 基础组件、数据库基础层、记忆驱动的 NPC 切片、开发期 Agent 工作流。后续玩法与内容随实现补充。

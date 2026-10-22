@@ -1,5 +1,5 @@
 /**
- * 快照驱动的开发期 agent CLI。
+ * 数据库 / 快照驱动的开发期 agent CLI。
  *
  * 每次调用是一个一次性进程。数据库命令连接 PostgreSQL，调用共享业务服务层；
  * 文件命令继续提供独立快照的创建、查看、校验与查找。
@@ -19,7 +19,8 @@ import {
   type Snapshot,
   saveSnapshot,
 } from "../src/debug/snapshot";
-import { createGame, getGameState, runAction, snapshotGame } from "../src/game";
+import { DEEPSEEK_SERVICE } from "../src/deepseek";
+import { createGame, getGameState, runNpcTurn, snapshotGame } from "../src/game";
 
 type Output = Record<string, unknown>;
 
@@ -32,8 +33,8 @@ const options = {
   "world-file": { type: "string" },
   name: { type: "string" },
   slug: { type: "string" },
-  action: { type: "string" },
-  to: { type: "string" },
+  actor: { type: "string" },
+  all: { type: "boolean" },
 } as const;
 
 function emit(payload: Output, exitCode = 0): void {
@@ -65,7 +66,8 @@ function usage(): void {
       "agent-game validate --snapshot <dir>",
       "agent-game create --user <username> [--name <gameName>] [--slug <slug>]",
       "agent-game status --game <gameId|slug>",
-      "agent-game act --game <gameId|slug> --action move --to <stageId|stageName>",
+      "agent-game npc --game <gameId|slug> --actor <actorId|actorName>",
+      "agent-game npc --game <gameId|slug> --all",
       "agent-game snapshot --game <gameId|slug> [--root <dir>]",
     ],
   });
@@ -146,20 +148,40 @@ async function main(): Promise<void> {
     return;
   }
 
-  if (command === "act") {
+  if (command === "npc") {
     if (typeof values.game !== "string") {
-      throw new Error("act 需要 --game");
-    }
-    if (values.action !== undefined && values.action !== "move") {
-      throw new Error(`暂不支持的动作: ${String(values.action)}`);
-    }
-    if (typeof values.to !== "string") {
-      throw new Error("act 需要 --to");
+      throw new Error("npc 需要 --game");
     }
     const gameRef = values.game;
-    const to = values.to;
-    const state = await withDatabase((db) => runAction(db, gameRef, { type: "move", to }));
-    emit({ ok: true, action: "act", result: "move", state });
+    const actorRef = typeof values.actor === "string" ? values.actor : undefined;
+    const all = values.all === true;
+    if (!all && actorRef === undefined) {
+      throw new Error("npc 需要 --actor，或使用 --all");
+    }
+
+    const results = await withDatabase(async (db) => {
+      if (!all && actorRef !== undefined) {
+        return [await runNpcTurn(db, gameRef, actorRef, { service: DEEPSEEK_SERVICE })];
+      }
+      const state = await getGameState(db, gameRef);
+      const actorIds = state.world.stages.flatMap((stage) => stage.actors.map((actor) => actor.id));
+      const output = [];
+      for (const actorId of actorIds) {
+        output.push(await runNpcTurn(db, gameRef, actorId, { service: DEEPSEEK_SERVICE }));
+      }
+      return output;
+    });
+
+    emit({
+      ok: true,
+      action: "npc",
+      results: results.map((result) => ({
+        ok: result.ok,
+        plan: result.plan,
+        loopSuccess: result.loopSuccess,
+        state: result.state,
+      })),
+    });
     return;
   }
 

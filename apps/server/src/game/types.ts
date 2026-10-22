@@ -6,8 +6,7 @@ export type WorldSeed = {
   initialNarration?: string;
   stages: readonly StageSeed[];
   connections: readonly ConnectionSeed[];
-  actor: ActorSeed;
-  item: ItemSeed;
+  actors: readonly ActorSeed[];
 };
 
 export type StageSeed = {
@@ -33,6 +32,7 @@ export type ActorSeed = {
   attack: number;
   defense: number;
   speed: number;
+  items: readonly ItemSeed[];
 };
 
 export type ItemSeed = {
@@ -48,12 +48,15 @@ export type CreateGameInput = {
   seed: WorldSeed;
 };
 
-export type MoveActionInput = {
-  type: "move";
-  to: string;
-};
+export type NpcActionType = "wait" | "move" | "say";
 
-export type GameActionInput = MoveActionInput;
+export type NpcPlan = {
+  mind: string;
+  actionType: NpcActionType;
+  targetStageName?: string;
+  targetActorName?: string;
+  message?: string;
+};
 
 export type ItemState = {
   id: string;
@@ -95,7 +98,9 @@ export type MessageState = {
   id: string;
   sequence: number;
   kind: string;
+  stageId: string | null;
   speakerActorId: string | null;
+  targetActorId: string | null;
   content: string;
   createdAt: string;
 };
@@ -106,6 +111,25 @@ export type PlayerState = {
   username: string;
   displayName: string;
   role: string;
+};
+
+export type AgentMemoryMessageState = {
+  sequence: number;
+  type: "system" | "human" | "ai" | "tool";
+  content: string;
+  toolCallId?: string;
+  toolCalls?: unknown;
+  metadata?: unknown;
+  createdAt: string;
+};
+
+export type AgentMemoryState = {
+  id: string;
+  ownerType: string;
+  ownerId: string;
+  name: string;
+  contextUsageRatio: number;
+  messages: AgentMemoryMessageState[];
 };
 
 export type GameState = {
@@ -130,4 +154,11 @@ export type GameState = {
     connections: ConnectionState[];
   };
   messages: MessageState[];
+};
+
+export type NpcTurnResult = {
+  ok: boolean;
+  plan: NpcPlan | null;
+  loopSuccess: boolean;
+  state: GameState;
 };

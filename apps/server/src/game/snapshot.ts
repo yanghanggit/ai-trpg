@@ -5,6 +5,7 @@ import {
   type SessionEvent,
   saveSnapshot,
 } from "../debug/snapshot";
+import { getGameMemories } from "./memory";
 import { getGameState } from "./service";
 
 export type GameSnapshotOptions = {
@@ -19,16 +20,36 @@ export async function snapshotGame(
   options: GameSnapshotOptions = {},
 ) {
   const state = await getGameState(db, gameRef);
+  const memories = await getGameMemories(db, state.game.id);
   const now = options.now ?? new Date();
   const session: SessionEvent[] = state.messages.map((message) => ({
     sequence: message.sequence,
     type: `message.${message.kind}`,
     at: message.createdAt,
     payload: {
+      stageId: message.stageId,
       speakerActorId: message.speakerActorId,
+      targetActorId: message.targetActorId,
       content: message.content,
     },
   }));
+
+  const memoryParts = Object.fromEntries(
+    memories.flatMap((memory) => [
+      [`memories/${memory.name}.json`, memory as unknown as JsonValue],
+      [
+        `memories/${memory.name}.meta.json`,
+        {
+          id: memory.id,
+          ownerType: memory.ownerType,
+          ownerId: memory.ownerId,
+          name: memory.name,
+          contextUsageRatio: memory.contextUsageRatio,
+          messageCount: memory.messages.length,
+        } as JsonValue,
+      ],
+    ]),
+  );
 
   const snapshot = await saveSnapshot({
     root: options.root,
@@ -40,6 +61,7 @@ export async function snapshotGame(
     parts: {
       "game.json": state.game as unknown as JsonValue,
       "messages.json": state.messages as unknown as JsonValue,
+      ...memoryParts,
     },
     action: options.action ?? "snapshot",
     source: "db",

@@ -54,7 +54,7 @@ pnpm dev
 | `pnpm db:demo`        | 迁移 + 重置 + 黑暗奇幻 demo seed                              |
 | `pnpm build`          | 生产构建（服务端 + Web）                                      |
 | `pnpm smoke:deepseek` | 真实调用 DeepSeek 的冒烟测试（需要 key，可能产生费用）        |
-| `pnpm agent:game`     | 数据库 / 快照驱动的开发期 agent CLI                           |
+| `pnpm agent:game`     | 数据库 / 快照驱动的 agent CLI；`npc` 推进 NPC 回合            |
 | `pnpm agent:api`      | 对运行中的服务端做 HTTP API 走查                              |
 
 ## 部署

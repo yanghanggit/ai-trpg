@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import { and, asc, eq, inArray, sql } from "drizzle-orm";
+import { asc, eq, inArray } from "drizzle-orm";
 import type { Database } from "../db/pool";
 import {
   actors,
@@ -13,11 +13,11 @@ import {
   worlds,
 } from "../db/schema";
 import { GameError } from "./errors";
+import { buildActorSystemPrompt, createActorMemory } from "./memory";
 import type {
   ActorState,
   ConnectionState,
   CreateGameInput,
-  GameActionInput,
   GameState,
   ItemState,
   MessageState,
@@ -181,7 +181,9 @@ export async function getGameState(db: Database, ref: string): Promise<GameState
     id: message.id,
     sequence: message.sequence,
     kind: message.kind,
+    stageId: message.stageId,
     speakerActorId: message.speakerActorId,
+    targetActorId: message.targetActorId,
     content: message.content,
     createdAt: iso(message.createdAt),
   }));
@@ -290,36 +292,51 @@ export async function createGame(db: Database, input: CreateGameInput): Promise<
       });
     }
 
-    const actorStageId = stageIds.get(input.seed.actor.stageKey);
-    if (!actorStageId) {
-      throw new GameError(
-        "invalid_state",
-        `actor 引用了不存在的 stage: ${input.seed.actor.stageKey}`,
+    for (const seed of input.seed.actors) {
+      const actorStageId = stageIds.get(seed.stageKey);
+      if (!actorStageId) {
+        throw new GameError("invalid_state", `actor 引用了不存在的 stage: ${seed.stageKey}`);
+      }
+
+      const actorId = randomUUID();
+      await tx.insert(actors).values({
+        id: actorId,
+        stageId: actorStageId,
+        name: seed.name,
+        profile: seed.profile,
+        appearance: seed.appearance,
+        hp: seed.hp,
+        maxHp: seed.maxHp,
+        attack: seed.attack,
+        defense: seed.defense,
+        speed: seed.speed,
+      });
+
+      for (const item of seed.items) {
+        await tx.insert(items).values({
+          id: randomUUID(),
+          actorId,
+          name: item.name,
+          description: item.description,
+          kind: item.kind,
+        });
+      }
+
+      await createActorMemory(
+        tx,
+        gameId,
+        { id: actorId, name: seed.name, profile: seed.profile, appearance: seed.appearance },
+        buildActorSystemPrompt(
+          {
+            id: worldId,
+            name: input.seed.worldName,
+            campaignSetting: input.seed.campaignSetting,
+            systemRules: input.seed.systemRules,
+          },
+          seed,
+        ),
       );
     }
-
-    const actorId = randomUUID();
-    await tx.insert(actors).values({
-      id: actorId,
-      stageId: actorStageId,
-      controllerPlayerId: playerId,
-      name: input.seed.actor.name,
-      profile: input.seed.actor.profile,
-      appearance: input.seed.actor.appearance,
-      hp: input.seed.actor.hp,
-      maxHp: input.seed.actor.maxHp,
-      attack: input.seed.actor.attack,
-      defense: input.seed.actor.defense,
-      speed: input.seed.actor.speed,
-    });
-
-    await tx.insert(items).values({
-      id: randomUUID(),
-      actorId,
-      name: input.seed.item.name,
-      description: input.seed.item.description,
-      kind: input.seed.item.kind,
-    });
 
     if (input.seed.initialNarration) {
       await tx.insert(gameMessages).values({
@@ -327,135 +344,12 @@ export async function createGame(db: Database, input: CreateGameInput): Promise<
         gameId,
         sequence: 1,
         kind: "narration",
-        speakerActorId: actorId,
+        stageId: input.seed.stages[0] ? (stageIds.get(input.seed.stages[0].key) ?? null) : null,
+        speakerActorId: null,
+        targetActorId: null,
         content: input.seed.initialNarration,
       });
     }
-  });
-
-  return getGameState(db, gameId);
-}
-
-export async function runAction(
-  db: Database,
-  ref: string,
-  action: GameActionInput,
-): Promise<GameState> {
-  if (action.type !== "move") {
-    throw new GameError("invalid_action", `不支持的动作: ${String(action.type)}`);
-  }
-  if (action.to.trim().length === 0) {
-    throw new GameError("invalid_action", "move 需要目标 stage");
-  }
-
-  const gameId = await db.transaction(async (tx) => {
-    const game = await findGame(tx, ref);
-    if (!game) {
-      throw new GameError("not_found", `游戏不存在: ${ref}`);
-    }
-
-    await tx.select().from(games).where(eq(games.id, game.id)).for("update");
-
-    const [player] = await tx
-      .select()
-      .from(gamePlayers)
-      .where(eq(gamePlayers.gameId, game.id))
-      .limit(1);
-    if (!player) {
-      throw new GameError("invalid_state", `游戏缺少 player: ${game.id}`);
-    }
-
-    const [world] = await tx.select().from(worlds).where(eq(worlds.gameId, game.id)).limit(1);
-    if (!world) {
-      throw new GameError("invalid_state", `游戏缺少 world: ${game.id}`);
-    }
-
-    const [actorRow] = await tx
-      .select({ actor: actors, stage: stages })
-      .from(actors)
-      .innerJoin(stages, eq(actors.stageId, stages.id))
-      .where(and(eq(stages.worldId, world.id), eq(actors.controllerPlayerId, player.id)))
-      .limit(1);
-    if (!actorRow) {
-      throw new GameError("invalid_state", `游戏缺少玩家控制的 actor: ${game.id}`);
-    }
-
-    const [targetByName] = await tx
-      .select()
-      .from(stages)
-      .where(and(eq(stages.worldId, world.id), eq(stages.name, action.to)))
-      .limit(1);
-    let target = targetByName;
-    if (!target && UUID_PATTERN.test(action.to)) {
-      const [targetById] = await tx
-        .select()
-        .from(stages)
-        .where(and(eq(stages.worldId, world.id), eq(stages.id, action.to)))
-        .limit(1);
-      target = targetById;
-    }
-    if (!target) {
-      throw new GameError("invalid_action", `目标 stage 不存在: ${action.to}`);
-    }
-    if (target.id === actorRow.stage.id) {
-      throw new GameError("invalid_action", `角色已经在 ${target.name}`);
-    }
-
-    const [connection] = await tx
-      .select()
-      .from(stageConnections)
-      .where(
-        and(
-          eq(stageConnections.worldId, world.id),
-          eq(stageConnections.fromStageId, actorRow.stage.id),
-          eq(stageConnections.toStageId, target.id),
-        ),
-      )
-      .limit(1);
-    if (!connection) {
-      throw new GameError(
-        "invalid_action",
-        `没有从 ${actorRow.stage.name} 到 ${target.name} 的连接`,
-      );
-    }
-
-    const now = new Date();
-    await tx
-      .update(actors)
-      .set({ stageId: target.id, updatedAt: now })
-      .where(eq(actors.id, actorRow.actor.id));
-
-    await tx
-      .update(games)
-      .set({ version: sql<number>`${games.version} + 1`, updatedAt: now })
-      .where(eq(games.id, game.id));
-
-    const [maxRow] = await tx
-      .select({ value: sql<number>`coalesce(max(${gameMessages.sequence}), 0)` })
-      .from(gameMessages)
-      .where(eq(gameMessages.gameId, game.id));
-    const next = Number(maxRow?.value ?? 0) + 1;
-
-    await tx.insert(gameMessages).values([
-      {
-        id: randomUUID(),
-        gameId: game.id,
-        sequence: next,
-        kind: "player",
-        speakerActorId: actorRow.actor.id,
-        content: `我走向${target.name}。`,
-      },
-      {
-        id: randomUUID(),
-        gameId: game.id,
-        sequence: next + 1,
-        kind: "narration",
-        speakerActorId: null,
-        content: `你从${actorRow.stage.name}动身，穿过两处场景之间的路，抵达${target.name}。${target.narrative}`,
-      },
-    ]);
-
-    return game.id;
   });
 
   return getGameState(db, gameId);
