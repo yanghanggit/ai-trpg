@@ -13,7 +13,9 @@
       "!**/coverage",
       "!pnpm-lock.yaml",
       "!packages/api-client/openapi.json",
-      "!packages/api-client/src/schema.d.ts"
+      "!packages/api-client/src/schema.d.ts",
+      "!apps/server/drizzle",
+      "!**/*.md"
     ]
   },
   "formatter": {

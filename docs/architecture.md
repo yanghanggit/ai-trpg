@@ -2,12 +2,14 @@
 
 ## 包职责
 
-- `@ai-trpg/server`：服务端真相，负责路由、校验与业务状态。
+- `@ai-trpg/server`：服务端入口，负责路由、校验、事务与业务规则；游戏状态真相在 PostgreSQL。
 - `@ai-trpg/web`：玩家入口，负责页面、交互与服务端状态缓存。
 - `@ai-trpg/api-client`：契约层，包含生成的类型、`openapi-fetch` 客户端与错误适配。
 - `@ai-trpg/shared`：跨端常量，只放服务名、API 版本、默认端口等稳定事实。
 
 依赖方向：`web` 依赖 `api-client` 与 `shared`，`server` 依赖 `shared`；`api-client` 与 `shared` 不反向依赖应用。两者直接导出 TypeScript 源码，由 Vite、tsx、tsup 转译，骨架阶段不引入独立构建。
+
+服务端与 PostgreSQL 的拓扑固定为「客户端 ⇄ 业务服务端 ⇄ PostgreSQL」。服务端不保留跨请求的权威世界对象；数据库是状态源，连接池、迁移与开发数据流程见数据库文档。
 
 → 参见：[开发规范](conventions.md)
 
@@ -49,10 +51,10 @@
 
 ## LLM 层
 
-LLM 是服务端内部依赖，不是客户端可调用的 API。拓扑固定为「客户端 ⇄ 业务服务端 ⇄ LLM 服务商」：浏览器只提交业务请求、展示业务结果，不接触模型名、prompt、tools 或 provider key。
+LLM 是服务端内部依赖，不是客户端可调用的 API。拓扑为「业务服务端 ⇄ LLM 服务商」：浏览器只提交业务请求、展示业务结果，不接触模型名、prompt、tools 或 provider key。
 
 游戏状态、上下文组装、工具执行、输出校验与持久化全部在服务端完成。LLM 输出视为不可信中间数据，经业务校验后才能改变状态；provider 错误映射为业务错误，不把原始细节透给客户端。API key 只存在于服务端环境，不得进入任何 `VITE_` 变量或客户端日志。
 
 实现上分为 provider 无关的 `llm` 与 DeepSeek 实现 `deepseek`，依赖方向固定为 `deepseek → llm`。业务侧通常只取已绑定默认实例的 `agentLoop` / `batchComplete`；`llm` 不得反向 import 具体 provider。
 
-→ 参见：[LLM 基础组件](llm.md)
+→ 参见：[LLM 基础组件](llm.md) → 参见：[数据库](database.md)

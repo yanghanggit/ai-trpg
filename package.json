@@ -15,9 +15,9 @@
     "gen:api": "pnpm gen:openapi && pnpm --filter @ai-trpg/api-client gen",
     "build": "pnpm gen:api && pnpm --filter @ai-trpg/server build && pnpm --filter @ai-trpg/web build",
     "typecheck": "tsc -p tsconfig.json --noEmit && pnpm gen:api && pnpm --filter @ai-trpg/api-client typecheck && pnpm --filter @ai-trpg/server typecheck && pnpm --filter @ai-trpg/web typecheck",
-    "lint": "biome check . && node scripts/check-ports.mjs",
-    "lint:fix": "biome check --write .",
-    "format": "biome format --write .",
+    "lint": "biome check . && node scripts/check-ports.mjs && pnpm lint:md",
+    "lint:fix": "biome check --write . && pnpm lint:md:fix",
+    "format": "biome format --write . && pnpm lint:md:fix",
     "test": "pnpm --filter @ai-trpg/server test && pnpm --filter @ai-trpg/web test",
     "test:run": "pnpm --filter @ai-trpg/server test:run && pnpm --filter @ai-trpg/web test:run",
     "screenshot": "tsx scripts/screenshot.ts",
@@ -28,12 +28,21 @@
     "agent:api": "pnpm --filter @ai-trpg/server exec tsx scripts/agent-api.ts",
     "verify": "pnpm install && pnpm gen:api && pnpm typecheck && pnpm lint && pnpm test:run && pnpm build",
     "pipeline": "pnpm verify && pnpm dev",
-    "check:ports": "node scripts/check-ports.mjs"
+    "check:ports": "node scripts/check-ports.mjs",
+    "db:generate": "pnpm --filter @ai-trpg/server db:generate",
+    "db:migrate": "pnpm --filter @ai-trpg/server db:migrate",
+    "db:check": "pnpm --filter @ai-trpg/server db:check",
+    "db:seed": "pnpm --filter @ai-trpg/server db:seed",
+    "db:reset": "pnpm --filter @ai-trpg/server db:reset",
+    "db:demo": "pnpm --filter @ai-trpg/server db:demo",
+    "lint:md": "markdownlint-cli2 \"**/*.md\" \"#**/node_modules/**\" \"#**/dist/**\" \"#.VSCodeCounter/**\"",
+    "lint:md:fix": "markdownlint-cli2 \"**/*.md\" \"#**/node_modules/**\" \"#**/dist/**\" \"#.VSCodeCounter/**\" --fix"
   },
   "devDependencies": {
     "@ai-trpg/shared": "workspace:*",
     "@biomejs/biome": "^2.6.2",
     "@types/node": "^22.20.5",
+    "markdownlint-cli2": "^0.23.3",
     "tsx": "^4.23.15",
     "typescript": "^5.9.3"
   }

@@ -8,16 +8,20 @@ AI 跑团项目：TypeScript monorepo，Fastify 服务端 + React 客户端，�
 
 - Node.js >= 22
 - pnpm 12（`corepack enable`，版本由 `packageManager` 固定）
+- 本机 PostgreSQL 14+
 
 ## 本地启动
 
 ```bash
 pnpm install
-cp .env.example .env   # 可选：需要 LLM key 或固定服务端地址时
+cp .env.example .env   # 可选：需要 LLM key、数据库或固定服务端地址时
+createdb ai_trpg_dev   # 已存在则跳过
+createdb ai_trpg_test
+pnpm db:migrate
 pnpm dev
 ```
 
-`pnpm dev` 会先离线生成 API 契约，再并行启动服务端与客户端。
+`pnpm dev` 会先离线生成 API 契约，再并行启动服务端与客户端。数据库连接串在根 `.env` 的 `DATABASE_URL`；当前只建立基础设施表，业务 schema 随后续切片引入。
 
 启动后访问终端打印的地址：
 
@@ -36,9 +40,17 @@ pnpm dev
 | `pnpm verify`         | install → 契约 → typecheck → lint → 测试 → 构建（不启动服务） |
 | `pnpm pipeline`       | `verify` 通过后直接进入 `pnpm dev`                            |
 | `pnpm test:run`       | 单次运行全部测试                                              |
-| `pnpm lint`           | Biome 检查 + 端口唯一来源守卫                                 |
-| `pnpm format`         | Biome 格式化                                                  |
+| `pnpm lint`           | Biome + 端口守卫 + Markdown 检查                              |
+| `pnpm format`         | Biome + Markdown 格式化                                       |
 | `pnpm gen:api`        | 重新生成 OpenAPI 与客户端类型                                 |
+| `pnpm lint:md`        | 单独检查 Markdown                                             |
+| `pnpm lint:md:fix`    | 修复可自动修复的 Markdown 问题                                |
+| `pnpm db:generate`    | 根据 schema 生成 SQL 迁移                                     |
+| `pnpm db:migrate`     | 应用数据库迁移                                                |
+| `pnpm db:check`       | 检查数据库连接与基础设施表                                    |
+| `pnpm db:seed`        | 写入占位开发数据                                              |
+| `pnpm db:reset --yes` | 清空登记过的开发表                                            |
+| `pnpm db:demo`        | 迁移 + 重置 + 占位 seed                                       |
 | `pnpm build`          | 生产构建（服务端 + Web）                                      |
 | `pnpm smoke:deepseek` | 真实调用 DeepSeek 的冒烟测试（需要 key，可能产生费用）        |
 | `pnpm agent:game`     | 快照驱动的开发期 agent CLI                                    |
