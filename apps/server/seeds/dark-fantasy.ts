@@ -1,5 +1,6 @@
 import { ATTACK_SKILL } from "../src/game/skills";
-import type { World } from "../src/game/types";
+import { SLEEPING_STATUS_KEY } from "../src/game/status";
+import type { StatusEffect, World } from "../src/game/types";
 
 /** 黑暗奇幻演示世界的初始内容定义；由 createGame 物化为具体游戏状态。 */
 
@@ -22,104 +23,178 @@ const SYSTEM_RULES = [
   "### 游戏实体\n",
   "- 角色：可交互的生命体，始终处于某个场景。\n",
   "- 场景：角色活动的地点，角色不能脱离场景存在。\n",
-  "- 物品：由角色持有的物件，不能脱离持有者存在。\n\n",
+  "- 物品：可由角色持有，也可暂放在场景中；未被拾取前属于场景。\n\n",
   "### 根属性\n",
   "角色数值仅由 hp / max_hp / attack / defense / speed 构成，禁止新增常驻数值轴。\n\n",
   "### 场景移动\n",
   "场景切换代表角色已完成移动；只能沿场景之间的连接前往相邻场景。",
 ].join("");
 
+/** 鼠王的初始状态；目前只承载叙事信息，唤醒机制尚未接入规则层。 */
+const SLEEPING_STATUS: StatusEffect = {
+  key: SLEEPING_STATUS_KEY,
+  name: "沉睡",
+  description: "呼吸深沉，对周围动静反应迟钝；被血味或幼崽的叫声惊醒后会陷入暴怒。",
+  kind: "debuff",
+};
+
 export const DARK_FANTASY_WORLD: World = {
-  contentVersion: "dark-fantasy.v1",
-  worldName: "灰烬钟声",
+  contentVersion: "dark-fantasy.v2",
+  worldName: "灰烬墓园",
   campaignSetting: CAMPAIGN_SETTING,
   systemRules: SYSTEM_RULES,
   initialNarration:
-    "钟声早已停了。你在一座被灰烬掩埋的门廊里醒来，铁锈味从石缝里渗出来，远处有东西在暗处拖动锁链。",
+    "你从浅坟里坐起来时，泥土还在从指缝里往下掉。你不记得自己的名字，只记得火、鼠腥味，以及一扇被钥匙锁住的门。墓穴上方传来狗的低吼，更深处有无数细小的爪子在石头上奔跑。",
+  initialStageKey: "crypt",
   stages: [
     {
-      key: "gate",
-      name: "灰烬门廊",
-      profile: "修道院的入口，穹顶塌了一半，长明灯只剩冷灰。",
-      environment: "风从破窗灌入，灰烬像雪一样落在石阶上；门外是没有尽头的黑松林。",
-      narrative: "门廊尽头是一道向内倾斜的拱门，门后传来断断续续的钟绳摩擦声。",
+      key: "graveyard",
+      name: "场景.守墓人的灰庭",
+      profile: "墓园入口的灰庭，守墓人在这里看管坟茔、钥匙与通往地下的鼠洞。",
+      environment:
+        "灰庭被一圈倒塌的石墙围住，三座无字墓碑歪在枯草里；守墓人的小屋门半开着，屋檐下挂着风干的鼠尾。",
+      narrative:
+        "守墓人正在给门上最后一道锁，脚边的小狗突然抬头，朝你藏身的方向龇牙。墓碑后，一只灰尾小鼠缩成一团，眼睛亮得像两粒黑豆。",
     },
     {
-      key: "nave",
-      name: "断钟中殿",
-      profile: "修道院的中殿，巨大的铜钟坠落在裂纹纵横的地面上。",
-      environment: "烛泪凝成黑色硬壳，空气里混着铁锈、旧蜡与潮湿石尘的味道。",
-      narrative: "铜钟的裂口里卡着一截发黑的手指，钟腹深处似乎还有微弱的回声。",
+      key: "crypt",
+      name: "场景.浅眠墓穴",
+      profile: "一具没有名字的尸体从浅坟里醒来；这里连接灰庭、鼠洞与更深的地底。",
+      environment:
+        "浅坟的泥土被从里面顶开，四周是潮湿的石壁和几块刻着鼠纹的墓砖；一条石阶向上通往灰庭，另一条窄洞向下，深处传来缓慢而沉重的呼吸。",
+      narrative: "你爬出的地方原本应该埋着一个名字；现在只剩半截断指和一枚烧黑的纽扣。",
     },
-  ],
-  connections: [
-    { from: "gate", to: "nave" },
-    { from: "nave", to: "gate" },
-  ],
-  actors: [
     {
-      stageKey: "gate",
-      name: "守烬人",
-      profile: "一个把自己裹在旧羊毛斗篷里的拾荒者，记得如何辨认灰烬中的脚印，也记得不要回应钟声。",
-      appearance: "斗篷边缘被烧焦，左手戴着三枚不同尺寸的铜戒，脸上覆着一层洗不净的灰。",
-      hp: 12,
-      maxHp: 12,
-      attack: 6,
-      defense: 2,
-      speed: 4,
+      key: "rat-hall",
+      name: "场景.鼠王的骨厅",
+      profile: "鼠群的地底王座厅；鼠王在此沉睡，灰尾小鼠是它唯一不会伤害的幼崽。",
+      environment:
+        "骨厅由无数墓砖垒成，地面铺着咬碎的骨头；尽头的石座上盘着一团灰黑色的巨影，鼠王在沉睡，呼吸像风箱。",
+      narrative:
+        "鼠王的胡须随呼吸起伏，爪边散落着人的指骨；更深处有一条通往焚毛炉房的窄门，门缝里透出陈年油脂味。",
+    },
+    {
+      key: "pyre",
+      name: "场景.焚毛炉房",
+      profile: "废弃的焚尸炉房，墙角留着一支浸透松脂的火把。",
+      environment:
+        "焚毛炉房的墙壁被烟熏成黑色，铁钩上挂着焦黑的毛皮；炉膛早已冷了，只有一支浸透松脂的火把靠在墙边。",
+      narrative:
+        "火把的尖端缠着干枯的鼠尾，松脂里封着一点暗红的光；它还没有点燃，但整个房间都在等火。",
       items: [
         {
-          name: "裂齿短刃",
-          description: "刃口崩了三处，握柄缠着发黑的布条；靠近时能闻到极淡的盐味。",
+          name: "武器.焚鼠火把",
+          description: "一支浸透松脂的火把，尖端缠着干枯的鼠尾；点燃后火焰会沿着油脂爬满整支木柄。",
           kind: "weapon",
         },
       ],
-      skills: [ATTACK_SKILL],
-      statusEffects: [],
     },
     {
-      stageKey: "gate",
-      name: "提灯修士",
+      key: "sealed-gate",
+      name: "场景.封骨之门",
+      profile: "墓园最深处的封骨之门；只有守墓人的钥匙能打开它。",
+      environment:
+        "封骨之门嵌在墓园最深处的岩壁里，门板上刻着密密麻麻的鼠牙；锁孔的形状与守墓人腰间的钥匙吻合，门后没有声音。",
+      narrative: "你只要把钥匙插进去，就能离开这座墓园；但门缝里渗出的冷风提醒你，门后未必是生路。",
+    },
+  ],
+  connections: [
+    { from: "graveyard", to: "crypt" },
+    { from: "crypt", to: "graveyard" },
+    { from: "crypt", to: "rat-hall" },
+    { from: "rat-hall", to: "crypt" },
+    { from: "graveyard", to: "rat-hall" },
+    { from: "rat-hall", to: "graveyard" },
+    { from: "rat-hall", to: "pyre" },
+    { from: "pyre", to: "rat-hall" },
+    { from: "pyre", to: "sealed-gate" },
+    { from: "sealed-gate", to: "pyre" },
+  ],
+  actors: [
+    {
+      stageKey: "graveyard",
+      name: "角色.守墓人",
       profile:
-        "一个不肯摘下兜帽的修士，提着一盏用铅封住的旧灯；他相信灯里关着最后一缕没有被钟声污染的晨光。",
+        "看守灰庭的老守墓人，知道钥匙能打开封骨之门；他不愿把钥匙交给来路不明的尸体，但也不是不能谈。",
       appearance:
-        "灰袍下摆浸着泥水，右手始终握着灯柄；兜帽阴影里只看得到一截苍白的下巴和干裂的嘴唇。",
-      hp: 10,
-      maxHp: 10,
+        "旧呢斗篷上沾着新土，腰间挂着一串生锈的钥匙；他的右手一直按在钥匙串上，左手牵着一条低吼的狗。",
+      hp: 14,
+      maxHp: 14,
       attack: 5,
-      defense: 3,
+      defense: 2,
       speed: 3,
       items: [
         {
-          name: "铅封提灯",
-          description: "灯罩外缠着三道铅封，缝隙里透出极弱的暖光；靠近时听不见火焰的声音。",
-          kind: "relic",
+          name: "饰品.封骨钥匙",
+          description: "一把长满绿锈的铜钥匙，齿纹像一排细小的鼠牙；能打开墓园最深处的封骨之门。",
+          kind: "key",
         },
       ],
       skills: [ATTACK_SKILL],
       statusEffects: [],
     },
     {
-      stageKey: "nave",
-      name: "缄默抄经人",
-      profile:
-        "一个在断钟旁抄写无字经文的老人，耳朵里塞着蜡块；他不确定自己是在记录钟声，还是在替钟声保守秘密。",
+      stageKey: "graveyard",
+      name: "角色.守墓犬",
+      profile: "守墓人养了多年的黑狗，对陌生人低吼；若守墓人受伤或死亡，它会顺着血味扑向凶手。",
       appearance:
-        "指节沾满黑蜡，膝上摊着一卷被灰压皱的空白经页；每翻一页，他都要先确认铜钟没有转动。",
-      hp: 9,
-      maxHp: 9,
-      attack: 4,
-      defense: 4,
-      speed: 2,
-      items: [
-        {
-          name: "无字经页",
-          description: "纸面空白，边缘却密密写着被擦去的指印；贴近耳朵时能听见极轻的纸响。",
-          kind: "relic",
-        },
-      ],
+        "肋骨从短毛下顶出来，左耳缺了一角；它不叫，只把牙关咬得很紧，喉咙里滚着低低的雷声。",
+      hp: 10,
+      maxHp: 10,
+      attack: 7,
+      defense: 1,
+      speed: 7,
+      items: [],
       skills: [ATTACK_SKILL],
       statusEffects: [],
+    },
+    {
+      stageKey: "graveyard",
+      name: "角色.灰尾小鼠",
+      profile:
+        "鼠王的幼崽，躲在墓碑后观察灰庭；它不会战斗，一旦看见血或听见守墓人呼救，就会沿鼠洞跑回骨厅唤醒鼠王。",
+      appearance:
+        "只有巴掌大，灰尾巴末端有一撮白毛；它用后腿站着，前爪抱着一小块发霉的面包，眼睛始终盯着你的手。",
+      hp: 4,
+      maxHp: 4,
+      attack: 1,
+      defense: 0,
+      speed: 10,
+      items: [],
+      skills: [],
+      statusEffects: [],
+    },
+    {
+      stageKey: "crypt",
+      name: "角色.苏醒者",
+      profile:
+        "一具从浅坟里爬出的尸体，记忆残缺，却能听懂活人的话；你可以选择谈判、偷窃、逃跑或暴力。",
+      appearance:
+        "皮肤灰白，指缝里塞满湿泥；你的衣领下露出半截被鼠牙啃过的锁链，走路时关节会发出干涩的响声。",
+      hp: 20,
+      maxHp: 20,
+      attack: 6,
+      defense: 2,
+      speed: 3,
+      items: [],
+      skills: [ATTACK_SKILL],
+      statusEffects: [],
+    },
+    {
+      stageKey: "rat-hall",
+      name: "角色.鼠王",
+      profile:
+        "地下鼠群的王，体型如小牛；它对一切非鼠类都怀有饥饿的敌意，唯独不伤灰尾小鼠。平日沉睡，被血味或幼崽叫醒后会追杀所有活物。普通刀剑伤不了它，只有火能烧穿它的毛皮。",
+      appearance:
+        "灰黑色的毛皮上结着骨渣与旧血，尾巴比人的手臂还粗；它闭着眼，胡须却随着每一声脚步轻轻抽动。",
+      hp: 120,
+      maxHp: 120,
+      attack: 60,
+      defense: 100,
+      speed: 8,
+      items: [],
+      skills: [ATTACK_SKILL],
+      statusEffects: [SLEEPING_STATUS],
     },
   ],
 };

@@ -206,6 +206,11 @@ export function describeStats(actor: ActorState): string {
     `defense：${actor.defense}`,
     `speed：${actor.speed}`,
     `状态：${actor.death ? "已死亡" : "存活"}`,
+    `状态效果：${
+      actor.statusEffects.length === 0
+        ? "无"
+        : actor.statusEffects.map((status) => `${status.name}（${status.kind}）`).join("、")
+    }`,
   ].join("\n");
 }
 
@@ -232,6 +237,7 @@ export function lookStage(state: GameState, stageName: string): string {
     stage.environment,
     stage.narrative,
     `角色：${stage.actors.length === 0 ? "无" : stage.actors.map((actor) => `${actor.name}${actor.death ? "（已死亡）" : ""}`).join("、")}`,
+    `物品：${stage.items.length === 0 ? "无" : stage.items.map((item) => `${item.name}（${item.kind}）：${item.description}`).join("；")}`,
     `可去：${moves.length === 0 ? "无" : moves.join("、")}`,
   ].join("\n");
 }

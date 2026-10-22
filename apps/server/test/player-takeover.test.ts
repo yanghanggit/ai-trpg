@@ -1,5 +1,6 @@
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { DARK_FANTASY_WORLD, DEMO_USER } from "../seeds/dark-fantasy";
+import { DEMO_USER } from "../seeds/dark-fantasy";
+import { TEST_WORLD } from "./test-world";
 import "../src/db/env";
 import { type DatabaseHandle, openDatabase } from "../src/db/connect";
 import { resetDomainData, seedDemoData } from "../src/db/maintenance";
@@ -11,6 +12,7 @@ import {
   isPlayerControlled,
   playerAttack,
   playerCommunicate,
+  playerMove,
   releaseActorControl,
   runNpcTurn,
   takeActorControl,
@@ -20,8 +22,8 @@ import type { ChatCompletionService } from "../src/llm";
 const testDatabaseUrl = process.env.TEST_DATABASE_URL?.trim();
 
 const ALL_GATE_WORLD = {
-  ...DARK_FANTASY_WORLD,
-  actors: DARK_FANTASY_WORLD.actors.map((actor) => ({ ...actor, stageKey: "gate" })),
+  ...TEST_WORLD,
+  actors: TEST_WORLD.actors.map((actor) => ({ ...actor, stageKey: "gate" })),
 };
 
 const NEVER_CALLED_SERVICE: ChatCompletionService = {
@@ -126,6 +128,32 @@ describe.skipIf(!testDatabaseUrl)("player takeover", () => {
 
     await releaseActorControl(handle.db, game.game.slug, "守烬人");
     expect(await isPlayerControlled(handle.db, game.game.id, control.actorId)).toBe(false);
+  });
+
+  it("lets a controlled actor move to an adjacent stage", async () => {
+    const game = await createGame(handle.db, {
+      username: DEMO_USER.username,
+      name: "玩家移动测试局",
+      world: ALL_GATE_WORLD,
+    });
+    await takeActorControl(handle.db, game.game.slug, "守烬人");
+
+    const moved = await playerMove(handle.db, game.game.slug, "守烬人", {
+      targetStageName: "断钟中殿",
+    });
+    expect(moved.ok).toBe(true);
+    expect(moved.plan?.intents[0]).toMatchObject({
+      kind: "movement",
+      mode: "move",
+      targetStageName: "断钟中殿",
+    });
+
+    const state = await getGameState(handle.db, game.game.slug);
+    expect(state.messages.map((message) => message.kind)).toEqual(["narration", "move"]);
+    const keeperStage = state.world.stages.find((stage) =>
+      stage.actors.some((actor) => actor.name === "守烬人"),
+    );
+    expect(keeperStage?.name).toBe("断钟中殿");
   });
 
   it("lets a controlled actor attack", async () => {

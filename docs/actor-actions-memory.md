@@ -6,7 +6,7 @@
 
 `actor` 是第一级实体。NPC 与玩家不是两种 actor 表，而是同一个 actor 的两种控制者。NPC 由 agent loop 驱动，玩家通过接管关系直接提交行动；actor 的身份、场景归属、物品、技能、状态与 memory 不因控制者改变。
 
-actor 目前有三个运行时容器：`items` 道具队列、`skills` 技能队列、`statusEffects` 状态队列。状态队列为未来的 buff/debuff 预留，当前不产生状态效果。
+actor 目前有三个运行时容器：`items` 道具队列、`skills` 技能队列、`statusEffects` 状态队列。状态队列为 buff/debuff 预留；当前只有鼠王的 `sleeping` 参与硬编码唤醒规则，同场景任意非 `wait` 行为会移除它。
 
 玩家接管通过独立的控制关系表达，不把控制字段塞回 actor 本体。释放接管后，同一个 actor 恢复 NPC 驱动，继续使用原 memory。
 

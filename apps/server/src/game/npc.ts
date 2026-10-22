@@ -51,7 +51,15 @@ function buildObservation(state: GameState, current: ActorWithStage): string {
     "# 当前环境",
     `## 场景\n${current.stage.name}\n${current.stage.environment}\n${current.stage.narrative}`,
     `## 你的状态\n${current.actor.name} | HP ${current.actor.hp}/${current.actor.maxHp}`,
+    `## 状态效果\n${
+      current.actor.statusEffects.length === 0
+        ? "无"
+        : current.actor.statusEffects
+            .map((status) => `${status.name}：${status.description}`)
+            .join("\n")
+    }`,
     `## 同场景角色\n${others.length === 0 ? "无" : others.map((actor) => `${actor.name}：${actor.appearance}${actor.death ? "（已死亡）" : ""}`).join("\n")}`,
+    `## 场景物品\n${current.stage.items.length === 0 ? "无" : current.stage.items.map((item) => `${item.name}（${item.kind}）：${item.description}`).join("\n")}`,
     `## 可交谈对象\n${targets.length === 0 ? "无" : targets.join("、")}`,
     `## 可作用对象\n${skillTargets.length === 0 ? "无" : skillTargets.join("、")}`,
     `## 可用技能\n${skills.length === 0 ? "无" : skills.join("\n")}`,

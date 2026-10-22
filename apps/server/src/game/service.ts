@@ -8,6 +8,7 @@ import {
   games,
   items,
   stageConnections,
+  stageItems,
   stages,
   users,
   worlds,
@@ -125,6 +126,27 @@ export async function getGameState(db: Database, ref: string): Promise<GameState
           .where(inArray(items.actorId, actorIds))
           .orderBy(asc(items.createdAt), asc(items.name));
 
+  const stageItemRows =
+    stageIds.length === 0
+      ? []
+      : await db
+          .select()
+          .from(stageItems)
+          .where(inArray(stageItems.stageId, stageIds))
+          .orderBy(asc(stageItems.createdAt), asc(stageItems.name));
+
+  const itemsByStage = new Map<string, ItemState[]>();
+  for (const item of stageItemRows) {
+    const list = itemsByStage.get(item.stageId) ?? [];
+    list.push({
+      id: item.id,
+      name: item.name,
+      description: item.description,
+      kind: item.kind,
+    });
+    itemsByStage.set(item.stageId, list);
+  }
+
   const messageRows = await db
     .select()
     .from(gameMessages)
@@ -172,6 +194,7 @@ export async function getGameState(db: Database, ref: string): Promise<GameState
     narrative: stage.narrative,
     ordinal: stage.ordinal,
     actors: actorsByStage.get(stage.id) ?? [],
+    items: itemsByStage.get(stage.id) ?? [],
   }));
 
   const connections: ConnectionState[] = connectionRows.map((connection) => ({
@@ -286,6 +309,16 @@ export async function createGame(db: Database, input: CreateGameInput): Promise<
         narrative: stage.narrative,
         ordinal,
       });
+
+      for (const item of stage.items ?? []) {
+        await tx.insert(stageItems).values({
+          id: randomUUID(),
+          stageId,
+          name: item.name,
+          description: item.description,
+          kind: item.kind,
+        });
+      }
     }
 
     for (const connection of input.world.connections) {
@@ -355,12 +388,20 @@ export async function createGame(db: Database, input: CreateGameInput): Promise<
     }
 
     if (input.world.initialNarration) {
+      const initialStageKey = input.world.initialStageKey ?? input.world.stages[0]?.key;
+      const initialStageId = initialStageKey ? stageIds.get(initialStageKey) : null;
+      if (initialStageKey && !initialStageId) {
+        throw new GameError(
+          "invalid_state",
+          `initialStageKey 引用了不存在的 stage: ${initialStageKey}`,
+        );
+      }
       await tx.insert(gameMessages).values({
         id: randomUUID(),
         gameId,
         sequence: 1,
         kind: "narration",
-        stageId: input.world.stages[0] ? (stageIds.get(input.world.stages[0].key) ?? null) : null,
+        stageId: initialStageId ?? null,
         speakerActorId: null,
         targetActorId: null,
         visibility: "stage",

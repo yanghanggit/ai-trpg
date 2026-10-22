@@ -21,6 +21,10 @@ export type PlayerAttackInput = {
   itemNames?: readonly string[];
 };
 
+export type PlayerMoveInput = {
+  targetStageName: string;
+};
+
 /** 玩家直接提交计划；只允许玩家接管的 actor。 */
 async function applyPlayerPlan(
   db: Database,
@@ -69,6 +73,23 @@ export async function playerCommunicate(
         message: input.message,
       },
     ],
+  };
+  return applyPlayerPlan(db, gameRef, actorRef, plan);
+}
+
+/**
+ * 玩家直接提交一次移动行动。
+ *
+ * 不调用 LLM；actor 必须处于玩家控制下，否则拒绝。
+ */
+export async function playerMove(
+  db: Database,
+  gameRef: string,
+  actorRef: string,
+  input: PlayerMoveInput,
+): Promise<ActorTurnResult> {
+  const plan: ActorPlan = {
+    intents: [{ kind: "movement", mode: "move", targetStageName: input.targetStageName }],
   };
   return applyPlayerPlan(db, gameRef, actorRef, plan);
 }

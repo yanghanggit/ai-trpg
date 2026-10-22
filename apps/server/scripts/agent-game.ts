@@ -27,6 +27,7 @@ import {
   listPlayerControlledActorIds,
   playerAttack,
   playerCommunicate,
+  playerMove,
   releaseActorControl,
   runNpcTurn,
   snapshotGame,
@@ -49,6 +50,7 @@ const options = {
   mode: { type: "string" },
   message: { type: "string" },
   target: { type: "string" },
+  to: { type: "string" },
   reason: { type: "string" },
 } as const;
 
@@ -87,6 +89,7 @@ function usage(): void {
       "agent-game release-control --game <gameId|slug> --actor <actorId|actorName>",
       "agent-game player-communicate --game <gameId|slug> --actor <actorId|actorName> --mode say|whisper|announce [--target <actorName>] [--reason <text>] --message <text>",
       "agent-game player-attack --game <gameId|slug> --actor <actorId|actorName> --target <actorName>",
+      "agent-game player-move --game <gameId|slug> --actor <actorId|actorName> --to <stageName>",
       "agent-game snapshot --game <gameId|slug> [--root <dir>]",
     ],
   });
@@ -215,6 +218,29 @@ async function main(): Promise<void> {
     emit({
       ok: true,
       action: "player-communicate",
+      plan: result.plan,
+      state: result.state,
+    });
+    return;
+  }
+
+  if (command === "player-move") {
+    if (typeof values.game !== "string" || typeof values.actor !== "string") {
+      throw new Error("player-move 需要 --game 与 --actor");
+    }
+    if (typeof values.to !== "string" || values.to.trim().length === 0) {
+      throw new Error("player-move 需要 --to <stageName>");
+    }
+
+    const gameRef = values.game;
+    const actorRef = values.actor;
+    const targetStageName = values.to;
+    const result = await withDatabase((db) =>
+      playerMove(db, gameRef, actorRef, { targetStageName }),
+    );
+    emit({
+      ok: true,
+      action: "player-move",
       plan: result.plan,
       state: result.state,
     });

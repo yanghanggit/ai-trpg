@@ -13,6 +13,7 @@ export const DOMAIN_TABLES = [
   "game_messages",
   "actor_controls",
   "items",
+  "stage_items",
   "actors",
   "stage_connections",
   "stages",
@@ -57,10 +58,10 @@ export async function seedDemoData(db: Database): Promise<void> {
     .insert(appMeta)
     .values({
       key: "demo",
-      value: { version: 1, seed: "dark-fantasy.v1" },
+      value: { version: 1, seed: "dark-fantasy.v2" },
     })
     .onConflictDoUpdate({
       target: appMeta.key,
-      set: { value: { version: 1, seed: "dark-fantasy.v1" }, updatedAt: new Date() },
+      set: { value: { version: 1, seed: "dark-fantasy.v2" }, updatedAt: new Date() },
     });
 }

@@ -158,6 +158,17 @@ export const items = pgTable("items", {
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
 
+export const stageItems = pgTable("stage_items", {
+  id: uuid("id").primaryKey(),
+  stageId: uuid("stage_id")
+    .notNull()
+    .references(() => stages.id, { onDelete: "cascade" }),
+  name: text("name").notNull(),
+  description: text("description").notNull(),
+  kind: text("kind").notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
 export const gameMessages = pgTable(
   "game_messages",
   {
@@ -249,6 +260,7 @@ export const schema = {
   stageConnections,
   actors,
   items,
+  stageItems,
   gameMessages,
   actorControls,
   agentMemories,

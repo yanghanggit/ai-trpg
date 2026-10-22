@@ -5,6 +5,7 @@ import { join } from "node:path";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { DARK_FANTASY_WORLD, DEMO_USER } from "../seeds/dark-fantasy";
 import { ATTACK_SKILL } from "../src/game/skills";
+import { TEST_WORLD } from "./test-world";
 import "../src/db/env";
 import { type DatabaseHandle, openDatabase } from "../src/db/connect";
 import { resetDomainData, seedDemoData } from "../src/db/maintenance";
@@ -120,7 +121,7 @@ describe.skipIf(!testDatabaseUrl)("memory-driven NPC slice", () => {
     const created = await createGame(handle.db, {
       username: DEMO_USER.username,
       name: "灰烬测试局",
-      world: DARK_FANTASY_WORLD,
+      world: TEST_WORLD,
     });
 
     expect(created.world.stages).toHaveLength(2);
@@ -238,7 +239,7 @@ describe.skipIf(!testDatabaseUrl)("memory-driven NPC slice", () => {
     expect(result.snapshot.manifest).toMatchObject({
       source: "db",
       dbVersion: 4,
-      contentVersion: DARK_FANTASY_WORLD.contentVersion,
+      contentVersion: TEST_WORLD.contentVersion,
     });
     expect(result.snapshot.manifest.parts).toEqual(
       expect.arrayContaining([
@@ -261,7 +262,7 @@ describe.skipIf(!testDatabaseUrl)("memory-driven NPC slice", () => {
     const created = await createGame(handle.db, {
       username: DEMO_USER.username,
       name: "等待事件测试局",
-      world: DARK_FANTASY_WORLD,
+      world: TEST_WORLD,
     });
     const service = new ScriptedNpcService([{ intents: [{ kind: "movement", mode: "wait" }] }]);
 
@@ -285,7 +286,7 @@ describe.skipIf(!testDatabaseUrl)("memory-driven NPC slice", () => {
     const created = await createGame(handle.db, {
       username: DEMO_USER.username,
       name: "攻击测试局",
-      world: DARK_FANTASY_WORLD,
+      world: TEST_WORLD,
     });
     const service = new ScriptedNpcService([{ intents: [attackIntent("提灯修士")] }]);
 
@@ -319,10 +320,77 @@ describe.skipIf(!testDatabaseUrl)("memory-driven NPC slice", () => {
     ).toBe(true);
   });
 
+  it("materializes scene items and starts the narration in the crypt", async () => {
+    const created = await createGame(handle.db, {
+      username: DEMO_USER.username,
+      name: "故事结构测试局",
+      world: DARK_FANTASY_WORLD,
+    });
+    const pyre = created.world.stages.find((stage) => stage.name === "场景.焚毛炉房");
+    const crypt = created.world.stages.find((stage) => stage.name === "场景.浅眠墓穴");
+    expect(pyre?.actors).toEqual([]);
+    expect(pyre?.items.map((item) => [item.name, item.kind])).toEqual([
+      ["武器.焚鼠火把", "weapon"],
+    ]);
+    expect(created.messages[0]?.stageId).toBe(crypt?.id);
+  });
+
+  it("wakes a sleeping actor on non-wait actions but not on wait", async () => {
+    const sleeping = {
+      key: "sleeping",
+      name: "沉睡",
+      description: "测试用沉睡状态。",
+      kind: "debuff" as const,
+    };
+    const world = {
+      ...TEST_WORLD,
+      actors: [
+        ...TEST_WORLD.actors,
+        {
+          stageKey: "gate",
+          name: "沉睡者",
+          profile: "一个正在沉睡的测试角色。",
+          appearance: "蜷缩在墙角。",
+          hp: 5,
+          maxHp: 5,
+          attack: 1,
+          defense: 0,
+          speed: 1,
+          items: [],
+          skills: [ATTACK_SKILL],
+          statusEffects: [sleeping],
+        },
+      ],
+    };
+    const created = await createGame(handle.db, {
+      username: DEMO_USER.username,
+      name: "沉睡规则测试局",
+      world,
+    });
+
+    await runNpcTurn(handle.db, created.game.slug, "守烬人", {
+      service: new ScriptedNpcService([{ intents: [{ kind: "movement", mode: "wait" }] }]),
+    });
+    const afterWait = await getGameState(handle.db, created.game.slug);
+    const sleeperAfterWait = afterWait.world.stages
+      .flatMap((stage) => stage.actors)
+      .find((actor) => actor.name === "沉睡者");
+    expect(sleeperAfterWait?.statusEffects.map((status) => status.key)).toEqual(["sleeping"]);
+
+    await runNpcTurn(handle.db, created.game.slug, "守烬人", {
+      service: new ScriptedNpcService([{ intents: [attackIntent("提灯修士")] }]),
+    });
+    const afterAttack = await getGameState(handle.db, created.game.slug);
+    const sleeperAfterAttack = afterAttack.world.stages
+      .flatMap((stage) => stage.actors)
+      .find((actor) => actor.name === "沉睡者");
+    expect(sleeperAfterAttack?.statusEffects).toEqual([]);
+  });
+
   it("marks a killed actor as dead and refuses to run its NPC loop", async () => {
     const world = {
-      ...DARK_FANTASY_WORLD,
-      actors: DARK_FANTASY_WORLD.actors.map((actor) =>
+      ...TEST_WORLD,
+      actors: TEST_WORLD.actors.map((actor) =>
         actor.name === "提灯修士" ? { ...actor, hp: 1, maxHp: 1, defense: 0 } : actor,
       ),
     };
@@ -354,7 +422,7 @@ describe.skipIf(!testDatabaseUrl)("memory-driven NPC slice", () => {
     const created = await createGame(handle.db, {
       username: DEMO_USER.username,
       name: "组合行动测试局",
-      world: DARK_FANTASY_WORLD,
+      world: TEST_WORLD,
     });
 
     const service = new ScriptedNpcService([
@@ -395,9 +463,9 @@ describe.skipIf(!testDatabaseUrl)("memory-driven NPC slice", () => {
 
   it("writes observer-specific communication and attack memory for a third actor", async () => {
     const world = {
-      ...DARK_FANTASY_WORLD,
+      ...TEST_WORLD,
       actors: [
-        ...DARK_FANTASY_WORLD.actors,
+        ...TEST_WORLD.actors,
         {
           stageKey: "gate",
           name: "旁听者",

@@ -10,11 +10,12 @@ PostgreSQL 是游戏状态的唯一真相。`agent:game` 从数据库读取状�
 - `actor_controls`：玩家接管 actor 的显式关系；有记录时该 actor 不再由 NPC loop 驱动。
 - `worlds`：游戏的世界状态，`game_id` 唯一，强制一局一个 world。
 - `stages`：world 下的场景；`world_id` 非空，按 `ordinal` 保持稳定顺序。
-- `stage_connections`：场景图的有向边；连接两端必须属于同一 world。当前演示世界为双向连接。
-- `actors`：场景中的 NPC；`stage_id` 非空，不能脱离场景存在；当前没有玩家控制字段；根属性为 `hp` / `max_hp` / `attack` / `defense` / `speed` / `death`；`skills` 与 `status_effects` 是 actor 的两个 JSONB 容器。
+- `stage_connections`：场景图的有向边；连接两端必须属于同一 world；演示世界使用双向连接，灰庭与骨厅之间另有一条双向鼠洞。
+- `actors`：场景中的角色；`stage_id` 非空，不能脱离场景存在；当前没有玩家控制字段；根属性为 `hp` / `max_hp` / `attack` / `defense` / `speed` / `death`；`skills` 与 `status_effects` 是 actor 的两个 JSONB 容器。
 - `items`：角色持有的物品；`actor_id` 非空，不能脱离角色存在；与 `skills`、`status_effects` 共同构成 actor 的三个运行时队列。
+- `stage_items`：暂放在场景中的物品；`stage_id` 非空，当前只作为场景内容读取，拾取并转入 actor 背包尚未实现。
 - actor 的 `skills`：技能队列，JSONB 数组；每项包含 `key`、`name`、`description`、`broadcast`、`resolution`、`purposeKinds` 与 `itemPolicy`。当前每个 actor 默认挂载 `attack`。
-- actor 的 `status_effects`：状态队列，JSONB 数组；每项包含 `key`、`name`、`description` 与 `kind`（buff/debuff），当前只预留容器，尚未产生状态效果。
+- actor 的 `status_effects`：状态队列，JSONB 数组；每项包含 `key`、`name`、`description` 与 `kind`（buff/debuff）。当前只有鼠王的 `sleeping` 会参与规则：同场景发生任何非 `wait` 行为即移除该状态；这是硬编码规则，不是通用状态机。
 - `game_messages`：公共消息流，按 `sequence` 追加；记录 `stage_id`、`speaker_actor_id`、`target_actor_id` 与 `visibility`，供客户端增量拉取与审计；不建立 session 表。
 - `agent_memories`：每个 agent 的私有上下文；当前 `owner_type` 为 `actor`，后续可扩展 stage / world。
 - `agent_memory_messages`：agent memory 的消息序列，保存 system / human / ai / tool 与 tool_calls、元数据。
@@ -25,21 +26,21 @@ PostgreSQL 是游戏状态的唯一真相。`agent:game` 从数据库读取状�
 
 ## 开发数据
 
-`seeds/dark-fantasy.ts` 提供黑暗奇幻的战役设定、全局规则、两个场景、双向连接、三个 NPC 与各自物品；故事内容留在内容定义层，不写进服务逻辑。
+`seeds/dark-fantasy.ts` 提供黑暗奇幻的战役设定、全局规则、五个场景、双向连接与五个角色；故事内容留在内容定义层，不写进服务逻辑。守墓人持有 `饰品.封骨钥匙`，焚毛炉房放置 `武器.焚鼠火把`，鼠王在骨厅沉睡；这些是初始内容，不是服务逻辑中的硬编码。
 
-`World` / `Actor` / `Stage` 是创建世界用的初始内容定义，不是测试专用，也不是数据库模型。`createGame` 读取 `World`，在一个事务中写入 `worlds`、`stages`、`actors`、`items` 与 memory；创建完成后 PostgreSQL 是唯一真相，修改内容定义不会回改已有游戏。测试与 CLI 共用同一 `World`，测试使用它只是为了确定性，不表示它只服务测试。`pnpm db:seed` 是数据库 seeding 的固定叫法，只写 demo 用户与 `app_meta`；`pnpm db:demo` 重置后再写这些基础数据；`agent:game create` 才把 `World` 物化为具体游戏。
+`World` / `Actor` / `Stage` 是创建世界用的初始内容定义，不是测试专用，也不是数据库模型。`createGame` 读取 `World`，在一个事务中写入 `worlds`、`stages`、`stage_items`、`actors`、`items` 与 memory；创建完成后 PostgreSQL 是唯一真相，修改内容定义不会回改已有游戏。`World.initialStageKey` 决定初始旁白所属场景；演示世界从浅眠墓穴开始。测试使用独立的小型世界，不随演示剧情变化。`pnpm db:seed` 是数据库 seeding 的固定叫法，只写 demo 用户与 `app_meta`；`pnpm db:demo` 重置后再写这些基础数据；`agent:game create` 才把 `World` 物化为具体游戏。
 
-`pnpm db:demo` 应用迁移、清空登记过的开发表、写入固定 demo 用户与 `app_meta`。`pnpm agent:game create --user demo` 创建一局游戏，同时生成 player 座位、world、stage 图、三个 NPC、物品与各自的 system memory。
+`pnpm db:demo` 应用迁移、清空登记过的开发表、写入固定 demo 用户与 `app_meta`。`pnpm agent:game create --user demo` 创建一局游戏，同时生成 player 座位、world、五段 stage 图、五个角色、场景物品、角色物品与各自的 system memory。
 
 ## NPC 行动
 
 NPC 回合是：数据库环境 → agent loop → `communicate` / `move` / `use_skill` 暂存 intent → `submit_plan` → 短事务按顺序应用 → 公共消息与 memory 反馈。
 
-工具包含只读 `look_stage`、`get_stats`、`get_items`，以及三个 intent 工具 `communicate`、`move`、`use_skill`；`submit_plan` 是终止工具。只读工具可多次调用；工具按模型返回的 `tool_calls` 顺序串行执行。`communicate` 暂存 `say`/`whisper`/`announce`，`move` 暂存 `move`/`wait`，`use_skill` 暂存技能、道具与目的；同类 intent 互斥，沟通类与行动类可以共存，顺序按工具调用顺序保留。所有 handler 只收集计划，不写数据库；loop 结束后由服务层重新校验并在事务中按顺序更新 actor、game version、公共消息与 memory。
+工具包含只读 `look_stage`、`get_stats`、`get_items`，以及三个 intent 工具 `communicate`、`move`、`use_skill`；`look_stage` 与环境提示都会列出当前场景的 `stage_items`，`get_items` 只列 actor 自己的物品；`submit_plan` 是终止工具。只读工具可多次调用；工具按模型返回的 `tool_calls` 顺序串行执行。`communicate` 暂存 `say`/`whisper`/`announce`，`move` 暂存 `move`/`wait`，`use_skill` 暂存技能、道具与目的；同类 intent 互斥，沟通类与行动类可以共存，顺序按工具调用顺序保留。所有 handler 只收集计划，不写数据库；loop 结束后由服务层重新校验并在事务中按顺序更新 actor、game version、公共消息与 memory。
 
 第一版动作是 `wait`、`move`、`say`、`whisper`、`announce` 和技能 `attack`：等待、沿连接移动、有目标公开说话、有目标私下耳语、无目标公开说话、使用技能；它们被收进三个 intent 工具；每个成功应用的 intent 都会写一条公共事件，`wait` 记录公开的等待事件，`attack` 记录伤害与剩余 HP，并向同场景其他 actor 写入观察 memory；不做跨场景广播。`attack` 是 `Skill` 的一个实例，输入为技能、可选道具与目的；伤害为攻击者 `attack` 减去目标 `defense`，最低 0；完全防御时伤害为 0；目标 HP 最低为 0，HP 归零时 `death=true`，之后不能执行 loop，也不能成为攻击目标。`say` 与 `whisper` 必须指定单个 `targetActorName`；`say` 向当前 stage 广播，`whisper` 只有发起者与目标收到 memory；`announce` 无目标，向当前 stage 广播。公共消息用 `visibility` 区分 `stage` 与 `private`；私密事件后续对客户端不可见。
 
-`agent:game npc --game <gameId|slug> --actor <actorId|actorName>` 推进一个 NPC；`--all` 跳过被玩家接管或已死亡的 actor。`agent:game take-control` / `release-control` 接管或释放一个 actor；`agent:game player-communicate --mode say|whisper|announce` 让被接管的 actor 直接执行三种沟通动作；`agent:game player-attack --target <actorName>` 让被接管的 actor 直接使用攻击技能。`agent:game status` 读取完整状态；`agent:game snapshot` 导出快照，包含每个 actor 的 memory。
+`agent:game npc --game <gameId|slug> --actor <actorId|actorName>` 推进一个 NPC；`--all` 跳过被玩家接管或已死亡的 actor。`agent:game take-control` / `release-control` 接管或释放一个 actor；`agent:game player-communicate --mode say|whisper|announce` 让被接管的 actor 直接执行三种沟通动作；`agent:game player-move --to <stageName>` 让被接管的 actor 沿连接移动；`agent:game player-attack --target <actorName>` 让被接管的 actor 直接使用攻击技能。`agent:game status` 读取完整状态；`agent:game snapshot` 导出快照，包含每个 actor 的 memory。睡眠的硬编码规则位于 `game/status.ts`：沟通、技能与移动都会惊醒同场景的沉睡 actor，`wait` 不会；移动同时检查起点与终点场景。
 
 ## 迁移与重置
 

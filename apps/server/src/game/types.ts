@@ -6,7 +6,7 @@ export type { CommunicationActionType, MessageVisibility, MovementActionType } f
  * 创建游戏时物化为运行时 world 的初始内容定义。
  *
  * 不是数据库行，也不是测试夹具；`createGame` 读取它并在一个事务中写入
- * `worlds`、`stages`、`actors` 与 `items`。创建完成后以数据库为唯一真相。
+ * `worlds`、`stages`、`actors`、`items` 与 `stage_items`。创建完成后以数据库为唯一真相。
  */
 export type World = {
   contentVersion: string;
@@ -14,6 +14,8 @@ export type World = {
   campaignSetting: string;
   systemRules: string;
   initialNarration?: string;
+  /** 初始旁白所属场景；省略时使用 `stages[0]`。 */
+  initialStageKey?: string;
   stages: readonly Stage[];
   connections: readonly Connection[];
   actors: readonly Actor[];
@@ -26,6 +28,8 @@ export type Stage = {
   profile: string;
   environment: string;
   narrative: string;
+  /** 暂放在场景中的物品；目前只物化为只读场景内容，拾取尚未实现。 */
+  items?: readonly Item[];
 };
 
 /** 场景图的初始有向连接；两端引用 `Stage.key`。 */
@@ -167,6 +171,7 @@ export type StageState = {
   narrative: string;
   ordinal: number;
   actors: ActorState[];
+  items: ItemState[];
 };
 
 export type ConnectionState = {

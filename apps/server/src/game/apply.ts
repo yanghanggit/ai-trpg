@@ -13,6 +13,7 @@ import {
   appendSkillObservations,
 } from "./observations";
 import { intentClass, intentClassLabel } from "./plan";
+import { wakeSleepingActors } from "./status";
 import type { ActorPlan, CommunicationIntent, MovementIntent, Skill, SkillIntent } from "./types";
 
 type Executor = Pick<Database, "select" | "insert" | "update">;
@@ -363,6 +364,7 @@ async function applyResolvedIntent(
       resolved.targetActor,
       resolved.intent.message,
     );
+    await wakeSleepingActors(executor, resolved.stage.id, now);
     return communicationFeedback(resolved);
   }
 
@@ -406,6 +408,7 @@ async function applyResolvedIntent(
       remainingHp,
       death,
     );
+    await wakeSleepingActors(executor, resolved.stage.id, now);
     return skillFeedback(resolved, damage, remainingHp);
   }
 
@@ -428,6 +431,8 @@ async function applyResolvedIntent(
       actorRow.actor.id,
       `# 环境变化\n${actorRow.actor.name}从${resolved.stage.name}进入了${resolved.targetStage.name}。`,
     );
+    await wakeSleepingActors(executor, resolved.stage.id, now);
+    await wakeSleepingActors(executor, resolved.targetStage.id, now);
     return movementFeedback(resolved);
   }
 
