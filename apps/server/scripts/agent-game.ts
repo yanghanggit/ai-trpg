@@ -31,6 +31,7 @@ import {
   playerSkill,
   releaseActorControl,
   runNpcTurn,
+  runProbe,
   runStageTurn,
   snapshotGame,
   takeActorControl,
@@ -92,6 +93,8 @@ function usage(): void {
       "agent-game npc --game <gameId|slug> --all",
       "agent-game stage --game <gameId|slug> --stage <stageId|stageName>",
       "agent-game stage --game <gameId|slug> --all",
+      "agent-game probe --game <gameId|slug> --actor <actorId|actorName> --message <text>",
+      "agent-game probe --game <gameId|slug> --stage <stageId|stageName> --message <text>",
       "agent-game take-control --game <gameId|slug> --actor <actorId|actorName>",
       "agent-game release-control --game <gameId|slug> --actor <actorId|actorName>",
       "agent-game player-communicate --game <gameId|slug> --actor <actorId|actorName> --mode say|whisper|announce [--target <actorName>] [--reason <text>] --message <text>",
@@ -381,6 +384,32 @@ async function main(): Promise<void> {
         state: result.state,
       })),
     });
+    return;
+  }
+
+  if (command === "probe") {
+    if (typeof values.game !== "string") {
+      throw new Error("probe 需要 --game");
+    }
+    if (typeof values.message !== "string" || values.message.trim().length === 0) {
+      throw new Error("probe 需要非空 --message");
+    }
+    const actorRef = typeof values.actor === "string" ? values.actor : undefined;
+    const stageRef = typeof values.stage === "string" ? values.stage : undefined;
+    if ((actorRef === undefined) === (stageRef === undefined)) {
+      throw new Error("probe 需要 --actor 或 --stage 二选一");
+    }
+
+    const gameRef = values.game;
+    const message = values.message;
+    const target =
+      actorRef !== undefined
+        ? { type: "actor" as const, actorRef }
+        : { type: "stage" as const, stageRef: stageRef as string };
+    const result = await withDatabase((db) =>
+      runProbe(db, gameRef, { service: DEEPSEEK_SERVICE, target, message }),
+    );
+    emit({ ok: true, action: "probe", ...result });
     return;
   }
 

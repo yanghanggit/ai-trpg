@@ -17,6 +17,8 @@
 - `npc --game <id|slug> --all`：按当前 actor 顺序推进所有未被玩家接管的 NPC。
 - `stage --game <id|slug> --stage <stageId|stageName>`：推动一个 stage 小 GM 回合，更新 environment 并写入场景事件。
 - `stage --game <id|slug> --all`：按当前 stage 顺序推动所有场景。
+- `probe --game <id|slug> --actor <actorId|actorName> --message <text>`：向 actor 发起只读 memory 探针，不写 memory、不注入当前 observation、不改变游戏状态。
+- `probe --game <id|slug> --stage <stageId|stageName> --message <text>`：向 stage 发起只读 memory 探针，只读取 system prompt 与场景 memory，不注入当前环境或物品。
 - `take-control --game <id|slug> --actor <actorId|actorName>`：玩家接管一个 actor。
 - `release-control --game <id|slug> --actor <actorId|actorName>`：解除接管。
 - `player-communicate --game <id|slug> --actor <actorId|actorName> --mode say|whisper|announce [--target <actorName>] [--reason <text>] --message <text>`：以被接管 actor 的身份直接沟通，不调用 LLM。

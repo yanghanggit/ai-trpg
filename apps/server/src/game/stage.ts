@@ -30,8 +30,8 @@ export type StageTurnOptions = {
   logger?: Parameters<typeof agentLoop>[0]["logger"];
 };
 
-/** 构造 stage 小 GM 本轮的当前场景观察。 */
-function buildStageObservation(state: GameState, stage: StageState): string {
+/** 构造 stage 小 GM 本轮的当前场景观察；仲裁与探针共用。 */
+export function buildStageObservation(state: GameState, stage: StageState): string {
   const moves = adjacentStageNames(state, stage.id);
   return [
     "# 当前场景",

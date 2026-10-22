@@ -40,8 +40,8 @@ export type NpcTurnOptions = {
   logger?: Parameters<typeof agentLoop>[0]["logger"];
 };
 
-/** 构造 NPC 本轮的公开环境与任务说明。 */
-function buildObservation(state: GameState, current: ActorWithStage): string {
+/** 构造 actor 本轮的公开环境与任务说明；NPC 与探针共用。 */
+export function buildActorObservation(state: GameState, current: ActorWithStage): string {
   const moves = adjacentStageNames(state, current.stage.id);
   const others = otherActorsInStage(current.stage, current.actor.id);
   const targets = others.map((actor) => actor.name);
@@ -125,7 +125,7 @@ export async function runNpcTurn(
 
   const loop = await agentLoop({
     name: current.actor.name,
-    inputMessage: buildObservation(state, current),
+    inputMessage: buildActorObservation(state, current),
     messages: memory.messages,
     tools: [
       lookTool,

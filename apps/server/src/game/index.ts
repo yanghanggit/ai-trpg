@@ -6,6 +6,7 @@ export * from "./errors";
 export * from "./memory";
 export * from "./npc";
 export * from "./player";
+export * from "./probe";
 export * from "./service";
 export * from "./skills";
 export * from "./snapshot";

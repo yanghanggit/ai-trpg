@@ -83,6 +83,8 @@ Boss 路线：鼠王被非 `wait` 行为惊醒后会自行移动和攻击；当�
 | 环境约束 | 提交包含角色名的 environment | 环境更新被拒绝，stage 写入拒绝记忆，场景不变 |
 | 场景物品同步 | 拾取场景物品后推动 stage | environment 只描述当前物品与当前可见状态；不写物品消失、被拿走或历史痕迹；拾取事件保留在 stage memory |
 | stage 后 actor | 推动 stage 后再推进 actor | actor 下一次 plan 的当前环境包含新的 environment；不写 actor observation |
+| actor 探针 | `probe --actor` | 只依据 actor memory 回答；不注入当前 observation、不写 memory、不产生事件、不改变版本 |
+| stage 探针 | `probe --stage` | 只依据 stage memory 回答；不注入当前 environment 或场景物品、不改变 environment |
 
 ## 已用真实 provider 验证
 
@@ -96,6 +98,7 @@ Boss 路线：鼠王被非 `wait` 行为惊醒后会自行移动和攻击；当�
 - 玩家可走到封骨之门，用钥匙使游戏进入 `completed`。
 - 玩家推动守墓人、再推动灰庭、再推动守墓人：灰庭 environment 已更新，守墓人的下一次 plan 读取到新环境，stage memory 同时保留本场景事件。
 - 玩家在焚毛炉房拾取 `武器.焚鼠火把` 后推动焚毛炉房：stage 依据当前场景物品（已为空）与 pickup 记忆，生成只描述当前炉房状态的 environment，不再出现火把，也不写消失过程或历史痕迹。
+- 对焚毛炉房发起 stage 探针，依据 stage memory 回答当前场景没有火把；对苏醒者发起 actor 探针，依据 actor memory 回答自己曾拾取火把；两次探针都不写入 memory 或游戏事件。
 
 ## 暂不验证
 

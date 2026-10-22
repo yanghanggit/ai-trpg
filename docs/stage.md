@@ -62,4 +62,4 @@ actor 行动产生的场景事件也进入 stage memory；移动会分别写入�
 
 `agent:game stage --game <gameId|slug> --stage <stageId|stageName>` 推动一个 stage 回合；`--all` 按当前 stage 顺序推动全部场景。它不调用 actor loop，也不自动跟随 actor 行动。
 
-→ 参见：[数据库](database.md) → 参见：[Actor 行动与记忆](actor-actions-memory.md) → 参见：[开发期 Agent 工作流](debug-workflow.md)
+→ 参见：[数据库](database.md) → 参见：[Actor 行动与记忆](actor-actions-memory.md) → 参见：[Agent 探针](probe.md) → 参见：[开发期 Agent 工作流](debug-workflow.md)
