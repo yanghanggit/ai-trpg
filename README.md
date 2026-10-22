@@ -1,112 +1,72 @@
 # AI TRPG
 
-AI 跑团项目的新起点：TypeScript monorepo，服务端与客户端共享同一份 API 契约。
+AI 跑团项目：TypeScript monorepo，Fastify 服务端 + React 客户端，共享 OpenAPI 契约。
 
-当前是**骨架 + 空页**阶段：客户端只有一个页面，调用 `GET /api/v1/health`，展示服务端是否可达、版本、运行时长与请求延迟。
+技术栈：Node.js 22 / TypeScript / pnpm workspaces / Fastify / React + Vite。
 
-## 技术栈
+## 环境要求
 
-| 层        | 选择                                                   | 说明                               |
-| --------- | ------------------------------------------------------ | ---------------------------------- |
-| 运行时    | Node.js >= 22 / ESM                                    | 服务端与工具链统一                 |
-| 包管理    | pnpm workspaces                                        | 不引入 Turbo / Nx                  |
-| 服务端    | Fastify 5 + Zod 4                                      | 插件、校验、日志、OpenAPI 一步到位 |
-| 客户端    | Vite + React 19 + React Router + TanStack Query        | SPA，无 SSR                        |
-| HTTP 契约 | Zod → OpenAPI → `openapi-typescript` → `openapi-fetch` | 类型端到端，不手写请求/响应类型    |
-| 质量      | Biome + Vitest + `tsc --noEmit`                        | lint / format 一个工具             |
+- Node.js >= 22
+- pnpm 12（`corepack enable`，版本由 `packageManager` 固定）
 
-## 目录结构
-
-```text
-apps/
-  server/         Fastify 服务端（服务端真相）
-  web/            Vite + React 客户端
-packages/
-  shared/         跨端常量：服务名、API 版本、默认端口
-  api-client/     生成的契约类型 + openapi-fetch 客户端
-docs/             架构、规范与本地开发文档
-scripts/          仓库级脚本（端口守卫、截图）
-screenshots/      截图输出（已 gitignore，仅本地保留）
-.pi/extensions/   pi 扩展：DeepSeek 搜索 / 网页抓取 / 识图
-```
-
-## 快速开始
-
-### 一条龙（复制粘贴）
+## 本地启动
 
 ```bash
-pnpm pipeline
-```
-
-它等价于下面这条完整管线（`pipeline` 跑完检查后直接进入 `pnpm dev`）：
-
-```bash
-pnpm install && pnpm gen:api && pnpm typecheck && pnpm lint && pnpm test:run && pnpm build && pnpm dev
-```
-
-只想跑检查、不启动服务：
-
-```bash
-pnpm verify
-```
-
-### 分步启动
-
-```bash
-# Node 22+，pnpm 12（corepack enable 后使用 packageManager 字段）
 pnpm install
-pnpm dev            # 默认 HOST=0.0.0.0，客户端跟随页面主机名
+cp .env.example .env   # 可选：需要 LLM key 或固定服务端地址时
+pnpm dev
 ```
 
-启动后终端会打印 Vite 的 Network 地址，用 `en0` 那条访问（不要用 localhost）：
+`pnpm dev` 会先离线生成 API 契约，再并行启动服务端与客户端。
 
-```text
-➜  Local:   http://localhost:5373/
-➜  Network: http://192.168.x.x:5373/  en0
-```
+启动后访问终端打印的地址：
 
-- 客户端：终端里的 `Network` 地址
-- 服务端健康检查：`http://<en0 IP>:8787/api/v1/health`
-- OpenAPI 文档：`http://<en0 IP>:8787/openapi.json`
+- Web：`http://<局域网 IP>:5373/`（Vite 的 Network 地址）
+- API：`http://<局域网 IP>:8787/api/v1/health`
 
-```bash
-curl http://192.168.x.x:8787/api/v1/health
-```
-
-需要填 LLM 密钥或固定服务端地址时，再 `cp .env.example .env`；不建 `.env` 也能用默认值启动。
+服务端默认监听 `0.0.0.0`，局域网内其它设备可直接访问。不要用 `localhost` 访问另一台机器；IP 变化后以 Vite 输出的 Network 地址为准。修改 `.env` 后需要重启 dev。
 
 ## 常用命令
 
-| 命令              | 说明                                                         |
-| ----------------- | ------------------------------------------------------------ |
-| `pnpm pipeline`   | 一条龙：install → 生成契约 → 检查 → 测试 → 构建 → `pnpm dev` |
-| `pnpm verify`     | 只跑检查链，不启动服务                                       |
-| `pnpm dev`        | 生成契约后并行启动服务端与客户端                             |
-| `pnpm dev:server` | 只启动服务端（`tsx watch`）                                  |
-| `pnpm dev:web`    | 只启动客户端                                                 |
-| `pnpm gen:api`    | 离线生成 `openapi.json` 与客户端类型（不需要先启动服务端）   |
-| `pnpm typecheck`  | 全仓 TypeScript 检查                                         |
-| `pnpm lint`       | Biome 检查 + 端口唯一来源守卫                                |
-| `pnpm format`     | Biome 格式化                                                 |
-| `pnpm test`       | 服务端 inject 测试 + Web 组件测试                            |
-| `pnpm test:run`   | 同上，显式单次运行（CI / 管线使用）                          |
-| `pnpm build`      | 生成契约 + 服务端打包 + Web 生产构建                         |
-| `pnpm screenshot` | 用 headless Chrome 给页面截图（输出到 `screenshots/`）       |
+| 命令                  | 说明                                                          |
+| --------------------- | ------------------------------------------------------------- |
+| `pnpm dev`            | 生成契约后并行启动服务端与客户端                              |
+| `pnpm dev:server`     | 只启动服务端                                                  |
+| `pnpm dev:web`        | 只启动客户端                                                  |
+| `pnpm verify`         | install → 契约 → typecheck → lint → 测试 → 构建（不启动服务） |
+| `pnpm pipeline`       | `verify` 通过后直接进入 `pnpm dev`                            |
+| `pnpm test:run`       | 单次运行全部测试                                              |
+| `pnpm lint`           | Biome 检查 + 端口唯一来源守卫                                 |
+| `pnpm format`         | Biome 格式化                                                  |
+| `pnpm gen:api`        | 重新生成 OpenAPI 与客户端类型                                 |
+| `pnpm build`          | 生产构建（服务端 + Web）                                      |
+| `pnpm smoke:deepseek` | 真实调用 DeepSeek 的冒烟测试（需要 key，可能产生费用）        |
 
-## API 契约
+## 部署
 
-```text
-路由里的 Zod schema
-  → @fastify/swagger 导出 openapi.json
-  → openapi-typescript 生成 schema.d.ts
-  → openapi-fetch 提供带类型的 client
+```bash
+pnpm install --frozen-lockfile
+pnpm build
+pnpm --filter @ai-trpg/server start
 ```
 
-生成物不入库；`pnpm dev` / `typecheck` / `build` 都会先确保它们存在。细节见 [docs/architecture.md](docs/architecture.md)。
+- 服务端产物：`apps/server/dist/index.js`
+- Web 产物：`apps/web/dist/`，用 nginx / Caddy 等静态托管
+- 生产配置优先使用进程环境变量；常用项：
+  - `HOST=0.0.0.0`
+  - `PORT=8787`
+  - `CORS_ORIGINS=https://your-domain`
+  - `DEEPSEEK_API_KEY=...`（使用 LLM 功能时）
+- `VITE_API_BASE_URL` 在构建时写入前端。API 与页面不同源时，构建前设置：
+
+  ```bash
+  VITE_API_BASE_URL=https://api.example.com pnpm build
+  ```
+
+  同源反向代理时，设置为页面域名，并把 `/api/` 转发到 `127.0.0.1:8787`。
+
+- 健康检查：`curl http://127.0.0.1:8787/api/v1/health`
 
 ## 文档
 
-- [docs/README.md](docs/README.md)：文档索引
-- [docs/architecture.md](docs/architecture.md)：分层、契约链路、端口与环境变量
-- [docs/conventions.md](docs/conventions.md)：目录、命名、API 使用规范
-- [docs/dev-setup.md](docs/dev-setup.md)：本地开发、联调与排错
+完整文档见 [docs/README.md](docs/README.md)。

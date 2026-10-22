@@ -11,7 +11,10 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "test:run": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "smoke:deepseek": "tsx scripts/run-deepseek-smoke.ts",
+    "smoke:deepseek:full": "tsx scripts/run-deepseek-smoke.ts --full",
+    "smoke:deepseek:dump": "tsx scripts/run-deepseek-smoke.ts --dump"
   },
   "dependencies": {
     "@ai-trpg/shared": "workspace:*",

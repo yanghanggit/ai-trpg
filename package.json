@@ -21,6 +21,9 @@
     "test": "pnpm --filter @ai-trpg/server test && pnpm --filter @ai-trpg/web test",
     "test:run": "pnpm --filter @ai-trpg/server test:run && pnpm --filter @ai-trpg/web test:run",
     "screenshot": "tsx scripts/screenshot.ts",
+    "smoke:deepseek": "pnpm --filter @ai-trpg/server smoke:deepseek",
+    "smoke:deepseek:full": "pnpm --filter @ai-trpg/server smoke:deepseek:full",
+    "smoke:deepseek:dump": "pnpm --filter @ai-trpg/server smoke:deepseek:dump",
     "verify": "pnpm install && pnpm gen:api && pnpm typecheck && pnpm lint && pnpm test:run && pnpm build",
     "pipeline": "pnpm verify && pnpm dev",
     "check:ports": "node scripts/check-ports.mjs"

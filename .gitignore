@@ -19,6 +19,10 @@ coverage
 screenshots/*
 !screenshots/.gitkeep
 
+# LLM 调试落盘（保留目录占位）
+**/logs/*
+!**/logs/.gitkeep
+
 # 日志
 *.log
 npm-debug.log*
@@ -29,3 +33,4 @@ pnpm-debug.log*
 .vscode/*
 !.vscode/extensions.json
 .idea
+.VSCodeCounter/
