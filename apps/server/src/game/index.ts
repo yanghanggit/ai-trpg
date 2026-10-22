@@ -7,5 +7,6 @@ export * from "./memory";
 export * from "./npc";
 export * from "./player";
 export * from "./service";
+export * from "./skills";
 export * from "./snapshot";
 export * from "./types";

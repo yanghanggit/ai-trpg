@@ -35,9 +35,10 @@ export type Connection = {
 };
 
 /**
- * World 内的初始 actor 定义，包含根属性、初始物品与初始死亡状态。
+ * World 内的初始 actor 定义，包含根属性、初始物品、技能、状态与初始死亡状态。
  *
- * `death` 省略时按 false 写入；创建后由攻击等行动更新数据库中的 `death`。
+ * `death` 省略时按 false 写入；创建后由技能等行动更新数据库中的 `death`。
+ * `skills`、`statusEffects` 与运行时 `items` 一起构成三个 actor 容器。
  */
 export type Actor = {
   stageKey: string;
@@ -51,6 +52,8 @@ export type Actor = {
   speed: number;
   death?: boolean;
   items: readonly Item[];
+  skills: readonly Skill[];
+  statusEffects: readonly StatusEffect[];
 };
 
 /** Actor 的初始物品定义；创建后物化为 `items` 行。 */
@@ -68,6 +71,43 @@ export type CreateGameInput = {
   world: World;
 };
 
+/** 技能结果的广播范围；目前只支持场景公开与私密两类。 */
+export type SkillBroadcast = "stage" | "private";
+
+/** 技能的结算方式：可计算的结果直接算，复杂结果交给 GM/LLM。 */
+export type SkillResolution = "computed" | "llm";
+
+/** 一次技能行动希望达成的结果。 */
+export type SkillPurpose =
+  | { kind: "damage"; targetActorName: string }
+  | { kind: "narrative"; description: string };
+
+export type SkillPurposeKind = SkillPurpose["kind"];
+
+/**
+ * actor 掌握的一项技能定义。
+ *
+ * `key` 是稳定身份；`name` / `description` 用于展示与叙事；`broadcast` 决定
+ * 结果事件范围；`resolution` 决定由规则计算还是交给 GM/LLM 推理。
+ */
+export type Skill = {
+  key: string;
+  name: string;
+  description: string;
+  broadcast: SkillBroadcast;
+  resolution: SkillResolution;
+  purposeKinds: readonly SkillPurposeKind[];
+  itemPolicy: "optional" | "required";
+};
+
+/** 未来 buff/debuff 的状态条目；目前只作为 actor 的状态队列容器。 */
+export type StatusEffect = {
+  key: string;
+  name: string;
+  description: string;
+  kind: "buff" | "debuff";
+};
+
 export type CommunicationIntent = {
   kind: "communication";
   mind: string;
@@ -82,12 +122,14 @@ export type MovementIntent = {
   targetStageName?: string;
 };
 
-export type AttackIntent = {
-  kind: "attack";
-  targetActorName: string;
+export type SkillIntent = {
+  kind: "skill";
+  skill: Skill;
+  itemNames: readonly string[];
+  purpose: SkillPurpose;
 };
 
-export type ActorIntent = CommunicationIntent | MovementIntent | AttackIntent;
+export type ActorIntent = CommunicationIntent | MovementIntent | SkillIntent;
 
 export type ActorPlan = {
   intents: ActorIntent[];
@@ -100,6 +142,7 @@ export type ItemState = {
   kind: string;
 };
 
+/** 运行时 actor；`items`、`skills`、`statusEffects` 是三个队列。 */
 export type ActorState = {
   id: string;
   name: string;
@@ -112,6 +155,8 @@ export type ActorState = {
   speed: number;
   death: boolean;
   items: ItemState[];
+  skills: Skill[];
+  statusEffects: StatusEffect[];
 };
 
 export type StageState = {

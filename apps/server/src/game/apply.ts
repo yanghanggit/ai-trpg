@@ -1,7 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { and, eq, sql } from "drizzle-orm";
 import type { Database } from "../db/pool";
-import { actors, gameMessages, games, stageConnections, stages, worlds } from "../db/schema";
+import { actors, gameMessages, games, items, stageConnections, stages, worlds } from "../db/schema";
 import type { ChatMessage } from "../llm/types";
 import { MEMORY_KINDS, type MessageVisibility, visibilityForCommunication } from "./actions";
 import { GameError } from "./errors";
@@ -12,12 +12,13 @@ import {
   appendEnvironmentObservations,
 } from "./observations";
 import { intentClass, intentClassLabel } from "./plan";
-import type { ActorPlan, AttackIntent, CommunicationIntent, MovementIntent } from "./types";
+import type { ActorPlan, CommunicationIntent, MovementIntent, Skill, SkillIntent } from "./types";
 
 type Executor = Pick<Database, "select" | "insert" | "update">;
 type WorldRow = typeof worlds.$inferSelect;
 type StageRow = typeof stages.$inferSelect;
 type ActorRow = typeof actors.$inferSelect;
+type ItemRow = typeof items.$inferSelect;
 type ActorWithStageRow = { actor: ActorRow; stage: StageRow };
 
 type PublicMessage = {
@@ -42,14 +43,15 @@ type ResolvedMovement = {
   targetStage?: StageRow;
 };
 
-type ResolvedAttack = {
-  kind: "attack";
-  intent: AttackIntent;
+type ResolvedSkill = {
+  kind: "skill";
+  intent: SkillIntent;
   stage: StageRow;
-  target: ActorRow;
+  target?: ActorRow;
+  items: ItemRow[];
 };
 
-type ResolvedIntent = ResolvedCommunication | ResolvedMovement | ResolvedAttack;
+type ResolvedIntent = ResolvedCommunication | ResolvedMovement | ResolvedSkill;
 
 /** 校验 plan 的类别互斥；同类别只能有一个 intent。 */
 function validatePlanShape(plan: ActorPlan): void {
@@ -136,15 +138,18 @@ async function resolveMovementTarget(
   return target;
 }
 
-async function resolveAttackTarget(
+async function resolveSkillTarget(
   executor: Executor,
   stageId: string,
   actorId: string,
-  intent: AttackIntent,
+  intent: SkillIntent,
 ): Promise<ActorRow> {
-  const targetActorName = intent.targetActorName.trim();
+  if (intent.purpose.kind !== "damage") {
+    throw new GameError("invalid_action", `暂不支持技能目的: ${intent.purpose.kind}`);
+  }
+  const targetActorName = intent.purpose.targetActorName.trim();
   if (targetActorName.length === 0) {
-    throw new GameError("invalid_action", "攻击需要 targetActorName");
+    throw new GameError("invalid_action", "damage 目的需要 targetActorName");
   }
   const targets = await executor
     .select()
@@ -153,15 +158,66 @@ async function resolveAttackTarget(
     .limit(2);
   const [target] = targets;
   if (targets.length !== 1 || !target) {
-    throw new GameError("invalid_action", `当前场景内找不到唯一的攻击目标: ${targetActorName}`);
+    throw new GameError("invalid_action", `当前场景内找不到唯一的技能目标: ${targetActorName}`);
   }
   if (target.id === actorId) {
-    throw new GameError("invalid_action", "不能攻击自己");
+    throw new GameError("invalid_action", "技能目标不能是自己");
   }
   if (target.death || target.hp <= 0) {
-    throw new GameError("invalid_action", `攻击目标已经死亡: ${target.name}`);
+    throw new GameError("invalid_action", `技能目标已经死亡: ${target.name}`);
   }
   return target;
+}
+
+async function resolveSkillItems(
+  executor: Executor,
+  actorId: string,
+  itemNames: readonly string[],
+): Promise<ItemRow[]> {
+  const resolved: ItemRow[] = [];
+  for (const itemName of itemNames) {
+    const matches = await executor
+      .select()
+      .from(items)
+      .where(and(eq(items.actorId, actorId), eq(items.name, itemName)))
+      .limit(2);
+    const [item] = matches;
+    if (matches.length !== 1 || !item) {
+      throw new GameError("invalid_action", `actor 没有唯一物品: ${itemName}`);
+    }
+    resolved.push(item);
+  }
+  return resolved;
+}
+
+async function resolveSkill(
+  executor: Executor,
+  stage: StageRow,
+  actorRow: ActorWithStageRow,
+  intent: SkillIntent,
+): Promise<ResolvedSkill> {
+  const skills = actorRow.actor.skills as unknown as Skill[];
+  const skill = skills.find((candidate) => candidate.key === intent.skill.key);
+  if (!skill) {
+    throw new GameError("invalid_action", `actor 未掌握技能: ${intent.skill.key}`);
+  }
+  if (skill.resolution !== "computed") {
+    throw new GameError("invalid_action", `技能需要 GM 判定: ${skill.name}`);
+  }
+
+  const resolvedItems = await resolveSkillItems(executor, actorRow.actor.id, intent.itemNames);
+  if (skill.itemPolicy === "required" && resolvedItems.length === 0) {
+    throw new GameError("invalid_action", `技能需要至少一个道具: ${skill.name}`);
+  }
+  const target = await resolveSkillTarget(executor, stage.id, actorRow.actor.id, intent);
+
+  return {
+    kind: "skill",
+    intent: { ...intent, skill },
+    stage,
+    target,
+    items: resolvedItems,
+  };
 }
 
 /** 顺序校验 intent，并模拟移动后的场景，不写数据库。 */
@@ -206,13 +262,8 @@ async function resolvePlan(
       continue;
     }
 
-    const target = await resolveAttackTarget(executor, stage.id, actorRow.actor.id, intent);
-    resolved.push({
-      kind: "attack",
-      intent,
-      stage,
-      target,
-    });
+    const resolvedSkill = await resolveSkill(executor, stage, actorRow, intent);
+    resolved.push(resolvedSkill);
   }
 
   return resolved;
@@ -261,12 +312,20 @@ function communicationFeedback(resolved: ResolvedCommunication): string {
   return `# 行动结果\n你对${targetActor?.name ?? intent.targetActorName ?? "某人"}耳语（场景：${stage.name}）：${intent.message}`;
 }
 
-function attackFeedback(resolved: ResolvedAttack, damage: number, remainingHp: number): string {
+function skillFeedback(resolved: ResolvedSkill, damage: number, remainingHp: number): string {
+  const target = resolved.target;
+  if (!target) {
+    throw new Error("damage skill 缺少目标");
+  }
+  const itemText =
+    resolved.items.length > 0
+      ? `（使用${resolved.items.map((item) => item.name).join("、")}）`
+      : "";
   const outcome =
     remainingHp <= 0
-      ? `${resolved.target.name}倒下了`
-      : `${resolved.target.name}剩余 HP ${remainingHp}/${resolved.target.maxHp}`;
-  return `# 行动结果\n你攻击了${resolved.target.name}，造成${damage}点伤害；${outcome}。`;
+      ? `${target.name}倒下了`
+      : `${target.name}剩余 HP ${remainingHp}/${target.maxHp}`;
+  return `# 行动结果\n你使用${resolved.intent.skill.name}${itemText}对${target.name}，造成${damage}点伤害；${outcome}。`;
 }
 
 function movementFeedback(resolved: ResolvedMovement): string {
@@ -306,7 +365,11 @@ async function applyResolvedIntent(
     return communicationFeedback(resolved);
   }
 
-  if (resolved.kind === "attack") {
+  if (resolved.kind === "skill") {
+    if (resolved.intent.purpose.kind !== "damage" || !resolved.target) {
+      throw new GameError("invalid_action", `暂不支持技能目的: ${resolved.intent.purpose.kind}`);
+    }
+    const skill = resolved.intent.skill;
     const damage = Math.max(0, actorRow.actor.attack - resolved.target.defense);
     const remainingHp = Math.max(0, resolved.target.hp - damage);
     const death = remainingHp <= 0;
@@ -315,25 +378,31 @@ async function applyResolvedIntent(
       .set({ hp: remainingHp, death, updatedAt: now })
       .where(eq(actors.id, resolved.target.id));
     await bumpGameVersion(executor, gameId, now);
+    const itemText =
+      resolved.items.length > 0
+        ? `（使用${resolved.items.map((item) => item.name).join("、")}）`
+        : "";
     const outcome = death
       ? `；${resolved.target.name}倒下了。`
       : `；${resolved.target.name}剩余 HP ${remainingHp}/${resolved.target.maxHp}。`;
-    const content = `${actorRow.actor.name}攻击${resolved.target.name}，造成${damage}点伤害${outcome}`;
+    const content = `${actorRow.actor.name}使用${skill.name}${itemText}对${resolved.target.name}，造成${damage}点伤害${outcome}`;
     await appendPublicMessage(executor, gameId, actorRow.actor.id, {
-      kind: "attack",
+      kind: skill.key,
       stageId: resolved.stage.id,
       targetActorId: resolved.target.id,
-      visibility: "stage",
+      visibility: skill.broadcast,
       content,
     });
-    await appendActionObservations(
-      executor,
-      gameId,
-      resolved.stage.id,
-      actorRow.actor.id,
-      `# 战斗\n${content}`,
-    );
-    return attackFeedback(resolved, damage, remainingHp);
+    if (skill.broadcast === "stage") {
+      await appendActionObservations(
+        executor,
+        gameId,
+        resolved.stage.id,
+        actorRow.actor.id,
+        `# 战斗\n${content}`,
+      );
+    }
+    return skillFeedback(resolved, damage, remainingHp);
   }
 
   if (resolved.intent.mode === "move" && resolved.targetStage) {

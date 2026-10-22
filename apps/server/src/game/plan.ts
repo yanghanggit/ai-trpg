@@ -12,10 +12,11 @@ import type {
   ActorIntent,
   ActorPlan,
   ActorState,
-  AttackIntent,
   CommunicationIntent,
   GameState,
   MovementIntent,
+  Skill,
+  SkillIntent,
 } from "./types";
 
 /** 构造只读环境查看工具。 */
@@ -135,24 +136,46 @@ export function buildMoveTool(availableStageNames: readonly string[]): ToolDefin
   };
 }
 
-/** 构造攻击 intent 工具；伤害使用攻击者的 attack 与目标的 defense。 */
-export function buildAttackTool(availableTargetActorNames: readonly string[]): ToolDefinition {
+/** 构造技能 intent 工具；技能、道具与目的都由本次行动选择。 */
+export function buildSkillTool(
+  availableSkills: readonly Skill[],
+  availableTargetActorNames: readonly string[],
+  availableItemNames: readonly string[],
+): ToolDefinition {
   return {
     type: "function",
     function: {
-      name: "attack",
+      name: "use_skill",
       description:
-        "把一次攻击加入本轮计划。只能攻击当前场景内的角色；伤害为攻击者 attack 减去目标 defense，最低 0。",
+        "把一次技能行动加入本轮计划。选择自己掌握的技能、可选道具与想达成的目的；当前 attack 的 damage 目的由规则计算。",
       parameters: {
         type: "object",
         properties: {
+          skill: {
+            type: "string",
+            enum: availableSkills.map((skill) => skill.key),
+            description: "要使用的技能 key",
+          },
+          purpose: {
+            type: "string",
+            enum: ["damage"],
+            description: "本次技能想达成的目的；damage 表示造成伤害",
+          },
           targetActorName: {
             type: "string",
-            description: "当前场景内唯一的攻击目标",
+            description: "damage 目的的目标角色；其他目的按技能定义填写",
             ...(availableTargetActorNames.length > 0 ? { enum: availableTargetActorNames } : {}),
           },
+          itemNames: {
+            type: "array",
+            items: {
+              type: "string",
+              ...(availableItemNames.length > 0 ? { enum: availableItemNames } : {}),
+            },
+            description: "可选的补充道具名；可以为空",
+          },
         },
-        required: ["targetActorName"],
+        required: ["skill", "purpose"],
       },
     },
   };
@@ -253,14 +276,43 @@ export function parseMovement(args: Record<string, unknown>): MovementIntent {
   };
 }
 
-/** 把 attack 工具参数转换为攻击 intent；只检查形状。 */
-export function parseAttack(args: Record<string, unknown>): AttackIntent {
+/** 把 use_skill 工具参数转换为技能 intent；只检查形状。 */
+export function parseSkill(
+  args: Record<string, unknown>,
+  availableSkills: readonly Skill[],
+): SkillIntent {
+  const skillKey = typeof args.skill === "string" ? args.skill.trim() : "";
+  const skill = availableSkills.find((candidate) => candidate.key === skillKey);
+  if (!skill) {
+    throw new GameError("invalid_action", `actor 未掌握技能: ${skillKey}`);
+  }
+
+  const purposeKind = args.purpose;
+  if (purposeKind !== "damage" || !skill.purposeKinds.includes("damage")) {
+    throw new GameError("invalid_action", `技能 ${skill.name} 不支持目的: ${String(purposeKind)}`);
+  }
   const targetActorName =
     typeof args.targetActorName === "string" ? args.targetActorName.trim() : "";
   if (targetActorName.length === 0) {
-    throw new GameError("invalid_action", "攻击需要非空 targetActorName");
+    throw new GameError("invalid_action", "damage 目的需要非空 targetActorName");
   }
-  return { kind: "attack", targetActorName };
+
+  const rawItemNames = Array.isArray(args.itemNames) ? args.itemNames : [];
+  const itemNames = [
+    ...new Set(
+      rawItemNames
+        .filter((itemName): itemName is string => typeof itemName === "string")
+        .map((itemName) => itemName.trim())
+        .filter((itemName) => itemName.length > 0),
+    ),
+  ];
+
+  return {
+    kind: "skill",
+    skill,
+    itemNames,
+    purpose: { kind: "damage", targetActorName },
+  };
 }
 
 /** 返回 intent 的互斥类别；沟通之外都占用同一个行动槽。 */

@@ -35,9 +35,9 @@
 | [本地开发](dev-setup.md)                 | 启动、局域网访问、环境变量、测试、排错        |
 | [LLM 基础组件](llm.md)                   | provider 分层、失败模型、agent loop、对话留痕 |
 | [数据库](database.md)                    | PostgreSQL 状态源、NPC 记忆、迁移、事务边界   |
-| [Actor 记忆](actor-actions-memory.md)    | actor 控制、行动事实、context dump、沟通与接管|
+| [Actor 记忆](actor-actions-memory.md)    | actor 控制、行动事实、context dump、技能与接管|
 | [开发期 Agent 工作流](debug-workflow.md) | 快照驱动推进、HTTP 走查、两套入口的共同边界   |
 
 ## 当前范围
 
-工程骨架、OpenAPI 契约链、LLM 基础组件、数据库基础层、记忆驱动的 NPC 切片、玩家接管、沟通与攻击动作、actor 行动与记忆原则、开发期 Agent 工作流。后续玩法与内容随实现补充。
+工程骨架、OpenAPI 契约链、LLM 基础组件、数据库基础层、记忆驱动的 NPC 切片、玩家接管、沟通、移动与技能动作、actor 行动与记忆原则、开发期 Agent 工作流。后续玩法与内容随实现补充。

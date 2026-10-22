@@ -57,6 +57,13 @@
       "when": 1792657157275,
       "tag": "0007_gorgeous_shotgun",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1792658640807,
+      "tag": "0008_open_sally_floyd",
+      "breakpoints": true
     }
   ]
 }

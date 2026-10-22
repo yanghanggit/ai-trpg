@@ -23,7 +23,9 @@ import type {
   MessageState,
   MessageVisibility,
   PlayerState,
+  Skill,
   StageState,
+  StatusEffect,
 } from "./types";
 
 type Reader = Pick<Database, "select">;
@@ -156,6 +158,8 @@ export async function getGameState(db: Database, ref: string): Promise<GameState
       speed: actor.speed,
       death: actor.death,
       items: itemsByActor.get(actor.id) ?? [],
+      skills: actor.skills as unknown as Skill[],
+      statusEffects: actor.statusEffects as unknown as StatusEffect[],
     });
     actorsByStage.set(actor.stageId, list);
   }
@@ -320,6 +324,8 @@ export async function createGame(db: Database, input: CreateGameInput): Promise<
         defense: actor.defense,
         speed: actor.speed,
         death: actor.death ?? false,
+        skills: actor.skills as unknown as typeof actors.$inferInsert.skills,
+        statusEffects: actor.statusEffects as unknown as typeof actors.$inferInsert.statusEffects,
       });
 
       for (const item of actor.items) {

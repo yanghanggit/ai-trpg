@@ -1,3 +1,4 @@
+import { ATTACK_SKILL } from "../src/game/skills";
 import type { World } from "../src/game/types";
 
 /** 黑暗奇幻演示世界的初始内容定义；由 createGame 物化为具体游戏状态。 */
@@ -63,7 +64,7 @@ export const DARK_FANTASY_WORLD: World = {
       appearance: "斗篷边缘被烧焦，左手戴着三枚不同尺寸的铜戒，脸上覆着一层洗不净的灰。",
       hp: 12,
       maxHp: 12,
-      attack: 3,
+      attack: 6,
       defense: 2,
       speed: 4,
       items: [
@@ -73,6 +74,8 @@ export const DARK_FANTASY_WORLD: World = {
           kind: "weapon",
         },
       ],
+      skills: [ATTACK_SKILL],
+      statusEffects: [],
     },
     {
       stageKey: "gate",
@@ -83,7 +86,7 @@ export const DARK_FANTASY_WORLD: World = {
         "灰袍下摆浸着泥水，右手始终握着灯柄；兜帽阴影里只看得到一截苍白的下巴和干裂的嘴唇。",
       hp: 10,
       maxHp: 10,
-      attack: 2,
+      attack: 5,
       defense: 3,
       speed: 3,
       items: [
@@ -93,6 +96,8 @@ export const DARK_FANTASY_WORLD: World = {
           kind: "relic",
         },
       ],
+      skills: [ATTACK_SKILL],
+      statusEffects: [],
     },
     {
       stageKey: "nave",
@@ -103,7 +108,7 @@ export const DARK_FANTASY_WORLD: World = {
         "指节沾满黑蜡，膝上摊着一卷被灰压皱的空白经页；每翻一页，他都要先确认铜钟没有转动。",
       hp: 9,
       maxHp: 9,
-      attack: 1,
+      attack: 4,
       defense: 4,
       speed: 2,
       items: [
@@ -113,6 +118,8 @@ export const DARK_FANTASY_WORLD: World = {
           kind: "relic",
         },
       ],
+      skills: [ATTACK_SKILL],
+      statusEffects: [],
     },
   ],
 };

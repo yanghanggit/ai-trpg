@@ -18,6 +18,7 @@ export type PlayerCommunicationInput = {
 
 export type PlayerAttackInput = {
   targetActorName: string;
+  itemNames?: readonly string[];
 };
 
 /** 玩家直接提交计划；只允许玩家接管的 actor。 */
@@ -83,8 +84,21 @@ export async function playerAttack(
   actorRef: string,
   input: PlayerAttackInput,
 ): Promise<ActorTurnResult> {
+  const state = await getGameState(db, gameRef);
+  const actor = findActor(state, actorRef);
+  const skill = actor.skills.find((candidate) => candidate.key === "attack");
+  if (!skill) {
+    throw new GameError("invalid_action", `actor 未掌握技能: attack`);
+  }
   const plan: ActorPlan = {
-    intents: [{ kind: "attack", targetActorName: input.targetActorName }],
+    intents: [
+      {
+        kind: "skill",
+        skill,
+        itemNames: input.itemNames ?? [],
+        purpose: { kind: "damage", targetActorName: input.targetActorName },
+      },
+    ],
   };
   return applyPlayerPlan(db, gameRef, actorRef, plan);
 }

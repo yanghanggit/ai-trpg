@@ -3,10 +3,11 @@ import {
   addIntent,
   describeItems,
   describeStats,
-  parseAttack,
   parseCommunication,
   parseMovement,
+  parseSkill,
 } from "../src/game/plan";
+import { ATTACK_SKILL } from "../src/game/skills";
 import type { ActorPlan } from "../src/game/types";
 
 describe("actor plan intents", () => {
@@ -34,7 +35,7 @@ describe("actor plan intents", () => {
     expect(() => addIntent(plan, parseMovement({ mode: "wait" }))).toThrow("行动类行动");
   });
 
-  it("treats attack as an action intent and requires a target", () => {
+  it("treats a skill as an action intent and requires a target", () => {
     const plan: ActorPlan = { intents: [] };
 
     addIntent(
@@ -45,14 +46,34 @@ describe("actor plan intents", () => {
         message: "看那边。",
       }),
     );
-    addIntent(plan, parseAttack({ targetActorName: "提灯修士" }));
+    addIntent(
+      plan,
+      parseSkill(
+        {
+          skill: "attack",
+          purpose: "damage",
+          targetActorName: "提灯修士",
+          itemNames: [],
+        },
+        [ATTACK_SKILL],
+      ),
+    );
 
-    expect(plan.intents).toEqual([
-      expect.objectContaining({ kind: "communication" }),
-      { kind: "attack", targetActorName: "提灯修士" },
-    ]);
+    expect(plan.intents[1]).toMatchObject({
+      kind: "skill",
+      skill: ATTACK_SKILL,
+      itemNames: [],
+      purpose: { kind: "damage", targetActorName: "提灯修士" },
+    });
     expect(() => addIntent(plan, parseMovement({ mode: "wait" }))).toThrow("行动类行动");
-    expect(() => parseAttack({ targetActorName: "  " })).toThrow("targetActorName");
+    expect(() =>
+      parseSkill({ skill: "attack", purpose: "damage", targetActorName: "  " }, [ATTACK_SKILL]),
+    ).toThrow("targetActorName");
+    expect(() =>
+      parseSkill({ skill: "steal", purpose: "damage", targetActorName: "提灯修士" }, [
+        ATTACK_SKILL,
+      ]),
+    ).toThrow("未掌握技能");
   });
 
   it("renders own stats and items for the read-only tools", () => {
@@ -67,6 +88,8 @@ describe("actor plan intents", () => {
       defense: 2,
       speed: 4,
       death: false,
+      skills: [ATTACK_SKILL],
+      statusEffects: [],
       items: [
         {
           id: "item-1",
