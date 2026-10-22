@@ -1,0 +1,220 @@
+:root {
+  color-scheme: dark;
+  --bg: #0b0f14;
+  --panel: #121922;
+  --panel-soft: #16202b;
+  --line: #24313f;
+  --text: #e6edf3;
+  --muted: #8b9bb0;
+  --accent: #e0a35c;
+  --ok: #4ade80;
+  --error: #f87171;
+  --pending: #fbbf24;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  min-height: 100%;
+}
+
+body {
+  margin: 0;
+  font-family:
+    ui-sans-serif, system-ui, -apple-system, "Segoe UI", "PingFang SC", "Hiragino Sans GB",
+    "Microsoft YaHei", sans-serif;
+  color: var(--text);
+  background:
+    radial-gradient(1000px 600px at 15% -10%, rgb(224 163 92 / 12%), transparent 60%),
+    radial-gradient(900px 500px at 110% 10%, rgb(74 222 128 / 8%), transparent 55%), var(--bg);
+  -webkit-font-smoothing: antialiased;
+}
+
+code {
+  padding: 0.1em 0.35em;
+  border-radius: 4px;
+  background: rgb(255 255 255 / 8%);
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 0.9em;
+}
+
+.launch {
+  display: grid;
+  place-items: center;
+  min-height: 100vh;
+  padding: 48px 20px;
+}
+
+.launch__inner {
+  width: min(720px, 100%);
+}
+
+.launch__header {
+  margin-bottom: 28px;
+}
+
+.launch__eyebrow {
+  margin: 0 0 12px;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.28em;
+  color: var(--accent);
+}
+
+.launch h1 {
+  margin: 0;
+  font-size: clamp(28px, 5vw, 40px);
+  line-height: 1.15;
+  letter-spacing: -0.02em;
+}
+
+.launch__lead {
+  margin: 14px 0 0;
+  max-width: 54ch;
+  color: var(--muted);
+  line-height: 1.7;
+}
+
+.launch__footer {
+  margin-top: 22px;
+  font-size: 13px;
+  color: var(--muted);
+}
+
+.connection-card {
+  padding: 22px;
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  background: linear-gradient(180deg, var(--panel-soft), var(--panel));
+  box-shadow: 0 18px 40px rgb(0 0 0 / 35%);
+}
+
+.connection-card__header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.connection-card__header h2 {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.connection-card__endpoint {
+  margin: 6px 0 0;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.badge {
+  flex: none;
+  padding: 5px 12px;
+  border: 1px solid currentcolor;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.badge--ok {
+  color: var(--ok);
+  background: rgb(74 222 128 / 10%);
+}
+
+.badge--error {
+  color: var(--error);
+  background: rgb(248 113 113 / 10%);
+}
+
+.badge--pending {
+  color: var(--pending);
+  background: rgb(251 191 36 / 10%);
+}
+
+.connection-card__hint {
+  margin: 14px 0 0;
+  font-size: 13px;
+  color: var(--muted);
+}
+
+.connection-card__error {
+  margin-top: 18px;
+  padding: 14px 16px;
+  border: 1px solid rgb(248 113 113 / 35%);
+  border-radius: 10px;
+  background: rgb(248 113 113 / 8%);
+}
+
+.connection-card__error p {
+  margin: 0;
+  line-height: 1.6;
+}
+
+.connection-card__facts {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 1px;
+  margin: 20px 0 0;
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--line);
+}
+
+.connection-card__facts > div {
+  padding: 12px 14px;
+  background: var(--panel);
+}
+
+.connection-card__facts dt {
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  color: var(--muted);
+}
+
+.connection-card__facts dd {
+  margin: 6px 0 0;
+  font-size: 14px;
+  font-variant-numeric: tabular-nums;
+}
+
+.connection-card__footer {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin-top: 20px;
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.connection-card__footer button {
+  padding: 8px 16px;
+  border: 1px solid var(--accent);
+  border-radius: 8px;
+  background: transparent;
+  color: var(--accent);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition:
+    background-color 120ms ease,
+    color 120ms ease;
+}
+
+.connection-card__footer button:hover:not(:disabled) {
+  background: var(--accent);
+  color: #1a1206;
+}
+
+.connection-card__footer button:disabled {
+  cursor: default;
+  opacity: 0.55;
+}

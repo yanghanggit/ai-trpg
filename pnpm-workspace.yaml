@@ -1,0 +1,20 @@
+packages:
+  - "apps/*"
+  - "packages/*"
+
+# esbuild 的安装脚本需要下载对应平台的可执行文件；未显式放行时 pnpm 会跳过它。
+allowBuilds:
+  esbuild: true
+
+minimumReleaseAgeExclude:
+  - "@biomejs/biome@2.6.2"
+  - "@biomejs/cli-android-arm64@2.6.2"
+  - "@biomejs/cli-android-x64@2.6.2"
+  - "@biomejs/cli-darwin-arm64@2.6.2"
+  - "@biomejs/cli-darwin-x64@2.6.2"
+  - "@biomejs/cli-linux-arm64-musl@2.6.2"
+  - "@biomejs/cli-linux-arm64@2.6.2"
+  - "@biomejs/cli-linux-x64-musl@2.6.2"
+  - "@biomejs/cli-linux-x64@2.6.2"
+  - "@biomejs/cli-win32-arm64@2.6.2"
+  - "@biomejs/cli-win32-x64@2.6.2"

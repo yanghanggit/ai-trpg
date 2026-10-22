@@ -1,0 +1,80 @@
+{
+  "vcs": {
+    "enabled": true,
+    "clientKind": "git",
+    "useIgnoreFile": true
+  },
+  "files": {
+    "ignoreUnknown": true,
+    "includes": [
+      "**",
+      "!**/node_modules",
+      "!**/dist",
+      "!**/coverage",
+      "!pnpm-lock.yaml",
+      "!packages/api-client/openapi.json",
+      "!packages/api-client/src/schema.d.ts"
+    ]
+  },
+  "formatter": {
+    "enabled": true,
+    "indentStyle": "space",
+    "indentWidth": 2,
+    "lineWidth": 100
+  },
+  "linter": {
+    "enabled": true,
+    "rules": {
+      "preset": "recommended",
+      "style": {
+        "useFilenamingConvention": {
+          "level": "error",
+          "options": {
+            "filenameCases": ["camelCase", "PascalCase"]
+          }
+        }
+      }
+    }
+  },
+  "overrides": [
+    {
+      "includes": [
+        "apps/server/src/**",
+        "apps/server/scripts/**",
+        "apps/server/test/**",
+        "packages/*/src/**",
+        "packages/*/scripts/**",
+        "scripts/**"
+      ],
+      "linter": {
+        "rules": {
+          "style": {
+            "useFilenamingConvention": {
+              "level": "error",
+              "options": {
+                "filenameCases": ["kebab-case"]
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "includes": [
+        "**/*.d.ts",
+        "**/vite.config.ts",
+        "**/tsup.config.ts",
+        "**/vitest.config.ts",
+        ".pi/**",
+        ".github/**"
+      ],
+      "linter": {
+        "rules": {
+          "style": {
+            "useFilenamingConvention": "off"
+          }
+        }
+      }
+    }
+  ]
+}

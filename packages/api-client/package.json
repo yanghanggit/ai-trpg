@@ -1,0 +1,22 @@
+{
+  "name": "@ai-trpg/api-client",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "gen": "tsx scripts/generate-schema.ts",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "openapi-fetch": "^0.17.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.20.5",
+    "openapi-typescript": "^7.13.0",
+    "tsx": "^4.23.15",
+    "typescript": "^5.9.3"
+  }
+}
