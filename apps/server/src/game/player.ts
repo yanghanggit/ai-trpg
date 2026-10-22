@@ -1,31 +1,31 @@
 import type { Database } from "../db/pool";
-import type { SpeechActionType } from "./actions";
+import type { CommunicationActionType } from "./actions";
 import { findActor } from "./actors";
 import { applyActorPlan } from "./apply";
 import { isPlayerControlled } from "./control";
 import { GameError } from "./errors";
 import { getGameState } from "./service";
-import type { ActorActionPlan, ActorTurnResult } from "./types";
+import type { ActorPlan, ActorTurnResult } from "./types";
 
-export type PlayerSpeechMode = SpeechActionType;
+export type PlayerCommunicationMode = CommunicationActionType;
 
-export type PlayerSpeechInput = {
-  mode: PlayerSpeechMode;
+export type PlayerCommunicationInput = {
+  mode: PlayerCommunicationMode;
   message: string;
   targetActorName?: string;
   reason?: string;
 };
 
 /**
- * 玩家直接提交一次说话行动。
+ * 玩家直接提交一次沟通行动。
  *
  * 不调用 LLM；actor 必须处于玩家控制下，否则拒绝。
  */
-export async function playerSpeak(
+export async function playerCommunicate(
   db: Database,
   gameRef: string,
   actorRef: string,
-  input: PlayerSpeechInput,
+  input: PlayerCommunicationInput,
 ): Promise<ActorTurnResult> {
   const state = await getGameState(db, gameRef);
   const actor = findActor(state, actorRef);
@@ -34,11 +34,16 @@ export async function playerSpeak(
     throw new GameError("invalid_action", `actor 未被玩家接管: ${actor.name}`);
   }
 
-  const plan: ActorActionPlan = {
-    mind: input.reason?.trim() || "玩家直接提交",
-    actionType: input.mode,
-    ...(input.targetActorName !== undefined ? { targetActorName: input.targetActorName } : {}),
-    message: input.message,
+  const plan: ActorPlan = {
+    intents: [
+      {
+        kind: "communication",
+        mind: input.reason?.trim() || "玩家直接提交",
+        mode: input.mode,
+        ...(input.targetActorName !== undefined ? { targetActorName: input.targetActorName } : {}),
+        message: input.message,
+      },
+    ],
   };
 
   const ok = await applyActorPlan(db, state.game.id, actor.id, plan, [], true);

@@ -9,7 +9,7 @@ import {
   getGameMemories,
   getGameState,
   isPlayerControlled,
-  playerSpeak,
+  playerCommunicate,
   releaseActorControl,
   runNpcTurn,
   takeActorControl,
@@ -43,7 +43,7 @@ describe.skipIf(!testDatabaseUrl)("player takeover", () => {
     await handle.pool.end();
   });
 
-  it("lets a player control one actor and use all three speech actions", async () => {
+  it("lets a player control one actor and use all three communication actions", async () => {
     const game = await createGame(handle.db, {
       username: DEMO_USER.username,
       name: "玩家接管测试局",
@@ -60,23 +60,26 @@ describe.skipIf(!testDatabaseUrl)("player takeover", () => {
       }),
     ).rejects.toThrow("已被玩家接管");
 
-    const said = await playerSpeak(handle.db, game.game.slug, "守烬人", {
+    const said = await playerCommunicate(handle.db, game.game.slug, "守烬人", {
       mode: "say",
       targetActorName: "提灯修士",
       message: "公开对你说。",
       reason: "先确认他是否听见钟声。",
     });
     expect(said.ok).toBe(true);
-    expect(said.plan?.mind).toBe("先确认他是否听见钟声。");
+    expect(said.plan?.intents[0]).toMatchObject({
+      kind: "communication",
+      mind: "先确认他是否听见钟声。",
+    });
 
-    const whispered = await playerSpeak(handle.db, game.game.slug, "守烬人", {
+    const whispered = await playerCommunicate(handle.db, game.game.slug, "守烬人", {
       mode: "whisper",
       targetActorName: "提灯修士",
       message: "这是一句秘密。",
     });
     expect(whispered.ok).toBe(true);
 
-    const announced = await playerSpeak(handle.db, game.game.slug, "守烬人", {
+    const announced = await playerCommunicate(handle.db, game.game.slug, "守烬人", {
       mode: "announce",
       message: "所有人都听着。",
     });

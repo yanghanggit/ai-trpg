@@ -1,6 +1,6 @@
-import type { ActorActionType, MessageVisibility } from "./actions";
+import type { CommunicationActionType, MessageVisibility, MovementActionType } from "./actions";
 
-export type { ActorActionType, MessageVisibility, SpeechActionType } from "./actions";
+export type { CommunicationActionType, MessageVisibility, MovementActionType } from "./actions";
 
 export type WorldSeed = {
   contentVersion: string;
@@ -52,12 +52,24 @@ export type CreateGameInput = {
   seed: WorldSeed;
 };
 
-export type ActorActionPlan = {
+export type CommunicationIntent = {
+  kind: "communication";
   mind: string;
-  actionType: ActorActionType;
-  targetStageName?: string;
+  mode: CommunicationActionType;
   targetActorName?: string;
-  message?: string;
+  message: string;
+};
+
+export type MovementIntent = {
+  kind: "movement";
+  mode: MovementActionType;
+  targetStageName?: string;
+};
+
+export type ActorIntent = CommunicationIntent | MovementIntent;
+
+export type ActorPlan = {
+  intents: ActorIntent[];
 };
 
 export type ItemState = {
@@ -161,7 +173,7 @@ export type GameState = {
 
 export type ActorTurnResult = {
   ok: boolean;
-  plan: ActorActionPlan | null;
+  plan: ActorPlan | null;
   loopSuccess: boolean;
   state: GameState;
 };

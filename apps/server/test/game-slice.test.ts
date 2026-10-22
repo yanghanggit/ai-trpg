@@ -10,7 +10,7 @@ import { resetDomainData, seedDemoData } from "../src/db/maintenance";
 import { runMigrations } from "../src/db/migrate";
 import { loadSnapshot } from "../src/debug/snapshot";
 import {
-  type ActorActionPlan,
+  type ActorPlan,
   createGame,
   getGameMemories,
   getGameState,
@@ -22,9 +22,9 @@ import { ChatCompletionResult, type ChatCompletionService, type ToolCall } from 
 const testDatabaseUrl = process.env.TEST_DATABASE_URL?.trim();
 
 class ScriptedNpcService implements ChatCompletionService {
-  private readonly plans: ActorActionPlan[];
+  private readonly plans: ActorPlan[];
 
-  constructor(plans: ActorActionPlan[]) {
+  constructor(plans: ActorPlan[]) {
     this.plans = [...plans];
   }
 
@@ -33,19 +33,43 @@ class ScriptedNpcService implements ChatCompletionService {
     if (!plan) {
       throw new Error("脚本化 NPC 计划已耗尽");
     }
-    const toolCall: ToolCall = {
+    const toolCalls: ToolCall[] = plan.intents.map((intent) => {
+      const name = intent.kind === "communication" ? "communicate" : "move";
+      return {
+        id: randomUUID(),
+        type: "function",
+        function: {
+          name,
+          arguments: JSON.stringify(
+            intent.kind === "communication"
+              ? {
+                  mind: intent.mind,
+                  mode: intent.mode,
+                  ...(intent.targetActorName !== undefined
+                    ? { targetActorName: intent.targetActorName }
+                    : {}),
+                  message: intent.message,
+                }
+              : {
+                  mode: intent.mode,
+                  ...(intent.targetStageName !== undefined
+                    ? { targetStageName: intent.targetStageName }
+                    : {}),
+                },
+          ),
+        },
+      };
+    });
+    toolCalls.push({
       id: randomUUID(),
       type: "function",
-      function: {
-        name: "submit_action_plan",
-        arguments: JSON.stringify(plan),
-      },
-    };
+      function: { name: "submit_plan", arguments: "{}" },
+    });
     return new ChatCompletionResult({
       request,
-      aiMessage: { type: "ai", content: "", toolCalls: [toolCall] },
+      aiMessage: { type: "ai", content: "", toolCalls },
       finishReason: "tool_calls",
-      toolCalls: [toolCall],
+      toolCalls,
     });
   }
 }
@@ -85,26 +109,36 @@ describe.skipIf(!testDatabaseUrl)("memory-driven NPC slice", () => {
 
     const service = new ScriptedNpcService([
       {
-        mind: "先试探他。",
-        actionType: "say",
-        targetActorName: "提灯修士",
-        message: "你听见钟声了吗？",
+        intents: [
+          {
+            kind: "communication",
+            mind: "先试探他。",
+            mode: "say",
+            targetActorName: "提灯修士",
+            message: "你听见钟声了吗？",
+          },
+        ],
       },
       {
-        mind: "不要让它继续响。",
-        actionType: "whisper",
-        targetActorName: "守烬人",
-        message: "别回应它。",
+        intents: [
+          {
+            kind: "communication",
+            mind: "不要让它继续响。",
+            mode: "whisper",
+            targetActorName: "守烬人",
+            message: "别回应它。",
+          },
+        ],
       },
-      { mind: "去中殿看看。", actionType: "move", targetStageName: "断钟中殿" },
-      { mind: "跟上去。", actionType: "move", targetStageName: "断钟中殿" },
+      { intents: [{ kind: "movement", mode: "move", targetStageName: "断钟中殿" }] },
+      { intents: [{ kind: "movement", mode: "move", targetStageName: "断钟中殿" }] },
     ]);
 
     const first = await runNpcTurn(handle.db, created.game.slug, "守烬人", {
       service,
     });
     expect(first.ok).toBe(true);
-    expect(first.plan?.actionType).toBe("say");
+    expect(first.plan?.intents[0]).toMatchObject({ kind: "communication", mode: "say" });
 
     const second = await runNpcTurn(handle.db, created.game.slug, "提灯修士", {
       service,
@@ -198,6 +232,73 @@ describe.skipIf(!testDatabaseUrl)("memory-driven NPC slice", () => {
     expect(loaded.parts["memories/守烬人.json"]).toBeDefined();
     expect(loaded.session).toHaveLength(5);
   });
+  it("emits a public event for wait", async () => {
+    const created = await createGame(handle.db, {
+      username: DEMO_USER.username,
+      name: "等待事件测试局",
+      seed: DARK_FANTASY_SEED,
+    });
+    const service = new ScriptedNpcService([{ intents: [{ kind: "movement", mode: "wait" }] }]);
+
+    const result = await runNpcTurn(handle.db, created.game.slug, "守烬人", { service });
+    expect(result.ok).toBe(true);
+
+    const state = await getGameState(handle.db, created.game.slug);
+    expect(state.game.version).toBe(1);
+    expect(state.messages.map((message) => message.kind)).toEqual(["narration", "wait"]);
+    expect(state.messages[1]?.content).toContain("守烬人留在原地");
+    expect(state.messages[1]?.visibility).toBe("stage");
+
+    const memories = await getGameMemories(handle.db, created.game.id);
+    const monk = memories.find((memory) => memory.name === "提灯修士");
+    expect(
+      monk?.messages.some((message) => message.content.includes("守烬人留在原地，继续观察四周。")),
+    ).toBe(true);
+  });
+
+  it("applies one communication and one movement intent in tool-call order", async () => {
+    const created = await createGame(handle.db, {
+      username: DEMO_USER.username,
+      name: "组合行动测试局",
+      seed: DARK_FANTASY_SEED,
+    });
+
+    const service = new ScriptedNpcService([
+      {
+        intents: [
+          { kind: "movement", mode: "move", targetStageName: "断钟中殿" },
+          {
+            kind: "communication",
+            mind: "到了中殿再问抄经人。",
+            mode: "say",
+            targetActorName: "缄默抄经人",
+            message: "你看见钟摆了吗？",
+          },
+        ],
+      },
+    ]);
+
+    const result = await runNpcTurn(handle.db, created.game.slug, "守烬人", { service });
+    expect(result.ok).toBe(true);
+    expect(result.plan?.intents).toHaveLength(2);
+
+    const state = await getGameState(handle.db, created.game.slug);
+    expect(state.game.version).toBe(2);
+    expect(state.messages.map((message) => message.kind)).toEqual(["narration", "move", "say"]);
+    expect(state.messages[1]?.stageId).toBe(
+      state.world.stages.find((stage) => stage.name === "断钟中殿")?.id,
+    );
+    expect(state.messages[2]?.targetActorId).toBeTruthy();
+    expect(state.messages[2]?.stageId).toBe(
+      state.world.stages.find((stage) => stage.name === "断钟中殿")?.id,
+    );
+
+    const keeperLocation = state.world.stages
+      .flatMap((stage) => stage.actors.map((actor) => [actor.name, stage.name] as const))
+      .find(([name]) => name === "守烬人");
+    expect(keeperLocation?.[1]).toBe("断钟中殿");
+  });
+
   it("writes observer-specific say memory text for a third actor", async () => {
     const seed = {
       ...DARK_FANTASY_SEED,
@@ -224,21 +325,36 @@ describe.skipIf(!testDatabaseUrl)("memory-driven NPC slice", () => {
     });
     const service = new ScriptedNpcService([
       {
-        mind: "先让所有人听见。",
-        actionType: "announce",
-        message: "灰里有人。",
+        intents: [
+          {
+            kind: "communication",
+            mind: "先让所有人听见。",
+            mode: "announce",
+            message: "灰里有人。",
+          },
+        ],
       },
       {
-        mind: "这句给目标，但旁人也会听见。",
-        actionType: "say",
-        targetActorName: "提灯修士",
-        message: "只对你说。",
+        intents: [
+          {
+            kind: "communication",
+            mind: "这句给目标，但旁人也会听见。",
+            mode: "say",
+            targetActorName: "提灯修士",
+            message: "只对你说。",
+          },
+        ],
       },
       {
-        mind: "这句只给他听。",
-        actionType: "whisper",
-        targetActorName: "提灯修士",
-        message: "别回头。",
+        intents: [
+          {
+            kind: "communication",
+            mind: "这句只给他听。",
+            mode: "whisper",
+            targetActorName: "提灯修士",
+            message: "别回头。",
+          },
+        ],
       },
     ]);
     const announced = await runNpcTurn(handle.db, game.game.slug, "守烬人", { service });

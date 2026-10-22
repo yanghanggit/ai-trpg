@@ -2,7 +2,7 @@ import { eq } from "drizzle-orm";
 import type { Database } from "../db/pool";
 import { actors } from "../db/schema";
 import type { ChatMessage } from "../llm/types";
-import { MEMORY_KINDS, type SpeechActionType, visibilityForSpeech } from "./actions";
+import { type CommunicationActionType, MEMORY_KINDS, visibilityForCommunication } from "./actions";
 import { appendMemoryMessages, loadAgentMemory } from "./memory";
 import type { StageState } from "./types";
 
@@ -53,13 +53,35 @@ export async function appendEnvironmentObservations(
   );
 }
 
-/** 按说话方式向目标与旁观者写入听觉观察。 */
-export async function appendSpeechObservations(
+/** 向场景内其他 actor 写入可见行动观察。 */
+export async function appendActionObservations(
+  executor: Executor,
+  gameId: string,
+  stageId: string,
+  actorId: string,
+  content: string,
+): Promise<void> {
+  await appendStageObservations(
+    executor,
+    gameId,
+    stageId,
+    actorId,
+    () => true,
+    () => ({
+      type: "human",
+      content,
+      metadata: { kind: MEMORY_KINDS.actionObservation, stageId },
+    }),
+  );
+}
+
+/** 按沟通方式向目标与旁观者写入听觉观察。 */
+export async function appendCommunicationObservations(
   executor: Executor,
   gameId: string,
   stage: Pick<StageState, "id" | "name">,
   speaker: { id: string; name: string },
-  mode: SpeechActionType,
+  mode: CommunicationActionType,
   target: { id: string; name: string } | undefined,
   message: string,
 ): Promise<void> {
@@ -90,8 +112,8 @@ export async function appendSpeechObservations(
         type: "human",
         content,
         metadata: {
-          kind: MEMORY_KINDS.speechObservation,
-          visibility: visibilityForSpeech(mode),
+          kind: MEMORY_KINDS.communicationObservation,
+          visibility: visibilityForCommunication(mode),
           stageId: stage.id,
           speakerActorId: speaker.id,
           ...(target ? { targetActorId: target.id } : {}),

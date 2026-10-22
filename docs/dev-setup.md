@@ -52,7 +52,7 @@ Vite 会打印 Local 与 Network 两个地址；局域网访问使用 Network（
 - `pnpm agent:game` / `pnpm agent:api`：开发期 agent 的快照入口与 HTTP 走查入口。
 - `pnpm db:migrate` / `db:check` / `db:seed` / `db:reset` / `db:demo`：迁移、探测、demo seed、定点清空、演示初始化；`db:reset` 需要 `--yes`。
 - `pnpm agent:game create --user demo`、`status`、`npc`、`snapshot`：从数据库创建并推进黑暗奇幻 NPC 回合；`npc` 使用 DeepSeek，需要 `DEEPSEEK_API_KEY`。
-- `pnpm agent:game take-control` / `release-control` / `player-speak`：玩家接管 actor 并以三种说话模式直接行动。
+- `pnpm agent:game take-control` / `release-control` / `player-communicate`：玩家接管 actor 并以三种沟通模式直接行动。
 
 → 参见：[开发期 Agent 工作流](debug-workflow.md) → 参见：[数据库](database.md)
 

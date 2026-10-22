@@ -29,13 +29,13 @@ PostgreSQL 是游戏状态的唯一真相。`agent:game` 从数据库读取状�
 
 ## NPC 行动
 
-NPC 回合是：数据库环境 → agent loop → `submit_action_plan` → 短事务应用 → 公共消息与 memory 反馈。
+NPC 回合是：数据库环境 → agent loop → `communicate` / `move` 暂存 intent → `submit_plan` → 短事务按顺序应用 → 公共消息与 memory 反馈。
 
-工具包含可多次调用的只读 `look_stage`，以及作为终止工具的 `submit_action_plan`。`submit_action_plan` 是语义上的提交动作，但 handler 只收集计划，不写数据库。工具 handler 不写数据库；loop 结束后由服务层重新校验计划并在事务中更新 actor、game version、公共消息与 memory。
+工具包含可多次调用的只读 `look_stage`，以及两个 intent 工具 `communicate`、`move`；`submit_plan` 是终止工具。`communicate` 暂存 `say`/`whisper`/`announce`，`move` 暂存 `move`/`wait`；同类 intent 互斥，沟通类与行动类可以共存，顺序按工具调用顺序保留。所有 handler 只收集计划，不写数据库；loop 结束后由服务层重新校验并在事务中按顺序更新 actor、game version、公共消息与 memory。
 
-第一版动作是 `wait`、`move`、`say`、`whisper`、`announce`：等待、沿连接移动、有目标公开说话、有目标私下耳语、无目标公开说话。`say` 与 `whisper` 必须指定单个 `targetActorName`；`say` 向当前 stage 广播，`whisper` 只有说话者与目标收到 memory；`announce` 无目标，向当前 stage 广播。公共消息用 `visibility` 区分 `stage` 与 `private`；私密事件后续对客户端不可见。
+第一版动作仍是 `wait`、`move`、`say`、`whisper`、`announce`：等待、沿连接移动、有目标公开说话、有目标私下耳语、无目标公开说话；它们被收进两个 intent 工具；每个成功应用的 intent 都会写一条公共事件，`wait` 也记录公开的等待事件，并向同场景其他 actor 写入观察 memory。`say` 与 `whisper` 必须指定单个 `targetActorName`；`say` 向当前 stage 广播，`whisper` 只有发起者与目标收到 memory；`announce` 无目标，向当前 stage 广播。公共消息用 `visibility` 区分 `stage` 与 `private`；私密事件后续对客户端不可见。
 
-`agent:game npc --game <gameId|slug> --actor <actorId|actorName>` 推进一个 NPC；`--all` 跳过被玩家接管的 actor。`agent:game take-control` / `release-control` 接管或释放一个 actor；`agent:game player-speak --mode say|whisper|announce` 让被接管的 actor 直接执行三种说话动作。`agent:game status` 读取完整状态；`agent:game snapshot` 导出快照，包含每个 actor 的 memory。
+`agent:game npc --game <gameId|slug> --actor <actorId|actorName>` 推进一个 NPC；`--all` 跳过被玩家接管的 actor。`agent:game take-control` / `release-control` 接管或释放一个 actor；`agent:game player-communicate --mode say|whisper|announce` 让被接管的 actor 直接执行三种沟通动作。`agent:game status` 读取完整状态；`agent:game snapshot` 导出快照，包含每个 actor 的 memory。
 
 ## 迁移与重置
 
@@ -47,6 +47,6 @@ schema 定义在服务端代码中，SQL 迁移由 Drizzle Kit 生成并入库�
 
 LLM 调用不放进数据库事务：先读取状态与 memory，在事务外完成 agent loop，再用行锁与版本号在短事务内应用计划。
 
-快照是提交后的只读投影，不是第二套状态源。快照失败只记录日志，不回滚业务；正式环境通过开关关闭落盘。`game_messages` 的说话事件同时保存 stage、speaker、target、visibility；`say` 的 memory 文本按说话者、目标、旁观者生成；`announce` 按说话者与旁观者生成；`whisper` 只生成说话者与目标两人的版本。
+快照是提交后的只读投影，不是第二套状态源。快照失败只记录日志，不回滚业务；正式环境通过开关关闭落盘。`game_messages` 的沟通事件同时保存 stage、speaker、target、visibility；`say` 的 memory 文本按发起者、目标、旁观者生成；`announce` 按发起者与旁观者生成；`whisper` 只生成发起者与目标两人的版本。
 
 → 参见：[架构与契约](architecture.md) → 参见：[开发期 Agent 工作流](debug-workflow.md) → 参见：[Actor 行动与记忆](actor-actions-memory.md)

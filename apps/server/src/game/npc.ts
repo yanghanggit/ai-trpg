@@ -13,9 +13,18 @@ import { applyActorPlan } from "./apply";
 import { isPlayerControlled } from "./control";
 import { GameError } from "./errors";
 import { loadAgentMemory } from "./memory";
-import { buildLookTool, buildSubmitPlanTool, lookStage, parsePlan } from "./plan";
+import {
+  addIntent,
+  buildCommunicateTool,
+  buildLookTool,
+  buildMoveTool,
+  buildSubmitPlanTool,
+  lookStage,
+  parseCommunication,
+  parseMovement,
+} from "./plan";
 import { getGameState } from "./service";
-import type { ActorActionPlan, ActorTurnResult, GameState } from "./types";
+import type { ActorPlan, ActorTurnResult, GameState } from "./types";
 
 export type NpcTurnOptions = {
   service: ChatCompletionService;
@@ -36,7 +45,7 @@ function buildObservation(state: GameState, current: ActorWithStage): string {
     `## 可交谈对象\n${targets.length === 0 ? "无" : targets.join("、")}`,
     `## 可移动至\n${moves.length === 0 ? "无" : moves.join("、")}`,
     "# 本轮任务",
-    "根据当前环境与自己的记忆决定行动，并调用工具提交计划。say 是有目标的公开说话，当前场景所有角色都会听见；whisper 是对一名角色的私下耳语，只有说话者与目标会听见；announce 是无目标的公开说话，当前场景所有角色都会听见。say/whisper 必须填写 targetActorName，announce/wait/move 留空。",
+    "根据当前环境与自己的记忆决定行动。使用 communicate 添加沟通行动，使用 move 添加移动或等待行动；两类各最多一个，先加入的 intent 先执行。最后调用 submit_plan 提交。look_stage 可随时查看场景，不占计划。say/whisper 必须填写 targetActorName；move 使用 targetStageName。",
   ].join("\n\n");
 }
 
@@ -67,22 +76,42 @@ export async function runNpcTurn(
     (actor) => actor.name,
   );
   const lookTool = buildLookTool(state);
-  const submitTool = buildSubmitPlanTool(availableStageNames, availableTargetActorNames);
-  let submitted: ActorActionPlan | null = null;
+  const communicateTool = buildCommunicateTool(availableTargetActorNames);
+  const moveTool = buildMoveTool(availableStageNames);
+  const submitTool = buildSubmitPlanTool();
+  const plan: ActorPlan = { intents: [] };
+  let submitted: ActorPlan | null = null;
 
   const loop = await agentLoop({
     name: current.actor.name,
     inputMessage: buildObservation(state, current),
     messages: memory.messages,
-    tools: [lookTool, submitTool],
+    tools: [lookTool, communicateTool, moveTool, submitTool],
     handlers: {
       [lookTool.function.name]: (args) => {
         const stageName = typeof args.stageName === "string" ? args.stageName : "";
         return lookStage(state, stageName);
       },
-      [submitTool.function.name]: (args) => {
-        submitted = parsePlan(args);
-        return "行动计划已提交";
+      [communicateTool.function.name]: (args) => {
+        if (submitted) {
+          throw new GameError("invalid_action", "计划已提交");
+        }
+        addIntent(plan, parseCommunication(args));
+        return "沟通行动已加入计划";
+      },
+      [moveTool.function.name]: (args) => {
+        if (submitted) {
+          throw new GameError("invalid_action", "计划已提交");
+        }
+        addIntent(plan, parseMovement(args));
+        return "移动行动已加入计划";
+      },
+      [submitTool.function.name]: () => {
+        if (plan.intents.length === 0) {
+          throw new GameError("invalid_action", "计划中没有行动");
+        }
+        submitted = { intents: plan.intents.map((intent) => ({ ...intent })) };
+        return "计划已提交";
       },
     },
     terminalTools: [submitTool],

@@ -23,9 +23,9 @@ import { DEEPSEEK_SERVICE } from "../src/deepseek";
 import {
   createGame,
   getGameState,
-  isSpeechAction,
+  isCommunicationAction,
   listPlayerControlledActorIds,
-  playerSpeak,
+  playerCommunicate,
   releaseActorControl,
   runNpcTurn,
   snapshotGame,
@@ -84,7 +84,7 @@ function usage(): void {
       "agent-game npc --game <gameId|slug> --all",
       "agent-game take-control --game <gameId|slug> --actor <actorId|actorName>",
       "agent-game release-control --game <gameId|slug> --actor <actorId|actorName>",
-      "agent-game player-speak --game <gameId|slug> --actor <actorId|actorName> --mode say|whisper|announce [--target <actorName>] [--reason <text>] --message <text>",
+      "agent-game player-communicate --game <gameId|slug> --actor <actorId|actorName> --mode say|whisper|announce [--target <actorName>] [--reason <text>] --message <text>",
       "agent-game snapshot --game <gameId|slug> [--root <dir>]",
     ],
   });
@@ -182,15 +182,15 @@ async function main(): Promise<void> {
     return;
   }
 
-  if (command === "player-speak") {
+  if (command === "player-communicate") {
     if (typeof values.game !== "string" || typeof values.actor !== "string") {
-      throw new Error("player-speak 需要 --game 与 --actor");
+      throw new Error("player-communicate 需要 --game 与 --actor");
     }
-    if (!isSpeechAction(values.mode)) {
-      throw new Error("player-speak 需要 --mode say|whisper|announce");
+    if (!isCommunicationAction(values.mode)) {
+      throw new Error("player-communicate 需要 --mode say|whisper|announce");
     }
     if (typeof values.message !== "string" || values.message.trim().length === 0) {
-      throw new Error("player-speak 需要非空 --message");
+      throw new Error("player-communicate 需要非空 --message");
     }
     if ((values.mode === "say" || values.mode === "whisper") && typeof values.target !== "string") {
       throw new Error(`${values.mode} 需要 --target`);
@@ -203,7 +203,7 @@ async function main(): Promise<void> {
     const targetActorName = typeof values.target === "string" ? values.target : undefined;
     const reason = typeof values.reason === "string" ? values.reason : undefined;
     const result = await withDatabase((db) =>
-      playerSpeak(db, gameRef, actorRef, {
+      playerCommunicate(db, gameRef, actorRef, {
         mode,
         message,
         ...(targetActorName !== undefined ? { targetActorName } : {}),
@@ -212,7 +212,7 @@ async function main(): Promise<void> {
     );
     emit({
       ok: true,
-      action: "player-speak",
+      action: "player-communicate",
       plan: result.plan,
       state: result.state,
     });
