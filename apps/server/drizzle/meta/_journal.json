@@ -43,6 +43,13 @@
       "when": 1792651527634,
       "tag": "0005_equal_husk",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1792652008645,
+      "tag": "0006_clammy_kid_colt",
+      "breakpoints": true
     }
   ]
 }

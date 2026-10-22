@@ -14,7 +14,10 @@
 - `create --user demo`：创建 game、player 座位、world、两个 stage、双向连接、三个 NPC、各自物品与 system memory。
 - `status --game <gameId|slug>`：读取完整游戏状态。
 - `npc --game <id|slug> --actor <actorId|actorName>`：推进一个 NPC 回合。
-- `npc --game <id|slug> --all`：按当前 actor 顺序推进所有 NPC。
+- `npc --game <id|slug> --all`：按当前 actor 顺序推进所有未被玩家接管的 NPC。
+- `take-control --game <id|slug> --actor <actorId|actorName>`：玩家接管一个 actor。
+- `release-control --game <id|slug> --actor <actorId|actorName>`：解除接管。
+- `player-speak --game <id|slug> --actor <actorId|actorName> --mode say|whisper|announce [--target <actorName>] --message <text>`：以被接管 actor 的身份直接说话，不调用 LLM。
 - `snapshot --game <id|slug>`：把当前状态与每个 NPC 的 memory 导出为只读快照。
 
 NPC 回合由 agent loop 驱动：先读取环境与私有 memory，再通过 `look_stage` 与 `submit_action_plan` 工具决定行动；`look_stage` 可多次调用，`submit_action_plan` 是终止工具，handler 只收集计划，不写数据库。loop 结束后服务层在事务中校验并应用 `wait`、`move`、`say`。`say` 是有目标公开说话，向当前 stage 广播；`announce` 是无目标公开说话；`whisper` 必须指定单个 `targetActorName`，只有说话者与目标进入 memory。`game_messages` 用 `visibility` 区分公开与私密。

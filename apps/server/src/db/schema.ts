@@ -177,6 +177,21 @@ export const gameMessages = pgTable(
   (table) => [uniqueIndex("game_messages_game_sequence_unique").on(table.gameId, table.sequence)],
 );
 
+export const actorControls = pgTable("actor_controls", {
+  actorId: uuid("actor_id")
+    .primaryKey()
+    .references(() => actors.id, { onDelete: "cascade" }),
+  gameId: uuid("game_id")
+    .notNull()
+    .references(() => games.id, { onDelete: "cascade" }),
+  playerId: uuid("player_id")
+    .notNull()
+    .references(() => gamePlayers.id, { onDelete: "cascade" }),
+  controllerType: text("controller_type").notNull().default("player"),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
 export const agentMemories = pgTable(
   "agent_memories",
   {
@@ -231,6 +246,7 @@ export const schema = {
   actors,
   items,
   gameMessages,
+  actorControls,
   agentMemories,
   agentMemoryMessages,
 };

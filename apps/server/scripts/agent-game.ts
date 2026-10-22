@@ -20,7 +20,16 @@ import {
   saveSnapshot,
 } from "../src/debug/snapshot";
 import { DEEPSEEK_SERVICE } from "../src/deepseek";
-import { createGame, getGameState, runNpcTurn, snapshotGame } from "../src/game";
+import {
+  createGame,
+  getGameState,
+  listPlayerControlledActorIds,
+  playerSpeak,
+  releaseActorControl,
+  runNpcTurn,
+  snapshotGame,
+  takeActorControl,
+} from "../src/game";
 
 type Output = Record<string, unknown>;
 
@@ -35,6 +44,9 @@ const options = {
   slug: { type: "string" },
   actor: { type: "string" },
   all: { type: "boolean" },
+  mode: { type: "string" },
+  message: { type: "string" },
+  target: { type: "string" },
 } as const;
 
 function emit(payload: Output, exitCode = 0): void {
@@ -68,6 +80,9 @@ function usage(): void {
       "agent-game status --game <gameId|slug>",
       "agent-game npc --game <gameId|slug> --actor <actorId|actorName>",
       "agent-game npc --game <gameId|slug> --all",
+      "agent-game take-control --game <gameId|slug> --actor <actorId|actorName>",
+      "agent-game release-control --game <gameId|slug> --actor <actorId|actorName>",
+      "agent-game player-speak --game <gameId|slug> --actor <actorId|actorName> --mode say|whisper|announce [--target <actorName>] --message <text>",
       "agent-game snapshot --game <gameId|slug> [--root <dir>]",
     ],
   });
@@ -148,6 +163,58 @@ async function main(): Promise<void> {
     return;
   }
 
+  if (command === "take-control" || command === "release-control") {
+    if (typeof values.game !== "string" || typeof values.actor !== "string") {
+      throw new Error(`${command} 需要 --game 与 --actor`);
+    }
+    const gameRef = values.game;
+    const actorRef = values.actor;
+    const result = await withDatabase(async (db) => {
+      if (command === "take-control") {
+        return takeActorControl(db, gameRef, actorRef);
+      }
+      await releaseActorControl(db, gameRef, actorRef);
+      return { released: true };
+    });
+    emit({ ok: true, action: command, result });
+    return;
+  }
+
+  if (command === "player-speak") {
+    if (typeof values.game !== "string" || typeof values.actor !== "string") {
+      throw new Error("player-speak 需要 --game 与 --actor");
+    }
+    if (values.mode !== "say" && values.mode !== "whisper" && values.mode !== "announce") {
+      throw new Error("player-speak 需要 --mode say|whisper|announce");
+    }
+    if (typeof values.message !== "string" || values.message.trim().length === 0) {
+      throw new Error("player-speak 需要非空 --message");
+    }
+    if ((values.mode === "say" || values.mode === "whisper") && typeof values.target !== "string") {
+      throw new Error(`${values.mode} 需要 --target`);
+    }
+
+    const gameRef = values.game;
+    const actorRef = values.actor;
+    const mode = values.mode;
+    const message = values.message;
+    const targetActorName = typeof values.target === "string" ? values.target : undefined;
+    const result = await withDatabase((db) =>
+      playerSpeak(db, gameRef, actorRef, {
+        mode,
+        message,
+        ...(targetActorName !== undefined ? { targetActorName } : {}),
+      }),
+    );
+    emit({
+      ok: true,
+      action: "player-speak",
+      plan: result.plan,
+      state: result.state,
+    });
+    return;
+  }
+
   if (command === "npc") {
     if (typeof values.game !== "string") {
       throw new Error("npc 需要 --game");
@@ -164,7 +231,10 @@ async function main(): Promise<void> {
         return [await runNpcTurn(db, gameRef, actorRef, { service: DEEPSEEK_SERVICE })];
       }
       const state = await getGameState(db, gameRef);
-      const actorIds = state.world.stages.flatMap((stage) => stage.actors.map((actor) => actor.id));
+      const controlled = new Set(await listPlayerControlledActorIds(db, state.game.id));
+      const actorIds = state.world.stages
+        .flatMap((stage) => stage.actors.map((actor) => actor.id))
+        .filter((actorId) => !controlled.has(actorId));
       const output = [];
       for (const actorId of actorIds) {
         output.push(await runNpcTurn(db, gameRef, actorId, { service: DEEPSEEK_SERVICE }));

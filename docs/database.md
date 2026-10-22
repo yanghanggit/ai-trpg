@@ -6,7 +6,8 @@ PostgreSQL 是游戏状态的唯一真相。`agent:game` 从数据库读取状�
 
 - `users`：账号身份，不进入游戏状态。
 - `games`：一局游戏，聚合根；拥有 `owner_id`、稳定 `slug`、状态、内容版本与并发版本号。
-- `game_players`：游戏中的座位/参与者；v1 一局只有一个 player，但不绑定 actor，不表示控制关系。
+- `game_players`：游戏中的座位/参与者；v1 一局只有一个 player。
+- `actor_controls`：玩家接管 actor 的显式关系；有记录时该 actor 不再由 NPC loop 驱动。
 - `worlds`：游戏的世界状态，`game_id` 唯一，强制一局一个 world。
 - `stages`：world 下的场景；`world_id` 非空，按 `ordinal` 保持稳定顺序。
 - `stage_connections`：场景图的有向边；连接两端必须属于同一 world。当前 seed 为双向连接。
@@ -16,7 +17,7 @@ PostgreSQL 是游戏状态的唯一真相。`agent:game` 从数据库读取状�
 - `agent_memories`：每个 agent 的私有上下文；当前 `owner_type` 为 `actor`，后续可扩展 stage / world。
 - `agent_memory_messages`：agent memory 的消息序列，保存 system / human / ai / tool 与 tool_calls、元数据。
 
-`game_messages` 与 `agent_memories` 不能合并。前者是公开事件，后者是私有上下文；`mind` 只进 memory，不进公共消息。
+`game_messages` 与 `agent_memories` 不能合并。前者是公共事件，后者是私有上下文；`mind` 只进 memory，不进公共消息。玩家接管只在 `actor_controls` 增加关系，不改变 actor 本体。
 
 `world` 是 game 的运行时子状态，不是可复用内容模板。数据库 `worlds` 与文件目录 `worlds/` 同名但职责不同：前者是运行时状态，后者是导出的开发期快照。
 
@@ -34,7 +35,7 @@ NPC 回合是：数据库环境 → agent loop → `submit_action_plan` → 短�
 
 第一版动作是 `wait`、`move`、`say`、`whisper`、`announce`：等待、沿连接移动、有目标公开说话、有目标私下耳语、无目标公开说话。`say` 与 `whisper` 必须指定单个 `targetActorName`；`say` 向当前 stage 广播，`whisper` 只有说话者与目标收到 memory；`announce` 无目标，向当前 stage 广播。公共消息用 `visibility` 区分 `stage` 与 `private`；私密事件后续对客户端不可见。
 
-`agent:game npc --game <gameId|slug> --actor <actorId|actorName>` 推进一个 NPC；`--all` 按当前顺序推进所有 NPC。`agent:game status` 读取完整状态；`agent:game snapshot` 导出快照，包含每个 NPC 的 memory。
+`agent:game npc --game <gameId|slug> --actor <actorId|actorName>` 推进一个 NPC；`--all` 跳过被玩家接管的 actor。`agent:game take-control` / `release-control` 接管或释放一个 actor；`agent:game player-speak --mode say|whisper|announce` 让被接管的 actor 直接执行三种说话动作。`agent:game status` 读取完整状态；`agent:game snapshot` 导出快照，包含每个 actor 的 memory。
 
 ## 迁移与重置
 
@@ -48,4 +49,4 @@ LLM 调用不放进数据库事务：先读取状态与 memory，在事务外完
 
 快照是提交后的只读投影，不是第二套状态源。快照失败只记录日志，不回滚业务；正式环境通过开关关闭落盘。`game_messages` 的说话事件同时保存 stage、speaker、target、visibility；`say` 的 memory 文本按说话者、目标、旁观者生成；`announce` 按说话者与旁观者生成；`whisper` 只生成说话者与目标两人的版本。
 
-→ 参见：[架构与契约](architecture.md) → 参见：[开发期 Agent 工作流](debug-workflow.md)
+→ 参见：[架构与契约](architecture.md) → 参见：[开发期 Agent 工作流](debug-workflow.md) → 参见：[Actor 行动与记忆](actor-actions-memory.md)

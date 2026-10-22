@@ -5,6 +5,7 @@ import { actors, gameMessages, games, stageConnections, stages, worlds } from ".
 import { agentLoop } from "../llm/agent-loop";
 import type { ChatCompletionService } from "../llm/protocol";
 import type { ChatMessage, ToolDefinition } from "../llm/types";
+import { isPlayerControlled } from "./control";
 import { GameError } from "./errors";
 import { appendMemoryMessages, loadAgentMemory } from "./memory";
 import { getGameState } from "./service";
@@ -281,7 +282,7 @@ async function nextMessageSequence(executor: Executor, gameId: string): Promise<
   return Number(maxRow?.value ?? 0) + 1;
 }
 
-async function applyPlan(
+export async function applyActorPlan(
   db: Database,
   gameId: string,
   actorId: string,
@@ -510,6 +511,9 @@ export async function runNpcTurn(
 ): Promise<NpcTurnResult> {
   const state = await getGameState(db, gameRef);
   const current = findActor(state, actorRef);
+  if (await isPlayerControlled(db, state.game.id, current.actor.id)) {
+    throw new GameError("invalid_action", `actor 已被玩家接管: ${current.actor.name}`);
+  }
   const memory = await loadAgentMemory(db, state.game.id, current.actor.id);
   if (!memory) {
     throw new GameError("invalid_state", `actor 缺少 memory: ${current.actor.name}`);
@@ -546,7 +550,7 @@ export async function runNpcTurn(
   });
 
   const newMessages = loop.messages.slice(loop.startIndex, loop.endIndex);
-  const ok = await applyPlan(
+  const ok = await applyActorPlan(
     db,
     state.game.id,
     current.actor.id,
