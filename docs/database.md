@@ -10,7 +10,7 @@ PostgreSQL 是游戏状态的唯一真相。`agent:game` 从数据库读取状�
 - `actor_controls`：玩家接管 actor 的显式关系；有记录时该 actor 不再由 NPC loop 驱动。
 - `worlds`：游戏的世界状态，`game_id` 唯一，强制一局一个 world。
 - `stages`：world 下的场景；`world_id` 非空，按 `ordinal` 保持稳定顺序。
-- `stage_connections`：场景图的有向边；连接两端必须属于同一 world；演示世界使用双向连接，灰庭与骨厅之间另有一条双向鼠洞。
+- `stage_connections`：场景图的有向边；连接两端必须属于同一 world；演示世界使用三组双向连接，浅眠墓穴到灰庭另有一条单向出口。
 - `actors`：场景中的角色；`stage_id` 非空，不能脱离场景存在；当前没有玩家控制字段；根属性为 `hp` / `max_hp` / `attack` / `defense` / `speed` / `death`；`skills` 与 `status_effects` 是 actor 的两个 JSONB 容器。
 - `items`：角色持有的物品；`actor_id` 非空，不能脱离角色存在；与 `skills`、`status_effects` 共同构成 actor 的三个运行时队列。物品行包含 `count`、`damage` 与 `block`；`kind=weapon` 的物品使用武器字段。
 - `stage_items`：暂放在场景中的物品；`stage_id` 非空，当前只作为场景内容读取，已支持拾取并转入 actor 背包。物品行包含 `count`、`damage` 与 `block`。
@@ -26,7 +26,7 @@ PostgreSQL 是游戏状态的唯一真相。`agent:game` 从数据库读取状�
 
 ## 开发数据
 
-`seeds/dark-fantasy.ts` 提供黑暗奇幻的战役设定、全局规则、五个场景、双向连接与五个角色；故事内容留在内容定义层，不写进服务逻辑。守墓人持有 `饰品.封骨钥匙`，焚毛炉房放置 `武器.焚鼠火把`，鼠王在骨厅沉睡；这些是初始内容，不是服务逻辑中的硬编码。具体剧情、测试目的与暂缓项见临时测试剧本。
+`seeds/dark-fantasy.ts` 提供黑暗奇幻的战役设定、全局规则、五个场景、三组双向连接、一条单向出口与五个角色；故事内容留在内容定义层，不写进服务逻辑。守墓人持有 `饰品.封骨钥匙`，焚毛炉房放置 `武器.焚鼠火把`，鼠王在骨厅沉睡；这些是初始内容，不是服务逻辑中的硬编码。具体剧情、测试目的与暂缓项见临时测试剧本。
 
 `World` / `Actor` / `Stage` 是创建世界用的初始内容定义，不是测试专用，也不是数据库模型。`createGame` 读取 `World`，在一个事务中写入 `worlds`、`stages`、`stage_items`、`actors`、`items` 与 memory；创建完成后 PostgreSQL 是唯一真相，修改内容定义不会回改已有游戏。`World.initialStageKey` 决定初始旁白所属场景；演示世界从浅眠墓穴开始。测试使用独立的小型世界，不随演示剧情变化。`pnpm db:seed` 是数据库 seeding 的固定叫法，只写 demo 用户与 `app_meta`；`pnpm db:demo` 重置后再写这些基础数据；`agent:game create` 才把 `World` 物化为具体游戏。
 

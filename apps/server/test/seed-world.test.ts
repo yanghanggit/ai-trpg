@@ -64,19 +64,16 @@ describe("dark fantasy seed world", () => {
     const edges = new Set(
       DARK_FANTASY_WORLD.connections.map((connection) => `${connection.from}->${connection.to}`),
     );
-    for (const edge of [
-      "graveyard->crypt",
-      "crypt->graveyard",
-      "crypt->rat-hall",
-      "rat-hall->crypt",
-      "graveyard->rat-hall",
-      "rat-hall->graveyard",
-      "rat-hall->pyre",
-      "pyre->rat-hall",
-      "pyre->sealed-gate",
-      "sealed-gate->pyre",
-    ]) {
-      expect(edges.has(edge)).toBe(true);
-    }
+    expect([...edges].sort()).toEqual(
+      [
+        "crypt->graveyard",
+        "graveyard->rat-hall",
+        "rat-hall->graveyard",
+        "graveyard->pyre",
+        "pyre->graveyard",
+        "graveyard->sealed-gate",
+        "sealed-gate->graveyard",
+      ].sort(),
+    );
   });
 });
