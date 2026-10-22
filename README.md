@@ -41,6 +41,8 @@ pnpm dev
 | `pnpm gen:api`        | 重新生成 OpenAPI 与客户端类型                                 |
 | `pnpm build`          | 生产构建（服务端 + Web）                                      |
 | `pnpm smoke:deepseek` | 真实调用 DeepSeek 的冒烟测试（需要 key，可能产生费用）        |
+| `pnpm agent:game`     | 快照驱动的开发期 agent CLI                                    |
+| `pnpm agent:api`      | 对运行中的服务端做 HTTP API 走查                              |
 
 ## 部署
 

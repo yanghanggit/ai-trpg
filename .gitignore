@@ -19,6 +19,10 @@ coverage
 screenshots/*
 !screenshots/.gitkeep
 
+# 开发期世界快照（保留目录占位）
+**/worlds/*
+!**/worlds/.gitkeep
+
 # LLM 调试落盘（保留目录占位）
 **/logs/*
 !**/logs/.gitkeep

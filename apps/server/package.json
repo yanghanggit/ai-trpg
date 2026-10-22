@@ -14,7 +14,9 @@
     "test:watch": "vitest",
     "smoke:deepseek": "tsx scripts/run-deepseek-smoke.ts",
     "smoke:deepseek:full": "tsx scripts/run-deepseek-smoke.ts --full",
-    "smoke:deepseek:dump": "tsx scripts/run-deepseek-smoke.ts --dump"
+    "smoke:deepseek:dump": "tsx scripts/run-deepseek-smoke.ts --dump",
+    "agent:game": "tsx scripts/agent-game.ts",
+    "agent:api": "tsx scripts/agent-api.ts"
   },
   "dependencies": {
     "@ai-trpg/shared": "workspace:*",

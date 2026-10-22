@@ -46,6 +46,9 @@ Vite 会打印 Local 与 Network 两个地址；局域网访问使用 Network（
 - `pnpm test:run`：服务端与 Web 测试单次运行。
 - `pnpm build`：契约 + 服务端打包 + Web 生产构建。
 - `pnpm smoke:deepseek`：真实调用 DeepSeek 的冒烟测试；`smoke:deepseek:full` 额外跑多工具与模型矩阵；`smoke:deepseek:dump` 在 `LLM_DUMP_ENABLED=true` 时写入对话留痕。
+- `pnpm agent:game` / `pnpm agent:api`：开发期 agent 的快照入口与 HTTP 走查入口。
+
+→ 参见：[开发期 Agent 工作流](debug-workflow.md)
 
 ## 测试与契约
 
