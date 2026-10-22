@@ -4,7 +4,7 @@ import type { Database } from "../db/pool";
 import { agentMemories, agentMemoryMessages, type JsonValue } from "../db/schema";
 import type { ChatMessage, ToolCall } from "../llm/types";
 import { MEMORY_KINDS } from "./actions";
-import type { ActorSeed, AgentMemoryMessageState, AgentMemoryState } from "./types";
+import type { Actor, AgentMemoryMessageState, AgentMemoryState } from "./types";
 
 type Executor = Pick<Database, "select" | "insert" | "update">;
 type MemoryRow = typeof agentMemories.$inferSelect;
@@ -80,7 +80,7 @@ function toRow(memoryId: string, sequence: number, message: ChatMessage) {
 /** 构造 actor 的稳定 system prompt（世界设定、角色与规则）。 */
 export function buildActorSystemPrompt(
   world: { id: string; name: string; campaignSetting: string; systemRules: string },
-  actor: Pick<ActorSeed, "name" | "profile" | "appearance">,
+  actor: Pick<Actor, "name" | "profile" | "appearance">,
 ): string {
   return [
     "# 游戏设定",
@@ -103,7 +103,7 @@ export function buildActorSystemPrompt(
 export async function createActorMemory(
   executor: Executor,
   gameId: string,
-  actor: Pick<ActorSeed, "name" | "profile" | "appearance"> & { id: string },
+  actor: Pick<Actor, "name" | "profile" | "appearance"> & { id: string },
   systemPrompt: string,
 ): Promise<MemoryRow> {
   const memoryId = randomUUID();

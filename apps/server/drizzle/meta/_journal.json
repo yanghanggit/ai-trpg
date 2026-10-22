@@ -50,6 +50,13 @@
       "when": 1792652008645,
       "tag": "0006_clammy_kid_colt",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1792657157275,
+      "tag": "0007_gorgeous_shotgun",
+      "breakpoints": true
     }
   ]
 }

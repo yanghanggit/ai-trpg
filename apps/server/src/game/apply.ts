@@ -12,7 +12,7 @@ import {
   appendEnvironmentObservations,
 } from "./observations";
 import { intentClass, intentClassLabel } from "./plan";
-import type { ActorPlan, CommunicationIntent, MovementIntent } from "./types";
+import type { ActorPlan, AttackIntent, CommunicationIntent, MovementIntent } from "./types";
 
 type Executor = Pick<Database, "select" | "insert" | "update">;
 type WorldRow = typeof worlds.$inferSelect;
@@ -42,7 +42,14 @@ type ResolvedMovement = {
   targetStage?: StageRow;
 };
 
-type ResolvedIntent = ResolvedCommunication | ResolvedMovement;
+type ResolvedAttack = {
+  kind: "attack";
+  intent: AttackIntent;
+  stage: StageRow;
+  target: ActorRow;
+};
+
+type ResolvedIntent = ResolvedCommunication | ResolvedMovement | ResolvedAttack;
 
 /** 校验 plan 的类别互斥；同类别只能有一个 intent。 */
 function validatePlanShape(plan: ActorPlan): void {
@@ -129,6 +136,34 @@ async function resolveMovementTarget(
   return target;
 }
 
+async function resolveAttackTarget(
+  executor: Executor,
+  stageId: string,
+  actorId: string,
+  intent: AttackIntent,
+): Promise<ActorRow> {
+  const targetActorName = intent.targetActorName.trim();
+  if (targetActorName.length === 0) {
+    throw new GameError("invalid_action", "攻击需要 targetActorName");
+  }
+  const targets = await executor
+    .select()
+    .from(actors)
+    .where(and(eq(actors.stageId, stageId), eq(actors.name, targetActorName)))
+    .limit(2);
+  const [target] = targets;
+  if (targets.length !== 1 || !target) {
+    throw new GameError("invalid_action", `当前场景内找不到唯一的攻击目标: ${targetActorName}`);
+  }
+  if (target.id === actorId) {
+    throw new GameError("invalid_action", "不能攻击自己");
+  }
+  if (target.death || target.hp <= 0) {
+    throw new GameError("invalid_action", `攻击目标已经死亡: ${target.name}`);
+  }
+  return target;
+}
+
 /** 顺序校验 intent，并模拟移动后的场景，不写数据库。 */
 async function resolvePlan(
   executor: Executor,
@@ -157,16 +192,27 @@ async function resolvePlan(
       continue;
     }
 
-    const targetStage = await resolveMovementTarget(executor, world, stage, intent);
+    if (intent.kind === "movement") {
+      const targetStage = await resolveMovementTarget(executor, world, stage, intent);
+      resolved.push({
+        kind: "movement",
+        intent,
+        stage,
+        ...(targetStage ? { targetStage } : {}),
+      });
+      if (targetStage) {
+        stage = targetStage;
+      }
+      continue;
+    }
+
+    const target = await resolveAttackTarget(executor, stage.id, actorRow.actor.id, intent);
     resolved.push({
-      kind: "movement",
+      kind: "attack",
       intent,
       stage,
-      ...(targetStage ? { targetStage } : {}),
+      target,
     });
-    if (targetStage) {
-      stage = targetStage;
-    }
   }
 
   return resolved;
@@ -215,6 +261,14 @@ function communicationFeedback(resolved: ResolvedCommunication): string {
   return `# 行动结果\n你对${targetActor?.name ?? intent.targetActorName ?? "某人"}耳语（场景：${stage.name}）：${intent.message}`;
 }
 
+function attackFeedback(resolved: ResolvedAttack, damage: number, remainingHp: number): string {
+  const outcome =
+    remainingHp <= 0
+      ? `${resolved.target.name}倒下了`
+      : `${resolved.target.name}剩余 HP ${remainingHp}/${resolved.target.maxHp}`;
+  return `# 行动结果\n你攻击了${resolved.target.name}，造成${damage}点伤害；${outcome}。`;
+}
+
 function movementFeedback(resolved: ResolvedMovement): string {
   if (resolved.intent.mode === "wait") {
     return "# 行动结果\n你留在原地，继续观察四周。";
@@ -250,6 +304,36 @@ async function applyResolvedIntent(
       resolved.intent.message,
     );
     return communicationFeedback(resolved);
+  }
+
+  if (resolved.kind === "attack") {
+    const damage = Math.max(0, actorRow.actor.attack - resolved.target.defense);
+    const remainingHp = Math.max(0, resolved.target.hp - damage);
+    const death = remainingHp <= 0;
+    await executor
+      .update(actors)
+      .set({ hp: remainingHp, death, updatedAt: now })
+      .where(eq(actors.id, resolved.target.id));
+    await bumpGameVersion(executor, gameId, now);
+    const outcome = death
+      ? `；${resolved.target.name}倒下了。`
+      : `；${resolved.target.name}剩余 HP ${remainingHp}/${resolved.target.maxHp}。`;
+    const content = `${actorRow.actor.name}攻击${resolved.target.name}，造成${damage}点伤害${outcome}`;
+    await appendPublicMessage(executor, gameId, actorRow.actor.id, {
+      kind: "attack",
+      stageId: resolved.stage.id,
+      targetActorId: resolved.target.id,
+      visibility: "stage",
+      content,
+    });
+    await appendActionObservations(
+      executor,
+      gameId,
+      resolved.stage.id,
+      actorRow.actor.id,
+      `# 战斗\n${content}`,
+    );
+    return attackFeedback(resolved, damage, remainingHp);
   }
 
   if (resolved.intent.mode === "move" && resolved.targetStage) {
@@ -322,6 +406,9 @@ export async function applyActorPlan(
       .limit(1);
     if (!actorRow) {
       throw new GameError("not_found", `actor 不存在: ${actorId}`);
+    }
+    if (actorRow.actor.death) {
+      throw new GameError("invalid_action", `actor 已死亡: ${actorRow.actor.name}`);
     }
     const memory = await loadAgentMemory(tx, gameId, actorId);
     if (!memory) {

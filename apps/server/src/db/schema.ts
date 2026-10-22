@@ -1,4 +1,5 @@
 import {
+  boolean,
   integer,
   jsonb,
   pgTable,
@@ -139,6 +140,7 @@ export const actors = pgTable("actors", {
   attack: integer("attack").notNull(),
   defense: integer("defense").notNull(),
   speed: integer("speed").notNull(),
+  death: boolean("death").notNull().default(false),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
 });

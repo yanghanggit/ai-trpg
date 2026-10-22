@@ -18,9 +18,10 @@
 - `take-control --game <id|slug> --actor <actorId|actorName>`：玩家接管一个 actor。
 - `release-control --game <id|slug> --actor <actorId|actorName>`：解除接管。
 - `player-communicate --game <id|slug> --actor <actorId|actorName> --mode say|whisper|announce [--target <actorName>] [--reason <text>] --message <text>`：以被接管 actor 的身份直接沟通，不调用 LLM。
+- `player-attack --game <id|slug> --actor <actorId|actorName> --target <actorName>`：以被接管 actor 的身份直接攻击同场景目标，不调用 LLM。
 - `snapshot --game <id|slug>`：把当前状态与每个 NPC 的 memory 导出为只读快照。
 
-NPC 回合由 agent loop 驱动：先读取环境与私有 memory，再通过工具决定行动。`look_stage` 是只读 GET，可多次调用；`communicate` 暂存一次 `say`、`whisper` 或 `announce`；`move` 暂存一次 `move` 或 `wait`。沟通类与行动类各最多一个，两类可以共存并保持调用顺序；`submit_plan` 是终止工具，handler 只收集计划，不写数据库。loop 结束后服务层在事务中按顺序校验并应用全部 intent。`say` 是有目标公开说话，向当前 stage 广播；`announce` 是无目标公开说话；`whisper` 必须指定单个 `targetActorName`，只有发起者与目标进入 memory。`game_messages` 用 `visibility` 区分公开与私密。
+NPC 回合由 agent loop 驱动：先读取环境与私有 memory，再通过工具决定行动。`look_stage`、`get_stats`、`get_items` 是只读 GET，可多次调用；工具按模型返回顺序串行执行；`communicate` 暂存一次 `say`、`whisper` 或 `announce`；`move` 暂存一次 `move` 或 `wait`；`attack` 暂存一次同场景攻击。沟通类与行动类各最多一个，两类可以共存并保持调用顺序；`submit_plan` 是终止工具，handler 只收集计划，不写数据库。loop 结束后服务层在事务中按顺序校验并应用全部 intent。`say` 是有目标公开说话，向当前 stage 广播；`announce` 是无目标公开说话；`whisper` 必须指定单个 `targetActorName`，只有发起者与目标进入 memory；`attack` 的伤害为攻击者 `attack` 减去目标 `defense`，最低 0；目标 HP 归零后 `death=true`，不能再执行 loop。`game_messages` 用 `visibility` 区分公开与私密。
 
 它不需要启动 HTTP 服务端，但需要 `DATABASE_URL` 与 `DEEPSEEK_API_KEY`。`agent:game status` 不调用 LLM，可用于观察当前状态。
 

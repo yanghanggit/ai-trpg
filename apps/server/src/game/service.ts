@@ -154,6 +154,7 @@ export async function getGameState(db: Database, ref: string): Promise<GameState
       attack: actor.attack,
       defense: actor.defense,
       speed: actor.speed,
+      death: actor.death,
       items: itemsByActor.get(actor.id) ?? [],
     });
     actorsByStage.set(actor.stageId, list);
@@ -223,7 +224,7 @@ export async function getGameState(db: Database, ref: string): Promise<GameState
 /** 创建一局游戏及初始 world、stage、actor、item 与 memory。 */
 export async function createGame(db: Database, input: CreateGameInput): Promise<GameState> {
   const gameId = randomUUID();
-  const gameName = input.name?.trim() || input.seed.worldName;
+  const gameName = input.name?.trim() || input.world.worldName;
   const requestedSlug = input.slug?.trim();
   const baseSlug = slugify(requestedSlug ?? gameName);
   if (requestedSlug !== undefined && baseSlug.length === 0) {
@@ -246,7 +247,7 @@ export async function createGame(db: Database, input: CreateGameInput): Promise<
       slug,
       name: gameName,
       status: "active",
-      contentVersion: input.seed.contentVersion,
+      contentVersion: input.world.contentVersion,
       version: 0,
     });
 
@@ -260,30 +261,30 @@ export async function createGame(db: Database, input: CreateGameInput): Promise<
     await tx.insert(worlds).values({
       id: worldId,
       gameId,
-      name: input.seed.worldName,
-      campaignSetting: input.seed.campaignSetting,
-      systemRules: input.seed.systemRules,
+      name: input.world.worldName,
+      campaignSetting: input.world.campaignSetting,
+      systemRules: input.world.systemRules,
     });
 
     const stageIds = new Map<string, string>();
-    for (const [ordinal, seed] of input.seed.stages.entries()) {
-      if (stageIds.has(seed.key)) {
-        throw new GameError("invalid_state", `重复的 stage key: ${seed.key}`);
+    for (const [ordinal, stage] of input.world.stages.entries()) {
+      if (stageIds.has(stage.key)) {
+        throw new GameError("invalid_state", `重复的 stage key: ${stage.key}`);
       }
       const stageId = randomUUID();
-      stageIds.set(seed.key, stageId);
+      stageIds.set(stage.key, stageId);
       await tx.insert(stages).values({
         id: stageId,
         worldId,
-        name: seed.name,
-        profile: seed.profile,
-        environment: seed.environment,
-        narrative: seed.narrative,
+        name: stage.name,
+        profile: stage.profile,
+        environment: stage.environment,
+        narrative: stage.narrative,
         ordinal,
       });
     }
 
-    for (const connection of input.seed.connections) {
+    for (const connection of input.world.connections) {
       const fromStageId = stageIds.get(connection.from);
       const toStageId = stageIds.get(connection.to);
       if (!fromStageId || !toStageId) {
@@ -300,27 +301,28 @@ export async function createGame(db: Database, input: CreateGameInput): Promise<
       });
     }
 
-    for (const seed of input.seed.actors) {
-      const actorStageId = stageIds.get(seed.stageKey);
+    for (const actor of input.world.actors) {
+      const actorStageId = stageIds.get(actor.stageKey);
       if (!actorStageId) {
-        throw new GameError("invalid_state", `actor 引用了不存在的 stage: ${seed.stageKey}`);
+        throw new GameError("invalid_state", `actor 引用了不存在的 stage: ${actor.stageKey}`);
       }
 
       const actorId = randomUUID();
       await tx.insert(actors).values({
         id: actorId,
         stageId: actorStageId,
-        name: seed.name,
-        profile: seed.profile,
-        appearance: seed.appearance,
-        hp: seed.hp,
-        maxHp: seed.maxHp,
-        attack: seed.attack,
-        defense: seed.defense,
-        speed: seed.speed,
+        name: actor.name,
+        profile: actor.profile,
+        appearance: actor.appearance,
+        hp: actor.hp,
+        maxHp: actor.maxHp,
+        attack: actor.attack,
+        defense: actor.defense,
+        speed: actor.speed,
+        death: actor.death ?? false,
       });
 
-      for (const item of seed.items) {
+      for (const item of actor.items) {
         await tx.insert(items).values({
           id: randomUUID(),
           actorId,
@@ -333,30 +335,30 @@ export async function createGame(db: Database, input: CreateGameInput): Promise<
       await createActorMemory(
         tx,
         gameId,
-        { id: actorId, name: seed.name, profile: seed.profile, appearance: seed.appearance },
+        { id: actorId, name: actor.name, profile: actor.profile, appearance: actor.appearance },
         buildActorSystemPrompt(
           {
             id: worldId,
-            name: input.seed.worldName,
-            campaignSetting: input.seed.campaignSetting,
-            systemRules: input.seed.systemRules,
+            name: input.world.worldName,
+            campaignSetting: input.world.campaignSetting,
+            systemRules: input.world.systemRules,
           },
-          seed,
+          actor,
         ),
       );
     }
 
-    if (input.seed.initialNarration) {
+    if (input.world.initialNarration) {
       await tx.insert(gameMessages).values({
         id: randomUUID(),
         gameId,
         sequence: 1,
         kind: "narration",
-        stageId: input.seed.stages[0] ? (stageIds.get(input.seed.stages[0].key) ?? null) : null,
+        stageId: input.world.stages[0] ? (stageIds.get(input.world.stages[0].key) ?? null) : null,
         speakerActorId: null,
         targetActorId: null,
         visibility: "stage",
-        content: input.seed.initialNarration,
+        content: input.world.initialNarration,
       });
     }
   });

@@ -11,6 +11,8 @@ import { GameError } from "./errors";
 import type {
   ActorIntent,
   ActorPlan,
+  ActorState,
+  AttackIntent,
   CommunicationIntent,
   GameState,
   MovementIntent,
@@ -33,6 +35,38 @@ export function buildLookTool(state: GameState): ToolDefinition {
           },
         },
         required: ["stageName"],
+      },
+    },
+  };
+}
+
+/** 构造自身 stats 查看工具；只读，可在需要时多次调用。 */
+export function buildStatsTool(): ToolDefinition {
+  return {
+    type: "function",
+    function: {
+      name: "get_stats",
+      description: "查看自己的当前 stats：HP、attack、defense、speed 与存活状态。只读。",
+      parameters: {
+        type: "object",
+        properties: {},
+        required: [],
+      },
+    },
+  };
+}
+
+/** 构造自身物品查看工具；只读，可在需要时多次调用。 */
+export function buildItemsTool(): ToolDefinition {
+  return {
+    type: "function",
+    function: {
+      name: "get_items",
+      description: "查看自己持有的物品及其描述。只读。",
+      parameters: {
+        type: "object",
+        properties: {},
+        required: [],
       },
     },
   };
@@ -101,6 +135,29 @@ export function buildMoveTool(availableStageNames: readonly string[]): ToolDefin
   };
 }
 
+/** 构造攻击 intent 工具；伤害使用攻击者的 attack 与目标的 defense。 */
+export function buildAttackTool(availableTargetActorNames: readonly string[]): ToolDefinition {
+  return {
+    type: "function",
+    function: {
+      name: "attack",
+      description:
+        "把一次攻击加入本轮计划。只能攻击当前场景内的角色；伤害为攻击者 attack 减去目标 defense，最低 0。",
+      parameters: {
+        type: "object",
+        properties: {
+          targetActorName: {
+            type: "string",
+            description: "当前场景内唯一的攻击目标",
+            ...(availableTargetActorNames.length > 0 ? { enum: availableTargetActorNames } : {}),
+          },
+        },
+        required: ["targetActorName"],
+      },
+    },
+  };
+}
+
 /** 构造终止工具；调用后本轮计划结束。 */
 export function buildSubmitPlanTool(): ToolDefinition {
   return {
@@ -117,6 +174,29 @@ export function buildSubmitPlanTool(): ToolDefinition {
   };
 }
 
+/** 渲染自身 stats，供 get_stats 工具返回。 */
+export function describeStats(actor: ActorState): string {
+  return [
+    `角色：${actor.name}`,
+    `HP：${actor.hp}/${actor.maxHp}`,
+    `attack：${actor.attack}`,
+    `defense：${actor.defense}`,
+    `speed：${actor.speed}`,
+    `状态：${actor.death ? "已死亡" : "存活"}`,
+  ].join("\n");
+}
+
+/** 渲染自身物品，供 get_items 工具返回。 */
+export function describeItems(actor: Pick<ActorState, "items">): string {
+  if (actor.items.length === 0) {
+    return "物品：无";
+  }
+  return [
+    "物品：",
+    ...actor.items.map((item) => `- ${item.name}（${item.kind}）：${item.description}`),
+  ].join("\n");
+}
+
 /** 读取某个场景的公开信息，供 look_stage 工具返回。 */
 export function lookStage(state: GameState, stageName: string): string {
   const stage = findStageByName(state, stageName);
@@ -128,7 +208,7 @@ export function lookStage(state: GameState, stageName: string): string {
     `场景：${stage.name}`,
     stage.environment,
     stage.narrative,
-    `角色：${stage.actors.length === 0 ? "无" : stage.actors.map((actor) => actor.name).join("、")}`,
+    `角色：${stage.actors.length === 0 ? "无" : stage.actors.map((actor) => `${actor.name}${actor.death ? "（已死亡）" : ""}`).join("、")}`,
     `可去：${moves.length === 0 ? "无" : moves.join("、")}`,
   ].join("\n");
 }
@@ -171,6 +251,16 @@ export function parseMovement(args: Record<string, unknown>): MovementIntent {
     mode,
     ...(targetStageName ? { targetStageName } : {}),
   };
+}
+
+/** 把 attack 工具参数转换为攻击 intent；只检查形状。 */
+export function parseAttack(args: Record<string, unknown>): AttackIntent {
+  const targetActorName =
+    typeof args.targetActorName === "string" ? args.targetActorName.trim() : "";
+  if (targetActorName.length === 0) {
+    throw new GameError("invalid_action", "攻击需要非空 targetActorName");
+  }
+  return { kind: "attack", targetActorName };
 }
 
 /** 返回 intent 的互斥类别；沟通之外都占用同一个行动槽。 */

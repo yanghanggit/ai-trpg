@@ -51,7 +51,7 @@ pnpm dev
 | `pnpm db:check`       | 检查数据库连接与基础设施表                                    |
 | `pnpm db:seed`        | 写入 demo 用户与基础元数据                                    |
 | `pnpm db:reset --yes` | 清空登记过的开发表                                            |
-| `pnpm db:demo`        | 迁移 + 重置 + 黑暗奇幻 demo seed                              |
+| `pnpm db:demo`        | 迁移 + 重置 + 黑暗奇幻 demo 数据                              |
 | `pnpm build`          | 生产构建（服务端 + Web）                                      |
 | `pnpm smoke:deepseek` | 真实调用 DeepSeek 的冒烟测试（需要 key，可能产生费用）        |
 | `pnpm agent:game`     | 数据库 / 快照驱动的 agent CLI；`npc` 推进 NPC 回合            |

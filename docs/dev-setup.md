@@ -50,9 +50,9 @@ Vite 会打印 Local 与 Network 两个地址；局域网访问使用 Network（
 - `pnpm build`：契约 + 服务端打包 + Web 生产构建。
 - `pnpm smoke:deepseek`：真实调用 DeepSeek 的冒烟测试；`smoke:deepseek:full` 额外跑多工具与模型矩阵；`smoke:deepseek:dump` 在 `LLM_DUMP_ENABLED=true` 时写入对话留痕。
 - `pnpm agent:game` / `pnpm agent:api`：开发期 agent 的快照入口与 HTTP 走查入口。
-- `pnpm db:migrate` / `db:check` / `db:seed` / `db:reset` / `db:demo`：迁移、探测、demo seed、定点清空、演示初始化；`db:reset` 需要 `--yes`。
+- `pnpm db:migrate` / `db:check` / `db:seed` / `db:reset` / `db:demo`：迁移、探测、demo 数据、定点清空、演示初始化；`db:reset` 需要 `--yes`。
 - `pnpm agent:game create --user demo`、`status`、`npc`、`snapshot`：从数据库创建并推进黑暗奇幻 NPC 回合；`npc` 使用 DeepSeek，需要 `DEEPSEEK_API_KEY`。
-- `pnpm agent:game take-control` / `release-control` / `player-communicate`：玩家接管 actor 并以三种沟通模式直接行动。
+- `pnpm agent:game take-control` / `release-control` / `player-communicate` / `player-attack`：玩家接管 actor 后直接沟通或攻击。
 
 → 参见：[开发期 Agent 工作流](debug-workflow.md) → 参见：[数据库](database.md)
 

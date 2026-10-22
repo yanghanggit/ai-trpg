@@ -1,5 +1,5 @@
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { DARK_FANTASY_SEED, DEMO_USER } from "../seeds/dark-fantasy";
+import { DARK_FANTASY_WORLD, DEMO_USER } from "../seeds/dark-fantasy";
 import "../src/db/env";
 import { type DatabaseHandle, openDatabase } from "../src/db/connect";
 import { resetDomainData, seedDemoData } from "../src/db/maintenance";
@@ -9,6 +9,7 @@ import {
   getGameMemories,
   getGameState,
   isPlayerControlled,
+  playerAttack,
   playerCommunicate,
   releaseActorControl,
   runNpcTurn,
@@ -18,9 +19,9 @@ import type { ChatCompletionService } from "../src/llm";
 
 const testDatabaseUrl = process.env.TEST_DATABASE_URL?.trim();
 
-const ALL_GATE_SEED = {
-  ...DARK_FANTASY_SEED,
-  actors: DARK_FANTASY_SEED.actors.map((actor) => ({ ...actor, stageKey: "gate" })),
+const ALL_GATE_WORLD = {
+  ...DARK_FANTASY_WORLD,
+  actors: DARK_FANTASY_WORLD.actors.map((actor) => ({ ...actor, stageKey: "gate" })),
 };
 
 const NEVER_CALLED_SERVICE: ChatCompletionService = {
@@ -47,7 +48,7 @@ describe.skipIf(!testDatabaseUrl)("player takeover", () => {
     const game = await createGame(handle.db, {
       username: DEMO_USER.username,
       name: "玩家接管测试局",
-      seed: ALL_GATE_SEED,
+      world: ALL_GATE_WORLD,
     });
 
     const control = await takeActorControl(handle.db, game.game.slug, "守烬人");
@@ -125,5 +126,31 @@ describe.skipIf(!testDatabaseUrl)("player takeover", () => {
 
     await releaseActorControl(handle.db, game.game.slug, "守烬人");
     expect(await isPlayerControlled(handle.db, game.game.id, control.actorId)).toBe(false);
+  });
+
+  it("lets a controlled actor attack", async () => {
+    const game = await createGame(handle.db, {
+      username: DEMO_USER.username,
+      name: "玩家攻击测试局",
+      world: ALL_GATE_WORLD,
+    });
+    await takeActorControl(handle.db, game.game.slug, "守烬人");
+
+    const attacked = await playerAttack(handle.db, game.game.slug, "守烬人", {
+      targetActorName: "提灯修士",
+    });
+    expect(attacked.ok).toBe(true);
+    expect(attacked.plan?.intents[0]).toEqual({
+      kind: "attack",
+      targetActorName: "提灯修士",
+    });
+
+    const state = await getGameState(handle.db, game.game.slug);
+    expect(state.game.version).toBe(1);
+    expect(state.messages.map((message) => message.kind)).toEqual(["narration", "attack"]);
+    const monk = state.world.stages
+      .flatMap((stage) => stage.actors)
+      .find((actor) => actor.name === "提灯修士");
+    expect(monk?.hp).toBe(10);
   });
 });

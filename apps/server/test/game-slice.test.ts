@@ -3,7 +3,7 @@ import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { DARK_FANTASY_SEED, DEMO_USER } from "../seeds/dark-fantasy";
+import { DARK_FANTASY_WORLD, DEMO_USER } from "../seeds/dark-fantasy";
 import "../src/db/env";
 import { type DatabaseHandle, openDatabase } from "../src/db/connect";
 import { resetDomainData, seedDemoData } from "../src/db/maintenance";
@@ -34,7 +34,12 @@ class ScriptedNpcService implements ChatCompletionService {
       throw new Error("脚本化 NPC 计划已耗尽");
     }
     const toolCalls: ToolCall[] = plan.intents.map((intent) => {
-      const name = intent.kind === "communication" ? "communicate" : "move";
+      const name =
+        intent.kind === "communication"
+          ? "communicate"
+          : intent.kind === "movement"
+            ? "move"
+            : "attack";
       return {
         id: randomUUID(),
         type: "function",
@@ -50,12 +55,14 @@ class ScriptedNpcService implements ChatCompletionService {
                     : {}),
                   message: intent.message,
                 }
-              : {
-                  mode: intent.mode,
-                  ...(intent.targetStageName !== undefined
-                    ? { targetStageName: intent.targetStageName }
-                    : {}),
-                },
+              : intent.kind === "movement"
+                ? {
+                    mode: intent.mode,
+                    ...(intent.targetStageName !== undefined
+                      ? { targetStageName: intent.targetStageName }
+                      : {}),
+                  }
+                : { targetActorName: intent.targetActorName },
           ),
         },
       };
@@ -95,7 +102,7 @@ describe.skipIf(!testDatabaseUrl)("memory-driven NPC slice", () => {
     const created = await createGame(handle.db, {
       username: DEMO_USER.username,
       name: "灰烬测试局",
-      seed: DARK_FANTASY_SEED,
+      world: DARK_FANTASY_WORLD,
     });
 
     expect(created.world.stages).toHaveLength(2);
@@ -213,7 +220,7 @@ describe.skipIf(!testDatabaseUrl)("memory-driven NPC slice", () => {
     expect(result.snapshot.manifest).toMatchObject({
       source: "db",
       dbVersion: 4,
-      contentVersion: DARK_FANTASY_SEED.contentVersion,
+      contentVersion: DARK_FANTASY_WORLD.contentVersion,
     });
     expect(result.snapshot.manifest.parts).toEqual(
       expect.arrayContaining([
@@ -236,7 +243,7 @@ describe.skipIf(!testDatabaseUrl)("memory-driven NPC slice", () => {
     const created = await createGame(handle.db, {
       username: DEMO_USER.username,
       name: "等待事件测试局",
-      seed: DARK_FANTASY_SEED,
+      world: DARK_FANTASY_WORLD,
     });
     const service = new ScriptedNpcService([{ intents: [{ kind: "movement", mode: "wait" }] }]);
 
@@ -256,11 +263,80 @@ describe.skipIf(!testDatabaseUrl)("memory-driven NPC slice", () => {
     ).toBe(true);
   });
 
+  it("applies attack using attack and defense, and writes combat feedback", async () => {
+    const created = await createGame(handle.db, {
+      username: DEMO_USER.username,
+      name: "攻击测试局",
+      world: DARK_FANTASY_WORLD,
+    });
+    const service = new ScriptedNpcService([
+      { intents: [{ kind: "attack", targetActorName: "提灯修士" }] },
+    ]);
+
+    const result = await runNpcTurn(handle.db, created.game.slug, "守烬人", { service });
+    expect(result.ok).toBe(true);
+
+    const state = await getGameState(handle.db, created.game.slug);
+    expect(state.game.version).toBe(1);
+    expect(state.messages.map((message) => message.kind)).toEqual(["narration", "attack"]);
+    expect(state.messages[1]?.content).toContain("守烬人攻击提灯修士，造成0点伤害");
+    expect(state.messages[1]?.targetActorId).toBeTruthy();
+    expect(state.messages[1]?.visibility).toBe("stage");
+
+    const monkState = state.world.stages
+      .flatMap((stage) => stage.actors)
+      .find((actor) => actor.name === "提灯修士");
+    expect(monkState?.hp).toBe(10);
+
+    const memories = await getGameMemories(handle.db, created.game.id);
+    const keeper = memories.find((memory) => memory.name === "守烬人");
+    const monk = memories.find((memory) => memory.name === "提灯修士");
+    expect(
+      keeper?.messages.some((message) => message.content.includes("你攻击了提灯修士，造成0点伤害")),
+    ).toBe(true);
+    expect(
+      monk?.messages.some((message) => message.content.includes("守烬人攻击提灯修士，造成0点伤害")),
+    ).toBe(true);
+  });
+
+  it("marks a killed actor as dead and refuses to run its NPC loop", async () => {
+    const world = {
+      ...DARK_FANTASY_WORLD,
+      actors: DARK_FANTASY_WORLD.actors.map((actor) =>
+        actor.name === "提灯修士" ? { ...actor, hp: 1, maxHp: 1, defense: 0 } : actor,
+      ),
+    };
+    const created = await createGame(handle.db, {
+      username: DEMO_USER.username,
+      name: "死亡测试局",
+      world,
+    });
+    const service = new ScriptedNpcService([
+      { intents: [{ kind: "attack", targetActorName: "提灯修士" }] },
+    ]);
+
+    const result = await runNpcTurn(handle.db, created.game.slug, "守烬人", { service });
+    expect(result.ok).toBe(true);
+
+    const state = await getGameState(handle.db, created.game.slug);
+    expect(state.messages[1]?.content).toContain("提灯修士倒下了");
+    const monk = state.world.stages
+      .flatMap((stage) => stage.actors)
+      .find((actor) => actor.name === "提灯修士");
+    expect(monk).toMatchObject({ hp: 0, death: true });
+
+    await expect(
+      runNpcTurn(handle.db, created.game.slug, "提灯修士", {
+        service: new ScriptedNpcService([]),
+      }),
+    ).rejects.toThrow("已死亡");
+  });
+
   it("applies one communication and one movement intent in tool-call order", async () => {
     const created = await createGame(handle.db, {
       username: DEMO_USER.username,
       name: "组合行动测试局",
-      seed: DARK_FANTASY_SEED,
+      world: DARK_FANTASY_WORLD,
     });
 
     const service = new ScriptedNpcService([
@@ -299,11 +375,11 @@ describe.skipIf(!testDatabaseUrl)("memory-driven NPC slice", () => {
     expect(keeperLocation?.[1]).toBe("断钟中殿");
   });
 
-  it("writes observer-specific say memory text for a third actor", async () => {
-    const seed = {
-      ...DARK_FANTASY_SEED,
+  it("writes observer-specific communication and attack memory for a third actor", async () => {
+    const world = {
+      ...DARK_FANTASY_WORLD,
       actors: [
-        ...DARK_FANTASY_SEED.actors,
+        ...DARK_FANTASY_WORLD.actors,
         {
           stageKey: "gate",
           name: "旁听者",
@@ -321,7 +397,7 @@ describe.skipIf(!testDatabaseUrl)("memory-driven NPC slice", () => {
     const game = await createGame(handle.db, {
       username: DEMO_USER.username,
       name: "旁听测试局",
-      seed,
+      world,
     });
     const service = new ScriptedNpcService([
       {
@@ -356,6 +432,9 @@ describe.skipIf(!testDatabaseUrl)("memory-driven NPC slice", () => {
           },
         ],
       },
+      {
+        intents: [{ kind: "attack", targetActorName: "提灯修士" }],
+      },
     ]);
     const announced = await runNpcTurn(handle.db, game.game.slug, "守烬人", { service });
     expect(announced.ok).toBe(true);
@@ -363,10 +442,13 @@ describe.skipIf(!testDatabaseUrl)("memory-driven NPC slice", () => {
     expect(targeted.ok).toBe(true);
     const whispered = await runNpcTurn(handle.db, game.game.slug, "守烬人", { service });
     expect(whispered.ok).toBe(true);
+    const attacked = await runNpcTurn(handle.db, game.game.slug, "守烬人", { service });
+    expect(attacked.ok).toBe(true);
 
     const memories = await getGameMemories(handle.db, game.game.id);
     const observer = memories.find((memory) => memory.name === "旁听者");
     const monk = memories.find((memory) => memory.name === "提灯修士");
+    const scribe = memories.find((memory) => memory.name === "缄默抄经人");
     expect(
       observer?.messages.some((message) =>
         message.content.includes("守烬人公开说（场景：灰烬门廊）：灰里有人。"),
@@ -388,5 +470,11 @@ describe.skipIf(!testDatabaseUrl)("memory-driven NPC slice", () => {
         message.content.includes("守烬人对你耳语（场景：灰烬门廊）：别回头。"),
       ),
     ).toBe(true);
+    expect(
+      observer?.messages.some((message) => message.content.includes("守烬人攻击提灯修士")),
+    ).toBe(true);
+    expect(scribe?.messages.some((message) => message.content.includes("守烬人攻击提灯修士"))).toBe(
+      false,
+    );
   });
 });

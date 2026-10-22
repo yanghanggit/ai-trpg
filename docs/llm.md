@@ -13,7 +13,7 @@
 - 请求与结果是值对象，service 无状态：同一个 `DeepSeekClient` 可并发复用，不在实例上残留上一轮响应。
 - 预期内失败走结果：超时、连接错误、非 200 填进 `ChatCompletionResult.error`，不抛异常；真正的程序错误与取消仍然抛出。
 - 批量有并发上限：`batchComplete` 用信号量限制同时在飞的请求数，结果与请求等长同序，意外异常也收敛为 error。
-- agent loop 与 provider 解耦：循环只依赖 `ChatCompletionService`，工具定义与 handler 由调用方注入；终止工具、纠偏重试与历史边界属于编排层。
+- agent loop 与 provider 解耦：循环只依赖 `ChatCompletionService`，工具定义与 handler 由调用方注入；终止工具、纠偏重试与历史边界属于编排层。循环层不判断工具能否并发：由 LLM 决定一次返回多个 `tool_calls` 还是分多轮对话，循环按返回顺序串行执行，保证状态变更顺序确定。
 - 内部字段 camelCase，snake_case 只存在于 DeepSeek wire 边界，避免 provider 命名扩散到业务层。
 
 ## 与参考实现的差异

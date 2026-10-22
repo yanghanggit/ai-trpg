@@ -2,18 +2,25 @@ import type { CommunicationActionType, MessageVisibility, MovementActionType } f
 
 export type { CommunicationActionType, MessageVisibility, MovementActionType } from "./actions";
 
-export type WorldSeed = {
+/**
+ * 创建游戏时物化为运行时 world 的初始内容定义。
+ *
+ * 不是数据库行，也不是测试夹具；`createGame` 读取它并在一个事务中写入
+ * `worlds`、`stages`、`actors` 与 `items`。创建完成后以数据库为唯一真相。
+ */
+export type World = {
   contentVersion: string;
   worldName: string;
   campaignSetting: string;
   systemRules: string;
   initialNarration?: string;
-  stages: readonly StageSeed[];
-  connections: readonly ConnectionSeed[];
-  actors: readonly ActorSeed[];
+  stages: readonly Stage[];
+  connections: readonly Connection[];
+  actors: readonly Actor[];
 };
 
-export type StageSeed = {
+/** World 内的初始场景定义；`key` 仅在创建时用于连接与 actor 归属。 */
+export type Stage = {
   key: string;
   name: string;
   profile: string;
@@ -21,12 +28,18 @@ export type StageSeed = {
   narrative: string;
 };
 
-export type ConnectionSeed = {
+/** 场景图的初始有向连接；两端引用 `Stage.key`。 */
+export type Connection = {
   from: string;
   to: string;
 };
 
-export type ActorSeed = {
+/**
+ * World 内的初始 actor 定义，包含根属性、初始物品与初始死亡状态。
+ *
+ * `death` 省略时按 false 写入；创建后由攻击等行动更新数据库中的 `death`。
+ */
+export type Actor = {
   stageKey: string;
   name: string;
   profile: string;
@@ -36,20 +49,23 @@ export type ActorSeed = {
   attack: number;
   defense: number;
   speed: number;
-  items: readonly ItemSeed[];
+  death?: boolean;
+  items: readonly Item[];
 };
 
-export type ItemSeed = {
+/** Actor 的初始物品定义；创建后物化为 `items` 行。 */
+export type Item = {
   name: string;
   description: string;
   kind: string;
 };
 
+/** `createGame` 的输入；`world` 只在创建时读取，之后以数据库状态为准。 */
 export type CreateGameInput = {
   username: string;
   name?: string;
   slug?: string;
-  seed: WorldSeed;
+  world: World;
 };
 
 export type CommunicationIntent = {
@@ -66,7 +82,12 @@ export type MovementIntent = {
   targetStageName?: string;
 };
 
-export type ActorIntent = CommunicationIntent | MovementIntent;
+export type AttackIntent = {
+  kind: "attack";
+  targetActorName: string;
+};
+
+export type ActorIntent = CommunicationIntent | MovementIntent | AttackIntent;
 
 export type ActorPlan = {
   intents: ActorIntent[];
@@ -89,6 +110,7 @@ export type ActorState = {
   attack: number;
   defense: number;
   speed: number;
+  death: boolean;
   items: ItemState[];
 };
 

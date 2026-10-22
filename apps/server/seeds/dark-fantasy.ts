@@ -1,4 +1,6 @@
-import type { WorldSeed } from "../src/game/types";
+import type { World } from "../src/game/types";
+
+/** 黑暗奇幻演示世界的初始内容定义；由 createGame 物化为具体游戏状态。 */
 
 export const DEMO_USER = {
   id: "00000000-0000-4000-8000-000000000001",
@@ -26,7 +28,7 @@ const SYSTEM_RULES = [
   "场景切换代表角色已完成移动；只能沿场景之间的连接前往相邻场景。",
 ].join("");
 
-export const DARK_FANTASY_SEED: WorldSeed = {
+export const DARK_FANTASY_WORLD: World = {
   contentVersion: "dark-fantasy.v1",
   worldName: "灰烬钟声",
   campaignSetting: CAMPAIGN_SETTING,

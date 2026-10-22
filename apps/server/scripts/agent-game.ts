@@ -7,7 +7,7 @@
 
 import { readFile } from "node:fs/promises";
 import { parseArgs } from "node:util";
-import { DARK_FANTASY_SEED } from "../seeds/dark-fantasy";
+import { DARK_FANTASY_WORLD } from "../seeds/dark-fantasy";
 import { openDatabase } from "../src/db/connect";
 import type { Database } from "../src/db/pool";
 import {
@@ -25,6 +25,7 @@ import {
   getGameState,
   isCommunicationAction,
   listPlayerControlledActorIds,
+  playerAttack,
   playerCommunicate,
   releaseActorControl,
   runNpcTurn,
@@ -85,6 +86,7 @@ function usage(): void {
       "agent-game take-control --game <gameId|slug> --actor <actorId|actorName>",
       "agent-game release-control --game <gameId|slug> --actor <actorId|actorName>",
       "agent-game player-communicate --game <gameId|slug> --actor <actorId|actorName> --mode say|whisper|announce [--target <actorName>] [--reason <text>] --message <text>",
+      "agent-game player-attack --game <gameId|slug> --actor <actorId|actorName> --target <actorName>",
       "agent-game snapshot --game <gameId|slug> [--root <dir>]",
     ],
   });
@@ -148,7 +150,7 @@ async function main(): Promise<void> {
         username,
         ...(typeof values.name === "string" ? { name: values.name } : {}),
         ...(typeof values.slug === "string" ? { slug: values.slug } : {}),
-        seed: DARK_FANTASY_SEED,
+        world: DARK_FANTASY_WORLD,
       }),
     );
     emit({ ok: true, action: "create", state });
@@ -219,6 +221,29 @@ async function main(): Promise<void> {
     return;
   }
 
+  if (command === "player-attack") {
+    if (typeof values.game !== "string" || typeof values.actor !== "string") {
+      throw new Error("player-attack 需要 --game 与 --actor");
+    }
+    if (typeof values.target !== "string" || values.target.trim().length === 0) {
+      throw new Error("player-attack 需要 --target");
+    }
+
+    const gameRef = values.game;
+    const actorRef = values.actor;
+    const targetActorName = values.target;
+    const result = await withDatabase((db) =>
+      playerAttack(db, gameRef, actorRef, { targetActorName }),
+    );
+    emit({
+      ok: true,
+      action: "player-attack",
+      plan: result.plan,
+      state: result.state,
+    });
+    return;
+  }
+
   if (command === "npc") {
     if (typeof values.game !== "string") {
       throw new Error("npc 需要 --game");
@@ -237,7 +262,7 @@ async function main(): Promise<void> {
       const state = await getGameState(db, gameRef);
       const controlled = new Set(await listPlayerControlledActorIds(db, state.game.id));
       const actorIds = state.world.stages
-        .flatMap((stage) => stage.actors.map((actor) => actor.id))
+        .flatMap((stage) => stage.actors.filter((actor) => !actor.death).map((actor) => actor.id))
         .filter((actorId) => !controlled.has(actorId));
       const output = [];
       for (const actorId of actorIds) {
