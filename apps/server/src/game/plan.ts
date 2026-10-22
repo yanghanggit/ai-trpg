@@ -17,6 +17,7 @@ import type {
   MovementIntent,
   Skill,
   SkillIntent,
+  SkillPurposeKind,
 } from "./types";
 
 /** 构造只读环境查看工具。 */
@@ -68,6 +69,28 @@ export function buildItemsTool(): ToolDefinition {
         type: "object",
         properties: {},
         required: [],
+      },
+    },
+  };
+}
+
+/** 构造感知工具；读取同场景目标角色的 stats、状态与背包。 */
+export function buildActorInfoTool(availableTargetActorNames: readonly string[]): ToolDefinition {
+  return {
+    type: "function",
+    function: {
+      name: "get_actor",
+      description: "查看同场景目标角色的 stats、状态效果与持有的物品。只读。",
+      parameters: {
+        type: "object",
+        properties: {
+          targetActorName: {
+            type: "string",
+            enum: availableTargetActorNames,
+            description: "要查看的同场景角色名",
+          },
+        },
+        required: ["targetActorName"],
       },
     },
   };
@@ -136,18 +159,27 @@ export function buildMoveTool(availableStageNames: readonly string[]): ToolDefin
   };
 }
 
-/** 构造技能 intent 工具；技能、道具与目的都由本次行动选择。 */
+/** 构造技能 intent 工具；技能、目标、道具与目的都由本次行动选择。 */
 export function buildSkillTool(
   availableSkills: readonly Skill[],
   availableTargetActorNames: readonly string[],
   availableItemNames: readonly string[],
+  currentStageName?: string,
+  selfActorName?: string,
 ): ToolDefinition {
+  const purposeKinds = [...new Set(availableSkills.flatMap((skill) => skill.purposeKinds))];
+  const targetActorNames = [
+    ...new Set([
+      ...availableTargetActorNames,
+      ...(selfActorName === undefined ? [] : [selfActorName]),
+    ]),
+  ];
   return {
     type: "function",
     function: {
       name: "use_skill",
       description:
-        "把一次技能行动加入本轮计划。选择自己掌握的技能、可选道具与想达成的目的；当前 attack 的 damage 目的由规则计算。",
+        "把一次技能行动加入本轮计划。选择自己掌握的技能、目的、目标与可选道具；先用 get_actor 查看目标持有的物品。",
       parameters: {
         type: "object",
         properties: {
@@ -158,13 +190,23 @@ export function buildSkillTool(
           },
           purpose: {
             type: "string",
-            enum: ["damage"],
-            description: "本次技能想达成的目的；damage 表示造成伤害",
+            enum: purposeKinds,
+            description:
+              "本次技能目的：damage 造成伤害；steal 从目标取物；give 把自身物品给予目标；pickup 拾取场景物品；use 使用自身物品",
           },
           targetActorName: {
             type: "string",
-            description: "damage 目的的目标角色；其他目的按技能定义填写",
-            ...(availableTargetActorNames.length > 0 ? { enum: availableTargetActorNames } : {}),
+            description: "damage/steal/give 的目标角色，或 use 的目标角色；可以是自己",
+            ...(targetActorNames.length > 0 ? { enum: targetActorNames } : {}),
+          },
+          targetStageName: {
+            type: "string",
+            description: "use 的目标场景；当前只允许 actor 所在场景",
+            ...(currentStageName === undefined ? {} : { enum: [currentStageName] }),
+          },
+          itemName: {
+            type: "string",
+            description: "steal 要取走的物品、give/use 要交出的物品、pickup 要拾取的场景物品",
           },
           itemNames: {
             type: "array",
@@ -172,7 +214,7 @@ export function buildSkillTool(
               type: "string",
               ...(availableItemNames.length > 0 ? { enum: availableItemNames } : {}),
             },
-            description: "可选的补充道具名；可以为空",
+            description: "damage 等技能额外选用的自身物品；可以为空",
           },
         },
         required: ["skill", "purpose"],
@@ -223,6 +265,11 @@ export function describeItems(actor: Pick<ActorState, "items">): string {
     "物品：",
     ...actor.items.map((item) => `- ${item.name}（${item.kind}）：${item.description}`),
   ].join("\n");
+}
+
+/** 渲染同场景目标角色，供 get_actor 工具返回。 */
+export function describeActor(actor: ActorState): string {
+  return [describeStats(actor), describeItems(actor)].join("\n");
 }
 
 /** 读取某个场景的公开信息，供 look_stage 工具返回。 */
@@ -293,16 +340,16 @@ export function parseSkill(
     throw new GameError("invalid_action", `actor 未掌握技能: ${skillKey}`);
   }
 
-  const purposeKind = args.purpose;
-  if (purposeKind !== "damage" || !skill.purposeKinds.includes("damage")) {
-    throw new GameError("invalid_action", `技能 ${skill.name} 不支持目的: ${String(purposeKind)}`);
-  }
-  const targetActorName =
-    typeof args.targetActorName === "string" ? args.targetActorName.trim() : "";
-  if (targetActorName.length === 0) {
-    throw new GameError("invalid_action", "damage 目的需要非空 targetActorName");
+  const purposeKind = typeof args.purpose === "string" ? args.purpose.trim() : "";
+  if (!(skill.purposeKinds as readonly string[]).includes(purposeKind)) {
+    throw new GameError("invalid_action", `技能 ${skill.name} 不支持目的: ${purposeKind}`);
   }
 
+  const targetActorName =
+    typeof args.targetActorName === "string" ? args.targetActorName.trim() : "";
+  const targetStageName =
+    typeof args.targetStageName === "string" ? args.targetStageName.trim() : "";
+  const itemName = typeof args.itemName === "string" ? args.itemName.trim() : "";
   const rawItemNames = Array.isArray(args.itemNames) ? args.itemNames : [];
   const itemNames = [
     ...new Set(
@@ -313,12 +360,70 @@ export function parseSkill(
     ),
   ];
 
-  return {
-    kind: "skill",
-    skill,
-    itemNames,
-    purpose: { kind: "damage", targetActorName },
-  };
+  switch (purposeKind as SkillPurposeKind) {
+    case "damage":
+      if (targetActorName.length === 0) {
+        throw new GameError("invalid_action", "damage 目的需要非空 targetActorName");
+      }
+      return {
+        kind: "skill",
+        skill,
+        itemNames,
+        purpose: { kind: "damage", targetActorName },
+      };
+    case "steal":
+    case "give": {
+      if (targetActorName.length === 0 || itemName.length === 0) {
+        throw new GameError(
+          "invalid_action",
+          `${purposeKind} 目的需要 targetActorName 与 itemName`,
+        );
+      }
+      const transferKind: "steal" | "give" = purposeKind === "steal" ? "steal" : "give";
+      return {
+        kind: "skill",
+        skill,
+        itemNames,
+        purpose: { kind: transferKind, targetActorName, itemName },
+      };
+    }
+    case "pickup":
+      if (itemName.length === 0) {
+        throw new GameError("invalid_action", "pickup 目的需要非空 itemName");
+      }
+      return { kind: "skill", skill, itemNames, purpose: { kind: "pickup", itemName } };
+    case "use": {
+      if (itemName.length === 0) {
+        throw new GameError("invalid_action", "use 目的需要非空 itemName");
+      }
+      if ((targetActorName.length === 0) === (targetStageName.length === 0)) {
+        throw new GameError(
+          "invalid_action",
+          "use 目的需要 targetActorName 或 targetStageName 二选一",
+        );
+      }
+      return {
+        kind: "skill",
+        skill,
+        itemNames,
+        purpose: {
+          kind: "use",
+          itemName,
+          ...(targetActorName.length > 0 ? { targetActorName } : {}),
+          ...(targetStageName.length > 0 ? { targetStageName } : {}),
+        },
+      };
+    }
+    case "narrative": {
+      const description = typeof args.description === "string" ? args.description.trim() : "";
+      if (description.length === 0) {
+        throw new GameError("invalid_action", "narrative 目的需要非空 description");
+      }
+      return { kind: "skill", skill, itemNames, purpose: { kind: "narrative", description } };
+    }
+    default:
+      throw new GameError("invalid_action", `不支持技能目的: ${purposeKind}`);
+  }
 }
 
 /** 返回 intent 的互斥类别；沟通之外都占用同一个行动槽。 */

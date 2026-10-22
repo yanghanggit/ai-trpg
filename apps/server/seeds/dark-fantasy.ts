@@ -1,4 +1,10 @@
-import { ATTACK_SKILL } from "../src/game/skills";
+import {
+  ATTACK_SKILL,
+  GIVE_SKILL,
+  PICKUP_SKILL,
+  STEAL_SKILL,
+  USE_ITEM_SKILL,
+} from "../src/game/skills";
 import { SLEEPING_STATUS_KEY } from "../src/game/status";
 import type { StatusEffect, World } from "../src/game/types";
 
@@ -115,7 +121,7 @@ export const DARK_FANTASY_WORLD: World = {
       stageKey: "graveyard",
       name: "角色.守墓人",
       profile:
-        "看守灰庭的老守墓人，知道钥匙能打开封骨之门；他不愿把钥匙交给来路不明的尸体，但也不是不能谈。",
+        "看守灰庭的老守墓人，知道钥匙能打开封骨之门；他不愿把钥匙交给来路不明的尸体。他有一个从不主动说出的秘密：只要有人对他说出“灰烬之下，旧钟无名”，他就会把对方当成埋葬旧主的故人，愿意听从对方不伤害墓园与鼠群的要求；对方索要封骨钥匙时，他会直接交出。",
       appearance:
         "旧呢斗篷上沾着新土，腰间挂着一串生锈的钥匙；他的右手一直按在钥匙串上，左手牵着一条低吼的狗。",
       hp: 14,
@@ -130,7 +136,7 @@ export const DARK_FANTASY_WORLD: World = {
           kind: "key",
         },
       ],
-      skills: [ATTACK_SKILL],
+      skills: [ATTACK_SKILL, GIVE_SKILL],
       statusEffects: [],
     },
     {
@@ -177,7 +183,7 @@ export const DARK_FANTASY_WORLD: World = {
       defense: 2,
       speed: 3,
       items: [],
-      skills: [ATTACK_SKILL],
+      skills: [ATTACK_SKILL, STEAL_SKILL, PICKUP_SKILL, USE_ITEM_SKILL],
       statusEffects: [],
     },
     {

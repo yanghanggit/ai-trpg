@@ -79,7 +79,7 @@ NPC 工具分为 GET、intent 与终止工具。`look_stage`、`get_stats`、`ge
 
 ## 技能动作
 
-`skill` 是 action 的第三个分支，和沟通、移动并列；`attack` 是它的第一个具体技能，后续可以增加 `steal`、`hide` 等。
+`skill` 是 action 的第三个分支，和沟通、移动并列；当前包括 `attack`、`steal`、`give`、`pickup`、`use_item`。`get_actor` 可查看同场景目标的 stats、状态与背包，`steal` 为 private，只有发起者与目标进入 memory。
 
 技能定义包含：
 

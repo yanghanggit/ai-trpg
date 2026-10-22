@@ -15,6 +15,7 @@ import { GameError } from "./errors";
 import { loadAgentMemory } from "./memory";
 import {
   addIntent,
+  buildActorInfoTool,
   buildCommunicateTool,
   buildItemsTool,
   buildLookTool,
@@ -22,6 +23,7 @@ import {
   buildSkillTool,
   buildStatsTool,
   buildSubmitPlanTool,
+  describeActor,
   describeItems,
   describeStats,
   lookStage,
@@ -65,7 +67,7 @@ function buildObservation(state: GameState, current: ActorWithStage): string {
     `## 可用技能\n${skills.length === 0 ? "无" : skills.join("\n")}`,
     `## 可移动至\n${moves.length === 0 ? "无" : moves.join("、")}`,
     "# 本轮任务",
-    "根据当前环境与自己的记忆决定行动。使用 get_stats / get_items 查看自己的 stats 与物品；需要多项信息时，可以一次返回多个只读工具调用，也可以分多轮调用。使用 communicate 添加沟通行动，使用 move 添加移动或等待行动，使用 use_skill 使用自己的技能。沟通类与行动类各最多一个，先加入的 intent 先执行。最后调用 submit_plan 提交。look_stage、get_stats、get_items 不占计划。say/whisper 必须填写 targetActorName；move 使用 targetStageName；use_skill 的 damage 目的使用 targetActorName。",
+    "根据当前环境与自己的记忆决定行动。使用 get_stats / get_items 查看自己，使用 get_actor 查看同场景目标的状态与物品；需要多项信息时，可以一次返回多个只读工具调用，也可以分多轮调用。使用 communicate 添加沟通行动，使用 move 添加移动或等待行动，使用 use_skill 使用自己的技能。沟通类与行动类各最多一个，先加入的 intent 先执行。最后调用 submit_plan 提交。look_stage、get_stats、get_items、get_actor 不占计划。say/whisper 必须填写 targetActorName；move 使用 targetStageName；use_skill 的 damage/steal/give 使用 targetActorName，pickup 使用 itemName，use 使用 itemName 加 targetActorName 或 targetStageName。",
   ].join("\n\n");
 }
 
@@ -81,6 +83,9 @@ export async function runNpcTurn(
   options: NpcTurnOptions,
 ): Promise<ActorTurnResult> {
   const state = await getGameState(db, gameRef);
+  if (state.game.status !== "active") {
+    throw new GameError("invalid_state", `游戏已结束: ${state.game.status}`);
+  }
   const current = findActorWithStage(state, actorRef);
   if (current.actor.death) {
     throw new GameError("invalid_action", `actor 已死亡: ${current.actor.name}`);
@@ -104,12 +109,15 @@ export async function runNpcTurn(
   const lookTool = buildLookTool(state);
   const statsTool = buildStatsTool();
   const itemsTool = buildItemsTool();
+  const actorInfoTool = buildActorInfoTool(otherActors.map((actor) => actor.name));
   const communicateTool = buildCommunicateTool(availableTargetActorNames);
   const moveTool = buildMoveTool(availableStageNames);
   const skillTool = buildSkillTool(
     current.actor.skills,
     availableSkillTargetActorNames,
     availableItemNames,
+    current.stage.name,
+    current.actor.name,
   );
   const submitTool = buildSubmitPlanTool();
   const plan: ActorPlan = { intents: [] };
@@ -119,7 +127,16 @@ export async function runNpcTurn(
     name: current.actor.name,
     inputMessage: buildObservation(state, current),
     messages: memory.messages,
-    tools: [lookTool, statsTool, itemsTool, communicateTool, moveTool, skillTool, submitTool],
+    tools: [
+      lookTool,
+      statsTool,
+      itemsTool,
+      actorInfoTool,
+      communicateTool,
+      moveTool,
+      skillTool,
+      submitTool,
+    ],
     handlers: {
       [lookTool.function.name]: (args) => {
         const stageName = typeof args.stageName === "string" ? args.stageName : "";
@@ -127,6 +144,15 @@ export async function runNpcTurn(
       },
       [statsTool.function.name]: () => describeStats(current.actor),
       [itemsTool.function.name]: () => describeItems(current.actor),
+      [actorInfoTool.function.name]: (args) => {
+        const targetActorName =
+          typeof args.targetActorName === "string" ? args.targetActorName.trim() : "";
+        const target = otherActors.find((actor) => actor.name === targetActorName);
+        if (!target) {
+          return `错误：当前场景内找不到角色 ${targetActorName}`;
+        }
+        return describeActor(target);
+      },
       [communicateTool.function.name]: (args) => {
         if (submitted) {
           throw new GameError("invalid_action", "计划已提交");

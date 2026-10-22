@@ -11,5 +11,59 @@ export const ATTACK_SKILL: Skill = {
   itemPolicy: "optional",
 };
 
+/** 窃取技能；只让发起者与目标知道，用于从同场景角色身上转移物品。 */
+export const STEAL_SKILL: Skill = {
+  key: "steal",
+  name: "窃取",
+  description: "从同场景的一个角色身上取走一件物品；目标可以已经死亡。",
+  broadcast: "private",
+  resolution: "computed",
+  purposeKinds: ["steal"],
+  itemPolicy: "optional",
+};
+
+/** 给予技能；把自身物品交给同场景的存活角色。 */
+export const GIVE_SKILL: Skill = {
+  key: "give",
+  name: "给予",
+  description: "把自己持有的一件物品交给同场景的一个存活角色。",
+  broadcast: "stage",
+  resolution: "computed",
+  purposeKinds: ["give"],
+  itemPolicy: "optional",
+};
+
+/** 拾取技能；把当前场景中的物品收进自己的背包。 */
+export const PICKUP_SKILL: Skill = {
+  key: "pickup",
+  name: "拾取",
+  description: "拾取当前场景中的一件物品。",
+  broadcast: "stage",
+  resolution: "computed",
+  purposeKinds: ["pickup"],
+  itemPolicy: "optional",
+};
+
+/** 使用道具技能；当前只用于硬编码的封骨之门钥匙通关。 */
+export const USE_ITEM_SKILL: Skill = {
+  key: "use_item",
+  name: "使用道具",
+  description: "对当前场景、自己或同场景的其他角色使用一件自身物品。",
+  broadcast: "stage",
+  resolution: "computed",
+  purposeKinds: ["use"],
+  itemPolicy: "optional",
+};
+
+/** 封骨之门与钥匙的硬编码通关条件；后续再迁移到内容数据。 */
+export const SEALED_GATE_STAGE_NAME = "场景.封骨之门";
+export const SEALED_GATE_KEY_NAME = "饰品.封骨钥匙";
+
 /** 当前可用的技能目录；actor 的 skills 从这里取用。 */
-export const SKILLS = [ATTACK_SKILL] as const;
+export const SKILLS = [
+  ATTACK_SKILL,
+  STEAL_SKILL,
+  GIVE_SKILL,
+  PICKUP_SKILL,
+  USE_ITEM_SKILL,
+] as const;

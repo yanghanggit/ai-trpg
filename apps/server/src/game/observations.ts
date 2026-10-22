@@ -125,6 +125,72 @@ export async function appendSkillObservations(
   );
 }
 
+export type ItemEvent = "steal" | "give" | "pickup" | "use";
+
+/** 写入物品转移/拾取/使用事件的视角化记忆；私密事件只写目标。 */
+export async function appendItemObservations(
+  executor: Executor,
+  gameId: string,
+  stage: Pick<StageState, "id" | "name">,
+  actor: { id: string; name: string },
+  event: ItemEvent,
+  itemName: string,
+  options: {
+    target?: { id: string; name: string };
+    targetStageName?: string;
+    broadcast: "stage" | "private";
+  },
+): Promise<void> {
+  const { target, targetStageName, broadcast } = options;
+  await appendStageObservations(
+    executor,
+    gameId,
+    stage.id,
+    actor.id,
+    (observer) => broadcast === "stage" || observer.id === target?.id,
+    (observer) => {
+      if (target && observer.id === target.id) {
+        const content =
+          event === "steal"
+            ? `# 你被窃取\n${actor.name}从你身上取走了${itemName}。`
+            : event === "give"
+              ? `# 你收到物品\n${actor.name}把${itemName}交给了你。`
+              : `# 你被使用道具\n${actor.name}对你使用了${itemName}。`;
+        return {
+          type: "human",
+          content,
+          metadata: {
+            kind: MEMORY_KINDS.actionObservation,
+            stageId: stage.id,
+            itemName,
+          },
+        };
+      }
+      const content =
+        event === "steal"
+          ? `# 场景动态\n${actor.name}从${target?.name ?? "某人"}身上取走了${itemName}。`
+          : event === "give"
+            ? `# 场景动态\n${actor.name}把${itemName}交给了${target?.name ?? "某人"}。`
+            : event === "pickup"
+              ? `# 场景动态\n${actor.name}拾取了${itemName}。`
+              : target
+                ? `# 场景动态\n${actor.name}对${target.name}使用了${itemName}。`
+                : `# 场景动态\n${actor.name}在${stage.name}使用了${itemName}。`;
+      return {
+        type: "human",
+        content,
+        metadata: {
+          kind: MEMORY_KINDS.actionObservation,
+          stageId: stage.id,
+          itemName,
+          ...(target ? { targetActorId: target.id } : {}),
+          ...(targetStageName ? { targetStageName } : {}),
+        },
+      };
+    },
+  );
+}
+
 /** 按沟通方式向目标与旁观者写入听觉观察。 */
 export async function appendCommunicationObservations(
   executor: Executor,

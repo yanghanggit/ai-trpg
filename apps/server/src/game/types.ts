@@ -84,6 +84,10 @@ export type SkillResolution = "computed" | "llm";
 /** 一次技能行动希望达成的结果。 */
 export type SkillPurpose =
   | { kind: "damage"; targetActorName: string }
+  | { kind: "steal"; targetActorName: string; itemName: string }
+  | { kind: "give"; targetActorName: string; itemName: string }
+  | { kind: "pickup"; itemName: string }
+  | { kind: "use"; itemName: string; targetActorName?: string; targetStageName?: string }
   | { kind: "narrative"; description: string };
 
 export type SkillPurposeKind = SkillPurpose["kind"];
@@ -93,6 +97,8 @@ export type SkillPurposeKind = SkillPurpose["kind"];
  *
  * `key` 是稳定身份；`name` / `description` 用于展示与叙事；`broadcast` 决定
  * 结果事件范围；`resolution` 决定由规则计算还是交给 GM/LLM 推理。
+ * `itemPolicy` 只约束 `itemNames` 这类“行动输入道具”，转移/拾取/使用目的
+ * 通过 purpose 自带 `itemName` 校验，不重复套用该字段。
  */
 export type Skill = {
   key: string;

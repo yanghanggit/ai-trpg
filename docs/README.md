@@ -37,7 +37,8 @@
 | [数据库](database.md)                    | PostgreSQL 状态源、NPC 记忆、迁移、事务边界   |
 | [Actor 记忆](actor-actions-memory.md)    | actor 控制、行动事实、context dump、技能与接管|
 | [开发期 Agent 工作流](debug-workflow.md) | 快照驱动推进、HTTP 走查、两套入口的共同边界   |
+| [临时测试剧本](test-scenario.md)         | 灰烬墓园的剧情、测试矩阵、已验流程与暂缓项    |
 
 ## 当前范围
 
-工程骨架、OpenAPI 契约链、LLM 基础组件、数据库基础层、记忆驱动的 NPC 切片、玩家接管与移动、沟通、技能动作、场景物品、沉睡唤醒硬编码、actor 行动与记忆原则、开发期 Agent 工作流。后续玩法与内容随实现补充。
+工程骨架、OpenAPI 契约链、LLM 基础组件、数据库基础层、记忆驱动的 NPC 切片、玩家接管与移动、沟通、技能动作、物品转移与拾取、沉睡唤醒硬编码、钥匙通关、actor 行动与记忆原则、开发期 Agent 工作流、临时测试剧本。后续玩法与内容随实现补充。

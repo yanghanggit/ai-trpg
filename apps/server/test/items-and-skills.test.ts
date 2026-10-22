@@ -1,0 +1,207 @@
+import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { DEMO_USER } from "../seeds/dark-fantasy";
+import { TEST_WORLD } from "./test-world";
+import "../src/db/env";
+import { type DatabaseHandle, openDatabase } from "../src/db/connect";
+import { resetDomainData, seedDemoData } from "../src/db/maintenance";
+import { runMigrations } from "../src/db/migrate";
+import {
+  createGame,
+  getGameMemories,
+  getGameState,
+  playerMove,
+  playerSkill,
+  SEALED_GATE_KEY_NAME,
+  STEAL_SKILL,
+  takeActorControl,
+} from "../src/game";
+import { ATTACK_SKILL, GIVE_SKILL, PICKUP_SKILL, USE_ITEM_SKILL } from "../src/game/skills";
+
+const testDatabaseUrl = process.env.TEST_DATABASE_URL?.trim();
+const ALL_SKILLS = [ATTACK_SKILL, STEAL_SKILL, GIVE_SKILL, PICKUP_SKILL, USE_ITEM_SKILL];
+
+const ITEM_WORLD = {
+  ...TEST_WORLD,
+  stages: TEST_WORLD.stages.map((stage) =>
+    stage.key === "gate"
+      ? {
+          ...stage,
+          items: [
+            {
+              name: "武器.测试火把",
+              description: "测试用的场景武器。",
+              kind: "weapon",
+            },
+          ],
+        }
+      : stage,
+  ),
+  actors: TEST_WORLD.actors.map((actor) => ({ ...actor, skills: ALL_SKILLS })),
+};
+
+const GATE_STAGE = TEST_WORLD.stages.find((stage) => stage.key === "gate");
+const KEEPER_ACTOR = TEST_WORLD.actors.find((actor) => actor.name === "守烬人");
+if (!GATE_STAGE || !KEEPER_ACTOR) {
+  throw new Error("测试世界缺少灰烬门廊或守烬人");
+}
+
+const SEALED_WORLD = {
+  ...TEST_WORLD,
+  stages: [
+    GATE_STAGE,
+    {
+      key: "sealed-gate",
+      name: "场景.封骨之门",
+      profile: "测试用封骨之门。",
+      environment: "门板上刻着鼠牙。",
+      narrative: "锁孔在等一把钥匙。",
+    },
+  ],
+  connections: [
+    { from: "gate", to: "sealed-gate" },
+    { from: "sealed-gate", to: "gate" },
+  ],
+  actors: [
+    {
+      ...KEEPER_ACTOR,
+      stageKey: "gate",
+      skills: ALL_SKILLS,
+      items: [
+        {
+          name: SEALED_GATE_KEY_NAME,
+          description: "测试用封骨钥匙。",
+          kind: "key",
+        },
+      ],
+    },
+  ],
+};
+
+describe.skipIf(!testDatabaseUrl)("item skills", () => {
+  let handle: DatabaseHandle;
+
+  beforeAll(async () => {
+    handle = openDatabase("TEST_DATABASE_URL");
+    await runMigrations(handle.db);
+    await resetDomainData(handle.db);
+    await seedDemoData(handle.db);
+  });
+
+  afterAll(async () => {
+    await handle.pool.end();
+  });
+
+  it("steals an item privately and leaves an observer unaware", async () => {
+    const created = await createGame(handle.db, {
+      username: DEMO_USER.username,
+      name: "窃取测试局",
+      world: ITEM_WORLD,
+    });
+    await takeActorControl(handle.db, created.game.slug, "守烬人");
+
+    const stolen = await playerSkill(handle.db, created.game.slug, "守烬人", {
+      skillKey: "steal",
+      targetActorName: "提灯修士",
+      itemName: "铅封提灯",
+    });
+    expect(stolen.ok).toBe(true);
+
+    const state = await getGameState(handle.db, created.game.slug);
+    expect(state.messages.at(-1)?.kind).toBe("steal");
+    expect(state.messages.at(-1)?.visibility).toBe("private");
+    const keeper = state.world.stages
+      .flatMap((stage) => stage.actors)
+      .find((actor) => actor.name === "守烬人");
+    const monk = state.world.stages
+      .flatMap((stage) => stage.actors)
+      .find((actor) => actor.name === "提灯修士");
+    expect(keeper?.items.map((item) => item.name)).toContain("铅封提灯");
+    expect(monk?.items.map((item) => item.name)).not.toContain("铅封提灯");
+
+    const memories = await getGameMemories(handle.db, created.game.id);
+    const monkMemory = memories.find((memory) => memory.name === "提灯修士");
+    const observerMemory = memories.find((memory) => memory.name === "缄默抄经人");
+    expect(monkMemory?.messages.some((message) => message.content.includes("你被窃取"))).toBe(true);
+    expect(observerMemory?.messages.some((message) => message.content.includes("取走了"))).toBe(
+      false,
+    );
+  });
+
+  it("gives an owned item to a living actor in the same stage", async () => {
+    const created = await createGame(handle.db, {
+      username: DEMO_USER.username,
+      name: "给予测试局",
+      world: ITEM_WORLD,
+    });
+    await takeActorControl(handle.db, created.game.slug, "守烬人");
+
+    const given = await playerSkill(handle.db, created.game.slug, "守烬人", {
+      skillKey: "give",
+      targetActorName: "提灯修士",
+      itemName: "裂齿短刃",
+    });
+    expect(given.ok).toBe(true);
+
+    const state = await getGameState(handle.db, created.game.slug);
+    const monk = state.world.stages
+      .flatMap((stage) => stage.actors)
+      .find((actor) => actor.name === "提灯修士");
+    expect(monk?.items.map((item) => item.name)).toContain("裂齿短刃");
+    expect(state.messages.at(-1)?.kind).toBe("give");
+
+    const memories = await getGameMemories(handle.db, created.game.id);
+    const monkMemory = memories.find((memory) => memory.name === "提灯修士");
+    expect(monkMemory?.messages.some((message) => message.content.includes("你收到物品"))).toBe(
+      true,
+    );
+  });
+
+  it("picks up a stage item into the actor inventory", async () => {
+    const created = await createGame(handle.db, {
+      username: DEMO_USER.username,
+      name: "拾取测试局",
+      world: ITEM_WORLD,
+    });
+    await takeActorControl(handle.db, created.game.slug, "守烬人");
+
+    const picked = await playerSkill(handle.db, created.game.slug, "守烬人", {
+      skillKey: "pickup",
+      itemName: "武器.测试火把",
+    });
+    expect(picked.ok).toBe(true);
+
+    const state = await getGameState(handle.db, created.game.slug);
+    const gate = state.world.stages.find((stage) => stage.name === "灰烬门廊");
+    const keeper = gate?.actors.find((actor) => actor.name === "守烬人");
+    expect(gate?.items).toEqual([]);
+    expect(keeper?.items.map((item) => item.name)).toContain("武器.测试火把");
+  });
+
+  it("completes the game by using the key on the sealed gate", async () => {
+    const created = await createGame(handle.db, {
+      username: DEMO_USER.username,
+      name: "通关测试局",
+      world: SEALED_WORLD,
+    });
+    await takeActorControl(handle.db, created.game.slug, "守烬人");
+    await playerMove(handle.db, created.game.slug, "守烬人", {
+      targetStageName: "场景.封骨之门",
+    });
+
+    const used = await playerSkill(handle.db, created.game.slug, "守烬人", {
+      skillKey: "use_item",
+      targetStageName: "场景.封骨之门",
+      itemName: SEALED_GATE_KEY_NAME,
+    });
+    expect(used.ok).toBe(true);
+
+    const state = await getGameState(handle.db, created.game.slug);
+    expect(state.game.status).toBe("completed");
+    expect(state.messages.some((message) => message.kind === "game_completed")).toBe(true);
+    await expect(
+      playerMove(handle.db, created.game.slug, "守烬人", {
+        targetStageName: "场景.灰烬门廊",
+      }),
+    ).rejects.toThrow("游戏已结束");
+  });
+});

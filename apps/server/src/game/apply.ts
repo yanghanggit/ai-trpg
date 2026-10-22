@@ -1,7 +1,16 @@
 import { randomUUID } from "node:crypto";
 import { and, eq, sql } from "drizzle-orm";
 import type { Database } from "../db/pool";
-import { actors, gameMessages, games, items, stageConnections, stages, worlds } from "../db/schema";
+import {
+  actors,
+  gameMessages,
+  games,
+  items,
+  stageConnections,
+  stageItems,
+  stages,
+  worlds,
+} from "../db/schema";
 import type { ChatMessage } from "../llm/types";
 import { MEMORY_KINDS, type MessageVisibility, visibilityForCommunication } from "./actions";
 import { GameError } from "./errors";
@@ -10,17 +19,20 @@ import {
   appendActionObservations,
   appendCommunicationObservations,
   appendEnvironmentObservations,
+  appendItemObservations,
   appendSkillObservations,
 } from "./observations";
 import { intentClass, intentClassLabel } from "./plan";
+import { SEALED_GATE_KEY_NAME, SEALED_GATE_STAGE_NAME } from "./skills";
 import { wakeSleepingActors } from "./status";
 import type { ActorPlan, CommunicationIntent, MovementIntent, Skill, SkillIntent } from "./types";
 
-type Executor = Pick<Database, "select" | "insert" | "update">;
+type Executor = Pick<Database, "select" | "insert" | "update" | "delete">;
 type WorldRow = typeof worlds.$inferSelect;
 type StageRow = typeof stages.$inferSelect;
 type ActorRow = typeof actors.$inferSelect;
 type ItemRow = typeof items.$inferSelect;
+type StageItemRow = typeof stageItems.$inferSelect;
 type ActorWithStageRow = { actor: ActorRow; stage: StageRow };
 
 type PublicMessage = {
@@ -48,9 +60,13 @@ type ResolvedMovement = {
 type ResolvedSkill = {
   kind: "skill";
   intent: SkillIntent;
+  skill: Skill;
   stage: StageRow;
   target?: ActorRow;
+  targetStage?: StageRow;
   items: ItemRow[];
+  transferItem?: ItemRow;
+  stageItem?: StageItemRow;
 };
 
 type ResolvedIntent = ResolvedCommunication | ResolvedMovement | ResolvedSkill;
@@ -192,6 +208,80 @@ async function resolveSkillItems(
   return resolved;
 }
 
+async function resolveActorItem(
+  executor: Executor,
+  actorId: string,
+  itemName: string,
+): Promise<ItemRow> {
+  const matches = await executor
+    .select()
+    .from(items)
+    .where(and(eq(items.actorId, actorId), eq(items.name, itemName)))
+    .limit(2);
+  const [item] = matches;
+  if (matches.length !== 1 || !item) {
+    throw new GameError("invalid_action", `actor 没有唯一物品: ${itemName}`);
+  }
+  return item;
+}
+
+async function resolveStageItem(
+  executor: Executor,
+  stageId: string,
+  itemName: string,
+): Promise<StageItemRow> {
+  const matches = await executor
+    .select()
+    .from(stageItems)
+    .where(and(eq(stageItems.stageId, stageId), eq(stageItems.name, itemName)))
+    .limit(2);
+  const [item] = matches;
+  if (matches.length !== 1 || !item) {
+    throw new GameError("invalid_action", `场景内没有唯一物品: ${itemName}`);
+  }
+  return item;
+}
+
+async function resolveActorTarget(
+  executor: Executor,
+  stageId: string,
+  actorId: string,
+  targetActorName: string,
+  options: { allowSelf: boolean; allowDead: boolean },
+): Promise<ActorRow> {
+  const matches = await executor
+    .select()
+    .from(actors)
+    .where(and(eq(actors.stageId, stageId), eq(actors.name, targetActorName)))
+    .limit(2);
+  const [target] = matches;
+  if (matches.length !== 1 || !target) {
+    throw new GameError("invalid_action", `当前场景内找不到唯一目标: ${targetActorName}`);
+  }
+  if (!options.allowSelf && target.id === actorId) {
+    throw new GameError("invalid_action", "技能目标不能是自己");
+  }
+  if (!options.allowDead && (target.death || target.hp <= 0)) {
+    throw new GameError("invalid_action", `技能目标已经死亡: ${target.name}`);
+  }
+  return target;
+}
+
+async function assertItemNameFree(
+  executor: Executor,
+  actorId: string,
+  itemName: string,
+): Promise<void> {
+  const [existing] = await executor
+    .select({ id: items.id })
+    .from(items)
+    .where(and(eq(items.actorId, actorId), eq(items.name, itemName)))
+    .limit(1);
+  if (existing) {
+    throw new GameError("invalid_action", `目标背包已有同名物品: ${itemName}`);
+  }
+}
+
 async function resolveSkill(
   executor: Executor,
   stage: StageRow,
@@ -207,19 +297,81 @@ async function resolveSkill(
     throw new GameError("invalid_action", `技能需要 GM 判定: ${skill.name}`);
   }
 
-  const resolvedItems = await resolveSkillItems(executor, actorRow.actor.id, intent.itemNames);
-  if (skill.itemPolicy === "required" && resolvedItems.length === 0) {
-    throw new GameError("invalid_action", `技能需要至少一个道具: ${skill.name}`);
-  }
-  const target = await resolveSkillTarget(executor, stage.id, actorRow.actor.id, intent);
-
-  return {
-    kind: "skill",
+  const base = {
+    kind: "skill" as const,
     intent: { ...intent, skill },
+    skill,
     stage,
-    target,
-    items: resolvedItems,
+    items: [] as ItemRow[],
   };
+
+  switch (intent.purpose.kind) {
+    case "damage": {
+      const resolvedItems = await resolveSkillItems(executor, actorRow.actor.id, intent.itemNames);
+      if (skill.itemPolicy === "required" && resolvedItems.length === 0) {
+        throw new GameError("invalid_action", `技能需要至少一个道具: ${skill.name}`);
+      }
+      const target = await resolveSkillTarget(executor, stage.id, actorRow.actor.id, intent);
+      return { ...base, items: resolvedItems, target };
+    }
+    case "steal": {
+      const target = await resolveActorTarget(
+        executor,
+        stage.id,
+        actorRow.actor.id,
+        intent.purpose.targetActorName,
+        { allowSelf: false, allowDead: true },
+      );
+      const transferItem = await resolveActorItem(executor, target.id, intent.purpose.itemName);
+      return { ...base, target, transferItem };
+    }
+    case "give": {
+      const target = await resolveActorTarget(
+        executor,
+        stage.id,
+        actorRow.actor.id,
+        intent.purpose.targetActorName,
+        { allowSelf: false, allowDead: false },
+      );
+      const transferItem = await resolveActorItem(
+        executor,
+        actorRow.actor.id,
+        intent.purpose.itemName,
+      );
+      return { ...base, target, transferItem };
+    }
+    case "pickup": {
+      const stageItem = await resolveStageItem(executor, stage.id, intent.purpose.itemName);
+      return { ...base, stageItem };
+    }
+    case "use": {
+      const transferItem = await resolveActorItem(
+        executor,
+        actorRow.actor.id,
+        intent.purpose.itemName,
+      );
+      if (intent.purpose.targetStageName !== undefined) {
+        if (intent.purpose.targetStageName !== stage.name) {
+          throw new GameError("invalid_action", "只能对当前所在场景使用道具");
+        }
+        return { ...base, targetStage: stage, transferItem };
+      }
+      const targetActorName = intent.purpose.targetActorName;
+      if (!targetActorName) {
+        throw new GameError("invalid_action", "use 目的缺少目标");
+      }
+      const target = await resolveActorTarget(
+        executor,
+        stage.id,
+        actorRow.actor.id,
+        targetActorName,
+        { allowSelf: true, allowDead: false },
+      );
+      return { ...base, target, transferItem };
+    }
+    case "narrative":
+      throw new GameError("invalid_action", "narrative 技能尚未实现");
+  }
 }
 
 /** 顺序校验 intent，并模拟移动后的场景，不写数据库。 */
@@ -369,47 +521,187 @@ async function applyResolvedIntent(
   }
 
   if (resolved.kind === "skill") {
-    if (resolved.intent.purpose.kind !== "damage" || !resolved.target) {
-      throw new GameError("invalid_action", `暂不支持技能目的: ${resolved.intent.purpose.kind}`);
+    const skill = resolved.skill;
+    const purpose = resolved.intent.purpose;
+
+    if (purpose.kind === "damage") {
+      if (!resolved.target) {
+        throw new GameError("invalid_action", "damage 技能缺少目标");
+      }
+      const damage = Math.max(0, actorRow.actor.attack - resolved.target.defense);
+      const remainingHp = Math.max(0, resolved.target.hp - damage);
+      const death = remainingHp <= 0;
+      await executor
+        .update(actors)
+        .set({ hp: remainingHp, death, updatedAt: now })
+        .where(eq(actors.id, resolved.target.id));
+      await bumpGameVersion(executor, gameId, now);
+      const itemText =
+        resolved.items.length > 0
+          ? `（使用${resolved.items.map((item) => item.name).join("、")}）`
+          : "";
+      const outcome = death
+        ? `；${resolved.target.name}倒下了。`
+        : `；${resolved.target.name}剩余 HP ${remainingHp}/${resolved.target.maxHp}。`;
+      const content = `${actorRow.actor.name}对${resolved.target.name}使用${skill.name}${itemText}，造成${damage}点伤害${outcome}`;
+      await appendPublicMessage(executor, gameId, actorRow.actor.id, {
+        kind: skill.key,
+        stageId: resolved.stage.id,
+        targetActorId: resolved.target.id,
+        visibility: skill.broadcast,
+        content,
+      });
+      await appendSkillObservations(
+        executor,
+        gameId,
+        resolved.stage,
+        { id: actorRow.actor.id, name: actorRow.actor.name },
+        { id: resolved.target.id, name: resolved.target.name, maxHp: resolved.target.maxHp },
+        skill,
+        resolved.items,
+        damage,
+        remainingHp,
+        death,
+      );
+      await wakeSleepingActors(executor, resolved.stage.id, now);
+      return skillFeedback(resolved, damage, remainingHp);
     }
-    const skill = resolved.intent.skill;
-    const damage = Math.max(0, actorRow.actor.attack - resolved.target.defense);
-    const remainingHp = Math.max(0, resolved.target.hp - damage);
-    const death = remainingHp <= 0;
-    await executor
-      .update(actors)
-      .set({ hp: remainingHp, death, updatedAt: now })
-      .where(eq(actors.id, resolved.target.id));
+
+    if (purpose.kind === "steal" || purpose.kind === "give") {
+      const target = resolved.target;
+      const transferItem = resolved.transferItem;
+      if (!target || !transferItem) {
+        throw new GameError("invalid_action", `${purpose.kind} 技能缺少目标或物品`);
+      }
+      if (purpose.kind === "steal") {
+        await assertItemNameFree(executor, actorRow.actor.id, transferItem.name);
+        await executor
+          .update(items)
+          .set({ actorId: actorRow.actor.id })
+          .where(eq(items.id, transferItem.id));
+      } else {
+        await assertItemNameFree(executor, target.id, transferItem.name);
+        await executor
+          .update(items)
+          .set({ actorId: target.id })
+          .where(eq(items.id, transferItem.id));
+      }
+      await bumpGameVersion(executor, gameId, now);
+      const content =
+        purpose.kind === "steal"
+          ? `${actorRow.actor.name}从${target.name}身上取走了${transferItem.name}。`
+          : `${actorRow.actor.name}把${transferItem.name}交给了${target.name}。`;
+      await appendPublicMessage(executor, gameId, actorRow.actor.id, {
+        kind: skill.key,
+        stageId: resolved.stage.id,
+        targetActorId: target.id,
+        visibility: skill.broadcast,
+        content,
+      });
+      await appendItemObservations(
+        executor,
+        gameId,
+        resolved.stage,
+        { id: actorRow.actor.id, name: actorRow.actor.name },
+        purpose.kind,
+        transferItem.name,
+        { target: { id: target.id, name: target.name }, broadcast: skill.broadcast },
+      );
+      await wakeSleepingActors(executor, resolved.stage.id, now);
+      return purpose.kind === "steal"
+        ? `# 行动结果\n你从${target.name}身上取走了${transferItem.name}。`
+        : `# 行动结果\n你把${transferItem.name}交给了${target.name}。`;
+    }
+
+    if (purpose.kind === "pickup") {
+      const stageItem = resolved.stageItem;
+      if (!stageItem) {
+        throw new GameError("invalid_action", "pickup 技能缺少场景物品");
+      }
+      await assertItemNameFree(executor, actorRow.actor.id, stageItem.name);
+      await executor.delete(stageItems).where(eq(stageItems.id, stageItem.id));
+      await executor.insert(items).values({
+        id: randomUUID(),
+        actorId: actorRow.actor.id,
+        name: stageItem.name,
+        description: stageItem.description,
+        kind: stageItem.kind,
+      });
+      await bumpGameVersion(executor, gameId, now);
+      const content = `${actorRow.actor.name}拾取了${stageItem.name}。`;
+      await appendPublicMessage(executor, gameId, actorRow.actor.id, {
+        kind: skill.key,
+        stageId: resolved.stage.id,
+        visibility: skill.broadcast,
+        content,
+      });
+      await appendItemObservations(
+        executor,
+        gameId,
+        resolved.stage,
+        { id: actorRow.actor.id, name: actorRow.actor.name },
+        "pickup",
+        stageItem.name,
+        { broadcast: skill.broadcast },
+      );
+      await wakeSleepingActors(executor, resolved.stage.id, now);
+      return `# 行动结果\n你拾取了${stageItem.name}。`;
+    }
+
+    const target = resolved.target;
+    const targetStage = resolved.targetStage;
+    const transferItem = resolved.transferItem;
+    if ((!target && !targetStage) || !transferItem) {
+      throw new GameError("invalid_action", "use 技能缺少目标或物品");
+    }
     await bumpGameVersion(executor, gameId, now);
-    const itemText =
-      resolved.items.length > 0
-        ? `（使用${resolved.items.map((item) => item.name).join("、")}）`
-        : "";
-    const outcome = death
-      ? `；${resolved.target.name}倒下了。`
-      : `；${resolved.target.name}剩余 HP ${remainingHp}/${resolved.target.maxHp}。`;
-    const content = `${actorRow.actor.name}对${resolved.target.name}使用${skill.name}${itemText}，造成${damage}点伤害${outcome}`;
+    const targetLabel = targetStage?.name ?? target?.name ?? "目标";
+    const content = targetStage
+      ? `${actorRow.actor.name}在${targetStage.name}使用了${transferItem.name}。`
+      : `${actorRow.actor.name}对${targetLabel}使用了${transferItem.name}。`;
     await appendPublicMessage(executor, gameId, actorRow.actor.id, {
       kind: skill.key,
       stageId: resolved.stage.id,
-      targetActorId: resolved.target.id,
+      ...(target ? { targetActorId: target.id } : {}),
       visibility: skill.broadcast,
       content,
     });
-    await appendSkillObservations(
+    await appendItemObservations(
       executor,
       gameId,
       resolved.stage,
       { id: actorRow.actor.id, name: actorRow.actor.name },
-      { id: resolved.target.id, name: resolved.target.name, maxHp: resolved.target.maxHp },
-      skill,
-      resolved.items,
-      damage,
-      remainingHp,
-      death,
+      "use",
+      transferItem.name,
+      {
+        ...(target ? { target: { id: target.id, name: target.name } } : {}),
+        ...(targetStage ? { targetStageName: targetStage.name } : {}),
+        broadcast: skill.broadcast,
+      },
     );
     await wakeSleepingActors(executor, resolved.stage.id, now);
-    return skillFeedback(resolved, damage, remainingHp);
+
+    const completed =
+      targetStage?.name === SEALED_GATE_STAGE_NAME && transferItem.name === SEALED_GATE_KEY_NAME;
+    if (completed) {
+      await executor
+        .update(games)
+        .set({ status: "completed", updatedAt: now })
+        .where(eq(games.id, gameId));
+      await appendPublicMessage(executor, gameId, actorRow.actor.id, {
+        kind: "game_completed",
+        stageId: resolved.stage.id,
+        visibility: "stage",
+        content: `${actorRow.actor.name}用${transferItem.name}打开了${targetStage?.name ?? "目标场景"}，游戏结束。`,
+      });
+      console.error(
+        `[game] completed: game=${gameId} actor=${actorRow.actor.name} item=${transferItem.name} stage=${targetStage?.name ?? ""}`,
+      );
+    }
+
+    return `# 行动结果\n你对${targetLabel}使用了${transferItem.name}。${
+      completed ? "\n封骨之门打开了。" : ""
+    }`;
   }
 
   if (resolved.intent.mode === "move" && resolved.targetStage) {
@@ -471,6 +763,9 @@ export async function applyActorPlan(
     const [game] = await tx.select().from(games).where(eq(games.id, gameId)).limit(1).for("update");
     if (!game) {
       throw new GameError("not_found", `游戏不存在: ${gameId}`);
+    }
+    if (game.status !== "active") {
+      throw new GameError("invalid_state", `游戏已结束，不能继续行动: ${game.status}`);
     }
     const [world] = await tx.select().from(worlds).where(eq(worlds.gameId, gameId)).limit(1);
     if (!world) {
