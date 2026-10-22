@@ -92,7 +92,7 @@ describe.skipIf(!testDatabaseUrl)("memory-driven NPC slice", () => {
       },
       {
         mind: "不要让它继续响。",
-        actionType: "say",
+        actionType: "whisper",
         targetActorName: "守烬人",
         message: "别回应它。",
       },
@@ -126,12 +126,14 @@ describe.skipIf(!testDatabaseUrl)("memory-driven NPC slice", () => {
     expect(state.messages.map((message) => message.kind)).toEqual([
       "narration",
       "say",
-      "say",
+      "whisper",
       "move",
       "move",
     ]);
     expect(state.messages[1]?.targetActorId).toBeTruthy();
+    expect(state.messages[1]?.visibility).toBe("stage");
     expect(state.messages[2]?.targetActorId).toBeTruthy();
+    expect(state.messages[2]?.visibility).toBe("private");
     expect(state.messages[3]?.targetActorId).toBeNull();
     const actorStages = state.world.stages.flatMap((stage) =>
       stage.actors.map((actor) => [actor.name, stage.name] as const),
@@ -153,8 +155,16 @@ describe.skipIf(!testDatabaseUrl)("memory-driven NPC slice", () => {
     expect(scribe?.messages[0]?.type).toBe("system");
     expect(keeper?.messages[0]?.type).toBe("system");
     expect(monk?.messages[0]?.type).toBe("system");
-    expect(keeper?.messages.some((message) => message.content.includes("别回应它"))).toBe(true);
-    expect(monk?.messages.some((message) => message.content.includes("你听见钟声了吗"))).toBe(true);
+    expect(
+      keeper?.messages.some((message) =>
+        message.content.includes("提灯修士对你耳语（场景：灰烬门廊）：别回应它。"),
+      ),
+    ).toBe(true);
+    expect(
+      monk?.messages.some((message) =>
+        message.content.includes("守烬人对你说（场景：灰烬门廊）：你听见钟声了吗？"),
+      ),
+    ).toBe(true);
     expect(keeper?.messages.some((message) => message.type === "tool")).toBe(true);
     expect(
       keeper?.messages.some((message) =>
@@ -214,20 +224,52 @@ describe.skipIf(!testDatabaseUrl)("memory-driven NPC slice", () => {
     });
     const service = new ScriptedNpcService([
       {
-        mind: "先让第三个人听见。",
-        actionType: "say",
-        targetActorName: "提灯修士",
+        mind: "先让所有人听见。",
+        actionType: "announce",
         message: "灰里有人。",
       },
+      {
+        mind: "这句给目标，但旁人也会听见。",
+        actionType: "say",
+        targetActorName: "提灯修士",
+        message: "只对你说。",
+      },
+      {
+        mind: "这句只给他听。",
+        actionType: "whisper",
+        targetActorName: "提灯修士",
+        message: "别回头。",
+      },
     ]);
-    const result = await runNpcTurn(handle.db, game.game.slug, "守烬人", { service });
-    expect(result.ok).toBe(true);
+    const announced = await runNpcTurn(handle.db, game.game.slug, "守烬人", { service });
+    expect(announced.ok).toBe(true);
+    const targeted = await runNpcTurn(handle.db, game.game.slug, "守烬人", { service });
+    expect(targeted.ok).toBe(true);
+    const whispered = await runNpcTurn(handle.db, game.game.slug, "守烬人", { service });
+    expect(whispered.ok).toBe(true);
 
     const memories = await getGameMemories(handle.db, game.game.id);
     const observer = memories.find((memory) => memory.name === "旁听者");
+    const monk = memories.find((memory) => memory.name === "提灯修士");
     expect(
       observer?.messages.some((message) =>
-        message.content.includes("守烬人对提灯修士说（场景：灰烬门廊）：灰里有人。"),
+        message.content.includes("守烬人公开说（场景：灰烬门廊）：灰里有人。"),
+      ),
+    ).toBe(true);
+    expect(
+      observer?.messages.some((message) =>
+        message.content.includes("守烬人对提灯修士说（场景：灰烬门廊）：只对你说。"),
+      ),
+    ).toBe(true);
+    expect(observer?.messages.some((message) => message.content.includes("别回头"))).toBe(false);
+    expect(
+      monk?.messages.some((message) =>
+        message.content.includes("守烬人对你说（场景：灰烬门廊）：只对你说。"),
+      ),
+    ).toBe(true);
+    expect(
+      monk?.messages.some((message) =>
+        message.content.includes("守烬人对你耳语（场景：灰烬门廊）：别回头。"),
       ),
     ).toBe(true);
   });

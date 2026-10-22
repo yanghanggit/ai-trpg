@@ -62,7 +62,7 @@ function buildObservation(state: GameState, current: ActorWithStage): string {
     `## 可交谈对象\n${targets.length === 0 ? "无" : targets.join("、")}`,
     `## 可移动至\n${moves.length === 0 ? "无" : moves.join("、")}`,
     "# 本轮任务",
-    "根据当前环境与自己的记忆决定行动，并调用工具提交计划。可以选择等待、移动到相邻场景，或对当前场景中的某一个角色说话；say 必须填写 targetActorName，说话会向当前场景广播，其他角色也会听见。",
+    "根据当前环境与自己的记忆决定行动，并调用工具提交计划。say 是有目标的公开说话，当前场景所有角色都会听见；whisper 是对一名角色的私下耳语，只有说话者与目标会听见；announce 是无目标的公开说话，当前场景所有角色都会听见。say/whisper 必须填写 targetActorName，announce/wait/move 留空。",
   ].join("\n\n");
 }
 
@@ -117,8 +117,9 @@ function buildSubmitPlanTool(
           },
           actionType: {
             type: "string",
-            enum: ["wait", "move", "say"],
-            description: "wait=留在原地；move=移动到相邻场景；say=在当前场景说话",
+            enum: ["wait", "move", "say", "whisper", "announce"],
+            description:
+              "wait=留在原地；move=移动到相邻场景；say=对一名角色公开说话；whisper=只对一名角色耳语；announce=无目标向当前场景公开说话",
           },
           targetStageName: targetStageSchema,
           targetActorName: targetActorSchema,
@@ -154,7 +155,13 @@ function lookStage(state: GameState, stageName: string): string {
 function parsePlan(args: Record<string, unknown>): NpcPlan {
   const mind = typeof args.mind === "string" ? args.mind.trim() : "";
   const actionType = args.actionType;
-  if (actionType !== "wait" && actionType !== "move" && actionType !== "say") {
+  if (
+    actionType !== "wait" &&
+    actionType !== "move" &&
+    actionType !== "say" &&
+    actionType !== "whisper" &&
+    actionType !== "announce"
+  ) {
     throw new GameError("invalid_action", `非法 actionType: ${String(actionType)}`);
   }
   return {
@@ -179,6 +186,12 @@ function feedbackForPlan(
   }
   if (plan.actionType === "say") {
     return `# 行动结果\n你对${targetActor?.name ?? plan.targetActorName ?? "某人"}说（场景：${sourceStageName}）：${plan.message ?? ""}`;
+  }
+  if (plan.actionType === "announce") {
+    return `# 行动结果\n你（场景：${sourceStageName}）公开说：${plan.message ?? ""}`;
+  }
+  if (plan.actionType === "whisper") {
+    return `# 行动结果\n你对${targetActor?.name ?? plan.targetActorName ?? "某人"}耳语（场景：${sourceStageName}）：${plan.message ?? ""}`;
   }
   return `# 行动结果\n你抵达了${targetStage?.name ?? plan.targetStageName ?? "未知场景"}。`;
 }
@@ -209,36 +222,51 @@ async function appendObserverMessages(
   }
 }
 
-async function appendSayObservations(
+async function appendSpeechObservations(
   executor: Executor,
   gameId: string,
   stage: { id: string; name: string },
   speaker: { id: string; name: string },
-  target: { id: string; name: string },
+  mode: "say" | "announce" | "whisper",
+  target: { id: string; name: string } | undefined,
   message: string,
 ): Promise<void> {
+  if ((mode === "say" || mode === "whisper") && !target) {
+    return;
+  }
   const observerRows = await executor.select().from(actors).where(eq(actors.stageId, stage.id));
   for (const observer of observerRows) {
     if (observer.id === speaker.id) {
+      continue;
+    }
+    if (mode === "whisper" && observer.id !== target?.id) {
       continue;
     }
     const memory = await loadAgentMemory(executor, gameId, observer.id);
     if (!memory) {
       continue;
     }
-    const content =
-      observer.id === target.id
-        ? `# 你听见\n${speaker.name}对你说（场景：${stage.name}）：${message}`
-        : `# 你听见\n${speaker.name}对${target.name}说（场景：${stage.name}）：${message}`;
+    let content: string;
+    if (mode === "whisper") {
+      content = `# 你听见\n${speaker.name}对你耳语（场景：${stage.name}）：${message}`;
+    } else if (mode === "say") {
+      content =
+        observer.id === target?.id
+          ? `# 你听见\n${speaker.name}对你说（场景：${stage.name}）：${message}`
+          : `# 你听见\n${speaker.name}对${target?.name}说（场景：${stage.name}）：${message}`;
+    } else {
+      content = `# 你听见\n${speaker.name}公开说（场景：${stage.name}）：${message}`;
+    }
     await appendMemoryMessages(executor, memory.row.id, [
       {
         type: "human",
         content,
         metadata: {
-          kind: "say_observation",
+          kind: "speech_observation",
+          visibility: mode === "whisper" ? "private" : "stage",
           stageId: stage.id,
           speakerActorId: speaker.id,
-          targetActorId: target.id,
+          ...(target ? { targetActorId: target.id } : {}),
         },
       },
     ]);
@@ -288,7 +316,13 @@ async function applyPlan(
     let targetStage: StageState | undefined;
     let targetActor: typeof actors.$inferSelect | undefined;
     let publicMessage:
-      | { kind: string; stageId: string; targetActorId?: string; content: string }
+      | {
+          kind: string;
+          stageId: string;
+          targetActorId?: string;
+          visibility: "stage" | "private";
+          content: string;
+        }
       | undefined;
     let observerText: string | undefined;
 
@@ -305,12 +339,17 @@ async function applyPlan(
     }
 
     try {
-      if (plan.actionType === "say") {
-        if ((plan.message ?? "").trim().length === 0) {
-          throw new GameError("invalid_action", "say 需要非空 message");
-        }
+      if (
+        (plan.actionType === "say" ||
+          plan.actionType === "whisper" ||
+          plan.actionType === "announce") &&
+        (plan.message ?? "").trim().length === 0
+      ) {
+        throw new GameError("invalid_action", `${plan.actionType} 需要非空 message`);
+      }
+      if (plan.actionType === "say" || plan.actionType === "whisper") {
         if (!plan.targetActorName) {
-          throw new GameError("invalid_action", "say 需要 targetActorName");
+          throw new GameError("invalid_action", `${plan.actionType} 需要 targetActorName`);
         }
         const targets = await tx
           .select()
@@ -320,12 +359,12 @@ async function applyPlan(
         if (targets.length !== 1) {
           throw new GameError(
             "invalid_action",
-            `当前场景内找不到唯一的说话对象: ${plan.targetActorName}`,
+            `当前场景内找不到唯一的目标角色: ${plan.targetActorName}`,
           );
         }
         targetActor = targets[0];
         if (targetActor?.id === actorId) {
-          throw new GameError("invalid_action", "不能把 say 的目标指定为自己");
+          throw new GameError("invalid_action", `不能把 ${plan.actionType} 的目标指定为自己`);
         }
       }
       if (plan.actionType === "move") {
@@ -378,18 +417,24 @@ async function applyPlan(
         publicMessage = {
           kind: "move",
           stageId: targetStage.id,
+          visibility: "stage",
           content: `${actorRow.actor.name}从${actorRow.stage.name}走向${targetStage.name}。`,
         };
         observerText = `# 环境变化\n${actorRow.actor.name}从${actorRow.stage.name}进入了${targetStage.name}。`;
-      } else if (plan.actionType === "say") {
+      } else if (
+        plan.actionType === "say" ||
+        plan.actionType === "whisper" ||
+        plan.actionType === "announce"
+      ) {
         await tx
           .update(games)
           .set({ version: sql<number>`${games.version} + 1`, updatedAt: now })
           .where(eq(games.id, gameId));
         publicMessage = {
-          kind: "say",
+          kind: plan.actionType,
           stageId: actorRow.stage.id,
-          targetActorId: targetActor?.id,
+          ...(targetActor ? { targetActorId: targetActor.id } : {}),
+          visibility: plan.actionType === "whisper" ? "private" : "stage",
           content: plan.message ?? "",
         };
       } else {
@@ -415,16 +460,23 @@ async function applyPlan(
           stageId: publicMessage.stageId,
           speakerActorId: actorId,
           targetActorId: publicMessage.targetActorId ?? null,
+          visibility: publicMessage.visibility,
           content: publicMessage.content,
         });
       }
 
-      if (plan.actionType === "say" && targetActor && publicMessage) {
-        await appendSayObservations(
+      if (
+        (plan.actionType === "say" ||
+          plan.actionType === "whisper" ||
+          plan.actionType === "announce") &&
+        publicMessage
+      ) {
+        await appendSpeechObservations(
           tx,
           gameId,
           actorRow.stage,
           actorRow.actor,
+          plan.actionType,
           targetActor,
           publicMessage.content,
         );

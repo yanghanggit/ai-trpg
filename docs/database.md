@@ -12,7 +12,7 @@ PostgreSQL 是游戏状态的唯一真相。`agent:game` 从数据库读取状�
 - `stage_connections`：场景图的有向边；连接两端必须属于同一 world。当前 seed 为双向连接。
 - `actors`：场景中的 NPC；`stage_id` 非空，不能脱离场景存在；当前没有玩家控制字段。
 - `items`：角色持有的物品；`actor_id` 非空，不能脱离角色存在。
-- `game_messages`：公共消息流，按 `sequence` 追加；`say` 记录 `stage_id`、`speaker_actor_id`、`target_actor_id`，供客户端增量拉取与审计；不建立 session 表。
+- `game_messages`：公共消息流，按 `sequence` 追加；记录 `stage_id`、`speaker_actor_id`、`target_actor_id` 与 `visibility`，供客户端增量拉取与审计；不建立 session 表。
 - `agent_memories`：每个 agent 的私有上下文；当前 `owner_type` 为 `actor`，后续可扩展 stage / world。
 - `agent_memory_messages`：agent memory 的消息序列，保存 system / human / ai / tool 与 tool_calls、元数据。
 
@@ -32,7 +32,7 @@ NPC 回合是：数据库环境 → agent loop → `submit_action_plan` → 短�
 
 工具包含可多次调用的只读 `look_stage`，以及作为终止工具的 `submit_action_plan`。`submit_action_plan` 是语义上的提交动作，但 handler 只收集计划，不写数据库。工具 handler 不写数据库；loop 结束后由服务层重新校验计划并在事务中更新 actor、game version、公共消息与 memory。
 
-第一版动作是 `wait`、`move`、`say`：等待、沿连接移动、对当前 stage 内指定的一名单个角色说话。`say` 是单人对单人，但向当前场景广播：目标、说话者和同场景其他人都会得到带 stage 与双方身份的观察文本。`say` 的 plan 必须填写 `targetActorName`；私密耳语与更大范围广播后续再加。
+第一版动作是 `wait`、`move`、`say`、`whisper`、`announce`：等待、沿连接移动、有目标公开说话、有目标私下耳语、无目标公开说话。`say` 与 `whisper` 必须指定单个 `targetActorName`；`say` 向当前 stage 广播，`whisper` 只有说话者与目标收到 memory；`announce` 无目标，向当前 stage 广播。公共消息用 `visibility` 区分 `stage` 与 `private`；私密事件后续对客户端不可见。
 
 `agent:game npc --game <gameId|slug> --actor <actorId|actorName>` 推进一个 NPC；`--all` 按当前顺序推进所有 NPC。`agent:game status` 读取完整状态；`agent:game snapshot` 导出快照，包含每个 NPC 的 memory。
 
@@ -46,6 +46,6 @@ schema 定义在服务端代码中，SQL 迁移由 Drizzle Kit 生成并入库�
 
 LLM 调用不放进数据库事务：先读取状态与 memory，在事务外完成 agent loop，再用行锁与版本号在短事务内应用计划。
 
-快照是提交后的只读投影，不是第二套状态源。快照失败只记录日志，不回滚业务；正式环境通过开关关闭落盘。`game_messages` 的 `say` 事件同时保存 stage、speaker、target；memory 文本按说话者、目标、旁观者分别生成。
+快照是提交后的只读投影，不是第二套状态源。快照失败只记录日志，不回滚业务；正式环境通过开关关闭落盘。`game_messages` 的说话事件同时保存 stage、speaker、target、visibility；`say` 的 memory 文本按说话者、目标、旁观者生成；`announce` 按说话者与旁观者生成；`whisper` 只生成说话者与目标两人的版本。
 
 → 参见：[架构与契约](architecture.md) → 参见：[开发期 Agent 工作流](debug-workflow.md)

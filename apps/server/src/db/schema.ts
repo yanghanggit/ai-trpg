@@ -170,6 +170,7 @@ export const gameMessages = pgTable(
     targetActorId: uuid("target_actor_id").references(() => actors.id, {
       onDelete: "set null",
     }),
+    visibility: text("visibility").notNull().default("stage"),
     content: text("content").notNull(),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },

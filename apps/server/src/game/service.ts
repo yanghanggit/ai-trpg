@@ -21,6 +21,7 @@ import type {
   GameState,
   ItemState,
   MessageState,
+  MessageVisibility,
   PlayerState,
   StageState,
 } from "./types";
@@ -184,6 +185,7 @@ export async function getGameState(db: Database, ref: string): Promise<GameState
     stageId: message.stageId,
     speakerActorId: message.speakerActorId,
     targetActorId: message.targetActorId,
+    visibility: message.visibility as MessageVisibility,
     content: message.content,
     createdAt: iso(message.createdAt),
   }));
@@ -347,6 +349,7 @@ export async function createGame(db: Database, input: CreateGameInput): Promise<
         stageId: input.seed.stages[0] ? (stageIds.get(input.seed.stages[0].key) ?? null) : null,
         speakerActorId: null,
         targetActorId: null,
+        visibility: "stage",
         content: input.seed.initialNarration,
       });
     }

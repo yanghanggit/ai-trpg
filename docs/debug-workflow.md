@@ -17,7 +17,7 @@
 - `npc --game <id|slug> --all`：按当前 actor 顺序推进所有 NPC。
 - `snapshot --game <id|slug>`：把当前状态与每个 NPC 的 memory 导出为只读快照。
 
-NPC 回合由 agent loop 驱动：先读取环境与私有 memory，再通过 `look_stage` 与 `submit_action_plan` 工具决定行动；`look_stage` 可多次调用，`submit_action_plan` 是终止工具，handler 只收集计划，不写数据库。loop 结束后服务层在事务中校验并应用 `wait`、`move`、`say`。`say` 必须指定单个 `targetActorName`，事件向当前 stage 广播。
+NPC 回合由 agent loop 驱动：先读取环境与私有 memory，再通过 `look_stage` 与 `submit_action_plan` 工具决定行动；`look_stage` 可多次调用，`submit_action_plan` 是终止工具，handler 只收集计划，不写数据库。loop 结束后服务层在事务中校验并应用 `wait`、`move`、`say`。`say` 是有目标公开说话，向当前 stage 广播；`announce` 是无目标公开说话；`whisper` 必须指定单个 `targetActorName`，只有说话者与目标进入 memory。`game_messages` 用 `visibility` 区分公开与私密。
 
 它不需要启动 HTTP 服务端，但需要 `DATABASE_URL` 与 `DEEPSEEK_API_KEY`。`agent:game status` 不调用 LLM，可用于观察当前状态。
 

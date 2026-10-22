@@ -30,6 +30,7 @@ export async function snapshotGame(
       stageId: message.stageId,
       speakerActorId: message.speakerActorId,
       targetActorId: message.targetActorId,
+      visibility: message.visibility,
       content: message.content,
     },
   }));

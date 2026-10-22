@@ -48,7 +48,8 @@ export type CreateGameInput = {
   seed: WorldSeed;
 };
 
-export type NpcActionType = "wait" | "move" | "say";
+export type NpcActionType = "wait" | "move" | "say" | "whisper" | "announce";
+export type MessageVisibility = "stage" | "private";
 
 export type NpcPlan = {
   mind: string;
@@ -101,6 +102,7 @@ export type MessageState = {
   stageId: string | null;
   speakerActorId: string | null;
   targetActorId: string | null;
+  visibility: MessageVisibility;
   content: string;
   createdAt: string;
 };
