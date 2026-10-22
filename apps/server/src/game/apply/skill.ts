@@ -2,7 +2,7 @@ import { randomUUID } from "node:crypto";
 import { eq } from "drizzle-orm";
 import { actors, games, items, stageItems } from "../../db/schema";
 import { GameError } from "../errors";
-import { appendItemObservations, appendSkillObservations } from "../observations";
+import { appendItemObservations, appendSkillObservations, appendStageEvent } from "../observations";
 import { SEALED_GATE_KEY_NAME, SEALED_GATE_STAGE_NAME } from "../skills";
 import {
   appendPublicMessage,
@@ -65,6 +65,13 @@ async function applyDamage(
     remainingHp,
     death,
   );
+  await appendStageEvent(
+    executor,
+    gameId,
+    resolved.stage.id,
+    `# 场景事件\n${actorRow.actor.name}对${target.name}使用攻击${itemText}，造成${damage}点伤害${outcome}`,
+    { eventKind: "attack", targetActorId: target.id },
+  );
   return damageFeedback(resolved, damage, remainingHp);
 }
 
@@ -110,6 +117,10 @@ async function applyTransfer(
     transferItem.name,
     { target: { id: target.id, name: target.name }, broadcast: resolved.skill.broadcast },
   );
+  await appendStageEvent(executor, gameId, resolved.stage.id, `# 场景事件\n${content}`, {
+    eventKind: purpose.kind,
+    targetActorId: target.id,
+  });
   return purpose.kind === "steal"
     ? stealFeedback(target.name, transferItem.name)
     : giveFeedback(target.name, transferItem.name);
@@ -154,6 +165,13 @@ async function applyPickup(
     stageItem.name,
     { broadcast: resolved.skill.broadcast },
   );
+  await appendStageEvent(
+    executor,
+    gameId,
+    resolved.stage.id,
+    `# 场景事件\n${actorRow.actor.name}拾取了${stageItem.name}。`,
+    { eventKind: "pickup" },
+  );
   return pickupFeedback(stageItem.name);
 }
 
@@ -176,6 +194,13 @@ async function completeGame(
     visibility: "stage",
     content: `${actorRow.actor.name}用${itemName}打开了${targetStageName}，游戏结束。`,
   });
+  await appendStageEvent(
+    executor,
+    gameId,
+    stageId,
+    `# 场景事件\n${actorRow.actor.name}用${itemName}打开了${targetStageName}，游戏结束。`,
+    { eventKind: "game_completed" },
+  );
   console.error(
     `[game] completed: game=${gameId} actor=${actorRow.actor.name} item=${itemName} stage=${targetStageName}`,
   );
@@ -220,6 +245,11 @@ async function applyUse(
       broadcast: resolved.skill.broadcast,
     },
   );
+  await appendStageEvent(executor, gameId, resolved.stage.id, `# 场景事件\n${content}`, {
+    eventKind: "use_item",
+    ...(target ? { targetActorId: target.id } : {}),
+    ...(targetStage ? { targetStageId: targetStage.id } : {}),
+  });
 
   const completed =
     targetStage?.name === SEALED_GATE_STAGE_NAME && transferItem.name === SEALED_GATE_KEY_NAME;

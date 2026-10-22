@@ -28,6 +28,8 @@ export function visibilityForCommunication(action: CommunicationActionType): Mes
 /** agent memory 中使用的稳定 kind 值。 */
 export const MEMORY_KINDS = {
   actorSystemPrompt: "actor_system_prompt",
+  stageSystemPrompt: "stage_system_prompt",
+  stageObservation: "stage_observation",
   actionFeedback: "action_feedback",
   actionRejected: "action_rejected",
   planFailed: "plan_failed",

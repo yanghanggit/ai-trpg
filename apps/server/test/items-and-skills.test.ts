@@ -72,7 +72,6 @@ const SEALED_WORLD = {
       name: "场景.封骨之门",
       profile: "测试用封骨之门。",
       environment: "门板上刻着鼠牙。",
-      narrative: "锁孔在等一把钥匙。",
     },
   ],
   connections: [

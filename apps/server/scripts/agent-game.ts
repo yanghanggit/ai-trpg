@@ -31,6 +31,7 @@ import {
   playerSkill,
   releaseActorControl,
   runNpcTurn,
+  runStageTurn,
   snapshotGame,
   takeActorControl,
 } from "../src/game";
@@ -89,6 +90,8 @@ function usage(): void {
       "agent-game status --game <gameId|slug>",
       "agent-game npc --game <gameId|slug> --actor <actorId|actorName>",
       "agent-game npc --game <gameId|slug> --all",
+      "agent-game stage --game <gameId|slug> --stage <stageId|stageName>",
+      "agent-game stage --game <gameId|slug> --all",
       "agent-game take-control --game <gameId|slug> --actor <actorId|actorName>",
       "agent-game release-control --game <gameId|slug> --actor <actorId|actorName>",
       "agent-game player-communicate --game <gameId|slug> --actor <actorId|actorName> --mode say|whisper|announce [--target <actorName>] [--reason <text>] --message <text>",
@@ -335,6 +338,42 @@ async function main(): Promise<void> {
     emit({
       ok: true,
       action: "npc",
+      results: results.map((result) => ({
+        ok: result.ok,
+        plan: result.plan,
+        loopSuccess: result.loopSuccess,
+        state: result.state,
+      })),
+    });
+    return;
+  }
+
+  if (command === "stage") {
+    if (typeof values.game !== "string") {
+      throw new Error("stage 需要 --game");
+    }
+    const gameRef = values.game;
+    const stageRef = typeof values.stage === "string" ? values.stage : undefined;
+    const all = values.all === true;
+    if (!all && stageRef === undefined) {
+      throw new Error("stage 需要 --stage，或使用 --all");
+    }
+
+    const results = await withDatabase(async (db) => {
+      if (!all && stageRef !== undefined) {
+        return [await runStageTurn(db, gameRef, stageRef, { service: DEEPSEEK_SERVICE })];
+      }
+      const state = await getGameState(db, gameRef);
+      const output = [];
+      for (const stage of state.world.stages) {
+        output.push(await runStageTurn(db, gameRef, stage.id, { service: DEEPSEEK_SERVICE }));
+      }
+      return output;
+    });
+
+    emit({
+      ok: true,
+      action: "stage",
       results: results.map((result) => ({
         ok: result.ok,
         plan: result.plan,

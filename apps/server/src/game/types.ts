@@ -27,7 +27,6 @@ export type Stage = {
   name: string;
   profile: string;
   environment: string;
-  narrative: string;
   /** 暂放在场景中的物品；目前只物化为只读场景内容，拾取尚未实现。 */
   items?: readonly Item[];
 };
@@ -156,6 +155,11 @@ export type ActorPlan = {
   intents: ActorIntent[];
 };
 
+/** stage 小 GM 的一次仲裁计划；当前只允许更新 environment。 */
+export type StagePlan = {
+  environment: string;
+};
+
 export type ItemState = {
   id: string;
   name: string;
@@ -188,7 +192,6 @@ export type StageState = {
   name: string;
   profile: string;
   environment: string;
-  narrative: string;
   ordinal: number;
   actors: ActorState[];
   items: ItemState[];
@@ -266,6 +269,13 @@ export type GameState = {
 export type ActorTurnResult = {
   ok: boolean;
   plan: ActorPlan | null;
+  loopSuccess: boolean;
+  state: GameState;
+};
+
+export type StageTurnResult = {
+  ok: boolean;
+  plan: StagePlan | null;
   loopSuccess: boolean;
   state: GameState;
 };

@@ -4,10 +4,12 @@ import type { Database } from "../db/pool";
 import { agentMemories, agentMemoryMessages, type JsonValue } from "../db/schema";
 import type { ChatMessage, ToolCall } from "../llm/types";
 import { MEMORY_KINDS } from "./actions";
-import type { Actor, AgentMemoryMessageState, AgentMemoryState } from "./types";
+import type { Actor, AgentMemoryMessageState, AgentMemoryState, Stage } from "./types";
 
 type Executor = Pick<Database, "select" | "insert" | "update">;
 type MemoryRow = typeof agentMemories.$inferSelect;
+
+export type MemoryOwnerType = "actor" | "stage";
 
 export type LoadedMemory = {
   row: MemoryRow;
@@ -99,12 +101,52 @@ export function buildActorSystemPrompt(
   ].join("\n");
 }
 
-/** 创建 actor memory 并写入 system prompt。 */
-export async function createActorMemory(
+/** 构造场景作为小 GM 的稳定 system prompt（世界设定、场景定位与职责）。 */
+export function buildStageSystemPrompt(
+  world: { name: string; campaignSetting: string; systemRules: string },
+  stage: Pick<Stage, "name" | "profile">,
+): string {
+  return [
+    "# 游戏设定",
+    world.campaignSetting,
+    "",
+    "# 你的场景",
+    `你是${stage.name}。`,
+    stage.profile,
+    "",
+    "# 全局规则",
+    world.systemRules,
+    "",
+    "# 你的身份",
+    "你是一个活着的场景实体，不是场景中的角色，也不是完整 GM。",
+    "你有自己的记忆与生命周期，会持续记得本场景发生过的事件。",
+    "你是本场景的小 GM，只负责仲裁和改变这个场景本身。",
+    "",
+    "# 你的记忆",
+    "你能看到本场景内发生的一切事件，包括公开与私密沟通、角色进入与离开、所有技能结果、等待与死亡。",
+    "你不能看到其他场景的事件。",
+    "",
+    "# 你的能力",
+    "当前你只能更新 environment。",
+    "environment 是场景当前的身体状态，只描述当前可观察的环境、物体、表面状态、光线、气味与氛围。",
+    "environment 必须与当前场景物品保持一致：仍在场景中的物品应被描述；物品不在场景中时直接省略，不写它曾经存在、消失、被拿走或留下空位与痕迹。",
+    "environment 是客观的当前快照，不是叙事或历史记录；不写变化过程、原因、结果或暗示过去的细节。",
+    "不要使用“痕迹、渍痕、污渍、残留、碎屑、空位、印子、缺口、原来、曾经、留下、消失”等历史线索词。",
+    "当前场景物品清单是 environment 中唯一允许出现的物品来源；记忆里提到某物，不代表它现在仍在场景中。",
+    "environment 不能包含角色名称、角色行动或角色状态；角色由场景状态单独承载。",
+    "不要替角色行动，不要修改角色的属性、物品或位置。",
+    "未来会增加更多场景能力；当前只提交 environment。",
+  ].join("\n");
+}
+
+/** 创建 memory 并写入 system prompt。 */
+async function createMemory(
   executor: Executor,
   gameId: string,
-  actor: Pick<Actor, "name" | "profile" | "appearance"> & { id: string },
+  ownerType: MemoryOwnerType,
+  owner: { id: string; name: string },
   systemPrompt: string,
+  systemPromptKind: string,
 ): Promise<MemoryRow> {
   const memoryId = randomUUID();
   const [memory] = await executor
@@ -112,13 +154,13 @@ export async function createActorMemory(
     .values({
       id: memoryId,
       gameId,
-      ownerType: "actor",
-      ownerId: actor.id,
-      name: actor.name,
+      ownerType,
+      ownerId: owner.id,
+      name: owner.name,
     })
     .returning();
   if (!memory) {
-    throw new Error(`创建 agent memory 失败: ${actor.name}`);
+    throw new Error(`创建 agent memory 失败: ${owner.name}`);
   }
 
   await executor.insert(agentMemoryMessages).values({
@@ -129,16 +171,51 @@ export async function createActorMemory(
     content: systemPrompt,
     toolCalls: null,
     toolCallId: null,
-    metadata: { kind: MEMORY_KINDS.actorSystemPrompt },
+    metadata: { kind: systemPromptKind },
   });
 
   return memory;
 }
 
-/** 按 game 与 actor id 读取持久 memory；不存在时返回 undefined。 */
+/** 创建 actor memory 并写入 system prompt。 */
+export async function createActorMemory(
+  executor: Executor,
+  gameId: string,
+  actor: Pick<Actor, "name" | "profile" | "appearance"> & { id: string },
+  systemPrompt: string,
+): Promise<MemoryRow> {
+  return createMemory(
+    executor,
+    gameId,
+    "actor",
+    actor,
+    systemPrompt,
+    MEMORY_KINDS.actorSystemPrompt,
+  );
+}
+
+/** 创建 stage memory 并写入小 GM system prompt。 */
+export async function createStageMemory(
+  executor: Executor,
+  gameId: string,
+  stage: Pick<Stage, "name" | "profile"> & { id: string },
+  systemPrompt: string,
+): Promise<MemoryRow> {
+  return createMemory(
+    executor,
+    gameId,
+    "stage",
+    stage,
+    systemPrompt,
+    MEMORY_KINDS.stageSystemPrompt,
+  );
+}
+
+/** 按 game、owner 类型与 owner id 读取持久 memory；不存在时返回 undefined。 */
 export async function loadAgentMemory(
   db: Pick<Database, "select">,
   gameId: string,
+  ownerType: MemoryOwnerType,
   ownerId: string,
 ): Promise<LoadedMemory | undefined> {
   const [row] = await db
@@ -147,7 +224,7 @@ export async function loadAgentMemory(
     .where(
       and(
         eq(agentMemories.gameId, gameId),
-        eq(agentMemories.ownerType, "actor"),
+        eq(agentMemories.ownerType, ownerType),
         eq(agentMemories.ownerId, ownerId),
       ),
     )

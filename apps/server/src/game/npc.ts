@@ -51,7 +51,7 @@ function buildObservation(state: GameState, current: ActorWithStage): string {
   );
   return [
     "# 当前环境",
-    `## 场景\n${current.stage.name}\n${current.stage.environment}\n${current.stage.narrative}`,
+    `## 场景\n${current.stage.name}\n${current.stage.environment}`,
     `## 你的状态\n${current.actor.name} | HP ${current.actor.hp}/${current.actor.maxHp}`,
     `## 状态效果\n${
       current.actor.statusEffects.length === 0
@@ -94,7 +94,7 @@ export async function runNpcTurn(
     throw new GameError("invalid_action", `actor 已被玩家接管: ${current.actor.name}`);
   }
 
-  const memory = await loadAgentMemory(db, state.game.id, current.actor.id);
+  const memory = await loadAgentMemory(db, state.game.id, "actor", current.actor.id);
   if (!memory) {
     throw new GameError("invalid_state", `actor 缺少 memory: ${current.actor.name}`);
   }

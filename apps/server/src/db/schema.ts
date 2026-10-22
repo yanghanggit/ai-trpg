@@ -96,7 +96,6 @@ export const stages = pgTable(
     name: text("name").notNull(),
     profile: text("profile").notNull(),
     environment: text("environment").notNull(),
-    narrative: text("narrative").notNull(),
     ordinal: integer("ordinal").notNull().default(0),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },

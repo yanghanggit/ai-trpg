@@ -14,7 +14,13 @@ import {
   worlds,
 } from "../db/schema";
 import { GameError } from "./errors";
-import { buildActorSystemPrompt, createActorMemory } from "./memory";
+import {
+  buildActorSystemPrompt,
+  buildStageSystemPrompt,
+  createActorMemory,
+  createStageMemory,
+} from "./memory";
+import { appendStageEvent } from "./observations";
 import type {
   ActorState,
   ConnectionState,
@@ -197,7 +203,6 @@ export async function getGameState(db: Database, ref: string): Promise<GameState
     name: stage.name,
     profile: stage.profile,
     environment: stage.environment,
-    narrative: stage.narrative,
     ordinal: stage.ordinal,
     actors: actorsByStage.get(stage.id) ?? [],
     items: itemsByStage.get(stage.id) ?? [],
@@ -312,9 +317,22 @@ export async function createGame(db: Database, input: CreateGameInput): Promise<
         name: stage.name,
         profile: stage.profile,
         environment: stage.environment,
-        narrative: stage.narrative,
         ordinal,
       });
+
+      await createStageMemory(
+        tx,
+        gameId,
+        { id: stageId, name: stage.name, profile: stage.profile },
+        buildStageSystemPrompt(
+          {
+            name: input.world.worldName,
+            campaignSetting: input.world.campaignSetting,
+            systemRules: input.world.systemRules,
+          },
+          stage,
+        ),
+      );
 
       for (const item of stage.items ?? []) {
         await tx.insert(stageItems).values({
@@ -419,6 +437,15 @@ export async function createGame(db: Database, input: CreateGameInput): Promise<
         visibility: "stage",
         content: input.world.initialNarration,
       });
+      if (initialStageId) {
+        await appendStageEvent(
+          tx,
+          gameId,
+          initialStageId,
+          `# 场景事件\n${input.world.initialNarration}`,
+          { eventKind: "narration" },
+        );
+      }
     }
   });
 

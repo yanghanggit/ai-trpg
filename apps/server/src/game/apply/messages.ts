@@ -25,7 +25,7 @@ export async function bumpGameVersion(
 export async function appendPublicMessage(
   executor: Executor,
   gameId: string,
-  actorId: string,
+  actorId: string | null,
   message: PublicMessage,
 ): Promise<void> {
   const [maxRow] = await executor

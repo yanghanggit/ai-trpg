@@ -1,7 +1,11 @@
 import { eq } from "drizzle-orm";
 import { actors } from "../../db/schema";
 import { GameError } from "../errors";
-import { appendActionObservations, appendEnvironmentObservations } from "../observations";
+import {
+  appendActionObservations,
+  appendEnvironmentObservations,
+  appendStageEvent,
+} from "../observations";
 import { appendPublicMessage, bumpGameVersion, movementFeedback } from "./messages";
 import type { ActorWithStageRow, Executor, ResolvedMovement } from "./types";
 
@@ -34,6 +38,20 @@ async function applyMove(
     actorRow.actor.id,
     `# 环境变化\n${actorRow.actor.name}从${resolved.stage.name}进入了${targetStage.name}。`,
   );
+  await appendStageEvent(
+    executor,
+    gameId,
+    resolved.stage.id,
+    `# 场景事件\n${actorRow.actor.name}离开${resolved.stage.name}，前往${targetStage.name}。`,
+    { eventKind: "move_leave" },
+  );
+  await appendStageEvent(
+    executor,
+    gameId,
+    targetStage.id,
+    `# 场景事件\n${actorRow.actor.name}从${resolved.stage.name}进入${targetStage.name}。`,
+    { eventKind: "move_enter" },
+  );
   return movementFeedback(resolved);
 }
 
@@ -57,6 +75,13 @@ async function applyWait(
     resolved.stage.id,
     actorRow.actor.id,
     `# 场景动态\n${actorRow.actor.name}留在原地，继续观察四周。`,
+  );
+  await appendStageEvent(
+    executor,
+    gameId,
+    resolved.stage.id,
+    `# 场景事件\n${actorRow.actor.name}留在原地，继续观察四周。`,
+    { eventKind: "wait" },
   );
   return movementFeedback(resolved);
 }

@@ -47,6 +47,18 @@ export function adjacentStageNames(state: GameState, stageId: string): string[] 
   return adjacentStages(state, stageId).map((stage) => stage.name);
 }
 
+/** 按 id 或唯一名称查找场景。 */
+export function findStage(state: GameState, ref: string): StageState {
+  const matches = state.world.stages.filter((stage) => stage.id === ref || stage.name === ref);
+  if (matches.length === 0) {
+    throw new GameError("not_found", `场景不存在: ${ref}`);
+  }
+  if (matches.length > 1) {
+    throw new GameError("invalid_action", `场景名称不唯一，请使用 id: ${ref}`);
+  }
+  return matches[0] as StageState;
+}
+
 /** 按名称查找场景；不存在时返回 undefined。 */
 export function findStageByName(state: GameState, name: string): StageState | undefined {
   return state.world.stages.find((stage) => stage.name === name);

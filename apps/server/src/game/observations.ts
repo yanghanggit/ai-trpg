@@ -23,7 +23,7 @@ async function appendStageObservations(
     if (observer.id === excludedActorId || !include(observer)) {
       continue;
     }
-    const memory = await loadAgentMemory(executor, gameId, observer.id);
+    const memory = await loadAgentMemory(executor, gameId, "actor", observer.id);
     if (!memory) {
       continue;
     }
@@ -189,6 +189,31 @@ export async function appendItemObservations(
       };
     },
   );
+}
+
+/** 向 stage 自己的 memory 写入它看到的本场景事件。 */
+export async function appendStageEvent(
+  executor: Executor,
+  gameId: string,
+  stageId: string,
+  content: string,
+  metadata: Record<string, unknown> = {},
+): Promise<void> {
+  const memory = await loadAgentMemory(executor, gameId, "stage", stageId);
+  if (!memory) {
+    throw new Error(`stage 缺少 memory: ${stageId}`);
+  }
+  await appendMemoryMessages(executor, memory.row.id, [
+    {
+      type: "human",
+      content,
+      metadata: {
+        kind: MEMORY_KINDS.stageObservation,
+        stageId,
+        ...metadata,
+      },
+    },
+  ]);
 }
 
 /** 按沟通方式向目标与旁观者写入听觉观察。 */

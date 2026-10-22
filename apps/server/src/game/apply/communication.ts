@@ -1,5 +1,5 @@
 import { visibilityForCommunication } from "../actions";
-import { appendCommunicationObservations } from "../observations";
+import { appendCommunicationObservations, appendStageEvent } from "../observations";
 import { appendPublicMessage, bumpGameVersion, communicationFeedback } from "./messages";
 import type { ActorWithStageRow, Executor, ResolvedCommunication } from "./types";
 
@@ -27,6 +27,20 @@ export async function applyCommunication(
     resolved.intent.mode,
     resolved.targetActor,
     resolved.intent.message,
+  );
+  const targetText = resolved.targetActor ? `对${resolved.targetActor.name}` : "";
+  const modeText =
+    resolved.intent.mode === "announce"
+      ? "公开说"
+      : resolved.intent.mode === "whisper"
+        ? "耳语"
+        : "说";
+  await appendStageEvent(
+    executor,
+    gameId,
+    resolved.stage.id,
+    `# 场景事件\n${actorRow.actor.name}${targetText}${modeText}：${resolved.intent.message}`,
+    { eventKind: "communication", visibility: resolved.intent.mode },
   );
   return communicationFeedback(resolved);
 }

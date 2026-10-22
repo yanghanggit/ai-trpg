@@ -14,14 +14,12 @@ export const TEST_WORLD: World = {
       name: "灰烬门廊",
       profile: "修道院的入口，穹顶塌了一半，长明灯只剩冷灰。",
       environment: "风从破窗灌入，灰烬像雪一样落在石阶上。",
-      narrative: "门廊尽头是一道向内倾斜的拱门。",
     },
     {
       key: "nave",
       name: "断钟中殿",
       profile: "修道院的中殿，巨大的铜钟坠落在裂纹纵横的地面上。",
       environment: "烛泪凝成黑色硬壳，空气里混着铁锈与旧蜡的味道。",
-      narrative: "铜钟的裂口里卡着一截发黑的手指。",
     },
   ],
   connections: [

@@ -13,6 +13,7 @@
 - NPC 的事件记忆驱动反应，而不是系统硬触发；
 - 私密事件与公开事件的 memory 差异；
 - 沉睡的 LLM 行为与致命 Boss；
+- stage 小 GM 的场景记忆与环境仲裁；
 - 钥匙通关与游戏结束状态；
 - 为火武器、场景物品和最终内容预留扩展点。
 
@@ -77,6 +78,11 @@ Boss 路线：鼠王被非 `wait` 行为惊醒后会自行移动和攻击；当�
 | 游戏结束 | 成功使用钥匙 | `games.status` 变为 `completed`；写 `game_completed` 公共事件；后续行动被拒绝；完成日志写 stderr，避免污染 CLI JSON |
 | 普通攻击 Boss | `use_item` 的 damage 目的 | 鼠王 defense 100，空手伤害为 0；装备火把后 damage 250，配合 attack 6 足以一击击杀 |
 | 鼠王攻击 | 苏醒后推进鼠王 | attack 60，普通角色会被秒杀；鼠王会跨场景移动 |
+| stage 记忆 | 私密沟通或 actor 移动 | 起点与终点 stage 都写入 memory；私密事件只对 stage 与既有可见者可见 |
+| stage 环境仲裁 | `stage --stage <name>` | stage 读取本场景事件并更新 environment；写 `environment_change` 事件与 stage memory |
+| 环境约束 | 提交包含角色名的 environment | 环境更新被拒绝，stage 写入拒绝记忆，场景不变 |
+| 场景物品同步 | 拾取场景物品后推动 stage | environment 只描述当前物品与当前可见状态；不写物品消失、被拿走或历史痕迹；拾取事件保留在 stage memory |
+| stage 后 actor | 推动 stage 后再推进 actor | actor 下一次 plan 的当前环境包含新的 environment；不写 actor observation |
 
 ## 已用真实 provider 验证
 
@@ -88,6 +94,8 @@ Boss 路线：鼠王被非 `wait` 行为惊醒后会自行移动和攻击；当�
 - 玩家可拾取焚毛炉房场景物品。
 - 玩家拾取 `武器.焚鼠火把` 后攻击鼠王，造成 156 点伤害并击杀。
 - 玩家可走到封骨之门，用钥匙使游戏进入 `completed`。
+- 玩家推动守墓人、再推动灰庭、再推动守墓人：灰庭 environment 已更新，守墓人的下一次 plan 读取到新环境，stage memory 同时保留本场景事件。
+- 玩家在焚毛炉房拾取 `武器.焚鼠火把` 后推动焚毛炉房：stage 依据当前场景物品（已为空）与 pickup 记忆，生成只描述当前炉房状态的 environment，不再出现火把，也不写消失过程或历史痕迹。
 
 ## 暂不验证
 

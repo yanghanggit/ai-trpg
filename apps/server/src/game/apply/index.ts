@@ -67,7 +67,7 @@ export async function applyActorPlan(
     if (actorRow.actor.death) {
       throw new GameError("invalid_action", `actor 已死亡: ${actorRow.actor.name}`);
     }
-    const memory = await loadAgentMemory(tx, gameId, actorId);
+    const memory = await loadAgentMemory(tx, gameId, "actor", actorId);
     if (!memory) {
       throw new GameError("invalid_state", `actor 缺少 memory: ${actorId}`);
     }

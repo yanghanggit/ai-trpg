@@ -208,7 +208,7 @@ describe.skipIf(!testDatabaseUrl)("memory-driven NPC slice", () => {
     );
 
     const memories = await getGameMemories(handle.db, created.game.id);
-    expect(memories).toHaveLength(3);
+    expect(memories).toHaveLength(5);
     const keeper = memories.find((memory) => memory.name === "守烬人");
     const monk = memories.find((memory) => memory.name === "提灯修士");
     const scribe = memories.find((memory) => memory.name === "缄默抄经人");
