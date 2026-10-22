@@ -1,25 +1,15 @@
 import { and, eq } from "drizzle-orm";
 import type { Database } from "../db/pool";
 import { actorControls } from "../db/schema";
+import { findActor } from "./actors";
 import { GameError } from "./errors";
 import { getGameState } from "./service";
-import type { ActorState } from "./types";
 
 export type ActorControl = typeof actorControls.$inferSelect;
 
-function findActor(state: Awaited<ReturnType<typeof getGameState>>, ref: string): ActorState {
-  const matches = state.world.stages
-    .flatMap((stage) => stage.actors)
-    .filter((actor) => actor.id === ref || actor.name === ref);
-  if (matches.length === 0) {
-    throw new GameError("not_found", `actor 不存在: ${ref}`);
-  }
-  if (matches.length > 1) {
-    throw new GameError("invalid_action", `actor 名称不唯一，请使用 id: ${ref}`);
-  }
-  return matches[0] as ActorState;
-}
-
+/**
+ * 把 actor 的控制权交给当前玩家；重复接管是幂等 upsert。
+ */
 export async function takeActorControl(
   db: Database,
   gameRef: string,
@@ -53,6 +43,7 @@ export async function takeActorControl(
   return control;
 }
 
+/** 释放 actor 的玩家控制关系。 */
 export async function releaseActorControl(
   db: Database,
   gameRef: string,
@@ -63,6 +54,7 @@ export async function releaseActorControl(
   await db.delete(actorControls).where(eq(actorControls.actorId, actor.id));
 }
 
+/** 判断 actor 当前是否由玩家控制。 */
 export async function isPlayerControlled(
   db: Pick<Database, "select">,
   gameId: string,
@@ -82,6 +74,7 @@ export async function isPlayerControlled(
   return control !== undefined;
 }
 
+/** 返回本局中由玩家控制的 actor id。 */
 export async function listPlayerControlledActorIds(
   db: Pick<Database, "select">,
   gameId: string,
@@ -89,6 +82,6 @@ export async function listPlayerControlledActorIds(
   const rows = await db
     .select({ actorId: actorControls.actorId })
     .from(actorControls)
-    .where(eq(actorControls.gameId, gameId));
+    .where(and(eq(actorControls.gameId, gameId), eq(actorControls.controllerType, "player")));
   return rows.map((row) => row.actorId);
 }

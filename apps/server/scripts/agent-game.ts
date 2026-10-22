@@ -23,6 +23,7 @@ import { DEEPSEEK_SERVICE } from "../src/deepseek";
 import {
   createGame,
   getGameState,
+  isSpeechAction,
   listPlayerControlledActorIds,
   playerSpeak,
   releaseActorControl,
@@ -47,6 +48,7 @@ const options = {
   mode: { type: "string" },
   message: { type: "string" },
   target: { type: "string" },
+  reason: { type: "string" },
 } as const;
 
 function emit(payload: Output, exitCode = 0): void {
@@ -82,7 +84,7 @@ function usage(): void {
       "agent-game npc --game <gameId|slug> --all",
       "agent-game take-control --game <gameId|slug> --actor <actorId|actorName>",
       "agent-game release-control --game <gameId|slug> --actor <actorId|actorName>",
-      "agent-game player-speak --game <gameId|slug> --actor <actorId|actorName> --mode say|whisper|announce [--target <actorName>] --message <text>",
+      "agent-game player-speak --game <gameId|slug> --actor <actorId|actorName> --mode say|whisper|announce [--target <actorName>] [--reason <text>] --message <text>",
       "agent-game snapshot --game <gameId|slug> [--root <dir>]",
     ],
   });
@@ -184,7 +186,7 @@ async function main(): Promise<void> {
     if (typeof values.game !== "string" || typeof values.actor !== "string") {
       throw new Error("player-speak 需要 --game 与 --actor");
     }
-    if (values.mode !== "say" && values.mode !== "whisper" && values.mode !== "announce") {
+    if (!isSpeechAction(values.mode)) {
       throw new Error("player-speak 需要 --mode say|whisper|announce");
     }
     if (typeof values.message !== "string" || values.message.trim().length === 0) {
@@ -199,11 +201,13 @@ async function main(): Promise<void> {
     const mode = values.mode;
     const message = values.message;
     const targetActorName = typeof values.target === "string" ? values.target : undefined;
+    const reason = typeof values.reason === "string" ? values.reason : undefined;
     const result = await withDatabase((db) =>
       playerSpeak(db, gameRef, actorRef, {
         mode,
         message,
         ...(targetActorName !== undefined ? { targetActorName } : {}),
+        ...(reason !== undefined ? { reason } : {}),
       }),
     );
     emit({

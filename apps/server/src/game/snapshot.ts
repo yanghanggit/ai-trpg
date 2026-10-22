@@ -8,12 +8,17 @@ import {
 import { getGameMemories } from "./memory";
 import { getGameState } from "./service";
 
+function memoryFileName(name: string): string {
+  return name.replace(/[/\\\0:*?"<>|]/g, "_").replace(/^\.+$/, "_") || "actor";
+}
+
 export type GameSnapshotOptions = {
   root?: string;
   action?: string;
   now?: Date;
 };
 
+/** 把当前数据库状态导出为一份只读快照。 */
 export async function snapshotGame(
   db: Database,
   gameRef: string,
@@ -37,9 +42,9 @@ export async function snapshotGame(
 
   const memoryParts = Object.fromEntries(
     memories.flatMap((memory) => [
-      [`memories/${memory.name}.json`, memory as unknown as JsonValue],
+      [`memories/${memoryFileName(memory.name)}.json`, memory as unknown as JsonValue],
       [
-        `memories/${memory.name}.meta.json`,
+        `memories/${memoryFileName(memory.name)}.meta.json`,
         {
           id: memory.id,
           ownerType: memory.ownerType,

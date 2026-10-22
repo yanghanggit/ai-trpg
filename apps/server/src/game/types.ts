@@ -1,3 +1,7 @@
+import type { ActorActionType, MessageVisibility } from "./actions";
+
+export type { ActorActionType, MessageVisibility, SpeechActionType } from "./actions";
+
 export type WorldSeed = {
   contentVersion: string;
   worldName: string;
@@ -48,12 +52,9 @@ export type CreateGameInput = {
   seed: WorldSeed;
 };
 
-export type NpcActionType = "wait" | "move" | "say" | "whisper" | "announce";
-export type MessageVisibility = "stage" | "private";
-
-export type NpcPlan = {
+export type ActorActionPlan = {
   mind: string;
-  actionType: NpcActionType;
+  actionType: ActorActionType;
   targetStageName?: string;
   targetActorName?: string;
   message?: string;
@@ -158,9 +159,9 @@ export type GameState = {
   messages: MessageState[];
 };
 
-export type NpcTurnResult = {
+export type ActorTurnResult = {
   ok: boolean;
-  plan: NpcPlan | null;
+  plan: ActorActionPlan | null;
   loopSuccess: boolean;
   state: GameState;
 };

@@ -10,10 +10,10 @@ import { resetDomainData, seedDemoData } from "../src/db/maintenance";
 import { runMigrations } from "../src/db/migrate";
 import { loadSnapshot } from "../src/debug/snapshot";
 import {
+  type ActorActionPlan,
   createGame,
   getGameMemories,
   getGameState,
-  type NpcPlan,
   runNpcTurn,
   snapshotGame,
 } from "../src/game";
@@ -22,9 +22,9 @@ import { ChatCompletionResult, type ChatCompletionService, type ToolCall } from 
 const testDatabaseUrl = process.env.TEST_DATABASE_URL?.trim();
 
 class ScriptedNpcService implements ChatCompletionService {
-  private readonly plans: NpcPlan[];
+  private readonly plans: ActorActionPlan[];
 
-  constructor(plans: NpcPlan[]) {
+  constructor(plans: ActorActionPlan[]) {
     this.plans = [...plans];
   }
 

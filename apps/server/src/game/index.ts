@@ -1,3 +1,6 @@
+export * from "./actions";
+export * from "./actors";
+export * from "./apply";
 export * from "./control";
 export * from "./errors";
 export * from "./memory";

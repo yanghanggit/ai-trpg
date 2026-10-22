@@ -64,8 +64,10 @@ describe.skipIf(!testDatabaseUrl)("player takeover", () => {
       mode: "say",
       targetActorName: "提灯修士",
       message: "公开对你说。",
+      reason: "先确认他是否听见钟声。",
     });
     expect(said.ok).toBe(true);
+    expect(said.plan?.mind).toBe("先确认他是否听见钟声。");
 
     const whispered = await playerSpeak(handle.db, game.game.slug, "守烬人", {
       mode: "whisper",

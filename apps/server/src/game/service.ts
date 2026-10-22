@@ -40,8 +40,12 @@ function slugify(value: string): string {
     .slice(0, 48);
 }
 
+/** 按 slug 或 UUID 查找游戏；slug 跨用户不唯一时要求使用 id。 */
 async function findGame(db: Reader, ref: string): Promise<GameRow | undefined> {
-  const bySlug = await db.select().from(games).where(eq(games.slug, ref)).limit(1);
+  const bySlug = await db.select().from(games).where(eq(games.slug, ref)).limit(2);
+  if (bySlug.length > 1) {
+    throw new GameError("invalid_action", `游戏 slug 不唯一，请使用 id: ${ref}`);
+  }
   if (bySlug[0]) {
     return bySlug[0];
   }
@@ -56,6 +60,7 @@ function iso(value: Date): string {
   return value.toISOString();
 }
 
+/** 读取一局游戏的完整状态；游戏不存在时抛出 GameError。 */
 export async function getGameState(db: Database, ref: string): Promise<GameState> {
   const game = await findGame(db, ref);
   if (!game) {
@@ -215,6 +220,7 @@ export async function getGameState(db: Database, ref: string): Promise<GameState
   };
 }
 
+/** 创建一局游戏及初始 world、stage、actor、item 与 memory。 */
 export async function createGame(db: Database, input: CreateGameInput): Promise<GameState> {
   const gameId = randomUUID();
   const gameName = input.name?.trim() || input.seed.worldName;

@@ -3,6 +3,7 @@ import { and, asc, eq, sql } from "drizzle-orm";
 import type { Database } from "../db/pool";
 import { agentMemories, agentMemoryMessages, type JsonValue } from "../db/schema";
 import type { ChatMessage, ToolCall } from "../llm/types";
+import { MEMORY_KINDS } from "./actions";
 import type { ActorSeed, AgentMemoryMessageState, AgentMemoryState } from "./types";
 
 type Executor = Pick<Database, "select" | "insert" | "update">;
@@ -76,6 +77,7 @@ function toRow(memoryId: string, sequence: number, message: ChatMessage) {
   return { ...base, toolCalls: null, toolCallId: null };
 }
 
+/** 构造 actor 的稳定 system prompt（世界设定、角色与规则）。 */
 export function buildActorSystemPrompt(
   world: { id: string; name: string; campaignSetting: string; systemRules: string },
   actor: Pick<ActorSeed, "name" | "profile" | "appearance">,
@@ -97,6 +99,7 @@ export function buildActorSystemPrompt(
   ].join("\n");
 }
 
+/** 创建 actor memory 并写入 system prompt。 */
 export async function createActorMemory(
   executor: Executor,
   gameId: string,
@@ -126,12 +129,13 @@ export async function createActorMemory(
     content: systemPrompt,
     toolCalls: null,
     toolCallId: null,
-    metadata: { kind: "actor_system_prompt" },
+    metadata: { kind: MEMORY_KINDS.actorSystemPrompt },
   });
 
   return memory;
 }
 
+/** 按 game 与 actor id 读取持久 memory；不存在时返回 undefined。 */
 export async function loadAgentMemory(
   db: Pick<Database, "select">,
   gameId: string,
@@ -161,6 +165,7 @@ export async function loadAgentMemory(
   return { row, messages: rows.map(toChatMessage) };
 }
 
+/** 在 memory 末尾追加消息并返回追加条数。 */
 export async function appendMemoryMessages(
   executor: Executor,
   memoryId: string,
@@ -189,6 +194,7 @@ export async function appendMemoryMessages(
   return rows.length;
 }
 
+/** 读取一局游戏内全部 actor memory，按 actor 名称排序。 */
 export async function getGameMemories(db: Database, gameId: string): Promise<AgentMemoryState[]> {
   const memories = await db
     .select()
