@@ -54,4 +54,4 @@ LLM 调用不放进数据库事务：先读取状态与 memory，在事务外完
 
 快照是提交后的只读投影，不是第二套状态源。快照失败只记录日志，不回滚业务；正式环境通过开关关闭落盘。`game_messages` 的沟通事件同时保存 stage、speaker、target、visibility；`say` 的 memory 文本按发起者、目标、旁观者生成；`announce` 按发起者与旁观者生成；`whisper` 只生成发起者与目标两人的版本。
 
-→ 参见：[架构与契约](architecture.md) → 参见：[开发期 Agent 工作流](debug-workflow.md) → 参见：[Actor 行动与记忆](actor-actions-memory.md) → 参见：[临时测试剧本](test-scenario.md)
+→ 参见：[架构与契约](architecture.md) → 参见：[开发期 Agent 工作流](debug-workflow.md) → 参见：[Actor 行动与记忆](actor-actions-memory.md) → 参见：[临时测试剧本](test-scenario.md) → 参见：[数据驱动目标](data-driven.md)
