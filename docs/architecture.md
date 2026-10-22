@@ -2,14 +2,14 @@
 
 ## 包职责
 
-- `@ai-trpg/server`：服务端入口，负责路由、校验、事务与业务规则；游戏状态真相在 PostgreSQL。
+- `@ai-trpg/server`：服务端入口，负责路由、校验、事务与业务规则；`game` 服务层承载 game 聚合，游戏状态真相在 PostgreSQL。
 - `@ai-trpg/web`：玩家入口，负责页面、交互与服务端状态缓存。
 - `@ai-trpg/api-client`：契约层，包含生成的类型、`openapi-fetch` 客户端与错误适配。
 - `@ai-trpg/shared`：跨端常量，只放服务名、API 版本、默认端口等稳定事实。
 
 依赖方向：`web` 依赖 `api-client` 与 `shared`，`server` 依赖 `shared`；`api-client` 与 `shared` 不反向依赖应用。两者直接导出 TypeScript 源码，由 Vite、tsx、tsup 转译，骨架阶段不引入独立构建。
 
-服务端与 PostgreSQL 的拓扑固定为「客户端 ⇄ 业务服务端 ⇄ PostgreSQL」。服务端不保留跨请求的权威世界对象；数据库是状态源，连接池、迁移与开发数据流程见数据库文档。
+目标拓扑是「客户端 ⇄ 业务服务端 ⇄ PostgreSQL」。当前数据库由 `agent:game` 直接使用，HTTP 路由接入后服务端复用同一 `game` 服务层；服务端不保留跨请求的权威世界对象。连接池、迁移与开发数据流程见数据库文档。
 
 → 参见：[开发规范](conventions.md)
 

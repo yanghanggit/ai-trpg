@@ -3,7 +3,7 @@
  *
  * 一份快照是一个完整、自足的状态切片：读取任意一份即可继续推进，不依赖进程内记忆。
  * 目录按 `worlds/<user>/<game>/<snapshotId>/` 组织，人类可读，供 agent 与开发者审阅。
- * 它不是最终存储；正式持久化应落到数据库。
+ * 数据库是权威状态源；快照是提交后的只读投影，不是写入源。
  *
  * 写入采用「临时目录 → 原子 rename」：动作失败不会留下半份快照。
  */
@@ -35,6 +35,10 @@ export type SnapshotManifest = {
   action?: string;
   parent?: string;
   parts: string[];
+  source?: "file" | "db";
+  gameId?: string;
+  dbVersion?: number;
+  contentVersion?: string;
 };
 
 export type SnapshotSummary = {
@@ -59,6 +63,10 @@ export type SaveSnapshotInput = {
   action?: string;
   parent?: string;
   snapshotId?: string;
+  source?: "file" | "db";
+  gameId?: string;
+  dbVersion?: number;
+  contentVersion?: string;
   now?: Date;
 };
 
@@ -84,6 +92,10 @@ const manifestSchema = z.object({
   action: z.string().optional(),
   parent: z.string().optional(),
   parts: z.array(z.string()),
+  source: z.enum(["file", "db"]).optional(),
+  gameId: z.uuid().optional(),
+  dbVersion: z.number().int().nonnegative().optional(),
+  contentVersion: z.string().min(1).optional(),
 });
 
 function assertSafeSegment(name: string, value: string): void {
@@ -197,6 +209,10 @@ export async function saveSnapshot(input: SaveSnapshotInput): Promise<Snapshot> 
     createdAt: now.toISOString(),
     ...(input.action !== undefined ? { action: input.action } : {}),
     ...(input.parent !== undefined ? { parent: input.parent } : {}),
+    ...(input.source !== undefined ? { source: input.source } : {}),
+    ...(input.gameId !== undefined ? { gameId: input.gameId } : {}),
+    ...(input.dbVersion !== undefined ? { dbVersion: input.dbVersion } : {}),
+    ...(input.contentVersion !== undefined ? { contentVersion: input.contentVersion } : {}),
     parts: partPaths,
   };
   const session = input.session ?? [];

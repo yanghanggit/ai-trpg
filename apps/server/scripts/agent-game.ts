@@ -1,12 +1,15 @@
 /**
  * 快照驱动的开发期 agent CLI。
  *
- * 每次调用是一个一次性进程：读取快照 → 执行准备动作 → 写出新快照。
- * 业务动作会在游戏服务层建立后接入；当前提供快照的创建、查看、校验与查找。
+ * 每次调用是一个一次性进程。数据库命令连接 PostgreSQL，调用共享业务服务层；
+ * 文件命令继续提供独立快照的创建、查看、校验与查找。
  */
 
 import { readFile } from "node:fs/promises";
 import { parseArgs } from "node:util";
+import { DARK_FANTASY_SEED } from "../seeds/dark-fantasy";
+import { openDatabase } from "../src/db/connect";
+import type { Database } from "../src/db/pool";
 import {
   findLatestSnapshot,
   type JsonValue,
@@ -16,6 +19,7 @@ import {
   type Snapshot,
   saveSnapshot,
 } from "../src/debug/snapshot";
+import { createGame, getGameState, runAction, snapshotGame } from "../src/game";
 
 type Output = Record<string, unknown>;
 
@@ -26,6 +30,10 @@ const options = {
   snapshot: { type: "string" },
   world: { type: "string" },
   "world-file": { type: "string" },
+  name: { type: "string" },
+  slug: { type: "string" },
+  action: { type: "string" },
+  to: { type: "string" },
 } as const;
 
 function emit(payload: Output, exitCode = 0): void {
@@ -55,6 +63,10 @@ function usage(): void {
       "agent-game latest --user <user> --game <game> [--root <dir>]",
       "agent-game show --snapshot <dir>",
       "agent-game validate --snapshot <dir>",
+      "agent-game create --user <username> [--name <gameName>] [--slug <slug>]",
+      "agent-game status --game <gameId|slug>",
+      "agent-game act --game <gameId|slug> --action move --to <stageId|stageName>",
+      "agent-game snapshot --game <gameId|slug> [--root <dir>]",
     ],
   });
 }
@@ -72,6 +84,15 @@ function parseWorld(values: Record<string, string | boolean | undefined>): Promi
     return Promise.resolve(JSON.parse(inline) as JsonValue);
   }
   return Promise.resolve({});
+}
+
+async function withDatabase<T>(fn: (db: Database) => Promise<T>): Promise<T> {
+  const { db, pool } = openDatabase();
+  try {
+    return await fn(db);
+  } finally {
+    await pool.end();
+  }
 }
 
 function snapshotInfo(snapshot: Snapshot): Output {
@@ -95,6 +116,68 @@ async function main(): Promise<void> {
 
   if (!command) {
     usage();
+    return;
+  }
+
+  if (command === "create") {
+    if (typeof values.user !== "string") {
+      throw new Error("create 需要 --user");
+    }
+    const username = values.user;
+    const state = await withDatabase((db) =>
+      createGame(db, {
+        username,
+        ...(typeof values.name === "string" ? { name: values.name } : {}),
+        ...(typeof values.slug === "string" ? { slug: values.slug } : {}),
+        seed: DARK_FANTASY_SEED,
+      }),
+    );
+    emit({ ok: true, action: "create", state });
+    return;
+  }
+
+  if (command === "status") {
+    if (typeof values.game !== "string") {
+      throw new Error("status 需要 --game");
+    }
+    const gameRef = values.game;
+    const state = await withDatabase((db) => getGameState(db, gameRef));
+    emit({ ok: true, action: "status", state });
+    return;
+  }
+
+  if (command === "act") {
+    if (typeof values.game !== "string") {
+      throw new Error("act 需要 --game");
+    }
+    if (values.action !== undefined && values.action !== "move") {
+      throw new Error(`暂不支持的动作: ${String(values.action)}`);
+    }
+    if (typeof values.to !== "string") {
+      throw new Error("act 需要 --to");
+    }
+    const gameRef = values.game;
+    const to = values.to;
+    const state = await withDatabase((db) => runAction(db, gameRef, { type: "move", to }));
+    emit({ ok: true, action: "act", result: "move", state });
+    return;
+  }
+
+  if (command === "snapshot") {
+    if (typeof values.game !== "string") {
+      throw new Error("snapshot 需要 --game");
+    }
+    const gameRef = values.game;
+    const result = await withDatabase((db) =>
+      snapshotGame(db, gameRef, { root, action: "snapshot" }),
+    );
+    emit({
+      ok: true,
+      action: "snapshot",
+      path: result.snapshot.path,
+      manifest: result.snapshot.manifest,
+      game: result.state.game,
+    });
     return;
   }
 

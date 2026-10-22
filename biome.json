@@ -43,6 +43,7 @@
       "includes": [
         "apps/server/src/**",
         "apps/server/scripts/**",
+        "apps/server/seeds/**",
         "apps/server/test/**",
         "packages/*/src/**",
         "packages/*/scripts/**",

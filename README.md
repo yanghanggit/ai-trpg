@@ -18,10 +18,11 @@ cp .env.example .env   # 可选：需要 LLM key、数据库或固定服务端�
 createdb ai_trpg_dev   # 已存在则跳过
 createdb ai_trpg_test
 pnpm db:migrate
+pnpm db:demo
 pnpm dev
 ```
 
-`pnpm dev` 会先离线生成 API 契约，再并行启动服务端与客户端。数据库连接串在根 `.env` 的 `DATABASE_URL`；当前只建立基础设施表，业务 schema 随后续切片引入。
+`pnpm dev` 会先离线生成 API 契约，再并行启动服务端与客户端。数据库连接串在根 `.env` 的 `DATABASE_URL`；第一条 game 切片已接入，可用 `agent:game` 创建并推进，详见开发文档。
 
 启动后访问终端打印的地址：
 
@@ -48,12 +49,12 @@ pnpm dev
 | `pnpm db:generate`    | 根据 schema 生成 SQL 迁移                                     |
 | `pnpm db:migrate`     | 应用数据库迁移                                                |
 | `pnpm db:check`       | 检查数据库连接与基础设施表                                    |
-| `pnpm db:seed`        | 写入占位开发数据                                              |
+| `pnpm db:seed`        | 写入 demo 用户与基础元数据                                    |
 | `pnpm db:reset --yes` | 清空登记过的开发表                                            |
-| `pnpm db:demo`        | 迁移 + 重置 + 占位 seed                                       |
+| `pnpm db:demo`        | 迁移 + 重置 + 黑暗奇幻 demo seed                              |
 | `pnpm build`          | 生产构建（服务端 + Web）                                      |
 | `pnpm smoke:deepseek` | 真实调用 DeepSeek 的冒烟测试（需要 key，可能产生费用）        |
-| `pnpm agent:game`     | 快照驱动的开发期 agent CLI                                    |
+| `pnpm agent:game`     | 数据库 / 快照驱动的开发期 agent CLI                           |
 | `pnpm agent:api`      | 对运行中的服务端做 HTTP API 走查                              |
 
 ## 部署

@@ -4,7 +4,7 @@
 
 需要 Node.js >= 22；pnpm 12 由 `packageManager` 固定，可先执行 `corepack enable`。
 
-首次启动依次执行 `pnpm install`、可选的 `cp .env.example .env`、`pnpm db:migrate`、`pnpm dev`。`pnpm dev` 会先离线生成 API 契约，再并行启动服务端与客户端。数据库使用本机 PostgreSQL；先创建 `ai_trpg_dev` 与 `ai_trpg_test`，并在根 `.env` 填好 `DATABASE_URL` 与 `TEST_DATABASE_URL`。测试库由数据库测试在运行时自行迁移。
+首次启动依次执行 `pnpm install`、可选的 `cp .env.example .env`、`pnpm db:migrate`、`pnpm db:demo`、`pnpm dev`。`pnpm dev` 会先离线生成 API 契约，再并行启动服务端与客户端。数据库使用本机 PostgreSQL；先创建 `ai_trpg_dev` 与 `ai_trpg_test`，并在根 `.env` 填好 `DATABASE_URL` 与 `TEST_DATABASE_URL`。测试库由数据库测试在运行时自行迁移。
 
 Vite 会打印 Local 与 Network 两个地址；局域网访问使用 Network（en0）那条。页面显示「已连接」即链路正常。服务端健康检查为 `curl http://<局域网 IP>:8787/api/v1/health`。
 
@@ -50,7 +50,8 @@ Vite 会打印 Local 与 Network 两个地址；局域网访问使用 Network（
 - `pnpm build`：契约 + 服务端打包 + Web 生产构建。
 - `pnpm smoke:deepseek`：真实调用 DeepSeek 的冒烟测试；`smoke:deepseek:full` 额外跑多工具与模型矩阵；`smoke:deepseek:dump` 在 `LLM_DUMP_ENABLED=true` 时写入对话留痕。
 - `pnpm agent:game` / `pnpm agent:api`：开发期 agent 的快照入口与 HTTP 走查入口。
-- `pnpm db:migrate` / `db:check` / `db:seed` / `db:reset` / `db:demo`：迁移、探测、占位 seed、定点清空、演示初始化；`db:reset` 需要 `--yes`。
+- `pnpm db:migrate` / `db:check` / `db:seed` / `db:reset` / `db:demo`：迁移、探测、demo seed、定点清空、演示初始化；`db:reset` 需要 `--yes`。
+- `pnpm agent:game create --user demo`、`status`、`act`、`snapshot`：从数据库创建并推进第一局黑暗奇幻游戏；详见开发期 Agent 工作流。
 
 → 参见：[开发期 Agent 工作流](debug-workflow.md) → 参见：[数据库](database.md)
 

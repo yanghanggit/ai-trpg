@@ -8,6 +8,20 @@
       "when": 1792644816740,
       "tag": "0000_medical_doctor_doom",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1792646509760,
+      "tag": "0001_salty_silverclaw",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1792646546117,
+      "tag": "0002_clumsy_colonel_america",
+      "breakpoints": true
     }
   ]
 }

@@ -9,7 +9,7 @@
 
 ## 目录与依赖
 
-服务端按职责分 `routes`、`plugins`、`db`、`llm`、`deepseek`；客户端按 `pages`、`features`、`api` 分层。`api` 不依赖 `features` 或 `pages`，`features` 之间不互相依赖；需要共享时下沉到 `api` 或更基础的 feature。
+服务端按职责分 `routes`、`plugins`、`db`、`game`、`llm`、`deepseek`；客户端按 `pages`、`features`、`api` 分层。`api` 不依赖 `features` 或 `pages`，`features` 之间不互相依赖；需要共享时下沉到 `api` 或更基础的 feature。
 
 服务端路由不直接读 `process.env`，统一通过 `buildApp` 注入环境配置。LLM 层需要密钥时由 provider 客户端读取，不把密钥传给业务层。
 

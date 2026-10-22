@@ -1,12 +1,24 @@
 import { sql } from "drizzle-orm";
+import { DEMO_USER } from "../../seeds/dark-fantasy";
 import type { Database } from "./pool";
-import { appMeta } from "./schema";
+import { appMeta, users } from "./schema";
 
 /**
  * 开发期重置的显式表清单。新增业务表时必须在这里登记，
  * 避免 reset 漏表或误删迁移表 / 扩展。
  */
-export const DOMAIN_TABLES = ["app_meta"] as const;
+export const DOMAIN_TABLES = [
+  "game_messages",
+  "items",
+  "actors",
+  "stage_connections",
+  "stages",
+  "worlds",
+  "game_players",
+  "games",
+  "users",
+  "app_meta",
+] as const;
 
 export function assertLocalDatabase(databaseUrl: string): void {
   if (process.env.NODE_ENV === "production") {
@@ -25,24 +37,27 @@ export async function resetDomainData(db: Database): Promise<void> {
   await db.execute(sql.raw(`TRUNCATE TABLE ${tables} RESTART IDENTITY CASCADE`));
 }
 
-export async function seedPlaceholder(db: Database): Promise<void> {
+export async function seedDemoData(db: Database): Promise<void> {
+  await db
+    .insert(users)
+    .values({
+      id: DEMO_USER.id,
+      username: DEMO_USER.username,
+      displayName: DEMO_USER.displayName,
+    })
+    .onConflictDoUpdate({
+      target: users.username,
+      set: { displayName: DEMO_USER.displayName, updatedAt: new Date() },
+    });
+
   await db
     .insert(appMeta)
     .values({
       key: "demo",
-      value: {
-        version: 1,
-        note: "placeholder seed; replace with the first domain seed",
-      },
+      value: { version: 1, seed: "dark-fantasy.v1" },
     })
     .onConflictDoUpdate({
       target: appMeta.key,
-      set: {
-        value: {
-          version: 1,
-          note: "placeholder seed; replace with the first domain seed",
-        },
-        updatedAt: new Date(),
-      },
+      set: { value: { version: 1, seed: "dark-fantasy.v1" }, updatedAt: new Date() },
     });
 }

@@ -2,27 +2,39 @@
 
 两套互补入口，只服务开发、走查与 agent 实验，不是产品 API：
 
-- 快照驱动：`agent:game` 直接读写 `worlds/`，不需要服务器。
+- 快照与数据库驱动：`agent:game` 直接连接 PostgreSQL，不经过 HTTP 服务端。
 - HTTP 走查：`agent:api` 逐步请求运行中的业务服务端。
 
-两者最终都必须复用同一套业务服务层。CLI 只负责参数解析、状态装载与结果输出，规则校验、动作执行和持久化不能各写一份。
+两者最终都必须复用同一套业务服务层。CLI 只负责参数解析、状态读取与结果输出，规则校验、事务与持久化不能各写一份。
 
-数据库基础层已经建立，但当前 `agent:game` 仍只操作文件快照；业务动作接入后，它会连接 PostgreSQL，快照则变成提交后的只读投影。
+## 数据库驱动
 
-## 快照驱动
+`agent:game` 当前支持从数据库创建与推进一局游戏：
 
-当前文件快照仍可独立读取与校验，目录按 `worlds/<user>/<game>/<snapshotId>/` 组织，包含 `manifest.json`、`world.json`、`session.jsonl`，以及可选的领域 JSON 文件。数据库成为状态源后，快照改为只读投影：用于观察、比对与留痕，不再作为写入源。
+- `create --user demo`：创建 game、唯一 player、world、两个 stage、一条连接、一个 actor 与一个 item。
+- `status --game <gameId|slug>`：读取完整游戏状态。
+- `act --game <id|slug> --action move --to <stageId|stageName>`：沿连接移动玩家 actor，追加消息并递增版本。
+- `snapshot --game <id|slug>`：把当前状态导出为只读快照。
 
-写入采用临时目录加原子替换；动作失败不会留下半份快照。时间戳即快照标识，开发期可以保留多个观察点。分支与回溯由数据库层负责，不通过修改快照文件实现；快照目录只是留痕层。
+它不需要启动 HTTP 服务端，但需要 `DATABASE_URL`。创建与动作都走共享业务服务层，后续 HTTP 路由直接复用同一层。
 
-命令：`pnpm agent:game new --user <user> --game <game>` 创建；`list`、`latest`、`show`、`validate` 分别用于枚举、定位、查看与校验。`--root` 可覆盖默认的 `worlds`。当前只有基础设施命令；业务动作接入后走“读取 DB → 执行业务事务 → 导出新快照”的链路。
+## 文件快照
+
+`agent:game` 仍保留文件快照命令：
+
+- `new --user <user> --game <game>`：手写一份开发快照。
+- `list` / `latest` / `show` / `validate`：枚举、定位、查看与校验。
+
+快照目录按 `worlds/<user>/<gameSlug>/<snapshotId>/` 组织，包含 `manifest.json`、`world.json`、`session.jsonl` 与可选 parts。数据库快照的 manifest 额外记录 `source`、`gameId`、`dbVersion` 与 `contentVersion`。
+
+快照是数据库提交后的只读投影，用于观察、比对与留痕，不作为写入源。分支与回溯由数据库层负责，不通过修改快照文件实现。
 
 ## HTTP 走查
 
-`agent:api` 是一次性进程：一次调用发一次 HTTP 请求，不缓存世界状态。业务接入后世界状态来自 PostgreSQL，客户端只通过业务 API 寻址与观测。stdout 始终是 JSON，日志与错误写 stderr，非 2xx 以非零退出码结束，便于 agent 判断并自我纠错。
+`agent:api` 是一次性进程：一次调用发一次 HTTP 请求，不缓存世界状态。stdout 始终是 JSON，日志与错误写 stderr，非 2xx 以非零退出码结束，便于 agent 判断并自我纠错。
 
-命令：`health` 验证连通性；`openapi` 列出当前契约路径；`request` 对任意路径发起请求，支持方法、JSON body 与额外 header。服务端地址通过 `--base` 或 `AGENT_API_BASE_URL` 提供，鉴权 token 通过 `--token` 或 `AGENT_API_TOKEN` 注入。业务命令（login、status、动作提交）会在对应业务 API 建立后接入。
+当前命令是 `health`、`openapi` 与通用 `request`；业务动作路由接入后，再增加 `status`、`action` 等快捷命令。服务端地址通过 `--base` 或 `AGENT_API_BASE_URL` 提供，鉴权 token 通过 `--token` 或 `AGENT_API_TOKEN` 注入。
 
 它不替代固定回归测试：可复现的契约校验仍应写成 `app.inject()` 测试；HTTP 走查用于探索、新特性验证与边界试探。
 
-→ 参见：[架构与契约](architecture.md)
+→ 参见：[架构与契约](architecture.md) → 参见：[数据库](database.md)

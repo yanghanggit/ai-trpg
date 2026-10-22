@@ -1,11 +1,11 @@
 import { openDatabase } from "../src/db/connect";
-import { seedPlaceholder } from "../src/db/maintenance";
+import { seedDemoData } from "../src/db/maintenance";
 
 async function main(): Promise<void> {
   const { db, pool } = openDatabase();
   try {
-    await seedPlaceholder(db);
-    console.log(JSON.stringify({ ok: true, action: "db-seed", seed: "placeholder" }));
+    await seedDemoData(db);
+    console.log(JSON.stringify({ ok: true, action: "db-seed", seed: "demo" }));
   } finally {
     await pool.end();
   }
