@@ -92,7 +92,7 @@ NPC 工具分为 GET、intent 与终止工具。`look_stage`、`get_stats`、`ge
 
 一次技能行动需要 `Skill`、选中的 `Item[]` 和 `SkillPurpose`。道具允许为空；技能自己声明是否必须有道具。当前 `attack` 的目的为 `{ kind: "damage", targetActorName }`，伤害为 `max(0, 攻击者 attack - 目标 defense)`，完全防御时伤害为 0。目标 HP 归零时同时写 `death=true`，actor 仍留在场景中，但不再执行 NPC loop，也不能再被攻击。
 
-技能产生 `kind=<skill.key>` 的公共事件；`attack` 同场景公开，同场景其他 actor 收到战斗观察，攻击者收到行动结果；不做跨场景信息广播。未来 `resolution=llm` 的技能必须在数据库事务外完成 GM 判定，再由统一应用层写入结果。
+技能产生 `kind=<skill.key>` 的公共事件；`attack` 同场景公开。记忆按视角生成：发起者收到第一人称行动结果，目标收到“你被攻击/你剩余 HP”，旁观者收到第三人称战斗观察；三者描述同一事实但格式不同。不做跨场景信息广播。未来 `resolution=llm` 的技能必须在数据库事务外完成 GM 判定，再由统一应用层写入结果。
 
 ## 事务边界
 

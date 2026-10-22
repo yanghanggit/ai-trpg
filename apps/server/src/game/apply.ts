@@ -10,6 +10,7 @@ import {
   appendActionObservations,
   appendCommunicationObservations,
   appendEnvironmentObservations,
+  appendSkillObservations,
 } from "./observations";
 import { intentClass, intentClassLabel } from "./plan";
 import type { ActorPlan, CommunicationIntent, MovementIntent, Skill, SkillIntent } from "./types";
@@ -385,7 +386,7 @@ async function applyResolvedIntent(
     const outcome = death
       ? `；${resolved.target.name}倒下了。`
       : `；${resolved.target.name}剩余 HP ${remainingHp}/${resolved.target.maxHp}。`;
-    const content = `${actorRow.actor.name}使用${skill.name}${itemText}对${resolved.target.name}，造成${damage}点伤害${outcome}`;
+    const content = `${actorRow.actor.name}对${resolved.target.name}使用${skill.name}${itemText}，造成${damage}点伤害${outcome}`;
     await appendPublicMessage(executor, gameId, actorRow.actor.id, {
       kind: skill.key,
       stageId: resolved.stage.id,
@@ -393,15 +394,18 @@ async function applyResolvedIntent(
       visibility: skill.broadcast,
       content,
     });
-    if (skill.broadcast === "stage") {
-      await appendActionObservations(
-        executor,
-        gameId,
-        resolved.stage.id,
-        actorRow.actor.id,
-        `# 战斗\n${content}`,
-      );
-    }
+    await appendSkillObservations(
+      executor,
+      gameId,
+      resolved.stage,
+      { id: actorRow.actor.id, name: actorRow.actor.name },
+      { id: resolved.target.id, name: resolved.target.name, maxHp: resolved.target.maxHp },
+      skill,
+      resolved.items,
+      damage,
+      remainingHp,
+      death,
+    );
     return skillFeedback(resolved, damage, remainingHp);
   }
 

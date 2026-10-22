@@ -295,7 +295,7 @@ describe.skipIf(!testDatabaseUrl)("memory-driven NPC slice", () => {
     const state = await getGameState(handle.db, created.game.slug);
     expect(state.game.version).toBe(1);
     expect(state.messages.map((message) => message.kind)).toEqual(["narration", "attack"]);
-    expect(state.messages[1]?.content).toContain("守烬人使用攻击对提灯修士，造成3点伤害");
+    expect(state.messages[1]?.content).toContain("守烬人对提灯修士使用攻击，造成3点伤害");
     expect(state.messages[1]?.targetActorId).toBeTruthy();
     expect(state.messages[1]?.visibility).toBe("stage");
 
@@ -314,7 +314,7 @@ describe.skipIf(!testDatabaseUrl)("memory-driven NPC slice", () => {
     ).toBe(true);
     expect(
       monk?.messages.some((message) =>
-        message.content.includes("守烬人使用攻击对提灯修士，造成3点伤害"),
+        message.content.includes("守烬人对你使用攻击，造成3点伤害；你剩余 HP 7/10。"),
       ),
     ).toBe(true);
   });
@@ -491,10 +491,10 @@ describe.skipIf(!testDatabaseUrl)("memory-driven NPC slice", () => {
       ),
     ).toBe(true);
     expect(
-      observer?.messages.some((message) => message.content.includes("守烬人使用攻击对提灯修士")),
+      observer?.messages.some((message) => message.content.includes("守烬人对提灯修士使用攻击")),
     ).toBe(true);
     expect(
-      scribe?.messages.some((message) => message.content.includes("守烬人使用攻击对提灯修士")),
+      scribe?.messages.some((message) => message.content.includes("守烬人对提灯修士使用攻击")),
     ).toBe(false);
   });
 });
