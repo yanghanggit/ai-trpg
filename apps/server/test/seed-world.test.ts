@@ -39,6 +39,12 @@ describe("dark fantasy seed world", () => {
       1,
     );
     expect(stage("pyre").items?.map((item) => item.name)).toEqual(["武器.焚鼠火把"]);
+    expect(stage("pyre").items?.[0]).toMatchObject({
+      kind: "weapon",
+      count: 1,
+      damage: 250,
+      block: 0,
+    });
     expect(stage("sealed-gate").items ?? []).toEqual([]);
   });
 

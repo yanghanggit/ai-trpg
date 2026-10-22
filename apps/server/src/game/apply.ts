@@ -528,7 +528,14 @@ async function applyResolvedIntent(
       if (!resolved.target) {
         throw new GameError("invalid_action", "damage 技能缺少目标");
       }
-      const damage = Math.max(0, actorRow.actor.attack - resolved.target.defense);
+      const targetItems = await executor
+        .select()
+        .from(items)
+        .where(eq(items.actorId, resolved.target.id));
+      const weaponDamage = resolved.items.reduce((total, item) => total + item.damage, 0);
+      const targetBlock =
+        resolved.target.defense + targetItems.reduce((total, item) => total + item.block, 0);
+      const damage = Math.max(0, actorRow.actor.attack + weaponDamage - targetBlock);
       const remainingHp = Math.max(0, resolved.target.hp - damage);
       const death = remainingHp <= 0;
       await executor
@@ -626,6 +633,9 @@ async function applyResolvedIntent(
         name: stageItem.name,
         description: stageItem.description,
         kind: stageItem.kind,
+        count: stageItem.count,
+        damage: stageItem.damage,
+        block: stageItem.block,
       });
       await bumpGameVersion(executor, gameId, now);
       const content = `${actorRow.actor.name}拾取了${stageItem.name}。`;

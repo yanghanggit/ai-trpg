@@ -263,7 +263,11 @@ export function describeItems(actor: Pick<ActorState, "items">): string {
   }
   return [
     "物品：",
-    ...actor.items.map((item) => `- ${item.name}（${item.kind}）：${item.description}`),
+    ...actor.items.map((item) => {
+      const stats =
+        item.damage > 0 || item.block > 0 ? `（damage ${item.damage}，block ${item.block}）` : "";
+      return `- ${item.name}（${item.kind}，count ${item.count}）：${item.description}${stats}`;
+    }),
   ].join("\n");
 }
 

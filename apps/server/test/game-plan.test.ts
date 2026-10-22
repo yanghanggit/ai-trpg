@@ -96,6 +96,9 @@ describe("actor plan intents", () => {
           name: "裂齿短刃",
           description: "刃口崩了三处。",
           kind: "weapon",
+          count: 1,
+          damage: 3,
+          block: 0,
         },
       ],
     };
@@ -103,7 +106,7 @@ describe("actor plan intents", () => {
     expect(describeStats(actor)).toContain("HP：12/12");
     expect(describeStats(actor)).toContain("attack：3");
     expect(describeStats(actor)).toContain("状态：存活");
-    expect(describeItems(actor)).toContain("裂齿短刃（weapon）：刃口崩了三处。");
+    expect(describeItems(actor)).toContain("裂齿短刃（weapon，count 1）：刃口崩了三处。");
     expect(describeItems({ items: [] })).toBe("物品：无");
   });
 });

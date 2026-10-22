@@ -9,6 +9,7 @@ import {
   createGame,
   getGameMemories,
   getGameState,
+  playerAttack,
   playerMove,
   playerSkill,
   SEALED_GATE_KEY_NAME,
@@ -31,6 +32,9 @@ const ITEM_WORLD = {
               name: "武器.测试火把",
               description: "测试用的场景武器。",
               kind: "weapon",
+              count: 1,
+              damage: 7,
+              block: 1,
             },
           ],
         }
@@ -44,6 +48,20 @@ const KEEPER_ACTOR = TEST_WORLD.actors.find((actor) => actor.name === "守烬人
 if (!GATE_STAGE || !KEEPER_ACTOR) {
   throw new Error("测试世界缺少灰烬门廊或守烬人");
 }
+
+const WEAPON_WORLD = {
+  ...TEST_WORLD,
+  actors: TEST_WORLD.actors.map((actor) =>
+    actor.name === "提灯修士"
+      ? {
+          ...actor,
+          items: actor.items.map((item) =>
+            item.name === "铅封提灯" ? { ...item, block: 2 } : item,
+          ),
+        }
+      : actor,
+  ),
+};
 
 const SEALED_WORLD = {
   ...TEST_WORLD,
@@ -127,6 +145,28 @@ describe.skipIf(!testDatabaseUrl)("item skills", () => {
     );
   });
 
+  it("adds weapon damage to the attack and weapon block to the target defense", async () => {
+    const created = await createGame(handle.db, {
+      username: DEMO_USER.username,
+      name: "武器伤害测试局",
+      world: WEAPON_WORLD,
+    });
+    await takeActorControl(handle.db, created.game.slug, "守烬人");
+
+    const attacked = await playerAttack(handle.db, created.game.slug, "守烬人", {
+      targetActorName: "提灯修士",
+      itemNames: ["裂齿短刃"],
+    });
+    expect(attacked.ok).toBe(true);
+
+    const state = await getGameState(handle.db, created.game.slug);
+    const monk = state.world.stages
+      .flatMap((stage) => stage.actors)
+      .find((actor) => actor.name === "提灯修士");
+    expect(monk?.hp).toBe(6);
+    expect(state.messages.at(-1)?.content).toContain("造成4点伤害");
+  });
+
   it("gives an owned item to a living actor in the same stage", async () => {
     const created = await createGame(handle.db, {
       username: DEMO_USER.username,
@@ -174,7 +214,8 @@ describe.skipIf(!testDatabaseUrl)("item skills", () => {
     const gate = state.world.stages.find((stage) => stage.name === "灰烬门廊");
     const keeper = gate?.actors.find((actor) => actor.name === "守烬人");
     expect(gate?.items).toEqual([]);
-    expect(keeper?.items.map((item) => item.name)).toContain("武器.测试火把");
+    const torch = keeper?.items.find((item) => item.name === "武器.测试火把");
+    expect(torch).toMatchObject({ count: 1, damage: 7, block: 1 });
   });
 
   it("completes the game by using the key on the sealed gate", async () => {

@@ -143,6 +143,9 @@ export async function getGameState(db: Database, ref: string): Promise<GameState
       name: item.name,
       description: item.description,
       kind: item.kind,
+      count: item.count,
+      damage: item.damage,
+      block: item.block,
     });
     itemsByStage.set(item.stageId, list);
   }
@@ -161,6 +164,9 @@ export async function getGameState(db: Database, ref: string): Promise<GameState
       name: item.name,
       description: item.description,
       kind: item.kind,
+      count: item.count,
+      damage: item.damage,
+      block: item.block,
     });
     itemsByActor.set(item.actorId, list);
   }
@@ -317,6 +323,9 @@ export async function createGame(db: Database, input: CreateGameInput): Promise<
           name: item.name,
           description: item.description,
           kind: item.kind,
+          count: item.count ?? 1,
+          damage: item.damage ?? 0,
+          block: item.block ?? 0,
         });
       }
     }
@@ -368,6 +377,9 @@ export async function createGame(db: Database, input: CreateGameInput): Promise<
           name: item.name,
           description: item.description,
           kind: item.kind,
+          count: item.count ?? 1,
+          damage: item.damage ?? 0,
+          block: item.block ?? 0,
         });
       }
 

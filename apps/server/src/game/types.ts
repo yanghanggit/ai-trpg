@@ -60,11 +60,22 @@ export type Actor = {
   statusEffects: readonly StatusEffect[];
 };
 
-/** Actor 的初始物品定义；创建后物化为 `items` 行。 */
+/** Actor 的初始物品定义；创建后物化为 `items` 或 `stage_items` 行。 */
 export type Item = {
   name: string;
   description: string;
   kind: string;
+  count?: number;
+  damage?: number;
+  block?: number;
+};
+
+/** item 的武器子类型；count 固定为 1，额外提供伤害与格挡。 */
+export type Weapon = Item & {
+  kind: "weapon";
+  count: 1;
+  damage: number;
+  block: number;
 };
 
 /** `createGame` 的输入；`world` 只在创建时读取，之后以数据库状态为准。 */
@@ -150,6 +161,9 @@ export type ItemState = {
   name: string;
   description: string;
   kind: string;
+  count: number;
+  damage: number;
+  block: number;
 };
 
 /** 运行时 actor；`items`、`skills`、`statusEffects` 是三个队列。 */

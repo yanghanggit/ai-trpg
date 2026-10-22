@@ -92,7 +92,7 @@ function usage(): void {
       "agent-game take-control --game <gameId|slug> --actor <actorId|actorName>",
       "agent-game release-control --game <gameId|slug> --actor <actorId|actorName>",
       "agent-game player-communicate --game <gameId|slug> --actor <actorId|actorName> --mode say|whisper|announce [--target <actorName>] [--reason <text>] --message <text>",
-      "agent-game player-attack --game <gameId|slug> --actor <actorId|actorName> --target <actorName>",
+      "agent-game player-attack --game <gameId|slug> --actor <actorId|actorName> --target <actorName> [--item <itemName>]",
       "agent-game player-move --game <gameId|slug> --actor <actorId|actorName> --to <stageName>",
       "agent-game player-skill --game <gameId|slug> --actor <actorId|actorName> --skill <key> [--target <actorName>] [--stage <stageName>] [--item <itemName>]",
       "agent-game snapshot --game <gameId|slug> [--root <dir>]",
@@ -269,6 +269,7 @@ async function main(): Promise<void> {
         ...(typeof values.target === "string" ? { targetActorName: values.target } : {}),
         ...(typeof values.stage === "string" ? { targetStageName: values.stage } : {}),
         ...(typeof values.item === "string" ? { itemName: values.item } : {}),
+        ...(typeof values.item === "string" ? { itemNames: [values.item] } : {}),
       }),
     );
     emit({
@@ -291,8 +292,9 @@ async function main(): Promise<void> {
     const gameRef = values.game;
     const actorRef = values.actor;
     const targetActorName = values.target;
+    const itemNames = typeof values.item === "string" ? [values.item] : [];
     const result = await withDatabase((db) =>
-      playerAttack(db, gameRef, actorRef, { targetActorName }),
+      playerAttack(db, gameRef, actorRef, { targetActorName, itemNames }),
     );
     emit({
       ok: true,

@@ -71,6 +71,13 @@
       "when": 1792660320844,
       "tag": "0009_known_kree",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1792662636772,
+      "tag": "0010_petite_lizard",
+      "breakpoints": true
     }
   ]
 }

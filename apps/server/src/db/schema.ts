@@ -155,6 +155,9 @@ export const items = pgTable("items", {
   name: text("name").notNull(),
   description: text("description").notNull(),
   kind: text("kind").notNull(),
+  count: integer("count").notNull().default(1),
+  damage: integer("damage").notNull().default(0),
+  block: integer("block").notNull().default(0),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
 
@@ -166,6 +169,9 @@ export const stageItems = pgTable("stage_items", {
   name: text("name").notNull(),
   description: text("description").notNull(),
   kind: text("kind").notNull(),
+  count: integer("count").notNull().default(1),
+  damage: integer("damage").notNull().default(0),
+  block: integer("block").notNull().default(0),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
 
