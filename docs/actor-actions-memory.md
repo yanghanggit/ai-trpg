@@ -36,7 +36,7 @@ NPC 路径是环境观察、agent loop、计划与工具调用、提交计划，
 
 行动事实可以有结构化元数据，但顶层长期记忆保持为一条可读事实，不保存逐轮对话。NPC 的“为什么”来自计划中的内心理由；Player 的直接提交可以带理由，没有理由时明确标记为玩家直接提交。
 
-actor 的长期 memory 由 system prompt、可选的 `openingBriefing` 与这些行动事实组成。任务提示词、环境观察、工具调用与工具结果不单独成为长期记忆条目。
+actor 的长期 memory 由 system prompt、可选的 `openingBriefing` 与这些行动事实组成；执行 compact 后，`[1..]` 会收敛为一条 human summary。任务提示词、环境观察、工具调用与工具结果不单独成为长期记忆条目。
 
 ## Context dump 的边界
 
@@ -66,6 +66,47 @@ context dump 是审计旁路。下一次 LLM request 只使用长期 memory 中�
 `openingBriefing` 可以包含目标、任务、初始处境、约束与已知信息；用自由文本表达，不要求是目标列表。它只在建局时注入一次，不会每轮重复。它进入长期 memory，因此后续回合仍能读到；它不是单轮任务提示词，也不是公共消息。
 
 没有 `openingBriefing` 的 actor 不产生这条 human message，memory 仍从 system prompt 开始。
+
+## 记忆压缩
+
+actor、stage、world 的 memory 都遵循同一个闭环：
+
+```text
+[0] system
+[1] human
+[2..] 运行历史
+```
+
+建局时 `[1]` 是 `openingBriefing`；运行后可以把 `[1..]` 压缩成一条新 human memory，memory 回到：
+
+```text
+[0] system
+[1] human compact summary
+```
+
+compact 会吸收 opening brief 与之后的历史；摘要必须保留仍然有效的身份、目标、底线、关系、关键事实和未解决冲突。它不生成新的 system message，也不会把 summary 放到 system prompt 之外的第二套状态里。`[0] system` 永远不动。
+
+新的 `[1]` human summary 的 metadata 保存这次被压缩的旧消息：
+
+```text
+compactedMessages: ChatMessage[]
+compactedMessageCount: number
+compactedAt: string
+contextUsageRatio: number
+```
+
+`compactedMessages` 只保存 `[1..]`，不保存 system。旧 summary 本身也带着更早的 `compactedMessages`，因此连续 compact 会形成树；需要回述时可以递归展开，system 节点始终保持原样。
+
+调用是手动的：
+
+```text
+agent:game compact --game <game> --owner actor --name <actor>
+agent:game compact --game <game> --owner stage --name <stage>
+agent:game compact --game <game> --owner world
+agent:game compact --game <game> --owner all
+```
+
+`contextUsageRatio` 来自最近一条 AI 消息的 metadata，并在每次追加 AI 消息时写回 `agent_memories.context_usage_ratio`。`--min-ratio <0..1>` 只在当前比例达到阈值时执行。compact 在事务外调用 LLM，在完整 turn 边界落账；LLM 失败或记忆在压缩期间变化时不改数据库。
 
 ## 任务提示词
 

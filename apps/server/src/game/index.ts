@@ -2,6 +2,7 @@ export * from "./actions";
 export * from "./actors";
 export * from "./appearance";
 export * from "./apply";
+export * from "./compact";
 export * from "./constants";
 export * from "./control";
 export * from "./errors";

@@ -17,7 +17,7 @@ PostgreSQL 是游戏状态的唯一真相。`agent:game` 从数据库读取状�
 - `stage_items`：暂放在场景中的物品；`stage_id` 非空，当前只作为场景内容读取，已支持拾取并转入 actor 背包。字段与 `items` 相同，但没有穿戴状态。
 - `game_messages`：公共消息流，按 `sequence` 追加；记录 `stage_id`、`source_actor_id`、`target_actor_id` 与 `visibility`，供客户端增量拉取与审计；不建立 session 表。
 - `vector_documents`：公共知识向量；`collection` 隔离世界内容，`content_hash` 保证幂等，`embedding vector(384)` 由 pgvector 提供，`embedding_model` 防止不同模型向量混搜。它不进入 actor 私有 memory，也不承载剧情秘密。
-- `agent_memories`：每个 agent 的私有上下文；`owner_type` 支持 `actor`、`stage` 与 `world`，world memory 属于全局叙事者。
+- `agent_memories`：每个 agent 的私有上下文；`owner_type` 支持 `actor`、`stage` 与 `world`，world memory 属于全局叙事者；`context_usage_ratio` 记录最近一条 AI 消息的上下文占用比例。compact 后的 `[1]` human summary 在 metadata 中保存 `compactedMessages`，递归形成可回述的旧记忆树；`[0]` system 不参与压缩。
 - `agent_memory_messages`：agent memory 的消息序列，保存 system / human / ai / tool 与 tool_calls、元数据。
 
 ## 属性与物品
@@ -52,7 +52,7 @@ NPC 回合是：数据库环境 → agent loop → 动作工具暂存动作 → 
 
 第一版动作是十个平级动作 `say`、`whisper`、`announce`、`move`、`wait`、`attack`、`steal`、`give`、`pickup`、`use`：说话、耳语、宣告、移动、等待、攻击、取物、给予、拾取与使用道具；每个动作一个工具；每个成功应用的动作都会写一条公共事件，`kind` 取动作名。`attack` 与 `use` 是物品效果的 dispatcher：按 `item.effect.type` 路由到 handler。`damage` handler 执行 `max(0, 攻击者 stats.attack + 物品 stats.damage - 目标 stats.defense)`；随后如果物品有词缀，补充 affix agent 在事务外运行，并通过工具收集要追加的效果，最后在短事务中落账。空手攻击使用系统 `{ type: "damage" }`，目标 `defense` 是唯一 block。`event` handler 只写使用事件，后果交给 stage / world。`attack` 只接受 `damage` effect（NPC 工具也仅枚举这类物品）；`use` 接受全部物品。物品不再直接结束游戏。`WeaponState` 只通过 `stats.damage` 参与伤害，`stats.block` 当前只存储、不参与伤害。`steal` 为 private，只有发起者与目标进入 memory，允许从尸体取物；`give` 把自身物品交给同场景存活角色；`pickup` 把 `stage_items` 移入 actor 背包。`use` 的通用流程只校验物品归属、目标与场景；对场景使用时可以带 `targetDetail`，它作为 actor 的行动描述写入 stage memory，不代表结果。物品不再直接结束游戏；世界级后果由 stage 通知 world，再由 world 的 `end_game` 结束。`say` 与 `whisper` 必须指定单个 `targetActorName`；`say` 向当前 stage 广播，`whisper` 只有发起者与目标收到 memory；`announce` 无目标，向当前 stage 广播。公共消息用 `visibility` 区分 `stage` 与 `private`；私密事件后续对客户端不可见。
 
-`agent:game npc --game <gameId|slug> --actor <actorId|actorName>` 推进一个 NPC；`--all` 跳过被玩家接管或已死亡的 actor。`agent:game take-control` / `release-control` 接管或释放一个 actor；玩家入口是十个子命令：`player-say` / `player-whisper` / `player-announce` / `player-move` / `player-wait` / `player-attack` / `player-steal` / `player-give` / `player-pickup` / `player-use`，每个子命令只接收自己的参数。`agent:game stage --game <gameId|slug> --stage <stageId|stageName>` 推动一个 stage 回合；`--all` 按场景顺序推动全部场景；`agent:game world --game <gameId|slug>` 推动 world 回合。`agent:game status` 读取完整状态；`agent:game scene-map` 返回场景名到角色名列表的映射；`pnpm rag:*` 管理公共知识向量，细节见公共知识检索文档；`agent:game snapshot` 导出快照，包含 actor、stage 与 world 的 memory。沉睡与苏醒由 actor 的 `openingBriefing` 约束，并由 LLM 在正常 plan 中判断，系统不为特定状态维护唤醒规则。
+`agent:game npc --game <gameId|slug> --actor <actorId|actorName>` 推进一个 NPC；`--all` 跳过被玩家接管或已死亡的 actor。`agent:game take-control` / `release-control` 接管或释放一个 actor；玩家入口是十个子命令：`player-say` / `player-whisper` / `player-announce` / `player-move` / `player-wait` / `player-attack` / `player-steal` / `player-give` / `player-pickup` / `player-use`，每个子命令只接收自己的参数。`agent:game stage --game <gameId|slug> --stage <stageId|stageName>` 推动一个 stage 回合；`--all` 按场景顺序推动全部场景；`agent:game world --game <gameId|slug>` 推动 world 回合。`agent:game status` 读取完整状态；`agent:game scene-map` 返回场景名到角色名列表的映射；`pnpm rag:*` 管理公共知识向量，细节见公共知识检索文档；`agent:game snapshot` 导出快照，包含 actor、stage 与 world 的 memory；`agent:game compact` 手动压缩 actor/stage/world memory，保留 `[0] system`，把 `[1..]` 收敛成一条 human summary。沉睡与苏醒由 actor 的 `openingBriefing` 约束，并由 LLM 在正常 plan 中判断，系统不为特定状态维护唤醒规则。
 
 ## Stage 回合
 

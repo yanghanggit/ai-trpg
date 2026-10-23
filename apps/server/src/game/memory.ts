@@ -291,6 +291,21 @@ export async function loadAgentMemory(
   return { row, messages: rows.map(toChatMessage) };
 }
 
+/** 从消息里取最近一条 AI 的 contextUsageRatio；不是 AI 或没有 usage 时返回 undefined。 */
+function latestContextUsageRatio(messages: readonly ChatMessage[]): number | undefined {
+  for (let index = messages.length - 1; index >= 0; index -= 1) {
+    const message = messages[index];
+    if (message?.type !== "ai") {
+      continue;
+    }
+    const raw = message.metadata?.contextUsageRatio;
+    if (typeof raw === "number" && Number.isFinite(raw)) {
+      return raw;
+    }
+  }
+  return undefined;
+}
+
 /** 在 memory 末尾追加消息并返回追加条数。 */
 export async function appendMemoryMessages(
   executor: Executor,
@@ -312,9 +327,13 @@ export async function appendMemoryMessages(
     return toRow(memoryId, sequence, message);
   });
   await executor.insert(agentMemoryMessages).values(rows);
+  const contextUsageRatio = latestContextUsageRatio(messages);
   await executor
     .update(agentMemories)
-    .set({ updatedAt: new Date() })
+    .set({
+      updatedAt: new Date(),
+      ...(contextUsageRatio === undefined ? {} : { contextUsageRatio }),
+    })
     .where(eq(agentMemories.id, memoryId));
 
   return rows.length;

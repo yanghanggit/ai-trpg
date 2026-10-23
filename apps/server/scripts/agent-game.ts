@@ -21,6 +21,9 @@ import {
 } from "../src/debug/snapshot";
 import { DEEPSEEK_SERVICE } from "../src/deepseek";
 import {
+  type CompactMemoryResult,
+  compactAllMemories,
+  compactMemory,
   createGame,
   getGameState,
   listPlayerControlledActorIds,
@@ -67,6 +70,8 @@ const options = {
   item: { type: "string" },
   detail: { type: "string" },
   reason: { type: "string" },
+  owner: { type: "string" },
+  "min-ratio": { type: "string" },
 } as const;
 
 function emit(payload: Output, exitCode = 0): void {
@@ -119,6 +124,10 @@ function usage(): void {
       "agent-game player-pickup --game <gameId|slug> --actor <actorId|actorName> --item <itemName>",
       "agent-game player-use --game <gameId|slug> --actor <actorId|actorName> --item <itemName> (--target <actorName> | --stage <stageName>) [--detail <text>]",
       "agent-game snapshot --game <gameId|slug> [--root <dir>]",
+      "agent-game compact --game <gameId|slug> --owner actor --name <actorId|actorName> [--min-ratio <0..1>]",
+      "agent-game compact --game <gameId|slug> --owner stage --name <stageId|stageName> [--min-ratio <0..1>]",
+      "agent-game compact --game <gameId|slug> --owner world [--min-ratio <0..1>]",
+      "agent-game compact --game <gameId|slug> --owner all [--min-ratio <0..1>]",
     ],
   });
 }
@@ -541,6 +550,53 @@ async function main(): Promise<void> {
       runProbe(db, gameRef, { service: DEEPSEEK_SERVICE, target, message }),
     );
     emit({ ok: true, action: "probe", ...result });
+    return;
+  }
+
+  if (command === "compact") {
+    if (typeof values.game !== "string") {
+      throw new Error("compact 需要 --game");
+    }
+    const owner = typeof values.owner === "string" ? values.owner : "";
+    if (!["actor", "stage", "world", "all"].includes(owner)) {
+      throw new Error("compact 需要 --owner actor|stage|world|all");
+    }
+    const rawMinRatio = values["min-ratio"];
+    const minRatio =
+      typeof rawMinRatio === "string" && rawMinRatio.trim().length > 0
+        ? Number(rawMinRatio)
+        : undefined;
+    if (minRatio !== undefined && !Number.isFinite(minRatio)) {
+      throw new Error("compact 的 --min-ratio 必须是数字");
+    }
+    const gameRef = values.game;
+    const name = typeof values.name === "string" ? values.name : "";
+    if ((owner === "actor" || owner === "stage") && name.trim().length === 0) {
+      throw new Error(`compact --owner ${owner} 需要 --name`);
+    }
+    const compactOptions = {
+      service: DEEPSEEK_SERVICE,
+      ...(minRatio !== undefined ? { minRatio } : {}),
+    };
+    const results = await withDatabase<CompactMemoryResult[]>((db) => {
+      if (owner === "all") {
+        return compactAllMemories(db, gameRef, compactOptions);
+      }
+      if (owner === "world") {
+        return compactMemory(db, gameRef, { ownerType: "world" }, compactOptions).then((result) => [
+          result,
+        ]);
+      }
+      if (owner === "actor") {
+        return compactMemory(db, gameRef, { ownerType: "actor", ref: name }, compactOptions).then(
+          (result) => [result],
+        );
+      }
+      return compactMemory(db, gameRef, { ownerType: "stage", ref: name }, compactOptions).then(
+        (result) => [result],
+      );
+    });
+    emit({ ok: true, action: "compact", results });
     return;
   }
 

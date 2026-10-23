@@ -32,6 +32,7 @@ export const MAX_MIND_LENGTH = 60;
 export const MEMORY_KINDS = {
   actorSystemPrompt: "actor_system_prompt",
   actorOpeningBriefing: "actor_opening_briefing",
+  compactedMemory: "compacted_memory",
   stageSystemPrompt: "stage_system_prompt",
   worldSystemPrompt: "world_system_prompt",
   stageObservation: "stage_observation",
