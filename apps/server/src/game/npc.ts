@@ -83,7 +83,7 @@ export function buildActorObservation(state: GameState, current: ActorWithStage)
   const moveLines = moves.length === 0 ? "无" : moves.join("、");
   const hasKnowledge = current.actor.actions.includes("query");
   const knowledgeHint = hasKnowledge
-    ? "需要建筑、地理、历史或瘟疫等公共事实时，使用 query 检索；它只读、不占行动，不提供角色秘密或当前状态。"
+    ? "当问题涉及建筑、地理、历史、地名、瘟疫处理或习俗等公共事实，而当前场景与记忆无法直接确认时，必须先调用 query 检索，再回答或行动；不要用常识补全，也不要把检索结果当成亲眼所见。query 只读、不占行动，不提供角色秘密或当前状态。"
     : "";
   const readOnlyTools = hasKnowledge
     ? "look_stage、get_self、observe_actor、query"
