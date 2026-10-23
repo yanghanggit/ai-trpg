@@ -141,6 +141,41 @@ describe.skipIf(!testDatabaseUrl)("items and interactions", () => {
     );
   });
 
+  it("rejects steal for an actor whose actions do not include it", async () => {
+    const created = await createGame(handle.db, {
+      username: DEMO_USER.username,
+      name: "权限测试局",
+      world: ITEM_WORLD,
+    });
+    await takeActorControl(handle.db, created.game.slug, "提灯修士");
+
+    await expect(
+      playerSteal(handle.db, created.game.slug, "提灯修士", {
+        targetActorName: "守烬人",
+        itemName: "裂齿短刃",
+      }),
+    ).rejects.toThrow("不能使用动作: steal");
+  });
+
+  it("lets a stage further restrict the actor actions", async () => {
+    const restrictedWorld = {
+      ...ITEM_WORLD,
+      stages: ITEM_WORLD.stages.map((stage) =>
+        stage.key === "gate" ? { ...stage, actions: ["say", "wait"] as const } : stage,
+      ),
+    };
+    const created = await createGame(handle.db, {
+      username: DEMO_USER.username,
+      name: "场景限制测试局",
+      world: restrictedWorld,
+    });
+    await takeActorControl(handle.db, created.game.slug, "守烬人");
+
+    await expect(
+      playerAttack(handle.db, created.game.slug, "守烬人", { targetActorName: "提灯修士" }),
+    ).rejects.toThrow("当前场景不允许动作: attack");
+  });
+
   it("adds weapon damage but uses target defense as the only block", async () => {
     const created = await createGame(handle.db, {
       username: DEMO_USER.username,

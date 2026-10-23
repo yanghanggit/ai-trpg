@@ -29,7 +29,7 @@ const SYSTEM_RULES = [
 ].join("");
 
 export const DARK_FANTASY_WORLD: World = {
-  contentVersion: "dark-fantasy.v4",
+  contentVersion: "dark-fantasy.v5",
   worldName: "灰烬墓园",
   campaignSetting: CAMPAIGN_SETTING,
   systemRules: SYSTEM_RULES,
@@ -42,6 +42,7 @@ export const DARK_FANTASY_WORLD: World = {
       name: "场景.守墓人的灰庭",
       profile:
         "墓园入口的灰庭，也是所有场景的枢纽：南侧石阶只从浅眠墓穴通上来，鼠洞通往骨厅，小屋后通往焚毛炉房，北侧岩壁嵌着封骨之门。",
+      actions: [],
       environment:
         "灰庭被一圈倒塌的石墙围住，三座无字墓碑歪在枯草里；守墓人的小屋门半开着，屋后有条被灰烬覆盖的小径，北侧岩壁裂开一道嵌着门板的缝。南侧石阶在灰庭这端已经塌断，只能从下面爬上来，无法再下去。",
     },
@@ -49,6 +50,7 @@ export const DARK_FANTASY_WORLD: World = {
       key: "crypt",
       name: "场景.浅眠墓穴",
       profile: "一具没有名字的尸体从浅坟里醒来；这里只有一条通往灰庭的单向石阶，离开后无法返回。",
+      actions: [],
       environment:
         "浅坟的泥土被从里面顶开，四周是潮湿的石壁和几块刻着鼠纹的墓砖；只有一条石阶向上通往灰庭，灰庭那端的台阶已经塌断，墓穴深处没有别的出口。",
     },
@@ -57,6 +59,7 @@ export const DARK_FANTASY_WORLD: World = {
       name: "场景.鼠王的骨厅",
       profile:
         "鼠群的地底王座厅；鼠王在此沉睡，灰尾小鼠是它唯一不会伤害的幼崽；这里只通过鼠洞连接灰庭。",
+      actions: [],
       environment:
         "骨厅由无数墓砖垒成，地面铺着咬碎的骨头；尽头的石座高出地面，座面上积着厚厚的灰黑色毛皮与骨渣。",
     },
@@ -64,6 +67,7 @@ export const DARK_FANTASY_WORLD: World = {
       key: "pyre",
       name: "场景.焚毛炉房",
       profile: "灰庭小屋后的废弃焚尸炉房，与封骨之门平级。",
+      actions: [],
       environment:
         "焚毛炉房的墙壁被烟熏成黑色，铁钩上挂着焦黑的毛皮；炉膛早已冷了，只有一支浸透松脂的火把靠在墙边。",
       items: [
@@ -115,6 +119,8 @@ export const DARK_FANTASY_WORLD: World = {
           count: 1,
         },
       ],
+      // 人类：会说话、走动、战斗，也会操作道具。
+      actions: ["say", "whisper", "announce", "move", "wait", "attack", "give", "pickup", "use"],
     },
     {
       stageKey: "graveyard",
@@ -128,6 +134,8 @@ export const DARK_FANTASY_WORLD: World = {
       defense: 1,
       speed: 7,
       items: [],
+      // 动物：会说话、走动与战斗，但不操作道具。
+      actions: ["say", "whisper", "announce", "move", "wait", "attack"],
     },
     {
       stageKey: "graveyard",
@@ -142,6 +150,8 @@ export const DARK_FANTASY_WORLD: World = {
       defense: 0,
       speed: 10,
       items: [],
+      // 幼崽只会说话、走动与躲避；不会战斗，也不操作道具。
+      actions: ["say", "whisper", "announce", "move", "wait"],
     },
     {
       stageKey: "crypt",
@@ -156,6 +166,19 @@ export const DARK_FANTASY_WORLD: World = {
       defense: 2,
       speed: 3,
       items: [],
+      // 唯一会偷窃的角色；其余能力与普通人类一致。
+      actions: [
+        "say",
+        "whisper",
+        "announce",
+        "move",
+        "wait",
+        "attack",
+        "give",
+        "pickup",
+        "use",
+        "steal",
+      ],
     },
     {
       stageKey: "rat-hall",
@@ -170,6 +193,8 @@ export const DARK_FANTASY_WORLD: World = {
       defense: 100,
       speed: 8,
       items: [],
+      // 动物：沉睡时由 profile 约束只用 wait；苏醒后可以移动与攻击，但不操作道具。
+      actions: ["say", "whisper", "announce", "move", "wait", "attack"],
     },
   ],
 };

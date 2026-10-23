@@ -21,9 +21,9 @@ async function applyPlayerAction(
   }
 
   const plan: ActorPlan = { actions: [action] };
-  const ok = await applyActorPlan(db, state.game.id, actor.id, plan, [], true);
-  if (!ok) {
-    throw new GameError("invalid_action", "玩家行动被拒绝");
+  const result = await applyActorPlan(db, state.game.id, actor.id, plan, [], true);
+  if (!result.ok) {
+    throw new GameError("invalid_action", result.rejection ?? "玩家行动被拒绝");
   }
 
   return {

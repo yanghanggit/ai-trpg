@@ -1,5 +1,5 @@
 {
-  "id": "08ce053a-e0cf-4662-8869-cb864f127ff1",
+  "id": "d74af5db-207d-4e8c-878f-606acdd4f1f3",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "version": "7",
   "dialect": "postgresql",
@@ -166,6 +166,13 @@
           "primaryKey": false,
           "notNull": true,
           "default": false
+        },
+        "actions": {
+          "name": "actions",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'[]'::jsonb"
         },
         "created_at": {
           "name": "created_at",
@@ -1107,6 +1114,13 @@
           "type": "text",
           "primaryKey": false,
           "notNull": true
+        },
+        "actions": {
+          "name": "actions",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'[]'::jsonb"
         },
         "ordinal": {
           "name": "ordinal",

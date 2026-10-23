@@ -1,6 +1,10 @@
 import type { World } from "../src/game/types";
 
-/** 测试专用的小型世界；不随演示剧情变化。 */
+/**
+ * 测试专用的小型世界；不随演示剧情变化。
+ *
+ * 能力清单和种子一样逐角色显式写出，便于断言“谁能做什么”。
+ */
 export const TEST_WORLD: World = {
   contentVersion: "test-world.v1",
   worldName: "灰烬测试局",
@@ -12,12 +16,14 @@ export const TEST_WORLD: World = {
       key: "gate",
       name: "灰烬门廊",
       profile: "修道院的入口，穹顶塌了一半，长明灯只剩冷灰。",
+      actions: [],
       environment: "风从破窗灌入，灰烬像雪一样落在石阶上。",
     },
     {
       key: "nave",
       name: "断钟中殿",
       profile: "修道院的中殿，巨大的铜钟坠落在裂纹纵横的地面上。",
+      actions: [],
       environment: "烛泪凝成黑色硬壳，空气里混着铁锈与旧蜡的味道。",
     },
   ],
@@ -36,6 +42,19 @@ export const TEST_WORLD: World = {
       attack: 6,
       defense: 2,
       speed: 4,
+      // 测试世界里的玩家角色额外拥有 steal，用于验证私密事件。
+      actions: [
+        "say",
+        "whisper",
+        "announce",
+        "move",
+        "wait",
+        "attack",
+        "give",
+        "pickup",
+        "use",
+        "steal",
+      ],
       items: [
         {
           name: "裂齿短刃",
@@ -57,6 +76,7 @@ export const TEST_WORLD: World = {
       attack: 5,
       defense: 3,
       speed: 3,
+      actions: ["say", "whisper", "announce", "move", "wait", "attack", "give", "pickup", "use"],
       items: [
         {
           name: "铅封提灯",
@@ -76,6 +96,7 @@ export const TEST_WORLD: World = {
       attack: 4,
       defense: 4,
       speed: 2,
+      actions: ["say", "whisper", "announce", "move", "wait", "attack", "give", "pickup", "use"],
       items: [
         {
           name: "无字经页",

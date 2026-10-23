@@ -59,6 +59,46 @@ describe("dark fantasy seed world", () => {
     expect(king?.profile).toContain("只能包含 wait");
   });
 
+  it("declares per-actor actions explicitly in the seed", () => {
+    const actionsOf = (name: string) => [
+      ...(DARK_FANTASY_WORLD.actors.find((actor) => actor.name === name)?.actions ?? []),
+    ];
+
+    const TALK_AND_MOVE = ["say", "whisper", "announce", "move", "wait"];
+    const ITEM_ACTIONS = ["give", "pickup", "use"];
+
+    // 活物都会说话、走动与等待。
+    for (const actor of DARK_FANTASY_WORLD.actors) {
+      expect(actor.actions).toEqual(expect.arrayContaining(TALK_AND_MOVE));
+    }
+
+    // 动物不操作道具。
+    for (const animal of ["角色.守墓犬", "角色.灰尾小鼠", "角色.鼠王"]) {
+      for (const action of [...ITEM_ACTIONS, "steal"]) {
+        expect(actionsOf(animal)).not.toContain(action);
+      }
+    }
+
+    // 狗与鼠王会攻击，幼崽不会。
+    expect(actionsOf("角色.守墓犬")).toContain("attack");
+    expect(actionsOf("角色.鼠王")).toContain("attack");
+    expect(actionsOf("角色.灰尾小鼠")).not.toContain("attack");
+
+    // 人类可以操作道具；偷窃只属于苏醒者。
+    for (const human of ["角色.守墓人", "角色.苏醒者"]) {
+      for (const action of ITEM_ACTIONS) {
+        expect(actionsOf(human)).toContain(action);
+      }
+    }
+    expect(actionsOf("角色.苏醒者")).toContain("steal");
+    expect(actionsOf("角色.守墓人")).not.toContain("steal");
+
+    // 场景默认不额外限制动作。
+    for (const item of stages) {
+      expect(item.actions ?? []).toEqual([]);
+    }
+  });
+
   it("connects the graveyard, crypt, rat hall, pyre and sealed gate", () => {
     const edges = new Set(
       DARK_FANTASY_WORLD.connections.map((connection) => `${connection.from}->${connection.to}`),

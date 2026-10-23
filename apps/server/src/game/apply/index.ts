@@ -51,10 +51,16 @@ async function applyResolvedAction(
   }
 }
 
+/** 应用计划的结果；`rejection` 是给调用方（尤其是玩家入口）看的原因。 */
+export type ApplyPlanResult = {
+  ok: boolean;
+  rejection?: string;
+};
+
 /**
  * 校验并应用一次 actor 计划。
  *
- * 计划里的动作按提交顺序执行；非法计划写入拒绝记忆并返回 false。
+ * 计划里的动作按提交顺序执行；非法计划写入拒绝记忆并返回原因。
  * 数据库等意外错误继续抛出，让事务回滚。
  */
 export async function applyActorPlan(
@@ -64,7 +70,7 @@ export async function applyActorPlan(
   plan: ActorPlan | null,
   newMessages: readonly ChatMessage[],
   loopSuccess: boolean,
-): Promise<boolean> {
+): Promise<ApplyPlanResult> {
   return db.transaction(async (tx) => {
     const [game] = await tx.select().from(games).where(eq(games.id, gameId)).limit(1).for("update");
     if (!game) {
@@ -103,19 +109,20 @@ export async function applyActorPlan(
           metadata: { kind: MEMORY_KINDS.planFailed, loopSuccess },
         },
       ]);
-      return false;
+      return { ok: false, rejection: "本轮没有提交有效行动计划" };
     }
 
     if (plan.actions.length > MAX_ACTIONS_PER_TURN) {
+      const rejection = `本轮最多 ${MAX_ACTIONS_PER_TURN} 个行动，实际提交 ${plan.actions.length} 个`;
       await appendMemoryMessages(tx, memory.row.id, [
         ...newMessages,
         {
           type: "human",
-          content: `# 行动结果\n行动被拒绝：本轮最多 ${MAX_ACTIONS_PER_TURN} 个行动，实际提交 ${plan.actions.length} 个。`,
+          content: `# 行动结果\n行动被拒绝：${rejection}。`,
           metadata: { kind: MEMORY_KINDS.actionRejected },
         },
       ]);
-      return false;
+      return { ok: false, rejection };
     }
 
     let resolved: ResolvedAction[];
@@ -133,7 +140,7 @@ export async function applyActorPlan(
           metadata: { kind: MEMORY_KINDS.actionRejected },
         },
       ]);
-      return false;
+      return { ok: false, rejection: error.message };
     }
 
     if (newMessages.length > 0) {
@@ -152,6 +159,6 @@ export async function applyActorPlan(
       ]);
     }
 
-    return true;
+    return { ok: true };
   });
 }

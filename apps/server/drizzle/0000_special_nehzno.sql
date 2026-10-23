@@ -19,6 +19,7 @@ CREATE TABLE "actors" (
 	"defense" integer NOT NULL,
 	"speed" integer NOT NULL,
 	"death" boolean DEFAULT false NOT NULL,
+	"actions" jsonb DEFAULT '[]'::jsonb NOT NULL,
 	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
 	"updated_at" timestamp with time zone DEFAULT now() NOT NULL
 );
@@ -123,6 +124,7 @@ CREATE TABLE "stages" (
 	"name" text NOT NULL,
 	"profile" text NOT NULL,
 	"environment" text NOT NULL,
+	"actions" jsonb DEFAULT '[]'::jsonb NOT NULL,
 	"ordinal" integer DEFAULT 0 NOT NULL,
 	"created_at" timestamp with time zone DEFAULT now() NOT NULL
 );

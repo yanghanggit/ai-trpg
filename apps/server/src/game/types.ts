@@ -28,6 +28,8 @@ export type Stage = {
   environment: string;
   /** 暂放在场景中的物品；目前只物化为只读场景内容，拾取尚未实现。 */
   items?: readonly Item[];
+  /** 场景额外允许的动作；省略或空数组表示不额外限制，以 actor 的 actions 为准。 */
+  actions?: readonly ActionKind[];
 };
 
 /** 场景图的初始有向连接；两端引用 `Stage.key`。 */
@@ -53,6 +55,8 @@ export type Actor = {
   speed: number;
   death?: boolean;
   items: readonly Item[];
+  /** 该角色可用的动作；必须显式列出，不给默认值。 */
+  actions: readonly ActionKind[];
 };
 
 /** Actor 的初始物品定义；创建后物化为 `items` 或 `stage_items` 行。 */
@@ -185,7 +189,7 @@ export type ItemState = {
   block: number;
 };
 
-/** 运行时 actor；`items` 是它的物品队列。 */
+/** 运行时 actor；`items` 是它的物品队列，`actions` 是它被允许的动作。 */
 export type ActorState = {
   id: string;
   name: string;
@@ -198,6 +202,7 @@ export type ActorState = {
   speed: number;
   death: boolean;
   items: ItemState[];
+  actions: readonly ActionKind[];
 };
 
 export type StageState = {
@@ -208,6 +213,7 @@ export type StageState = {
   ordinal: number;
   actors: ActorState[];
   items: ItemState[];
+  actions: readonly ActionKind[];
 };
 
 export type ConnectionState = {

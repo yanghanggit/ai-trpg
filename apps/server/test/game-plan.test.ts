@@ -134,6 +134,17 @@ describe("read-only descriptions", () => {
       defense: 2,
       speed: 4,
       death: false,
+      actions: [
+        "say",
+        "whisper",
+        "announce",
+        "move",
+        "wait",
+        "attack",
+        "give",
+        "pickup",
+        "use",
+      ] as const,
       items: [
         {
           id: "item-1",

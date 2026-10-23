@@ -22,6 +22,7 @@ import {
 } from "./memory";
 import { appendStageEvent } from "./observations";
 import type {
+  ActionKind,
   ActorState,
   ConnectionState,
   CreateGameInput,
@@ -190,6 +191,7 @@ export async function getGameState(db: Database, ref: string): Promise<GameState
       speed: actor.speed,
       death: actor.death,
       items: itemsByActor.get(actor.id) ?? [],
+      actions: actor.actions as unknown as ActionKind[],
     });
     actorsByStage.set(actor.stageId, list);
   }
@@ -202,6 +204,7 @@ export async function getGameState(db: Database, ref: string): Promise<GameState
     ordinal: stage.ordinal,
     actors: actorsByStage.get(stage.id) ?? [],
     items: itemsByStage.get(stage.id) ?? [],
+    actions: stage.actions as unknown as ActionKind[],
   }));
 
   const connections: ConnectionState[] = connectionRows.map((connection) => ({
@@ -313,6 +316,7 @@ export async function createGame(db: Database, input: CreateGameInput): Promise<
         name: stage.name,
         profile: stage.profile,
         environment: stage.environment,
+        actions: stage.actions as unknown as typeof stages.$inferInsert.actions,
         ordinal,
       });
 
@@ -380,6 +384,7 @@ export async function createGame(db: Database, input: CreateGameInput): Promise<
         defense: actor.defense,
         speed: actor.speed,
         death: actor.death ?? false,
+        actions: actor.actions as unknown as typeof actors.$inferInsert.actions,
       });
 
       for (const item of actor.items) {

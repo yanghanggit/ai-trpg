@@ -16,7 +16,7 @@
 | --- | --- | --- |
 | 数据库 schema | 已隔离 | 表结构只表达 world / stage / actor / item / message / memory 等通用概念 |
 | 领域类型 | 基本隔离 | `World` / `Stage` / `Actor` / `Item` / `Weapon` 均为通用容器 |
-| 故事内容 | 已隔离到 seed | 场景名、角色 profile、对白线索、连接、物品和初始状态位于 `seeds/dark-fantasy.ts` |
+| 故事内容 | 已隔离到 seed | 场景名、角色 profile、对白线索、连接、物品、每个角色的 `actions` 能力清单和初始状态位于 `seeds/dark-fantasy.ts` |
 | NPC prompt | 内容驱动 | 世界设定、角色 profile、场景环境从输入与数据库读取 |
 | 行动应用层 | 有泄漏 | 通关条件直接引用当前剧本的 stage 名与钥匙名 |
 | 状态层 | 已隔离 | 状态只作容器；沉睡与苏醒由 profile / LLM 判断，不写系统规则 |

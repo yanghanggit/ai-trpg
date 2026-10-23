@@ -96,6 +96,7 @@ export const stages = pgTable(
     name: text("name").notNull(),
     profile: text("profile").notNull(),
     environment: text("environment").notNull(),
+    actions: jsonb("actions").$type<JsonValue[]>().notNull().default([]),
     ordinal: integer("ordinal").notNull().default(0),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },
@@ -140,6 +141,7 @@ export const actors = pgTable("actors", {
   defense: integer("defense").notNull(),
   speed: integer("speed").notNull(),
   death: boolean("death").notNull().default(false),
+  actions: jsonb("actions").$type<JsonValue[]>().notNull().default([]),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
 });

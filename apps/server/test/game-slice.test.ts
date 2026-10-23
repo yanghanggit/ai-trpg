@@ -13,6 +13,7 @@ import { loadSnapshot } from "../src/debug/snapshot";
 import {
   type ActorAction,
   type ActorPlan,
+  applyActorPlan,
   createGame,
   getGameMemories,
   getGameState,
@@ -26,6 +27,29 @@ const testDatabaseUrl = process.env.TEST_DATABASE_URL?.trim();
 /** 攻击动作：十个平级动作之一。 */
 function attackAction(targetActorName: string): ActorAction {
   return { kind: "attack", targetActorName, itemNames: [] };
+}
+
+/** 只记录本次请求暴露了哪些工具，然后提交一个 wait。 */
+class ToolCaptureService implements ChatCompletionService {
+  tools: string[] = [];
+
+  async complete(request: Parameters<ChatCompletionService["complete"]>[0]) {
+    this.tools = request.tools?.map((tool) => tool.function.name) ?? [];
+    const toolCalls: ToolCall[] = [
+      {
+        id: randomUUID(),
+        type: "function",
+        function: { name: "wait", arguments: "{}" },
+      },
+      { id: randomUUID(), type: "function", function: { name: "submit_plan", arguments: "{}" } },
+    ];
+    return new ChatCompletionResult({
+      request,
+      aiMessage: { type: "ai", content: "", toolCalls },
+      finishReason: "tool_calls",
+      toolCalls,
+    });
+  }
 }
 
 class ScriptedNpcService implements ChatCompletionService {
@@ -219,6 +243,67 @@ describe.skipIf(!testDatabaseUrl)("memory-driven NPC slice", () => {
     expect(loaded.parts["memories/守烬人.json"]).toBeDefined();
     expect(loaded.session).toHaveLength(5);
   });
+  it("only exposes actions the actor is allowed to use", async () => {
+    const created = await createGame(handle.db, {
+      username: DEMO_USER.username,
+      name: "能力过滤测试局",
+      world: DARK_FANTASY_WORLD,
+    });
+
+    const keeperService = new ToolCaptureService();
+    await runNpcTurn(handle.db, created.game.slug, "角色.守墓人", { service: keeperService });
+    expect(keeperService.tools).toContain("say");
+    expect(keeperService.tools).toContain("attack");
+    expect(keeperService.tools).not.toContain("steal");
+
+    const corpseService = new ToolCaptureService();
+    await runNpcTurn(handle.db, created.game.slug, "角色.苏醒者", { service: corpseService });
+    expect(corpseService.tools).toContain("steal");
+
+    const mouseService = new ToolCaptureService();
+    await runNpcTurn(handle.db, created.game.slug, "角色.灰尾小鼠", { service: mouseService });
+    expect(mouseService.tools).not.toContain("attack");
+    expect(mouseService.tools).not.toContain("pickup");
+    expect(mouseService.tools).not.toContain("give");
+    expect(mouseService.tools).not.toContain("use");
+    expect(mouseService.tools).not.toContain("steal");
+  });
+
+  it("rejects a plan with more actions than the per-turn cap", async () => {
+    const created = await createGame(handle.db, {
+      username: DEMO_USER.username,
+      name: "行动条数上限测试局",
+      world: TEST_WORLD,
+    });
+    const keeper = created.world.stages
+      .flatMap((stage) => stage.actors)
+      .find((actor) => actor.name === "守烬人");
+    expect(keeper).toBeDefined();
+
+    const result = await applyActorPlan(
+      handle.db,
+      created.game.id,
+      keeper?.id as string,
+      {
+        actions: [{ kind: "wait" }, { kind: "wait" }, { kind: "wait" }],
+      },
+      [],
+      true,
+    );
+    expect(result.ok).toBe(false);
+    expect(result.rejection).toContain("本轮最多 2 个行动");
+
+    const state = await getGameState(handle.db, created.game.slug);
+    expect(state.game.version).toBe(0);
+    expect(state.messages).toHaveLength(1);
+
+    const memories = await getGameMemories(handle.db, created.game.id);
+    const keeperMemory = memories.find((memory) => memory.name === "守烬人");
+    expect(
+      keeperMemory?.messages.some((message) => message.content.includes("本轮最多 2 个行动")),
+    ).toBe(true);
+  });
+
   it("emits a public event for wait", async () => {
     const created = await createGame(handle.db, {
       username: DEMO_USER.username,
@@ -385,6 +470,7 @@ describe.skipIf(!testDatabaseUrl)("memory-driven NPC slice", () => {
           defense: 1,
           speed: 2,
           items: [],
+          actions: ["say", "whisper", "move", "wait"] as const,
         },
       ],
     };

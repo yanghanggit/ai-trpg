@@ -2,7 +2,7 @@
 
 > 状态：临时内容，只服务当前行动、记忆、物品与通关链路的验证，不是最终剧情，也不是长期内容模板。
 
-剧本定义在 `apps/server/seeds/dark-fantasy.ts`，内容版本为 `dark-fantasy.v2`，由 `createGame` 物化为具体游戏状态。测试世界使用独立的小型 `TEST_WORLD`，不随本剧本变化。
+剧本定义在 `apps/server/seeds/dark-fantasy.ts`，内容版本为 `dark-fantasy.v5`，由 `createGame` 物化为具体游戏状态。测试世界使用独立的小型 `TEST_WORLD`，不随本剧本变化。
 
 ## 测试意图
 
@@ -50,6 +50,20 @@
 
 焚毛炉房与封骨之门是灰庭下的平级叶子节点，两者之间没有连接；浅眠墓穴只能单向离开，灰庭不能返回墓穴；鼠王的骨厅只能原路返回灰庭。从初始的浅眠墓穴到封骨之门只有一条路径：浅眠墓穴 → 守墓人的灰庭 → 封骨之门。
 
+### 角色能力（种子中逐条显式声明）
+
+能力写在每个 actor 的 `actions` 里，没有共享默认值；场景的 `actions` 目前全部为空（不额外限制）。
+
+| 角色 | 是否活物 | 移动/说话类 | 战斗 | 道具操作（give/pickup/use） | steal |
+| --- | --- | --- | --- | --- | --- |
+| `角色.守墓人` | 是 | say/whisper/announce/move/wait | attack | ✅ | ❌ |
+| `角色.守墓犬` | 动物 | say/whisper/announce/move/wait | attack | ❌ | ❌ |
+| `角色.灰尾小鼠` | 动物 | say/whisper/announce/move/wait | ❌ | ❌ | ❌ |
+| `角色.苏醒者` | 是 | say/whisper/announce/move/wait | attack | ✅ | ✅ |
+| `角色.鼠王` | 动物 | say/whisper/announce/move/wait | attack | ❌ | ❌ |
+
+动物不操作道具，因此狗、老鼠、鼠王都不会 `give` / `pickup` / `use` / `steal`；狗与鼠王会 `attack`，幼崽不会。鼠王沉睡期间只用 `wait` 是 profile 约束（LLM 判断），不是能力缺失。
+
 `角色.守墓人` 持有 `饰品.封骨钥匙`；`角色.灰尾小鼠` 是鼠王唯一不攻击的子嗣；`角色.鼠王` 的 profile 声明自己正在沉睡，只有听见对话、被攻击或场景发生非 `wait` 行为后才苏醒；HP 120、attack 60、defense 100。焚毛炉房的 `武器.焚鼠火把` 是 `damage 250`、`block 0` 的武器；玩家 attack 6 加上武器后可以一击打穿鼠王。
 
 ## 剧情路径
@@ -58,7 +72,7 @@
 
 暴力路线：玩家攻击守墓人，守墓犬通过同场景战斗记忆在下一次 NPC 回合自主反击；小鼠看到冲突后移动到骨厅报信。鼠王是否苏醒由 profile 与 LLM 判断，不通过系统状态移除。玩家可以窃取守墓人的钥匙，包括从尸体上取走。
 
-Boss 路线：鼠王被非 `wait` 行为惊醒后会自行移动和攻击；当前攻击力足以秒杀普通角色。普通攻击无法伤害鼠王；火武器可通过 `damage` 分支的 `itemNames` 参与本次攻击。
+Boss 路线：鼠王被非 `wait` 行为惊醒后会自行移动和攻击；当前攻击力足以秒杀普通角色。普通攻击无法伤害鼠王；火武器可通过 `attack` 的 `itemNames` 参与本次攻击。
 
 ## 测试矩阵
 
@@ -69,14 +83,14 @@ Boss 路线：鼠王被非 `wait` 行为惊醒后会自行移动和攻击；当�
 | 感知 | NPC 的 `get_actor` | 只能查看同场景角色；返回 stats 与目标背包 |
 | 攻击 | `player-attack` 或 NPC `attack` | 伤害为 `max(0, attack - defense)`；目标生命下降；死亡 actor 不再进入 loop |
 | 狗的反应 | 攻击守墓人后推进狗 | 狗通过战斗记忆与 profile 自行决定攻击凶手；不是硬触发器 |
-| 小鼠报信 | 冲突后推进小鼠 | 小鼠移动到骨厅，下一轮可对鼠王说话；是否需要两轮由行动槽决定 |
+| 小鼠报信 | 冲突后推进小鼠 | 小鼠移动到骨厅，下一轮可对鼠王说话；是否需要两轮由计划顺序与两条上限决定 |
 | 沉睡唤醒 | 场景内发生对话、攻击或非 `wait` 行为 | 由鼠王 profile 与 LLM 判断是否苏醒；系统没有状态移除规则，也不做确定性断言 |
 | 窃取 | `steal` | 物品从目标转到发起者；事件为 private；只有发起者与目标有记忆；目标存活时下一轮会反应；允许对尸体使用 |
 | 给予 | NPC `give` 或暗语触发 | 物品从发起者转到同场景存活目标；暗语通过 say 写入记忆，守墓人下一轮自行选择 give；没有硬控制状态 |
 | 拾取 | `pickup` | 场景物品移入 actor 背包；场景物品消失 |
-| 使用钥匙 | `use` 分支 | 目标必须是当前场景、自己或同场景角色；当前硬编码 `场景.封骨之门` 与 `饰品.封骨钥匙` 通关 |
+| 使用钥匙 | `use` | 目标必须是当前场景、自己或同场景角色；当前硬编码 `场景.封骨之门` 与 `饰品.封骨钥匙` 通关 |
 | 游戏结束 | 成功使用钥匙 | `games.status` 变为 `completed`；写 `game_completed` 公共事件；后续行动被拒绝；完成日志写 stderr，避免污染 CLI JSON |
-| 普通攻击 Boss | `damage` 分支 | 鼠王 defense 100，空手伤害为 0；装备火把后 damage 250，配合 attack 6 足以一击击杀 |
+| 普通攻击 Boss | `attack` | 鼠王 defense 100，空手伤害为 0；装备火把后 damage 250，配合 attack 6 足以一击击杀 |
 | 鼠王攻击 | 苏醒后推进鼠王 | attack 60，普通角色会被秒杀；鼠王会跨场景移动 |
 | stage 记忆 | 私密沟通或 actor 移动 | 起点与终点 stage 都写入 memory；私密事件只对 stage 与既有可见者可见 |
 | stage 环境仲裁 | `stage --stage <name>` | stage 读取本场景事件并更新 environment；写 `environment_change` 事件与 stage memory |

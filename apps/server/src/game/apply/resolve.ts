@@ -1,3 +1,4 @@
+import { assertActionAllowed } from "../actions";
 import { resolveAttack } from "../actions/attack";
 import { resolveGive } from "../actions/give";
 import { resolveMove } from "../actions/move";
@@ -8,7 +9,7 @@ import { resolveUse } from "../actions/use";
 import { resolveWait } from "../actions/wait";
 import { resolveWhisper } from "../actions/whisper";
 import { GameError } from "../errors";
-import type { ActorPlan } from "../types";
+import type { ActionKind, ActorPlan } from "../types";
 import type { ActorWithStageRow, Executor, ResolvedAction, StageRow, WorldRow } from "./types";
 
 /**
@@ -25,7 +26,14 @@ export async function resolvePlan(
   let stage: StageRow = actorRow.stage;
   const resolved: ResolvedAction[] = [];
 
+  const actorActions = actorRow.actor.actions as unknown as ActionKind[];
   for (const action of plan.actions) {
+    assertActionAllowed(
+      actorActions,
+      stage.actions as unknown as ActionKind[],
+      action.kind,
+      actorRow.actor.name,
+    );
     switch (action.kind) {
       case "say":
         resolved.push(await resolveSay(executor, stage, actorRow.actor.id, action));

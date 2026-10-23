@@ -2,6 +2,8 @@ import { randomUUID } from "node:crypto";
 import type { Database } from "../db/pool";
 import { agentLoop } from "../llm/agent-loop";
 import type { ChatCompletionService } from "../llm/protocol";
+import type { ToolDefinition } from "../llm/types";
+import { ACTION_SUMMARIES, allowedActionKinds } from "./actions";
 import { buildAnnounceTool, parseAnnounce } from "./actions/announce";
 import { buildAttackTool, parseAttack } from "./actions/attack";
 import { buildGiveTool, parseGive } from "./actions/give";
@@ -35,7 +37,7 @@ import {
   lookStage,
 } from "./plan";
 import { getGameState } from "./service";
-import type { ActorAction, ActorPlan, ActorTurnResult, GameState } from "./types";
+import type { ActionKind, ActorAction, ActorPlan, ActorTurnResult, GameState } from "./types";
 
 export type NpcTurnOptions = {
   service: ChatCompletionService;
@@ -49,6 +51,8 @@ export function buildActorObservation(state: GameState, current: ActorWithStage)
   const others = otherActorsInStage(current.stage, current.actor.id);
   const targets = others.map((actor) => actor.name);
   const aliveTargets = others.filter((actor) => !actor.death).map((actor) => actor.name);
+  const allowed = allowedActionKinds(current.actor.actions, current.stage.actions);
+  const actionList = allowed.map((kind) => `${kind}（${ACTION_SUMMARIES[kind]}）`).join("、");
   return [
     "# 当前环境",
     `## 场景\n${current.stage.name}\n${current.stage.environment}`,
@@ -71,7 +75,7 @@ export function buildActorObservation(state: GameState, current: ActorWithStage)
     `## 可作用对象\n${aliveTargets.length === 0 ? "无" : aliveTargets.join("、")}`,
     `## 可移动至\n${moves.length === 0 ? "无" : moves.join("、")}`,
     "# 本轮任务",
-    `根据当前环境与自己的记忆决定行动。使用 get_stats / get_items 查看自己，使用 get_actor 查看同场景目标的状态与物品；需要多项信息时，可以一次返回多个只读工具调用，也可以分多轮调用。可用的行动工具：say（对目标公开说话）、whisper（对目标耳语）、announce（向场景公开说话）、move（移动到相邻场景）、wait（留在原地）、attack（攻击同场景目标）、steal（从目标身上取物）、give（把自己的物品交给目标）、pickup（拾起场景物品）、use（用自己的物品作用于角色或场景）。本轮最多 ${MAX_ACTIONS_PER_TURN} 个行动；通常一次沟通加一个其他行动，不要重复同一动作。先加入的行动先执行。最后调用 submit_plan 提交。look_stage、get_stats、get_items、get_actor 不占计划。`,
+    `根据当前环境与自己的记忆决定行动。使用 get_stats / get_items 查看自己，使用 get_actor 查看同场景目标的状态与物品；需要多项信息时，可以一次返回多个只读工具调用，也可以分多轮调用。你能使用的行动工具：${actionList}。本轮最多 ${MAX_ACTIONS_PER_TURN} 个行动；通常一次沟通加一个其他行动，不要重复同一动作。先加入的行动先执行。最后调用 submit_plan 提交。look_stage、get_stats、get_items、get_actor 不占计划。`,
   ].join("\n\n");
 }
 
@@ -86,7 +90,8 @@ function addAction(actions: ActorAction[], action: ActorAction): void {
 /**
  * 为单个 actor 跑一轮 agent loop，应用提交的计划并返回最新状态。
  *
- * 已死亡或被玩家接管的 actor 不进入 NPC loop。
+ * 已死亡或被玩家接管的 actor 不进入 NPC loop；工具只暴露该 actor 与场景
+ * 允许的动作，模型看不到未授权的工具。
  */
 export async function runNpcTurn(
   db: Database,
@@ -122,27 +127,55 @@ export async function runNpcTurn(
   const statsTool = buildStatsTool();
   const itemsTool = buildItemsTool();
   const actorInfoTool = buildActorInfoTool(talkTargets);
-  const sayTool = buildSayTool(talkTargets);
-  const whisperTool = buildWhisperTool(talkTargets);
-  const announceTool = buildAnnounceTool();
-  const moveTool = buildMoveTool(stageNames);
-  const waitTool = buildWaitTool();
-  const attackTool = buildAttackTool(aliveTargets, itemNames);
-  const stealTool = buildStealTool(talkTargets);
-  const giveTool = buildGiveTool(aliveTargets);
-  const pickupTool = buildPickupTool();
-  const useTool = buildUseTool(itemNames, selfAndAlive, current.stage.name);
   const submitTool = buildSubmitPlanTool();
 
+  /** 十个动作的工具与参数解析器；按 kind 平铺，按权限过滤后使用。 */
+  const actionTools: Record<ActionKind, ToolDefinition> = {
+    say: buildSayTool(talkTargets),
+    whisper: buildWhisperTool(talkTargets),
+    announce: buildAnnounceTool(),
+    move: buildMoveTool(stageNames),
+    wait: buildWaitTool(),
+    attack: buildAttackTool(aliveTargets, itemNames),
+    steal: buildStealTool(talkTargets),
+    give: buildGiveTool(aliveTargets),
+    pickup: buildPickupTool(),
+    use: buildUseTool(itemNames, selfAndAlive, current.stage.name),
+  };
+  const parsers: Record<ActionKind, (args: Record<string, unknown>) => ActorAction> = {
+    say: parseSay,
+    whisper: parseWhisper,
+    announce: parseAnnounce,
+    move: parseMove,
+    wait: () => parseWait(),
+    attack: parseAttack,
+    steal: parseSteal,
+    give: parseGive,
+    pickup: parsePickup,
+    use: parseUse,
+  };
+
+  const allowed = allowedActionKinds(current.actor.actions, current.stage.actions);
   const actions: ActorAction[] = [];
   let submitted: ActorPlan | null = null;
 
-  /** 所有动作工具共用的提交前检查。 */
   const ensureOpen = () => {
     if (submitted) {
       throw new GameError("invalid_action", "计划已提交");
     }
   };
+
+  const actionHandlers: Partial<Record<ActionKind, (args: Record<string, unknown>) => string>> =
+    Object.fromEntries(
+      allowed.map((kind) => [
+        kind,
+        (args: Record<string, unknown>) => {
+          ensureOpen();
+          addAction(actions, parsers[kind](args));
+          return `${kind} 已加入计划`;
+        },
+      ]),
+    );
 
   const loop = await agentLoop({
     name: current.actor.name,
@@ -153,16 +186,7 @@ export async function runNpcTurn(
       statsTool,
       itemsTool,
       actorInfoTool,
-      sayTool,
-      whisperTool,
-      announceTool,
-      moveTool,
-      waitTool,
-      attackTool,
-      stealTool,
-      giveTool,
-      pickupTool,
-      useTool,
+      ...allowed.map((kind) => actionTools[kind]),
       submitTool,
     ],
     handlers: {
@@ -181,56 +205,7 @@ export async function runNpcTurn(
         }
         return describeActor(target);
       },
-      [sayTool.function.name]: (args) => {
-        ensureOpen();
-        addAction(actions, parseSay(args));
-        return "say 已加入计划";
-      },
-      [whisperTool.function.name]: (args) => {
-        ensureOpen();
-        addAction(actions, parseWhisper(args));
-        return "whisper 已加入计划";
-      },
-      [announceTool.function.name]: (args) => {
-        ensureOpen();
-        addAction(actions, parseAnnounce(args));
-        return "announce 已加入计划";
-      },
-      [moveTool.function.name]: (args) => {
-        ensureOpen();
-        addAction(actions, parseMove(args));
-        return "move 已加入计划";
-      },
-      [waitTool.function.name]: () => {
-        ensureOpen();
-        addAction(actions, parseWait());
-        return "wait 已加入计划";
-      },
-      [attackTool.function.name]: (args) => {
-        ensureOpen();
-        addAction(actions, parseAttack(args));
-        return "attack 已加入计划";
-      },
-      [stealTool.function.name]: (args) => {
-        ensureOpen();
-        addAction(actions, parseSteal(args));
-        return "steal 已加入计划";
-      },
-      [giveTool.function.name]: (args) => {
-        ensureOpen();
-        addAction(actions, parseGive(args));
-        return "give 已加入计划";
-      },
-      [pickupTool.function.name]: (args) => {
-        ensureOpen();
-        addAction(actions, parsePickup(args));
-        return "pickup 已加入计划";
-      },
-      [useTool.function.name]: (args) => {
-        ensureOpen();
-        addAction(actions, parseUse(args));
-        return "use 已加入计划";
-      },
+      ...actionHandlers,
       [submitTool.function.name]: () => {
         if (actions.length === 0) {
           throw new GameError("invalid_action", "计划中没有行动");
@@ -247,7 +222,7 @@ export async function runNpcTurn(
   });
 
   const newMessages = loop.messages.slice(loop.startIndex, loop.endIndex);
-  const ok = await applyActorPlan(
+  const { ok } = await applyActorPlan(
     db,
     state.game.id,
     current.actor.id,
