@@ -5,6 +5,7 @@ import type {
   Item,
   ItemKind,
   ItemStats,
+  ItemUseDefinition,
   WearableItem,
 } from "./types";
 import { EQUIPMENT_SLOTS } from "./types";
@@ -12,17 +13,21 @@ import { EQUIPMENT_SLOTS } from "./types";
 /** 把数据库行的通用字段收窄成对应物品子类；新增 kind 时在这里补分支。 */
 export function toItemState(row: {
   id: string;
+  key?: string | null;
   name: string;
   description: string;
   kind: ItemKind;
   count: number;
   stats: ItemStats;
+  use?: ItemUseDefinition | null;
 }): Item {
   const base = {
     id: row.id,
+    key: row.key ?? row.name,
     name: row.name,
     description: row.description,
     count: row.count,
+    ...(row.use ? { use: row.use } : {}),
   };
   switch (row.kind) {
     case "weapon":

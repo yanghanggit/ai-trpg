@@ -63,11 +63,13 @@ export async function applyPickup(
   await executor.insert(items).values({
     id: randomUUID(),
     actorId: actor.id,
+    key: stageItem.key,
     name: stageItem.name,
     description: stageItem.description,
     kind: stageItem.kind,
     count: stageItem.count,
     stats: stageItem.stats,
+    use: stageItem.use,
   });
   await bumpGameVersion(executor, gameId, now);
 

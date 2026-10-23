@@ -1,16 +1,11 @@
-import { eq } from "drizzle-orm";
-import { games } from "../../db/schema";
 import type { ToolDefinition } from "../../llm/types";
 import { appendPublicMessage, bumpGameVersion } from "../apply/messages";
 import { assertAlive, findActorInStage, resolveActorItem } from "../apply/queries";
 import type { ActorWithStageRow, Executor, ResolvedUse } from "../apply/types";
 import { GameError } from "../errors";
+import { applyItemUseEffects } from "../item-effects";
 import { appendItemObservations, appendStageEvent } from "../observations";
 import type { UseAction } from "../types";
-
-/** 铁闸门与钥匙的硬编码通关条件；后续再迁移到内容数据。 */
-export const GATE_STAGE_NAME = "场景.铁闸门";
-export const GATE_KEY_NAME = "饰品.闸门钥匙";
 
 /** 构造 use 工具：用自己的物品作用于一个角色或当前场景。 */
 export function buildUseTool(
@@ -70,7 +65,7 @@ export function parseUse(args: Record<string, unknown>): UseAction {
   };
 }
 
-/** 校验 use：物品必须是自己的；场景只能是当前场景；角色必须存活。 */
+/** 校验 use：物品必须是自己的；场景只能是当前场景；角色必须存活；物品行为必须接受目标。 */
 export async function resolveUse(
   executor: Executor,
   stage: ResolvedUse["stage"],
@@ -79,23 +74,45 @@ export async function resolveUse(
 ): Promise<ResolvedUse> {
   const transferItem = await resolveActorItem(executor, actorId, action.itemName);
 
+  let target: ResolvedUse["target"];
+  let targetStage: ResolvedUse["targetStage"];
+
   if (action.targetStageName !== undefined) {
     if (action.targetStageName !== stage.name) {
       throw new GameError("invalid_action", "只能对当前所在场景使用道具");
     }
-    return { kind: "use", action, stage, transferItem, targetStage: stage };
+    targetStage = stage;
+  } else {
+    const targetActorName = action.targetActorName;
+    if (!targetActorName) {
+      throw new GameError("invalid_action", "use 缺少目标");
+    }
+    target = await findActorInStage(executor, stage.id, targetActorName);
+    assertAlive(target);
   }
 
-  const targetActorName = action.targetActorName;
-  if (!targetActorName) {
-    throw new GameError("invalid_action", "use 缺少目标");
+  const use = transferItem.use;
+  if (use) {
+    const targetKind = targetStage ? "stage" : "actor";
+    if (use.target !== "any" && use.target !== targetKind) {
+      throw new GameError("invalid_action", `${transferItem.name} 不能用于这个目标`);
+    }
+    if (use.targetStageKey && targetStage?.key !== use.targetStageKey) {
+      throw new GameError("invalid_action", `${transferItem.name} 不能用于这个场景`);
+    }
   }
-  const target = await findActorInStage(executor, stage.id, targetActorName);
-  assertAlive(target);
-  return { kind: "use", action, stage, transferItem, target };
+
+  return {
+    kind: "use",
+    action,
+    stage,
+    transferItem,
+    ...(target ? { target } : {}),
+    ...(targetStage ? { targetStage } : {}),
+  };
 }
 
-/** 应用 use：写使用事件；钥匙 + 铁闸门触发通关。 */
+/** 应用 use：写通用使用事件，再执行物品自己声明的效果。 */
 export async function applyUse(
   executor: Executor,
   gameId: string,
@@ -132,44 +149,21 @@ export async function applyUse(
     ...(targetStage ? { targetStageId: targetStage.id } : {}),
   });
 
-  const completed = targetStage?.name === GATE_STAGE_NAME && item.name === GATE_KEY_NAME;
-  if (completed && targetStage) {
-    await completeGame(
+  const outcome = await applyItemUseEffects(
+    {
       executor,
       gameId,
-      resolved.stage.id,
-      actor.name,
-      item.name,
-      targetStage.name,
+      stage: resolved.stage,
+      actor,
+      item,
+      ...(target ? { target } : {}),
+      ...(targetStage ? { targetStage } : {}),
       now,
-    );
-  }
-  return `# 行动结果\n你对${targetLabel}使用了${item.name}。${completed ? "\n铁闸门打开了。" : ""}`;
-}
+    },
+    item.use?.effects ?? [],
+  );
 
-/** 写通关结果：游戏状态、公共消息与场景事件。 */
-async function completeGame(
-  executor: Executor,
-  gameId: string,
-  stageId: string,
-  actorName: string,
-  itemName: string,
-  targetStageName: string,
-  now: Date,
-): Promise<void> {
-  await executor
-    .update(games)
-    .set({ status: "completed", updatedAt: now })
-    .where(eq(games.id, gameId));
-  const content = `${actorName}用${itemName}打开了${targetStageName}，游戏结束。`;
-  await appendPublicMessage(executor, gameId, null, {
-    kind: "game_completed",
-    stageId,
-    visibility: "stage",
-    content,
-  });
-  await appendStageEvent(executor, gameId, stageId, `# 场景事件\n${content}`, {
-    eventKind: "game_completed",
-  });
-  console.error(`[game] completed: game=${gameId} actor=${actorName} item=${itemName}`);
+  return `# 行动结果\n你对${targetLabel}使用了${item.name}。${
+    outcome.results.length > 0 ? `\n${outcome.results.join("\n")}` : ""
+  }`;
 }

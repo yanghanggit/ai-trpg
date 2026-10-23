@@ -184,6 +184,7 @@ export async function getGameState(db: Database, ref: string): Promise<GameState
 
   const stageState: StageState[] = stageRows.map((stage) => ({
     id: stage.id,
+    key: stage.key ?? stage.name,
     name: stage.name,
     profile: stage.profile,
     environment: stage.environment,
@@ -303,6 +304,7 @@ export async function createGame(db: Database, input: CreateGameInput): Promise<
       await tx.insert(stages).values({
         id: stageId,
         worldId,
+        key: stage.key,
         name: stage.name,
         profile: stage.profile,
         environment: stage.environment,
@@ -330,12 +332,37 @@ export async function createGame(db: Database, input: CreateGameInput): Promise<
         await tx.insert(stageItems).values({
           id: randomUUID(),
           stageId,
+          key: item.key,
           name: item.name,
           description: item.description,
           kind: item.kind,
           count: item.count ?? 1,
           stats: item.stats ?? {},
+          use: item.use ?? null,
         });
+      }
+    }
+
+    // 物品 key 必须全局唯一；行为引用的 stage key 必须存在于本世界。
+    const itemKeys = new Set<string>();
+    const allItems = [
+      ...input.world.stages.flatMap((item) => item.items ?? []),
+      ...input.world.actors.flatMap((actor) => actor.items),
+    ];
+    for (const item of allItems) {
+      if (item.key.trim().length === 0) {
+        throw new GameError("invalid_state", "物品 key 不能为空");
+      }
+      if (itemKeys.has(item.key)) {
+        throw new GameError("invalid_state", `重复的物品 key: ${item.key}`);
+      }
+      itemKeys.add(item.key);
+      const targetStageKey = item.use?.targetStageKey;
+      if (targetStageKey && !stageIds.has(targetStageKey)) {
+        throw new GameError(
+          "invalid_state",
+          `物品 ${item.key} 引用了不存在的 stage key: ${targetStageKey}`,
+        );
       }
     }
 
@@ -380,11 +407,13 @@ export async function createGame(db: Database, input: CreateGameInput): Promise<
         await tx.insert(items).values({
           id: randomUUID(),
           actorId,
+          key: item.key,
           name: item.name,
           description: item.description,
           kind: item.kind,
           count: item.count ?? 1,
           stats: item.stats ?? {},
+          use: item.use ?? null,
         });
       }
 

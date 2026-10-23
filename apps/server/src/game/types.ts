@@ -101,13 +101,42 @@ export type Actor = {
   actions: readonly ActorCapability[];
 };
 
+/** 物品使用行为的目标类型；`any` 表示不限制。 */
+export type ItemUseTarget = "actor" | "stage" | "any";
+
+/** 声明式物品效果；目前只有通关，后续按需增加。 */
+export type CompleteGameEffect = {
+  type: "complete_game";
+  /** 公开的结束文案；支持 {actor} / {item} / {target} 占位。 */
+  message: string;
+  /** 返回给行动者的追加反馈；省略时使用 message。 */
+  result?: string;
+};
+
+export type ItemUseEffect = CompleteGameEffect;
+
+/**
+ * 物品的使用行为。由内容提供，`use` 动作只负责通用校验、事件与效果应用。
+ *
+ * `targetStageKey` 只在目标是场景时生效；使用稳定 key，不用展示名。
+ */
+export type ItemUseDefinition = {
+  target: ItemUseTarget;
+  targetStageKey?: string;
+  effects: readonly ItemUseEffect[];
+};
+
 /** Actor 的初始物品定义；创建后物化为 `items` 或 `stage_items` 行。 */
 export type ItemDefinition = {
+  /** 世界内稳定 key；行为与内容判定用它，不用展示名。 */
+  key: string;
   name: string;
   description: string;
   kind: ItemKind;
   count?: number;
   stats?: ItemStats;
+  /** 该物品被使用时的声明式行为；省略时只有通用使用反馈。 */
+  use?: ItemUseDefinition;
 };
 
 /** `createGame` 的输入；`world` 只在创建时读取，之后以数据库状态为准。 */
@@ -224,10 +253,14 @@ export type StagePlan = {
 /** 所有物品的根状态：只保留身份、分类与数量，不带任何战斗数值。 */
 export type ItemState = {
   id: string;
+  /** 世界内稳定 key；旧数据缺失时由 toItemState 回退到 name。 */
+  key: string;
   name: string;
   description: string;
   kind: ItemKind;
   count: number;
+  /** 使用行为；旧数据或普通物品没有。 */
+  use?: ItemUseDefinition;
 };
 
 /** 带战斗数值的可穿戴物品：武器与装备共用 `stats`。 */
@@ -270,6 +303,8 @@ export type ActorState = {
 
 export type StageState = {
   id: string;
+  /** 世界内稳定 key；旧数据缺失时回退到 name。 */
+  key: string;
   name: string;
   profile: string;
   environment: string;

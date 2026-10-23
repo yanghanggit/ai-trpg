@@ -11,7 +11,13 @@ import {
   vector,
 } from "drizzle-orm/pg-core";
 import type { ActorStats, ItemStats } from "../game/attributes";
-import type { ActorStatus, BaseBody, EquipmentSlots, ItemKind } from "../game/types";
+import type {
+  ActorStatus,
+  BaseBody,
+  EquipmentSlots,
+  ItemKind,
+  ItemUseDefinition,
+} from "../game/types";
 import { EMBEDDING_DIMENSIONS } from "../rag/constants";
 import type { RagMetadata } from "../rag/types";
 
@@ -98,6 +104,8 @@ export const stages = pgTable(
     worldId: uuid("world_id")
       .notNull()
       .references(() => worlds.id, { onDelete: "cascade" }),
+    /** 内容层的稳定 key；旧数据可能为空。 */
+    key: text("key"),
     name: text("name").notNull(),
     profile: text("profile").notNull(),
     environment: text("environment").notNull(),
@@ -154,11 +162,13 @@ export const items = pgTable("items", {
   actorId: uuid("actor_id")
     .notNull()
     .references(() => actors.id, { onDelete: "cascade" }),
+  key: text("key"),
   name: text("name").notNull(),
   description: text("description").notNull(),
   kind: text("kind").$type<ItemKind>().notNull(),
   count: integer("count").notNull().default(1),
   stats: jsonb("stats").$type<ItemStats>().notNull().default({}),
+  use: jsonb("use").$type<ItemUseDefinition>(),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
 
@@ -167,11 +177,13 @@ export const stageItems = pgTable("stage_items", {
   stageId: uuid("stage_id")
     .notNull()
     .references(() => stages.id, { onDelete: "cascade" }),
+  key: text("key"),
   name: text("name").notNull(),
   description: text("description").notNull(),
   kind: text("kind").$type<ItemKind>().notNull(),
   count: integer("count").notNull().default(1),
   stats: jsonb("stats").$type<ItemStats>().notNull().default({}),
+  use: jsonb("use").$type<ItemUseDefinition>(),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
 

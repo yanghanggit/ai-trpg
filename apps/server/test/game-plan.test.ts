@@ -152,6 +152,7 @@ describe("read-only descriptions", () => {
       items: [
         {
           id: "item-1",
+          key: "cracked-blade",
           name: "裂齿短刃",
           description: "刃口崩了三处。",
           kind: "weapon" as const,

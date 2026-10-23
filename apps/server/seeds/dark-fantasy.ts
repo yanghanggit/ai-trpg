@@ -96,6 +96,7 @@ export const DARK_FANTASY_WORLD: World = {
         "焚尸房的墙壁被烟熏成黑色，铁钩上挂着焦黑的布片；炉膛早已冷了，炉门半敞，内壁结着厚厚的灰白余烬。墙角靠着一支浸透松脂的火把，尖端缠着干枯的鼠尾。",
       items: [
         {
+          key: "crematorium-torch",
           name: "武器.焚鼠火把",
           description: "一支浸透松脂的火把，尖端缠着干枯的鼠尾；点燃后火焰会沿着油脂爬满整支木柄。",
           kind: "weapon" as const,
@@ -151,12 +152,25 @@ export const DARK_FANTASY_WORLD: World = {
       },
       items: [
         {
+          key: "gate-key",
           name: "饰品.闸门钥匙",
           description: "一把铸铁的闸门钥匙，柄上刻着修道院的钟形纹；齿纹被磨得很亮。",
           kind: "accessory" as const,
           count: 1,
+          use: {
+            target: "stage",
+            targetStageKey: "gate",
+            effects: [
+              {
+                type: "complete_game",
+                message: "{actor}用{item}打开了{target}，游戏结束。",
+                result: "铁闸门打开了。",
+              },
+            ],
+          },
         },
         {
+          key: "gravedigger-shovel",
           name: "武器.掘墓人的铁锹",
           description: "锹刃磨得发亮，木柄缠着浸过焦油的布条；刃口有干涸的暗色。",
           kind: "weapon" as const,
@@ -164,6 +178,7 @@ export const DARK_FANTASY_WORLD: World = {
           stats: { damage: 6, block: 0 },
         },
         {
+          key: "patched-cloak",
           name: "装备.补丁斗篷",
           description: "厚重的旧呢斗篷，补丁上结着石灰与新土，下摆有一片洗不掉的暗褐血渍。",
           kind: "equipment" as const,
@@ -251,6 +266,7 @@ export const DARK_FANTASY_WORLD: World = {
       },
       items: [
         {
+          key: "yellow-shroud",
           name: "装备.发黄的裹尸布",
           description: "半幅发黄的粗麻裹尸布，布角沾着湿泥与石灰，还留着尸坑的霉味。",
           kind: "equipment" as const,
@@ -258,6 +274,7 @@ export const DARK_FANTASY_WORLD: World = {
           stats: { block: 0 },
         },
         {
+          key: "broken-neck-chain",
           name: "饰品.颈上的断链",
           description: "半截被鼠牙啃过的铁链，断口发亮，仍挂在颈间。",
           kind: "accessory" as const,

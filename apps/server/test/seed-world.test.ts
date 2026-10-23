@@ -45,6 +45,7 @@ describe("dark fantasy seed world", () => {
     );
     expect(stage("crematorium").items?.map((item) => item.name)).toEqual(["武器.焚鼠火把"]);
     expect(stage("crematorium").items?.[0]).toMatchObject({
+      key: "crematorium-torch",
       kind: "weapon",
       count: 1,
       stats: { damage: 250, block: 0 },
@@ -64,8 +65,23 @@ describe("dark fantasy seed world", () => {
       accessory: "饰品.闸门钥匙",
     });
     expect(keeper?.items.find((item) => item.name === "装备.补丁斗篷")).toMatchObject({
+      key: "patched-cloak",
       kind: "equipment",
       stats: { block: 1 },
+    });
+    expect(keeper?.items.find((item) => item.name === "饰品.闸门钥匙")).toMatchObject({
+      key: "gate-key",
+      use: {
+        target: "stage",
+        targetStageKey: "gate",
+        effects: [
+          {
+            type: "complete_game",
+            message: "{actor}用{item}打开了{target}，游戏结束。",
+            result: "铁闸门打开了。",
+          },
+        ],
+      },
     });
     expect(keeper?.baseBody.race).toBe("人类");
     expect(keeper?.status).toBe("alive");

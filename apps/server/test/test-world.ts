@@ -55,6 +55,7 @@ export const TEST_WORLD: World = {
       ],
       items: [
         {
+          key: "cracked-blade",
           name: "裂齿短刃",
           description: "刃口崩了三处，握柄缠着发黑的布条。",
           kind: "weapon" as const,
@@ -74,6 +75,7 @@ export const TEST_WORLD: World = {
       actions: ["say", "whisper", "announce", "move", "wait", "attack", "give", "pickup", "use"],
       items: [
         {
+          key: "lead-lantern",
           name: "铅封提灯",
           description: "灯罩外缠着三道铅封。",
           kind: "equipment" as const,
@@ -93,6 +95,7 @@ export const TEST_WORLD: World = {
       actions: ["say", "whisper", "announce", "move", "wait", "attack", "give", "pickup", "use"],
       items: [
         {
+          key: "blank-scripture",
           name: "无字经页",
           description: "纸面空白，边缘却密密写着被擦去的指印。",
           kind: "equipment" as const,

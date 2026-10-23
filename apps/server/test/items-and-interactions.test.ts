@@ -1,5 +1,6 @@
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { DEMO_USER } from "../seeds/dark-fantasy";
+import type { World } from "../src/game/types";
 import { TEST_WORLD } from "./test-world";
 import "../src/db/env";
 import { type DatabaseHandle, openDatabase } from "../src/db/connect";
@@ -17,7 +18,9 @@ import {
   playerUse,
   takeActorControl,
 } from "../src/game";
-import { GATE_KEY_NAME, GATE_STAGE_NAME } from "../src/game/actions/use";
+
+const SEALED_STAGE_NAME = "场景.封印门";
+const SEALED_KEY_NAME = "饰品.测试钥匙";
 
 const testDatabaseUrl = process.env.TEST_DATABASE_URL?.trim();
 
@@ -29,11 +32,42 @@ const ITEM_WORLD = {
           ...stage,
           items: [
             {
+              key: "test-torch",
               name: "武器.测试火把",
               description: "测试用的场景武器。",
               kind: "weapon" as const,
               count: 1,
               stats: { damage: 7, block: 1 },
+            },
+          ],
+        }
+      : stage,
+  ),
+};
+
+const STAGE_ITEM_USE_WORLD: World = {
+  ...TEST_WORLD,
+  stages: TEST_WORLD.stages.map((stage) =>
+    stage.key === "gate"
+      ? {
+          ...stage,
+          items: [
+            {
+              key: "stage-gate-key",
+              name: "测试门钥",
+              description: "放在场景中的测试钥匙。",
+              kind: "accessory" as const,
+              use: {
+                target: "stage",
+                targetStageKey: "gate",
+                effects: [
+                  {
+                    type: "complete_game",
+                    message: "{actor}用{item}打开了{target}，测试结束。",
+                    result: "门开了。",
+                  },
+                ],
+              },
             },
           ],
         }
@@ -61,13 +95,13 @@ const WEAPON_WORLD = {
   ),
 };
 
-const SEALED_WORLD = {
+const SEALED_WORLD: World = {
   ...TEST_WORLD,
   stages: [
     GATE_STAGE,
     {
       key: "sealed-gate",
-      name: GATE_STAGE_NAME,
+      name: SEALED_STAGE_NAME,
       profile: "测试用铁闸门。",
       actions: ["submit_environment"] as const,
       environment: "门板上刻着鼠牙。",
@@ -83,9 +117,21 @@ const SEALED_WORLD = {
       stageKey: "gate",
       items: [
         {
-          name: GATE_KEY_NAME,
+          key: "sealed-key",
+          name: SEALED_KEY_NAME,
           description: "测试用闸门钥匙。",
           kind: "accessory" as const,
+          use: {
+            target: "stage",
+            targetStageKey: "sealed-gate",
+            effects: [
+              {
+                type: "complete_game",
+                message: "{actor}用{item}打开了{target}，测试结束。",
+                result: "封印门打开了。",
+              },
+            ],
+          },
         },
       ],
     },
@@ -225,7 +271,39 @@ describe.skipIf(!testDatabaseUrl)("items and interactions", () => {
     const keeper = gate?.actors.find((actor) => actor.name === "守烬人");
     expect(gate?.items).toEqual([]);
     const torch = keeper?.items.find((item) => item.name === "武器.测试火把");
-    expect(torch).toMatchObject({ count: 1, stats: { damage: 7, block: 1 } });
+    expect(torch).toMatchObject({
+      key: "test-torch",
+      count: 1,
+      stats: { damage: 7, block: 1 },
+    });
+  });
+
+  it("keeps item behavior when a stage item is picked up", async () => {
+    const created = await createGame(handle.db, {
+      username: DEMO_USER.username,
+      name: "场景物品行为测试局",
+      world: STAGE_ITEM_USE_WORLD,
+    });
+    await takeActorControl(handle.db, created.game.slug, "守烬人");
+
+    await playerPickup(handle.db, created.game.slug, "守烬人", {
+      itemName: "测试门钥",
+    });
+    const state = await getGameState(handle.db, created.game.slug);
+    const keeper = state.world.stages
+      .flatMap((stage) => stage.actors)
+      .find((actor) => actor.name === "守烬人");
+    expect(keeper?.items.find((item) => item.name === "测试门钥")).toMatchObject({
+      key: "stage-gate-key",
+      use: { target: "stage", targetStageKey: "gate" },
+    });
+
+    const used = await playerUse(handle.db, created.game.slug, "守烬人", {
+      itemName: "测试门钥",
+      targetStageName: "灰烬门廊",
+    });
+    expect(used.ok).toBe(true);
+    expect((await getGameState(handle.db, created.game.slug)).game.status).toBe("completed");
   });
 
   it("completes the game by using the key on the sealed gate", async () => {
@@ -236,18 +314,28 @@ describe.skipIf(!testDatabaseUrl)("items and interactions", () => {
     });
     await takeActorControl(handle.db, created.game.slug, "守烬人");
     await playerMove(handle.db, created.game.slug, "守烬人", {
-      targetStageName: GATE_STAGE_NAME,
+      targetStageName: SEALED_STAGE_NAME,
     });
 
+    await expect(
+      playerUse(handle.db, created.game.slug, "守烬人", {
+        targetActorName: "守烬人",
+        itemName: SEALED_KEY_NAME,
+      }),
+    ).rejects.toThrow("不能用于这个目标");
+
     const used = await playerUse(handle.db, created.game.slug, "守烬人", {
-      targetStageName: GATE_STAGE_NAME,
-      itemName: GATE_KEY_NAME,
+      targetStageName: SEALED_STAGE_NAME,
+      itemName: SEALED_KEY_NAME,
     });
     expect(used.ok).toBe(true);
 
     const state = await getGameState(handle.db, created.game.slug);
     expect(state.game.status).toBe("completed");
-    expect(state.messages.some((message) => message.kind === "game_completed")).toBe(true);
+    expect(state.messages.find((message) => message.kind === "game_completed")?.content).toContain(
+      "测试结束",
+    );
+    expect(used).toMatchObject({ ok: true });
     await expect(
       playerMove(handle.db, created.game.slug, "守烬人", {
         targetStageName: "场景.灰烬门廊",
