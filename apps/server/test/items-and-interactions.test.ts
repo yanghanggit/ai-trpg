@@ -70,6 +70,7 @@ const SEALED_WORLD = {
       key: "sealed-gate",
       name: "场景.封骨之门",
       profile: "测试用封骨之门。",
+      actions: ["submit_environment"] as const,
       environment: "门板上刻着鼠牙。",
     },
   ],
@@ -155,25 +156,6 @@ describe.skipIf(!testDatabaseUrl)("items and interactions", () => {
         itemName: "裂齿短刃",
       }),
     ).rejects.toThrow("不能使用动作: steal");
-  });
-
-  it("lets a stage further restrict the actor actions", async () => {
-    const restrictedWorld = {
-      ...ITEM_WORLD,
-      stages: ITEM_WORLD.stages.map((stage) =>
-        stage.key === "gate" ? { ...stage, actions: ["say", "wait"] as const } : stage,
-      ),
-    };
-    const created = await createGame(handle.db, {
-      username: DEMO_USER.username,
-      name: "场景限制测试局",
-      world: restrictedWorld,
-    });
-    await takeActorControl(handle.db, created.game.slug, "守烬人");
-
-    await expect(
-      playerAttack(handle.db, created.game.slug, "守烬人", { targetActorName: "提灯修士" }),
-    ).rejects.toThrow("当前场景不允许动作: attack");
   });
 
   it("adds weapon damage but uses target defense as the only block", async () => {

@@ -16,6 +16,17 @@
 - agent loop 与 provider 解耦：循环只依赖 `ChatCompletionService`，工具定义与 handler 由调用方注入；终止工具、纠偏重试与历史边界属于编排层。循环层不判断工具能否并发：由 LLM 决定一次返回多个 `tool_calls` 还是分多轮对话，循环按返回顺序串行执行，保证状态变更顺序确定。
 - 内部字段 camelCase，snake_case 只存在于 DeepSeek wire 边界，避免 provider 命名扩散到业务层。
 
+## Prompt 分层
+
+system prompt 是**宪法与索引**：实体身份、世界设定、全局规则。它进入长期 memory、不参与 compact，因此只写稳定且必须永远成立的内容，不写执行细节，也不写本轮任务。
+
+执行细节向后推：
+
+- **任务提示词**（每轮 `inputMessage` / observation）：本轮可见事实、当前状态、本轮目标；
+- **工具描述**（`tool.function.description` 与参数说明）：动作的规则与约束。工具随每次请求下发，等于变相的任务提示词，所以“怎么提交 environment”这类细则写在 `submit_environment` 的描述里，而不是 system prompt。
+
+判断标准：内容一变再变、只对某类动作生效、或者只对本轮生效，就不该进 system prompt。
+
 ## 与参考实现的差异
 
 参考实现是 `ai-rpg` 的 Python 版，整体分层值得保留；TS 版有意修正了以下问题：

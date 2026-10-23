@@ -6,6 +6,7 @@ import { type DatabaseHandle, openDatabase } from "../src/db/connect";
 import { resetDomainData, seedDemoData } from "../src/db/maintenance";
 import { runMigrations } from "../src/db/migrate";
 import {
+  applyStagePlan,
   createGame,
   getGameMemories,
   playerMove,
@@ -162,6 +163,38 @@ describe.skipIf(!testDatabaseUrl)("stage mini-GM", () => {
     const capturing = new CapturingWaitService();
     await runNpcTurn(handle.db, slug, "提灯修士", { service: capturing });
     expect(capturing.inputMessage).toContain(environment);
+  });
+
+  it("rejects an environment update when the stage lacks the capability", async () => {
+    const world = {
+      ...TEST_WORLD,
+      stages: TEST_WORLD.stages.map((stage) =>
+        stage.key === "gate" ? { ...stage, actions: [] as const } : stage,
+      ),
+    };
+    const created = await createGame(handle.db, {
+      username: DEMO_USER.username,
+      name: "场景能力缺失测试局",
+      world,
+    });
+    const stage = created.world.stages.find((item) => item.name === "灰烬门廊");
+    expect(stage).toBeDefined();
+
+    const ok = await applyStagePlan(
+      handle.db,
+      created.game.id,
+      stage?.id as string,
+      { environment: "无人的门廊，风停在石阶上。" },
+      [],
+      true,
+    );
+    expect(ok).toBe(false);
+
+    const memories = await getGameMemories(handle.db, created.game.id);
+    const gate = memories.find((memory) => memory.name === "灰烬门廊");
+    expect(
+      gate?.messages.some((message) => message.content.includes("没有 submit_environment 能力")),
+    ).toBe(true);
   });
 
   it("rejects an environment that names an actor in the scene", async () => {

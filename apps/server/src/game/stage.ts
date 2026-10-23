@@ -20,7 +20,14 @@ import {
   parseEnvironment,
 } from "./plan";
 import { getGameState } from "./service";
-import type { GameState, StagePlan, StageState, StageTurnResult } from "./types";
+import { canSubmitEnvironment } from "./stage-actions";
+import type {
+  GameState,
+  StageActionKind,
+  StagePlan,
+  StageState,
+  StageTurnResult,
+} from "./types";
 
 type StageActorRow = typeof actors.$inferSelect;
 
@@ -33,36 +40,40 @@ export type StageTurnOptions = {
 /** 构造 stage 小 GM 本轮的当前场景观察；仲裁与探针共用。 */
 export function buildStageObservation(state: GameState, stage: StageState): string {
   const moves = adjacentStageNames(state, stage.id);
-  return [
-    "# 当前场景",
-    `## 场景\n${stage.name}\n${stage.profile}`,
-    `## 当前环境\n${stage.environment}`,
-    `## 同场景角色\n${
-      stage.actors.length === 0
-        ? "无"
-        : stage.actors
-            .map((actor) => `${actor.name}：${actor.appearance}${actor.death ? "（已死亡）" : ""}`)
-            .join("\n")
-    }`,
-    `## 场景物品\n${
-      stage.items.length === 0
-        ? "无"
-        : stage.items.map((item) => `${item.name}（${item.kind}）：${item.description}`).join("\n")
-    }`,
-    `## 可去场景\n${moves.length === 0 ? "无" : moves.join("、")}`,
-    "# 本轮任务",
-    "你是本场景的小 GM。根据当前环境、自己的记忆和场景内发生的事件，判断环境是否发生变化。",
-    "当前环境与 ## 场景物品 是当前事实；初始叙事可能已经过时，只能作为背景参考。",
-    "当前只能更新 environment：提交完整的新环境快照，而不是只描述变化。",
-    "environment 必须是客观的当前快照：只写现在能直接观察到的状态，不写历史、因果、变化过程，也不写对过去的推断。",
-    "## 场景物品 是 environment 中唯一允许出现的物品清单；仍在场景中的物品要保留描述，物品不在场景中时直接省略，不要写它曾经存在、消失、被拿走，或描述它留下的空位、印子、痕迹、碎屑等历史线索。",
-    "记忆中的“拾取、使用、拿走某物”只说明它曾被处理过，不代表它现在仍在场景中；即使记忆提到它，只要 ## 场景物品 没有它，就不要把它写进 environment。",
-    "不要为了让环境看起来连续而补写“原来”“曾经”“留下”“留着”“不见了”“消失”“被拿走”之类内容；记忆只用于判断当前状态，不把历史写进 environment。",
-    "不要用“痕迹、渍痕、污渍、残留、碎屑、空位、印子、缺口”等词暗示物品曾经存在或发生过变化；只写当前可见的稳定状态。",
-    "environment 不能包含角色名称、角色行动或角色状态；角色由场景状态单独承载。",
-    "不要替角色行动，不要修改角色属性、物品、位置或其他场景。",
-    "需要查看场景或同场景角色时，使用 look_stage / get_actor；最后调用 submit_environment。",
-  ].join("\n\n");
+  const actorLines =
+    stage.actors.length === 0
+      ? "无"
+      : stage.actors
+          .map((actor) => `${actor.name}：${actor.appearance}${actor.death ? "（已死亡）" : ""}`)
+          .join("\n");
+  const itemLines =
+    stage.items.length === 0
+      ? "无"
+      : stage.items.map((item) => `${item.name}（${item.kind}）：${item.description}`).join("\n");
+  const moveLines = moves.length === 0 ? "无" : moves.join("、");
+
+  return `# 当前场景
+
+## 场景
+${stage.name}
+${stage.profile}
+
+## 当前环境
+${stage.environment}
+
+## 同场景角色
+${actorLines}
+
+## 场景物品
+${itemLines}
+
+## 可去场景
+${moveLines}
+
+# 本轮任务
+
+你是本场景的小 GM，只能看到本场景的事件与记忆。根据当前环境与本场景记忆，判断并提交更新后的完整 environment。
+细节规则见 submit_environment 的工具说明；需要更多信息时使用 look_stage / get_actor。`;
 }
 
 function assertEnvironmentHasNoActorNames(
@@ -114,6 +125,18 @@ export async function applyStagePlan(
       throw new GameError("invalid_state", `stage 缺少 memory: ${stage.id}`);
     }
     const stageActors = await tx.select().from(actors).where(eq(actors.stageId, stage.id));
+
+    if (plan && !canSubmitEnvironment(stage.actions as unknown as StageActionKind[])) {
+      await appendMemoryMessages(tx, memory.row.id, [
+        ...newMessages,
+        {
+          type: "human",
+          content: "# 仲裁结果\n环境更新被拒绝：本场景没有 submit_environment 能力。",
+          metadata: { kind: MEMORY_KINDS.actionRejected },
+        },
+      ]);
+      return false;
+    }
 
     if (!plan) {
       await appendMemoryMessages(tx, memory.row.id, [
@@ -190,6 +213,7 @@ export async function runStageTurn(
 
   const lookTool = buildStageLookTool(stage.name);
   const actorInfoTool = buildActorInfoTool(stage.actors.map((actor) => actor.name));
+  const canSubmit = canSubmitEnvironment(stage.actions);
   const submitTool = buildSubmitEnvironmentTool();
   let submitted: StagePlan | null = null;
 
@@ -197,7 +221,7 @@ export async function runStageTurn(
     name: stage.name,
     inputMessage: buildStageObservation(state, stage),
     messages: memory.messages,
-    tools: [lookTool, actorInfoTool, submitTool],
+    tools: [lookTool, actorInfoTool, ...(canSubmit ? [submitTool] : [])],
     handlers: {
       [lookTool.function.name]: (args) => {
         const stageName = typeof args.stageName === "string" ? args.stageName : "";
@@ -212,15 +236,19 @@ export async function runStageTurn(
         }
         return describeActor(target);
       },
-      [submitTool.function.name]: (args) => {
-        if (submitted) {
-          throw new GameError("invalid_action", "环境已提交");
-        }
-        submitted = { environment: parseEnvironment(args) };
-        return "环境更新已提交";
-      },
+      ...(canSubmit
+        ? {
+            [submitTool.function.name]: (args: Record<string, unknown>) => {
+              if (submitted) {
+                throw new GameError("invalid_action", "环境已提交");
+              }
+              submitted = { environment: parseEnvironment(args) };
+              return "环境更新已提交";
+            },
+          }
+        : {}),
     },
-    terminalTools: [submitTool],
+    terminalTools: canSubmit ? [submitTool] : [],
     service: options.service,
     maxRounds: options.maxRounds ?? DEFAULT_NPC_MAX_ROUNDS,
     loopId: randomUUID(),

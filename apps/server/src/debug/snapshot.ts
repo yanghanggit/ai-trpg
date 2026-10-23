@@ -9,10 +9,10 @@
  */
 
 import { randomUUID } from "node:crypto";
-import { existsSync } from "node:fs";
 import { lstat, mkdir, readdir, readFile, rename, rm, writeFile } from "node:fs/promises";
 import { dirname, join, resolve } from "node:path";
 import { z } from "zod";
+import { findRepoRoot } from "./paths";
 
 export const SNAPSHOT_SCHEMA_VERSION = 1;
 
@@ -129,35 +129,7 @@ function pad(value: number, length = 2): string {
 
 /** 本地时间戳；同一毫秒内重复创建会显式失败，而不是覆盖旧快照。 */
 export function formatSnapshotId(date = new Date()): string {
-  return [
-    date.getFullYear(),
-    "-",
-    pad(date.getMonth() + 1),
-    "-",
-    pad(date.getDate()),
-    "_",
-    pad(date.getHours()),
-    "-",
-    pad(date.getMinutes()),
-    "-",
-    pad(date.getSeconds()),
-    "-",
-    pad(date.getMilliseconds(), 3),
-  ].join("");
-}
-
-function findRepoRoot(start = process.cwd()): string {
-  let current = resolve(start);
-  while (true) {
-    if (existsSync(join(current, "pnpm-workspace.yaml"))) {
-      return current;
-    }
-    const parent = dirname(current);
-    if (parent === current) {
-      return resolve(start);
-    }
-    current = parent;
-  }
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}_${pad(date.getHours())}-${pad(date.getMinutes())}-${pad(date.getSeconds())}-${pad(date.getMilliseconds(), 3)}`;
 }
 
 export function snapshotsRoot(root?: string): string {

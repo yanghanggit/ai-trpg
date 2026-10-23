@@ -28,8 +28,8 @@ export type Stage = {
   environment: string;
   /** 暂放在场景中的物品；目前只物化为只读场景内容，拾取尚未实现。 */
   items?: readonly Item[];
-  /** 场景额外允许的动作；省略或空数组表示不额外限制，以 actor 的 actions 为准。 */
-  actions?: readonly ActionKind[];
+  /** 场景自身的能力清单；必须显式列出，目前只有 submit_environment。 */
+  actions: readonly StageActionKind[];
 };
 
 /** 场景图的初始有向连接；两端引用 `Stage.key`。 */
@@ -169,6 +169,9 @@ export type ActorAction =
 
 export type ActionKind = ActorAction["kind"];
 
+/** 场景作为小 GM 能执行的动作；当前只有提交 environment。 */
+export type StageActionKind = "submit_environment";
+
 /** 一轮计划：按提交顺序执行的动作列表；条数上限由 `MAX_ACTIONS_PER_TURN` 约束。 */
 export type ActorPlan = {
   actions: ActorAction[];
@@ -213,7 +216,7 @@ export type StageState = {
   ordinal: number;
   actors: ActorState[];
   items: ItemState[];
-  actions: readonly ActionKind[];
+  actions: readonly StageActionKind[];
 };
 
 export type ConnectionState = {

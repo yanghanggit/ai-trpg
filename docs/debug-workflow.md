@@ -31,7 +31,23 @@
 - `player-attack --game <id|slug> --actor <actorId|actorName> --target <actorName> [--item <itemName>]`：以被接管 actor 的身份直接攻击同场景目标，可指定武器；不调用 LLM。
 - `snapshot --game <id|slug>`：把当前状态与每个 actor/stage 的 memory 导出为只读快照。
 
-NPC 回合由 agent loop 驱动：先读取环境与私有 memory，再通过工具决定行动。`look_stage`、`get_stats`、`get_items`、`get_actor` 是只读 GET，可多次调用；`get_actor` 只能查看同场景角色；`look_stage` 会显示场景中的 `stage_items`；工具按模型返回顺序串行执行；十个动作工具 `say` / `whisper` / `announce` / `move` / `wait` / `attack` / `steal` / `give` / `pickup` / `use` 各自只接收自己的参数，且只暴露给被允许的角色（见 `actors.actions` / `stages.actions`）；一轮最多两个动作，不分类互斥，按调用顺序保留；`submit_plan` 是终止工具，handler 只收集计划，不写数据库。loop 结束后服务层在事务中按顺序校验并应用全部动作。`say` 是有目标公开说话，向当前 stage 广播；`announce` 是无目标公开说话；`whisper` 必须指定单个 `targetActorName`，只有发起者与目标进入 memory；`attack` 伤害为攻击者 `attack` 加所选武器 `damage`，减去目标 `defense`，最低 0；空手时只读 actor 的 `attack` 与目标 `defense`；目标物品 block 与发起者物品 block 当前都不参与伤害；目标 HP 归零后 `death=true`，不能再执行 loop。`game_messages` 用 `visibility` 区分公开与私密。
+## 运行时 system prompt 导出
+
+每次 `agent:game create` 建局成功后，服务层会把本局**实际使用的** system prompt 写到仓库根目录的 `prompts/` 下（该目录被 `.gitignore` 忽略）：
+
+```text
+prompts/<YYYYMMDD_HHmmss>_<world 名>/
+  world.md                # 世界级设定与全局规则（actor/stage prompt 的公共部分）
+  actors/<角色名>.md       # 该 actor 的完整 system prompt
+  stages/<场景名>.md       # 该 stage 小 GM 的完整 system prompt
+```
+
+- 同一秒建两局时，第二个容器追加 `_2`、`_3`，不会互相覆盖。
+- 默认只在非测试环境落盘；测试进程设置了 `PROMPTS_DIR` 时仍会导出。
+- `PROMPTS_DIR` 可以覆盖根目录（例如导出到临时目录）。
+- 导出失败只打印告警，不影响建局；数据库仍是唯一权威状态。
+
+NPC 回合由 agent loop 驱动：先读取环境与私有 memory，再通过工具决定行动。`look_stage`、`get_stats`、`get_items`、`get_actor` 是只读 GET，可多次调用；`get_actor` 只能查看同场景角色；`look_stage` 会显示场景中的 `stage_items`；工具按模型返回顺序串行执行；十个动作工具 `say` / `whisper` / `announce` / `move` / `wait` / `attack` / `steal` / `give` / `pickup` / `use` 各自只接收自己的参数，且只暴露给被允许的角色（见 `actors.actions`）；一轮最多两个动作，不分类互斥，按调用顺序保留；`submit_plan` 是终止工具，handler 只收集计划，不写数据库。loop 结束后服务层在事务中按顺序校验并应用全部动作。`say` 是有目标公开说话，向当前 stage 广播；`announce` 是无目标公开说话；`whisper` 必须指定单个 `targetActorName`，只有发起者与目标进入 memory；`attack` 伤害为攻击者 `attack` 加所选武器 `damage`，减去目标 `defense`，最低 0；空手时只读 actor 的 `attack` 与目标 `defense`；目标物品 block 与发起者物品 block 当前都不参与伤害；目标 HP 归零后 `death=true`，不能再执行 loop。`game_messages` 用 `visibility` 区分公开与私密。
 
 它不需要启动 HTTP 服务端，但需要 `DATABASE_URL` 与 `DEEPSEEK_API_KEY`。`agent:game status` 不调用 LLM，可用于观察当前状态。
 

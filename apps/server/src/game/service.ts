@@ -13,6 +13,7 @@ import {
   users,
   worlds,
 } from "../db/schema";
+import { dumpSystemPrompts } from "../debug/prompt-dump";
 import { GameError } from "./errors";
 import {
   buildActorSystemPrompt,
@@ -31,6 +32,7 @@ import type {
   MessageState,
   MessageVisibility,
   PlayerState,
+  StageActionKind,
   StageState,
 } from "./types";
 
@@ -204,7 +206,7 @@ export async function getGameState(db: Database, ref: string): Promise<GameState
     ordinal: stage.ordinal,
     actors: actorsByStage.get(stage.id) ?? [],
     items: itemsByStage.get(stage.id) ?? [],
-    actions: stage.actions as unknown as ActionKind[],
+    actions: stage.actions as unknown as StageActionKind[],
   }));
 
   const connections: ConnectionState[] = connectionRows.map((connection) => ({
@@ -269,6 +271,10 @@ export async function createGame(db: Database, input: CreateGameInput): Promise<
   }
   const slug = requestedSlug ? baseSlug : `${baseSlug || "game"}-${gameId.slice(0, 8)}`;
 
+  // 建局时收集最终 system prompt，事务提交后导出为人类可读的 md。
+  const stagePrompts: { name: string; prompt: string }[] = [];
+  const actorPrompts: { name: string; prompt: string }[] = [];
+
   await db.transaction(async (tx) => {
     const [user] = await tx.select().from(users).where(eq(users.username, input.username)).limit(1);
     if (!user) {
@@ -320,18 +326,20 @@ export async function createGame(db: Database, input: CreateGameInput): Promise<
         ordinal,
       });
 
+      const stagePrompt = buildStageSystemPrompt(
+        {
+          name: input.world.worldName,
+          campaignSetting: input.world.campaignSetting,
+          systemRules: input.world.systemRules,
+        },
+        stage,
+      );
+      stagePrompts.push({ name: stage.name, prompt: stagePrompt });
       await createStageMemory(
         tx,
         gameId,
         { id: stageId, name: stage.name, profile: stage.profile },
-        buildStageSystemPrompt(
-          {
-            name: input.world.worldName,
-            campaignSetting: input.world.campaignSetting,
-            systemRules: input.world.systemRules,
-          },
-          stage,
-        ),
+        stagePrompt,
       );
 
       for (const item of stage.items ?? []) {
@@ -400,19 +408,21 @@ export async function createGame(db: Database, input: CreateGameInput): Promise<
         });
       }
 
+      const actorPrompt = buildActorSystemPrompt(
+        {
+          id: worldId,
+          name: input.world.worldName,
+          campaignSetting: input.world.campaignSetting,
+          systemRules: input.world.systemRules,
+        },
+        actor,
+      );
+      actorPrompts.push({ name: actor.name, prompt: actorPrompt });
       await createActorMemory(
         tx,
         gameId,
         { id: actorId, name: actor.name, profile: actor.profile, appearance: actor.appearance },
-        buildActorSystemPrompt(
-          {
-            id: worldId,
-            name: input.world.worldName,
-            campaignSetting: input.world.campaignSetting,
-            systemRules: input.world.systemRules,
-          },
-          actor,
-        ),
+        actorPrompt,
       );
     }
 
@@ -446,6 +456,17 @@ export async function createGame(db: Database, input: CreateGameInput): Promise<
         );
       }
     }
+  });
+
+  await dumpSystemPrompts({
+    world: {
+      name: input.world.worldName,
+      contentVersion: input.world.contentVersion,
+      campaignSetting: input.world.campaignSetting,
+      systemRules: input.world.systemRules,
+    },
+    stagePrompts,
+    actorPrompts,
   });
 
   return getGameState(db, gameId);

@@ -28,12 +28,7 @@ export async function resolvePlan(
 
   const actorActions = actorRow.actor.actions as unknown as ActionKind[];
   for (const action of plan.actions) {
-    assertActionAllowed(
-      actorActions,
-      stage.actions as unknown as ActionKind[],
-      action.kind,
-      actorRow.actor.name,
-    );
+    assertActionAllowed(actorActions, action.kind, actorRow.actor.name);
     switch (action.kind) {
       case "say":
         resolved.push(await resolveSay(executor, stage, actorRow.actor.id, action));

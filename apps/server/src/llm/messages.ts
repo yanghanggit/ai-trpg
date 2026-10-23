@@ -15,10 +15,9 @@ function formatToolCalls(toolCalls: readonly ToolCall[] | undefined): string {
   if (!toolCalls || toolCalls.length === 0) {
     return "";
   }
-  return [
-    "[tool_calls]",
-    ...toolCalls.map((tc) => `  ↳ ${tc.function.name}(${tc.function.arguments})`),
-  ].join("\n");
+  const lines = toolCalls.map((tc) => `  ↳ ${tc.function.name}(${tc.function.arguments})`);
+  return `[tool_calls]
+${lines.join("\n")}`;
 }
 
 /** 把消息序列转换为单一字符串（用于调试、日志或 prompt 拼接）。 */

@@ -110,17 +110,7 @@ function warnEnvSuppressed(logger: LlmLogger): void {
 
 function timestamp(date = new Date()): string {
   const pad = (value: number, length = 2): string => String(value).padStart(length, "0");
-  return [
-    date.getFullYear(),
-    pad(date.getMonth() + 1),
-    pad(date.getDate()),
-    "_",
-    pad(date.getHours()),
-    pad(date.getMinutes()),
-    pad(date.getSeconds()),
-    "_",
-    pad(date.getMilliseconds(), 3),
-  ].join("");
+  return `${date.getFullYear()}${pad(date.getMonth() + 1)}${pad(date.getDate())}_${pad(date.getHours())}${pad(date.getMinutes())}${pad(date.getSeconds())}_${pad(date.getMilliseconds(), 3)}`;
 }
 
 function safeLabel(label: string): string {

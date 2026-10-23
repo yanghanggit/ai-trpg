@@ -29,28 +29,18 @@ export const ACTION_SUMMARIES: Record<ActionKind, string> = {
   use: "用自己的物品作用于角色或场景",
 };
 
-/** 角色与场景共同允许的动作：actor 必须列出，场景非空时进一步收窄。 */
-export function allowedActionKinds(
-  actorActions: readonly ActionKind[],
-  stageActions: readonly ActionKind[],
-): ActionKind[] {
-  if (stageActions.length === 0) {
-    return [...actorActions];
-  }
-  return actorActions.filter((kind) => stageActions.includes(kind));
+/** 角色可用的动作：完全由 actor 自己的 actions 决定。 */
+export function allowedActionKinds(actorActions: readonly ActionKind[]): ActionKind[] {
+  return [...actorActions];
 }
 
-/** 结算前的权威校验：actor 必须拥有该动作，场景非空时还必须允许。 */
+/** 结算前的权威校验：actor 必须拥有该动作。 */
 export function assertActionAllowed(
   actorActions: readonly ActionKind[],
-  stageActions: readonly ActionKind[],
   kind: ActionKind,
   actorName: string,
 ): void {
   if (!actorActions.includes(kind)) {
     throw new GameError("invalid_action", `角色 ${actorName} 不能使用动作: ${kind}`);
-  }
-  if (stageActions.length > 0 && !stageActions.includes(kind)) {
-    throw new GameError("invalid_action", `当前场景不允许动作: ${kind}`);
   }
 }

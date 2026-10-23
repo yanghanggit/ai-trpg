@@ -27,6 +27,10 @@ screenshots/*
 **/logs/*
 !**/logs/.gitkeep
 
+# 运行时 system prompt 导出（保留目录占位）
+**/prompts/*
+!**/prompts/.gitkeep
+
 # 日志
 *.log
 npm-debug.log*

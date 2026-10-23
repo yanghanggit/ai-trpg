@@ -79,64 +79,52 @@ function toRow(memoryId: string, sequence: number, message: ChatMessage) {
   return { ...base, toolCalls: null, toolCallId: null };
 }
 
-/** 构造 actor 的稳定 system prompt（世界设定、角色与规则）。 */
+/** 构造 actor 的稳定 system prompt：实体标题、游戏设定、角色设定与全局规则。 */
 export function buildActorSystemPrompt(
   world: { id: string; name: string; campaignSetting: string; systemRules: string },
   actor: Pick<Actor, "name" | "profile" | "appearance">,
 ): string {
-  return [
-    "# 游戏设定",
-    world.campaignSetting,
-    "",
-    "# 你的角色",
-    `你是${actor.name}。`,
-    actor.profile,
-    `外观：${actor.appearance}`,
-    "",
-    "# 全局规则",
-    world.systemRules,
-    "",
-    "# 行动方式",
-    "你是一个自主行动的 NPC。每轮根据当前环境、自己的记忆与目标决定行动，并通过工具提交计划。",
-  ].join("\n");
+  return `# ${actor.name}
+
+你扮演角色: ${actor.name}
+
+## 游戏设定
+
+${world.campaignSetting}
+
+## 角色设定
+
+${actor.profile}
+
+### 基础体型
+
+${actor.appearance}
+
+## 全局规则
+
+${world.systemRules}`;
 }
 
-/** 构造场景作为小 GM 的稳定 system prompt（世界设定、场景定位与职责）。 */
+/** 构造场景作为小 GM 的稳定 system prompt：实体标题、游戏设定、场景设定与职责。 */
 export function buildStageSystemPrompt(
   world: { name: string; campaignSetting: string; systemRules: string },
   stage: Pick<Stage, "name" | "profile">,
 ): string {
-  return [
-    "# 游戏设定",
-    world.campaignSetting,
-    "",
-    "# 你的场景",
-    `你是${stage.name}。`,
-    stage.profile,
-    "",
-    "# 全局规则",
-    world.systemRules,
-    "",
-    "# 你的身份",
-    "你是一个活着的场景实体，不是场景中的角色，也不是完整 GM。",
-    "你有自己的记忆与生命周期，会持续记得本场景发生过的事件。",
-    "你是本场景的小 GM，只负责仲裁和改变这个场景本身。",
-    "",
-    "# 你的记忆",
-    "你能看到本场景内发生的一切事件，包括公开与私密沟通、角色进入与离开、所有技能结果、等待与死亡。",
-    "你不能看到其他场景的事件。",
-    "",
-    "# 你的能力",
-    "当前你只能更新 environment。",
-    "environment 是场景当前的身体状态，只描述当前可观察的环境、物体、表面状态、光线、气味与氛围。",
-    "environment 必须与当前场景物品保持一致：仍在场景中的物品应被描述；物品不在场景中时直接省略，不写它曾经存在、消失、被拿走或留下空位与痕迹。",
-    "environment 是客观的当前快照，不是叙事或历史记录；不写变化过程、原因、结果或暗示过去的细节。",
-    "不要使用“痕迹、渍痕、污渍、残留、碎屑、空位、印子、缺口、原来、曾经、留下、消失”等历史线索词。",
-    "当前场景物品清单是 environment 中唯一允许出现的物品来源；记忆里提到某物，不代表它现在仍在场景中。",
-    "environment 不能包含角色名称、角色行动或角色状态；角色由场景状态单独承载。",
-    "不要替角色行动，不要修改角色的属性、物品或位置。",
-    "未来会增加更多场景能力；当前只提交 environment。",
-  ].join("\n");
+  return `# ${stage.name}
+
+你扮演场景: ${stage.name}
+
+## 游戏设定
+
+${world.campaignSetting}
+
+## 场景设定
+
+${stage.profile}
+
+## 全局规则
+
+${world.systemRules}`;
 }
 
 /** 创建 memory 并写入 system prompt。 */

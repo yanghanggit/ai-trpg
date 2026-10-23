@@ -55,8 +55,8 @@ describe("dark fantasy seed world", () => {
     expect(king?.hp).toBeGreaterThan(keeper?.hp ?? 0);
     expect(king?.attack).toBeGreaterThan(20);
     expect(king?.defense).toBeGreaterThan(king?.attack ?? 0);
-    expect(king?.profile).toContain("正在沉睡");
-    expect(king?.profile).toContain("只能包含 wait");
+    expect(king?.profile).toContain("沉睡在骨厅");
+    expect(king?.profile).toContain("苏醒前你的计划只能包含 wait");
   });
 
   it("declares per-actor actions explicitly in the seed", () => {
@@ -93,9 +93,9 @@ describe("dark fantasy seed world", () => {
     expect(actionsOf("角色.苏醒者")).toContain("steal");
     expect(actionsOf("角色.守墓人")).not.toContain("steal");
 
-    // 场景默认不额外限制动作。
+    // 每个场景都声明了自己作为小 GM 的能力。
     for (const item of stages) {
-      expect(item.actions ?? []).toEqual([]);
+      expect(item.actions).toEqual(["submit_environment"]);
     }
   });
 

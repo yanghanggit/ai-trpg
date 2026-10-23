@@ -51,32 +51,51 @@ export function buildActorObservation(state: GameState, current: ActorWithStage)
   const others = otherActorsInStage(current.stage, current.actor.id);
   const targets = others.map((actor) => actor.name);
   const aliveTargets = others.filter((actor) => !actor.death).map((actor) => actor.name);
-  const allowed = allowedActionKinds(current.actor.actions, current.stage.actions);
+  const allowed = allowedActionKinds(current.actor.actions);
   const actionList = allowed.map((kind) => `${kind}（${ACTION_SUMMARIES[kind]}）`).join("、");
-  return [
-    "# 当前环境",
-    `## 场景\n${current.stage.name}\n${current.stage.environment}`,
-    `## 你的状态\n${current.actor.name} | HP ${current.actor.hp}/${current.actor.maxHp}`,
-    `## 同场景角色\n${
-      others.length === 0
-        ? "无"
-        : others
-            .map((actor) => `${actor.name}：${actor.appearance}${actor.death ? "（已死亡）" : ""}`)
-            .join("\n")
-    }`,
-    `## 场景物品\n${
-      current.stage.items.length === 0
-        ? "无"
-        : current.stage.items
-            .map((item) => `${item.name}（${item.kind}）：${item.description}`)
-            .join("\n")
-    }`,
-    `## 可交谈对象\n${targets.length === 0 ? "无" : targets.join("、")}`,
-    `## 可作用对象\n${aliveTargets.length === 0 ? "无" : aliveTargets.join("、")}`,
-    `## 可移动至\n${moves.length === 0 ? "无" : moves.join("、")}`,
-    "# 本轮任务",
-    `根据当前环境与自己的记忆决定行动。使用 get_stats / get_items 查看自己，使用 get_actor 查看同场景目标的状态与物品；需要多项信息时，可以一次返回多个只读工具调用，也可以分多轮调用。你能使用的行动工具：${actionList}。本轮最多 ${MAX_ACTIONS_PER_TURN} 个行动；通常一次沟通加一个其他行动，不要重复同一动作。先加入的行动先执行。最后调用 submit_plan 提交。look_stage、get_stats、get_items、get_actor 不占计划。`,
-  ].join("\n\n");
+  const actorLines =
+    others.length === 0
+      ? "无"
+      : others
+          .map((actor) => `${actor.name}：${actor.appearance}${actor.death ? "（已死亡）" : ""}`)
+          .join("\n");
+  const itemLines =
+    current.stage.items.length === 0
+      ? "无"
+      : current.stage.items
+          .map((item) => `${item.name}（${item.kind}）：${item.description}`)
+          .join("\n");
+  const talks = targets.length === 0 ? "无" : targets.join("、");
+  const interactables = aliveTargets.length === 0 ? "无" : aliveTargets.join("、");
+  const moveLines = moves.length === 0 ? "无" : moves.join("、");
+
+  return `# 当前环境
+
+## 场景
+${current.stage.name}
+${current.stage.environment}
+
+## 你的状态
+${current.actor.name} | HP ${current.actor.hp}/${current.actor.maxHp}
+
+## 同场景角色
+${actorLines}
+
+## 场景物品
+${itemLines}
+
+## 可交谈对象
+${talks}
+
+## 可作用对象
+${interactables}
+
+## 可移动至
+${moveLines}
+
+# 本轮任务
+
+根据当前环境与自己的记忆决定行动。使用 get_stats / get_items 查看自己，使用 get_actor 查看同场景目标的状态与物品；需要多项信息时，可以一次返回多个只读工具调用，也可以分多轮调用。你能使用的行动工具：${actionList}。本轮最多 ${MAX_ACTIONS_PER_TURN} 个行动；通常一次沟通加一个其他行动，不要重复同一动作。先加入的行动先执行。最后调用 submit_plan 提交。look_stage、get_stats、get_items、get_actor 不占计划。`;
 }
 
 /** 把动作加入本轮计划；条数上限在这里就告诉模型，避免提交后才被拒绝。 */
@@ -155,7 +174,7 @@ export async function runNpcTurn(
     use: parseUse,
   };
 
-  const allowed = allowedActionKinds(current.actor.actions, current.stage.actions);
+  const allowed = allowedActionKinds(current.actor.actions);
   const actions: ActorAction[] = [];
   let submitted: ActorPlan | null = null;
 

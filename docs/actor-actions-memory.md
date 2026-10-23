@@ -79,7 +79,7 @@ NPC 工具分为只读 GET、动作与终止工具。`look_stage`、`get_stats`�
 
 ## 动作
 
-动作只有一层，十个动作平级，没有“沟通 / 移动 / 交互”这类收口概念。每个 actor 有一个显式的 `actions` 列表，决定它能用哪些动作；`stages.actions` 非空时再收窄一层。
+动作只有一层，十个动作平级，没有“沟通 / 移动 / 交互”这类收口概念。每个 actor 有一个显式的 `actions` 列表，决定它能用哪些动作；stage 也有自己的 `actions`（当前只有 `submit_environment`），决定它作为小 GM 能调用哪些工具。
 
 | 动作 | 参数 | 可见性 |
 | --- | --- | --- |
@@ -96,7 +96,7 @@ NPC 工具分为只读 GET、动作与终止工具。`look_stage`、`get_stats`�
 
 `attack` 的伤害为 `max(0, 攻击者 attack + 所选武器 damage - 目标 defense)`；空手时不加武器 damage，目标 defense 是唯一 block，物品 block 不参与当前伤害。`steal` 允许对尸体取物；`give` 只能给存活角色；`pickup` 把 `stage_items` 移入背包；`use` 的目标只能是当前场景、自己或同场景角色。
 
-能力在种子（`seeds/dark-fantasy.ts`）里**逐角色逐条**写出，不设共享默认值：动物只有 `say` / `whisper` / `announce` / `move` / `wait`（狗与鼠王再加 `attack`），人类才有 `give` / `pickup` / `use`，偷窃只属于当前剧本的苏醒者。创建游戏时写进 `actors.actions` / `stages.actions`，运行时以数据库为准。NPC 只暴露被允许的工具；结算层 `assertActionAllowed` 是权威校验，玩家入口与脚本调用同样受约束（拒绝原因会直接返回给调用方）。计划条数由 `MAX_ACTIONS_PER_TURN` 限制。
+能力在种子（`seeds/dark-fantasy.ts`）里**逐角色逐条**写出，不设共享默认值：动物只有 `say` / `whisper` / `announce` / `move` / `wait`（狗与鼠王再加 `attack`），人类才有 `give` / `pickup` / `use`，偷窃只属于当前剧本的苏醒者。创建游戏时写进 `actors.actions` / `stages.actions`，运行时以数据库为准。stage 的能力目前只有 `submit_environment`，环境写法规则写在工具描述里，属于“工具即上下文”。NPC 只暴露被允许的工具；结算层 `assertActionAllowed` 是权威校验，玩家入口与脚本调用同样受约束（拒绝原因会直接返回给调用方）。计划条数由 `MAX_ACTIONS_PER_TURN` 限制。
 
 ## 事务边界
 
