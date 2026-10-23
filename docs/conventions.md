@@ -46,7 +46,7 @@ JSON 字段统一 camelCase，包括嵌套对象、路径参数与查询参数�
 
 ## 运行期目录
 
-不使用点号前缀：LLM 对话留痕放 `logs/llm`，世界快照放 `worlds`，页面截图放 `screenshots`。都 gitignore 内容、只保留 `.gitkeep`，避免把 prompt、回复、状态或截图误提交。
+不使用点号前缀：LLM 对话留痕放 `logs/llm`，世界快照放 `worlds`，故事总结放 `stories`，页面截图放 `screenshots`。都 gitignore 内容、只保留 `.gitkeep`，避免把 prompt、回复、状态、故事或截图误提交。
 
 → 参见：[LLM 基础组件](llm.md)
 

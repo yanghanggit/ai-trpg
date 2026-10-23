@@ -14,5 +14,6 @@ export * from "./probe";
 export * from "./service";
 export * from "./snapshot";
 export * from "./stage";
+export * from "./story";
 export * from "./types";
 export * from "./world";

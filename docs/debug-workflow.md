@@ -33,6 +33,7 @@
 - `player-use --game <id|slug> --actor <actorId|actorName> --item <itemName> (--target <actorName> | --stage <stageName>) [--detail <text>]`：使用自己的物品；对场景使用时可用 `--detail` 描述锁孔、炉膛等具体部位。
 - `player-attack --game <id|slug> --actor <actorId|actorName> --target <actorName> [--item <itemName>]`：以被接管 actor 的身份直接攻击同场景目标，可指定带 `attack` effect 的物品；不调用 LLM。
 - `snapshot --game <id|slug>`：把当前状态与每个 actor/stage/world 的 memory 导出为只读快照。
+- `story --game <id|slug>`：任意时刻运行只读故事整理 agent，读取全部 memory 与事件流，输出一段故事到 CLI，并写入 `stories/<时间戳>_<slug>.md`；不写数据库，不要求游戏已结束。
 - `compact --game <id|slug> --owner actor --name <actorId|actorName>`：手动压缩一个 actor memory；`--owner stage --name <stageId|stageName>`、`--owner world`、`--owner all` 同理。默认总是压缩，可用 `--min-ratio <0..1>` 在 `contextUsageRatio` 低于阈值时跳过。
 
 ## 显式推进边界

@@ -19,6 +19,7 @@ import {
   type Snapshot,
   saveSnapshot,
 } from "../src/debug/snapshot";
+import { dumpStory } from "../src/debug/story-dump";
 import { DEEPSEEK_SERVICE } from "../src/deepseek";
 import {
   type CompactMemoryResult,
@@ -41,6 +42,7 @@ import {
   runNpcTurn,
   runProbe,
   runStageTurn,
+  runStory,
   runWorldTurn,
   snapshotGame,
   takeActorControl,
@@ -128,6 +130,7 @@ function usage(): void {
       "agent-game compact --game <gameId|slug> --owner stage --name <stageId|stageName> [--min-ratio <0..1>]",
       "agent-game compact --game <gameId|slug> --owner world [--min-ratio <0..1>]",
       "agent-game compact --game <gameId|slug> --owner all [--min-ratio <0..1>]",
+      "agent-game story --game <gameId|slug>",
     ],
   });
 }
@@ -550,6 +553,28 @@ async function main(): Promise<void> {
       runProbe(db, gameRef, { service: DEEPSEEK_SERVICE, target, message }),
     );
     emit({ ok: true, action: "probe", ...result });
+    return;
+  }
+
+  if (command === "story") {
+    if (typeof values.game !== "string") {
+      throw new Error("story 需要 --game");
+    }
+    const result = await withDatabase((db) =>
+      runStory(db, values.game as string, { service: DEEPSEEK_SERVICE }),
+    );
+    const path = await dumpStory({
+      gameName: result.gameName,
+      gameSlug: result.gameSlug,
+      gameStatus: result.gameStatus,
+      contentVersion: result.contentVersion,
+      version: result.version,
+      story: result.story,
+      rounds: result.rounds,
+      memoriesRead: result.memoriesRead,
+      eventsRead: result.eventsRead,
+    });
+    emit({ ok: true, action: "story", ...result, path });
     return;
   }
 

@@ -31,6 +31,10 @@ screenshots/*
 **/prompts/*
 !**/prompts/.gitkeep
 
+# 开发期故事总结（保留目录占位）
+**/stories/*
+!**/stories/.gitkeep
+
 # 日志
 *.log
 npm-debug.log*
