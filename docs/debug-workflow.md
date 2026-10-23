@@ -34,6 +34,24 @@
 - `player-attack --game <id|slug> --actor <actorId|actorName> --target <actorName> [--item <itemName>]`：以被接管 actor 的身份直接攻击同场景目标，可指定武器；不调用 LLM。
 - `snapshot --game <id|slug>`：把当前状态与每个 actor/stage/world 的 memory 导出为只读快照。
 
+## 显式推进边界
+
+`agent:game` 能完成内容选择、建局和 actor/stage/world 推进，但不会自动编排回合：
+
+- `stage` 与 `world` 必须分别显式执行；
+- `create` 必须显式提供 `--seed`、`--world-file` 或 `--world`；
+- 建局不会自动执行 RAG ingest；
+- 旧局不会自动获得新的 world memory / `worlds.actions` / stage `notify_world` 结构；
+- 只有 world 的 `end_game` 能结束游戏，且是否结束由 world 回合决定。
+
+典型流程是：
+
+```bash
+pnpm agent:game create --user demo --seed dark-fantasy --slug my-game
+pnpm agent:game stage --game my-game --stage "场景.铁闸门"
+pnpm agent:game world --game my-game
+```
+
 ## 运行时 system prompt 导出
 
 每次 `agent:game create` 建局成功后，服务层会把本局**实际使用的** system prompt 写到仓库根目录的 `prompts/` 下（该目录被 `.gitignore` 忽略）：

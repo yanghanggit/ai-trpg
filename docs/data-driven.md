@@ -94,6 +94,57 @@ pnpm rag search --collection "world:<世界名>:<内容版本>" --query "..."
 
 `rag:smoke` 从内容注册表中取第一份知识，不再写死故事名或问题。
 
+## Agent Game 入口的当前能力与边界
+
+结论：从 `agent:game` 入口选择内容、建局、推进 actor/stage/world、通知和结束游戏，主链路已经可用；但它是**显式多回合 CLI 流程**，不是隐式自动编排。
+
+| 环节 | 入口 | 状态 |
+| --- | --- | --- |
+| 选择内容 / 构建数据 | `create --seed`、`--world-file`、`--world` | 可用；`--seed` 从内容注册表读取，外部文件经过 `parseWorldContent` 校验 |
+| 建局物化 | `createGame` | 写入 world / stage / actor / item / message / agent memory |
+| actor 推进 | `npc` 或 `player-*` | 可用 |
+| stage 推进 | `stage`，含 `notify_world` | 可用 |
+| world 推进 | `world`，含 `notify_stage` / `end_game` | 可用 |
+| 结束游戏 | world 的 `end_game` | 只有 world 能置 `games.status = completed` |
+| RAG 内容 | `rag ingest --seed` / `rag search --collection` | 可用，但建局时不会自动 ingest |
+
+### 典型流程
+
+```bash
+pnpm agent:game create --user demo --seed dark-fantasy --slug my-game
+
+pnpm agent:game take-control --game my-game --actor "角色.无名者"
+pnpm agent:game player-use --game my-game --actor "角色.无名者" \
+  --item "饰品.闸门钥匙" --stage "场景.铁闸门" --detail "锁孔"
+
+pnpm agent:game stage --game my-game --stage "场景.铁闸门"
+pnpm agent:game world --game my-game
+pnpm agent:game status --game my-game
+```
+
+### 使用提示
+
+1. **stage / world 不会自动运行**  
+   必须显式执行 `stage` 和 `world`。这是有意的，避免在数据库事务内自动调用 LLM。
+
+2. **没有隐式内容默认值**  
+   `create` 必须显式提供 `--seed`、`--world-file` 或 `--world`；缺失会报错。当前注册表只有已注册的内容名称，任意新内容用 JSON 文件或先加入注册表。
+
+3. **`--world-file` 当前接收 JSON**  
+   不直接加载 TypeScript seed；TS seed 通过 `seeds/index.ts` 注册。
+
+4. **RAG 不会在建局时自动执行**  
+   新世界若要支持 `query`，需要单独执行 `pnpm rag ingest --seed <name>`，并确保 collection 与游戏内容版本一致。
+
+5. **旧局不自动升级**  
+   在 world memory / `worlds.actions` / stage `notify_world` 之前创建的旧游戏，需要新建一局；旧局不会自动获得新结构。
+
+6. **结束依赖 world LLM 判断**  
+   引擎保证只有 world 能结束，但 world 是否在本轮调用 `end_game` 仍由模型和内容提示决定；内容层应在世界规则或阶段 profile 中写清目标与后果。
+
+7. **`targetDetail` 是行动描述，不是结果**  
+   它帮助 stage 判断使用部位；装饰、铭文、表面纹样不应被推测为隐藏机关，普通表面行动只更新 environment。
+
 ## 已移除的旧模型
 
 - `CompleteGameEffect` / `ItemUseEffect` / `ItemUseDefinition`；
