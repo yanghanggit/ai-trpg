@@ -258,8 +258,8 @@ export type WorldPlan = {
   actions: WorldAction[];
 };
 
-/** 所有物品的根状态：只保留身份、分类与数量，不带任何战斗数值。 */
-export type ItemState = {
+/** 所有物品状态的公共根字段：只保留身份、分类与数量，不带任何战斗数值。 */
+export type ItemBaseState = {
   id: string;
   /** 世界内稳定 key；旧数据缺失时由 toItemState 回退到 name。 */
   key: string;
@@ -272,7 +272,7 @@ export type ItemState = {
 };
 
 /** 带战斗数值的可穿戴物品：武器与装备共用 `stats`。 */
-export type StatItemState = ItemState & { stats: ItemStats };
+export type StatItemState = ItemBaseState & { stats: ItemStats };
 
 /** 武器：`stats.damage` 参与攻击，`stats.block` 只存储。 */
 export type WeaponState = StatItemState & { kind: "weapon" };
@@ -281,19 +281,24 @@ export type WeaponState = StatItemState & { kind: "weapon" };
 export type EquipmentState = StatItemState & { kind: "equipment" };
 
 /** 饰品：钥匙、护符等非战斗物品。 */
-export type AccessoryState = ItemState & { kind: "accessory" };
+export type AccessoryState = ItemBaseState & { kind: "accessory" };
 
-/** 可穿戴物品的联合，用于外观推理筛选。 */
-export type WearableItem = WeaponState | EquipmentState | AccessoryState;
+/** 可穿戴物品状态的联合，用于外观推理筛选。 */
+export type WearableItemState = WeaponState | EquipmentState | AccessoryState;
 
 /** 消耗品：数量语义保留；当前 `use` 不自动扣除 count。 */
-export type ConsumableState = ItemState & { kind: "consumable" };
+export type ConsumableState = ItemBaseState & { kind: "consumable" };
 
 /** 贵重物品：无战斗数值的剧情物品。 */
-export type ValuableState = ItemState & { kind: "valuable" };
+export type ValuableState = ItemBaseState & { kind: "valuable" };
 
-/** 运行时物品；按 `kind` 收窄到具体子类。 */
-export type Item = WeaponState | EquipmentState | AccessoryState | ConsumableState | ValuableState;
+/** 运行时物品状态；按 `kind` 收窄到具体子类。 */
+export type ItemState =
+  | WeaponState
+  | EquipmentState
+  | AccessoryState
+  | ConsumableState
+  | ValuableState;
 
 /** 运行时 actor；`items` 是它的物品队列，`actions` 是它被允许的动作。 */
 export type ActorState = {
@@ -305,7 +310,7 @@ export type ActorState = {
   stats: ActorStats;
   status: ActorStatus;
   equipment: EquipmentSlots;
-  items: Item[];
+  items: ItemState[];
   actions: readonly ActorCapability[];
 };
 
@@ -318,7 +323,7 @@ export type StageState = {
   environment: string;
   ordinal: number;
   actors: ActorState[];
-  items: Item[];
+  items: ItemState[];
   actions: readonly StageActionKind[];
 };
 
@@ -367,6 +372,17 @@ export type AgentMemoryState = {
   messages: AgentMemoryMessageState[];
 };
 
+/** 运行时 world 状态；由 worlds/stages/stage_connections 表水合得到。 */
+export type WorldState = {
+  id: string;
+  name: string;
+  campaignSetting: string;
+  systemRules: string;
+  actions: WorldActionKind[];
+  stages: StageState[];
+  connections: ConnectionState[];
+};
+
 export type GameState = {
   game: {
     id: string;
@@ -380,15 +396,7 @@ export type GameState = {
     updatedAt: string;
   };
   player: PlayerState;
-  world: {
-    id: string;
-    name: string;
-    campaignSetting: string;
-    systemRules: string;
-    actions: WorldActionKind[];
-    stages: StageState[];
-    connections: ConnectionState[];
-  };
+  world: WorldState;
   messages: MessageState[];
 };
 

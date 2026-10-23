@@ -24,7 +24,7 @@ PostgreSQL 是游戏状态的唯一真相。`agent:game` 从数据库读取状�
 
 `src/game/attributes.ts` 的 `ATTRIBUTE_DEFINITIONS` 是本系统 TRPG 属性总表：actor 的 `hp` / `maxHp` / `attack` / `defense` / `speed`，以及物品的 `damage` / `block`。新增属性先登记再决定作用域；所有计算通过 `attribute()` / `sumAttribute()` 读取，缺省为 0。
 
-`ItemState` 根字段有 `id` / `key` / `name` / `description` / `kind` / `count` / `effect`，没有根级 `damage` / `block`，也没有 `stats` 或穿戴状态。武器与装备扩展出 `StatItemState`（`stats`：`damage` / `block`）；饰品只有根字段。钥匙属于 `accessory`，显式声明 `effect: { "type": "event" }`，不携带战斗数值。`block` 目前只存储，不参与伤害计算。
+`ItemBaseState` 根字段有 `id` / `key` / `name` / `description` / `kind` / `count` / `effect`，没有根级 `damage` / `block`，也没有 `stats` 或穿戴状态；`ItemState` 是各 `kind` 子类的运行时联合。武器与装备扩展出 `StatItemState`（`stats`：`damage` / `block`）；饰品只有根字段。钥匙属于 `accessory`，显式声明 `effect: { "type": "event" }`，不携带战斗数值。`block` 目前只存储，不参与伤害计算。
 
 `effect` 是物品的声明式行为：JSON 中必须包含 `type`，其余字段由对应 handler 解释。数据库只存 JSON，不存函数；`src/game/item-effects/` 用 `effect.type` 作为路由 key。当前注册了 `event` 与 `damage` 两个 handler，没有默认效果，也没有 `actions` 元数据。
 

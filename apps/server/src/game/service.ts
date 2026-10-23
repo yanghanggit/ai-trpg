@@ -32,7 +32,7 @@ import type {
   ConnectionState,
   CreateGameInput,
   GameState,
-  Item,
+  ItemState,
   MessageState,
   MessageVisibility,
   PlayerState,
@@ -148,7 +148,7 @@ export async function getGameState(db: Database, ref: string): Promise<GameState
           .where(inArray(stageItems.stageId, stageIds))
           .orderBy(asc(stageItems.createdAt), asc(stageItems.name));
 
-  const itemsByStage = new Map<string, Item[]>();
+  const itemsByStage = new Map<string, ItemState[]>();
   for (const item of stageItemRows) {
     const list = itemsByStage.get(item.stageId) ?? [];
     list.push(toItemState(item));
@@ -161,7 +161,7 @@ export async function getGameState(db: Database, ref: string): Promise<GameState
     .where(eq(gameMessages.gameId, game.id))
     .orderBy(asc(gameMessages.sequence));
 
-  const itemsByActor = new Map<string, Item[]>();
+  const itemsByActor = new Map<string, ItemState[]>();
   for (const item of itemRows) {
     const list = itemsByActor.get(item.actorId) ?? [];
     list.push(toItemState(item));

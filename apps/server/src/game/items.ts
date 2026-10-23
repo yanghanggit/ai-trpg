@@ -2,11 +2,11 @@ import type {
   ActorState,
   EquipmentSlot,
   EquipmentSlots,
-  Item,
   ItemEffect,
   ItemKind,
+  ItemState,
   ItemStats,
-  WearableItem,
+  WearableItemState,
 } from "./types";
 import { EQUIPMENT_SLOTS } from "./types";
 
@@ -20,7 +20,7 @@ export function toItemState(row: {
   count: number;
   stats: ItemStats;
   effect: ItemEffect;
-}): Item {
+}): ItemState {
   const base = {
     id: row.id,
     key: row.key ?? row.name,
@@ -48,13 +48,13 @@ export function toItemState(row: {
 }
 
 /** 物品是否能放进某个穿戴槽。 */
-export function isWearable(item: Item): item is WearableItem {
+export function isWearable(item: ItemState): item is WearableItemState {
   return item.kind === "weapon" || item.kind === "equipment" || item.kind === "accessory";
 }
 
-export type EquippedItem = {
+export type EquippedItemState = {
   slot: EquipmentSlot;
-  item: WearableItem;
+  item: WearableItemState;
 };
 
 /**
@@ -63,9 +63,9 @@ export type EquippedItem = {
  * 槽里只存物品名；物品自身不记录 `equipped`。物品被转移或改名后，
  * 索引可能暂时指向不存在的物品，这里直接跳过。
  */
-export function equippedItems(actor: Pick<ActorState, "items" | "equipment">): EquippedItem[] {
+export function equippedItems(actor: Pick<ActorState, "items" | "equipment">): EquippedItemState[] {
   const byName = new Map(actor.items.map((item) => [item.name, item]));
-  const equipped: EquippedItem[] = [];
+  const equipped: EquippedItemState[] = [];
   for (const slot of EQUIPMENT_SLOTS) {
     const itemName = actor.equipment[slot];
     if (!itemName) {
