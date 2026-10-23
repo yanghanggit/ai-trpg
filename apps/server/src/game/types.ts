@@ -127,6 +127,8 @@ export type ItemDefinition = {
   stats?: ItemStats;
   /** 物品效果；必须显式声明，type 路由到 handler。 */
   effect: ItemEffect;
+  /** 词缀；可省略，创建时归一化为空数组。 */
+  affixes?: readonly string[];
 };
 
 /** `createGame` 的输入；`world` 只在创建时读取，之后以数据库状态为准。 */
@@ -269,6 +271,8 @@ export type ItemBaseState = {
   count: number;
   /** 物品效果；由内容显式声明，运行时按 type 路由。 */
   effect: ItemEffect;
+  /** 词缀；非空时 damage 路由到 LLM 结算 handler。 */
+  affixes: readonly string[];
 };
 
 /** 带战斗数值的可穿戴物品：武器与装备共用 `stats`。 */

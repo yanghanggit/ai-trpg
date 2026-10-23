@@ -33,6 +33,7 @@ const itemSchema = z.object({
   count: z.number().int().positive().optional(),
   stats: itemStatsSchema.optional(),
   effect: itemEffectSchema,
+  affixes: z.array(z.string()).optional(),
 });
 
 const equipmentSchema = z.object({

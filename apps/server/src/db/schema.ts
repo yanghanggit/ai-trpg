@@ -171,6 +171,7 @@ export const items = pgTable("items", {
   count: integer("count").notNull().default(1),
   stats: jsonb("stats").$type<ItemStats>().notNull().default({}),
   effect: jsonb("effect").$type<ItemEffect>().notNull(),
+  affixes: jsonb("affixes").$type<string[]>().notNull().default([]),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
 
@@ -186,6 +187,7 @@ export const stageItems = pgTable("stage_items", {
   count: integer("count").notNull().default(1),
   stats: jsonb("stats").$type<ItemStats>().notNull().default({}),
   effect: jsonb("effect").$type<ItemEffect>().notNull(),
+  affixes: jsonb("affixes").$type<string[]>().notNull().default([]),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
 

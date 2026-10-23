@@ -293,6 +293,7 @@ export async function runNpcTurn(
     submitted,
     newMessages,
     loop.success,
+    { service: options.service },
   );
 
   return {

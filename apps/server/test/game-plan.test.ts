@@ -171,6 +171,7 @@ describe("read-only descriptions", () => {
           count: 1,
           stats: { damage: 3, block: 0 },
           effect: { type: "damage" },
+          affixes: [],
         },
       ],
     };

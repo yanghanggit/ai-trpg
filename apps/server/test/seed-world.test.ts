@@ -48,7 +48,8 @@ describe("dark fantasy seed world", () => {
       key: "crematorium-torch",
       kind: "weapon",
       count: 1,
-      stats: { damage: 250, block: 0 },
+      stats: { damage: 8, block: 0 },
+      affixes: ["对鼠类额外造成武器伤害的一百倍"],
     });
     expect(stage("gate").items ?? []).toEqual([]);
   });

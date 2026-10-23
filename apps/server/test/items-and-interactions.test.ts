@@ -1,3 +1,4 @@
+import { randomUUID } from "node:crypto";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { DEMO_USER } from "../src/db/demo-fixture";
 import type { World } from "../src/game/types";
@@ -18,6 +19,42 @@ import {
   playerUse,
   takeActorControl,
 } from "../src/game";
+import { ChatCompletionResult, type ChatCompletionService } from "../src/llm";
+
+class AffixDamageService implements ChatCompletionService {
+  calls = 0;
+  input = "";
+
+  async complete(request: Parameters<ChatCompletionService["complete"]>[0]) {
+    this.calls += 1;
+    this.input = request.inputMessage;
+    const toolCalls = [
+      {
+        id: randomUUID(),
+        type: "function" as const,
+        function: {
+          name: "damage_target",
+          arguments: JSON.stringify({
+            targetActorName: "提灯修士",
+            amount: 42,
+            reason: "测试用词缀伤害",
+          }),
+        },
+      },
+      {
+        id: randomUUID(),
+        type: "function" as const,
+        function: { name: "submit_affix", arguments: "{}" },
+      },
+    ];
+    return new ChatCompletionResult({
+      request,
+      aiMessage: { type: "ai", content: "", toolCalls },
+      finishReason: "tool_calls",
+      toolCalls,
+    });
+  }
+}
 
 const SEALED_STAGE_NAME = "场景.封印门";
 const SEALED_KEY_NAME = "饰品.测试钥匙";
@@ -60,6 +97,22 @@ const WEAPON_WORLD = {
           ...actor,
           items: actor.items.map((item) =>
             item.name === "铅封提灯" ? { ...item, stats: { ...item.stats, block: 2 } } : item,
+          ),
+        }
+      : actor,
+  ),
+};
+
+const AFFIX_WORLD = {
+  ...WEAPON_WORLD,
+  actors: WEAPON_WORLD.actors.map((actor) =>
+    actor.name === "守烬人"
+      ? {
+          ...actor,
+          items: actor.items.map((item) =>
+            item.name === "裂齿短刃"
+              ? { ...item, affixes: ["对鼠类额外造成武器伤害的一百倍"] }
+              : item,
           ),
         }
       : actor,
@@ -184,6 +237,37 @@ describe.skipIf(!testDatabaseUrl)("items and interactions", () => {
       .find((actor) => actor.name === "提灯修士");
     expect(monk?.stats.hp).toBe(4);
     expect(state.messages.at(-1)?.kind).toBe("use");
+  });
+
+  it("routes affixed damage through LLM and applies the computed damage", async () => {
+    const created = await createGame(handle.db, {
+      username: DEMO_USER.username,
+      name: "词缀伤害测试局",
+      world: AFFIX_WORLD,
+    });
+    await takeActorControl(handle.db, created.game.slug, "守烬人");
+
+    const service = new AffixDamageService();
+    const attacked = await playerAttack(
+      handle.db,
+      created.game.slug,
+      "守烬人",
+      { targetActorName: "提灯修士", itemName: "裂齿短刃" },
+      { service },
+    );
+    expect(attacked.ok).toBe(true);
+    expect(service.calls).toBe(1);
+    expect(service.input).toContain("对鼠类额外造成武器伤害的一百倍");
+    expect(service.input).toContain("种族：人类");
+
+    const state = await getGameState(handle.db, created.game.slug);
+    const monk = state.world.stages
+      .flatMap((stage) => stage.actors)
+      .find((actor) => actor.name === "提灯修士");
+    expect(monk?.stats.hp).toBe(0);
+    const recent = state.messages.slice(-2).map((message) => message.content);
+    expect(recent[0]).toContain("造成6点伤害");
+    expect(recent[1]).toContain("造成42点伤害");
   });
 
   it("adds weapon damage but uses target defense as the only block", async () => {

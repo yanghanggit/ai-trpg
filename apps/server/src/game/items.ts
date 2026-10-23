@@ -20,6 +20,7 @@ export function toItemState(row: {
   count: number;
   stats: ItemStats;
   effect: ItemEffect;
+  affixes?: readonly string[];
 }): ItemState {
   const base = {
     id: row.id,
@@ -28,6 +29,7 @@ export function toItemState(row: {
     description: row.description,
     count: row.count,
     effect: row.effect,
+    affixes: row.affixes ?? [],
   };
   switch (row.kind) {
     case "weapon":

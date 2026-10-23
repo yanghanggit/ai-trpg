@@ -12,6 +12,7 @@
 - 故事内容集中在 `seeds/dark-fantasy.ts` 与 `seeds/knowledge/dark-fantasy.ts`，通过 `seeds/index.ts` 注册；
 - `use` 对场景可以携带 `targetDetail`，它只是 actor 的行动描述，写入 stage memory；
 - `attack` / `use` 只做 dispatcher；物品通过 `item.effect` 声明 `event` / `damage` 等效果；
+- `item.affixes` 是词缀数组；默认 effect 执行后，affix agent 在事务外调用 LLM 与工具，再落账补充效果；
 - stage 可以用 `notify_world` 把报告写入 world memory；
 - world 可以用 `notify_stage` 下发裁决，用 `end_game` 结束游戏；
 - demo 用户是独立 fixture，`app_meta` 不记录故事名；
@@ -44,7 +45,8 @@
 ```text
 actor attack(itemName?) / use(itemName, target)
   → attack / use dispatcher：选物品、校验目标、读取 item.effect
-  → effect handler：event 只发事件；damage 结算战斗公式
+  → effect handler：先执行默认 effect
+  → affix agent：有词缀时再执行事务外 LLM + 工具补充效果
   → use 的 event 写入 stage memory，交给 stage 判断本地后果
   → notify_world：把场景报告写入 world memory
   → world 回合：裁决世界级事实

@@ -1,6 +1,6 @@
 import type { Database } from "../db/pool";
 import { findActor } from "./actors";
-import { applyActorPlan } from "./apply";
+import { type ApplyActorPlanOptions, applyActorPlan } from "./apply";
 import { isPlayerControlled } from "./control";
 import { GameError } from "./errors";
 import { getGameState } from "./service";
@@ -12,6 +12,7 @@ async function applyPlayerAction(
   gameRef: string,
   actorRef: string,
   action: ActorAction,
+  options: ApplyActorPlanOptions = {},
 ): Promise<ActorTurnResult> {
   const state = await getGameState(db, gameRef);
   const actor = findActor(state, actorRef);
@@ -21,7 +22,7 @@ async function applyPlayerAction(
   }
 
   const plan: ActorPlan = { actions: [action] };
-  const result = await applyActorPlan(db, state.game.id, actor.id, plan, [], true);
+  const result = await applyActorPlan(db, state.game.id, actor.id, plan, [], true, options);
   if (!result.ok) {
     throw new GameError("invalid_action", result.rejection ?? "玩家行动被拒绝");
   }
@@ -155,13 +156,14 @@ export async function playerAttack(
   gameRef: string,
   actorRef: string,
   input: PlayerAttackInput,
+  options: ApplyActorPlanOptions = {},
 ): Promise<ActorTurnResult> {
   const action: ActorAction = {
     kind: "attack",
     targetActorName: input.targetActorName,
     ...(input.itemName !== undefined ? { itemName: input.itemName } : {}),
   };
-  return applyPlayerAction(db, gameRef, actorRef, action);
+  return applyPlayerAction(db, gameRef, actorRef, action, options);
 }
 
 /** 玩家 `steal`：从同场景一个角色身上取走一件物品。 */
@@ -211,6 +213,7 @@ export async function playerUse(
   gameRef: string,
   actorRef: string,
   input: PlayerUseInput,
+  options: ApplyActorPlanOptions = {},
 ): Promise<ActorTurnResult> {
   const action: ActorAction = {
     kind: "use",
@@ -219,5 +222,5 @@ export async function playerUse(
     ...(input.targetStageName !== undefined ? { targetStageName: input.targetStageName } : {}),
     ...(input.targetDetail !== undefined ? { targetDetail: input.targetDetail } : {}),
   };
-  return applyPlayerAction(db, gameRef, actorRef, action);
+  return applyPlayerAction(db, gameRef, actorRef, action, options);
 }

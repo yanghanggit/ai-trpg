@@ -13,7 +13,7 @@ const EFFECT_HANDLERS: Record<string, ItemEffectHandler> = {
   damage: applyDamageEffect,
 };
 
-/** 动作层唯一的效果入口：按 effect.type 路由到 handler。 */
+/** 动作层唯一的效果入口：只执行默认 effect；affixes 由后续 agent 补执行。 */
 export async function applyItemEffect(context: ItemEffectContext): Promise<string> {
   const handler = EFFECT_HANDLERS[context.effect.type];
   if (!handler) {
@@ -22,4 +22,9 @@ export async function applyItemEffect(context: ItemEffectContext): Promise<strin
   return handler(context);
 }
 
-export type { ItemEffectContext, ItemEffectHandler } from "./types";
+export type {
+  AffixAgentOptions,
+  AffixRequest,
+  ItemEffectContext,
+  ItemEffectHandler,
+} from "./types";

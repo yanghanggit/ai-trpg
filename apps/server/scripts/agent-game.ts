@@ -353,10 +353,16 @@ async function main(): Promise<void> {
     }
     const itemName = typeof values.item === "string" ? values.item : undefined;
     const result = await withDatabase((db) =>
-      playerAttack(db, game, actor, {
-        targetActorName: values.target as string,
-        ...(itemName !== undefined ? { itemName } : {}),
-      }),
+      playerAttack(
+        db,
+        game,
+        actor,
+        {
+          targetActorName: values.target as string,
+          ...(itemName !== undefined ? { itemName } : {}),
+        },
+        { service: DEEPSEEK_SERVICE },
+      ),
     );
     emit({ ok: true, action: command, plan: result.plan, state: result.state });
     return;
@@ -400,12 +406,18 @@ async function main(): Promise<void> {
       throw new Error("player-use 的 --detail 只能与 --stage 一起使用");
     }
     const result = await withDatabase((db) =>
-      playerUse(db, game, actor, {
-        itemName: values.item as string,
-        ...(targetActorName !== undefined ? { targetActorName } : {}),
-        ...(targetStageName !== undefined ? { targetStageName } : {}),
-        ...(targetDetail !== undefined ? { targetDetail } : {}),
-      }),
+      playerUse(
+        db,
+        game,
+        actor,
+        {
+          itemName: values.item as string,
+          ...(targetActorName !== undefined ? { targetActorName } : {}),
+          ...(targetStageName !== undefined ? { targetStageName } : {}),
+          ...(targetDetail !== undefined ? { targetDetail } : {}),
+        },
+        { service: DEEPSEEK_SERVICE },
+      ),
     );
     emit({ ok: true, action: command, plan: result.plan, state: result.state });
     return;
