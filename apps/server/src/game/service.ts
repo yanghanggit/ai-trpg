@@ -175,6 +175,7 @@ export async function getGameState(db: Database, ref: string): Promise<GameState
       baseBody: actor.baseBody,
       stats: actor.stats,
       status: actor.status,
+      equipment: actor.equipment,
       items: itemsByActor.get(actor.id) ?? [],
       actions: actor.actions as unknown as ActionKind[],
     });
@@ -371,6 +372,7 @@ export async function createGame(db: Database, input: CreateGameInput): Promise<
         baseBody: actor.baseBody,
         stats: actor.stats,
         status: actor.status ?? "alive",
+        equipment: actor.equipment ?? {},
         actions: actor.actions as unknown as typeof actors.$inferInsert.actions,
       });
 
@@ -403,7 +405,6 @@ export async function createGame(db: Database, input: CreateGameInput): Promise<
           id: actorId,
           name: actor.name,
           profile: actor.profile,
-          appearance: resolveAppearance(actor),
           baseBody: actor.baseBody,
         },
         actorPrompt,

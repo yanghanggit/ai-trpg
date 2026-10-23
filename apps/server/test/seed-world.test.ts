@@ -54,7 +54,18 @@ describe("dark fantasy seed world", () => {
   it("gives the keeper the gate key and makes the rat king a lethal sleeper", () => {
     const keeper = DARK_FANTASY_WORLD.actors.find((actor) => actor.name === "角色.奥德里克");
     const king = DARK_FANTASY_WORLD.actors.find((actor) => actor.name === "角色.鼠王");
-    expect(keeper?.items.map((item) => item.name)).toEqual(["饰品.闸门钥匙"]);
+    expect(keeper?.items.map((item) => item.name)).toEqual(
+      expect.arrayContaining(["饰品.闸门钥匙", "武器.掘墓人的铁锹", "装备.补丁斗篷"]),
+    );
+    expect(keeper?.equipment).toEqual({
+      weapon: "武器.掘墓人的铁锹",
+      body: "装备.补丁斗篷",
+      accessory: "饰品.闸门钥匙",
+    });
+    expect(keeper?.items.find((item) => item.name === "装备.补丁斗篷")).toMatchObject({
+      kind: "equipment",
+      stats: { block: 1 },
+    });
     expect(keeper?.baseBody.race).toBe("人类");
     expect(keeper?.status).toBe("alive");
     expect(king?.baseBody.race).toBe("鼠");

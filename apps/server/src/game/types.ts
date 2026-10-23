@@ -17,6 +17,31 @@ export type BaseBody = {
 /** 物品大类；每个大类对应一个运行时子类。 */
 export type ItemKind = "weapon" | "equipment" | "accessory" | "consumable" | "valuable";
 
+/** actor 的穿戴槽；槽里只记录物品名，物品自身不知道被谁穿戴。 */
+export const EQUIPMENT_SLOTS = ["weapon", "offhand", "head", "body", "feet", "accessory"] as const;
+export type EquipmentSlot = (typeof EQUIPMENT_SLOTS)[number];
+export type EquipmentSlots = Partial<Record<EquipmentSlot, string>>;
+
+/** 槽位标签，用于 prompt 与调试输出。 */
+export const EQUIPMENT_SLOT_LABELS: Record<EquipmentSlot, string> = {
+  weapon: "武器",
+  offhand: "副手",
+  head: "头部",
+  body: "身体",
+  feet: "足部",
+  accessory: "饰品",
+};
+
+/** 每个槽位允许的物品大类。 */
+export const EQUIPMENT_SLOT_KINDS: Record<EquipmentSlot, readonly ItemKind[]> = {
+  weapon: ["weapon"],
+  offhand: ["weapon", "equipment"],
+  head: ["equipment"],
+  body: ["equipment"],
+  feet: ["equipment"],
+  accessory: ["accessory"],
+};
+
 /**
  * 创建游戏时物化为运行时 world 的初始内容定义。
  *
@@ -66,6 +91,8 @@ export type Actor = {
   profile: string;
   /** 当前可见外观（含衣着/装备）；省略时回退到 baseBody.description。 */
   appearance?: string;
+  /** 初始穿戴：槽位 → 物品名；物品本身不记录穿戴状态。 */
+  equipment?: EquipmentSlots;
   baseBody: BaseBody;
   stats: ActorStats;
   status?: ActorStatus;
@@ -197,7 +224,7 @@ export type ItemState = {
   count: number;
 };
 
-/** 带战斗数值的物品：武器与装备共用 `stats`。 */
+/** 带战斗数值的可穿戴物品：武器与装备共用 `stats`。 */
 export type StatItemState = ItemState & { stats: ItemStats };
 
 /** 武器：`stats.damage` 参与攻击，`stats.block` 只存储。 */
@@ -208,6 +235,9 @@ export type EquipmentState = StatItemState & { kind: "equipment" };
 
 /** 饰品：钥匙、护符等非战斗物品。 */
 export type AccessoryState = ItemState & { kind: "accessory" };
+
+/** 可穿戴物品的联合，用于外观推理筛选。 */
+export type WearableItem = WeaponState | EquipmentState | AccessoryState;
 
 /** 消耗品：使用后消耗；当前只有 `use` 的通用行为。 */
 export type ConsumableState = ItemState & { kind: "consumable" };
@@ -227,6 +257,7 @@ export type ActorState = {
   baseBody: BaseBody;
   stats: ActorStats;
   status: ActorStatus;
+  equipment: EquipmentSlots;
   items: Item[];
   actions: readonly ActionKind[];
 };

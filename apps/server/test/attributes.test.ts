@@ -72,6 +72,7 @@ describe("item state", () => {
   it("keeps the bare root free of stats for non-combat items", () => {
     const key = toItemState({ ...ROW, kind: "accessory", stats: {} });
     expect("stats" in key).toBe(false);
+    expect("equipped" in key).toBe(false);
     const weapon = toItemState({ ...ROW, kind: "weapon", stats: { damage: 1 } });
     expect("stats" in weapon).toBe(true);
   });

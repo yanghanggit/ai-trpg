@@ -1,5 +1,5 @@
 {
-  "id": "17e2ff18-0064-4e78-a75d-1527b03b1276",
+  "id": "8ddec9ca-0d76-4d41-8258-5f3be246ece1",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "version": "7",
   "dialect": "postgresql",
@@ -148,6 +148,13 @@
           "primaryKey": false,
           "notNull": true,
           "default": "'alive'"
+        },
+        "equipment": {
+          "name": "equipment",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'{}'::jsonb"
         },
         "actions": {
           "name": "actions",

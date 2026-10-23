@@ -9,7 +9,7 @@ import {
   uuid,
 } from "drizzle-orm/pg-core";
 import type { ActorStats, ItemStats } from "../game/attributes";
-import type { ActorStatus, BaseBody, ItemKind } from "../game/types";
+import type { ActorStatus, BaseBody, EquipmentSlots, ItemKind } from "../game/types";
 
 export type JsonValue =
   | string
@@ -139,6 +139,7 @@ export const actors = pgTable("actors", {
   baseBody: jsonb("base_body").$type<BaseBody>().notNull(),
   stats: jsonb("stats").$type<ActorStats>().notNull(),
   status: text("status").$type<ActorStatus>().notNull().default("alive"),
+  equipment: jsonb("equipment").$type<EquipmentSlots>().notNull().default({}),
   actions: jsonb("actions").$type<JsonValue[]>().notNull().default([]),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),

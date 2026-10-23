@@ -169,7 +169,7 @@ speed：${actor.stats.speed}
 }
 
 /** 渲染自身物品，供 get_items 工具返回。 */
-export function describeItems(actor: Pick<ActorState, "items">): string {
+export function describeItems(actor: Pick<ActorState, "items" | "equipment">): string {
   if (actor.items.length === 0) {
     return "物品：无";
   }
@@ -178,7 +178,8 @@ export function describeItems(actor: Pick<ActorState, "items">): string {
     const damage = attribute(itemStats, "damage");
     const block = attribute(itemStats, "block");
     const stats = damage > 0 || block > 0 ? `（damage ${damage}，block ${block}）` : "";
-    return `- ${item.name}（${item.kind}，count ${item.count}）：${item.description}${stats}`;
+    const worn = Object.values(actor.equipment).includes(item.name) ? "，已穿戴" : "";
+    return `- ${item.name}（${item.kind}，count ${item.count}${worn}）：${item.description}${stats}`;
   });
   return `物品：
 ${lines.join("\n")}`;

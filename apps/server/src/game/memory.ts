@@ -3,7 +3,7 @@ import { and, asc, eq, sql } from "drizzle-orm";
 import type { Database } from "../db/pool";
 import { agentMemories, agentMemoryMessages, type JsonValue } from "../db/schema";
 import type { ChatMessage, ToolCall } from "../llm/types";
-import { formatBaseBody, resolveAppearance } from "./body";
+import { formatBaseBody } from "./body";
 import { MEMORY_KINDS } from "./constants";
 import type { Actor, AgentMemoryMessageState, AgentMemoryState, Stage } from "./types";
 
@@ -83,11 +83,8 @@ function toRow(memoryId: string, sequence: number, message: ChatMessage) {
 /** 构造 actor 的稳定 system prompt：实体标题、游戏设定、角色设定与全局规则。 */
 export function buildActorSystemPrompt(
   world: { id: string; name: string; campaignSetting: string; systemRules: string },
-  actor: Pick<Actor, "name" | "profile" | "baseBody" | "appearance">,
+  actor: Pick<Actor, "name" | "profile" | "baseBody">,
 ): string {
-  const appearance = resolveAppearance(actor);
-  const appearanceSection =
-    appearance === actor.baseBody.description ? "" : `\n### 当前外观\n\n${appearance}\n`;
   return `# ${actor.name}
 
 你扮演角色: ${actor.name}
@@ -103,7 +100,7 @@ ${actor.profile}
 ### 基础体型
 
 ${formatBaseBody(actor.baseBody)}
-${appearanceSection}
+
 ## 全局规则
 
 ${world.systemRules}`;
@@ -173,7 +170,7 @@ async function createMemory(
 export async function createActorMemory(
   executor: Executor,
   gameId: string,
-  actor: Pick<Actor, "name" | "profile" | "baseBody" | "appearance"> & { id: string },
+  actor: Pick<Actor, "name" | "profile" | "baseBody"> & { id: string },
   systemPrompt: string,
 ): Promise<MemoryRow> {
   return createMemory(

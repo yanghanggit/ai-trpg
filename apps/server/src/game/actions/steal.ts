@@ -1,5 +1,5 @@
 import { eq } from "drizzle-orm";
-import { items } from "../../db/schema";
+import { actors, items } from "../../db/schema";
 import type { ToolDefinition } from "../../llm/types";
 import { appendPublicMessage, bumpGameVersion } from "../apply/messages";
 import {
@@ -10,6 +10,7 @@ import {
 } from "../apply/queries";
 import type { ActorWithStageRow, Executor, ResolvedSteal } from "../apply/types";
 import { GameError } from "../errors";
+import { withoutEquippedItem } from "../items";
 import { appendItemObservations, appendStageEvent } from "../observations";
 import type { StealAction } from "../types";
 
@@ -75,6 +76,10 @@ export async function applySteal(
 
   await assertItemNameFree(executor, thief.id, item.name);
   await executor.update(items).set({ actorId: thief.id }).where(eq(items.id, item.id));
+  await executor
+    .update(actors)
+    .set({ equipment: withoutEquippedItem(resolved.target.equipment, item.name) })
+    .where(eq(actors.id, target.id));
   await bumpGameVersion(executor, gameId, now);
 
   const content = `${thief.name}从${target.name}身上取走了${item.name}。`;

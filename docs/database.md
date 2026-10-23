@@ -11,10 +11,10 @@ PostgreSQL 是游戏状态的唯一真相。`agent:game` 从数据库读取状�
 - `worlds`：游戏的世界状态，`game_id` 唯一，强制一局一个 world。
 - `stages`：world 下的场景；`world_id` 非空，按 `ordinal` 保持稳定顺序；`environment` 是当前环境快照，由 stage 小 GM 更新。
 - `stage_connections`：场景图的有向边；连接两端必须属于同一 world；演示世界使用三组双向连接，乱葬坑到墓园另有一条单向出口。
-- `actors`：场景中的角色；`stage_id` 非空，不能脱离场景存在；当前没有玩家控制字段；`appearance` 是当前可见外观（含衣着、装备与伤势，text），`base_body` 是未穿装备的种族 + 裸体描述（JSONB），`stats` 是根属性（JSONB：`hp` / `maxHp` / `attack` / `defense` / `speed`），`status` 是 `alive | dead` 枚举（默认 `alive`）；`actions` 是该角色被允许的动作列表（JSONB 数组，必须显式写入，无默认值；例如动物不含道具操作）。
+- `actors`：场景中的角色；`stage_id` 非空，不能脱离场景存在；当前没有玩家控制字段；`appearance` 是当前可见外观（含衣着、装备与伤势，text），`base_body` 是未穿装备的种族 + 裸体描述（JSONB），`stats` 是根属性（JSONB：`hp` / `maxHp` / `attack` / `defense` / `speed`），`status` 是 `alive | dead` 枚举（默认 `alive`），`equipment` 是槽位到物品名的索引（JSONB），`actions` 是该角色被允许的动作列表（JSONB 数组，必须显式写入，无默认值；例如动物不含道具操作）。
 - `stages.actions`：场景自身的能力清单，JSONB 数组；当前每个场景都声明 `submit_environment`，决定 stage 小 GM 是否暴露该工具。它不限制角色动作。
-- `items`：角色持有的物品；`actor_id` 非空，不能脱离角色存在；是 actor 唯一的运行时队列。物品根字段只有 `name` / `description` / `kind` / `count`，战斗数值在 `stats`（JSONB：`damage` / `block`）。
-- `stage_items`：暂放在场景中的物品；`stage_id` 非空，当前只作为场景内容读取，已支持拾取并转入 actor 背包。字段与 `items` 相同。
+- `items`：角色持有的物品；`actor_id` 非空，不能脱离角色存在；是 actor 唯一的运行时队列。物品根字段只有 `name` / `description` / `kind` / `count`，战斗数值在 `stats`（JSONB：`damage` / `block`）；物品自身不记录穿戴状态。
+- `stage_items`：暂放在场景中的物品；`stage_id` 非空，当前只作为场景内容读取，已支持拾取并转入 actor 背包。字段与 `items` 相同，但没有穿戴状态。
 - `game_messages`：公共消息流，按 `sequence` 追加；记录 `stage_id`、`speaker_actor_id`、`target_actor_id` 与 `visibility`，供客户端增量拉取与审计；不建立 session 表。
 - `agent_memories`：每个 agent 的私有上下文；`owner_type` 当前支持 `actor` 与 `stage`，stage memory 属于场景小 GM。
 - `agent_memory_messages`：agent memory 的消息序列，保存 system / human / ai / tool 与 tool_calls、元数据。
@@ -23,11 +23,11 @@ PostgreSQL 是游戏状态的唯一真相。`agent:game` 从数据库读取状�
 
 `src/game/attributes.ts` 的 `ATTRIBUTE_DEFINITIONS` 是本系统 TRPG 属性总表：actor 的 `hp` / `maxHp` / `attack` / `defense` / `speed`，以及物品的 `damage` / `block`。新增属性先登记再决定作用域；所有计算通过 `attribute()` / `sumAttribute()` 读取，缺省为 0。
 
-`ItemState` 根字段只有 `id` / `name` / `description` / `kind` / `count`，没有根级 `damage` / `block`，也没有 `stats`。武器与装备扩展出 `StatItemState`，携带 `stats`（`damage` / `block`）；运行时按 `kind` 收窄为 `WeaponState` / `EquipmentState` / `AccessoryState` / `ConsumableState` / `ValuableState`；钥匙属于 `accessory`，不带战斗数值。`block` 目前只存储，不参与伤害计算。
+`ItemState` 根字段只有 `id` / `name` / `description` / `kind` / `count`，没有根级 `damage` / `block`，也没有 `stats` 或穿戴状态。武器与装备扩展出 `StatItemState`（`stats`：`damage` / `block`）；饰品只有根字段。钥匙属于 `accessory`，不携带战斗数值。`block` 目前只存储，不参与伤害计算。
 
 `base_body` 是“捏脸完成、还没穿装备”的形态，`formatBaseBody()` 输出 `[种族] 描述`，system prompt 用 `### 基础体型` 展示它。`appearance` 是其他角色实际看到的样子，包含衣着、装备与当前伤势；内容可以显式提供，动物/怪物省略时回退到 `baseBody.description`。NPC 与 stage 的同场景观察只读 `appearance`，不会把人类看成裸体。
 
-后续由 LLM 把 base body 与本场景可见的装备、伤势融合，更新 `appearance`；当前尚未实现融合，seed 中的人类显式提供穿着后的初始外观，动物直接使用 base body。
+`appearance` 由一次 agent loop 推理得到：以 actor memory 为上下文，把 base body、`equipment` 槽位解析出的穿戴物品与记忆中的血迹/灰尘/伤势融合，通过 `submit_appearance` 提交；结果写回 `actors.appearance`。`setEquipmentSlot` 是换装入口，槽位变化后立即重算。推理不修改 system prompt，基础体型始终只读 `base_body`；seed 中的 `appearance` 是预先写好的推理结果。细节见外观文档 → 参见：[外观](appearance.md)。
 
 `game_messages` 与 `agent_memories` 不能合并。前者是公共事件，后者是私有上下文；`mind` 只进 memory，不进公共消息。玩家接管只在 `actor_controls` 增加关系，不改变 actor 本体。
 

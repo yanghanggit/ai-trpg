@@ -51,7 +51,7 @@ const SYSTEM_RULES = `### 角色扮演契约
 场景切换为叙事跳跃，代表角色已完成移动；旅途过程不在游戏内呈现，收到离开或到达通知时视为自然发生。`;
 
 export const DARK_FANTASY_WORLD: World = {
-  contentVersion: "dark-fantasy.v8",
+  contentVersion: "dark-fantasy.v9",
   worldName: "枯钟修道院",
   campaignSetting: CAMPAIGN_SETTING,
   systemRules: SYSTEM_RULES,
@@ -127,7 +127,8 @@ export const DARK_FANTASY_WORLD: World = {
     {
       stageKey: "graveyard",
       name: "角色.奥德里克",
-      appearance: "旧呢斗篷上沾着石灰与新土，腰间挂着一串生锈的钥匙，其中一把是铸铁的闸门钥匙。",
+      appearance:
+        "旧呢斗篷上沾着石灰与新土，下摆结着一片洗不掉的暗褐血渍；腰间挂着一串生锈的钥匙，其中一把是铸铁的闸门钥匙；背后斜靠一把磨亮的铁锹。",
       profile: `**历史**: 你是枯钟修道院的掘墓人与守门人，埋过这座墓园里最后一具完整的尸体。黑疖病最盛时，院长带着还能走的修士从北门离开，只留下你、一把钥匙和一口没人再敲的钟。
 **性格**: 沉默、谨慎、守序。你不怕尸体，只怕有人把铁闸门打开；你不愿把钥匙交给来路不明的尸体。
 **说话习惯/口音**: 句子短，声音沙哑；先问来路，再问目的，提到死者时只说“他们”。
@@ -143,12 +144,31 @@ export const DARK_FANTASY_WORLD: World = {
       },
       stats: { hp: 14, maxHp: 14, attack: 5, defense: 2, speed: 3 },
       status: "alive" as const,
+      equipment: {
+        weapon: "武器.掘墓人的铁锹",
+        body: "装备.补丁斗篷",
+        accessory: "饰品.闸门钥匙",
+      },
       items: [
         {
           name: "饰品.闸门钥匙",
           description: "一把铸铁的闸门钥匙，柄上刻着修道院的钟形纹；齿纹被磨得很亮。",
           kind: "accessory" as const,
           count: 1,
+        },
+        {
+          name: "武器.掘墓人的铁锹",
+          description: "锹刃磨得发亮，木柄缠着浸过焦油的布条；刃口有干涸的暗色。",
+          kind: "weapon" as const,
+          count: 1,
+          stats: { damage: 6, block: 0 },
+        },
+        {
+          name: "装备.补丁斗篷",
+          description: "厚重的旧呢斗篷，补丁上结着石灰与新土，下摆有一片洗不掉的暗褐血渍。",
+          kind: "equipment" as const,
+          count: 1,
+          stats: { block: 1 },
         },
       ],
       // 人类：会说话、走动、战斗，也会操作道具。
@@ -199,7 +219,7 @@ export const DARK_FANTASY_WORLD: World = {
       stageKey: "plague-pit",
       name: "角色.无名者",
       appearance:
-        "皮肤灰白，指缝里塞满湿泥；衣领下露出半截被鼠牙啃过的锁链，走路时关节会发出干涩的响声。",
+        "身上裹着半幅发黄的裹尸布，布角拖过湿泥；皮肤灰白，指缝里塞满湿泥；衣领下露出半截被鼠牙啃过的锁链，走路时关节会发出干涩的响声。",
       profile: `**历史**: 你从乱葬坑的尸堆里醒来，记忆残缺；只记得石灰、裹尸布，以及衣领下那截被鼠牙啃过的锁链。修士们把你当成黑疖病的死者扔了下来。
 **性格**: 冷静、试探、目的明确；能谈判也能动手，必要时会偷。
 **说话习惯/口音**: 语速慢，句子短，常把“记得”与“不记得”挂在嘴边。
@@ -214,7 +234,25 @@ export const DARK_FANTASY_WORLD: World = {
       },
       stats: { hp: 20, maxHp: 20, attack: 6, defense: 2, speed: 3 },
       status: "alive" as const,
-      items: [],
+      equipment: {
+        body: "装备.发黄的裹尸布",
+        accessory: "饰品.颈上的断链",
+      },
+      items: [
+        {
+          name: "装备.发黄的裹尸布",
+          description: "半幅发黄的粗麻裹尸布，布角沾着湿泥与石灰，还留着尸坑的霉味。",
+          kind: "equipment" as const,
+          count: 1,
+          stats: { block: 0 },
+        },
+        {
+          name: "饰品.颈上的断链",
+          description: "半截被鼠牙啃过的铁链，断口发亮，仍挂在颈间。",
+          kind: "accessory" as const,
+          count: 1,
+        },
+      ],
       // 唯一会偷窃的角色；其余能力与普通人类一致。
       actions: [
         "say",

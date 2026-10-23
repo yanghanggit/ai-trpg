@@ -131,6 +131,7 @@ describe("read-only descriptions", () => {
       baseBody: { race: "人类", description: "瘦削，手腕有旧绳痕。" },
       stats: { hp: 12, maxHp: 12, attack: 3, defense: 2, speed: 4 },
       status: "alive" as const,
+      equipment: { weapon: "裂齿短刃" },
       actions: [
         "say",
         "whisper",
@@ -157,8 +158,8 @@ describe("read-only descriptions", () => {
     expect(describeStats(actor)).toContain("HP：12/12");
     expect(describeStats(actor)).toContain("attack：3");
     expect(describeStats(actor)).toContain("状态：存活");
-    expect(describeItems(actor)).toContain("裂齿短刃（weapon，count 1）：刃口崩了三处。");
-    expect(describeItems({ items: [] })).toBe("物品：无");
+    expect(describeItems(actor)).toContain("裂齿短刃（weapon，count 1，已穿戴）：刃口崩了三处。");
+    expect(describeItems({ items: [], equipment: {} })).toBe("物品：无");
     expect(describeActor(actor)).toContain("外观：披着旧斗篷。");
     expect(describeActor(actor)).toContain("裂齿短刃");
   });

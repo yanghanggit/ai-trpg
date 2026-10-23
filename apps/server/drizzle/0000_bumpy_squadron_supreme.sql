@@ -16,6 +16,7 @@ CREATE TABLE "actors" (
 	"base_body" jsonb NOT NULL,
 	"stats" jsonb NOT NULL,
 	"status" text DEFAULT 'alive' NOT NULL,
+	"equipment" jsonb DEFAULT '{}'::jsonb NOT NULL,
 	"actions" jsonb DEFAULT '[]'::jsonb NOT NULL,
 	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
 	"updated_at" timestamp with time zone DEFAULT now() NOT NULL

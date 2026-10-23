@@ -70,7 +70,7 @@ return `# 行动结果\n你对${targetLabel}使用了${item.name}。${completed 
 位置：`apps/server/src/db/maintenance.ts:2,48-65`
 
 - 从 `seeds/dark-fantasy.ts` 导入 `DEMO_USER`，把“演示用户”与某一份具体内容绑在一起；
-- `app_meta` 的 value 写死 `{ version: 1, seed: "dark-fantasy.v2" }`，既是内容专名，也已经**过时**（当前是 `dark-fantasy.v8`）。
+- `app_meta` 的 value 写死 `{ version: 1, seed: "dark-fantasy.v2" }`，既是内容专名，也已经**过时**（当前是 `dark-fantasy.v9`）。
 
 ### 4. CLI 建局默认使用演示内容
 

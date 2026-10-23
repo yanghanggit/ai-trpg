@@ -1,5 +1,5 @@
 import { eq } from "drizzle-orm";
-import { items } from "../../db/schema";
+import { actors, items } from "../../db/schema";
 import type { ToolDefinition } from "../../llm/types";
 import { appendPublicMessage, bumpGameVersion } from "../apply/messages";
 import {
@@ -11,6 +11,7 @@ import {
 } from "../apply/queries";
 import type { ActorWithStageRow, Executor, ResolvedGive } from "../apply/types";
 import { GameError } from "../errors";
+import { withoutEquippedItem } from "../items";
 import { appendItemObservations, appendStageEvent } from "../observations";
 import type { GiveAction } from "../types";
 
@@ -80,6 +81,10 @@ export async function applyGive(
 
   await assertItemNameFree(executor, target.id, item.name);
   await executor.update(items).set({ actorId: target.id }).where(eq(items.id, item.id));
+  await executor
+    .update(actors)
+    .set({ equipment: withoutEquippedItem(actorRow.actor.equipment, item.name) })
+    .where(eq(actors.id, giver.id));
   await bumpGameVersion(executor, gameId, now);
 
   const content = `${giver.name}把${item.name}交给了${target.name}。`;
