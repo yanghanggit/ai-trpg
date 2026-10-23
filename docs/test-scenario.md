@@ -2,7 +2,7 @@
 
 > 状态：临时内容，只服务当前行动、记忆、物品与通关链路的验证，不是最终剧情，也不是长期内容模板。
 
-剧本定义在 `apps/server/seeds/dark-fantasy.ts`，内容版本为 `dark-fantasy.v9`，由 `createGame` 物化为具体游戏状态。测试世界使用独立的小型 `TEST_WORLD`，不随本剧本变化。
+剧本定义在 `apps/server/seeds/dark-fantasy.ts`，内容版本为 `dark-fantasy.v10`，由 `createGame` 物化为具体游戏状态。测试世界使用独立的小型 `TEST_WORLD`，不随本剧本变化。
 
 ## 背景（暗线）
 

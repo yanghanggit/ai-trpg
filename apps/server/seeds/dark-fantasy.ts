@@ -51,7 +51,7 @@ const SYSTEM_RULES = `### 角色扮演契约
 场景切换为叙事跳跃，代表角色已完成移动；旅途过程不在游戏内呈现，收到离开或到达通知时视为自然发生。`;
 
 export const DARK_FANTASY_WORLD: World = {
-  contentVersion: "dark-fantasy.v9",
+  contentVersion: "dark-fantasy.v10",
   worldName: "枯钟修道院",
   campaignSetting: CAMPAIGN_SETTING,
   systemRules: SYSTEM_RULES,
@@ -172,7 +172,18 @@ export const DARK_FANTASY_WORLD: World = {
         },
       ],
       // 人类：会说话、走动、战斗，也会操作道具。
-      actions: ["say", "whisper", "announce", "move", "wait", "attack", "give", "pickup", "use"],
+      actions: [
+        "say",
+        "whisper",
+        "announce",
+        "move",
+        "wait",
+        "attack",
+        "give",
+        "pickup",
+        "use",
+        "query",
+      ],
     },
     {
       stageKey: "graveyard",
@@ -213,7 +224,7 @@ export const DARK_FANTASY_WORLD: World = {
       status: "alive" as const,
       items: [],
       // 幼崽只会说话、走动与躲避；不会战斗，也不操作道具。
-      actions: ["say", "whisper", "announce", "move", "wait"],
+      actions: ["say", "whisper", "announce", "move", "wait", "query"],
     },
     {
       stageKey: "plague-pit",
@@ -287,7 +298,7 @@ export const DARK_FANTASY_WORLD: World = {
       status: "alive" as const,
       items: [],
       // 动物：沉睡时由 profile 约束只用 wait；苏醒后可以移动与攻击，但不操作道具。
-      actions: ["say", "whisper", "announce", "move", "wait", "attack"],
+      actions: ["say", "whisper", "announce", "move", "wait", "attack", "query"],
     },
   ],
 };

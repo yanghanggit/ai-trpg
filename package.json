@@ -36,7 +36,11 @@
     "db:reset": "pnpm --filter @ai-trpg/server db:reset",
     "db:demo": "pnpm --filter @ai-trpg/server db:demo",
     "lint:md": "markdownlint-cli2 \"**/*.md\" \"#**/node_modules/**\" \"#**/dist/**\" \"#.VSCodeCounter/**\"",
-    "lint:md:fix": "markdownlint-cli2 \"**/*.md\" \"#**/node_modules/**\" \"#**/dist/**\" \"#.VSCodeCounter/**\" --fix"
+    "lint:md:fix": "markdownlint-cli2 \"**/*.md\" \"#**/node_modules/**\" \"#**/dist/**\" \"#.VSCodeCounter/**\" --fix",
+    "rag": "pnpm --filter @ai-trpg/server rag",
+    "rag:ingest": "pnpm --filter @ai-trpg/server rag:ingest",
+    "rag:search": "pnpm --filter @ai-trpg/server rag:search",
+    "rag:smoke": "pnpm --filter @ai-trpg/server rag:smoke"
   },
   "devDependencies": {
     "@ai-trpg/shared": "workspace:*",

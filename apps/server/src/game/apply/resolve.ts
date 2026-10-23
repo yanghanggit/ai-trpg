@@ -9,7 +9,7 @@ import { resolveUse } from "../actions/use";
 import { resolveWait } from "../actions/wait";
 import { resolveWhisper } from "../actions/whisper";
 import { GameError } from "../errors";
-import type { ActionKind, ActorPlan } from "../types";
+import type { ActorCapability, ActorPlan } from "../types";
 import type { ActorWithStageRow, Executor, ResolvedAction, StageRow, WorldRow } from "./types";
 
 /**
@@ -26,7 +26,7 @@ export async function resolvePlan(
   let stage: StageRow = actorRow.stage;
   const resolved: ResolvedAction[] = [];
 
-  const actorActions = actorRow.actor.actions as unknown as ActionKind[];
+  const actorActions = actorRow.actor.actions as unknown as ActorCapability[];
   for (const action of plan.actions) {
     assertActionAllowed(actorActions, action.kind, actorRow.actor.name);
     switch (action.kind) {

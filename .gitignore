@@ -42,3 +42,6 @@ pnpm-debug.log*
 !.vscode/extensions.json
 .idea
 .VSCodeCounter/
+
+# Transformers.js 模型缓存
+apps/server/.cache/

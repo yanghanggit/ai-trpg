@@ -261,10 +261,16 @@ describe.skipIf(!testDatabaseUrl)("memory-driven NPC slice", () => {
     expect(keeperService.tools).not.toContain("get_actor");
     expect(keeperService.tools).not.toContain("get_stats");
     expect(keeperService.tools).not.toContain("get_items");
+    expect(keeperService.tools).toContain("query");
 
     const corpseService = new ToolCaptureService();
     await runNpcTurn(handle.db, created.game.slug, "角色.无名者", { service: corpseService });
     expect(corpseService.tools).toContain("steal");
+    expect(corpseService.tools).not.toContain("query");
+
+    const dogService = new ToolCaptureService();
+    await runNpcTurn(handle.db, created.game.slug, "角色.煤渣", { service: dogService });
+    expect(dogService.tools).not.toContain("query");
 
     const mouseService = new ToolCaptureService();
     await runNpcTurn(handle.db, created.game.slug, "角色.坏运气", { service: mouseService });
@@ -273,6 +279,7 @@ describe.skipIf(!testDatabaseUrl)("memory-driven NPC slice", () => {
     expect(mouseService.tools).not.toContain("give");
     expect(mouseService.tools).not.toContain("use");
     expect(mouseService.tools).not.toContain("steal");
+    expect(mouseService.tools).toContain("query");
   });
 
   it("rejects a plan with more actions than the per-turn cap", async () => {

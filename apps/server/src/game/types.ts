@@ -97,8 +97,8 @@ export type Actor = {
   stats: ActorStats;
   status?: ActorStatus;
   items: readonly ItemDefinition[];
-  /** 该角色可用的动作；必须显式列出，不给默认值。 */
-  actions: readonly ActionKind[];
+  /** 该角色可用的动作与只读能力；必须显式列出，不给默认值。 */
+  actions: readonly ActorCapability[];
 };
 
 /** Actor 的初始物品定义；创建后物化为 `items` 或 `stage_items` 行。 */
@@ -202,6 +202,12 @@ export type ActorAction =
 
 export type ActionKind = ActorAction["kind"];
 
+/** 只读能力不是行动，但与行动共用 actor.actions 的能力清单。 */
+export type ActorReadToolKind = "query";
+
+/** actor.actions 的成员：十个动作或只读工具。 */
+export type ActorCapability = ActionKind | ActorReadToolKind;
+
 /** 场景作为小 GM 能执行的动作；当前只有提交 environment。 */
 export type StageActionKind = "submit_environment";
 
@@ -259,7 +265,7 @@ export type ActorState = {
   status: ActorStatus;
   equipment: EquipmentSlots;
   items: Item[];
-  actions: readonly ActionKind[];
+  actions: readonly ActorCapability[];
 };
 
 export type StageState = {

@@ -1,5 +1,5 @@
 import { GameError } from "../errors";
-import type { ActionKind } from "../types";
+import type { ActionKind, ActorCapability } from "../types";
 
 /** 全部动作 kind；顺序与提示词里的列举保持一致，供测试与文档引用。 */
 export const ACTION_KINDS = [
@@ -29,14 +29,14 @@ export const ACTION_SUMMARIES: Record<ActionKind, string> = {
   use: "用自己的物品作用于角色或场景",
 };
 
-/** 角色可用的动作：完全由 actor 自己的 actions 决定。 */
-export function allowedActionKinds(actorActions: readonly ActionKind[]): ActionKind[] {
-  return [...actorActions];
+/** 角色可用的行动：从能力清单中滤出十个动作，忽略只读工具。 */
+export function allowedActionKinds(actorActions: readonly ActorCapability[]): ActionKind[] {
+  return ACTION_KINDS.filter((kind) => actorActions.includes(kind));
 }
 
 /** 结算前的权威校验：actor 必须拥有该动作。 */
 export function assertActionAllowed(
-  actorActions: readonly ActionKind[],
+  actorActions: readonly ActorCapability[],
   kind: ActionKind,
   actorName: string,
 ): void {

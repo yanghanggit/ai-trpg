@@ -1,0 +1,1 @@
+ALTER TABLE "actors" ADD COLUMN "knowledge_access" boolean DEFAULT false NOT NULL;

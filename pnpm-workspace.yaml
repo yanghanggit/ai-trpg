@@ -5,6 +5,8 @@ packages:
 # esbuild 的安装脚本需要下载对应平台的可执行文件；未显式放行时 pnpm 会跳过它。
 allowBuilds:
   esbuild: true
+  onnxruntime-node: true
+  protobufjs: true
 
 minimumReleaseAgeExclude:
   - "@biomejs/biome@2.6.2"

@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { DARK_FANTASY_WORLD } from "../seeds/dark-fantasy";
+import { DARK_FANTASY_KNOWLEDGE } from "../seeds/knowledge/dark-fantasy";
 import { resolveAppearance } from "../src/game/body";
 
 const { stages } = DARK_FANTASY_WORLD;
@@ -134,6 +135,28 @@ describe("dark fantasy seed world", () => {
     // 每个场景都声明了自己作为小 GM 的能力。
     for (const item of stages) {
       expect(item.actions).toEqual(["submit_environment"]);
+    }
+  });
+
+  it("keeps the public knowledge base free of actor secrets", () => {
+    const text = Object.values(DARK_FANTASY_KNOWLEDGE).flat().join("\n");
+    for (const actor of DARK_FANTASY_WORLD.actors) {
+      expect(text).not.toContain(actor.name);
+    }
+    for (const secret of ["钥匙", "秘密", "弱点", "沉睡", "追杀"]) {
+      expect(text).not.toContain(secret);
+    }
+  });
+
+  it("only native actors list the public knowledge tool in actions", () => {
+    const actionsOf = (name: string) =>
+      DARK_FANTASY_WORLD.actors.find((actor) => actor.name === name)?.actions ?? [];
+
+    for (const native of ["角色.奥德里克", "角色.坏运气", "角色.鼠王"]) {
+      expect(actionsOf(native)).toContain("query");
+    }
+    for (const other of ["角色.煤渣", "角色.无名者"]) {
+      expect(actionsOf(other)).not.toContain("query");
     }
   });
 

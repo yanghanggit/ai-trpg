@@ -22,12 +22,17 @@
     "db:check": "tsx scripts/db-check.ts",
     "db:seed": "tsx scripts/db-seed.ts",
     "db:reset": "tsx scripts/db-reset.ts",
-    "db:demo": "tsx scripts/db-demo.ts"
+    "db:demo": "tsx scripts/db-demo.ts",
+    "rag": "tsx scripts/rag.ts",
+    "rag:ingest": "tsx scripts/rag.ts ingest",
+    "rag:search": "tsx scripts/rag.ts search",
+    "rag:smoke": "tsx scripts/rag-smoke.ts"
   },
   "dependencies": {
     "@ai-trpg/shared": "workspace:*",
     "@fastify/cors": "^11.3.1",
     "@fastify/swagger": "^9.9.2",
+    "@huggingface/transformers": "^4.3.1",
     "dotenv": "^18.0.8",
     "drizzle-orm": "^0.45.4",
     "fastify": "^5.12.7",

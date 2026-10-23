@@ -59,7 +59,7 @@ context dump 是审计旁路。下一次 LLM request 只使用长期 memory 中�
 
 ## 工具
 
-NPC 工具分为只读 GET、动作与终止工具。`look_stage`、`get_self`、`observe_actor` 是只读 GET，可多次调用并立即返回结果；`get_self` 返回自己的完整信息，`observe_actor` 只返回同场景目标携带的物品，不暴露 stats 或状态；是否一次返回多个调用或分多轮调用由 LLM 决定，循环层按返回顺序串行执行。动作工具共十个，彼此平级：`say`、`whisper`、`announce`、`move`、`wait`、`attack`、`steal`、`give`、`pickup`、`use`；每个工具的参数就是该动作的全部输入，没有中间分类或 `purpose` 参数。`submit_plan` 是终止工具，只提交已暂存计划。工具 handler 不写游戏状态。
+NPC 工具分为只读 GET、动作与终止工具。`look_stage`、`get_self`、`observe_actor` 是只读 GET，可多次调用并立即返回结果；`get_self` 返回自己的完整信息，`observe_actor` 只返回同场景目标携带的物品，不暴露 stats 或状态。只有 `actions` 中列出 `query` 的原住民 actor 额外拥有该工具；它检索公共知识，不返回秘密或当前状态，不占行动。是否一次返回多个调用或分多轮调用由 LLM 决定，循环层按返回顺序串行执行。动作工具共十个，彼此平级：`say`、`whisper`、`announce`、`move`、`wait`、`attack`、`steal`、`give`、`pickup`、`use`；每个工具的参数就是该动作的全部输入，没有中间分类或 `purpose` 参数。`submit_plan` 是终止工具，只提交已暂存计划。工具 handler 不写游戏状态。
 
 计划是**有序动作列表**，最多 `MAX_ACTIONS_PER_TURN = 2` 条；不做分类互斥，只限制条数。“通常一次沟通加一个其他动作”由提示词约定，工具 handler 在超过 2 条时立即报错给模型。两个动作按调用顺序应用，先移动后说话与先说话后移动是不同结果。
 
@@ -96,7 +96,7 @@ NPC 工具分为只读 GET、动作与终止工具。`look_stage`、`get_self`�
 
 `attack` 的伤害为 `max(0, 攻击者 stats.attack + 所选武器 stats.damage - 目标 stats.defense)`；空手时不加武器 damage，目标 defense 是唯一 block，物品 block 不参与当前伤害。`steal` 允许对尸体取物；`give` 只能给存活角色；`pickup` 把 `stage_items` 移入背包；`use` 的目标只能是当前场景、自己或同场景角色。
 
-能力在种子（`seeds/dark-fantasy.ts`）里**逐角色逐条**写出，不设共享默认值：动物只有 `say` / `whisper` / `announce` / `move` / `wait`（狗与鼠王再加 `attack`），人类才有 `give` / `pickup` / `use`，偷窃只属于当前剧本的无名者。创建游戏时写进 `actors.actions` / `stages.actions`，运行时以数据库为准。stage 的能力目前只有 `submit_environment`，环境写法规则写在工具描述里，属于“工具即上下文”。NPC 只暴露被允许的工具；结算层 `assertActionAllowed` 是权威校验，玩家入口与脚本调用同样受约束（拒绝原因会直接返回给调用方）。计划条数由 `MAX_ACTIONS_PER_TURN` 限制。
+能力在种子（`seeds/dark-fantasy.ts`）里**逐角色逐条**写出，不设共享默认值：动物只有 `say` / `whisper` / `announce` / `move` / `wait`（狗与鼠王再加 `attack`），人类才有 `give` / `pickup` / `use`，偷窃只属于当前剧本的无名者。知识检索作为只读能力写进同一个 `actions` 清单，当前只给奥德里克、坏运气与鼠王；玩家角色与煤渣没有该工具。创建游戏时写进 `actors.actions` / `stages.actions`，运行时以数据库为准。stage 的能力目前只有 `submit_environment`，环境写法规则写在工具描述里，属于“工具即上下文”。NPC 只暴露被允许的工具；结算层 `assertActionAllowed` 是权威校验，玩家入口与脚本调用同样受约束（拒绝原因会直接返回给调用方）。计划条数由 `MAX_ACTIONS_PER_TURN` 限制。
 
 ## 事务边界
 

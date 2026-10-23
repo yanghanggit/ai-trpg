@@ -8,6 +8,34 @@
       "when": 1792733234829,
       "tag": "0000_wandering_shiver_man",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1792736255532,
+      "tag": "0001_lively_famine",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1792736407417,
+      "tag": "0002_zippy_phantom_reporter",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1792736890561,
+      "tag": "0003_soft_thor",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1792737208118,
+      "tag": "0004_rename-query-capability",
+      "breakpoints": true
     }
   ]
 }

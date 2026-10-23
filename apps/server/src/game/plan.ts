@@ -1,4 +1,5 @@
 import type { ToolDefinition } from "../llm/types";
+import type { RagSearchResult } from "../rag";
 import { adjacentStageNames, findStageByName } from "./actors";
 import { attribute } from "./attributes";
 import { GameError } from "./errors";
@@ -88,6 +89,48 @@ export function buildObserveActorTool(
       },
     },
   };
+}
+
+/** 构造公共知识库检索工具；只对 actions 中显式列出 query 的角色暴露。 */
+export function buildKnowledgeTool(): ToolDefinition {
+  return {
+    type: "function",
+    function: {
+      name: "query",
+      description:
+        "检索当前世界的公共知识库：建筑、地理、历史、瘟疫、习俗等任何人都可能观察或听说的事实。只读，可多次调用，不占行动。它不包含角色秘密、当前场景状态、物品位置或未公开剧情；检索结果不等于亲眼所见。",
+      parameters: {
+        type: "object",
+        properties: {
+          question: {
+            type: "string",
+            description: "要查询的公共知识问题；用自然语言描述，不要询问角色秘密或当前状态",
+          },
+        },
+        required: ["question"],
+      },
+    },
+  };
+}
+
+/** 渲染知识库检索结果；相似度只是文本接近度，不是事实权威。 */
+export function describeKnowledgeResults(
+  question: string,
+  results: readonly RagSearchResult[],
+): string {
+  if (results.length === 0) {
+    return `# 公共知识检索
+问题：${question}
+（知识库中未检索到相关信息）`;
+  }
+  const lines = results.map(
+    (result, index) => `${index + 1}. [相似度 ${result.similarity.toFixed(3)}] ${result.content}`,
+  );
+  return `# 公共知识检索
+问题：${question}
+${lines.join("\n")}
+
+相似度仅表示文本接近程度；公共知识不等于你亲眼所见，也不能据此知道角色秘密或当前状态。`;
 }
 
 /** 构造终止工具；调用后本轮计划结束。 */

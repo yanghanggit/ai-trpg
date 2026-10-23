@@ -25,7 +25,7 @@ import {
 } from "./memory";
 import { appendStageEvent } from "./observations";
 import type {
-  ActionKind,
+  ActorCapability,
   ActorState,
   ConnectionState,
   CreateGameInput,
@@ -177,7 +177,7 @@ export async function getGameState(db: Database, ref: string): Promise<GameState
       status: actor.status,
       equipment: actor.equipment,
       items: itemsByActor.get(actor.id) ?? [],
-      actions: actor.actions as unknown as ActionKind[],
+      actions: actor.actions as unknown as ActorCapability[],
     });
     actorsByStage.set(actor.stageId, list);
   }

@@ -1,4 +1,5 @@
 import {
+  index,
   integer,
   jsonb,
   pgTable,
@@ -7,9 +8,12 @@ import {
   timestamp,
   uniqueIndex,
   uuid,
+  vector,
 } from "drizzle-orm/pg-core";
 import type { ActorStats, ItemStats } from "../game/attributes";
 import type { ActorStatus, BaseBody, EquipmentSlots, ItemKind } from "../game/types";
+import { EMBEDDING_DIMENSIONS } from "../rag/constants";
+import type { RagMetadata } from "../rag/types";
 
 export type JsonValue =
   | string
@@ -194,6 +198,30 @@ export const gameMessages = pgTable(
   (table) => [uniqueIndex("game_messages_game_sequence_unique").on(table.gameId, table.sequence)],
 );
 
+export const vectorDocuments = pgTable(
+  "vector_documents",
+  {
+    id: uuid("id").primaryKey(),
+    collection: text("collection").notNull(),
+    source: text("source"),
+    docType: text("doc_type"),
+    title: text("title"),
+    content: text("content").notNull(),
+    contentHash: text("content_hash").notNull(),
+    metadata: jsonb("metadata").$type<RagMetadata>().notNull().default({}),
+    embedding: vector("embedding", { dimensions: EMBEDDING_DIMENSIONS }).notNull(),
+    embeddingModel: text("embedding_model").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    uniqueIndex("vector_documents_collection_hash_unique").on(table.collection, table.contentHash),
+    index("vector_documents_collection_idx").on(table.collection),
+    index("vector_documents_collection_model_idx").on(table.collection, table.embeddingModel),
+    index("vector_documents_embedding_hnsw").using("hnsw", table.embedding.op("vector_cosine_ops")),
+  ],
+);
+
 export const actorControls = pgTable("actor_controls", {
   actorId: uuid("actor_id")
     .primaryKey()
@@ -264,6 +292,7 @@ export const schema = {
   items,
   stageItems,
   gameMessages,
+  vectorDocuments,
   actorControls,
   agentMemories,
   agentMemoryMessages,

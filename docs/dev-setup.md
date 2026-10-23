@@ -4,7 +4,7 @@
 
 需要 Node.js >= 22；pnpm 12 由 `packageManager` 固定，可先执行 `corepack enable`。
 
-首次启动依次执行 `pnpm install`、可选的 `cp .env.example .env`、`pnpm db:migrate`、`pnpm db:demo`、`pnpm dev`。`pnpm dev` 会先离线生成 API 契约，再并行启动服务端与客户端。数据库使用本机 PostgreSQL；先创建 `ai_trpg_dev` 与 `ai_trpg_test`，并在根 `.env` 填好 `DATABASE_URL` 与 `TEST_DATABASE_URL`。测试库由数据库测试在运行时自行迁移。
+首次启动依次执行 `pnpm install`、可选的 `cp .env.example .env`、`pnpm db:migrate`、`pnpm db:demo`、`pnpm dev`。`pnpm dev` 会先离线生成 API 契约，再并行启动服务端与客户端。数据库使用本机 PostgreSQL；先创建 `ai_trpg_dev` 与 `ai_trpg_test`，并安装与 PostgreSQL 版本匹配的 pgvector 扩展，在根 `.env` 填好 `DATABASE_URL` 与 `TEST_DATABASE_URL`。迁移会自动执行 `CREATE EXTENSION IF NOT EXISTS vector`；数据库账号需要有扩展权限。测试库由数据库测试在运行时自行迁移。
 
 Vite 会打印 Local 与 Network 两个地址；局域网访问使用 Network（en0）那条。页面显示「已连接」即链路正常。服务端健康检查为 `curl http://<局域网 IP>:8787/api/v1/health`。
 
@@ -51,6 +51,7 @@ Vite 会打印 Local 与 Network 两个地址；局域网访问使用 Network（
 - `pnpm smoke:deepseek`：真实调用 DeepSeek 的冒烟测试；`smoke:deepseek:full` 额外跑多工具与模型矩阵；`smoke:deepseek:dump` 在 `LLM_DUMP_ENABLED=true` 时写入对话留痕。
 - `pnpm agent:game` / `pnpm agent:api`：开发期 agent 的快照入口与 HTTP 走查入口。
 - `pnpm db:migrate` / `db:check` / `db:seed` / `db:reset` / `db:demo`：迁移、探测、demo 数据、定点清空、演示初始化；`db:reset` 需要 `--yes`。
+- `pnpm rag:ingest` / `rag:search --query <text>` / `rag:check` / `rag:delete --collection <name> --yes`：公共知识向量入库、检索、计数与清理。`pnpm rag:smoke` 在测试库跑真实模型的端到端检索。首次运行会下载 Transformers.js 模型到 `apps/server/.cache/transformers/`。
 - `pnpm agent:game create --user demo`、`status`、`npc`、`snapshot`：从数据库创建并推进黑暗奇幻 NPC 回合；每个 NPC 带物品与状态容器；`npc` 使用 DeepSeek，需要 `DEEPSEEK_API_KEY`。建局后可以在仓库根目录的 `prompts/<时间戳>_<世界名>/` 查看本局实际使用的 system prompt（gitignore 忽略）。
 - `pnpm agent:game take-control` / `release-control`，以及 `player-say` / `player-whisper` / `player-announce` / `player-move` / `player-wait` / `player-attack` / `player-steal` / `player-give` / `player-pickup` / `player-use`：玩家接管 actor 后直接提交单个动作。
 
