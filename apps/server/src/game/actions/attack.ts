@@ -1,25 +1,21 @@
-import { eq } from "drizzle-orm";
-import { actors } from "../../db/schema";
 import type { ToolDefinition } from "../../llm/types";
-import { appendPublicMessage, bumpGameVersion, itemListText } from "../apply/messages";
-import { assertAlive, assertNotSelf, findActorInStage, resolveActorItems } from "../apply/queries";
+import { assertAlive, assertNotSelf, findActorInStage, resolveActorItem } from "../apply/queries";
 import type { ActorWithStageRow, Executor, ResolvedAttack } from "../apply/types";
-import { sumAttribute } from "../attributes";
 import { GameError } from "../errors";
-import { appendAttackObservations, appendStageEvent } from "../observations";
+import { applyItemEffect, UNARMED_EFFECT } from "../item-effects";
 import type { AttackAction } from "../types";
 
-/** 构造 attack 工具：攻击同场景一个角色，可搭配自己持有的武器。 */
+/** 构造 attack 工具：攻击同场景一个角色，可引用一件带 attack effect 的物品。 */
 export function buildAttackTool(
   targetActorNames: readonly string[],
-  itemNames: readonly string[],
+  availableItemNames: readonly string[],
 ): ToolDefinition {
   return {
     type: "function",
     function: {
       name: "attack",
       description:
-        "把一次攻击加入计划：对同场景的一个角色造成伤害；可以搭配自己持有的武器道具，也可以空手。先用 look_stage 确认目标是否在同场景。",
+        "把一次攻击加入计划：对同场景的一个角色造成伤害；可以引用一件支持 attack 效果的自身物品，也可以空手。物品只声明效果，攻击本身只负责分派。先用 look_stage 确认目标是否在同场景。",
       parameters: {
         type: "object",
         properties: {
@@ -28,13 +24,10 @@ export function buildAttackTool(
             description: "要攻击的同场景角色",
             ...(targetActorNames.length > 0 ? { enum: [...targetActorNames] } : {}),
           },
-          itemNames: {
-            type: "array",
-            items: {
-              type: "string",
-              ...(itemNames.length > 0 ? { enum: [...itemNames] } : {}),
-            },
-            description: "本次攻击搭配的自身武器道具；可以为空",
+          itemName: {
+            type: "string",
+            ...(availableItemNames.length > 0 ? { enum: [...availableItemNames] } : {}),
+            description: "本次攻击引用的一件自身物品；省略表示空手",
           },
         },
         required: ["targetActorName"],
@@ -50,19 +43,15 @@ export function parseAttack(args: Record<string, unknown>): AttackAction {
   if (targetActorName.length === 0) {
     throw new GameError("invalid_action", "attack 需要非空 targetActorName");
   }
-  const rawItemNames = Array.isArray(args.itemNames) ? args.itemNames : [];
-  const itemNames = [
-    ...new Set(
-      rawItemNames
-        .filter((itemName): itemName is string => typeof itemName === "string")
-        .map((itemName) => itemName.trim())
-        .filter((itemName) => itemName.length > 0),
-    ),
-  ];
-  return { kind: "attack", targetActorName, itemNames };
+  const itemName = typeof args.itemName === "string" ? args.itemName.trim() : "";
+  return {
+    kind: "attack",
+    targetActorName,
+    ...(itemName.length > 0 ? { itemName } : {}),
+  };
 }
 
-/** 校验 attack：目标存活且不是自己，道具必须都是自己持有的武器。 */
+/** 校验 attack：目标存活且不是自己；引用物品时必须是 damage effect。 */
 export async function resolveAttack(
   executor: Executor,
   stage: ResolvedAttack["stage"],
@@ -72,14 +61,17 @@ export async function resolveAttack(
   const target = await findActorInStage(executor, stage.id, action.targetActorName);
   assertNotSelf(target, actorId);
   assertAlive(target);
-  const items = await resolveActorItems(executor, actorId, action.itemNames);
-  if (items.some((item) => item.kind !== "weapon")) {
-    throw new GameError("invalid_action", "attack 只能搭配武器道具");
+  const item =
+    action.itemName !== undefined
+      ? await resolveActorItem(executor, actorId, action.itemName)
+      : undefined;
+  if (item && item.effect.type !== "damage") {
+    throw new GameError("invalid_action", `attack 需要 damage effect: ${item.name}`);
   }
-  return { kind: "attack", action, stage, target, items };
+  return { kind: "attack", action, stage, target, ...(item ? { item } : {}) };
 }
 
-/** 应用 attack：伤害 = max(0, attack + 武器 damage - 目标 defense)。 */
+/** 应用 attack：只选择物品并分派 effect；伤害公式在 damage effect 中。 */
 export async function applyAttack(
   executor: Executor,
   gameId: string,
@@ -87,49 +79,15 @@ export async function applyAttack(
   resolved: ResolvedAttack,
   now: Date,
 ): Promise<string> {
-  const target = resolved.target;
-  const weaponDamage = sumAttribute(
-    resolved.items.map((item) => item.stats),
-    "damage",
-  );
-  const damage = Math.max(0, actorRow.actor.stats.attack + weaponDamage - target.stats.defense);
-  const remainingHp = Math.max(0, target.stats.hp - damage);
-  const status = remainingHp <= 0 ? "dead" : "alive";
-
-  await executor
-    .update(actors)
-    .set({ stats: { ...target.stats, hp: remainingHp }, status, updatedAt: now })
-    .where(eq(actors.id, target.id));
-  await bumpGameVersion(executor, gameId, now);
-
-  const itemText = itemListText(resolved.items);
-  const outcome =
-    status === "dead"
-      ? `；${target.name}倒下了。`
-      : `；${target.name}剩余 HP ${remainingHp}/${target.stats.maxHp}。`;
-  const content = `${actorRow.actor.name}对${target.name}使用攻击${itemText}，造成${damage}点伤害${outcome}`;
-  await appendPublicMessage(executor, gameId, actorRow.actor.id, {
-    kind: "attack",
-    stageId: resolved.stage.id,
-    targetActorId: target.id,
-    visibility: "stage",
-    content,
-  });
-  await appendAttackObservations(
+  return applyItemEffect({
     executor,
     gameId,
-    resolved.stage,
-    { id: actorRow.actor.id, name: actorRow.actor.name },
-    { id: target.id, name: target.name, maxHp: target.stats.maxHp },
-    "stage",
-    resolved.items,
-    damage,
-    remainingHp,
-    status,
-  );
-  await appendStageEvent(executor, gameId, resolved.stage.id, `# 场景事件\n${content}`, {
-    eventKind: "attack",
-    targetActorId: target.id,
+    actorRow,
+    stage: resolved.stage,
+    actionKind: "attack",
+    effect: resolved.item?.effect ?? UNARMED_EFFECT,
+    ...(resolved.item ? { item: resolved.item } : {}),
+    target: resolved.target,
+    now,
   });
-  return `# 行动结果\n你使用攻击${itemText}对${target.name}，造成${damage}点伤害；${status === "dead" ? `${target.name}倒下了` : `${target.name}剩余 HP ${remainingHp}/${target.stats.maxHp}`}。`;
 }

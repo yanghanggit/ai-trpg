@@ -38,6 +38,7 @@ const ITEM_WORLD = {
               kind: "weapon" as const,
               count: 1,
               stats: { damage: 7, block: 1 },
+              effect: { type: "damage" },
             },
           ],
         }
@@ -91,6 +92,7 @@ const SEALED_WORLD: World = {
           name: SEALED_KEY_NAME,
           description: "测试用闸门钥匙。",
           kind: "accessory" as const,
+          effect: { type: "event" },
         },
       ],
     },
@@ -162,6 +164,28 @@ describe.skipIf(!testDatabaseUrl)("items and interactions", () => {
     ).rejects.toThrow("不能使用动作: steal");
   });
 
+  it("routes a weapon effect through use as well", async () => {
+    const created = await createGame(handle.db, {
+      username: DEMO_USER.username,
+      name: "使用武器效果测试局",
+      world: WEAPON_WORLD,
+    });
+    await takeActorControl(handle.db, created.game.slug, "守烬人");
+
+    const used = await playerUse(handle.db, created.game.slug, "守烬人", {
+      itemName: "裂齿短刃",
+      targetActorName: "提灯修士",
+    });
+    expect(used.ok).toBe(true);
+
+    const state = await getGameState(handle.db, created.game.slug);
+    const monk = state.world.stages
+      .flatMap((stage) => stage.actors)
+      .find((actor) => actor.name === "提灯修士");
+    expect(monk?.stats.hp).toBe(4);
+    expect(state.messages.at(-1)?.kind).toBe("use");
+  });
+
   it("adds weapon damage but uses target defense as the only block", async () => {
     const created = await createGame(handle.db, {
       username: DEMO_USER.username,
@@ -172,7 +196,7 @@ describe.skipIf(!testDatabaseUrl)("items and interactions", () => {
 
     const attacked = await playerAttack(handle.db, created.game.slug, "守烬人", {
       targetActorName: "提灯修士",
-      itemNames: ["裂齿短刃"],
+      itemName: "裂齿短刃",
     });
     expect(attacked.ok).toBe(true);
 

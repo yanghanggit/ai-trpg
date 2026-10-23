@@ -357,6 +357,7 @@ export async function createGame(db: Database, input: CreateGameInput): Promise<
           kind: item.kind,
           count: item.count ?? 1,
           stats: item.stats ?? {},
+          effect: item.effect,
         });
       }
     }
@@ -424,6 +425,7 @@ export async function createGame(db: Database, input: CreateGameInput): Promise<
           kind: item.kind,
           count: item.count ?? 1,
           stats: item.stats ?? {},
+          effect: item.effect,
         });
       }
 

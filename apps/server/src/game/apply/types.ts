@@ -69,7 +69,7 @@ export type ResolvedAttack = {
   action: AttackAction;
   stage: StageRow;
   target: ActorRow;
-  items: ItemRow[];
+  item?: ItemRow;
 };
 
 export type ResolvedSteal = {

@@ -162,7 +162,10 @@ export async function runNpcTurn(
     .filter((actor) => actor.status === "alive")
     .map((actor) => actor.name);
   const selfAndAlive = [current.actor.name, ...aliveTargets];
-  const itemNames = current.actor.items.map((item) => item.name);
+  const availableAttackItemNames = current.actor.items
+    .filter((item) => item.effect.type === "damage")
+    .map((item) => item.name);
+  const availableUseItemNames = current.actor.items.map((item) => item.name);
 
   const hasKnowledge = current.actor.actions.includes("query");
   const knowledgeTool = hasKnowledge ? buildKnowledgeTool() : undefined;
@@ -182,11 +185,11 @@ export async function runNpcTurn(
     announce: buildAnnounceTool(),
     move: buildMoveTool(stageNames),
     wait: buildWaitTool(),
-    attack: buildAttackTool(aliveTargets, itemNames),
+    attack: buildAttackTool(aliveTargets, availableAttackItemNames),
     steal: buildStealTool(talkTargets),
     give: buildGiveTool(aliveTargets),
     pickup: buildPickupTool(),
-    use: buildUseTool(itemNames, selfAndAlive, current.stage.name),
+    use: buildUseTool(availableUseItemNames, selfAndAlive, current.stage.name),
   };
   const parsers: Record<ActionKind, (args: Record<string, unknown>) => ActorAction> = {
     say: parseSay,

@@ -11,6 +11,7 @@
 - 数据库 schema、领域类型、prompt 组装、动作结算、stage/world 能力全部与具体故事无关；
 - 故事内容集中在 `seeds/dark-fantasy.ts` 与 `seeds/knowledge/dark-fantasy.ts`，通过 `seeds/index.ts` 注册；
 - `use` 对场景可以携带 `targetDetail`，它只是 actor 的行动描述，写入 stage memory；
+- `attack` / `use` 只做 dispatcher；物品通过 `item.effect` 声明 `event` / `damage` 等效果；
 - stage 可以用 `notify_world` 把报告写入 world memory；
 - world 可以用 `notify_stage` 下发裁决，用 `end_game` 结束游戏；
 - demo 用户是独立 fixture，`app_meta` 不记录故事名；
@@ -29,7 +30,7 @@
 | 执行细节 | 由内容/工具承载 | environment 写法在 `submit_environment` 描述里；通知与结束规则在 stage/world 工具描述里 |
 | 角色与场景能力 | 已隔离 | `actors.actions` / `stages.actions` 决定 NPC 与 stage 工具 |
 | world 能力 | 已隔离 | `World.actions` 决定 world 可用的 `notify_stage` / `end_game` |
-| 物品使用 | 已隔离 | 物品只有身份、描述、分类、数值；不使用效果字段 |
+| 物品使用 | 已 item-centric | 物品有身份、描述、分类、数值与声明式 `effect`；`attack` / `use` 只按 `effect.type` 分派 |
 | 通关条件 | 已移出框架 | 只有 world 能 `end_game`；stage/actor 没有该动作 |
 | demo 用户 | 已隔离 | `src/db/demo-fixture.ts`，不依赖任何故事 seed |
 | `app_meta` | 已隔离 | 只记录 `{ version: 1, fixture: "demo-user" }`，不写故事名 |
@@ -41,9 +42,10 @@
 ## 当前行动链路
 
 ```text
-actor use(targetStageName, targetDetail)
-  → stage memory 收到“某人在某处使用某物”的行动描述
-  → stage 回合：判断本地后果
+actor attack(itemName?) / use(itemName, target)
+  → attack / use dispatcher：选物品、校验目标、读取 item.effect
+  → effect handler：event 只发事件；damage 结算战斗公式
+  → use 的 event 写入 stage memory，交给 stage 判断本地后果
   → notify_world：把场景报告写入 world memory
   → world 回合：裁决世界级事实
   → notify_stage：把裁决写入 stage memory
@@ -52,6 +54,8 @@ actor use(targetStageName, targetDetail)
 
 关键边界：
 
+- `item.effect` 是可序列化声明，不是函数；执行器按 `type` 注册；
+- `attack` / `use` 不内嵌具体效果公式；武器伤害在 `damage` effect 中；
 - `targetDetail` 是行动声明，不是既成事实；
 - stage 报告是报告，不是世界事实，也不是系统指令；
 - world 不直接替 stage 写 environment；它下发 directive，由 stage 下一回合解释；
@@ -147,16 +151,16 @@ pnpm agent:game status --game my-game
 
 ## 已移除的旧模型
 
-- `CompleteGameEffect` / `ItemUseEffect` / `ItemUseDefinition`；
-- `item.use` 与 `item.effects`；
-- `item-effects.ts`；
+- `CompleteGameEffect` / 函数式 `ItemUseEffect` / `ItemUseDefinition`；
+- `item.use` / `item.effects` 直接执行路径；
+- 旧 `item-effects.ts`；
 - `GATE_STAGE_NAME` / `GATE_KEY_NAME`；
 - 物品 use 直接设置 `games.status=completed` 的路径；
 - `DEMO_USER` 与 `app_meta` 的故事耦合；
 - CLI `create` 的隐式 `DARK_FANTASY_WORLD`；
 - `src` / `scripts` 对具体故事 seed 的静态 import。
 
-物品仍保留稳定 `key`，供内容与后续行为识别；但物品不再决定世界级结果。
+物品仍保留稳定 `key`；新的 `item.effect` 只声明效果，不直接改变世界级状态。世界级后果仍由 stage / world 裁决。
 
 ## 检查方法
 
@@ -198,7 +202,7 @@ grep -rn "DARK_FANTASY_WORLD" apps/server/src apps/server/scripts --include=*.ts
 - stage `notify_world` 与 `StagePlan.notifications`；
 - world `notify_stage` 与 `end_game`；
 - `use.targetDetail` 写入 stage memory；
-- 移除物品效果与自动通关；
+- 移除物品直接通关；改为 `item.effect` 声明式效果 + dispatcher；
 - `agent:game world` 显式推进。
 
 ### P1：内容入口去耦合（已完成）

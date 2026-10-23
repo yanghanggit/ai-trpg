@@ -88,13 +88,18 @@ NPC 工具分为只读 GET、动作与终止工具。`look_stage`、`get_self`�
 | `announce` | mind / message | stage |
 | `move` | targetStageName | stage |
 | `wait` | 无 | stage |
-| `attack` | targetActorName / itemNames | stage |
+| `attack` | targetActorName / itemName（可选） | stage |
 | `steal` | targetActorName / itemName | private |
 | `give` | targetActorName / itemName | stage |
 | `pickup` | itemName | stage |
 | `use` | itemName /（targetActorName 或 targetStageName）/ targetDetail（仅场景） | stage |
 
-`attack` 的伤害为 `max(0, 攻击者 stats.attack + 所选武器 stats.damage - 目标 stats.defense)`；空手时不加武器 damage，目标 defense 是唯一 block，物品 block 不参与当前伤害。`steal` 允许对尸体取物；`give` 只能给存活角色；`pickup` 把 `stage_items` 移入背包；`use` 的目标只能是当前场景、自己或同场景角色，对场景使用时可用 `targetDetail` 描述锁孔、炉膛等具体部位。该描述只是一次行动声明，具体后果由 stage / world 裁决。
+物品触发的统一原则是 **item-centric**：`attack` 与 `use` 只是 dispatcher，负责选择物品、校验目标并调用 `item.effect`；具体效果由 `effect.type` 路由到的 handler 承担。每个动作最多引用一件物品。
+
+- `{ "type": "damage" }`：当前战斗公式 `max(0, 攻击者 stats.attack + 物品 stats.damage - 目标 stats.defense)`。
+- `{ "type": "event" }`：只写“使用了某物”的事件，后果交给 stage / world。
+
+物品必须显式声明 effect，没有默认效果，也没有 `actions` 元数据。空手攻击使用系统 `{ "type": "damage" }`，不依赖物品行。`attack` 只接受 `damage` effect，NPC 工具也只暴露 damage 物品；`use` 接受全部物品。运行时两者都只按 `effect.type` 分派。未来新增 `heal`、`open` 等效果时，只注册新的 handler，不在 `attack` / `use` 里写分支。目标 defense 是唯一 block，物品 block 不参与当前伤害。`steal` 允许对尸体取物；`give` 只能给存活角色；`pickup` 把 `stage_items` 移入背包；`use` 的目标只能是当前场景、自己或同场景角色，对场景使用时可用 `targetDetail` 描述锁孔、炉膛等具体部位。该描述只是一次行动声明，具体后果由 stage / world 裁决。
 
 能力在种子（`seeds/dark-fantasy.ts`）里**逐角色逐条**写出，不设共享默认值：动物只有 `say` / `whisper` / `announce` / `move` / `wait`（狗与鼠王再加 `attack`），人类才有 `give` / `pickup` / `use`，偷窃只属于当前剧本的无名者。知识检索作为只读能力写进同一个 `actions` 清单，当前只给奥德里克、坏运气与鼠王；玩家角色与煤渣没有该工具。创建游戏时写进 `actors.actions` / `stages.actions`，运行时以数据库为准。stage 的能力是 `submit_environment` 与 `notify_world`，环境写法与通知边界写在工具描述里，属于“工具即上下文”；world 的能力是 `notify_stage` 与 `end_game`。NPC 只暴露被允许的工具；结算层 `assertActionAllowed` 是权威校验，玩家入口与脚本调用同样受约束（拒绝原因会直接返回给调用方）。计划条数由 `MAX_ACTIONS_PER_TURN` 限制。
 

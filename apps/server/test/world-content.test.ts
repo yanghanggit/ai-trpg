@@ -15,6 +15,32 @@ describe("world content validation", () => {
     expect(() => parseWorldContent(withoutActions)).toThrow();
   });
 
+  it("keeps the declarative item effect and requires a handler type", () => {
+    const world = {
+      ...TEST_WORLD,
+      actors: TEST_WORLD.actors.map((actor) =>
+        actor.name === "守烬人"
+          ? {
+              ...actor,
+              items: [{ ...actor.items[0], effect: { type: "damage" } }],
+            }
+          : actor,
+      ),
+    };
+    const parsedKeeper = parseWorldContent(world).actors.find((actor) => actor.name === "守烬人");
+    expect(parsedKeeper?.items[0]?.effect).toEqual({ type: "damage" });
+
+    expect(() =>
+      parseWorldContent({
+        ...world,
+        actors: world.actors.map((actor) => ({
+          ...actor,
+          items: [{ ...actor.items[0], effect: { type: "" } }],
+        })),
+      }),
+    ).toThrow();
+  });
+
   it("rejects an item without a stable key", () => {
     const world = {
       ...TEST_WORLD,

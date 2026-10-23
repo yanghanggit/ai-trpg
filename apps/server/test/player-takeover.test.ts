@@ -168,7 +168,6 @@ describe.skipIf(!testDatabaseUrl)("player takeover", () => {
     expect(attacked.ok).toBe(true);
     expect(attacked.plan?.actions[0]).toMatchObject({
       kind: "attack",
-      itemNames: [],
       targetActorName: "提灯修士",
     });
 

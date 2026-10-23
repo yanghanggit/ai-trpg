@@ -53,19 +53,6 @@ export async function resolveActorItem(
   return item;
 }
 
-/** 读取 actor 持有的多件物品；用于攻击时搭配的武器。 */
-export async function resolveActorItems(
-  executor: Executor,
-  actorId: string,
-  itemNames: readonly string[],
-): Promise<ItemRow[]> {
-  const resolved: ItemRow[] = [];
-  for (const itemName of itemNames) {
-    resolved.push(await resolveActorItem(executor, actorId, itemName));
-  }
-  return resolved;
-}
-
 /** 读取当前场景中的一件物品。 */
 export async function resolveStageItem(
   executor: Executor,

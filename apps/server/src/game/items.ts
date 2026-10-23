@@ -3,6 +3,7 @@ import type {
   EquipmentSlot,
   EquipmentSlots,
   Item,
+  ItemEffect,
   ItemKind,
   ItemStats,
   WearableItem,
@@ -18,6 +19,7 @@ export function toItemState(row: {
   kind: ItemKind;
   count: number;
   stats: ItemStats;
+  effect: ItemEffect;
 }): Item {
   const base = {
     id: row.id,
@@ -25,6 +27,7 @@ export function toItemState(row: {
     name: row.name,
     description: row.description,
     count: row.count,
+    effect: row.effect,
   };
   switch (row.kind) {
     case "weapon":

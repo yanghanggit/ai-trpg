@@ -14,6 +14,7 @@ const ROW = {
   name: "测试物品",
   description: "测试描述",
   count: 1,
+  effect: { type: "event" },
 };
 
 describe("attribute registry", () => {

@@ -22,6 +22,17 @@ import { TEST_WORLD } from "./test-world";
 
 const testDatabaseUrl = process.env.TEST_DATABASE_URL?.trim();
 
+function notifyWorld(content: string): ToolCall {
+  return {
+    id: randomUUID(),
+    type: "function",
+    function: {
+      name: "notify_world",
+      arguments: JSON.stringify({ content }),
+    },
+  };
+}
+
 function submitEnvironment(environment: string): ToolCall {
   return {
     id: randomUUID(),
@@ -46,6 +57,21 @@ class ScriptedStageService implements ChatCompletionService {
       throw new Error("脚本化 stage 环境已耗尽");
     }
     const toolCalls = [submitEnvironment(environment)];
+    return new ChatCompletionResult({
+      request,
+      aiMessage: { type: "ai", content: "", toolCalls },
+      finishReason: "tool_calls",
+      toolCalls,
+    });
+  }
+}
+
+class SubmitThenNotifyService implements ChatCompletionService {
+  async complete(request: Parameters<ChatCompletionService["complete"]>[0]) {
+    const toolCalls = [
+      submitEnvironment("风停了，灰烬沉在石阶缝里。"),
+      notifyWorld("守烬人在门廊里找到了通往中殿的线索。"),
+    ];
     return new ChatCompletionResult({
       request,
       aiMessage: { type: "ai", content: "", toolCalls },
@@ -164,6 +190,22 @@ describe.skipIf(!testDatabaseUrl)("stage mini-GM", () => {
     const capturing = new CapturingWaitService();
     await runNpcTurn(handle.db, slug, "提灯修士", { service: capturing });
     expect(capturing.inputMessage).toContain(environment);
+  });
+
+  it("keeps notify_world calls that arrive after submit_environment", async () => {
+    const created = await createGame(handle.db, {
+      username: DEMO_USER.username,
+      name: "提交顺序测试局",
+      world: TEST_WORLD,
+    });
+    const result = await runStageTurn(handle.db, created.game.slug, "灰烬门廊", {
+      service: new SubmitThenNotifyService(),
+    });
+
+    expect(result.ok).toBe(true);
+    expect(result.plan?.environment).toContain("风停了");
+    expect(result.plan?.notifications).toEqual(["守烬人在门廊里找到了通往中殿的线索。"]);
+    expect(result.state.game.version).toBe(1);
   });
 
   it("rejects an environment update when the stage lacks the capability", async () => {

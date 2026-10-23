@@ -330,9 +330,6 @@ export async function runStageTurn(
       ...(canNotify
         ? {
             [notifyTool.function.name]: (args: Record<string, unknown>) => {
-              if (submitted) {
-                throw new GameError("invalid_action", "计划已提交");
-              }
               if (notifications.length >= MAX_STAGE_NOTIFICATIONS_PER_TURN) {
                 throw new GameError(
                   "invalid_action",
@@ -340,6 +337,11 @@ export async function runStageTurn(
                 );
               }
               notifications.push(parseWorldNotification(args));
+              // 模型可能先 submit_environment 再 notify_world；通知仍属于同一轮计划，
+              // 因此提交后继续补充通知，而不是丢弃或报错。
+              if (submitted) {
+                submitted = { ...submitted, notifications: [...notifications] };
+              }
               return "通知已加入本轮计划";
             },
           }

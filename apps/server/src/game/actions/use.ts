@@ -1,15 +1,14 @@
 import type { ToolDefinition } from "../../llm/types";
-import { appendPublicMessage, bumpGameVersion } from "../apply/messages";
 import { assertAlive, findActorInStage, resolveActorItem } from "../apply/queries";
 import type { ActorWithStageRow, Executor, ResolvedUse } from "../apply/types";
 import { MAX_TARGET_DETAIL_LENGTH } from "../constants";
 import { GameError } from "../errors";
-import { appendItemObservations, appendStageEvent } from "../observations";
+import { applyItemEffect } from "../item-effects";
 import type { UseAction } from "../types";
 
-/** 构造 use 工具：用自己的物品作用于一个角色或当前场景。 */
+/** 构造 use 工具：用自己的一件物品作用于一个角色或当前场景。 */
 export function buildUseTool(
-  itemNames: readonly string[],
+  availableItemNames: readonly string[],
   targetActorNames: readonly string[],
   currentStageName: string,
 ): ToolDefinition {
@@ -18,14 +17,14 @@ export function buildUseTool(
     function: {
       name: "use",
       description:
-        "把一次使用道具加入计划：使用自己持有的一件物品，作用于一个角色或当前场景。targetActorName 与 targetStageName 二选一。",
+        "把一次使用道具加入计划：使用自己持有的一件物品，作用于一个角色或当前场景。物品只声明 effect；use 只负责选择物品与目标并分派。targetActorName 与 targetStageName 二选一。",
       parameters: {
         type: "object",
         properties: {
           itemName: {
             type: "string",
             description: "要使用的自己持有的物品名",
-            ...(itemNames.length > 0 ? { enum: [...itemNames] } : {}),
+            ...(availableItemNames.length > 0 ? { enum: [...availableItemNames] } : {}),
           },
           targetActorName: {
             type: "string",
@@ -81,7 +80,7 @@ export function parseUse(args: Record<string, unknown>): UseAction {
   };
 }
 
-/** 校验 use：物品必须是自己的；场景只能是当前场景；角色必须存活。 */
+/** 校验 use：物品必须是自己的，目标必须有效。 */
 export async function resolveUse(
   executor: Executor,
   stage: ResolvedUse["stage"],
@@ -127,7 +126,7 @@ export async function resolveUse(
   };
 }
 
-/** 应用 use：写通用使用事件；具体后果由 stage / world 后续裁决。 */
+/** 应用 use：只选择物品与目标，并把声明式 effect 交给效果执行器。 */
 export async function applyUse(
   executor: Executor,
   gameId: string,
@@ -135,39 +134,18 @@ export async function applyUse(
   resolved: ResolvedUse,
   now: Date,
 ): Promise<string> {
-  const actor = { id: actorRow.actor.id, name: actorRow.actor.name };
-  const item = resolved.transferItem;
-  const target = resolved.target;
-  const targetStage = resolved.targetStage;
-  const targetLabel = targetStage?.name ?? target?.name ?? "目标";
-  const targetDetail = targetStage ? resolved.action.targetDetail?.trim() : undefined;
-  const stageDetailText = targetDetail ? `的${targetDetail}` : "";
-
-  await bumpGameVersion(executor, gameId, now);
-
-  const content = targetStage
-    ? `${actor.name}在${targetStage.name}${stageDetailText}使用了${item.name}。`
-    : `${actor.name}对${targetLabel}使用了${item.name}。`;
-  await appendPublicMessage(executor, gameId, actor.id, {
-    kind: "use",
-    stageId: resolved.stage.id,
-    ...(target ? { targetActorId: target.id } : {}),
-    visibility: "stage",
-    content,
-  });
-  await appendItemObservations(executor, gameId, resolved.stage, actor, "use", item.name, {
-    ...(target ? { target: { id: target.id, name: target.name } } : {}),
-    ...(targetStage ? { targetStageName: targetStage.name } : {}),
+  const targetDetail = resolved.targetStage ? resolved.action.targetDetail?.trim() : undefined;
+  return applyItemEffect({
+    executor,
+    gameId,
+    actorRow,
+    stage: resolved.stage,
+    actionKind: "use",
+    effect: resolved.transferItem.effect,
+    item: resolved.transferItem,
+    ...(resolved.target ? { target: resolved.target } : {}),
+    ...(resolved.targetStage ? { targetStage: resolved.targetStage } : {}),
     ...(targetDetail ? { targetDetail } : {}),
-    broadcast: "stage",
+    now,
   });
-  await appendStageEvent(executor, gameId, resolved.stage.id, `# 场景事件\n${content}`, {
-    eventKind: "use",
-    ...(target ? { targetActorId: target.id } : {}),
-    ...(targetStage ? { targetStageId: targetStage.id } : {}),
-  });
-
-  return targetStage
-    ? `# 行动结果\n你在${targetLabel}${stageDetailText}使用了${item.name}。`
-    : `# 行动结果\n你对${targetLabel}使用了${item.name}。`;
 }

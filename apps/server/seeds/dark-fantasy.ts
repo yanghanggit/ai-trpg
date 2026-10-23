@@ -96,6 +96,7 @@ export const DARK_FANTASY_WORLD: World = {
           kind: "weapon" as const,
           count: 1,
           stats: { damage: 250, block: 0 },
+          effect: { type: "damage" },
         },
       ],
     },
@@ -151,6 +152,7 @@ export const DARK_FANTASY_WORLD: World = {
           description: "一把铸铁的闸门钥匙，柄上刻着修道院的钟形纹；齿纹被磨得很亮。",
           kind: "accessory" as const,
           count: 1,
+          effect: { type: "event" },
         },
         {
           key: "gravedigger-shovel",
@@ -159,6 +161,7 @@ export const DARK_FANTASY_WORLD: World = {
           kind: "weapon" as const,
           count: 1,
           stats: { damage: 6, block: 0 },
+          effect: { type: "damage" },
         },
         {
           key: "patched-cloak",
@@ -167,6 +170,7 @@ export const DARK_FANTASY_WORLD: World = {
           kind: "equipment" as const,
           count: 1,
           stats: { block: 1 },
+          effect: { type: "event" },
         },
       ],
       // 人类：会说话、走动、战斗，也会操作道具。
@@ -255,6 +259,7 @@ export const DARK_FANTASY_WORLD: World = {
           kind: "equipment" as const,
           count: 1,
           stats: { block: 0 },
+          effect: { type: "event" },
         },
         {
           key: "broken-neck-chain",
@@ -262,6 +267,7 @@ export const DARK_FANTASY_WORLD: World = {
           description: "半截被鼠牙啃过的铁链，断口发亮，仍挂在颈间。",
           kind: "accessory" as const,
           count: 1,
+          effect: { type: "event" },
         },
       ],
       // 唯一会偷窃的角色；其余能力与普通人类一致。

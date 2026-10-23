@@ -69,6 +69,7 @@ export async function applyPickup(
     kind: stageItem.kind,
     count: stageItem.count,
     stats: stageItem.stats,
+    effect: stageItem.effect,
   });
   await bumpGameVersion(executor, gameId, now);
 

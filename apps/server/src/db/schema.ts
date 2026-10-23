@@ -15,6 +15,7 @@ import type {
   ActorStatus,
   BaseBody,
   EquipmentSlots,
+  ItemEffect,
   ItemKind,
   WorldActionKind,
 } from "../game/types";
@@ -169,6 +170,7 @@ export const items = pgTable("items", {
   kind: text("kind").$type<ItemKind>().notNull(),
   count: integer("count").notNull().default(1),
   stats: jsonb("stats").$type<ItemStats>().notNull().default({}),
+  effect: jsonb("effect").$type<ItemEffect>().notNull(),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
 
@@ -183,6 +185,7 @@ export const stageItems = pgTable("stage_items", {
   kind: text("kind").$type<ItemKind>().notNull(),
   count: integer("count").notNull().default(1),
   stats: jsonb("stats").$type<ItemStats>().notNull().default({}),
+  effect: jsonb("effect").$type<ItemEffect>().notNull(),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
 

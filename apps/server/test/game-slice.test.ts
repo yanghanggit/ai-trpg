@@ -27,7 +27,7 @@ const testDatabaseUrl = process.env.TEST_DATABASE_URL?.trim();
 
 /** 攻击动作：十个平级动作之一。 */
 function attackAction(targetActorName: string): ActorAction {
-  return { kind: "attack", targetActorName, itemNames: [] };
+  return { kind: "attack", targetActorName };
 }
 
 /** 只记录本次请求暴露了哪些工具，然后提交一个 wait。 */

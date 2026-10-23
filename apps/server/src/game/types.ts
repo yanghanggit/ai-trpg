@@ -17,6 +17,17 @@ export type BaseBody = {
 /** 物品大类；每个大类对应一个运行时子类。 */
 export type ItemKind = "weapon" | "equipment" | "accessory" | "consumable" | "valuable";
 
+/**
+ * 物品的声明式效果。
+ *
+ * 只存可序列化 JSON；`type` 是 handler 的路由 key，其余字段由对应 handler
+ * 解释。物品不持有函数。
+ */
+export type ItemEffect = {
+  type: string;
+  [key: string]: unknown;
+};
+
 /** actor 的穿戴槽；槽里只记录物品名，物品自身不知道被谁穿戴。 */
 export const EQUIPMENT_SLOTS = ["weapon", "offhand", "head", "body", "feet", "accessory"] as const;
 export type EquipmentSlot = (typeof EQUIPMENT_SLOTS)[number];
@@ -114,6 +125,8 @@ export type ItemDefinition = {
   kind: ItemKind;
   count?: number;
   stats?: ItemStats;
+  /** 物品效果；必须显式声明，type 路由到 handler。 */
+  effect: ItemEffect;
 };
 
 /** `createGame` 的输入；`world` 只在创建时读取，之后以数据库状态为准。 */
@@ -158,11 +171,11 @@ export type WaitAction = {
   kind: "wait";
 };
 
-/** 攻击同场景的一个角色，可搭配自己持有的武器道具。 */
+/** 攻击同场景的一个角色；可引用一件自己持有的武器。 */
 export type AttackAction = {
   kind: "attack";
   targetActorName: string;
-  itemNames: readonly string[];
+  itemName?: string;
 };
 
 /** 从同场景的一个角色身上取走一件物品。 */
@@ -185,7 +198,12 @@ export type PickupAction = {
   itemName: string;
 };
 
-/** 使用自己持有的一件物品，作用于一个角色或当前场景。 */
+/**
+ * 使用自己持有的一件物品，作用于一个角色或当前场景。
+ *
+ * 所有引用物品的动作都遵循同一原则：动作是触发者，物品只是输入；
+ * 每个动作最多引用一件物品，由动作声明是否必需与允许的类别。
+ */
 export type UseAction = {
   kind: "use";
   itemName: string;
@@ -249,6 +267,8 @@ export type ItemState = {
   description: string;
   kind: ItemKind;
   count: number;
+  /** 物品效果；由内容显式声明，运行时按 type 路由。 */
+  effect: ItemEffect;
 };
 
 /** 带战斗数值的可穿戴物品：武器与装备共用 `stats`。 */
@@ -266,7 +286,7 @@ export type AccessoryState = ItemState & { kind: "accessory" };
 /** 可穿戴物品的联合，用于外观推理筛选。 */
 export type WearableItem = WeaponState | EquipmentState | AccessoryState;
 
-/** 消耗品：使用后消耗；当前只有 `use` 的通用行为。 */
+/** 消耗品：数量语义保留；当前 `use` 不自动扣除 count。 */
 export type ConsumableState = ItemState & { kind: "consumable" };
 
 /** 贵重物品：无战斗数值的剧情物品。 */

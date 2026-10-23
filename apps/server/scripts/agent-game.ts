@@ -351,9 +351,12 @@ async function main(): Promise<void> {
     if (typeof values.target !== "string" || values.target.trim().length === 0) {
       throw new Error("player-attack 需要 --target <actorName>");
     }
-    const itemNames = typeof values.item === "string" ? [values.item] : [];
+    const itemName = typeof values.item === "string" ? values.item : undefined;
     const result = await withDatabase((db) =>
-      playerAttack(db, game, actor, { targetActorName: values.target as string, itemNames }),
+      playerAttack(db, game, actor, {
+        targetActorName: values.target as string,
+        ...(itemName !== undefined ? { itemName } : {}),
+      }),
     );
     emit({ ok: true, action: command, plan: result.plan, state: result.state });
     return;

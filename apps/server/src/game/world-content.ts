@@ -23,6 +23,8 @@ const itemStatsSchema = z.object({
   block: z.number().optional(),
 });
 
+const itemEffectSchema = z.object({ type: z.string().min(1) }).passthrough();
+
 const itemSchema = z.object({
   key: z.string().min(1),
   name: z.string().min(1),
@@ -30,6 +32,7 @@ const itemSchema = z.object({
   kind: itemKindSchema,
   count: z.number().int().positive().optional(),
   stats: itemStatsSchema.optional(),
+  effect: itemEffectSchema,
 });
 
 const equipmentSchema = z.object({

@@ -53,7 +53,7 @@ describe("action tools", () => {
     const attackProps = Object.keys(
       buildAttackTool(targets, items).function.parameters.properties ?? {},
     );
-    expect(attackProps).toEqual(["targetActorName", "itemNames"]);
+    expect(attackProps).toEqual(["targetActorName", "itemName"]);
     const useProps = Object.keys(
       buildUseTool(items, targets, "灰烬门廊").function.parameters.properties ?? {},
     );
@@ -82,9 +82,11 @@ describe("action parsers", () => {
       targetStageName: "断钟中殿",
     });
     expect(parseWait()).toEqual({ kind: "wait" });
-    expect(
-      parseAttack({ targetActorName: "提灯修士", itemNames: ["裂齿短刃", "裂齿短刃", " "] }),
-    ).toEqual({ kind: "attack", targetActorName: "提灯修士", itemNames: ["裂齿短刃"] });
+    expect(parseAttack({ targetActorName: "提灯修士", itemName: " 裂齿短刃 " })).toEqual({
+      kind: "attack",
+      targetActorName: "提灯修士",
+      itemName: "裂齿短刃",
+    });
     expect(parseSteal({ targetActorName: "提灯修士", itemName: "铅封提灯" })).toEqual({
       kind: "steal",
       targetActorName: "提灯修士",
@@ -168,6 +170,7 @@ describe("read-only descriptions", () => {
           kind: "weapon" as const,
           count: 1,
           stats: { damage: 3, block: 0 },
+          effect: { type: "damage" },
         },
       ],
     };
