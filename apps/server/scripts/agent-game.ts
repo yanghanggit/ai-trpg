@@ -93,6 +93,7 @@ function usage(): void {
       "agent-game validate --snapshot <dir>",
       "agent-game create --user <username> [--name <gameName>] [--slug <slug>]",
       "agent-game status --game <gameId|slug>",
+      "agent-game scene-map --game <gameId|slug>",
       "agent-game npc --game <gameId|slug> --actor <actorId|actorName>",
       "agent-game npc --game <gameId|slug> --all",
       "agent-game stage --game <gameId|slug> --stage <stageId|stageName>",
@@ -230,6 +231,19 @@ async function main(): Promise<void> {
     const gameRef = values.game;
     const state = await withDatabase((db) => getGameState(db, gameRef));
     emit({ ok: true, action: "status", state });
+    return;
+  }
+
+  if (command === "scene-map") {
+    if (typeof values.game !== "string") {
+      throw new Error("scene-map 需要 --game");
+    }
+    const gameRef = values.game;
+    const state = await withDatabase((db) => getGameState(db, gameRef));
+    const scenes = Object.fromEntries(
+      state.world.stages.map((stage) => [stage.name, stage.actors.map((actor) => actor.name)]),
+    );
+    emit({ ok: true, action: "scene-map", scenes });
     return;
   }
 

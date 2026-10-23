@@ -13,6 +13,7 @@
 
 - `create --user demo`：创建 game、player 座位、world、五段 stage 图、三组双向连接、乱葬坑到墓园的单向出口、五个角色、场景物品、角色物品，以及 actor/stage system memory；初始旁白落在 `场景.乱葬坑`。
 - `status --game <gameId|slug>`：读取完整游戏状态。
+- `scene-map --game <gameId|slug>`：读取全场景角色分布（场景名 → 角色名列表），不调用 LLM。
 - `npc --game <id|slug> --actor <actorId|actorName>`：推进一个 NPC 回合。
 - `npc --game <id|slug> --all`：按当前 actor 顺序推进所有未被玩家接管的 NPC。
 - `stage --game <id|slug> --stage <stageId|stageName>`：推动一个 stage 小 GM 回合，更新 environment 并写入场景事件。
