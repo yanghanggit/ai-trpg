@@ -4,7 +4,7 @@ import { actors } from "../db/schema";
 import type { ChatMessage } from "../llm/types";
 import { MEMORY_KINDS } from "./constants";
 import { appendMemoryMessages, loadAgentMemory } from "./memory";
-import type { MessageVisibility, StageState } from "./types";
+import type { ActorStatus, MessageVisibility, StageState } from "./types";
 
 type Executor = Pick<Database, "select" | "insert" | "update">;
 type ActorRow = typeof actors.$inferSelect;
@@ -87,7 +87,7 @@ export async function appendAttackObservations(
   items: readonly { name: string }[],
   damage: number,
   remainingHp: number,
-  death: boolean,
+  status: ActorStatus,
 ): Promise<void> {
   const itemText = items.length > 0 ? `（使用${items.map((item) => item.name).join("、")}）` : "";
   await appendStageObservations(
@@ -101,7 +101,7 @@ export async function appendAttackObservations(
         return {
           type: "human",
           content: `# 你被攻击\n${attacker.name}对你使用攻击${itemText}，造成${damage}点伤害；${
-            death ? "你倒下了" : `你剩余 HP ${remainingHp}/${target.maxHp}`
+            status === "dead" ? "你倒下了" : `你剩余 HP ${remainingHp}/${target.maxHp}`
           }。`,
           metadata: {
             kind: MEMORY_KINDS.actionObservation,
@@ -113,7 +113,9 @@ export async function appendAttackObservations(
       return {
         type: "human",
         content: `# 战斗\n${attacker.name}对${target.name}使用攻击${itemText}，造成${damage}点伤害；${
-          death ? `${target.name}倒下了` : `${target.name}剩余 HP ${remainingHp}/${target.maxHp}`
+          status === "dead"
+            ? `${target.name}倒下了`
+            : `${target.name}剩余 HP ${remainingHp}/${target.maxHp}`
         }。`,
         metadata: {
           kind: MEMORY_KINDS.actionObservation,

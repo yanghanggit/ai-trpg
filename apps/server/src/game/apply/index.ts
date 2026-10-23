@@ -92,7 +92,7 @@ export async function applyActorPlan(
     if (!actorRow) {
       throw new GameError("not_found", `actor 不存在: ${actorId}`);
     }
-    if (actorRow.actor.death) {
+    if (actorRow.actor.status === "dead") {
       throw new GameError("invalid_action", `actor 已死亡: ${actorRow.actor.name}`);
     }
     const memory = await loadAgentMemory(tx, gameId, "actor", actorId);

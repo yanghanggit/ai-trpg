@@ -11,13 +11,21 @@ PostgreSQL 是游戏状态的唯一真相。`agent:game` 从数据库读取状�
 - `worlds`：游戏的世界状态，`game_id` 唯一，强制一局一个 world。
 - `stages`：world 下的场景；`world_id` 非空，按 `ordinal` 保持稳定顺序；`environment` 是当前环境快照，由 stage 小 GM 更新。
 - `stage_connections`：场景图的有向边；连接两端必须属于同一 world；演示世界使用三组双向连接，乱葬坑到墓园另有一条单向出口。
-- `actors`：场景中的角色；`stage_id` 非空，不能脱离场景存在；当前没有玩家控制字段；根属性为 `hp` / `max_hp` / `attack` / `defense` / `speed` / `death`；`actions` 是该角色被允许的动作列表（JSONB 数组，必须显式写入，无默认值；例如动物不含道具操作）。
+- `actors`：场景中的角色；`stage_id` 非空，不能脱离场景存在；当前没有玩家控制字段；`base_body` 是未穿装备的种族 + 外观快照（JSONB），`stats` 是根属性（JSONB：`hp` / `maxHp` / `attack` / `defense` / `speed`），`status` 是 `alive | dead` 枚举（默认 `alive`）；`actions` 是该角色被允许的动作列表（JSONB 数组，必须显式写入，无默认值；例如动物不含道具操作）。
 - `stages.actions`：场景自身的能力清单，JSONB 数组；当前每个场景都声明 `submit_environment`，决定 stage 小 GM 是否暴露该工具。它不限制角色动作。
-- `items`：角色持有的物品；`actor_id` 非空，不能脱离角色存在；是 actor 唯一的运行时队列。物品行包含 `count`、`damage` 与 `block`；`kind=weapon` 的物品使用武器字段。
-- `stage_items`：暂放在场景中的物品；`stage_id` 非空，当前只作为场景内容读取，已支持拾取并转入 actor 背包。物品行包含 `count`、`damage` 与 `block`。
+- `items`：角色持有的物品；`actor_id` 非空，不能脱离角色存在；是 actor 唯一的运行时队列。物品根字段只有 `name` / `description` / `kind` / `count`，战斗数值在 `stats`（JSONB：`damage` / `block`）。
+- `stage_items`：暂放在场景中的物品；`stage_id` 非空，当前只作为场景内容读取，已支持拾取并转入 actor 背包。字段与 `items` 相同。
 - `game_messages`：公共消息流，按 `sequence` 追加；记录 `stage_id`、`speaker_actor_id`、`target_actor_id` 与 `visibility`，供客户端增量拉取与审计；不建立 session 表。
 - `agent_memories`：每个 agent 的私有上下文；`owner_type` 当前支持 `actor` 与 `stage`，stage memory 属于场景小 GM。
 - `agent_memory_messages`：agent memory 的消息序列，保存 system / human / ai / tool 与 tool_calls、元数据。
+
+## 属性与物品
+
+`src/game/attributes.ts` 的 `ATTRIBUTE_DEFINITIONS` 是本系统 TRPG 属性总表：actor 的 `hp` / `maxHp` / `attack` / `defense` / `speed`，以及物品的 `damage` / `block`。新增属性先登记再决定作用域；所有计算通过 `attribute()` / `sumAttribute()` 读取，缺省为 0。
+
+`ItemState` 根字段只有 `id` / `name` / `description` / `kind` / `count`，没有根级 `damage` / `block`，也没有 `stats`。武器与装备扩展出 `StatItemState`，携带 `stats`（`damage` / `block`）；运行时按 `kind` 收窄为 `WeaponState` / `EquipmentState` / `AccessoryState` / `ConsumableState` / `ValuableState`；钥匙属于 `accessory`，不带战斗数值。`block` 目前只存储，不参与伤害计算。
+
+`base_body` 是“捏脸完成、还没穿装备”的形态，`formatBaseBody()` 输出 `[种族] 描述` 供 prompt 使用。之后由 LLM 把 base body 与本场景可见的装备、伤势融合成 `appearance`；当前尚未实现融合，system prompt 直接使用 base body 快照。
 
 `game_messages` 与 `agent_memories` 不能合并。前者是公共事件，后者是私有上下文；`mind` 只进 memory，不进公共消息。玩家接管只在 `actor_controls` 增加关系，不改变 actor 本体。
 
@@ -37,7 +45,7 @@ NPC 回合是：数据库环境 → agent loop → 动作工具暂存动作 → 
 
 工具包含只读 `look_stage`、`get_stats`、`get_items`、`get_actor`，以及十个动作工具 `say`、`whisper`、`announce`、`move`、`wait`、`attack`、`steal`、`give`、`pickup`、`use`；`look_stage` 与环境提示都会列出当前场景的 `stage_items`，`get_items` 只列 actor 自己的物品，`get_actor` 查看同场景目标的 stats、状态与背包；`submit_plan` 是终止工具。只读工具可多次调用；工具按模型返回的 `tool_calls` 顺序串行执行。每个动作工具只接收自己的参数；一轮最多 `MAX_ACTIONS_PER_TURN = 2` 个动作，不分类互斥，顺序按工具调用顺序保留。所有 handler 只收集计划，不写数据库；loop 结束后由服务层重新校验并在事务中按顺序更新 actor、game version、公共消息与 memory。
 
-第一版动作是十个平级动作 `say`、`whisper`、`announce`、`move`、`wait`、`attack`、`steal`、`give`、`pickup`、`use`：说话、耳语、宣告、移动、等待、攻击、取物、给予、拾取与使用道具；每个动作一个工具；每个成功应用的动作都会写一条公共事件，`kind` 取动作名。`attack` 有无武器都可执行：伤害为 `max(0, 攻击者 attack + 所选武器 damage - 目标 defense)`。空手时不加武器 damage，目标 `defense` 是唯一 block，目标物品 block 与发起者物品 block 都不参与当前伤害计算。`use` 需要自身物品，目标只能是当前场景、自己或同场景角色。武器是物品的子类型，`count` 固定为 1，额外携带 `damage` 与 `block`；`damage` 参与伤害，`block` 当前只存储、不参与伤害。`steal` 为 private，只有发起者与目标进入 memory，允许从尸体取物；`give` 把自身物品交给同场景存活角色；`pickup` 把 `stage_items` 移入 actor 背包。当前钥匙通关硬编码 `场景.铁闸门` 与 `饰品.闸门钥匙`，成功后 `games.status=completed`。`say` 与 `whisper` 必须指定单个 `targetActorName`；`say` 向当前 stage 广播，`whisper` 只有发起者与目标收到 memory；`announce` 无目标，向当前 stage 广播。公共消息用 `visibility` 区分 `stage` 与 `private`；私密事件后续对客户端不可见。
+第一版动作是十个平级动作 `say`、`whisper`、`announce`、`move`、`wait`、`attack`、`steal`、`give`、`pickup`、`use`：说话、耳语、宣告、移动、等待、攻击、取物、给予、拾取与使用道具；每个动作一个工具；每个成功应用的动作都会写一条公共事件，`kind` 取动作名。`attack` 有无武器都可执行：伤害为 `max(0, 攻击者 stats.attack + 所选武器 stats.damage - 目标 stats.defense)`。空手时不加武器 damage，目标 `defense` 是唯一 block，目标物品 block 与发起者物品 block 都不参与当前伤害计算。`use` 需要自身物品，目标只能是当前场景、自己或同场景角色。`WeaponState` 只通过 `stats.damage` 参与伤害，`stats.block` 当前只存储、不参与伤害。`steal` 为 private，只有发起者与目标进入 memory，允许从尸体取物；`give` 把自身物品交给同场景存活角色；`pickup` 把 `stage_items` 移入 actor 背包。当前钥匙通关硬编码 `场景.铁闸门` 与 `饰品.闸门钥匙`，成功后 `games.status=completed`。`say` 与 `whisper` 必须指定单个 `targetActorName`；`say` 向当前 stage 广播，`whisper` 只有发起者与目标收到 memory；`announce` 无目标，向当前 stage 广播。公共消息用 `visibility` 区分 `stage` 与 `private`；私密事件后续对客户端不可见。
 
 `agent:game npc --game <gameId|slug> --actor <actorId|actorName>` 推进一个 NPC；`--all` 跳过被玩家接管或已死亡的 actor。`agent:game take-control` / `release-control` 接管或释放一个 actor；玩家入口是十个子命令：`player-say` / `player-whisper` / `player-announce` / `player-move` / `player-wait` / `player-attack` / `player-steal` / `player-give` / `player-pickup` / `player-use`，每个子命令只接收自己的参数。`agent:game stage --game <gameId|slug> --stage <stageId|stageName>` 推动一个 stage 回合；`--all` 按场景顺序推动全部场景。`agent:game status` 读取完整状态；`agent:game snapshot` 导出快照，包含 actor 与 stage 的 memory。沉睡与苏醒由 actor profile / system prompt 约束，并由 LLM 在正常 plan 中判断，系统不为特定状态维护唤醒规则。
 

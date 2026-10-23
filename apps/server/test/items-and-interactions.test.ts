@@ -31,10 +31,9 @@ const ITEM_WORLD = {
             {
               name: "武器.测试火把",
               description: "测试用的场景武器。",
-              kind: "weapon",
+              kind: "weapon" as const,
               count: 1,
-              damage: 7,
-              block: 1,
+              stats: { damage: 7, block: 1 },
             },
           ],
         }
@@ -55,7 +54,7 @@ const WEAPON_WORLD = {
       ? {
           ...actor,
           items: actor.items.map((item) =>
-            item.name === "铅封提灯" ? { ...item, block: 2 } : item,
+            item.name === "铅封提灯" ? { ...item, stats: { ...item.stats, block: 2 } } : item,
           ),
         }
       : actor,
@@ -86,7 +85,7 @@ const SEALED_WORLD = {
         {
           name: GATE_KEY_NAME,
           description: "测试用闸门钥匙。",
-          kind: "key",
+          kind: "accessory" as const,
         },
       ],
     },
@@ -176,7 +175,7 @@ describe.skipIf(!testDatabaseUrl)("items and interactions", () => {
     const monk = state.world.stages
       .flatMap((stage) => stage.actors)
       .find((actor) => actor.name === "提灯修士");
-    expect(monk?.hp).toBe(4);
+    expect(monk?.stats.hp).toBe(4);
     expect(state.messages.at(-1)?.content).toContain("造成6点伤害");
   });
 
@@ -226,7 +225,7 @@ describe.skipIf(!testDatabaseUrl)("items and interactions", () => {
     const keeper = gate?.actors.find((actor) => actor.name === "守烬人");
     expect(gate?.items).toEqual([]);
     const torch = keeper?.items.find((item) => item.name === "武器.测试火把");
-    expect(torch).toMatchObject({ count: 1, damage: 7, block: 1 });
+    expect(torch).toMatchObject({ count: 1, stats: { damage: 7, block: 1 } });
   });
 
   it("completes the game by using the key on the sealed gate", async () => {

@@ -4,6 +4,7 @@ import type { ToolDefinition } from "../../llm/types";
 import { appendPublicMessage, bumpGameVersion, itemListText } from "../apply/messages";
 import { assertAlive, assertNotSelf, findActorInStage, resolveActorItems } from "../apply/queries";
 import type { ActorWithStageRow, Executor, ResolvedAttack } from "../apply/types";
+import { sumAttribute } from "../attributes";
 import { GameError } from "../errors";
 import { appendAttackObservations, appendStageEvent } from "../observations";
 import type { AttackAction } from "../types";
@@ -87,21 +88,25 @@ export async function applyAttack(
   now: Date,
 ): Promise<string> {
   const target = resolved.target;
-  const weaponDamage = resolved.items.reduce((total, item) => total + item.damage, 0);
-  const damage = Math.max(0, actorRow.actor.attack + weaponDamage - target.defense);
-  const remainingHp = Math.max(0, target.hp - damage);
-  const death = remainingHp <= 0;
+  const weaponDamage = sumAttribute(
+    resolved.items.map((item) => item.stats),
+    "damage",
+  );
+  const damage = Math.max(0, actorRow.actor.stats.attack + weaponDamage - target.stats.defense);
+  const remainingHp = Math.max(0, target.stats.hp - damage);
+  const status = remainingHp <= 0 ? "dead" : "alive";
 
   await executor
     .update(actors)
-    .set({ hp: remainingHp, death, updatedAt: now })
+    .set({ stats: { ...target.stats, hp: remainingHp }, status, updatedAt: now })
     .where(eq(actors.id, target.id));
   await bumpGameVersion(executor, gameId, now);
 
   const itemText = itemListText(resolved.items);
-  const outcome = death
-    ? `；${target.name}倒下了。`
-    : `；${target.name}剩余 HP ${remainingHp}/${target.maxHp}。`;
+  const outcome =
+    status === "dead"
+      ? `；${target.name}倒下了。`
+      : `；${target.name}剩余 HP ${remainingHp}/${target.stats.maxHp}。`;
   const content = `${actorRow.actor.name}对${target.name}使用攻击${itemText}，造成${damage}点伤害${outcome}`;
   await appendPublicMessage(executor, gameId, actorRow.actor.id, {
     kind: "attack",
@@ -115,16 +120,16 @@ export async function applyAttack(
     gameId,
     resolved.stage,
     { id: actorRow.actor.id, name: actorRow.actor.name },
-    { id: target.id, name: target.name, maxHp: target.maxHp },
+    { id: target.id, name: target.name, maxHp: target.stats.maxHp },
     "stage",
     resolved.items,
     damage,
     remainingHp,
-    death,
+    status,
   );
   await appendStageEvent(executor, gameId, resolved.stage.id, `# 场景事件\n${content}`, {
     eventKind: "attack",
     targetActorId: target.id,
   });
-  return `# 行动结果\n你使用攻击${itemText}对${target.name}，造成${damage}点伤害；${death ? `${target.name}倒下了` : `${target.name}剩余 HP ${remainingHp}/${target.maxHp}`}。`;
+  return `# 行动结果\n你使用攻击${itemText}对${target.name}，造成${damage}点伤害；${status === "dead" ? `${target.name}倒下了` : `${target.name}剩余 HP ${remainingHp}/${target.stats.maxHp}`}。`;
 }

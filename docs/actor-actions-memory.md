@@ -63,7 +63,7 @@ NPC 工具分为只读 GET、动作与终止工具。`look_stage`、`get_stats`�
 
 计划是**有序动作列表**，最多 `MAX_ACTIONS_PER_TURN = 2` 条；不做分类互斥，只限制条数。“通常一次沟通加一个其他动作”由提示词约定，工具 handler 在超过 2 条时立即报错给模型。两个动作按调用顺序应用，先移动后说话与先说话后移动是不同结果。
 
-每个成功应用的动作都产生一条公共事件，`kind` 就是动作名（`say` / `whisper` / `attack` / …）；可见范围由动作自己决定（`whisper` 与 `steal` 为 private，其余为 stage）。同场景公开动作会向其他 actor 写入可见行动观察。`wait` 只是不改变场景状态。actor 的 `death` 为 true 时不能进入下一次 loop；伤害使目标 HP 归零时同时写入 `death=true`。工具调用轨迹属于本次 loop，进入 context dump，不进入长期 memory 的顶层事实。行动的应用发生在 loop 结束后，由统一行动应用层校验并按顺序提交。
+每个成功应用的动作都产生一条公共事件，`kind` 就是动作名（`say` / `whisper` / `attack` / …）；可见范围由动作自己决定（`whisper` 与 `steal` 为 private，其余为 stage）。同场景公开动作会向其他 actor 写入可见行动观察。`wait` 只是不改变场景状态。actor 的 `status` 为 `dead` 时不能进入下一次 loop；伤害使目标 `stats.hp` 归零时同时写入 `status=dead`。工具调用轨迹属于本次 loop，进入 context dump，不进入长期 memory 的顶层事实。行动的应用发生在 loop 结束后，由统一行动应用层校验并按顺序提交。
 
 ## 沟通动作
 
@@ -94,7 +94,7 @@ NPC 工具分为只读 GET、动作与终止工具。`look_stage`、`get_stats`�
 | `pickup` | itemName | stage |
 | `use` | itemName /（targetActorName 或 targetStageName） | stage |
 
-`attack` 的伤害为 `max(0, 攻击者 attack + 所选武器 damage - 目标 defense)`；空手时不加武器 damage，目标 defense 是唯一 block，物品 block 不参与当前伤害。`steal` 允许对尸体取物；`give` 只能给存活角色；`pickup` 把 `stage_items` 移入背包；`use` 的目标只能是当前场景、自己或同场景角色。
+`attack` 的伤害为 `max(0, 攻击者 stats.attack + 所选武器 stats.damage - 目标 stats.defense)`；空手时不加武器 damage，目标 defense 是唯一 block，物品 block 不参与当前伤害。`steal` 允许对尸体取物；`give` 只能给存活角色；`pickup` 把 `stage_items` 移入背包；`use` 的目标只能是当前场景、自己或同场景角色。
 
 能力在种子（`seeds/dark-fantasy.ts`）里**逐角色逐条**写出，不设共享默认值：动物只有 `say` / `whisper` / `announce` / `move` / `wait`（狗与鼠王再加 `attack`），人类才有 `give` / `pickup` / `use`，偷窃只属于当前剧本的无名者。创建游戏时写进 `actors.actions` / `stages.actions`，运行时以数据库为准。stage 的能力目前只有 `submit_environment`，环境写法规则写在工具描述里，属于“工具即上下文”。NPC 只暴露被允许的工具；结算层 `assertActionAllowed` 是权威校验，玩家入口与脚本调用同样受约束（拒绝原因会直接返回给调用方）。计划条数由 `MAX_ACTIONS_PER_TURN` 限制。
 

@@ -1,5 +1,4 @@
 import {
-  boolean,
   integer,
   jsonb,
   pgTable,
@@ -9,6 +8,8 @@ import {
   uniqueIndex,
   uuid,
 } from "drizzle-orm/pg-core";
+import type { ActorStats, ItemStats } from "../game/attributes";
+import type { ActorStatus, BaseBody, ItemKind } from "../game/types";
 
 export type JsonValue =
   | string
@@ -134,13 +135,9 @@ export const actors = pgTable("actors", {
     .references(() => stages.id, { onDelete: "cascade" }),
   name: text("name").notNull(),
   profile: text("profile").notNull(),
-  appearance: text("appearance").notNull(),
-  hp: integer("hp").notNull(),
-  maxHp: integer("max_hp").notNull(),
-  attack: integer("attack").notNull(),
-  defense: integer("defense").notNull(),
-  speed: integer("speed").notNull(),
-  death: boolean("death").notNull().default(false),
+  baseBody: jsonb("base_body").$type<BaseBody>().notNull(),
+  stats: jsonb("stats").$type<ActorStats>().notNull(),
+  status: text("status").$type<ActorStatus>().notNull().default("alive"),
   actions: jsonb("actions").$type<JsonValue[]>().notNull().default([]),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
@@ -153,10 +150,9 @@ export const items = pgTable("items", {
     .references(() => actors.id, { onDelete: "cascade" }),
   name: text("name").notNull(),
   description: text("description").notNull(),
-  kind: text("kind").notNull(),
+  kind: text("kind").$type<ItemKind>().notNull(),
   count: integer("count").notNull().default(1),
-  damage: integer("damage").notNull().default(0),
-  block: integer("block").notNull().default(0),
+  stats: jsonb("stats").$type<ItemStats>().notNull().default({}),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
 
@@ -167,10 +163,9 @@ export const stageItems = pgTable("stage_items", {
     .references(() => stages.id, { onDelete: "cascade" }),
   name: text("name").notNull(),
   description: text("description").notNull(),
-  kind: text("kind").notNull(),
+  kind: text("kind").$type<ItemKind>().notNull(),
   count: integer("count").notNull().default(1),
-  damage: integer("damage").notNull().default(0),
-  block: integer("block").notNull().default(0),
+  stats: jsonb("stats").$type<ItemStats>().notNull().default({}),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
 

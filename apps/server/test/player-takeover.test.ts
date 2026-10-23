@@ -178,6 +178,6 @@ describe.skipIf(!testDatabaseUrl)("player takeover", () => {
     const monk = state.world.stages
       .flatMap((stage) => stage.actors)
       .find((actor) => actor.name === "提灯修士");
-    expect(monk?.hp).toBe(7);
+    expect(monk?.stats.hp).toBe(7);
   });
 });

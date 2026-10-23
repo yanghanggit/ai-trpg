@@ -45,8 +45,7 @@ describe("dark fantasy seed world", () => {
     expect(stage("crematorium").items?.[0]).toMatchObject({
       kind: "weapon",
       count: 1,
-      damage: 250,
-      block: 0,
+      stats: { damage: 250, block: 0 },
     });
     expect(stage("gate").items ?? []).toEqual([]);
   });
@@ -55,9 +54,12 @@ describe("dark fantasy seed world", () => {
     const keeper = DARK_FANTASY_WORLD.actors.find((actor) => actor.name === "角色.奥德里克");
     const king = DARK_FANTASY_WORLD.actors.find((actor) => actor.name === "角色.鼠王");
     expect(keeper?.items.map((item) => item.name)).toEqual(["饰品.闸门钥匙"]);
-    expect(king?.hp).toBeGreaterThan(keeper?.hp ?? 0);
-    expect(king?.attack).toBeGreaterThan(20);
-    expect(king?.defense).toBeGreaterThan(king?.attack ?? 0);
+    expect(keeper?.baseBody.race).toBe("人类");
+    expect(keeper?.status).toBe("alive");
+    expect(king?.baseBody.race).toBe("鼠");
+    expect(king?.stats.hp).toBeGreaterThan(keeper?.stats.hp ?? 0);
+    expect(king?.stats.attack).toBeGreaterThan(20);
+    expect(king?.stats.defense).toBeGreaterThan(king?.stats.attack ?? 0);
     expect(king?.profile).toContain("沉睡在地窖");
     expect(king?.profile).toContain("苏醒前你的计划只能包含 wait");
   });

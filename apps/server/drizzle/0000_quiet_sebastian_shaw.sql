@@ -12,13 +12,9 @@ CREATE TABLE "actors" (
 	"stage_id" uuid NOT NULL,
 	"name" text NOT NULL,
 	"profile" text NOT NULL,
-	"appearance" text NOT NULL,
-	"hp" integer NOT NULL,
-	"max_hp" integer NOT NULL,
-	"attack" integer NOT NULL,
-	"defense" integer NOT NULL,
-	"speed" integer NOT NULL,
-	"death" boolean DEFAULT false NOT NULL,
+	"base_body" jsonb NOT NULL,
+	"stats" jsonb NOT NULL,
+	"status" text DEFAULT 'alive' NOT NULL,
 	"actions" jsonb DEFAULT '[]'::jsonb NOT NULL,
 	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
 	"updated_at" timestamp with time zone DEFAULT now() NOT NULL
@@ -93,8 +89,7 @@ CREATE TABLE "items" (
 	"description" text NOT NULL,
 	"kind" text NOT NULL,
 	"count" integer DEFAULT 1 NOT NULL,
-	"damage" integer DEFAULT 0 NOT NULL,
-	"block" integer DEFAULT 0 NOT NULL,
+	"stats" jsonb DEFAULT '{}'::jsonb NOT NULL,
 	"created_at" timestamp with time zone DEFAULT now() NOT NULL
 );
 --> statement-breakpoint
@@ -113,8 +108,7 @@ CREATE TABLE "stage_items" (
 	"description" text NOT NULL,
 	"kind" text NOT NULL,
 	"count" integer DEFAULT 1 NOT NULL,
-	"damage" integer DEFAULT 0 NOT NULL,
-	"block" integer DEFAULT 0 NOT NULL,
+	"stats" jsonb DEFAULT '{}'::jsonb NOT NULL,
 	"created_at" timestamp with time zone DEFAULT now() NOT NULL
 );
 --> statement-breakpoint

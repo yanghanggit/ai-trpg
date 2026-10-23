@@ -7,6 +7,7 @@ import type { ChatCompletionService } from "../llm/protocol";
 import type { ChatMessage } from "../llm/types";
 import { adjacentStageNames, findStage } from "./actors";
 import { appendPublicMessage, bumpGameVersion } from "./apply/messages";
+import { formatBaseBody } from "./body";
 import { DEFAULT_NPC_MAX_ROUNDS, MEMORY_KINDS } from "./constants";
 import { GameError } from "./errors";
 import { appendMemoryMessages, loadAgentMemory } from "./memory";
@@ -38,7 +39,10 @@ export function buildStageObservation(state: GameState, stage: StageState): stri
     stage.actors.length === 0
       ? "无"
       : stage.actors
-          .map((actor) => `${actor.name}：${actor.appearance}${actor.death ? "（已死亡）" : ""}`)
+          .map(
+            (actor) =>
+              `${actor.name}：${formatBaseBody(actor.baseBody)}${actor.status === "dead" ? "（已死亡）" : ""}`,
+          )
           .join("\n");
   const itemLines =
     stage.items.length === 0

@@ -23,7 +23,7 @@ export async function findActorInStage(
 
 /** 拒绝已死亡的目标。 */
 export function assertAlive(target: ActorRow): void {
-  if (target.death || target.hp <= 0) {
+  if (target.status === "dead" || target.stats.hp <= 0) {
     throw new GameError("invalid_action", `目标已经死亡: ${target.name}`);
   }
 }

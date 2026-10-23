@@ -128,7 +128,7 @@ grep -rn "seeds/dark-fantasy" apps/server/src apps/server/scripts --include=*.ts
 - `create --world-file <path>`；
 - 默认内容只作为显式的 `--demo` 回退，不进入核心服务。
 
-**内容层至少需要表达**：世界宏观设定与规则、场景与场景图、初始位置、角色属性与物品、`actions` 能力、武器 damage / block、完成条件与完成文案、内容版本与校验。输入可以是 JSON / YAML / TypeScript seed，但必须经过统一校验后物化为数据库状态；数据库仍是运行时唯一真相。
+**内容层至少需要表达**：世界宏观设定与规则、场景与场景图、初始位置、角色属性与物品、`actions` 能力、物品 `stats`（damage / block）、完成条件与完成文案、内容版本与校验。输入可以是 JSON / YAML / TypeScript seed，但必须经过统一校验后物化为数据库状态；数据库仍是运行时唯一真相。
 
 ## 建议的优先级
 

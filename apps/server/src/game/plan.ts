@@ -1,5 +1,6 @@
 import type { ToolDefinition } from "../llm/types";
 import { adjacentStageNames, findStageByName } from "./actors";
+import { attribute } from "./attributes";
 import { GameError } from "./errors";
 import type { ActorState, GameState } from "./types";
 
@@ -160,11 +161,11 @@ export function parseEnvironment(args: Record<string, unknown>): string {
 /** 渲染自身 stats，供 get_stats 工具返回。 */
 export function describeStats(actor: ActorState): string {
   return `角色：${actor.name}
-HP：${actor.hp}/${actor.maxHp}
-attack：${actor.attack}
-defense：${actor.defense}
-speed：${actor.speed}
-状态：${actor.death ? "已死亡" : "存活"}`;
+HP：${actor.stats.hp}/${actor.stats.maxHp}
+attack：${actor.stats.attack}
+defense：${actor.stats.defense}
+speed：${actor.stats.speed}
+状态：${actor.status === "dead" ? "已死亡" : "存活"}`;
 }
 
 /** 渲染自身物品，供 get_items 工具返回。 */
@@ -173,8 +174,10 @@ export function describeItems(actor: Pick<ActorState, "items">): string {
     return "物品：无";
   }
   const lines = actor.items.map((item) => {
-    const stats =
-      item.damage > 0 || item.block > 0 ? `（damage ${item.damage}，block ${item.block}）` : "";
+    const itemStats = "stats" in item ? item.stats : undefined;
+    const damage = attribute(itemStats, "damage");
+    const block = attribute(itemStats, "block");
+    const stats = damage > 0 || block > 0 ? `（damage ${damage}，block ${block}）` : "";
     return `- ${item.name}（${item.kind}，count ${item.count}）：${item.description}${stats}`;
   });
   return `物品：
@@ -197,7 +200,9 @@ export function lookStage(state: GameState, stageName: string): string {
   const actors =
     stage.actors.length === 0
       ? "无"
-      : stage.actors.map((actor) => `${actor.name}${actor.death ? "（已死亡）" : ""}`).join("、");
+      : stage.actors
+          .map((actor) => `${actor.name}${actor.status === "dead" ? "（已死亡）" : ""}`)
+          .join("、");
   const items =
     stage.items.length === 0
       ? "无"

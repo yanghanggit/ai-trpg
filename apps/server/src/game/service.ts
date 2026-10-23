@@ -15,6 +15,7 @@ import {
 } from "../db/schema";
 import { dumpSystemPrompts } from "../debug/prompt-dump";
 import { GameError } from "./errors";
+import { toItemState } from "./items";
 import {
   buildActorSystemPrompt,
   buildStageSystemPrompt,
@@ -28,7 +29,7 @@ import type {
   ConnectionState,
   CreateGameInput,
   GameState,
-  ItemState,
+  Item,
   MessageState,
   MessageVisibility,
   PlayerState,
@@ -142,18 +143,10 @@ export async function getGameState(db: Database, ref: string): Promise<GameState
           .where(inArray(stageItems.stageId, stageIds))
           .orderBy(asc(stageItems.createdAt), asc(stageItems.name));
 
-  const itemsByStage = new Map<string, ItemState[]>();
+  const itemsByStage = new Map<string, Item[]>();
   for (const item of stageItemRows) {
     const list = itemsByStage.get(item.stageId) ?? [];
-    list.push({
-      id: item.id,
-      name: item.name,
-      description: item.description,
-      kind: item.kind,
-      count: item.count,
-      damage: item.damage,
-      block: item.block,
-    });
+    list.push(toItemState(item));
     itemsByStage.set(item.stageId, list);
   }
 
@@ -163,18 +156,10 @@ export async function getGameState(db: Database, ref: string): Promise<GameState
     .where(eq(gameMessages.gameId, game.id))
     .orderBy(asc(gameMessages.sequence));
 
-  const itemsByActor = new Map<string, ItemState[]>();
+  const itemsByActor = new Map<string, Item[]>();
   for (const item of itemRows) {
     const list = itemsByActor.get(item.actorId) ?? [];
-    list.push({
-      id: item.id,
-      name: item.name,
-      description: item.description,
-      kind: item.kind,
-      count: item.count,
-      damage: item.damage,
-      block: item.block,
-    });
+    list.push(toItemState(item));
     itemsByActor.set(item.actorId, list);
   }
 
@@ -185,13 +170,9 @@ export async function getGameState(db: Database, ref: string): Promise<GameState
       id: actor.id,
       name: actor.name,
       profile: actor.profile,
-      appearance: actor.appearance,
-      hp: actor.hp,
-      maxHp: actor.maxHp,
-      attack: actor.attack,
-      defense: actor.defense,
-      speed: actor.speed,
-      death: actor.death,
+      baseBody: actor.baseBody,
+      stats: actor.stats,
+      status: actor.status,
       items: itemsByActor.get(actor.id) ?? [],
       actions: actor.actions as unknown as ActionKind[],
     });
@@ -350,8 +331,7 @@ export async function createGame(db: Database, input: CreateGameInput): Promise<
           description: item.description,
           kind: item.kind,
           count: item.count ?? 1,
-          damage: item.damage ?? 0,
-          block: item.block ?? 0,
+          stats: item.stats ?? {},
         });
       }
     }
@@ -385,13 +365,9 @@ export async function createGame(db: Database, input: CreateGameInput): Promise<
         stageId: actorStageId,
         name: actor.name,
         profile: actor.profile,
-        appearance: actor.appearance,
-        hp: actor.hp,
-        maxHp: actor.maxHp,
-        attack: actor.attack,
-        defense: actor.defense,
-        speed: actor.speed,
-        death: actor.death ?? false,
+        baseBody: actor.baseBody,
+        stats: actor.stats,
+        status: actor.status ?? "alive",
         actions: actor.actions as unknown as typeof actors.$inferInsert.actions,
       });
 
@@ -403,8 +379,7 @@ export async function createGame(db: Database, input: CreateGameInput): Promise<
           description: item.description,
           kind: item.kind,
           count: item.count ?? 1,
-          damage: item.damage ?? 0,
-          block: item.block ?? 0,
+          stats: item.stats ?? {},
         });
       }
 
@@ -421,7 +396,7 @@ export async function createGame(db: Database, input: CreateGameInput): Promise<
       await createActorMemory(
         tx,
         gameId,
-        { id: actorId, name: actor.name, profile: actor.profile, appearance: actor.appearance },
+        { id: actorId, name: actor.name, profile: actor.profile, baseBody: actor.baseBody },
         actorPrompt,
       );
     }

@@ -67,8 +67,7 @@ export async function applyPickup(
     description: stageItem.description,
     kind: stageItem.kind,
     count: stageItem.count,
-    damage: stageItem.damage,
-    block: stageItem.block,
+    stats: stageItem.stats,
   });
   await bumpGameVersion(executor, gameId, now);
 

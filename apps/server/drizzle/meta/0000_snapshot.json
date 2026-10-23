@@ -1,5 +1,5 @@
 {
-  "id": "d74af5db-207d-4e8c-878f-606acdd4f1f3",
+  "id": "dce3f680-d524-4c97-8e57-2ea8858a6cdd",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "version": "7",
   "dialect": "postgresql",
@@ -124,48 +124,24 @@
           "primaryKey": false,
           "notNull": true
         },
-        "appearance": {
-          "name": "appearance",
+        "base_body": {
+          "name": "base_body",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "stats": {
+          "name": "stats",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "status": {
+          "name": "status",
           "type": "text",
           "primaryKey": false,
-          "notNull": true
-        },
-        "hp": {
-          "name": "hp",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "max_hp": {
-          "name": "max_hp",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "attack": {
-          "name": "attack",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "defense": {
-          "name": "defense",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "speed": {
-          "name": "speed",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "death": {
-          "name": "death",
-          "type": "boolean",
-          "primaryKey": false,
           "notNull": true,
-          "default": false
+          "default": "'alive'"
         },
         "actions": {
           "name": "actions",
@@ -840,19 +816,12 @@
           "notNull": true,
           "default": 1
         },
-        "damage": {
-          "name": "damage",
-          "type": "integer",
+        "stats": {
+          "name": "stats",
+          "type": "jsonb",
           "primaryKey": false,
           "notNull": true,
-          "default": 0
-        },
-        "block": {
-          "name": "block",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true,
-          "default": 0
+          "default": "'{}'::jsonb"
         },
         "created_at": {
           "name": "created_at",
@@ -1037,19 +1006,12 @@
           "notNull": true,
           "default": 1
         },
-        "damage": {
-          "name": "damage",
-          "type": "integer",
+        "stats": {
+          "name": "stats",
+          "type": "jsonb",
           "primaryKey": false,
           "notNull": true,
-          "default": 0
-        },
-        "block": {
-          "name": "block",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true,
-          "default": 0
+          "default": "'{}'::jsonb"
         },
         "created_at": {
           "name": "created_at",

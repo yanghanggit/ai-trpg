@@ -40,7 +40,7 @@ const worldWithPickup = {
             {
               name: "测试提灯",
               description: "一盏用于探针测试的提灯。",
-              kind: "relic",
+              kind: "valuable" as const,
               count: 1,
             },
           ],

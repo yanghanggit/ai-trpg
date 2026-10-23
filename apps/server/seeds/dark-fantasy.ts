@@ -98,10 +98,9 @@ export const DARK_FANTASY_WORLD: World = {
         {
           name: "武器.焚鼠火把",
           description: "一支浸透松脂的火把，尖端缠着干枯的鼠尾；点燃后火焰会沿着油脂爬满整支木柄。",
-          kind: "weapon",
+          kind: "weapon" as const,
           count: 1,
-          damage: 250,
-          block: 0,
+          stats: { damage: 250, block: 0 },
         },
       ],
     },
@@ -136,17 +135,18 @@ export const DARK_FANTASY_WORLD: World = {
 **禁忌**: 不许有人碰铁闸门，也不许有人翻动乱葬坑里的尸体。
 **最爱**: 钟楼的安静，钥匙串在手心里的重量。
 **秘密**: 铁闸门的钟形纹下刻着一句旧铭文：“灰烬之下，旧钟无名”。有人对你说出这句话，你会把他当成留下守钟的故人；若他索要钥匙并承诺不把病带出去，你会交出。`,
-      appearance: "旧呢斗篷上沾着石灰与新土，腰间挂着一串生锈的钥匙，其中一把是铸铁的闸门钥匙。",
-      hp: 14,
-      maxHp: 14,
-      attack: 5,
-      defense: 2,
-      speed: 3,
+      baseBody: {
+        race: "人类",
+        description:
+          "高瘦，肩背因常年掘墓而佝偻；手背结着土垢与旧疤，左眉断了一截，指甲缝里洗不净黑泥。",
+      },
+      stats: { hp: 14, maxHp: 14, attack: 5, defense: 2, speed: 3 },
+      status: "alive" as const,
       items: [
         {
           name: "饰品.闸门钥匙",
           description: "一把铸铁的闸门钥匙，柄上刻着修道院的钟形纹；齿纹被磨得很亮。",
-          kind: "key",
+          kind: "accessory" as const,
           count: 1,
         },
       ],
@@ -163,13 +163,13 @@ export const DARK_FANTASY_WORLD: World = {
 **身边**: 奥德里克。
 **禁忌**: 不许人靠近奥德里克手里的钥匙串；他受伤或死亡时，你一定追着凶手不放。
 **最爱**: 奥德里克的腿边、干粮。`,
-      appearance:
-        "肋骨从短毛下顶出来，左耳缺了一角；毛色像烧过的灰，它不叫，只把牙关咬得很紧，喉咙里滚着低低的雷声。",
-      hp: 10,
-      maxHp: 10,
-      attack: 7,
-      defense: 1,
-      speed: 7,
+      baseBody: {
+        race: "犬",
+        description:
+          "肋骨从短毛下顶出来，左耳缺了一角，毛色像烧过的灰；后腿留着一道旧咬伤，走路时微微跛。",
+      },
+      stats: { hp: 10, maxHp: 10, attack: 7, defense: 1, speed: 7 },
+      status: "alive" as const,
       items: [],
       // 动物：会说话、走动与战斗，但不操作道具。
       actions: ["say", "whisper", "announce", "move", "wait", "attack"],
@@ -184,13 +184,12 @@ export const DARK_FANTASY_WORLD: World = {
 **身边**: 父王（角色.鼠王）。你相信只要跑回去叫醒他，墓园的麻烦就有人处理。
 **禁忌**: 不靠近正在流血或打斗的活物；也不碰不属于你的东西——除了那块霉面包。
 **最爱**: 那块发霉的面包。`,
-      appearance:
-        "只有巴掌大，灰尾巴末端有一撮白毛；它用后腿站着，前爪抱着一小块发霉的面包，眼睛始终盯着你的手。",
-      hp: 4,
-      maxHp: 4,
-      attack: 1,
-      defense: 0,
-      speed: 10,
+      baseBody: {
+        race: "鼠",
+        description: "只有巴掌大，灰尾巴末端有一撮白毛，右前爪缺了一趾；眼睛始终盯着活物的手。",
+      },
+      stats: { hp: 4, maxHp: 4, attack: 1, defense: 0, speed: 10 },
+      status: "alive" as const,
       items: [],
       // 幼崽只会说话、走动与躲避；不会战斗，也不操作道具。
       actions: ["say", "whisper", "announce", "move", "wait"],
@@ -205,13 +204,13 @@ export const DARK_FANTASY_WORLD: World = {
 **身边**: 无。
 **禁忌**: 你恨被当成一具无名的尸体，也恨再被锁住。
 **最爱**: 记起自己是谁。`,
-      appearance:
-        "皮肤灰白，指缝里塞满湿泥；衣领下露出半截被鼠牙啃过的锁链，走路时关节会发出干涩的响声。",
-      hp: 20,
-      maxHp: 20,
-      attack: 6,
-      defense: 2,
-      speed: 3,
+      baseBody: {
+        race: "人类",
+        description:
+          "皮肤灰白，关节干涩；锁骨与手腕上留着被锁链磨出的旧痕，指缝里塞满湿泥，像刚从土里被挖出来。",
+      },
+      stats: { hp: 20, maxHp: 20, attack: 6, defense: 2, speed: 3 },
+      status: "alive" as const,
       items: [],
       // 唯一会偷窃的角色；其余能力与普通人类一致。
       actions: [
@@ -238,13 +237,13 @@ export const DARK_FANTASY_WORLD: World = {
 **禁忌**: 绝不允许非鼠类在你的地界上走动，更不允许它们伤害坏运气。
 **最爱**: 地窖、血食。
 **沉睡与猎杀**: 你正沉睡在地窖：只要本场景出现任何说话、攻击或非等待行为——包括坏运气跑进来报信——你立刻苏醒；苏醒前你的计划只能包含 wait。苏醒后你是一头残暴的猎手：本场景内每一个非鼠类活物都必须被你杀死。本场景没有非鼠类活物时，你必须立刻按固定路线搜索修道院：墓园 → 焚尸房 → 墓园 → 铁闸门 → 墓园（只能沿已有连接移动），每到一处都杀死该处所有非鼠类活物；一直追杀到目标死亡、离开修道院，或你自己倒下。你绝不会伤害坏运气。`,
-      appearance:
-        "灰黑色的毛皮上结着骨渣与旧血，尾巴比人的手臂还粗；它闭着眼，胡须却随着每一声脚步轻轻抽动。",
-      hp: 120,
-      maxHp: 120,
-      attack: 60,
-      defense: 100,
-      speed: 8,
+      baseBody: {
+        race: "鼠",
+        description:
+          "灰黑的毛皮结着骨渣与旧血，尾巴比人的手臂还粗，左眼蒙着一层白翳；即便闭着眼，胡须也会随脚步声抽动。",
+      },
+      stats: { hp: 120, maxHp: 120, attack: 60, defense: 100, speed: 8 },
+      status: "alive" as const,
       items: [],
       // 动物：沉睡时由 profile 约束只用 wait；苏醒后可以移动与攻击，但不操作道具。
       actions: ["say", "whisper", "announce", "move", "wait", "attack"],
