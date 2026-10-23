@@ -6,7 +6,7 @@
 
 `actor` 是第一级实体。NPC 与玩家不是两种 actor 表，而是同一个 actor 的两种控制者。NPC 由 agent loop 驱动，玩家通过接管关系直接提交行动；actor 的身份、场景归属、物品、状态与 memory 不因控制者改变。
 
-actor 目前只有一个运行时容器：`items` 道具队列。鼠王的沉睡属于角色 profile，由 LLM 根据场景记忆判断是否苏醒。
+actor 目前只有一个运行时容器：`items` 道具队列。鼠王的沉睡属于 actor 的开局简报（`openingBriefing`），由 LLM 根据场景记忆判断是否苏醒。
 
 玩家接管通过独立的控制关系表达，不把控制字段塞回 actor 本体。释放接管后，同一个 actor 恢复 NPC 驱动，继续使用原 memory。
 
@@ -20,7 +20,7 @@ NPC 路径是环境观察、agent loop、计划与工具调用、提交计划，
 
 | 层 | 内容 | 用途 |
 | --- | --- | --- |
-| actor 长期 memory | system prompt + 每条行动事实 | 下一次 LLM request 的稳定上下文 |
+| actor 长期 memory | system prompt + 开局简报 + 每条行动事实 | 下一次 LLM request 的稳定上下文 |
 | action context dump | 本次 agent loop 的完整消息 | 审计、反查、快照观测 |
 | `game_messages` | 公共事件流 | 客户端增量拉取与场景事件 |
 
@@ -36,7 +36,7 @@ NPC 路径是环境观察、agent loop、计划与工具调用、提交计划，
 
 行动事实可以有结构化元数据，但顶层长期记忆保持为一条可读事实，不保存逐轮对话。NPC 的“为什么”来自计划中的内心理由；Player 的直接提交可以带理由，没有理由时明确标记为玩家直接提交。
 
-actor 的长期 memory 由 system prompt 与这些行动事实组成。任务提示词、环境观察、工具调用与工具结果不单独成为长期记忆条目。
+actor 的长期 memory 由 system prompt、可选的 `openingBriefing` 与这些行动事实组成。任务提示词、环境观察、工具调用与工具结果不单独成为长期记忆条目。
 
 ## Context dump 的边界
 
@@ -51,11 +51,25 @@ actor 的长期 memory 由 system prompt 与这些行动事实组成。任务提
 
 不包含 system prompt、之前回合的行动事实、之前回合的 loop 轨迹，也不包含其他 actor 的 memory。
 
-context dump 是审计旁路。下一次 LLM request 只使用长期 memory 中的 system prompt 与行动事实，再加上当前回合的环境与任务提示词；不会自动把历史 context dump 塞回 prompt。当前不提供“让 agent 主动回读完整 context”的工具。
+context dump 是审计旁路。下一次 LLM request 只使用长期 memory 中的 system prompt、可选的 `openingBriefing` 与行动事实，再加上当前回合的环境与任务提示词；不会自动把历史 context dump 塞回 prompt。当前不提供“让 agent 主动回读完整 context”的工具。
+
+## 开局简报
+
+`openingBriefing` 是内容定义层给一个 actor 的本局私有开局简报，位于 `World.actors[]`，但不是数据库字段。建局时 `createGame` 把它写成 actor memory 的第二条消息（system prompt 之后、第一轮环境观察之前）：
+
+```text
+1. system: profile + world + global rules
+2. human : openingBriefing
+3. human : 第一轮当前环境
+```
+
+`openingBriefing` 可以包含目标、任务、初始处境、约束与已知信息；用自由文本表达，不要求是目标列表。它只在建局时注入一次，不会每轮重复。它进入长期 memory，因此后续回合仍能读到；它不是单轮任务提示词，也不是公共消息。
+
+没有 `openingBriefing` 的 actor 不产生这条 human message，memory 仍从 system prompt 开始。
 
 ## 任务提示词
 
-任务提示词属于单次 loop 的临时输入，不单独进入长期 memory。它随本次 context dump 保留，供事后还原当时的决策条件；下一轮 NPC 会重新生成当前环境与任务提示词。
+任务提示词属于单次 loop 的临时输入，不单独进入长期 memory。它随本次 context dump 保留，供事后还原当时的决策条件；下一轮 NPC 会重新生成当前环境与任务提示词。`openingBriefing` 是一次性建局消息，不算单轮任务提示词。
 
 ## 工具
 

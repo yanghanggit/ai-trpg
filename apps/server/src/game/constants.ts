@@ -31,6 +31,7 @@ export const MAX_MIND_LENGTH = 60;
 /** agent memory 中使用的稳定 kind 值。 */
 export const MEMORY_KINDS = {
   actorSystemPrompt: "actor_system_prompt",
+  actorOpeningBriefing: "actor_opening_briefing",
   stageSystemPrompt: "stage_system_prompt",
   worldSystemPrompt: "world_system_prompt",
   stageObservation: "stage_observation",

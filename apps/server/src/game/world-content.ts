@@ -66,6 +66,7 @@ const actorSchema = z.object({
   stageKey: z.string().min(1),
   name: z.string().min(1),
   profile: z.string(),
+  openingBriefing: z.string().optional(),
   appearance: z.string().optional(),
   equipment: equipmentSchema.optional(),
   baseBody: z.object({

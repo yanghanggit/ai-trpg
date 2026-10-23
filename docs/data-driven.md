@@ -12,6 +12,7 @@
 - 故事内容集中在 `seeds/dark-fantasy.ts` 与 `seeds/knowledge/dark-fantasy.ts`，通过 `seeds/index.ts` 注册；
 - `use` 对场景可以携带 `targetDetail`，它只是 actor 的行动描述，写入 stage memory；
 - `attack` / `use` 只做 dispatcher；物品通过 `item.effect` 声明 `event` / `damage` 等效果；
+- `actor.openingBriefing` 是本局开局注入给角色的私有简报；建局时写成 actor memory 的第一条 human message，不进入数据库字段；
 - `item.affixes` 是词缀数组；默认 effect 执行后，affix agent 在事务外调用 LLM 与工具，再落账补充效果；
 - stage 可以用 `notify_world` 把报告写入 world memory；
 - world 可以用 `notify_stage` 下发裁决，用 `end_game` 结束游戏；
@@ -25,9 +26,9 @@
 | 数据库 schema | 已隔离 | world / stage / actor / item / message / memory 等通用概念；能力用 `actions` JSONB 承载 |
 | 领域类型 | 已隔离 | `World` / `Stage` / `Actor` / `ItemDefinition` 是内容定义；`WorldState` / `StageState` / `ActorState` / `ItemState` 是运行时状态 |
 | 内容校验 | 已隔离 | `parseWorldContent` 在建局前校验外部内容；缺能力、缺 key、类型错误直接拒绝 |
-| 故事内容 | 已隔离到 seed | 场景、角色、profile、连接、物品、能力、环境、初始旁白在内容文件 |
+| 故事内容 | 已隔离到 seed | 场景、角色、profile、openingBriefing、连接、物品、能力、环境、初始旁白在内容文件 |
 | 内容注册 | 显式 | `seeds/index.ts` 只做显式 `name → { world, knowledge }` 映射，不写默认故事 |
-| system prompt | 由内容生成 | 角色、场景与 world 的身份、设定与全局规则来自 `World` 字段 |
+| system prompt | 由内容生成 | 角色、场景与 world 的身份、设定与全局规则来自 `World` 字段；actor 的 `openingBriefing` 另以 human message 注入 memory |
 | 执行细节 | 由内容/工具承载 | environment 写法在 `submit_environment` 描述里；通知与结束规则在 stage/world 工具描述里 |
 | 角色与场景能力 | 已隔离 | `actors.actions` / `stages.actions` 决定 NPC 与 stage 工具 |
 | world 能力 | 已隔离 | `World.actions` 决定 world 可用的 `notify_stage` / `end_game` |

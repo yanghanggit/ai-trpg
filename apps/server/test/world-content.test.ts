@@ -10,6 +10,20 @@ describe("world content validation", () => {
     expect("extra" in world).toBe(false);
   });
 
+  it("accepts an optional opening briefing without changing the actor profile", () => {
+    const world = parseWorldContent({
+      ...TEST_WORLD,
+      actors: TEST_WORLD.actors.map((actor) =>
+        actor.name === "守烬人"
+          ? { ...actor, openingBriefing: "先守住门廊，再看清来人的手。" }
+          : actor,
+      ),
+    });
+    const keeper = world.actors.find((actor) => actor.name === "守烬人");
+    expect(keeper?.openingBriefing).toBe("先守住门廊，再看清来人的手。");
+    expect(keeper?.profile).toBe(TEST_WORLD.actors[0]?.profile);
+  });
+
   it("rejects a world without explicit capabilities", () => {
     const { actions: _actions, ...withoutActions } = TEST_WORLD;
     expect(() => parseWorldContent(withoutActions)).toThrow();

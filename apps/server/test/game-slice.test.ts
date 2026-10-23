@@ -246,6 +246,34 @@ describe.skipIf(!testDatabaseUrl)("memory-driven NPC slice", () => {
     expect(loaded.parts["memories/守烬人.json"]).toBeDefined();
     expect(loaded.session).toHaveLength(5);
   });
+  it("injects openingBriefing as the actor's first human memory message", async () => {
+    const world = {
+      ...TEST_WORLD,
+      actors: TEST_WORLD.actors.map((actor) =>
+        actor.name === "守烬人"
+          ? {
+              ...actor,
+              openingBriefing: "守住灰烬门廊，不要让陌生人靠近断钟。",
+            }
+          : actor,
+      ),
+    };
+    const created = await createGame(handle.db, {
+      username: DEMO_USER.username,
+      name: "开局简报测试局",
+      world,
+    });
+
+    const memories = await getGameMemories(handle.db, created.game.id);
+    const keeper = memories.find((memory) => memory.name === "守烬人");
+    const monk = memories.find((memory) => memory.name === "提灯修士");
+    expect(keeper?.messages.map((message) => message.type)).toEqual(["system", "human"]);
+    expect(keeper?.messages[1]?.content).toContain("# 本局开局简报");
+    expect(keeper?.messages[1]?.content).toContain("守住灰烬门廊，不要让陌生人靠近断钟。");
+    expect(keeper?.messages[1]?.metadata).toMatchObject({ kind: "actor_opening_briefing" });
+    expect(monk?.messages.map((message) => message.type)).toEqual(["system"]);
+  });
+
   it("only exposes actions the actor is allowed to use", async () => {
     const created = await createGame(handle.db, {
       username: DEMO_USER.username,

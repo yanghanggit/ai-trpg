@@ -79,8 +79,9 @@ describe("dark fantasy seed world", () => {
     expect(king?.stats.hp).toBeGreaterThan(keeper?.stats.hp ?? 0);
     expect(king?.stats.attack).toBeGreaterThan(20);
     expect(king?.stats.defense).toBeGreaterThan(king?.stats.attack ?? 0);
-    expect(king?.profile).toContain("沉睡在地窖");
-    expect(king?.profile).toContain("苏醒前你的计划只能包含 wait");
+    expect(king?.profile).not.toContain("沉睡在地窖");
+    expect(king?.openingBriefing).toContain("你正沉睡在地窖");
+    expect(king?.openingBriefing).toContain("苏醒前你的计划只能包含 wait");
   });
 
   it("keeps human appearance clothed and lets animals fall back to base body", () => {
@@ -143,6 +144,27 @@ describe("dark fantasy seed world", () => {
       expect(item.actions).toEqual(["submit_environment", "notify_world"]);
     }
     expect(DARK_FANTASY_WORLD.actions).toEqual(["notify_stage", "end_game"]);
+  });
+
+  it("puts animal language rules in profiles, not in global rules", () => {
+    const rules = DARK_FANTASY_WORLD.systemRules;
+    expect(rules).not.toContain("种族语言与发声");
+    expect(rules).not.toContain("动物只能与同族");
+    expect(rules).not.toContain("鼠王对非同族");
+
+    const dog = DARK_FANTASY_WORLD.actors.find((actor) => actor.name === "角色.煤渣");
+    const pup = DARK_FANTASY_WORLD.actors.find((actor) => actor.name === "角色.坏运气");
+    const king = DARK_FANTASY_WORLD.actors.find((actor) => actor.name === "角色.鼠王");
+    expect(dog?.profile).toContain("汪汪");
+    expect(dog?.profile).toContain("内心独白不受叫声限制");
+    expect(pup?.profile).toContain("吱吱、丝丝");
+    expect(pup?.profile).toContain("对非同族只会");
+    expect(pup?.profile).toContain("内心独白不受叫声限制");
+    expect(king?.profile).toContain("对非同族只会发出低沉的鼠叫");
+    expect(king?.profile).toContain("绝不说人话");
+    expect(king?.profile).toContain("内心独白不受叫声限制");
+    expect(king?.openingBriefing).toContain("本场景内每一个非鼠类活物都必须被你杀死");
+    expect(king?.openingBriefing).not.toContain("墓园 → 焚尸房");
   });
 
   it("keeps the public knowledge base free of actor secrets", () => {

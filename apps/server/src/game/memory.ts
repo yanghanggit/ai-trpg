@@ -106,6 +106,15 @@ ${formatBaseBody(actor.baseBody)}
 ${world.systemRules}`;
 }
 
+/** 把本局开局简报包装成进入 actor 长期 memory 的第一条 human message。 */
+export function buildActorOpeningBriefing(briefing: string): string {
+  return `# 本局开局简报
+
+以下是你进入此局时的处境、已知信息与打算。它们是这一局里的意图，不是不可违背的世界规则；如果事实改变，你可以重新判断。
+
+${briefing}`;
+}
+
 /** 构造场景作为小 GM 的稳定 system prompt：实体标题、游戏设定、场景设定与职责。 */
 export function buildStageSystemPrompt(
   world: { name: string; campaignSetting: string; systemRules: string },
@@ -189,14 +198,14 @@ async function createMemory(
   return memory;
 }
 
-/** 创建 actor memory 并写入 system prompt。 */
+/** 创建 actor memory，写入 system prompt；有开局简报时再写入第一条 human message。 */
 export async function createActorMemory(
   executor: Executor,
   gameId: string,
-  actor: Pick<Actor, "name" | "profile" | "baseBody"> & { id: string },
+  actor: Pick<Actor, "name" | "profile" | "baseBody" | "openingBriefing"> & { id: string },
   systemPrompt: string,
 ): Promise<MemoryRow> {
-  return createMemory(
+  const memory = await createMemory(
     executor,
     gameId,
     "actor",
@@ -204,6 +213,17 @@ export async function createActorMemory(
     systemPrompt,
     MEMORY_KINDS.actorSystemPrompt,
   );
+  const openingBriefing = actor.openingBriefing?.trim();
+  if (openingBriefing) {
+    await appendMemoryMessages(executor, memory.id, [
+      {
+        type: "human",
+        content: buildActorOpeningBriefing(openingBriefing),
+        metadata: { kind: MEMORY_KINDS.actorOpeningBriefing },
+      },
+    ]);
+  }
+  return memory;
 }
 
 /** 创建 stage memory 并写入小 GM system prompt。 */

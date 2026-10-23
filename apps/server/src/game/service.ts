@@ -448,6 +448,7 @@ export async function createGame(db: Database, input: CreateGameInput): Promise<
           id: actorId,
           name: actor.name,
           profile: actor.profile,
+          openingBriefing: actor.openingBriefing,
           baseBody: actor.baseBody,
         },
         actorPrompt,

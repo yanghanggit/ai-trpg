@@ -104,6 +104,11 @@ export type Actor = {
   stageKey: string;
   name: string;
   profile: string;
+  /**
+   * 本局开局注入给该角色的私有简报；只写入 actor memory，不进入 actors 表。
+   * 可以承载目标、任务、处境、约束与初始知识，不要求是目标列表。
+   */
+  openingBriefing?: string;
   /** 当前可见外观（含衣着/装备）；省略时回退到 baseBody.description。 */
   appearance?: string;
   /** 初始穿戴：槽位 → 物品名；物品本身不记录穿戴状态。 */
