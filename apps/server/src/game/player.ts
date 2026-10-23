@@ -25,7 +25,7 @@ export type PlayerMoveInput = {
   targetStageName: string;
 };
 
-export type PlayerSkillInput = {
+export type PlayerInteractInput = {
   skillKey: string;
   targetActorName?: string;
   targetStageName?: string;
@@ -102,7 +102,7 @@ export async function playerMove(
   return applyPlayerPlan(db, gameRef, actorRef, plan);
 }
 
-function playerSkillPurpose(skill: Skill, input: PlayerSkillInput): SkillPurpose {
+function playerInteractPurpose(skill: Skill, input: PlayerInteractInput): SkillPurpose {
   const targetActorName = input.targetActorName?.trim();
   const targetStageName = input.targetStageName?.trim();
   const itemName = input.itemName?.trim();
@@ -137,15 +137,15 @@ function playerSkillPurpose(skill: Skill, input: PlayerSkillInput): SkillPurpose
 }
 
 /**
- * 玩家直接提交一次通用技能行动。
+ * 玩家直接提交一次交互。
  *
- * 不调用 LLM；actor 必须处于玩家控制下，否则拒绝。
+ * 交互 = 技能 + 道具 + 目的；不调用 LLM；actor 必须处于玩家控制下，否则拒绝。
  */
-export async function playerSkill(
+export async function playerInteract(
   db: Database,
   gameRef: string,
   actorRef: string,
-  input: PlayerSkillInput,
+  input: PlayerInteractInput,
 ): Promise<ActorTurnResult> {
   const state = await getGameState(db, gameRef);
   const actor = findActor(state, actorRef);
@@ -156,10 +156,10 @@ export async function playerSkill(
   const plan: ActorPlan = {
     intents: [
       {
-        kind: "skill",
+        kind: "interact",
         skill,
         itemNames: input.itemNames ?? [],
-        purpose: playerSkillPurpose(skill, input),
+        purpose: playerInteractPurpose(skill, input),
       },
     ],
   };
@@ -167,7 +167,7 @@ export async function playerSkill(
 }
 
 /**
- * 玩家直接提交一次攻击行动。
+ * 玩家直接提交一次攻击；它是 `use_item` + `damage` 的交互快捷入口。
  *
  * 不调用 LLM；actor 必须处于玩家控制下，否则拒绝。
  */
@@ -186,7 +186,7 @@ export async function playerAttack(
   const plan: ActorPlan = {
     intents: [
       {
-        kind: "skill",
+        kind: "interact",
         skill,
         itemNames: input.itemNames ?? [],
         purpose: { kind: "damage", targetActorName: input.targetActorName },

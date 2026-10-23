@@ -7,9 +7,9 @@ import { GameError } from "../errors";
 import { appendMemoryMessages, loadAgentMemory } from "../memory";
 import type { ActorPlan } from "../types";
 import { applyCommunication } from "./communication";
+import { applyInteraction } from "./interact";
 import { applyMovement } from "./movement";
 import { resolvePlan } from "./resolve";
-import { applySkill } from "./skill";
 import type { ActorWithStageRow, Executor, ResolvedIntent } from "./types";
 
 async function applyResolvedIntent(
@@ -24,8 +24,8 @@ async function applyResolvedIntent(
       return applyCommunication(executor, gameId, actorRow, resolved, now);
     case "movement":
       return applyMovement(executor, gameId, actorRow, resolved, now);
-    case "skill":
-      return applySkill(executor, gameId, actorRow, resolved, now);
+    case "interact":
+      return applyInteraction(executor, gameId, actorRow, resolved, now);
   }
 }
 

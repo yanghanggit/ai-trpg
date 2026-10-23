@@ -14,9 +14,9 @@ import type {
   ActorState,
   CommunicationIntent,
   GameState,
+  InteractIntent,
   MovementIntent,
   Skill,
-  SkillIntent,
   SkillPurposeKind,
 } from "./types";
 
@@ -181,8 +181,13 @@ export function buildMoveTool(availableStageNames: readonly string[]): ToolDefin
   };
 }
 
-/** 构造技能 intent 工具；技能、目标、道具与目的都由本次行动选择。 */
-export function buildSkillTool(
+/**
+ * 构造交互 intent 工具。
+ *
+ * 交互是与沟通、移动平级的第三类顶层行动，语义固定为三段：
+ * 用什么技能（`skill`）、搭配什么道具（`itemNames` / `itemName`）、达成什么目的（`purpose`）。
+ */
+export function buildInteractTool(
   availableSkills: readonly Skill[],
   availableTargetActorNames: readonly string[],
   availableItemNames: readonly string[],
@@ -199,26 +204,26 @@ export function buildSkillTool(
   return {
     type: "function",
     function: {
-      name: "use_skill",
+      name: "interact",
       description:
-        "把一次技能行动加入本轮计划。选择自己掌握的技能、目的、目标与可选道具；先用 get_actor 查看目标持有的物品。",
+        "把一次交互加入本轮计划。交互 = 使用什么技能（skill）+ 使用什么道具（itemNames/itemName）+ 交互目的（purpose）；交互对象可以是同场景角色、当前场景物品或自己持有的道具，必要时用 get_actor 查看目标持有的物品。",
       parameters: {
         type: "object",
         properties: {
           skill: {
             type: "string",
             enum: availableSkills.map((skill) => skill.key),
-            description: "要使用的技能 key",
+            description: "本次交互使用的技能（Skill）key，只能选自己掌握的技能",
           },
           purpose: {
             type: "string",
             enum: purposeKinds,
             description:
-              "本次技能目的：damage 造成伤害；steal 从目标取物；give 把自身物品给予目标；pickup 拾取场景物品；use 使用自身物品",
+              "本次交互目的：damage 造成伤害；steal 从目标身上取物；give 把自己的物品交给目标；pickup 拾起当前场景的物品；use 用自己的物品作用于角色或场景",
           },
           targetActorName: {
             type: "string",
-            description: "damage/steal/give 的目标角色，或 use 的目标角色；可以是自己",
+            description: "交互对象角色：damage/steal/give 的目标，或 use 的目标；可以是自己",
             ...(targetActorNames.length > 0 ? { enum: targetActorNames } : {}),
           },
           targetStageName: {
@@ -228,7 +233,8 @@ export function buildSkillTool(
           },
           itemName: {
             type: "string",
-            description: "steal 要取走的物品、give/use 要交出的物品、pickup 要拾取的场景物品",
+            description:
+              "交互对象物品：steal 要取走的物品、give/use 交出的自身物品、pickup 要拾取的场景物品",
           },
           itemNames: {
             type: "array",
@@ -236,7 +242,7 @@ export function buildSkillTool(
               type: "string",
               ...(availableItemNames.length > 0 ? { enum: availableItemNames } : {}),
             },
-            description: "damage 等技能额外选用的自身物品；可以为空",
+            description: "damage 等交互额外搭配的自身道具；可以为空",
           },
         },
         required: ["skill", "purpose"],
@@ -384,11 +390,11 @@ export function parseMovement(args: Record<string, unknown>): MovementIntent {
   };
 }
 
-/** 把 use_skill 工具参数转换为技能 intent；只检查形状。 */
-export function parseSkill(
+/** 把 interact 工具参数转换为交互 intent；只检查形状。 */
+export function parseInteract(
   args: Record<string, unknown>,
   availableSkills: readonly Skill[],
-): SkillIntent {
+): InteractIntent {
   const skillKey = typeof args.skill === "string" ? args.skill.trim() : "";
   const skill = availableSkills.find((candidate) => candidate.key === skillKey);
   if (!skill) {
@@ -421,7 +427,7 @@ export function parseSkill(
         throw new GameError("invalid_action", "damage 目的需要非空 targetActorName");
       }
       return {
-        kind: "skill",
+        kind: "interact",
         skill,
         itemNames,
         purpose: { kind: "damage", targetActorName },
@@ -436,7 +442,7 @@ export function parseSkill(
       }
       const transferKind: "steal" | "give" = purposeKind === "steal" ? "steal" : "give";
       return {
-        kind: "skill",
+        kind: "interact",
         skill,
         itemNames,
         purpose: { kind: transferKind, targetActorName, itemName },
@@ -446,7 +452,7 @@ export function parseSkill(
       if (itemName.length === 0) {
         throw new GameError("invalid_action", "pickup 目的需要非空 itemName");
       }
-      return { kind: "skill", skill, itemNames, purpose: { kind: "pickup", itemName } };
+      return { kind: "interact", skill, itemNames, purpose: { kind: "pickup", itemName } };
     case "use": {
       if (itemName.length === 0) {
         throw new GameError("invalid_action", "use 目的需要非空 itemName");
@@ -458,7 +464,7 @@ export function parseSkill(
         );
       }
       return {
-        kind: "skill",
+        kind: "interact",
         skill,
         itemNames,
         purpose: {
@@ -469,32 +475,44 @@ export function parseSkill(
         },
       };
     }
-    case "narrative": {
-      const description = typeof args.description === "string" ? args.description.trim() : "";
-      if (description.length === 0) {
-        throw new GameError("invalid_action", "narrative 目的需要非空 description");
-      }
-      return { kind: "skill", skill, itemNames, purpose: { kind: "narrative", description } };
-    }
     default:
       throw new GameError("invalid_action", `不支持技能目的: ${purposeKind}`);
   }
 }
 
-/** 返回 intent 的互斥类别；沟通之外都占用同一个行动槽。 */
-export function intentClass(intent: ActorIntent): "communication" | "action" {
-  return intent.kind === "communication" ? "communication" : "action";
+/** 顶层 intent 类别：沟通、移动、交互三者平级。 */
+export function intentClass(intent: ActorIntent): ActorIntent["kind"] {
+  return intent.kind;
 }
 
 export function intentClassLabel(intentClassValue: ReturnType<typeof intentClass>): string {
-  return intentClassValue === "communication" ? "沟通" : "行动";
+  switch (intentClassValue) {
+    case "communication":
+      return "沟通";
+    case "movement":
+      return "移动";
+    case "interact":
+      return "交互";
+  }
 }
 
-/** 把 intent 加入计划；同类别只能有一个。 */
+/**
+ * 计划槽位：只有两个。沟通独占一个；移动与交互同属行动槽，一轮只能有一个。
+ * 槽位只决定互斥，不影响三者平级的语义分类。
+ */
+export function intentSlot(intent: ActorIntent): "communication" | "action" {
+  return intent.kind === "communication" ? "communication" : "action";
+}
+
+export function intentSlotLabel(slot: ReturnType<typeof intentSlot>): string {
+  return slot === "communication" ? "沟通" : "移动或交互";
+}
+
+/** 把 intent 加入计划；同槽位只能有一个。 */
 export function addIntent(plan: ActorPlan, intent: ActorIntent): void {
-  const incomingClass = intentClass(intent);
-  if (plan.intents.some((existing) => intentClass(existing) === incomingClass)) {
-    throw new GameError("invalid_action", `本轮已有${intentClassLabel(incomingClass)}类行动`);
+  const incomingSlot = intentSlot(intent);
+  if (plan.intents.some((existing) => intentSlot(existing) === incomingSlot)) {
+    throw new GameError("invalid_action", `本轮已有${intentSlotLabel(incomingSlot)}行动`);
   }
   plan.intents.push(intent);
 }

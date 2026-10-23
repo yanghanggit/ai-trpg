@@ -1,7 +1,7 @@
 import type { Database } from "../../db/pool";
 import type { actors, items, stageItems, stages, worlds } from "../../db/schema";
 import type { MessageVisibility } from "../actions";
-import type { CommunicationIntent, MovementIntent, Skill, SkillIntent } from "../types";
+import type { CommunicationIntent, InteractIntent, MovementIntent, Skill } from "../types";
 
 export type Executor = Pick<Database, "select" | "insert" | "update" | "delete">;
 export type WorldRow = typeof worlds.$inferSelect;
@@ -33,9 +33,10 @@ export type ResolvedMovement = {
   targetStage?: StageRow;
 };
 
-export type ResolvedSkill = {
-  kind: "skill";
-  intent: SkillIntent;
+/** 一次通过校验的交互：技能固定、目的已解析出具体对象与道具。 */
+export type ResolvedInteraction = {
+  kind: "interact";
+  intent: InteractIntent;
   skill: Skill;
   stage: StageRow;
   target?: ActorRow;
@@ -45,4 +46,4 @@ export type ResolvedSkill = {
   stageItem?: StageItemRow;
 };
 
-export type ResolvedIntent = ResolvedCommunication | ResolvedMovement | ResolvedSkill;
+export type ResolvedIntent = ResolvedCommunication | ResolvedMovement | ResolvedInteraction;

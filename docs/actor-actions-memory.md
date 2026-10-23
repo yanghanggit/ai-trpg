@@ -59,7 +59,7 @@ context dump 是审计旁路。下一次 LLM request 只使用长期 memory 中�
 
 ## 工具
 
-NPC 工具分为 GET、intent 与终止工具。`look_stage`、`get_stats`、`get_items` 是只读 GET，可多次调用并立即返回结果；是否一次返回多个调用或分多轮调用由 LLM 决定，循环层按返回顺序串行执行。`communicate` 暂存一次沟通行动；`move` 暂存一次移动或等待行动；`use_skill` 暂存一次技能行动；`submit_plan` 是终止工具，只提交已暂存计划。工具 handler 不写游戏状态。
+NPC 工具分为 GET、intent 与终止工具。`look_stage`、`get_stats`、`get_items` 是只读 GET，可多次调用并立即返回结果；是否一次返回多个调用或分多轮调用由 LLM 决定，循环层按返回顺序串行执行。`communicate` 暂存一次沟通行动；`move` 暂存一次移动或等待行动；`interact` 暂存一次交互，参数固定为技能（`skill`）+ 道具（`itemNames` / `itemName`）+ 目的（`purpose`）；`submit_plan` 是终止工具，只提交已暂存计划。工具 handler 不写游戏状态。
 
 计划由有序 intent 组成，最多一个沟通 intent 与一个行动类 intent。当前行动类包含移动与技能；移动内部有 `move`/`wait`，技能与移动占用同一个行动槽并互斥；沟通类可以与任意行动类共存。两个 intent 按工具调用顺序应用，先移动后沟通、先沟通后移动、先移动后技能与先技能后移动是不同结果。
 
@@ -77,9 +77,11 @@ NPC 工具分为 GET、intent 与终止工具。`look_stage`、`get_stats`、`ge
 
 受话者与旁观者不写“为什么”，只写发生了什么与当时的场景上下文；行动发起者才写行动事实与理由。
 
-## 技能动作
+## 交互动作
 
-`skill` 是 action 的第三个分支，和沟通、移动并列；当前包括 `use_item`、`steal`、`give`、`pickup`。`use_item` 用 purpose 区分伤害与使用。`get_actor` 可查看同场景目标的 stats、状态与背包，`steal` 为 private，只有发起者与目标进入 memory。
+顶层行动只有三类：沟通、移动、交互。`interact` 与 `communicate`、`move` 平级；它的语义固定为三段：使用什么技能（`Skill`）、搭配什么道具、达成什么目的（`SkillPurpose`）。`use_item`、`steal`、`give`、`pickup` 都是交互语境下的技能，不再是顶层行动；`use_item` 用 purpose 区分伤害与使用。`get_actor` 可查看同场景目标的 stats、状态与背包，`steal` 为 private，只有发起者与目标进入 memory。
+
+互斥只发生在“计划槽位”层面：沟通占一个槽，移动与交互共享同一个行动槽，一轮内移动和交互只能选一个，但语义上三者平级。
 
 技能定义包含：
 
@@ -90,9 +92,9 @@ NPC 工具分为 GET、intent 与终止工具。`look_stage`、`get_stats`、`ge
 - `purposeKinds`：技能支持的目的类型；
 - `itemPolicy`：道具是否必需。
 
-一次技能行动需要 `Skill`、选中的 `Item[]` 和 `SkillPurpose`。道具允许为空；技能自己声明是否必须有道具。当前 `use_item` 支持 `{ kind: "damage", targetActorName }` 与 `{ kind: "use", itemName, targetActorName | targetStageName }`。伤害为 `max(0, 攻击者 attack + 所选武器 damage - 目标 defense)`；空手时不加武器 damage，目标 defense 是唯一 block，物品 block 不参与当前伤害。武器是 `Item` 的子类型，`count` 固定为 1，额外携带 `damage` 与 `block`；`block` 当前只存储，供未来防御/装备规则使用。目标 HP 归零时同时写 `death=true`，actor 仍留在场景中，但不再执行 NPC loop，也不能再被攻击。
+一次交互需要 `Skill`、选中的 `Item[]` 和 `SkillPurpose`。道具允许为空；技能自己声明是否必须有道具。当前 `use_item` 支持 `{ kind: "damage", targetActorName }` 与 `{ kind: "use", itemName, targetActorName | targetStageName }`。伤害为 `max(0, 攻击者 attack + 所选武器 damage - 目标 defense)`；空手时不加武器 damage，目标 defense 是唯一 block，物品 block 不参与当前伤害。武器是 `Item` 的子类型，`count` 固定为 1，额外携带 `damage` 与 `block`；`block` 当前只存储，供未来防御/装备规则使用。目标 HP 归零时同时写 `death=true`，actor 仍留在场景中，但不再执行 NPC loop，也不能再被攻击。
 
-技能产生 `kind=<skill.key>` 的公共事件；`attack` 同场景公开。记忆按视角生成：发起者收到第一人称行动结果，目标收到“你被攻击/你剩余 HP”，旁观者收到第三人称战斗观察；三者描述同一事实但格式不同。不做跨场景信息广播。未来 `resolution=llm` 的技能必须在数据库事务外完成 GM 判定，再由统一应用层写入结果。
+交互产生 `kind=<skill.key>` 的公共事件；`attack` 同场景公开。记忆按视角生成：发起者收到第一人称行动结果，目标收到“你被攻击/你剩余 HP”，旁观者收到第三人称战斗观察；三者描述同一事实但格式不同。不做跨场景信息广播。未来 `resolution=llm` 的技能必须在数据库事务外完成 GM 判定，再由统一应用层写入结果。
 
 ## 事务边界
 

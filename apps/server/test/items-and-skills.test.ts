@@ -10,8 +10,8 @@ import {
   getGameMemories,
   getGameState,
   playerAttack,
+  playerInteract,
   playerMove,
-  playerSkill,
   SEALED_GATE_KEY_NAME,
   STEAL_SKILL,
   takeActorControl,
@@ -116,7 +116,7 @@ describe.skipIf(!testDatabaseUrl)("item skills", () => {
     });
     await takeActorControl(handle.db, created.game.slug, "守烬人");
 
-    const stolen = await playerSkill(handle.db, created.game.slug, "守烬人", {
+    const stolen = await playerInteract(handle.db, created.game.slug, "守烬人", {
       skillKey: "steal",
       targetActorName: "提灯修士",
       itemName: "铅封提灯",
@@ -174,7 +174,7 @@ describe.skipIf(!testDatabaseUrl)("item skills", () => {
     });
     await takeActorControl(handle.db, created.game.slug, "守烬人");
 
-    const given = await playerSkill(handle.db, created.game.slug, "守烬人", {
+    const given = await playerInteract(handle.db, created.game.slug, "守烬人", {
       skillKey: "give",
       targetActorName: "提灯修士",
       itemName: "裂齿短刃",
@@ -203,7 +203,7 @@ describe.skipIf(!testDatabaseUrl)("item skills", () => {
     });
     await takeActorControl(handle.db, created.game.slug, "守烬人");
 
-    const picked = await playerSkill(handle.db, created.game.slug, "守烬人", {
+    const picked = await playerInteract(handle.db, created.game.slug, "守烬人", {
       skillKey: "pickup",
       itemName: "武器.测试火把",
     });
@@ -228,7 +228,7 @@ describe.skipIf(!testDatabaseUrl)("item skills", () => {
       targetStageName: "场景.封骨之门",
     });
 
-    const used = await playerSkill(handle.db, created.game.slug, "守烬人", {
+    const used = await playerInteract(handle.db, created.game.slug, "守烬人", {
       skillKey: "use_item",
       targetStageName: "场景.封骨之门",
       itemName: SEALED_GATE_KEY_NAME,

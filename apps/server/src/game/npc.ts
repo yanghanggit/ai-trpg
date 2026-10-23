@@ -17,10 +17,10 @@ import {
   addIntent,
   buildActorInfoTool,
   buildCommunicateTool,
+  buildInteractTool,
   buildItemsTool,
   buildLookTool,
   buildMoveTool,
-  buildSkillTool,
   buildStatsTool,
   buildSubmitPlanTool,
   describeActor,
@@ -28,8 +28,8 @@ import {
   describeStats,
   lookStage,
   parseCommunication,
+  parseInteract,
   parseMovement,
-  parseSkill,
 } from "./plan";
 import { getGameState } from "./service";
 import type { ActorPlan, ActorTurnResult, GameState } from "./types";
@@ -67,7 +67,7 @@ export function buildActorObservation(state: GameState, current: ActorWithStage)
     `## 可用技能\n${skills.length === 0 ? "无" : skills.join("\n")}`,
     `## 可移动至\n${moves.length === 0 ? "无" : moves.join("、")}`,
     "# 本轮任务",
-    "根据当前环境与自己的记忆决定行动。使用 get_stats / get_items 查看自己，使用 get_actor 查看同场景目标的状态与物品；需要多项信息时，可以一次返回多个只读工具调用，也可以分多轮调用。使用 communicate 添加沟通行动，使用 move 添加移动或等待行动，使用 use_skill 使用自己的技能。沟通类与行动类各最多一个，先加入的 intent 先执行。最后调用 submit_plan 提交。look_stage、get_stats、get_items、get_actor 不占计划。say/whisper 必须填写 targetActorName；move 使用 targetStageName；use_skill 的 damage/steal/give 使用 targetActorName，pickup 使用 itemName，use 使用 itemName 加 targetActorName 或 targetStageName。",
+    "根据当前环境与自己的记忆决定行动。使用 get_stats / get_items 查看自己，使用 get_actor 查看同场景目标的状态与物品；需要多项信息时，可以一次返回多个只读工具调用，也可以分多轮调用。本轮的顶层行动只有三类：沟通（communicate）、移动（move）、交互（interact），其中移动与交互同属行动槽，二者一轮只能选一个，沟通可以与之共存。使用 interact 表达一次交互：skill 选自己掌握的技能，itemNames 选自己搭配的道具，purpose 选交互目的，targetActorName / targetStageName / itemName 绑定交互对象。先加入的 intent 先执行。最后调用 submit_plan 提交。look_stage、get_stats、get_items、get_actor 不占计划。say/whisper 必须填写 targetActorName；move 使用 targetStageName；interact 的 damage/steal/give 使用 targetActorName，pickup 使用 itemName，use 使用 itemName 加 targetActorName 或 targetStageName。",
   ].join("\n\n");
 }
 
@@ -112,7 +112,7 @@ export async function runNpcTurn(
   const actorInfoTool = buildActorInfoTool(otherActors.map((actor) => actor.name));
   const communicateTool = buildCommunicateTool(availableTargetActorNames);
   const moveTool = buildMoveTool(availableStageNames);
-  const skillTool = buildSkillTool(
+  const interactTool = buildInteractTool(
     current.actor.skills,
     availableSkillTargetActorNames,
     availableItemNames,
@@ -134,7 +134,7 @@ export async function runNpcTurn(
       actorInfoTool,
       communicateTool,
       moveTool,
-      skillTool,
+      interactTool,
       submitTool,
     ],
     handlers: {
@@ -167,12 +167,12 @@ export async function runNpcTurn(
         addIntent(plan, parseMovement(args));
         return "移动行动已加入计划";
       },
-      [skillTool.function.name]: (args) => {
+      [interactTool.function.name]: (args) => {
         if (submitted) {
           throw new GameError("invalid_action", "计划已提交");
         }
-        addIntent(plan, parseSkill(args, current.actor.skills));
-        return "技能行动已加入计划";
+        addIntent(plan, parseInteract(args, current.actor.skills));
+        return "交互行动已加入计划";
       },
       [submitTool.function.name]: () => {
         if (plan.intents.length === 0) {

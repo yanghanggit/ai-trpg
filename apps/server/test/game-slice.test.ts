@@ -16,17 +16,17 @@ import {
   createGame,
   getGameMemories,
   getGameState,
+  type InteractIntent,
   runNpcTurn,
-  type SkillIntent,
   snapshotGame,
 } from "../src/game";
 import { ChatCompletionResult, type ChatCompletionService, type ToolCall } from "../src/llm";
 
 const testDatabaseUrl = process.env.TEST_DATABASE_URL?.trim();
 
-function attackIntent(targetActorName: string): SkillIntent {
+function attackIntent(targetActorName: string): InteractIntent {
   return {
-    kind: "skill",
+    kind: "interact",
     skill: USE_ITEM_SKILL,
     itemNames: [],
     purpose: { kind: "damage", targetActorName },
@@ -51,7 +51,7 @@ class ScriptedNpcService implements ChatCompletionService {
           ? "communicate"
           : intent.kind === "movement"
             ? "move"
-            : "use_skill";
+            : "interact";
       return {
         id: randomUUID(),
         type: "function",

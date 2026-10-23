@@ -97,8 +97,7 @@ export type SkillPurpose =
   | { kind: "steal"; targetActorName: string; itemName: string }
   | { kind: "give"; targetActorName: string; itemName: string }
   | { kind: "pickup"; itemName: string }
-  | { kind: "use"; itemName: string; targetActorName?: string; targetStageName?: string }
-  | { kind: "narrative"; description: string };
+  | { kind: "use"; itemName: string; targetActorName?: string; targetStageName?: string };
 
 export type SkillPurposeKind = SkillPurpose["kind"];
 
@@ -142,14 +141,23 @@ export type MovementIntent = {
   targetStageName?: string;
 };
 
-export type SkillIntent = {
-  kind: "skill";
+/**
+ * 一次交互 intent。
+ *
+ * 交互是与沟通、移动平级的第三类顶层行动：用哪个技能（Skill）、搭配
+ * 哪些道具（`itemNames`）、希望达成什么结果（`SkillPurpose`）。
+ * `steal` / `give` / `pickup` / `use_item` 都是交互语境下的技能，不再
+ * 各自成为顶层行动。
+ */
+export type InteractIntent = {
+  kind: "interact";
   skill: Skill;
   itemNames: readonly string[];
   purpose: SkillPurpose;
 };
 
-export type ActorIntent = CommunicationIntent | MovementIntent | SkillIntent;
+/** 顶层行动只有三类：沟通、移动、交互。 */
+export type ActorIntent = CommunicationIntent | MovementIntent | InteractIntent;
 
 export type ActorPlan = {
   intents: ActorIntent[];

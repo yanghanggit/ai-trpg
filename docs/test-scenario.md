@@ -67,7 +67,7 @@ Boss 路线：鼠王被非 `wait` 行为惊醒后会自行移动和攻击；当�
 | 初始世界 | `agent:game create` | 五段场景、灰庭三 actor、墓穴一 actor、骨厅一 actor、焚毛炉房为空且有场景物品、封骨之门为空；旁白落在浅眠墓穴 |
 | 玩家移动 | `player-move` | 只能沿连接移动；移动事件写入公共消息与环境记忆 |
 | 感知 | NPC 的 `get_actor` | 只能查看同场景角色；返回 stats、状态效果与目标背包 |
-| 攻击 | `player-attack` 或 NPC `use_skill` | 伤害为 `max(0, attack - defense)`；目标生命下降；死亡 actor 不再进入 loop |
+| 攻击 | `player-attack` 或 NPC `interact` | 伤害为 `max(0, attack - defense)`；目标生命下降；死亡 actor 不再进入 loop |
 | 狗的反应 | 攻击守墓人后推进狗 | 狗通过战斗记忆与 profile 自行决定攻击凶手；不是硬触发器 |
 | 小鼠报信 | 冲突后推进小鼠 | 小鼠移动到骨厅，下一轮可对鼠王说话；是否需要两轮由行动槽决定 |
 | 沉睡唤醒 | 场景内发生对话、攻击或非 `wait` 行为 | 由鼠王 profile 与 LLM 判断是否苏醒；系统没有状态移除规则，也不做确定性断言 |

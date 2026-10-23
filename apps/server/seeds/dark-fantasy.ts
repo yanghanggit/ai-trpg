@@ -163,7 +163,7 @@ export const DARK_FANTASY_WORLD: World = {
       defense: 2,
       speed: 3,
       items: [],
-      skills: [USE_ITEM_SKILL, STEAL_SKILL, PICKUP_SKILL, USE_ITEM_SKILL],
+      skills: [USE_ITEM_SKILL, STEAL_SKILL, PICKUP_SKILL],
       statusEffects: [],
     },
     {

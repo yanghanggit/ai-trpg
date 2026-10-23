@@ -15,13 +15,13 @@ import {
   useFeedback,
 } from "./messages";
 import { assertItemNameFree } from "./queries";
-import type { ActorWithStageRow, Executor, ResolvedSkill } from "./types";
+import type { ActorWithStageRow, Executor, ResolvedInteraction } from "./types";
 
 async function applyDamage(
   executor: Executor,
   gameId: string,
   actorRow: ActorWithStageRow,
-  resolved: ResolvedSkill,
+  resolved: ResolvedInteraction,
   now: Date,
 ): Promise<string> {
   const target = resolved.target;
@@ -79,7 +79,7 @@ async function applyTransfer(
   executor: Executor,
   gameId: string,
   actorRow: ActorWithStageRow,
-  resolved: ResolvedSkill,
+  resolved: ResolvedInteraction,
   now: Date,
 ): Promise<string> {
   const target = resolved.target;
@@ -130,7 +130,7 @@ async function applyPickup(
   executor: Executor,
   gameId: string,
   actorRow: ActorWithStageRow,
-  resolved: ResolvedSkill,
+  resolved: ResolvedInteraction,
   now: Date,
 ): Promise<string> {
   const stageItem = resolved.stageItem;
@@ -210,7 +210,7 @@ async function applyUse(
   executor: Executor,
   gameId: string,
   actorRow: ActorWithStageRow,
-  resolved: ResolvedSkill,
+  resolved: ResolvedInteraction,
   now: Date,
 ): Promise<string> {
   const target = resolved.target;
@@ -267,12 +267,12 @@ async function applyUse(
   return useFeedback(targetLabel, transferItem.name, completed);
 }
 
-/** 应用技能；按 purpose 分派到各自的结算函数。 */
-export async function applySkill(
+/** 应用一次交互；按 purpose 分派到各自的结算函数。 */
+export async function applyInteraction(
   executor: Executor,
   gameId: string,
   actorRow: ActorWithStageRow,
-  resolved: ResolvedSkill,
+  resolved: ResolvedInteraction,
   now: Date,
 ): Promise<string> {
   switch (resolved.intent.purpose.kind) {
@@ -285,7 +285,5 @@ export async function applySkill(
       return applyPickup(executor, gameId, actorRow, resolved, now);
     case "use":
       return applyUse(executor, gameId, actorRow, resolved, now);
-    case "narrative":
-      throw new GameError("invalid_action", "narrative 技能尚未实现");
   }
 }

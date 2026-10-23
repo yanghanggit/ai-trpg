@@ -1,17 +1,48 @@
 import { describe, expect, it } from "vitest";
 import {
   addIntent,
+  buildInteractTool,
   describeItems,
   describeStats,
+  intentClass,
   parseCommunication,
+  parseInteract,
   parseMovement,
-  parseSkill,
 } from "../src/game/plan";
 import { USE_ITEM_SKILL } from "../src/game/skills";
 import type { ActorPlan } from "../src/game/types";
 
 describe("actor plan intents", () => {
-  it("allows one communication and one action, then rejects duplicate classes", () => {
+  it("exposes interact as a top-level peer of communication and movement", () => {
+    const tool = buildInteractTool(
+      [USE_ITEM_SKILL],
+      ["提灯修士"],
+      ["裂齿短刃"],
+      "断钟中殿",
+      "守烬人",
+    );
+
+    expect(tool.function.name).toBe("interact");
+    expect(tool.function.parameters.required).toEqual(["skill", "purpose"]);
+    expect(tool.function.parameters.properties).toMatchObject({
+      skill: { enum: ["use_item"] },
+      purpose: { enum: ["damage", "use"] },
+    });
+    expect(
+      intentClass({
+        kind: "interact",
+        skill: USE_ITEM_SKILL,
+        itemNames: [],
+        purpose: { kind: "damage", targetActorName: "提灯修士" },
+      }),
+    ).toBe("interact");
+    expect(intentClass({ kind: "movement", mode: "wait" })).toBe("movement");
+    expect(
+      intentClass({ kind: "communication", mind: "说。", mode: "announce", message: "喂" }),
+    ).toBe("communication");
+  });
+
+  it("allows one communication and one action, then rejects duplicate slots", () => {
     const plan: ActorPlan = { intents: [] };
 
     addIntent(
@@ -31,11 +62,11 @@ describe("actor plan intents", () => {
         plan,
         parseCommunication({ mind: "再说一句。", mode: "announce", message: "有人吗？" }),
       ),
-    ).toThrow("沟通类行动");
-    expect(() => addIntent(plan, parseMovement({ mode: "wait" }))).toThrow("行动类行动");
+    ).toThrow("沟通行动");
+    expect(() => addIntent(plan, parseMovement({ mode: "wait" }))).toThrow("移动或交互行动");
   });
 
-  it("treats a skill as an action intent and requires a target", () => {
+  it("treats an interaction as the action-slot peer of movement", () => {
     const plan: ActorPlan = { intents: [] };
 
     addIntent(
@@ -48,7 +79,7 @@ describe("actor plan intents", () => {
     );
     addIntent(
       plan,
-      parseSkill(
+      parseInteract(
         {
           skill: "use_item",
           purpose: "damage",
@@ -60,17 +91,19 @@ describe("actor plan intents", () => {
     );
 
     expect(plan.intents[1]).toMatchObject({
-      kind: "skill",
+      kind: "interact",
       skill: USE_ITEM_SKILL,
       itemNames: [],
       purpose: { kind: "damage", targetActorName: "提灯修士" },
     });
-    expect(() => addIntent(plan, parseMovement({ mode: "wait" }))).toThrow("行动类行动");
+    expect(() => addIntent(plan, parseMovement({ mode: "wait" }))).toThrow("移动或交互行动");
     expect(() =>
-      parseSkill({ skill: "use_item", purpose: "damage", targetActorName: "  " }, [USE_ITEM_SKILL]),
+      parseInteract({ skill: "use_item", purpose: "damage", targetActorName: "  " }, [
+        USE_ITEM_SKILL,
+      ]),
     ).toThrow("targetActorName");
     expect(() =>
-      parseSkill({ skill: "steal", purpose: "damage", targetActorName: "提灯修士" }, [
+      parseInteract({ skill: "steal", purpose: "damage", targetActorName: "提灯修士" }, [
         USE_ITEM_SKILL,
       ]),
     ).toThrow("未掌握技能");

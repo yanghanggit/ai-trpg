@@ -5,8 +5,8 @@ import type {
   Executor,
   PublicMessage,
   ResolvedCommunication,
+  ResolvedInteraction,
   ResolvedMovement,
-  ResolvedSkill,
 } from "./types";
 
 /** 递增 game 版本；每个成功 intent 都调用一次。 */
@@ -75,13 +75,13 @@ export function movementFeedback(resolved: ResolvedMovement): string {
 }
 
 export function damageFeedback(
-  resolved: ResolvedSkill,
+  resolved: ResolvedInteraction,
   damage: number,
   remainingHp: number,
 ): string {
   const target = resolved.target;
   if (!target) {
-    throw new Error("damage skill 缺少目标");
+    throw new Error("damage 目的缺少目标");
   }
   const outcome =
     remainingHp <= 0

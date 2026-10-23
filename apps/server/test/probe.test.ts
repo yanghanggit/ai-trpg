@@ -8,7 +8,7 @@ import {
   createGame,
   getGameMemories,
   getGameState,
-  playerSkill,
+  playerInteract,
   runProbe,
   takeActorControl,
 } from "../src/game";
@@ -75,7 +75,7 @@ describe.skipIf(!testDatabaseUrl)("agent probe", () => {
     });
     const slug = created.game.slug;
     await takeActorControl(handle.db, slug, "守烬人");
-    await playerSkill(handle.db, slug, "守烬人", {
+    await playerInteract(handle.db, slug, "守烬人", {
       skillKey: "pickup",
       itemName: "测试提灯",
     });
@@ -115,7 +115,7 @@ describe.skipIf(!testDatabaseUrl)("agent probe", () => {
     });
     const slug = created.game.slug;
     await takeActorControl(handle.db, slug, "守烬人");
-    await playerSkill(handle.db, slug, "守烬人", {
+    await playerInteract(handle.db, slug, "守烬人", {
       skillKey: "pickup",
       itemName: "测试提灯",
     });
