@@ -1,6 +1,7 @@
 import { GameError } from "../errors";
+import { interactBranch } from "../interact";
 import { intentSlot, intentSlotLabel } from "../plan";
-import type { ActorPlan, InteractIntent, Skill } from "../types";
+import type { ActorPlan, InteractIntent } from "../types";
 import {
   resolveActorItem,
   resolveActorItems,
@@ -41,26 +42,22 @@ export function validatePlanShape(plan: ActorPlan): void {
   }
 }
 
-/** 校验一次交互：技能已掌握、可计算结算，并按 purpose 解析出具体对象与道具。 */
+/** 校验一次交互：分支可能由 GM 判定，并把目的解析成具体对象与道具。 */
 async function resolveInteraction(
   executor: Executor,
   stage: StageRow,
   actorRow: ActorWithStageRow,
   intent: InteractIntent,
 ): Promise<ResolvedInteraction> {
-  const skills = actorRow.actor.skills as unknown as Skill[];
-  const skill = skills.find((candidate) => candidate.key === intent.skill.key);
-  if (!skill) {
-    throw new GameError("invalid_action", `actor 未掌握技能: ${intent.skill.key}`);
-  }
-  if (skill.resolution !== "computed") {
-    throw new GameError("invalid_action", `技能需要 GM 判定: ${skill.name}`);
+  const branch = interactBranch(intent.purpose.kind);
+  if (branch.resolution !== "computed") {
+    throw new GameError("invalid_action", `交互分支需要 GM 判定: ${intent.purpose.kind}`);
   }
 
   const base = {
     kind: "interact" as const,
-    intent: { ...intent, skill },
-    skill,
+    intent,
+    branch,
     stage,
     items: [] as ResolvedInteraction["items"],
   };
@@ -68,9 +65,6 @@ async function resolveInteraction(
   switch (intent.purpose.kind) {
     case "damage": {
       const items = await resolveActorItems(executor, actorRow.actor.id, intent.itemNames);
-      if (skill.itemPolicy === "required" && items.length === 0) {
-        throw new GameError("invalid_action", `技能需要至少一个道具: ${skill.name}`);
-      }
       const target = await resolveDamageTarget(
         executor,
         stage.id,

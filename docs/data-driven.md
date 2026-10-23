@@ -4,7 +4,7 @@
 
 ## 结论
 
-`World`、`Stage`、`Actor`、`Item`、`Skill`、`StatusEffect` 是系统框架概念；故事文本、角色关系、场景图、物品和通关条件应当由内容输入提供，而不是写进 `game` 服务。
+`World`、`Stage`、`Actor`、`Item`、`StatusEffect` 是系统框架概念；故事文本、角色关系、场景图、物品和通关条件应当由内容输入提供，而不是写进 `game` 服务。
 
 当前核心服务大体遵守这个边界：数据库 schema 不含具体故事字段，`createGame` 接受任意 `World`，测试使用独立的 `TEST_WORLD` 也能运行。但仍有几处内容泄漏，集中在一个临时剧本的规则和 CLI 默认入口。
 
@@ -15,7 +15,7 @@
 | 层 | 状态 | 说明 |
 | --- | --- | --- |
 | 数据库 schema | 已隔离 | 表结构只表达 world / stage / actor / item / message / memory 等通用概念 |
-| 领域类型 | 基本隔离 | `World` / `Stage` / `Actor` / `Item` / `Weapon` / `Skill` / `StatusEffect` 均为通用容器 |
+| 领域类型 | 基本隔离 | `World` / `Stage` / `Actor` / `Item` / `Weapon` / `StatusEffect` 均为通用容器 |
 | 故事内容 | 已隔离到 seed | 场景名、角色 profile、对白线索、连接、物品和初始状态位于 `seeds/dark-fantasy.ts` |
 | NPC prompt | 内容驱动 | 世界设定、角色 profile、场景环境从输入与数据库读取 |
 | 行动应用层 | 有泄漏 | 通关条件直接引用当前剧本的 stage 名与钥匙名 |
@@ -27,12 +27,12 @@
 
 ### 1. 钥匙通关条件
 
-`game/skills.ts` 中定义了当前故事的：
+`game/interact.ts` 中定义了当前故事的：
 
 - `SEALED_GATE_STAGE_NAME`
 - `SEALED_GATE_KEY_NAME`
 
-`apply.ts` 用这两个常量判断 `use_item` 是否结束游戏，并在反馈中写死“封骨之门打开了”。
+`apply/interact.ts` 用这两个常量判断 `use` 分支是否结束游戏，并在反馈中写死“封骨之门打开了”。
 
 问题不在“使用道具通关”这个能力，而在框架层知道了当前故事的具体场景名和物品名。
 
@@ -67,10 +67,10 @@
 
 - 世界宏观设定与规则；
 - 场景、场景图、初始位置；
-- 角色、属性、技能、状态、物品；
+- 角色、属性、状态、物品；
 - 场景物品与角色物品；
 - 武器 damage / block；
-- 技能目的与完成条件；
+- 交互分支与完成条件；
 - 状态语义与行为提示；当前沉睡类行为交由 profile / LLM，不进入系统规则；
 - 内容版本与校验。
 

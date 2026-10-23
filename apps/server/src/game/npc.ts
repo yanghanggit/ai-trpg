@@ -45,10 +45,7 @@ export function buildActorObservation(state: GameState, current: ActorWithStage)
   const moves = adjacentStageNames(state, current.stage.id);
   const others = otherActorsInStage(current.stage, current.actor.id);
   const targets = others.map((actor) => actor.name);
-  const skillTargets = others.filter((actor) => !actor.death).map((actor) => actor.name);
-  const skills = current.actor.skills.map(
-    (skill) => `${skill.name}（${skill.key}）：${skill.description}`,
-  );
+  const interactTargets = others.filter((actor) => !actor.death).map((actor) => actor.name);
   return [
     "# 当前环境",
     `## 场景\n${current.stage.name}\n${current.stage.environment}`,
@@ -63,11 +60,10 @@ export function buildActorObservation(state: GameState, current: ActorWithStage)
     `## 同场景角色\n${others.length === 0 ? "无" : others.map((actor) => `${actor.name}：${actor.appearance}${actor.death ? "（已死亡）" : ""}`).join("\n")}`,
     `## 场景物品\n${current.stage.items.length === 0 ? "无" : current.stage.items.map((item) => `${item.name}（${item.kind}）：${item.description}`).join("\n")}`,
     `## 可交谈对象\n${targets.length === 0 ? "无" : targets.join("、")}`,
-    `## 可作用对象\n${skillTargets.length === 0 ? "无" : skillTargets.join("、")}`,
-    `## 可用技能\n${skills.length === 0 ? "无" : skills.join("\n")}`,
+    `## 可作用对象\n${interactTargets.length === 0 ? "无" : interactTargets.join("、")}`,
     `## 可移动至\n${moves.length === 0 ? "无" : moves.join("、")}`,
     "# 本轮任务",
-    "根据当前环境与自己的记忆决定行动。使用 get_stats / get_items 查看自己，使用 get_actor 查看同场景目标的状态与物品；需要多项信息时，可以一次返回多个只读工具调用，也可以分多轮调用。本轮的顶层行动只有三类：沟通（communicate）、移动（move）、交互（interact），其中移动与交互同属行动槽，二者一轮只能选一个，沟通可以与之共存。使用 interact 表达一次交互：skill 选自己掌握的技能，itemNames 选自己搭配的道具，purpose 选交互目的，targetActorName / targetStageName / itemName 绑定交互对象。先加入的 intent 先执行。最后调用 submit_plan 提交。look_stage、get_stats、get_items、get_actor 不占计划。say/whisper 必须填写 targetActorName；move 使用 targetStageName；interact 的 damage/steal/give 使用 targetActorName，pickup 使用 itemName，use 使用 itemName 加 targetActorName 或 targetStageName。",
+    "根据当前环境与自己的记忆决定行动。使用 get_stats / get_items 查看自己，使用 get_actor 查看同场景目标的状态与物品；需要多项信息时，可以一次返回多个只读工具调用，也可以分多轮调用。本轮的顶层行动只有三类：沟通（communicate）、移动（move）、交互（interact），其中移动与交互同属行动槽，二者一轮只能选一个，沟通可以与之共存。使用 interact 表达一次交互：purpose 选交互分支（想做什么），itemNames / itemName 选道具，targetActorName / targetStageName 绑定交互对象。damage 就是攻击，直接造成伤害；steal/give/pickup/use 分别是取物、给予、拾取与使用道具。先加入的 intent 先执行。最后调用 submit_plan 提交。look_stage、get_stats、get_items、get_actor 不占计划。say/whisper 必须填写 targetActorName；move 使用 targetStageName；interact 的 damage/steal/give 使用 targetActorName，pickup 使用 itemName，use 使用 itemName 加 targetActorName 或 targetStageName。",
   ].join("\n\n");
 }
 
@@ -102,9 +98,6 @@ export async function runNpcTurn(
   const availableStageNames = adjacentStageNames(state, current.stage.id);
   const otherActors = otherActorsInStage(current.stage, current.actor.id);
   const availableTargetActorNames = otherActors.map((actor) => actor.name);
-  const availableSkillTargetActorNames = otherActors
-    .filter((actor) => !actor.death)
-    .map((actor) => actor.name);
   const availableItemNames = current.actor.items.map((item) => item.name);
   const lookTool = buildLookTool(state);
   const statsTool = buildStatsTool();
@@ -113,8 +106,7 @@ export async function runNpcTurn(
   const communicateTool = buildCommunicateTool(availableTargetActorNames);
   const moveTool = buildMoveTool(availableStageNames);
   const interactTool = buildInteractTool(
-    current.actor.skills,
-    availableSkillTargetActorNames,
+    availableTargetActorNames,
     availableItemNames,
     current.stage.name,
     current.actor.name,
@@ -171,7 +163,7 @@ export async function runNpcTurn(
         if (submitted) {
           throw new GameError("invalid_action", "计划已提交");
         }
-        addIntent(plan, parseInteract(args, current.actor.skills));
+        addIntent(plan, parseInteract(args));
         return "交互行动已加入计划";
       },
       [submitTool.function.name]: () => {

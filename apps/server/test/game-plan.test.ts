@@ -9,29 +9,20 @@ import {
   parseInteract,
   parseMovement,
 } from "../src/game/plan";
-import { USE_ITEM_SKILL } from "../src/game/skills";
 import type { ActorPlan } from "../src/game/types";
 
 describe("actor plan intents", () => {
   it("exposes interact as a top-level peer of communication and movement", () => {
-    const tool = buildInteractTool(
-      [USE_ITEM_SKILL],
-      ["提灯修士"],
-      ["裂齿短刃"],
-      "断钟中殿",
-      "守烬人",
-    );
+    const tool = buildInteractTool(["提灯修士"], ["裂齿短刃"], "断钟中殿", "守烬人");
 
     expect(tool.function.name).toBe("interact");
-    expect(tool.function.parameters.required).toEqual(["skill", "purpose"]);
+    expect(tool.function.parameters.required).toEqual(["purpose"]);
     expect(tool.function.parameters.properties).toMatchObject({
-      skill: { enum: ["use_item"] },
-      purpose: { enum: ["damage", "use"] },
+      purpose: { enum: ["damage", "steal", "give", "pickup", "use"] },
     });
     expect(
       intentClass({
         kind: "interact",
-        skill: USE_ITEM_SKILL,
         itemNames: [],
         purpose: { kind: "damage", targetActorName: "提灯修士" },
       }),
@@ -79,34 +70,46 @@ describe("actor plan intents", () => {
     );
     addIntent(
       plan,
-      parseInteract(
-        {
-          skill: "use_item",
-          purpose: "damage",
-          targetActorName: "提灯修士",
-          itemNames: [],
-        },
-        [USE_ITEM_SKILL],
-      ),
+      parseInteract({
+        purpose: "damage",
+        targetActorName: "提灯修士",
+        itemNames: [],
+      }),
     );
 
     expect(plan.intents[1]).toMatchObject({
       kind: "interact",
-      skill: USE_ITEM_SKILL,
       itemNames: [],
       purpose: { kind: "damage", targetActorName: "提灯修士" },
     });
     expect(() => addIntent(plan, parseMovement({ mode: "wait" }))).toThrow("移动或交互行动");
-    expect(() =>
-      parseInteract({ skill: "use_item", purpose: "damage", targetActorName: "  " }, [
-        USE_ITEM_SKILL,
-      ]),
-    ).toThrow("targetActorName");
-    expect(() =>
-      parseInteract({ skill: "steal", purpose: "damage", targetActorName: "提灯修士" }, [
-        USE_ITEM_SKILL,
-      ]),
-    ).toThrow("未掌握技能");
+    expect(() => parseInteract({ purpose: "damage", targetActorName: "  " })).toThrow(
+      "targetActorName",
+    );
+  });
+
+  it("parses every interact branch", () => {
+    expect(
+      parseInteract({ purpose: "damage", targetActorName: "提灯修士", itemNames: ["裂齿短刃"] }),
+    ).toEqual({
+      kind: "interact",
+      itemNames: ["裂齿短刃"],
+      purpose: { kind: "damage", targetActorName: "提灯修士" },
+    });
+    expect(
+      parseInteract({ purpose: "steal", targetActorName: "提灯修士", itemName: "铅封提灯" }),
+    ).toMatchObject({ purpose: { kind: "steal", itemName: "铅封提灯" } });
+    expect(parseInteract({ purpose: "pickup", itemName: "武器.测试火把" })).toMatchObject({
+      purpose: { kind: "pickup" },
+    });
+    expect(
+      parseInteract({
+        purpose: "use",
+        itemName: "饰品.封骨钥匙",
+        targetStageName: "场景.封骨之门",
+      }),
+    ).toMatchObject({ purpose: { kind: "use" } });
+    expect(() => parseInteract({ purpose: "dance" })).toThrow("不支持交互分支");
   });
 
   it("renders own stats and items for the read-only tools", () => {
@@ -121,7 +124,6 @@ describe("actor plan intents", () => {
       defense: 2,
       speed: 4,
       death: false,
-      skills: [USE_ITEM_SKILL],
       statusEffects: [],
       items: [
         {

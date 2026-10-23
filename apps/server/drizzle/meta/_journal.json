@@ -5,85 +5,8 @@
     {
       "idx": 0,
       "version": "7",
-      "when": 1792644816740,
-      "tag": "0000_medical_doctor_doom",
-      "breakpoints": true
-    },
-    {
-      "idx": 1,
-      "version": "7",
-      "when": 1792646509760,
-      "tag": "0001_salty_silverclaw",
-      "breakpoints": true
-    },
-    {
-      "idx": 2,
-      "version": "7",
-      "when": 1792646546117,
-      "tag": "0002_clumsy_colonel_america",
-      "breakpoints": true
-    },
-    {
-      "idx": 3,
-      "version": "7",
-      "when": 1792650072621,
-      "tag": "0003_flat_jigsaw",
-      "breakpoints": true
-    },
-    {
-      "idx": 4,
-      "version": "7",
-      "when": 1792650892414,
-      "tag": "0004_icy_salo",
-      "breakpoints": true
-    },
-    {
-      "idx": 5,
-      "version": "7",
-      "when": 1792651527634,
-      "tag": "0005_equal_husk",
-      "breakpoints": true
-    },
-    {
-      "idx": 6,
-      "version": "7",
-      "when": 1792652008645,
-      "tag": "0006_clammy_kid_colt",
-      "breakpoints": true
-    },
-    {
-      "idx": 7,
-      "version": "7",
-      "when": 1792657157275,
-      "tag": "0007_gorgeous_shotgun",
-      "breakpoints": true
-    },
-    {
-      "idx": 8,
-      "version": "7",
-      "when": 1792658640807,
-      "tag": "0008_open_sally_floyd",
-      "breakpoints": true
-    },
-    {
-      "idx": 9,
-      "version": "7",
-      "when": 1792660320844,
-      "tag": "0009_known_kree",
-      "breakpoints": true
-    },
-    {
-      "idx": 10,
-      "version": "7",
-      "when": 1792662636772,
-      "tag": "0010_petite_lizard",
-      "breakpoints": true
-    },
-    {
-      "idx": 11,
-      "version": "7",
-      "when": 1792675923827,
-      "tag": "0011_nifty_tag",
+      "when": 1792725686918,
+      "tag": "0000_faulty_silver_surfer",
       "breakpoints": true
     }
   ]

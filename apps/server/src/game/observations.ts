@@ -2,9 +2,14 @@ import { eq } from "drizzle-orm";
 import type { Database } from "../db/pool";
 import { actors } from "../db/schema";
 import type { ChatMessage } from "../llm/types";
-import { type CommunicationActionType, MEMORY_KINDS, visibilityForCommunication } from "./actions";
+import {
+  type CommunicationActionType,
+  MEMORY_KINDS,
+  type MessageVisibility,
+  visibilityForCommunication,
+} from "./actions";
 import { appendMemoryMessages, loadAgentMemory } from "./memory";
-import type { Skill, StageState } from "./types";
+import type { StageState } from "./types";
 
 type Executor = Pick<Database, "select" | "insert" | "update">;
 type ActorRow = typeof actors.$inferSelect;
@@ -75,14 +80,14 @@ export async function appendActionObservations(
   );
 }
 
-/** 写入技能结果：发起者由行动结果反馈，目标与同场景旁观者分别得到不同视角。 */
-export async function appendSkillObservations(
+/** 写入伤害结果：发起者由行动结果反馈，目标与同场景旁观者分别得到不同视角。 */
+export async function appendAttackObservations(
   executor: Executor,
   gameId: string,
   stage: Pick<StageState, "id" | "name">,
   attacker: { id: string; name: string },
   target: { id: string; name: string; maxHp: number },
-  skill: Skill,
+  broadcast: MessageVisibility,
   items: readonly { name: string }[],
   damage: number,
   remainingHp: number,
@@ -94,7 +99,7 @@ export async function appendSkillObservations(
     gameId,
     stage.id,
     attacker.id,
-    (observer) => skill.broadcast === "stage" || observer.id === target.id,
+    (observer) => broadcast === "stage" || observer.id === target.id,
     (observer) => {
       if (observer.id === target.id) {
         return {

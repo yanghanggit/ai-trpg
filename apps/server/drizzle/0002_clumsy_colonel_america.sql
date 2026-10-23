@@ -1,1 +1,0 @@
-ALTER TABLE "stages" ADD COLUMN "ordinal" integer DEFAULT 0 NOT NULL;

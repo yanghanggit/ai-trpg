@@ -4,7 +4,6 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { DARK_FANTASY_WORLD, DEMO_USER } from "../seeds/dark-fantasy";
-import { USE_ITEM_SKILL } from "../src/game/skills";
 import { TEST_WORLD } from "./test-world";
 import "../src/db/env";
 import { type DatabaseHandle, openDatabase } from "../src/db/connect";
@@ -27,7 +26,6 @@ const testDatabaseUrl = process.env.TEST_DATABASE_URL?.trim();
 function attackIntent(targetActorName: string): InteractIntent {
   return {
     kind: "interact",
-    skill: USE_ITEM_SKILL,
     itemNames: [],
     purpose: { kind: "damage", targetActorName },
   };
@@ -75,7 +73,6 @@ class ScriptedNpcService implements ChatCompletionService {
                       : {}),
                   }
                 : {
-                    skill: intent.skill.key,
                     purpose: intent.purpose.kind,
                     ...(intent.purpose.kind === "damage"
                       ? { targetActorName: intent.purpose.targetActorName }
@@ -295,7 +292,7 @@ describe.skipIf(!testDatabaseUrl)("memory-driven NPC slice", () => {
 
     const state = await getGameState(handle.db, created.game.slug);
     expect(state.game.version).toBe(1);
-    expect(state.messages.map((message) => message.kind)).toEqual(["narration", "attack"]);
+    expect(state.messages.map((message) => message.kind)).toEqual(["narration", "damage"]);
     expect(state.messages[1]?.content).toContain("守烬人对提灯修士使用攻击，造成3点伤害");
     expect(state.messages[1]?.targetActorId).toBeTruthy();
     expect(state.messages[1]?.visibility).toBe("stage");
@@ -425,7 +422,6 @@ describe.skipIf(!testDatabaseUrl)("memory-driven NPC slice", () => {
           defense: 1,
           speed: 2,
           items: [],
-          skills: [USE_ITEM_SKILL],
           statusEffects: [],
         },
       ],

@@ -12,7 +12,6 @@ import {
   runProbe,
   takeActorControl,
 } from "../src/game";
-import { PICKUP_SKILL, USE_ITEM_SKILL } from "../src/game/skills";
 import { ChatCompletionResult, type ChatCompletionService } from "../src/llm";
 import { TEST_WORLD } from "./test-world";
 
@@ -48,9 +47,7 @@ const worldWithPickup = {
         }
       : stage,
   ),
-  actors: TEST_WORLD.actors.map((actor) =>
-    actor.name === "守烬人" ? { ...actor, skills: [USE_ITEM_SKILL, PICKUP_SKILL] } : actor,
-  ),
+  actors: TEST_WORLD.actors,
 };
 
 describe.skipIf(!testDatabaseUrl)("agent probe", () => {
@@ -76,7 +73,7 @@ describe.skipIf(!testDatabaseUrl)("agent probe", () => {
     const slug = created.game.slug;
     await takeActorControl(handle.db, slug, "守烬人");
     await playerInteract(handle.db, slug, "守烬人", {
-      skillKey: "pickup",
+      purpose: "pickup",
       itemName: "测试提灯",
     });
 
@@ -116,7 +113,7 @@ describe.skipIf(!testDatabaseUrl)("agent probe", () => {
     const slug = created.game.slug;
     await takeActorControl(handle.db, slug, "守烬人");
     await playerInteract(handle.db, slug, "守烬人", {
-      skillKey: "pickup",
+      purpose: "pickup",
       itemName: "测试提灯",
     });
 

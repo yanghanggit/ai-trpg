@@ -40,8 +40,8 @@ export type Connection = {
 /**
  * World 内的初始 actor 定义，包含根属性、初始物品、技能、状态与初始死亡状态。
  *
- * `death` 省略时按 false 写入；创建后由技能等行动更新数据库中的 `death`。
- * `skills`、`statusEffects` 与运行时 `items` 一起构成三个 actor 容器。
+ * `death` 省略时按 false 写入；创建后由交互等行动更新数据库中的 `death`。
+ * `statusEffects` 与运行时 `items` 是 actor 的两个容器。
  */
 export type Actor = {
   stageKey: string;
@@ -55,7 +55,6 @@ export type Actor = {
   speed: number;
   death?: boolean;
   items: readonly Item[];
-  skills: readonly Skill[];
   statusEffects: readonly StatusEffect[];
 };
 
@@ -85,38 +84,25 @@ export type CreateGameInput = {
   world: World;
 };
 
-/** 技能结果的广播范围；目前只支持场景公开与私密两类。 */
-export type SkillBroadcast = "stage" | "private";
-
-/** 技能的结算方式：可计算的结果直接算，复杂结果交给 GM/LLM。 */
-export type SkillResolution = "computed" | "llm";
-
-/** 一次技能行动希望达成的结果。 */
-export type SkillPurpose =
+/** 一次交互（interact）希望达成的结果；五者都是交互分支，与技能无关。 */
+export type InteractPurpose =
   | { kind: "damage"; targetActorName: string }
   | { kind: "steal"; targetActorName: string; itemName: string }
   | { kind: "give"; targetActorName: string; itemName: string }
   | { kind: "pickup"; itemName: string }
   | { kind: "use"; itemName: string; targetActorName?: string; targetStageName?: string };
 
-export type SkillPurposeKind = SkillPurpose["kind"];
+export type InteractPurposeKind = InteractPurpose["kind"];
 
 /**
- * actor 掌握的一项技能定义。
+ * 交互分支的行为属性。
  *
- * `key` 是稳定身份；`name` / `description` 用于展示与叙事；`broadcast` 决定
- * 结果事件范围；`resolution` 决定由规则计算还是交给 GM/LLM 推理。
- * `itemPolicy` 只约束 `itemNames` 这类“行动输入道具”，转移/拾取/使用目的
- * 通过 purpose 自带 `itemName` 校验，不重复套用该字段。
+ * `broadcast` 与 `resolution` 描述的是“这个分支本身怎么结算、给谁看”，
+ * 所以挂在目的上。
  */
-export type Skill = {
-  key: string;
-  name: string;
-  description: string;
-  broadcast: SkillBroadcast;
-  resolution: SkillResolution;
-  purposeKinds: readonly SkillPurposeKind[];
-  itemPolicy: "optional" | "required";
+export type InteractBranch = {
+  broadcast: MessageVisibility;
+  resolution: "computed" | "llm";
 };
 
 /** 未来 buff/debuff 的状态条目；目前只作为 actor 的状态队列容器。 */
@@ -144,16 +130,14 @@ export type MovementIntent = {
 /**
  * 一次交互 intent。
  *
- * 交互是与沟通、移动平级的第三类顶层行动：用哪个技能（Skill）、搭配
- * 哪些道具（`itemNames`）、希望达成什么结果（`SkillPurpose`）。
- * `steal` / `give` / `pickup` / `use_item` 都是交互语境下的技能，不再
- * 各自成为顶层行动。
+ * 交互是与沟通、移动平级的第三类顶层行动：想达成什么结果（`purpose`）、
+ * 搭配哪些自己的道具（`itemNames`）。`damage` / `steal` / `give` / `pickup` /
+ * `use` 都是交互分支；攻击走 `damage` 分支，当前不引入技能。
  */
 export type InteractIntent = {
   kind: "interact";
-  skill: Skill;
+  purpose: InteractPurpose;
   itemNames: readonly string[];
-  purpose: SkillPurpose;
 };
 
 /** 顶层行动只有三类：沟通、移动、交互。 */
@@ -178,7 +162,7 @@ export type ItemState = {
   block: number;
 };
 
-/** 运行时 actor；`items`、`skills`、`statusEffects` 是三个队列。 */
+/** 运行时 actor；`items`、`statusEffects` 是两个队列。 */
 export type ActorState = {
   id: string;
   name: string;
@@ -191,7 +175,6 @@ export type ActorState = {
   speed: number;
   death: boolean;
   items: ItemState[];
-  skills: Skill[];
   statusEffects: StatusEffect[];
 };
 

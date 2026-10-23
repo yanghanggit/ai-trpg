@@ -13,13 +13,10 @@ import {
   playerInteract,
   playerMove,
   SEALED_GATE_KEY_NAME,
-  STEAL_SKILL,
   takeActorControl,
 } from "../src/game";
-import { GIVE_SKILL, PICKUP_SKILL, USE_ITEM_SKILL } from "../src/game/skills";
 
 const testDatabaseUrl = process.env.TEST_DATABASE_URL?.trim();
-const ALL_SKILLS = [STEAL_SKILL, GIVE_SKILL, PICKUP_SKILL, USE_ITEM_SKILL];
 
 const ITEM_WORLD = {
   ...TEST_WORLD,
@@ -40,7 +37,6 @@ const ITEM_WORLD = {
         }
       : stage,
   ),
-  actors: TEST_WORLD.actors.map((actor) => ({ ...actor, skills: ALL_SKILLS })),
 };
 
 const GATE_STAGE = TEST_WORLD.stages.find((stage) => stage.key === "gate");
@@ -82,7 +78,6 @@ const SEALED_WORLD = {
     {
       ...KEEPER_ACTOR,
       stageKey: "gate",
-      skills: ALL_SKILLS,
       items: [
         {
           name: SEALED_GATE_KEY_NAME,
@@ -94,7 +89,7 @@ const SEALED_WORLD = {
   ],
 };
 
-describe.skipIf(!testDatabaseUrl)("item skills", () => {
+describe.skipIf(!testDatabaseUrl)("items and interactions", () => {
   let handle: DatabaseHandle;
 
   beforeAll(async () => {
@@ -117,7 +112,7 @@ describe.skipIf(!testDatabaseUrl)("item skills", () => {
     await takeActorControl(handle.db, created.game.slug, "守烬人");
 
     const stolen = await playerInteract(handle.db, created.game.slug, "守烬人", {
-      skillKey: "steal",
+      purpose: "steal",
       targetActorName: "提灯修士",
       itemName: "铅封提灯",
     });
@@ -175,7 +170,7 @@ describe.skipIf(!testDatabaseUrl)("item skills", () => {
     await takeActorControl(handle.db, created.game.slug, "守烬人");
 
     const given = await playerInteract(handle.db, created.game.slug, "守烬人", {
-      skillKey: "give",
+      purpose: "give",
       targetActorName: "提灯修士",
       itemName: "裂齿短刃",
     });
@@ -204,7 +199,7 @@ describe.skipIf(!testDatabaseUrl)("item skills", () => {
     await takeActorControl(handle.db, created.game.slug, "守烬人");
 
     const picked = await playerInteract(handle.db, created.game.slug, "守烬人", {
-      skillKey: "pickup",
+      purpose: "pickup",
       itemName: "武器.测试火把",
     });
     expect(picked.ok).toBe(true);
@@ -229,7 +224,7 @@ describe.skipIf(!testDatabaseUrl)("item skills", () => {
     });
 
     const used = await playerInteract(handle.db, created.game.slug, "守烬人", {
-      skillKey: "use_item",
+      purpose: "use",
       targetStageName: "场景.封骨之门",
       itemName: SEALED_GATE_KEY_NAME,
     });

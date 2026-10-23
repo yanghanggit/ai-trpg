@@ -8,6 +8,7 @@ import {
 } from "./actions";
 import { adjacentStageNames, findStageByName } from "./actors";
 import { GameError } from "./errors";
+import { INTERACT_PURPOSE_KINDS, isInteractPurposeKind } from "./interact";
 import type {
   ActorIntent,
   ActorPlan,
@@ -15,9 +16,9 @@ import type {
   CommunicationIntent,
   GameState,
   InteractIntent,
+  InteractPurpose,
+  InteractPurposeKind,
   MovementIntent,
-  Skill,
-  SkillPurposeKind,
 } from "./types";
 
 /** 构造只读环境查看工具。 */
@@ -184,17 +185,16 @@ export function buildMoveTool(availableStageNames: readonly string[]): ToolDefin
 /**
  * 构造交互 intent 工具。
  *
- * 交互是与沟通、移动平级的第三类顶层行动，语义固定为三段：
- * 用什么技能（`skill`）、搭配什么道具（`itemNames` / `itemName`）、达成什么目的（`purpose`）。
+ * 交互是与沟通、移动平级的第三类顶层行动，语义为三段：
+ * 想做什么（`purpose`，交互分支）、用什么道具（`itemName` / `itemNames`）、
+ * 对谁做（`targetActorName` / `targetStageName`）。
  */
 export function buildInteractTool(
-  availableSkills: readonly Skill[],
   availableTargetActorNames: readonly string[],
   availableItemNames: readonly string[],
   currentStageName?: string,
   selfActorName?: string,
 ): ToolDefinition {
-  const purposeKinds = [...new Set(availableSkills.flatMap((skill) => skill.purposeKinds))];
   const targetActorNames = [
     ...new Set([
       ...availableTargetActorNames,
@@ -206,20 +206,15 @@ export function buildInteractTool(
     function: {
       name: "interact",
       description:
-        "把一次交互加入本轮计划。交互 = 使用什么技能（skill）+ 使用什么道具（itemNames/itemName）+ 交互目的（purpose）；交互对象可以是同场景角色、当前场景物品或自己持有的道具，必要时用 get_actor 查看目标持有的物品。",
+        "把一次交互加入本轮计划。交互 = 想做什么（purpose）+ 用什么道具（itemName/itemNames）+ 对谁做（targetActorName/targetStageName）。damage 是攻击分支；steal/give/pickup/use 分别是取物、给予、拾取与使用道具。交互对象可以是同场景角色、当前场景物品或自己持有的道具，必要时用 get_actor 查看目标持有的物品。",
       parameters: {
         type: "object",
         properties: {
-          skill: {
-            type: "string",
-            enum: availableSkills.map((skill) => skill.key),
-            description: "本次交互使用的技能（Skill）key，只能选自己掌握的技能",
-          },
           purpose: {
             type: "string",
-            enum: purposeKinds,
+            enum: INTERACT_PURPOSE_KINDS,
             description:
-              "本次交互目的：damage 造成伤害；steal 从目标身上取物；give 把自己的物品交给目标；pickup 拾起当前场景的物品；use 用自己的物品作用于角色或场景",
+              "本次交互分支：damage 造成伤害；steal 从目标身上取物；give 把自己的物品交给目标；pickup 拾起当前场景的物品；use 用自己的物品作用于角色或场景",
           },
           targetActorName: {
             type: "string",
@@ -245,7 +240,7 @@ export function buildInteractTool(
             description: "damage 等交互额外搭配的自身道具；可以为空",
           },
         },
-        required: ["skill", "purpose"],
+        required: ["purpose"],
       },
     },
   };
@@ -391,20 +386,15 @@ export function parseMovement(args: Record<string, unknown>): MovementIntent {
 }
 
 /** 把 interact 工具参数转换为交互 intent；只检查形状。 */
-export function parseInteract(
-  args: Record<string, unknown>,
-  availableSkills: readonly Skill[],
-): InteractIntent {
-  const skillKey = typeof args.skill === "string" ? args.skill.trim() : "";
-  const skill = availableSkills.find((candidate) => candidate.key === skillKey);
-  if (!skill) {
-    throw new GameError("invalid_action", `actor 未掌握技能: ${skillKey}`);
+export function parseInteract(args: Record<string, unknown>): InteractIntent {
+  const rawPurpose = typeof args.purpose === "string" ? args.purpose.trim() : "";
+  if (!isInteractPurposeKind(rawPurpose)) {
+    throw new GameError(
+      "invalid_action",
+      `不支持交互分支: ${rawPurpose}；可选 ${INTERACT_PURPOSE_KINDS.join("/")}`,
+    );
   }
-
-  const purposeKind = typeof args.purpose === "string" ? args.purpose.trim() : "";
-  if (!(skill.purposeKinds as readonly string[]).includes(purposeKind)) {
-    throw new GameError("invalid_action", `技能 ${skill.name} 不支持目的: ${purposeKind}`);
-  }
+  const purposeKind: InteractPurposeKind = rawPurpose;
 
   const targetActorName =
     typeof args.targetActorName === "string" ? args.targetActorName.trim() : "";
@@ -421,62 +411,55 @@ export function parseInteract(
     ),
   ];
 
-  switch (purposeKind as SkillPurposeKind) {
+  return {
+    kind: "interact",
+    itemNames,
+    purpose: parseInteractPurpose(purposeKind, { targetActorName, targetStageName, itemName }),
+  };
+}
+
+/** 按交互分支校验并组装 purpose；各分支的参数要求集中在这里。 */
+function parseInteractPurpose(
+  purposeKind: InteractPurposeKind,
+  input: { targetActorName: string; targetStageName: string; itemName: string },
+): InteractPurpose {
+  const { targetActorName, targetStageName, itemName } = input;
+  switch (purposeKind) {
     case "damage":
       if (targetActorName.length === 0) {
-        throw new GameError("invalid_action", "damage 目的需要非空 targetActorName");
+        throw new GameError("invalid_action", "damage 分支需要非空 targetActorName");
       }
-      return {
-        kind: "interact",
-        skill,
-        itemNames,
-        purpose: { kind: "damage", targetActorName },
-      };
+      return { kind: "damage", targetActorName };
     case "steal":
-    case "give": {
+    case "give":
       if (targetActorName.length === 0 || itemName.length === 0) {
         throw new GameError(
           "invalid_action",
-          `${purposeKind} 目的需要 targetActorName 与 itemName`,
+          `${purposeKind} 分支需要 targetActorName 与 itemName`,
         );
       }
-      const transferKind: "steal" | "give" = purposeKind === "steal" ? "steal" : "give";
-      return {
-        kind: "interact",
-        skill,
-        itemNames,
-        purpose: { kind: transferKind, targetActorName, itemName },
-      };
-    }
+      return { kind: purposeKind, targetActorName, itemName };
     case "pickup":
       if (itemName.length === 0) {
-        throw new GameError("invalid_action", "pickup 目的需要非空 itemName");
+        throw new GameError("invalid_action", "pickup 分支需要非空 itemName");
       }
-      return { kind: "interact", skill, itemNames, purpose: { kind: "pickup", itemName } };
-    case "use": {
+      return { kind: "pickup", itemName };
+    case "use":
       if (itemName.length === 0) {
-        throw new GameError("invalid_action", "use 目的需要非空 itemName");
+        throw new GameError("invalid_action", "use 分支需要非空 itemName");
       }
       if ((targetActorName.length === 0) === (targetStageName.length === 0)) {
         throw new GameError(
           "invalid_action",
-          "use 目的需要 targetActorName 或 targetStageName 二选一",
+          "use 分支需要 targetActorName 或 targetStageName 二选一",
         );
       }
       return {
-        kind: "interact",
-        skill,
-        itemNames,
-        purpose: {
-          kind: "use",
-          itemName,
-          ...(targetActorName.length > 0 ? { targetActorName } : {}),
-          ...(targetStageName.length > 0 ? { targetStageName } : {}),
-        },
+        kind: "use",
+        itemName,
+        ...(targetActorName.length > 0 ? { targetActorName } : {}),
+        ...(targetStageName.length > 0 ? { targetStageName } : {}),
       };
-    }
-    default:
-      throw new GameError("invalid_action", `不支持技能目的: ${purposeKind}`);
   }
 }
 

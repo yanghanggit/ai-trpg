@@ -1,1 +1,0 @@
-ALTER TABLE "game_messages" ADD COLUMN "visibility" text DEFAULT 'stage' NOT NULL;

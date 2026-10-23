@@ -1,1 +1,0 @@
-ALTER TABLE "stages" DROP COLUMN "narrative";

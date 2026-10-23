@@ -2,8 +2,12 @@ import { randomUUID } from "node:crypto";
 import { eq } from "drizzle-orm";
 import { actors, games, items, stageItems } from "../../db/schema";
 import { GameError } from "../errors";
-import { appendItemObservations, appendSkillObservations, appendStageEvent } from "../observations";
-import { SEALED_GATE_KEY_NAME, SEALED_GATE_STAGE_NAME } from "../skills";
+import { SEALED_GATE_KEY_NAME, SEALED_GATE_STAGE_NAME } from "../interact";
+import {
+  appendAttackObservations,
+  appendItemObservations,
+  appendStageEvent,
+} from "../observations";
 import {
   appendPublicMessage,
   bumpGameVersion,
@@ -26,10 +30,10 @@ async function applyDamage(
 ): Promise<string> {
   const target = resolved.target;
   if (!target) {
-    throw new GameError("invalid_action", "damage 技能缺少目标");
+    throw new GameError("invalid_action", "damage 分支缺少目标");
   }
   if (resolved.items.some((item) => item.kind !== "weapon")) {
-    throw new GameError("invalid_action", "damage 目的只能使用武器道具");
+    throw new GameError("invalid_action", "damage 分支只能搭配武器道具");
   }
   const weaponDamage = resolved.items.reduce((total, item) => total + item.damage, 0);
   const damage = Math.max(0, actorRow.actor.attack + weaponDamage - target.defense);
@@ -46,20 +50,21 @@ async function applyDamage(
   const outcome = death
     ? `；${target.name}倒下了。`
     : `；${target.name}剩余 HP ${remainingHp}/${target.maxHp}。`;
+  const kind = resolved.intent.purpose.kind;
   await appendPublicMessage(executor, gameId, actorRow.actor.id, {
-    kind: "attack",
+    kind,
     stageId: resolved.stage.id,
     targetActorId: target.id,
-    visibility: resolved.skill.broadcast,
+    visibility: resolved.branch.broadcast,
     content: `${actorRow.actor.name}对${target.name}使用攻击${itemText}，造成${damage}点伤害${outcome}`,
   });
-  await appendSkillObservations(
+  await appendAttackObservations(
     executor,
     gameId,
     resolved.stage,
     { id: actorRow.actor.id, name: actorRow.actor.name },
     { id: target.id, name: target.name, maxHp: target.maxHp },
-    resolved.skill,
+    resolved.branch.broadcast,
     resolved.items,
     damage,
     remainingHp,
@@ -70,7 +75,7 @@ async function applyDamage(
     gameId,
     resolved.stage.id,
     `# 场景事件\n${actorRow.actor.name}对${target.name}使用攻击${itemText}，造成${damage}点伤害${outcome}`,
-    { eventKind: "attack", targetActorId: target.id },
+    { eventKind: kind, targetActorId: target.id },
   );
   return damageFeedback(resolved, damage, remainingHp);
 }
@@ -102,10 +107,10 @@ async function applyTransfer(
       ? `${actorRow.actor.name}从${target.name}身上取走了${transferItem.name}。`
       : `${actorRow.actor.name}把${transferItem.name}交给了${target.name}。`;
   await appendPublicMessage(executor, gameId, actorRow.actor.id, {
-    kind: resolved.skill.key,
+    kind: resolved.intent.purpose.kind,
     stageId: resolved.stage.id,
     targetActorId: target.id,
-    visibility: resolved.skill.broadcast,
+    visibility: resolved.branch.broadcast,
     content,
   });
   await appendItemObservations(
@@ -115,7 +120,7 @@ async function applyTransfer(
     { id: actorRow.actor.id, name: actorRow.actor.name },
     purpose.kind,
     transferItem.name,
-    { target: { id: target.id, name: target.name }, broadcast: resolved.skill.broadcast },
+    { target: { id: target.id, name: target.name }, broadcast: resolved.branch.broadcast },
   );
   await appendStageEvent(executor, gameId, resolved.stage.id, `# 场景事件\n${content}`, {
     eventKind: purpose.kind,
@@ -151,9 +156,9 @@ async function applyPickup(
   });
   await bumpGameVersion(executor, gameId, now);
   await appendPublicMessage(executor, gameId, actorRow.actor.id, {
-    kind: resolved.skill.key,
+    kind: resolved.intent.purpose.kind,
     stageId: resolved.stage.id,
-    visibility: resolved.skill.broadcast,
+    visibility: resolved.branch.broadcast,
     content: `${actorRow.actor.name}拾取了${stageItem.name}。`,
   });
   await appendItemObservations(
@@ -163,7 +168,7 @@ async function applyPickup(
     { id: actorRow.actor.id, name: actorRow.actor.name },
     "pickup",
     stageItem.name,
-    { broadcast: resolved.skill.broadcast },
+    { broadcast: resolved.branch.broadcast },
   );
   await appendStageEvent(
     executor,
@@ -217,7 +222,7 @@ async function applyUse(
   const targetStage = resolved.targetStage;
   const transferItem = resolved.transferItem;
   if ((!target && !targetStage) || !transferItem) {
-    throw new GameError("invalid_action", "use 技能缺少目标或物品");
+    throw new GameError("invalid_action", "use 分支缺少目标或物品");
   }
   await bumpGameVersion(executor, gameId, now);
 
@@ -226,10 +231,10 @@ async function applyUse(
     ? `${actorRow.actor.name}在${targetStage.name}使用了${transferItem.name}。`
     : `${actorRow.actor.name}对${targetLabel}使用了${transferItem.name}。`;
   await appendPublicMessage(executor, gameId, actorRow.actor.id, {
-    kind: resolved.skill.key,
+    kind: resolved.intent.purpose.kind,
     stageId: resolved.stage.id,
     ...(target ? { targetActorId: target.id } : {}),
-    visibility: resolved.skill.broadcast,
+    visibility: resolved.branch.broadcast,
     content,
   });
   await appendItemObservations(
@@ -242,11 +247,11 @@ async function applyUse(
     {
       ...(target ? { target: { id: target.id, name: target.name } } : {}),
       ...(targetStage ? { targetStageName: targetStage.name } : {}),
-      broadcast: resolved.skill.broadcast,
+      broadcast: resolved.branch.broadcast,
     },
   );
   await appendStageEvent(executor, gameId, resolved.stage.id, `# 场景事件\n${content}`, {
-    eventKind: "use_item",
+    eventKind: resolved.intent.purpose.kind,
     ...(target ? { targetActorId: target.id } : {}),
     ...(targetStage ? { targetStageId: targetStage.id } : {}),
   });

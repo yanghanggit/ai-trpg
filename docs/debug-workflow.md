@@ -11,7 +11,7 @@
 
 `agent:game` 当前支持从数据库创建并推进一局游戏：
 
-- `create --user demo`：创建 game、player 座位、world、五段 stage 图、三组双向连接、浅眠墓穴到灰庭的单向出口、五个角色、场景物品、角色物品、技能、状态容器，以及 actor/stage system memory；初始旁白落在 `场景.浅眠墓穴`。
+- `create --user demo`：创建 game、player 座位、world、五段 stage 图、三组双向连接、浅眠墓穴到灰庭的单向出口、五个角色、场景物品、角色物品、状态容器，以及 actor/stage system memory；初始旁白落在 `场景.浅眠墓穴`。
 - `status --game <gameId|slug>`：读取完整游戏状态。
 - `npc --game <id|slug> --actor <actorId|actorName>`：推进一个 NPC 回合。
 - `npc --game <id|slug> --all`：按当前 actor 顺序推进所有未被玩家接管的 NPC。
@@ -23,11 +23,11 @@
 - `release-control --game <id|slug> --actor <actorId|actorName>`：解除接管。
 - `player-communicate --game <id|slug> --actor <actorId|actorName> --mode say|whisper|announce [--target <actorName>] [--reason <text>] --message <text>`：以被接管 actor 的身份直接沟通，不调用 LLM。
 - `player-move --game <id|slug> --actor <actorId|actorName> --to <stageName>`：以被接管 actor 的身份沿连接移动，不调用 LLM。
-- `player-interact --game <id|slug> --actor <actorId|actorName> --skill <key> [--target <actorName>] [--stage <stageName>] [--item <itemName>]`：以被接管 actor 的身份直接提交一次交互（技能 + 道具 + 目的），不调用 LLM。
+- `player-interact --game <id|slug> --actor <actorId|actorName> --purpose damage|steal|give|pickup|use [--target <actorName>] [--stage <stageName>] [--item <itemName>]`：以被接管 actor 的身份直接提交一次交互（分支 + 道具），不调用 LLM。
 - `player-attack --game <id|slug> --actor <actorId|actorName> --target <actorName> [--item <itemName>]`：以被接管 actor 的身份直接攻击同场景目标，可指定武器；不调用 LLM。
 - `snapshot --game <id|slug>`：把当前状态与每个 actor/stage 的 memory 导出为只读快照。
 
-NPC 回合由 agent loop 驱动：先读取环境与私有 memory，再通过工具决定行动。`look_stage`、`get_stats`、`get_items`、`get_actor` 是只读 GET，可多次调用；`get_actor` 只能查看同场景角色；`look_stage` 会显示场景中的 `stage_items`；工具按模型返回顺序串行执行；`communicate` 暂存一次 `say`、`whisper` 或 `announce`；`move` 暂存一次 `move` 或 `wait`；`interact` 暂存一次交互，参数固定为技能（`skill`）+ 道具（`itemNames` / `itemName`）+ 目的（`purpose`），支持伤害、窃取、给予、拾取与使用道具。顶层只有沟通、移动、交互三类行动，但计划槽位只有两个：沟通一个、行动（移动或交互）一个，两类可以共存并保持调用顺序；`submit_plan` 是终止工具，handler 只收集计划，不写数据库。loop 结束后服务层在事务中按顺序校验并应用全部 intent。`say` 是有目标公开说话，向当前 stage 广播；`announce` 是无目标公开说话；`whisper` 必须指定单个 `targetActorName`，只有发起者与目标进入 memory；`use_item` 的 `damage` 目的伤害为攻击者 `attack` 加所选武器 `damage`，减去目标 `defense`，最低 0；空手时只读 actor 的 `attack` 与目标 `defense`；目标物品 block 与发起者物品 block 当前都不参与伤害；目标 HP 归零后 `death=true`，不能再执行 loop。`game_messages` 用 `visibility` 区分公开与私密。
+NPC 回合由 agent loop 驱动：先读取环境与私有 memory，再通过工具决定行动。`look_stage`、`get_stats`、`get_items`、`get_actor` 是只读 GET，可多次调用；`get_actor` 只能查看同场景角色；`look_stage` 会显示场景中的 `stage_items`；工具按模型返回顺序串行执行；`communicate` 暂存一次 `say`、`whisper` 或 `announce`；`move` 暂存一次 `move` 或 `wait`；`interact` 暂存一次交互，参数为分支（`purpose`）+ 道具（`itemNames` / `itemName`），支持伤害、窃取、给予、拾取与使用道具。顶层只有沟通、移动、交互三类行动，但计划槽位只有两个：沟通一个、行动（移动或交互）一个，两类可以共存并保持调用顺序；`submit_plan` 是终止工具，handler 只收集计划，不写数据库。loop 结束后服务层在事务中按顺序校验并应用全部 intent。`say` 是有目标公开说话，向当前 stage 广播；`announce` 是无目标公开说话；`whisper` 必须指定单个 `targetActorName`，只有发起者与目标进入 memory；`damage` 分支伤害为攻击者 `attack` 加所选武器 `damage`，减去目标 `defense`，最低 0；空手时只读 actor 的 `attack` 与目标 `defense`；目标物品 block 与发起者物品 block 当前都不参与伤害；目标 HP 归零后 `death=true`，不能再执行 loop。`game_messages` 用 `visibility` 区分公开与私密。
 
 它不需要启动 HTTP 服务端，但需要 `DATABASE_URL` 与 `DEEPSEEK_API_KEY`。`agent:game status` 不调用 LLM，可用于观察当前状态。
 

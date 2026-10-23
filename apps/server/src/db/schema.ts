@@ -140,7 +140,6 @@ export const actors = pgTable("actors", {
   defense: integer("defense").notNull(),
   speed: integer("speed").notNull(),
   death: boolean("death").notNull().default(false),
-  skills: jsonb("skills").$type<JsonValue[]>().notNull().default([]),
   statusEffects: jsonb("status_effects").$type<JsonValue[]>().notNull().default([]),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),

@@ -1,4 +1,3 @@
-import { GIVE_SKILL, PICKUP_SKILL, STEAL_SKILL, USE_ITEM_SKILL } from "../src/game/skills";
 import type { World } from "../src/game/types";
 
 /** 黑暗奇幻演示世界的初始内容定义；由 createGame 物化为具体游戏状态。 */
@@ -30,7 +29,7 @@ const SYSTEM_RULES = [
 ].join("");
 
 export const DARK_FANTASY_WORLD: World = {
-  contentVersion: "dark-fantasy.v2",
+  contentVersion: "dark-fantasy.v4",
   worldName: "灰烬墓园",
   campaignSetting: CAMPAIGN_SETTING,
   systemRules: SYSTEM_RULES,
@@ -116,7 +115,6 @@ export const DARK_FANTASY_WORLD: World = {
           count: 1,
         },
       ],
-      skills: [USE_ITEM_SKILL, GIVE_SKILL],
       statusEffects: [],
     },
     {
@@ -131,7 +129,6 @@ export const DARK_FANTASY_WORLD: World = {
       defense: 1,
       speed: 7,
       items: [],
-      skills: [USE_ITEM_SKILL],
       statusEffects: [],
     },
     {
@@ -147,7 +144,6 @@ export const DARK_FANTASY_WORLD: World = {
       defense: 0,
       speed: 10,
       items: [],
-      skills: [],
       statusEffects: [],
     },
     {
@@ -163,7 +159,6 @@ export const DARK_FANTASY_WORLD: World = {
       defense: 2,
       speed: 3,
       items: [],
-      skills: [USE_ITEM_SKILL, STEAL_SKILL, PICKUP_SKILL],
       statusEffects: [],
     },
     {
@@ -179,7 +174,6 @@ export const DARK_FANTASY_WORLD: World = {
       defense: 100,
       speed: 8,
       items: [],
-      skills: [USE_ITEM_SKILL],
       statusEffects: [],
     },
   ],

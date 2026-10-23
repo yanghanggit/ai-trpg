@@ -5,7 +5,7 @@ import { applyActorPlan } from "./apply";
 import { isPlayerControlled } from "./control";
 import { GameError } from "./errors";
 import { getGameState } from "./service";
-import type { ActorPlan, ActorTurnResult, Skill, SkillPurpose } from "./types";
+import type { ActorPlan, ActorTurnResult, InteractPurpose, InteractPurposeKind } from "./types";
 
 export type PlayerCommunicationMode = CommunicationActionType;
 
@@ -26,7 +26,7 @@ export type PlayerMoveInput = {
 };
 
 export type PlayerInteractInput = {
-  skillKey: string;
+  purpose: InteractPurposeKind;
   targetActorName?: string;
   targetStageName?: string;
   itemName?: string;
@@ -102,44 +102,58 @@ export async function playerMove(
   return applyPlayerPlan(db, gameRef, actorRef, plan);
 }
 
-function playerInteractPurpose(skill: Skill, input: PlayerInteractInput): SkillPurpose {
-  const targetActorName = input.targetActorName?.trim();
-  const targetStageName = input.targetStageName?.trim();
-  const itemName = input.itemName?.trim();
+/** 按交互分支校验玩家输入并组装 purpose；参数要求与工具侧保持一致。 */
+function playerInteractPurpose(input: PlayerInteractInput): InteractPurpose {
+  const targetActorName = input.targetActorName?.trim() ?? "";
+  const targetStageName = input.targetStageName?.trim() ?? "";
+  const itemName = input.itemName?.trim() ?? "";
 
-  if (skill.purposeKinds.includes("steal") && targetActorName && itemName) {
-    return { kind: "steal", targetActorName, itemName };
+  switch (input.purpose) {
+    case "damage":
+      if (targetActorName.length === 0) {
+        throw new GameError("invalid_action", "damage 分支需要 targetActorName");
+      }
+      return { kind: "damage", targetActorName };
+    case "steal":
+    case "give":
+      if (targetActorName.length === 0 || itemName.length === 0) {
+        throw new GameError(
+          "invalid_action",
+          `${input.purpose} 分支需要 targetActorName 与 itemName`,
+        );
+      }
+      return { kind: input.purpose, targetActorName, itemName };
+    case "pickup":
+      if (itemName.length === 0) {
+        throw new GameError("invalid_action", "pickup 分支需要 itemName");
+      }
+      return { kind: "pickup", itemName };
+    case "use":
+      if (itemName.length === 0 || targetActorName.length + targetStageName.length === 0) {
+        throw new GameError(
+          "invalid_action",
+          "use 分支需要 itemName 与 targetActorName / targetStageName 之一",
+        );
+      }
+      if (targetActorName.length > 0 && targetStageName.length > 0) {
+        throw new GameError(
+          "invalid_action",
+          "use 分支需要 targetActorName 或 targetStageName 二选一",
+        );
+      }
+      return {
+        kind: "use",
+        itemName,
+        ...(targetActorName.length > 0 ? { targetActorName } : {}),
+        ...(targetStageName.length > 0 ? { targetStageName } : {}),
+      };
   }
-  if (skill.purposeKinds.includes("give") && targetActorName && itemName) {
-    return { kind: "give", targetActorName, itemName };
-  }
-  if (skill.purposeKinds.includes("pickup") && itemName) {
-    return { kind: "pickup", itemName };
-  }
-  if (skill.purposeKinds.includes("use") && itemName && (targetActorName || targetStageName)) {
-    if (targetActorName && targetStageName) {
-      throw new GameError(
-        "invalid_action",
-        "use 目的需要 targetActorName 或 targetStageName 二选一",
-      );
-    }
-    return {
-      kind: "use",
-      itemName,
-      ...(targetActorName ? { targetActorName } : {}),
-      ...(targetStageName ? { targetStageName } : {}),
-    };
-  }
-  if (skill.purposeKinds.includes("damage") && targetActorName) {
-    return { kind: "damage", targetActorName };
-  }
-  throw new GameError("invalid_action", `技能 ${skill.name} 缺少匹配的目标或物品`);
 }
 
 /**
  * 玩家直接提交一次交互。
  *
- * 交互 = 技能 + 道具 + 目的；不调用 LLM；actor 必须处于玩家控制下，否则拒绝。
+ * 交互 = 目的 + 道具；不调用 LLM；actor 必须处于玩家控制下，否则拒绝。
  */
 export async function playerInteract(
   db: Database,
@@ -148,18 +162,13 @@ export async function playerInteract(
   input: PlayerInteractInput,
 ): Promise<ActorTurnResult> {
   const state = await getGameState(db, gameRef);
-  const actor = findActor(state, actorRef);
-  const skill = actor.skills.find((candidate) => candidate.key === input.skillKey);
-  if (!skill) {
-    throw new GameError("invalid_action", `actor 未掌握技能: ${input.skillKey}`);
-  }
+  findActor(state, actorRef);
   const plan: ActorPlan = {
     intents: [
       {
         kind: "interact",
-        skill,
         itemNames: input.itemNames ?? [],
-        purpose: playerInteractPurpose(skill, input),
+        purpose: playerInteractPurpose(input),
       },
     ],
   };
@@ -167,7 +176,7 @@ export async function playerInteract(
 }
 
 /**
- * 玩家直接提交一次攻击；它是 `use_item` + `damage` 的交互快捷入口。
+ * 玩家直接提交一次攻击；它是 `damage` 分支的交互快捷入口。
  *
  * 不调用 LLM；actor 必须处于玩家控制下，否则拒绝。
  */
@@ -178,16 +187,11 @@ export async function playerAttack(
   input: PlayerAttackInput,
 ): Promise<ActorTurnResult> {
   const state = await getGameState(db, gameRef);
-  const actor = findActor(state, actorRef);
-  const skill = actor.skills.find((candidate) => candidate.key === "use_item");
-  if (!skill) {
-    throw new GameError("invalid_action", `actor 未掌握技能: use_item`);
-  }
+  findActor(state, actorRef);
   const plan: ActorPlan = {
     intents: [
       {
         kind: "interact",
-        skill,
         itemNames: input.itemNames ?? [],
         purpose: { kind: "damage", targetActorName: input.targetActorName },
       },

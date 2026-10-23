@@ -1,1 +1,0 @@
-ALTER TABLE "actors" ADD COLUMN "death" boolean DEFAULT false NOT NULL;

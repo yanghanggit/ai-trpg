@@ -170,14 +170,13 @@ describe.skipIf(!testDatabaseUrl)("player takeover", () => {
     expect(attacked.ok).toBe(true);
     expect(attacked.plan?.intents[0]).toMatchObject({
       kind: "interact",
-      skill: { key: "use_item" },
       itemNames: [],
       purpose: { kind: "damage", targetActorName: "提灯修士" },
     });
 
     const state = await getGameState(handle.db, game.game.slug);
     expect(state.game.version).toBe(1);
-    expect(state.messages.map((message) => message.kind)).toEqual(["narration", "attack"]);
+    expect(state.messages.map((message) => message.kind)).toEqual(["narration", "damage"]);
     const monk = state.world.stages
       .flatMap((stage) => stage.actors)
       .find((actor) => actor.name === "提灯修士");

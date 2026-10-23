@@ -24,6 +24,7 @@ import {
   createGame,
   getGameState,
   isCommunicationAction,
+  isInteractPurposeKind,
   listPlayerControlledActorIds,
   playerAttack,
   playerCommunicate,
@@ -55,7 +56,7 @@ const options = {
   target: { type: "string" },
   to: { type: "string" },
   stage: { type: "string" },
-  skill: { type: "string" },
+  purpose: { type: "string" },
   item: { type: "string" },
   reason: { type: "string" },
 } as const;
@@ -100,7 +101,7 @@ function usage(): void {
       "agent-game player-communicate --game <gameId|slug> --actor <actorId|actorName> --mode say|whisper|announce [--target <actorName>] [--reason <text>] --message <text>",
       "agent-game player-attack --game <gameId|slug> --actor <actorId|actorName> --target <actorName> [--item <itemName>]",
       "agent-game player-move --game <gameId|slug> --actor <actorId|actorName> --to <stageName>",
-      "agent-game player-interact --game <gameId|slug> --actor <actorId|actorName> --skill <key> [--target <actorName>] [--stage <stageName>] [--item <itemName>]",
+      "agent-game player-interact --game <gameId|slug> --actor <actorId|actorName> --purpose damage|steal|give|pickup|use [--target <actorName>] [--stage <stageName>] [--item <itemName>]",
       "agent-game snapshot --game <gameId|slug> [--root <dir>]",
     ],
   });
@@ -262,16 +263,17 @@ async function main(): Promise<void> {
     if (typeof values.game !== "string" || typeof values.actor !== "string") {
       throw new Error("player-interact 需要 --game 与 --actor");
     }
-    if (typeof values.skill !== "string" || values.skill.trim().length === 0) {
-      throw new Error("player-interact 需要 --skill");
+    const rawPurpose = values.purpose;
+    if (!isInteractPurposeKind(rawPurpose)) {
+      throw new Error("player-interact 需要 --purpose damage|steal|give|pickup|use");
     }
 
     const gameRef = values.game;
     const actorRef = values.actor;
-    const skillKey = values.skill;
+    const purpose = rawPurpose;
     const result = await withDatabase((db) =>
       playerInteract(db, gameRef, actorRef, {
-        skillKey,
+        purpose,
         ...(typeof values.target === "string" ? { targetActorName: values.target } : {}),
         ...(typeof values.stage === "string" ? { targetStageName: values.stage } : {}),
         ...(typeof values.item === "string" ? { itemName: values.item } : {}),
