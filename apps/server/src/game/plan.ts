@@ -186,7 +186,8 @@ ${lines.join("\n")}`;
 
 /** 渲染同场景目标角色，供 get_actor 工具返回。 */
 export function describeActor(actor: ActorState): string {
-  return `${describeStats(actor)}
+  return `外观：${actor.appearance}
+${describeStats(actor)}
 ${describeItems(actor)}`;
 }
 

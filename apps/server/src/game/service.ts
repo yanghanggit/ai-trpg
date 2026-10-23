@@ -14,6 +14,7 @@ import {
   worlds,
 } from "../db/schema";
 import { dumpSystemPrompts } from "../debug/prompt-dump";
+import { resolveAppearance } from "./body";
 import { GameError } from "./errors";
 import { toItemState } from "./items";
 import {
@@ -170,6 +171,7 @@ export async function getGameState(db: Database, ref: string): Promise<GameState
       id: actor.id,
       name: actor.name,
       profile: actor.profile,
+      appearance: actor.appearance,
       baseBody: actor.baseBody,
       stats: actor.stats,
       status: actor.status,
@@ -365,6 +367,7 @@ export async function createGame(db: Database, input: CreateGameInput): Promise<
         stageId: actorStageId,
         name: actor.name,
         profile: actor.profile,
+        appearance: resolveAppearance(actor),
         baseBody: actor.baseBody,
         stats: actor.stats,
         status: actor.status ?? "alive",
@@ -396,7 +399,13 @@ export async function createGame(db: Database, input: CreateGameInput): Promise<
       await createActorMemory(
         tx,
         gameId,
-        { id: actorId, name: actor.name, profile: actor.profile, baseBody: actor.baseBody },
+        {
+          id: actorId,
+          name: actor.name,
+          profile: actor.profile,
+          appearance: resolveAppearance(actor),
+          baseBody: actor.baseBody,
+        },
         actorPrompt,
       );
     }

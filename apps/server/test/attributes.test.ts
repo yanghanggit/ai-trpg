@@ -6,7 +6,7 @@ import {
   ITEM_ATTRIBUTE_KEYS,
   sumAttribute,
 } from "../src/game/attributes";
-import { formatBaseBody } from "../src/game/body";
+import { formatBaseBody, resolveAppearance } from "../src/game/body";
 import { toItemState } from "../src/game/items";
 
 const ROW = {
@@ -78,9 +78,15 @@ describe("item state", () => {
 });
 
 describe("base body", () => {
+  const baseBody = { race: "人类", description: "皮肤灰白，关节干涩。" };
+
   it("exports race plus the naked appearance snapshot", () => {
-    expect(formatBaseBody({ race: "人类", description: "皮肤灰白，关节干涩。" })).toBe(
-      "[人类] 皮肤灰白，关节干涩。",
-    );
+    expect(formatBaseBody(baseBody)).toBe("[人类] 皮肤灰白，关节干涩。");
+  });
+
+  it("prefers explicit appearance and falls back to the body for animals", () => {
+    expect(resolveAppearance({ baseBody, appearance: "披着旧斗篷。" })).toBe("披着旧斗篷。");
+    expect(resolveAppearance({ baseBody, appearance: "  " })).toBe(baseBody.description);
+    expect(resolveAppearance({ baseBody })).toBe(baseBody.description);
   });
 });

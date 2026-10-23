@@ -64,6 +64,8 @@ export type Actor = {
   stageKey: string;
   name: string;
   profile: string;
+  /** 当前可见外观（含衣着/装备）；省略时回退到 baseBody.description。 */
+  appearance?: string;
   baseBody: BaseBody;
   stats: ActorStats;
   status?: ActorStatus;
@@ -221,6 +223,7 @@ export type ActorState = {
   id: string;
   name: string;
   profile: string;
+  appearance: string;
   baseBody: BaseBody;
   stats: ActorStats;
   status: ActorStatus;

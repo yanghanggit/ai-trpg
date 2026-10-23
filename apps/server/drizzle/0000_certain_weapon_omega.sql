@@ -12,6 +12,7 @@ CREATE TABLE "actors" (
 	"stage_id" uuid NOT NULL,
 	"name" text NOT NULL,
 	"profile" text NOT NULL,
+	"appearance" text NOT NULL,
 	"base_body" jsonb NOT NULL,
 	"stats" jsonb NOT NULL,
 	"status" text DEFAULT 'alive' NOT NULL,

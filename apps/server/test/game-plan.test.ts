@@ -127,7 +127,8 @@ describe("read-only descriptions", () => {
       id: "actor-1",
       name: "守烬人",
       profile: "拾荒者",
-      baseBody: { race: "人类", description: "披着旧斗篷。" },
+      appearance: "披着旧斗篷。",
+      baseBody: { race: "人类", description: "瘦削，手腕有旧绳痕。" },
       stats: { hp: 12, maxHp: 12, attack: 3, defense: 2, speed: 4 },
       status: "alive" as const,
       actions: [
@@ -158,6 +159,7 @@ describe("read-only descriptions", () => {
     expect(describeStats(actor)).toContain("状态：存活");
     expect(describeItems(actor)).toContain("裂齿短刃（weapon，count 1）：刃口崩了三处。");
     expect(describeItems({ items: [] })).toBe("物品：无");
+    expect(describeActor(actor)).toContain("外观：披着旧斗篷。");
     expect(describeActor(actor)).toContain("裂齿短刃");
   });
 });

@@ -1,5 +1,5 @@
 {
-  "id": "dce3f680-d524-4c97-8e57-2ea8858a6cdd",
+  "id": "17e2ff18-0064-4e78-a75d-1527b03b1276",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "version": "7",
   "dialect": "postgresql",
@@ -120,6 +120,12 @@
         },
         "profile": {
           "name": "profile",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "appearance": {
+          "name": "appearance",
           "type": "text",
           "primaryKey": false,
           "notNull": true

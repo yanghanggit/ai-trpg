@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { DARK_FANTASY_WORLD } from "../seeds/dark-fantasy";
+import { resolveAppearance } from "../src/game/body";
 
 const { stages } = DARK_FANTASY_WORLD;
 
@@ -62,6 +63,17 @@ describe("dark fantasy seed world", () => {
     expect(king?.stats.defense).toBeGreaterThan(king?.stats.attack ?? 0);
     expect(king?.profile).toContain("沉睡在地窖");
     expect(king?.profile).toContain("苏醒前你的计划只能包含 wait");
+  });
+
+  it("keeps human appearance clothed and lets animals fall back to base body", () => {
+    const keeper = DARK_FANTASY_WORLD.actors.find((actor) => actor.name === "角色.奥德里克");
+    const king = DARK_FANTASY_WORLD.actors.find((actor) => actor.name === "角色.鼠王");
+    if (!king) {
+      throw new Error("缺少鼠王");
+    }
+    expect(keeper?.appearance).toContain("斗篷");
+    expect(king.appearance).toBeUndefined();
+    expect(resolveAppearance(king)).toBe(king.baseBody.description);
   });
 
   it("encodes the plague backstory in the world text", () => {

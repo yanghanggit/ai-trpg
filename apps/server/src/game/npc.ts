@@ -21,7 +21,6 @@ import {
   otherActorsInStage,
 } from "./actors";
 import { applyActorPlan } from "./apply";
-import { formatBaseBody } from "./body";
 import { DEFAULT_NPC_MAX_ROUNDS, MAX_ACTIONS_PER_TURN } from "./constants";
 import { isPlayerControlled } from "./control";
 import { GameError } from "./errors";
@@ -62,7 +61,7 @@ export function buildActorObservation(state: GameState, current: ActorWithStage)
       : others
           .map(
             (actor) =>
-              `${actor.name}：${formatBaseBody(actor.baseBody)}${actor.status === "dead" ? "（已死亡）" : ""}`,
+              `${actor.name}：${actor.appearance}${actor.status === "dead" ? "（已死亡）" : ""}`,
           )
           .join("\n");
   const itemLines =

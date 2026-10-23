@@ -135,6 +135,7 @@ export const actors = pgTable("actors", {
     .references(() => stages.id, { onDelete: "cascade" }),
   name: text("name").notNull(),
   profile: text("profile").notNull(),
+  appearance: text("appearance").notNull(),
   baseBody: jsonb("base_body").$type<BaseBody>().notNull(),
   stats: jsonb("stats").$type<ActorStats>().notNull(),
   status: text("status").$type<ActorStatus>().notNull().default("alive"),
