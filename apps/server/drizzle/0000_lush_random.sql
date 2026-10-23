@@ -19,7 +19,6 @@ CREATE TABLE "actors" (
 	"defense" integer NOT NULL,
 	"speed" integer NOT NULL,
 	"death" boolean DEFAULT false NOT NULL,
-	"status_effects" jsonb DEFAULT '[]'::jsonb NOT NULL,
 	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
 	"updated_at" timestamp with time zone DEFAULT now() NOT NULL
 );

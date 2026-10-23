@@ -10,9 +10,11 @@ import {
   getGameMemories,
   getGameState,
   isPlayerControlled,
+  playerAnnounce,
   playerAttack,
-  playerCommunicate,
   playerMove,
+  playerSay,
+  playerWhisper,
   releaseActorControl,
   runNpcTurn,
   takeActorControl,
@@ -63,27 +65,24 @@ describe.skipIf(!testDatabaseUrl)("player takeover", () => {
       }),
     ).rejects.toThrow("已被玩家接管");
 
-    const said = await playerCommunicate(handle.db, game.game.slug, "守烬人", {
-      mode: "say",
+    const said = await playerSay(handle.db, game.game.slug, "守烬人", {
       targetActorName: "提灯修士",
       message: "公开对你说。",
       reason: "先确认他是否听见钟声。",
     });
     expect(said.ok).toBe(true);
-    expect(said.plan?.intents[0]).toMatchObject({
-      kind: "communication",
+    expect(said.plan?.actions[0]).toMatchObject({
+      kind: "say",
       mind: "先确认他是否听见钟声。",
     });
 
-    const whispered = await playerCommunicate(handle.db, game.game.slug, "守烬人", {
-      mode: "whisper",
+    const whispered = await playerWhisper(handle.db, game.game.slug, "守烬人", {
       targetActorName: "提灯修士",
       message: "这是一句秘密。",
     });
     expect(whispered.ok).toBe(true);
 
-    const announced = await playerCommunicate(handle.db, game.game.slug, "守烬人", {
-      mode: "announce",
+    const announced = await playerAnnounce(handle.db, game.game.slug, "守烬人", {
       message: "所有人都听着。",
     });
     expect(announced.ok).toBe(true);
@@ -142,9 +141,8 @@ describe.skipIf(!testDatabaseUrl)("player takeover", () => {
       targetStageName: "断钟中殿",
     });
     expect(moved.ok).toBe(true);
-    expect(moved.plan?.intents[0]).toMatchObject({
-      kind: "movement",
-      mode: "move",
+    expect(moved.plan?.actions[0]).toMatchObject({
+      kind: "move",
       targetStageName: "断钟中殿",
     });
 
@@ -168,15 +166,15 @@ describe.skipIf(!testDatabaseUrl)("player takeover", () => {
       targetActorName: "提灯修士",
     });
     expect(attacked.ok).toBe(true);
-    expect(attacked.plan?.intents[0]).toMatchObject({
-      kind: "interact",
+    expect(attacked.plan?.actions[0]).toMatchObject({
+      kind: "attack",
       itemNames: [],
-      purpose: { kind: "damage", targetActorName: "提灯修士" },
+      targetActorName: "提灯修士",
     });
 
     const state = await getGameState(handle.db, game.game.slug);
     expect(state.game.version).toBe(1);
-    expect(state.messages.map((message) => message.kind)).toEqual(["narration", "damage"]);
+    expect(state.messages.map((message) => message.kind)).toEqual(["narration", "attack"]);
     const monk = state.world.stages
       .flatMap((stage) => stage.actors)
       .find((actor) => actor.name === "提灯修士");

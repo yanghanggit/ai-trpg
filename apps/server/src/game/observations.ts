@@ -2,18 +2,14 @@ import { eq } from "drizzle-orm";
 import type { Database } from "../db/pool";
 import { actors } from "../db/schema";
 import type { ChatMessage } from "../llm/types";
-import {
-  type CommunicationActionType,
-  MEMORY_KINDS,
-  type MessageVisibility,
-  visibilityForCommunication,
-} from "./actions";
+import { MEMORY_KINDS } from "./constants";
 import { appendMemoryMessages, loadAgentMemory } from "./memory";
-import type { StageState } from "./types";
+import type { MessageVisibility, StageState } from "./types";
 
 type Executor = Pick<Database, "select" | "insert" | "update">;
 type ActorRow = typeof actors.$inferSelect;
 type ObservationBuilder = (observer: ActorRow) => ChatMessage;
+type TalkKind = "say" | "whisper" | "announce";
 
 async function appendStageObservations(
   executor: Executor,
@@ -227,12 +223,12 @@ export async function appendCommunicationObservations(
   gameId: string,
   stage: Pick<StageState, "id" | "name">,
   speaker: { id: string; name: string },
-  mode: CommunicationActionType,
+  kind: TalkKind,
   target: { id: string; name: string } | undefined,
   message: string,
 ): Promise<void> {
-  if ((mode === "say" || mode === "whisper") && !target) {
-    throw new Error(`${mode} 缺少目标 actor`);
+  if ((kind === "say" || kind === "whisper") && !target) {
+    throw new Error(`${kind} 缺少目标 actor`);
   }
 
   await appendStageObservations(
@@ -240,12 +236,12 @@ export async function appendCommunicationObservations(
     gameId,
     stage.id,
     speaker.id,
-    (observer) => mode !== "whisper" || observer.id === target?.id,
+    (observer) => kind !== "whisper" || observer.id === target?.id,
     (observer) => {
       let content: string;
-      if (mode === "whisper") {
+      if (kind === "whisper") {
         content = `# 你听见\n${speaker.name}对你耳语（场景：${stage.name}）：${message}`;
-      } else if (mode === "say") {
+      } else if (kind === "say") {
         content =
           observer.id === target?.id
             ? `# 你听见\n${speaker.name}对你说（场景：${stage.name}）：${message}`
@@ -259,7 +255,7 @@ export async function appendCommunicationObservations(
         content,
         metadata: {
           kind: MEMORY_KINDS.communicationObservation,
-          visibility: visibilityForCommunication(mode),
+          visibility: kind === "whisper" ? "private" : "stage",
           stageId: stage.id,
           speakerActorId: speaker.id,
           ...(target ? { targetActorId: target.id } : {}),

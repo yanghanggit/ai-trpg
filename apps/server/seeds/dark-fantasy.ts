@@ -115,7 +115,6 @@ export const DARK_FANTASY_WORLD: World = {
           count: 1,
         },
       ],
-      statusEffects: [],
     },
     {
       stageKey: "graveyard",
@@ -129,7 +128,6 @@ export const DARK_FANTASY_WORLD: World = {
       defense: 1,
       speed: 7,
       items: [],
-      statusEffects: [],
     },
     {
       stageKey: "graveyard",
@@ -144,7 +142,6 @@ export const DARK_FANTASY_WORLD: World = {
       defense: 0,
       speed: 10,
       items: [],
-      statusEffects: [],
     },
     {
       stageKey: "crypt",
@@ -159,7 +156,6 @@ export const DARK_FANTASY_WORLD: World = {
       defense: 2,
       speed: 3,
       items: [],
-      statusEffects: [],
     },
     {
       stageKey: "rat-hall",
@@ -174,7 +170,6 @@ export const DARK_FANTASY_WORLD: World = {
       defense: 100,
       speed: 8,
       items: [],
-      statusEffects: [],
     },
   ],
 };

@@ -46,7 +46,6 @@ export const TEST_WORLD: World = {
           block: 0,
         },
       ],
-      statusEffects: [],
     },
     {
       stageKey: "gate",
@@ -66,7 +65,6 @@ export const TEST_WORLD: World = {
           count: 1,
         },
       ],
-      statusEffects: [],
     },
     {
       stageKey: "nave",
@@ -86,7 +84,6 @@ export const TEST_WORLD: World = {
           count: 1,
         },
       ],
-      statusEffects: [],
     },
   ],
 };

@@ -1,25 +1,7 @@
 import type { ToolDefinition } from "../llm/types";
-import {
-  COMMUNICATION_ACTION_TYPES,
-  isCommunicationAction,
-  isMovementAction,
-  MAX_MIND_LENGTH,
-  MOVEMENT_ACTION_TYPES,
-} from "./actions";
 import { adjacentStageNames, findStageByName } from "./actors";
 import { GameError } from "./errors";
-import { INTERACT_PURPOSE_KINDS, isInteractPurposeKind } from "./interact";
-import type {
-  ActorIntent,
-  ActorPlan,
-  ActorState,
-  CommunicationIntent,
-  GameState,
-  InteractIntent,
-  InteractPurpose,
-  InteractPurposeKind,
-  MovementIntent,
-} from "./types";
+import type { ActorState, GameState } from "./types";
 
 /** 构造只读环境查看工具。 */
 export function buildLookTool(state: GameState): ToolDefinition {
@@ -103,7 +85,7 @@ export function buildActorInfoTool(availableTargetActorNames: readonly string[])
     type: "function",
     function: {
       name: "get_actor",
-      description: "查看同场景目标角色的 stats、状态效果与持有的物品。只读。",
+      description: "查看同场景目标角色的 stats 与持有的物品。只读。",
       parameters: {
         type: "object",
         properties: {
@@ -114,133 +96,6 @@ export function buildActorInfoTool(availableTargetActorNames: readonly string[])
           },
         },
         required: ["targetActorName"],
-      },
-    },
-  };
-}
-
-/** 构造沟通 intent 工具；它只把行动加入计划，不直接修改游戏状态。 */
-export function buildCommunicateTool(availableTargetActorNames: readonly string[]): ToolDefinition {
-  return {
-    type: "function",
-    function: {
-      name: "communicate",
-      description:
-        "把一次沟通行动加入本轮计划。say 公开对目标说话；whisper 只让目标听见；announce 向当前场景公开说话。",
-      parameters: {
-        type: "object",
-        properties: {
-          mind: {
-            type: "string",
-            description: `第一人称内心独白，说明为什么这样做，控制在 ${MAX_MIND_LENGTH} 字以内`,
-          },
-          mode: {
-            type: "string",
-            enum: [...COMMUNICATION_ACTION_TYPES],
-            description: "say=有目标公开；whisper=有目标私下；announce=无目标公开",
-          },
-          targetActorName: {
-            type: "string",
-            description: "say/whisper 时必填：当前场景内唯一的沟通对象；announce 留空。",
-            ...(availableTargetActorNames.length > 0 ? { enum: availableTargetActorNames } : {}),
-          },
-          message: {
-            type: "string",
-            description: "你要说出的内容",
-          },
-        },
-        required: ["mind", "mode", "message"],
-      },
-    },
-  };
-}
-
-/** 构造移动 intent 工具；move 与 wait 互斥。 */
-export function buildMoveTool(availableStageNames: readonly string[]): ToolDefinition {
-  return {
-    type: "function",
-    function: {
-      name: "move",
-      description: "把一次移动或等待加入本轮计划。move 移动到相邻场景；wait 留在原地。",
-      parameters: {
-        type: "object",
-        properties: {
-          mode: {
-            type: "string",
-            enum: [...MOVEMENT_ACTION_TYPES],
-            description: "move=移动到相邻场景；wait=留在原地",
-          },
-          targetStageName: {
-            type: "string",
-            description: "move 时必填：目标场景名；wait 留空。",
-            ...(availableStageNames.length > 0 ? { enum: availableStageNames } : {}),
-          },
-        },
-        required: ["mode"],
-      },
-    },
-  };
-}
-
-/**
- * 构造交互 intent 工具。
- *
- * 交互是与沟通、移动平级的第三类顶层行动，语义为三段：
- * 想做什么（`purpose`，交互分支）、用什么道具（`itemName` / `itemNames`）、
- * 对谁做（`targetActorName` / `targetStageName`）。
- */
-export function buildInteractTool(
-  availableTargetActorNames: readonly string[],
-  availableItemNames: readonly string[],
-  currentStageName?: string,
-  selfActorName?: string,
-): ToolDefinition {
-  const targetActorNames = [
-    ...new Set([
-      ...availableTargetActorNames,
-      ...(selfActorName === undefined ? [] : [selfActorName]),
-    ]),
-  ];
-  return {
-    type: "function",
-    function: {
-      name: "interact",
-      description:
-        "把一次交互加入本轮计划。交互 = 想做什么（purpose）+ 用什么道具（itemName/itemNames）+ 对谁做（targetActorName/targetStageName）。damage 是攻击分支；steal/give/pickup/use 分别是取物、给予、拾取与使用道具。交互对象可以是同场景角色、当前场景物品或自己持有的道具，必要时用 get_actor 查看目标持有的物品。",
-      parameters: {
-        type: "object",
-        properties: {
-          purpose: {
-            type: "string",
-            enum: INTERACT_PURPOSE_KINDS,
-            description:
-              "本次交互分支：damage 造成伤害；steal 从目标身上取物；give 把自己的物品交给目标；pickup 拾起当前场景的物品；use 用自己的物品作用于角色或场景",
-          },
-          targetActorName: {
-            type: "string",
-            description: "交互对象角色：damage/steal/give 的目标，或 use 的目标；可以是自己",
-            ...(targetActorNames.length > 0 ? { enum: targetActorNames } : {}),
-          },
-          targetStageName: {
-            type: "string",
-            description: "use 的目标场景；当前只允许 actor 所在场景",
-            ...(currentStageName === undefined ? {} : { enum: [currentStageName] }),
-          },
-          itemName: {
-            type: "string",
-            description:
-              "交互对象物品：steal 要取走的物品、give/use 交出的自身物品、pickup 要拾取的场景物品",
-          },
-          itemNames: {
-            type: "array",
-            items: {
-              type: "string",
-              ...(availableItemNames.length > 0 ? { enum: availableItemNames } : {}),
-            },
-            description: "damage 等交互额外搭配的自身道具；可以为空",
-          },
-        },
-        required: ["purpose"],
       },
     },
   };
@@ -301,11 +156,6 @@ export function describeStats(actor: ActorState): string {
     `defense：${actor.defense}`,
     `speed：${actor.speed}`,
     `状态：${actor.death ? "已死亡" : "存活"}`,
-    `状态效果：${
-      actor.statusEffects.length === 0
-        ? "无"
-        : actor.statusEffects.map((status) => `${status.name}（${status.kind}）`).join("、")
-    }`,
   ].join("\n");
 }
 
@@ -343,159 +193,4 @@ export function lookStage(state: GameState, stageName: string): string {
     `物品：${stage.items.length === 0 ? "无" : stage.items.map((item) => `${item.name}（${item.kind}）：${item.description}`).join("；")}`,
     `可去：${moves.length === 0 ? "无" : moves.join("、")}`,
   ].join("\n");
-}
-
-/** 把 communicate 工具参数转换为沟通 intent；只检查形状。 */
-export function parseCommunication(args: Record<string, unknown>): CommunicationIntent {
-  const mode = args.mode;
-  if (!isCommunicationAction(mode)) {
-    throw new GameError("invalid_action", `非法沟通 mode: ${String(mode)}`);
-  }
-  const message = typeof args.message === "string" ? args.message : "";
-  if (message.trim().length === 0) {
-    throw new GameError("invalid_action", "沟通动作需要非空 message");
-  }
-  const mind = typeof args.mind === "string" ? args.mind.trim() : "";
-  if (mind.length === 0) {
-    throw new GameError("invalid_action", "沟通动作需要非空 mind");
-  }
-  const targetActorName =
-    typeof args.targetActorName === "string" ? args.targetActorName.trim() : undefined;
-  return {
-    kind: "communication",
-    mind,
-    mode,
-    ...(targetActorName ? { targetActorName } : {}),
-    message,
-  };
-}
-
-/** 把 move 工具参数转换为移动 intent；只检查形状。 */
-export function parseMovement(args: Record<string, unknown>): MovementIntent {
-  const mode = args.mode;
-  if (!isMovementAction(mode)) {
-    throw new GameError("invalid_action", `非法移动 mode: ${String(mode)}`);
-  }
-  const targetStageName =
-    typeof args.targetStageName === "string" ? args.targetStageName.trim() : undefined;
-  return {
-    kind: "movement",
-    mode,
-    ...(targetStageName ? { targetStageName } : {}),
-  };
-}
-
-/** 把 interact 工具参数转换为交互 intent；只检查形状。 */
-export function parseInteract(args: Record<string, unknown>): InteractIntent {
-  const rawPurpose = typeof args.purpose === "string" ? args.purpose.trim() : "";
-  if (!isInteractPurposeKind(rawPurpose)) {
-    throw new GameError(
-      "invalid_action",
-      `不支持交互分支: ${rawPurpose}；可选 ${INTERACT_PURPOSE_KINDS.join("/")}`,
-    );
-  }
-  const purposeKind: InteractPurposeKind = rawPurpose;
-
-  const targetActorName =
-    typeof args.targetActorName === "string" ? args.targetActorName.trim() : "";
-  const targetStageName =
-    typeof args.targetStageName === "string" ? args.targetStageName.trim() : "";
-  const itemName = typeof args.itemName === "string" ? args.itemName.trim() : "";
-  const rawItemNames = Array.isArray(args.itemNames) ? args.itemNames : [];
-  const itemNames = [
-    ...new Set(
-      rawItemNames
-        .filter((itemName): itemName is string => typeof itemName === "string")
-        .map((itemName) => itemName.trim())
-        .filter((itemName) => itemName.length > 0),
-    ),
-  ];
-
-  return {
-    kind: "interact",
-    itemNames,
-    purpose: parseInteractPurpose(purposeKind, { targetActorName, targetStageName, itemName }),
-  };
-}
-
-/** 按交互分支校验并组装 purpose；各分支的参数要求集中在这里。 */
-function parseInteractPurpose(
-  purposeKind: InteractPurposeKind,
-  input: { targetActorName: string; targetStageName: string; itemName: string },
-): InteractPurpose {
-  const { targetActorName, targetStageName, itemName } = input;
-  switch (purposeKind) {
-    case "damage":
-      if (targetActorName.length === 0) {
-        throw new GameError("invalid_action", "damage 分支需要非空 targetActorName");
-      }
-      return { kind: "damage", targetActorName };
-    case "steal":
-    case "give":
-      if (targetActorName.length === 0 || itemName.length === 0) {
-        throw new GameError(
-          "invalid_action",
-          `${purposeKind} 分支需要 targetActorName 与 itemName`,
-        );
-      }
-      return { kind: purposeKind, targetActorName, itemName };
-    case "pickup":
-      if (itemName.length === 0) {
-        throw new GameError("invalid_action", "pickup 分支需要非空 itemName");
-      }
-      return { kind: "pickup", itemName };
-    case "use":
-      if (itemName.length === 0) {
-        throw new GameError("invalid_action", "use 分支需要非空 itemName");
-      }
-      if ((targetActorName.length === 0) === (targetStageName.length === 0)) {
-        throw new GameError(
-          "invalid_action",
-          "use 分支需要 targetActorName 或 targetStageName 二选一",
-        );
-      }
-      return {
-        kind: "use",
-        itemName,
-        ...(targetActorName.length > 0 ? { targetActorName } : {}),
-        ...(targetStageName.length > 0 ? { targetStageName } : {}),
-      };
-  }
-}
-
-/** 顶层 intent 类别：沟通、移动、交互三者平级。 */
-export function intentClass(intent: ActorIntent): ActorIntent["kind"] {
-  return intent.kind;
-}
-
-export function intentClassLabel(intentClassValue: ReturnType<typeof intentClass>): string {
-  switch (intentClassValue) {
-    case "communication":
-      return "沟通";
-    case "movement":
-      return "移动";
-    case "interact":
-      return "交互";
-  }
-}
-
-/**
- * 计划槽位：只有两个。沟通独占一个；移动与交互同属行动槽，一轮只能有一个。
- * 槽位只决定互斥，不影响三者平级的语义分类。
- */
-export function intentSlot(intent: ActorIntent): "communication" | "action" {
-  return intent.kind === "communication" ? "communication" : "action";
-}
-
-export function intentSlotLabel(slot: ReturnType<typeof intentSlot>): string {
-  return slot === "communication" ? "沟通" : "移动或交互";
-}
-
-/** 把 intent 加入计划；同槽位只能有一个。 */
-export function addIntent(plan: ActorPlan, intent: ActorIntent): void {
-  const incomingSlot = intentSlot(intent);
-  if (plan.intents.some((existing) => intentSlot(existing) === incomingSlot)) {
-    throw new GameError("invalid_action", `本轮已有${intentSlotLabel(incomingSlot)}行动`);
-  }
-  plan.intents.push(intent);
 }

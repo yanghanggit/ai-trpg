@@ -1,5 +1,5 @@
 {
-  "id": "2a64b857-9abd-4a03-867e-ec68665fa0d2",
+  "id": "08ce053a-e0cf-4662-8869-cb864f127ff1",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "version": "7",
   "dialect": "postgresql",
@@ -166,13 +166,6 @@
           "primaryKey": false,
           "notNull": true,
           "default": false
-        },
-        "status_effects": {
-          "name": "status_effects",
-          "type": "jsonb",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "'[]'::jsonb"
         },
         "created_at": {
           "name": "created_at",

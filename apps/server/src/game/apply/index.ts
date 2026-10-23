@@ -2,37 +2,59 @@ import { and, eq } from "drizzle-orm";
 import type { Database } from "../../db/pool";
 import { actors, games, stages, worlds } from "../../db/schema";
 import type { ChatMessage } from "../../llm/types";
-import { MEMORY_KINDS } from "../actions";
+import { applyAnnounce } from "../actions/announce";
+import { applyAttack } from "../actions/attack";
+import { applyGive } from "../actions/give";
+import { applyMove } from "../actions/move";
+import { applyPickup } from "../actions/pickup";
+import { applySay } from "../actions/say";
+import { applySteal } from "../actions/steal";
+import { applyUse } from "../actions/use";
+import { applyWait } from "../actions/wait";
+import { applyWhisper } from "../actions/whisper";
+import { MAX_ACTIONS_PER_TURN, MEMORY_KINDS } from "../constants";
 import { GameError } from "../errors";
 import { appendMemoryMessages, loadAgentMemory } from "../memory";
 import type { ActorPlan } from "../types";
-import { applyCommunication } from "./communication";
-import { applyInteraction } from "./interact";
-import { applyMovement } from "./movement";
 import { resolvePlan } from "./resolve";
-import type { ActorWithStageRow, Executor, ResolvedIntent } from "./types";
+import type { ActorWithStageRow, Executor, ResolvedAction } from "./types";
 
-async function applyResolvedIntent(
+/** 应用单条已校验的动作；dispatch 是扁平 table，没有分类层。 */
+async function applyResolvedAction(
   executor: Executor,
   gameId: string,
   actorRow: ActorWithStageRow,
-  resolved: ResolvedIntent,
+  resolved: ResolvedAction,
   now: Date,
 ): Promise<string> {
   switch (resolved.kind) {
-    case "communication":
-      return applyCommunication(executor, gameId, actorRow, resolved, now);
-    case "movement":
-      return applyMovement(executor, gameId, actorRow, resolved, now);
-    case "interact":
-      return applyInteraction(executor, gameId, actorRow, resolved, now);
+    case "say":
+      return applySay(executor, gameId, actorRow, resolved, now);
+    case "whisper":
+      return applyWhisper(executor, gameId, actorRow, resolved, now);
+    case "announce":
+      return applyAnnounce(executor, gameId, actorRow, resolved, now);
+    case "move":
+      return applyMove(executor, gameId, actorRow, resolved, now);
+    case "wait":
+      return applyWait(executor, gameId, actorRow, resolved, now);
+    case "attack":
+      return applyAttack(executor, gameId, actorRow, resolved, now);
+    case "steal":
+      return applySteal(executor, gameId, actorRow, resolved, now);
+    case "give":
+      return applyGive(executor, gameId, actorRow, resolved, now);
+    case "pickup":
+      return applyPickup(executor, gameId, actorRow, resolved, now);
+    case "use":
+      return applyUse(executor, gameId, actorRow, resolved, now);
   }
 }
 
 /**
  * 校验并应用一次 actor 计划。
  *
- * 计划中的 intent 按调用顺序执行；非法计划写入拒绝记忆并返回 false。
+ * 计划里的动作按提交顺序执行；非法计划写入拒绝记忆并返回 false。
  * 数据库等意外错误继续抛出，让事务回滚。
  */
 export async function applyActorPlan(
@@ -72,7 +94,7 @@ export async function applyActorPlan(
       throw new GameError("invalid_state", `actor 缺少 memory: ${actorId}`);
     }
 
-    if (!plan || plan.intents.length === 0) {
+    if (!plan || plan.actions.length === 0) {
       await appendMemoryMessages(tx, memory.row.id, [
         ...newMessages,
         {
@@ -84,7 +106,19 @@ export async function applyActorPlan(
       return false;
     }
 
-    let resolved: ResolvedIntent[];
+    if (plan.actions.length > MAX_ACTIONS_PER_TURN) {
+      await appendMemoryMessages(tx, memory.row.id, [
+        ...newMessages,
+        {
+          type: "human",
+          content: `# 行动结果\n行动被拒绝：本轮最多 ${MAX_ACTIONS_PER_TURN} 个行动，实际提交 ${plan.actions.length} 个。`,
+          metadata: { kind: MEMORY_KINDS.actionRejected },
+        },
+      ]);
+      return false;
+    }
+
+    let resolved: ResolvedAction[];
     try {
       resolved = await resolvePlan(tx, world, actorRow, plan);
     } catch (error) {
@@ -107,8 +141,8 @@ export async function applyActorPlan(
     }
 
     const now = new Date();
-    for (const resolvedIntent of resolved) {
-      const feedback = await applyResolvedIntent(tx, gameId, actorRow, resolvedIntent, now);
+    for (const action of resolved) {
+      const feedback = await applyResolvedAction(tx, gameId, actorRow, action, now);
       await appendMemoryMessages(tx, memory.row.id, [
         {
           type: "human",

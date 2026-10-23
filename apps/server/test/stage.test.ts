@@ -8,8 +8,8 @@ import { runMigrations } from "../src/db/migrate";
 import {
   createGame,
   getGameMemories,
-  playerCommunicate,
   playerMove,
+  playerWhisper,
   releaseActorControl,
   runNpcTurn,
   runStageTurn,
@@ -62,7 +62,7 @@ class CapturingWaitService implements ChatCompletionService {
       {
         id: randomUUID(),
         type: "function",
-        function: { name: "move", arguments: JSON.stringify({ mode: "wait" }) },
+        function: { name: "wait", arguments: "{}" },
       },
       {
         id: randomUUID(),
@@ -93,7 +93,7 @@ describe.skipIf(!testDatabaseUrl)("stage mini-GM", () => {
     await handle.pool.end();
   });
 
-  it("records private communication and movement at both scene memories", async () => {
+  it("records private whisper and movement at both scene memories", async () => {
     const created = await createGame(handle.db, {
       username: DEMO_USER.username,
       name: "场景记忆测试局",
@@ -101,8 +101,7 @@ describe.skipIf(!testDatabaseUrl)("stage mini-GM", () => {
     });
     const slug = created.game.slug;
     await takeActorControl(handle.db, slug, "守烬人");
-    await playerCommunicate(handle.db, slug, "守烬人", {
-      mode: "whisper",
+    await playerWhisper(handle.db, slug, "守烬人", {
       targetActorName: "提灯修士",
       message: "别回头。",
     });
@@ -116,9 +115,11 @@ describe.skipIf(!testDatabaseUrl)("stage mini-GM", () => {
     const scribe = memories.find((memory) => memory.name === "缄默抄经人");
 
     expect(gate?.ownerType).toBe("stage");
+    // 耳语内容只进发起者与目标的 memory，场景 memory 只记录“发生过一次耳语”。
     expect(
-      gate?.messages.some((message) => message.content.includes("守烬人对提灯修士耳语：别回头。")),
+      gate?.messages.some((message) => message.content.includes("守烬人对提灯修士耳语。")),
     ).toBe(true);
+    expect(gate?.messages.some((message) => message.content.includes("别回头"))).toBe(false);
     expect(gate?.messages.some((message) => message.content.includes("守烬人离开灰烬门廊"))).toBe(
       true,
     );

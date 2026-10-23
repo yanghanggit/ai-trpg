@@ -1,44 +1,17 @@
 import type { Database } from "../db/pool";
-import type { CommunicationActionType } from "./actions";
 import { findActor } from "./actors";
 import { applyActorPlan } from "./apply";
 import { isPlayerControlled } from "./control";
 import { GameError } from "./errors";
 import { getGameState } from "./service";
-import type { ActorPlan, ActorTurnResult, InteractPurpose, InteractPurposeKind } from "./types";
-
-export type PlayerCommunicationMode = CommunicationActionType;
-
-export type PlayerCommunicationInput = {
-  mode: PlayerCommunicationMode;
-  message: string;
-  targetActorName?: string;
-  reason?: string;
-};
-
-export type PlayerAttackInput = {
-  targetActorName: string;
-  itemNames?: readonly string[];
-};
-
-export type PlayerMoveInput = {
-  targetStageName: string;
-};
-
-export type PlayerInteractInput = {
-  purpose: InteractPurposeKind;
-  targetActorName?: string;
-  targetStageName?: string;
-  itemName?: string;
-  itemNames?: readonly string[];
-};
+import type { ActorAction, ActorPlan, ActorTurnResult } from "./types";
 
 /** 玩家直接提交计划；只允许玩家接管的 actor。 */
-async function applyPlayerPlan(
+async function applyPlayerAction(
   db: Database,
   gameRef: string,
   actorRef: string,
-  plan: ActorPlan,
+  action: ActorAction,
 ): Promise<ActorTurnResult> {
   const state = await getGameState(db, gameRef);
   const actor = findActor(state, actorRef);
@@ -47,6 +20,7 @@ async function applyPlayerPlan(
     throw new GameError("invalid_action", `actor 未被玩家接管: ${actor.name}`);
   }
 
+  const plan: ActorPlan = { actions: [action] };
   const ok = await applyActorPlan(db, state.game.id, actor.id, plan, [], true);
   if (!ok) {
     throw new GameError("invalid_action", "玩家行动被拒绝");
@@ -60,142 +34,188 @@ async function applyPlayerPlan(
   };
 }
 
-/**
- * 玩家直接提交一次沟通行动。
- *
- * 不调用 LLM；actor 必须处于玩家控制下，否则拒绝。
- */
-export async function playerCommunicate(
+/** 玩家提交的说话动作；`reason` 对应工具里的 mind，省略时用固定文案。 */
+export type PlayerTalkInput = {
+  message: string;
+  targetActorName: string;
+  reason?: string;
+};
+
+/** 玩家提交的公开宣告动作。 */
+export type PlayerAnnounceInput = {
+  message: string;
+  reason?: string;
+};
+
+export type PlayerMoveInput = {
+  targetStageName: string;
+};
+
+export type PlayerAttackInput = {
+  targetActorName: string;
+  itemNames?: readonly string[];
+};
+
+export type PlayerStealInput = {
+  targetActorName: string;
+  itemName: string;
+};
+
+export type PlayerGiveInput = {
+  targetActorName: string;
+  itemName: string;
+};
+
+export type PlayerPickupInput = {
+  itemName: string;
+};
+
+export type PlayerUseInput = {
+  itemName: string;
+  targetActorName?: string;
+  targetStageName?: string;
+};
+
+function playerMind(reason: string | undefined): string {
+  return reason?.trim() || "玩家直接提交";
+}
+
+/** 玩家 `say`：对同场景一个角色公开说话。 */
+export async function playerSay(
   db: Database,
   gameRef: string,
   actorRef: string,
-  input: PlayerCommunicationInput,
+  input: PlayerTalkInput,
 ): Promise<ActorTurnResult> {
-  const plan: ActorPlan = {
-    intents: [
-      {
-        kind: "communication",
-        mind: input.reason?.trim() || "玩家直接提交",
-        mode: input.mode,
-        ...(input.targetActorName !== undefined ? { targetActorName: input.targetActorName } : {}),
-        message: input.message,
-      },
-    ],
+  const action: ActorAction = {
+    kind: "say",
+    mind: playerMind(input.reason),
+    targetActorName: input.targetActorName,
+    message: input.message,
   };
-  return applyPlayerPlan(db, gameRef, actorRef, plan);
+  return applyPlayerAction(db, gameRef, actorRef, action);
 }
 
-/**
- * 玩家直接提交一次移动行动。
- *
- * 不调用 LLM；actor 必须处于玩家控制下，否则拒绝。
- */
+/** 玩家 `whisper`：对同场景一个角色耳语，只有对方听见。 */
+export async function playerWhisper(
+  db: Database,
+  gameRef: string,
+  actorRef: string,
+  input: PlayerTalkInput,
+): Promise<ActorTurnResult> {
+  const action: ActorAction = {
+    kind: "whisper",
+    mind: playerMind(input.reason),
+    targetActorName: input.targetActorName,
+    message: input.message,
+  };
+  return applyPlayerAction(db, gameRef, actorRef, action);
+}
+
+/** 玩家 `announce`：向当前场景公开说话。 */
+export async function playerAnnounce(
+  db: Database,
+  gameRef: string,
+  actorRef: string,
+  input: PlayerAnnounceInput,
+): Promise<ActorTurnResult> {
+  const action: ActorAction = {
+    kind: "announce",
+    mind: playerMind(input.reason),
+    message: input.message,
+  };
+  return applyPlayerAction(db, gameRef, actorRef, action);
+}
+
+/** 玩家 `move`：沿连接移动到相邻场景。 */
 export async function playerMove(
   db: Database,
   gameRef: string,
   actorRef: string,
   input: PlayerMoveInput,
 ): Promise<ActorTurnResult> {
-  const plan: ActorPlan = {
-    intents: [{ kind: "movement", mode: "move", targetStageName: input.targetStageName }],
-  };
-  return applyPlayerPlan(db, gameRef, actorRef, plan);
+  const action: ActorAction = { kind: "move", targetStageName: input.targetStageName };
+  return applyPlayerAction(db, gameRef, actorRef, action);
 }
 
-/** 按交互分支校验玩家输入并组装 purpose；参数要求与工具侧保持一致。 */
-function playerInteractPurpose(input: PlayerInteractInput): InteractPurpose {
-  const targetActorName = input.targetActorName?.trim() ?? "";
-  const targetStageName = input.targetStageName?.trim() ?? "";
-  const itemName = input.itemName?.trim() ?? "";
-
-  switch (input.purpose) {
-    case "damage":
-      if (targetActorName.length === 0) {
-        throw new GameError("invalid_action", "damage 分支需要 targetActorName");
-      }
-      return { kind: "damage", targetActorName };
-    case "steal":
-    case "give":
-      if (targetActorName.length === 0 || itemName.length === 0) {
-        throw new GameError(
-          "invalid_action",
-          `${input.purpose} 分支需要 targetActorName 与 itemName`,
-        );
-      }
-      return { kind: input.purpose, targetActorName, itemName };
-    case "pickup":
-      if (itemName.length === 0) {
-        throw new GameError("invalid_action", "pickup 分支需要 itemName");
-      }
-      return { kind: "pickup", itemName };
-    case "use":
-      if (itemName.length === 0 || targetActorName.length + targetStageName.length === 0) {
-        throw new GameError(
-          "invalid_action",
-          "use 分支需要 itemName 与 targetActorName / targetStageName 之一",
-        );
-      }
-      if (targetActorName.length > 0 && targetStageName.length > 0) {
-        throw new GameError(
-          "invalid_action",
-          "use 分支需要 targetActorName 或 targetStageName 二选一",
-        );
-      }
-      return {
-        kind: "use",
-        itemName,
-        ...(targetActorName.length > 0 ? { targetActorName } : {}),
-        ...(targetStageName.length > 0 ? { targetStageName } : {}),
-      };
-  }
-}
-
-/**
- * 玩家直接提交一次交互。
- *
- * 交互 = 目的 + 道具；不调用 LLM；actor 必须处于玩家控制下，否则拒绝。
- */
-export async function playerInteract(
+/** 玩家 `wait`：留在原地。 */
+export async function playerWait(
   db: Database,
   gameRef: string,
   actorRef: string,
-  input: PlayerInteractInput,
 ): Promise<ActorTurnResult> {
-  const state = await getGameState(db, gameRef);
-  findActor(state, actorRef);
-  const plan: ActorPlan = {
-    intents: [
-      {
-        kind: "interact",
-        itemNames: input.itemNames ?? [],
-        purpose: playerInteractPurpose(input),
-      },
-    ],
-  };
-  return applyPlayerPlan(db, gameRef, actorRef, plan);
+  const action: ActorAction = { kind: "wait" };
+  return applyPlayerAction(db, gameRef, actorRef, action);
 }
 
-/**
- * 玩家直接提交一次攻击；它是 `damage` 分支的交互快捷入口。
- *
- * 不调用 LLM；actor 必须处于玩家控制下，否则拒绝。
- */
+/** 玩家 `attack`：攻击同场景一个角色，可搭配自己持有的武器。 */
 export async function playerAttack(
   db: Database,
   gameRef: string,
   actorRef: string,
   input: PlayerAttackInput,
 ): Promise<ActorTurnResult> {
-  const state = await getGameState(db, gameRef);
-  findActor(state, actorRef);
-  const plan: ActorPlan = {
-    intents: [
-      {
-        kind: "interact",
-        itemNames: input.itemNames ?? [],
-        purpose: { kind: "damage", targetActorName: input.targetActorName },
-      },
-    ],
+  const action: ActorAction = {
+    kind: "attack",
+    targetActorName: input.targetActorName,
+    itemNames: input.itemNames ?? [],
   };
-  return applyPlayerPlan(db, gameRef, actorRef, plan);
+  return applyPlayerAction(db, gameRef, actorRef, action);
+}
+
+/** 玩家 `steal`：从同场景一个角色身上取走一件物品。 */
+export async function playerSteal(
+  db: Database,
+  gameRef: string,
+  actorRef: string,
+  input: PlayerStealInput,
+): Promise<ActorTurnResult> {
+  const action: ActorAction = {
+    kind: "steal",
+    targetActorName: input.targetActorName,
+    itemName: input.itemName,
+  };
+  return applyPlayerAction(db, gameRef, actorRef, action);
+}
+
+/** 玩家 `give`：把自己的一件物品交给同场景一个存活角色。 */
+export async function playerGive(
+  db: Database,
+  gameRef: string,
+  actorRef: string,
+  input: PlayerGiveInput,
+): Promise<ActorTurnResult> {
+  const action: ActorAction = {
+    kind: "give",
+    targetActorName: input.targetActorName,
+    itemName: input.itemName,
+  };
+  return applyPlayerAction(db, gameRef, actorRef, action);
+}
+
+/** 玩家 `pickup`：拾起当前场景中的一件物品。 */
+export async function playerPickup(
+  db: Database,
+  gameRef: string,
+  actorRef: string,
+  input: PlayerPickupInput,
+): Promise<ActorTurnResult> {
+  const action: ActorAction = { kind: "pickup", itemName: input.itemName };
+  return applyPlayerAction(db, gameRef, actorRef, action);
+}
+
+/** 玩家 `use`：用自己的物品作用于一个角色或当前场景。 */
+export async function playerUse(
+  db: Database,
+  gameRef: string,
+  actorRef: string,
+  input: PlayerUseInput,
+): Promise<ActorTurnResult> {
+  const action: ActorAction = {
+    kind: "use",
+    itemName: input.itemName,
+    ...(input.targetActorName !== undefined ? { targetActorName: input.targetActorName } : {}),
+    ...(input.targetStageName !== undefined ? { targetStageName: input.targetStageName } : {}),
+  };
+  return applyPlayerAction(db, gameRef, actorRef, action);
 }

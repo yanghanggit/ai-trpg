@@ -3,7 +3,7 @@ import { and, asc, eq, sql } from "drizzle-orm";
 import type { Database } from "../db/pool";
 import { agentMemories, agentMemoryMessages, type JsonValue } from "../db/schema";
 import type { ChatMessage, ToolCall } from "../llm/types";
-import { MEMORY_KINDS } from "./actions";
+import { MEMORY_KINDS } from "./constants";
 import type { Actor, AgentMemoryMessageState, AgentMemoryState, Stage } from "./types";
 
 type Executor = Pick<Database, "select" | "insert" | "update">;

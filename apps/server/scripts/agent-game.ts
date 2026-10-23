@@ -23,13 +23,17 @@ import { DEEPSEEK_SERVICE } from "../src/deepseek";
 import {
   createGame,
   getGameState,
-  isCommunicationAction,
-  isInteractPurposeKind,
   listPlayerControlledActorIds,
+  playerAnnounce,
   playerAttack,
-  playerCommunicate,
-  playerInteract,
+  playerGive,
   playerMove,
+  playerPickup,
+  playerSay,
+  playerSteal,
+  playerUse,
+  playerWait,
+  playerWhisper,
   releaseActorControl,
   runNpcTurn,
   runProbe,
@@ -56,7 +60,6 @@ const options = {
   target: { type: "string" },
   to: { type: "string" },
   stage: { type: "string" },
-  purpose: { type: "string" },
   item: { type: "string" },
   reason: { type: "string" },
 } as const;
@@ -98,13 +101,61 @@ function usage(): void {
       "agent-game probe --game <gameId|slug> --stage <stageId|stageName> --message <text>",
       "agent-game take-control --game <gameId|slug> --actor <actorId|actorName>",
       "agent-game release-control --game <gameId|slug> --actor <actorId|actorName>",
-      "agent-game player-communicate --game <gameId|slug> --actor <actorId|actorName> --mode say|whisper|announce [--target <actorName>] [--reason <text>] --message <text>",
-      "agent-game player-attack --game <gameId|slug> --actor <actorId|actorName> --target <actorName> [--item <itemName>]",
+      "agent-game player-say --game <gameId|slug> --actor <actorId|actorName> --target <actorName> --message <text> [--reason <text>]",
+      "agent-game player-whisper --game <gameId|slug> --actor <actorId|actorName> --target <actorName> --message <text> [--reason <text>]",
+      "agent-game player-announce --game <gameId|slug> --actor <actorId|actorName> --message <text> [--reason <text>]",
       "agent-game player-move --game <gameId|slug> --actor <actorId|actorName> --to <stageName>",
-      "agent-game player-interact --game <gameId|slug> --actor <actorId|actorName> --purpose damage|steal|give|pickup|use [--target <actorName>] [--stage <stageName>] [--item <itemName>]",
+      "agent-game player-wait --game <gameId|slug> --actor <actorId|actorName>",
+      "agent-game player-attack --game <gameId|slug> --actor <actorId|actorName> --target <actorName> [--item <itemName>]",
+      "agent-game player-steal --game <gameId|slug> --actor <actorId|actorName> --target <actorName> --item <itemName>",
+      "agent-game player-give --game <gameId|slug> --actor <actorId|actorName> --target <actorName> --item <itemName>",
+      "agent-game player-pickup --game <gameId|slug> --actor <actorId|actorName> --item <itemName>",
+      "agent-game player-use --game <gameId|slug> --actor <actorId|actorName> --item <itemName> (--target <actorName> | --stage <stageName>)",
       "agent-game snapshot --game <gameId|slug> [--root <dir>]",
     ],
   });
+}
+
+/** 读取 player-* 命令共用的 --game / --actor。 */
+function requireActorArgs(
+  values: Record<string, string | boolean | undefined>,
+  command: string,
+): { game: string; actor: string } {
+  if (typeof values.game !== "string" || typeof values.actor !== "string") {
+    throw new Error(`${command} 需要 --game 与 --actor`);
+  }
+  return { game: values.game, actor: values.actor };
+}
+
+/** 读取说话类命令共用的参数；announce 不需要 --target。 */
+function requireTalkArgs(
+  values: Record<string, string | boolean | undefined>,
+  command: string,
+  requiresTarget = true,
+): { game: string; actor: string; message: string; target: string } {
+  const { game, actor } = requireActorArgs(values, command);
+  if (typeof values.message !== "string" || values.message.trim().length === 0) {
+    throw new Error(`${command} 需要非空 --message`);
+  }
+  const target = typeof values.target === "string" ? values.target : "";
+  if (requiresTarget && target.trim().length === 0) {
+    throw new Error(`${command} 需要 --target <actorName>`);
+  }
+  return { game, actor, message: values.message, target };
+}
+
+/** 读取 steal / give 共用的参数。 */
+function requireTargetItemArgs(
+  values: Record<string, string | boolean | undefined>,
+  command: string,
+): { game: string; actor: string; target: string; item: string } {
+  const { game, actor } = requireActorArgs(values, command);
+  const target = typeof values.target === "string" ? values.target : "";
+  const item = typeof values.item === "string" ? values.item : "";
+  if (target.trim().length === 0 || item.trim().length === 0) {
+    throw new Error(`${command} 需要 --target <actorName> 与 --item <itemName>`);
+  }
+  return { game, actor, target, item };
 }
 
 function parseWorld(values: Record<string, string | boolean | undefined>): Promise<JsonValue> {
@@ -199,117 +250,112 @@ async function main(): Promise<void> {
     return;
   }
 
-  if (command === "player-communicate") {
-    if (typeof values.game !== "string" || typeof values.actor !== "string") {
-      throw new Error("player-communicate 需要 --game 与 --actor");
-    }
-    if (!isCommunicationAction(values.mode)) {
-      throw new Error("player-communicate 需要 --mode say|whisper|announce");
-    }
-    if (typeof values.message !== "string" || values.message.trim().length === 0) {
-      throw new Error("player-communicate 需要非空 --message");
-    }
-    if ((values.mode === "say" || values.mode === "whisper") && typeof values.target !== "string") {
-      throw new Error(`${values.mode} 需要 --target`);
-    }
-
-    const gameRef = values.game;
-    const actorRef = values.actor;
-    const mode = values.mode;
-    const message = values.message;
-    const targetActorName = typeof values.target === "string" ? values.target : undefined;
+  if (command === "player-say" || command === "player-whisper") {
+    const { game, actor, message, target } = requireTalkArgs(values, command);
     const reason = typeof values.reason === "string" ? values.reason : undefined;
     const result = await withDatabase((db) =>
-      playerCommunicate(db, gameRef, actorRef, {
-        mode,
+      command === "player-say"
+        ? playerSay(db, game, actor, {
+            message,
+            targetActorName: target,
+            ...(reason !== undefined ? { reason } : {}),
+          })
+        : playerWhisper(db, game, actor, {
+            message,
+            targetActorName: target,
+            ...(reason !== undefined ? { reason } : {}),
+          }),
+    );
+    emit({ ok: true, action: command, plan: result.plan, state: result.state });
+    return;
+  }
+
+  if (command === "player-announce") {
+    const { game, actor, message } = requireTalkArgs(values, command, false);
+    const reason = typeof values.reason === "string" ? values.reason : undefined;
+    const result = await withDatabase((db) =>
+      playerAnnounce(db, game, actor, {
         message,
-        ...(targetActorName !== undefined ? { targetActorName } : {}),
         ...(reason !== undefined ? { reason } : {}),
       }),
     );
-    emit({
-      ok: true,
-      action: "player-communicate",
-      plan: result.plan,
-      state: result.state,
-    });
+    emit({ ok: true, action: command, plan: result.plan, state: result.state });
     return;
   }
 
   if (command === "player-move") {
-    if (typeof values.game !== "string" || typeof values.actor !== "string") {
-      throw new Error("player-move 需要 --game 与 --actor");
-    }
+    const { game, actor } = requireActorArgs(values, command);
     if (typeof values.to !== "string" || values.to.trim().length === 0) {
       throw new Error("player-move 需要 --to <stageName>");
     }
-
-    const gameRef = values.game;
-    const actorRef = values.actor;
-    const targetStageName = values.to;
     const result = await withDatabase((db) =>
-      playerMove(db, gameRef, actorRef, { targetStageName }),
+      playerMove(db, game, actor, { targetStageName: values.to as string }),
     );
-    emit({
-      ok: true,
-      action: "player-move",
-      plan: result.plan,
-      state: result.state,
-    });
+    emit({ ok: true, action: command, plan: result.plan, state: result.state });
     return;
   }
 
-  if (command === "player-interact") {
-    if (typeof values.game !== "string" || typeof values.actor !== "string") {
-      throw new Error("player-interact 需要 --game 与 --actor");
-    }
-    const rawPurpose = values.purpose;
-    if (!isInteractPurposeKind(rawPurpose)) {
-      throw new Error("player-interact 需要 --purpose damage|steal|give|pickup|use");
-    }
-
-    const gameRef = values.game;
-    const actorRef = values.actor;
-    const purpose = rawPurpose;
-    const result = await withDatabase((db) =>
-      playerInteract(db, gameRef, actorRef, {
-        purpose,
-        ...(typeof values.target === "string" ? { targetActorName: values.target } : {}),
-        ...(typeof values.stage === "string" ? { targetStageName: values.stage } : {}),
-        ...(typeof values.item === "string" ? { itemName: values.item } : {}),
-        ...(typeof values.item === "string" ? { itemNames: [values.item] } : {}),
-      }),
-    );
-    emit({
-      ok: true,
-      action: "player-interact",
-      plan: result.plan,
-      state: result.state,
-    });
+  if (command === "player-wait") {
+    const { game, actor } = requireActorArgs(values, command);
+    const result = await withDatabase((db) => playerWait(db, game, actor));
+    emit({ ok: true, action: command, plan: result.plan, state: result.state });
     return;
   }
 
   if (command === "player-attack") {
-    if (typeof values.game !== "string" || typeof values.actor !== "string") {
-      throw new Error("player-attack 需要 --game 与 --actor");
-    }
+    const { game, actor } = requireActorArgs(values, command);
     if (typeof values.target !== "string" || values.target.trim().length === 0) {
-      throw new Error("player-attack 需要 --target");
+      throw new Error("player-attack 需要 --target <actorName>");
     }
-
-    const gameRef = values.game;
-    const actorRef = values.actor;
-    const targetActorName = values.target;
     const itemNames = typeof values.item === "string" ? [values.item] : [];
     const result = await withDatabase((db) =>
-      playerAttack(db, gameRef, actorRef, { targetActorName, itemNames }),
+      playerAttack(db, game, actor, { targetActorName: values.target as string, itemNames }),
     );
-    emit({
-      ok: true,
-      action: "player-attack",
-      plan: result.plan,
-      state: result.state,
-    });
+    emit({ ok: true, action: command, plan: result.plan, state: result.state });
+    return;
+  }
+
+  if (command === "player-steal" || command === "player-give") {
+    const { game, actor, target, item } = requireTargetItemArgs(values, command);
+    const result = await withDatabase((db) =>
+      command === "player-steal"
+        ? playerSteal(db, game, actor, { targetActorName: target, itemName: item })
+        : playerGive(db, game, actor, { targetActorName: target, itemName: item }),
+    );
+    emit({ ok: true, action: command, plan: result.plan, state: result.state });
+    return;
+  }
+
+  if (command === "player-pickup") {
+    const { game, actor } = requireActorArgs(values, command);
+    if (typeof values.item !== "string" || values.item.trim().length === 0) {
+      throw new Error("player-pickup 需要 --item <itemName>");
+    }
+    const result = await withDatabase((db) =>
+      playerPickup(db, game, actor, { itemName: values.item as string }),
+    );
+    emit({ ok: true, action: command, plan: result.plan, state: result.state });
+    return;
+  }
+
+  if (command === "player-use") {
+    const { game, actor } = requireActorArgs(values, command);
+    if (typeof values.item !== "string" || values.item.trim().length === 0) {
+      throw new Error("player-use 需要 --item <itemName>");
+    }
+    const targetActorName = typeof values.target === "string" ? values.target : undefined;
+    const targetStageName = typeof values.stage === "string" ? values.stage : undefined;
+    if ((targetActorName === undefined) === (targetStageName === undefined)) {
+      throw new Error("player-use 需要 --target 或 --stage 二选一");
+    }
+    const result = await withDatabase((db) =>
+      playerUse(db, game, actor, {
+        itemName: values.item as string,
+        ...(targetActorName !== undefined ? { targetActorName } : {}),
+        ...(targetStageName !== undefined ? { targetStageName } : {}),
+      }),
+    );
+    emit({ ok: true, action: command, plan: result.plan, state: result.state });
     return;
   }
 

@@ -11,11 +11,11 @@ import { resetDomainData, seedDemoData } from "../src/db/maintenance";
 import { runMigrations } from "../src/db/migrate";
 import { loadSnapshot } from "../src/debug/snapshot";
 import {
+  type ActorAction,
   type ActorPlan,
   createGame,
   getGameMemories,
   getGameState,
-  type InteractIntent,
   runNpcTurn,
   snapshotGame,
 } from "../src/game";
@@ -23,12 +23,9 @@ import { ChatCompletionResult, type ChatCompletionService, type ToolCall } from 
 
 const testDatabaseUrl = process.env.TEST_DATABASE_URL?.trim();
 
-function attackIntent(targetActorName: string): InteractIntent {
-  return {
-    kind: "interact",
-    itemNames: [],
-    purpose: { kind: "damage", targetActorName },
-  };
+/** 攻击动作：十个平级动作之一。 */
+function attackAction(targetActorName: string): ActorAction {
+  return { kind: "attack", targetActorName, itemNames: [] };
 }
 
 class ScriptedNpcService implements ChatCompletionService {
@@ -43,44 +40,13 @@ class ScriptedNpcService implements ChatCompletionService {
     if (!plan) {
       throw new Error("脚本化 NPC 计划已耗尽");
     }
-    const toolCalls: ToolCall[] = plan.intents.map((intent) => {
-      const name =
-        intent.kind === "communication"
-          ? "communicate"
-          : intent.kind === "movement"
-            ? "move"
-            : "interact";
+    // 动作形状与工具参数一致：把 kind 当工具名，其余字段直接作为参数。
+    const toolCalls: ToolCall[] = plan.actions.map((action) => {
+      const { kind, ...args } = action;
       return {
         id: randomUUID(),
         type: "function",
-        function: {
-          name,
-          arguments: JSON.stringify(
-            intent.kind === "communication"
-              ? {
-                  mind: intent.mind,
-                  mode: intent.mode,
-                  ...(intent.targetActorName !== undefined
-                    ? { targetActorName: intent.targetActorName }
-                    : {}),
-                  message: intent.message,
-                }
-              : intent.kind === "movement"
-                ? {
-                    mode: intent.mode,
-                    ...(intent.targetStageName !== undefined
-                      ? { targetStageName: intent.targetStageName }
-                      : {}),
-                  }
-                : {
-                    purpose: intent.purpose.kind,
-                    ...(intent.purpose.kind === "damage"
-                      ? { targetActorName: intent.purpose.targetActorName }
-                      : {}),
-                    itemNames: intent.itemNames,
-                  },
-          ),
-        },
+        function: { name: kind, arguments: JSON.stringify(args) },
       };
     });
     toolCalls.push({
@@ -132,36 +98,34 @@ describe.skipIf(!testDatabaseUrl)("memory-driven NPC slice", () => {
 
     const service = new ScriptedNpcService([
       {
-        intents: [
+        actions: [
           {
-            kind: "communication",
+            kind: "say",
             mind: "先试探他。",
-            mode: "say",
             targetActorName: "提灯修士",
             message: "你听见钟声了吗？",
           },
         ],
       },
       {
-        intents: [
+        actions: [
           {
-            kind: "communication",
+            kind: "whisper",
             mind: "不要让它继续响。",
-            mode: "whisper",
             targetActorName: "守烬人",
             message: "别回应它。",
           },
         ],
       },
-      { intents: [{ kind: "movement", mode: "move", targetStageName: "断钟中殿" }] },
-      { intents: [{ kind: "movement", mode: "move", targetStageName: "断钟中殿" }] },
+      { actions: [{ kind: "move", targetStageName: "断钟中殿" }] },
+      { actions: [{ kind: "move", targetStageName: "断钟中殿" }] },
     ]);
 
     const first = await runNpcTurn(handle.db, created.game.slug, "守烬人", {
       service,
     });
     expect(first.ok).toBe(true);
-    expect(first.plan?.intents[0]).toMatchObject({ kind: "communication", mode: "say" });
+    expect(first.plan?.actions[0]).toMatchObject({ kind: "say" });
 
     const second = await runNpcTurn(handle.db, created.game.slug, "提灯修士", {
       service,
@@ -261,7 +225,7 @@ describe.skipIf(!testDatabaseUrl)("memory-driven NPC slice", () => {
       name: "等待事件测试局",
       world: TEST_WORLD,
     });
-    const service = new ScriptedNpcService([{ intents: [{ kind: "movement", mode: "wait" }] }]);
+    const service = new ScriptedNpcService([{ actions: [{ kind: "wait" }] }]);
 
     const result = await runNpcTurn(handle.db, created.game.slug, "守烬人", { service });
     expect(result.ok).toBe(true);
@@ -285,14 +249,14 @@ describe.skipIf(!testDatabaseUrl)("memory-driven NPC slice", () => {
       name: "攻击测试局",
       world: TEST_WORLD,
     });
-    const service = new ScriptedNpcService([{ intents: [attackIntent("提灯修士")] }]);
+    const service = new ScriptedNpcService([{ actions: [attackAction("提灯修士")] }]);
 
     const result = await runNpcTurn(handle.db, created.game.slug, "守烬人", { service });
     expect(result.ok).toBe(true);
 
     const state = await getGameState(handle.db, created.game.slug);
     expect(state.game.version).toBe(1);
-    expect(state.messages.map((message) => message.kind)).toEqual(["narration", "damage"]);
+    expect(state.messages.map((message) => message.kind)).toEqual(["narration", "attack"]);
     expect(state.messages[1]?.content).toContain("守烬人对提灯修士使用攻击，造成3点伤害");
     expect(state.messages[1]?.targetActorId).toBeTruthy();
     expect(state.messages[1]?.visibility).toBe("stage");
@@ -344,7 +308,7 @@ describe.skipIf(!testDatabaseUrl)("memory-driven NPC slice", () => {
       name: "死亡测试局",
       world,
     });
-    const service = new ScriptedNpcService([{ intents: [attackIntent("提灯修士")] }]);
+    const service = new ScriptedNpcService([{ actions: [attackAction("提灯修士")] }]);
 
     const result = await runNpcTurn(handle.db, created.game.slug, "守烬人", { service });
     expect(result.ok).toBe(true);
@@ -363,7 +327,7 @@ describe.skipIf(!testDatabaseUrl)("memory-driven NPC slice", () => {
     ).rejects.toThrow("已死亡");
   });
 
-  it("applies one communication and one movement intent in tool-call order", async () => {
+  it("applies one talk and one move action in tool-call order", async () => {
     const created = await createGame(handle.db, {
       username: DEMO_USER.username,
       name: "组合行动测试局",
@@ -372,12 +336,11 @@ describe.skipIf(!testDatabaseUrl)("memory-driven NPC slice", () => {
 
     const service = new ScriptedNpcService([
       {
-        intents: [
-          { kind: "movement", mode: "move", targetStageName: "断钟中殿" },
+        actions: [
+          { kind: "move", targetStageName: "断钟中殿" },
           {
-            kind: "communication",
+            kind: "say",
             mind: "到了中殿再问抄经人。",
-            mode: "say",
             targetActorName: "缄默抄经人",
             message: "你看见钟摆了吗？",
           },
@@ -387,7 +350,7 @@ describe.skipIf(!testDatabaseUrl)("memory-driven NPC slice", () => {
 
     const result = await runNpcTurn(handle.db, created.game.slug, "守烬人", { service });
     expect(result.ok).toBe(true);
-    expect(result.plan?.intents).toHaveLength(2);
+    expect(result.plan?.actions).toHaveLength(2);
 
     const state = await getGameState(handle.db, created.game.slug);
     expect(state.game.version).toBe(2);
@@ -422,7 +385,6 @@ describe.skipIf(!testDatabaseUrl)("memory-driven NPC slice", () => {
           defense: 1,
           speed: 2,
           items: [],
-          statusEffects: [],
         },
       ],
     };
@@ -433,39 +395,36 @@ describe.skipIf(!testDatabaseUrl)("memory-driven NPC slice", () => {
     });
     const service = new ScriptedNpcService([
       {
-        intents: [
+        actions: [
           {
-            kind: "communication",
+            kind: "announce",
             mind: "先让所有人听见。",
-            mode: "announce",
             message: "灰里有人。",
           },
         ],
       },
       {
-        intents: [
+        actions: [
           {
-            kind: "communication",
+            kind: "say",
             mind: "这句给目标，但旁人也会听见。",
-            mode: "say",
             targetActorName: "提灯修士",
             message: "只对你说。",
           },
         ],
       },
       {
-        intents: [
+        actions: [
           {
-            kind: "communication",
+            kind: "whisper",
             mind: "这句只给他听。",
-            mode: "whisper",
             targetActorName: "提灯修士",
             message: "别回头。",
           },
         ],
       },
       {
-        intents: [attackIntent("提灯修士")],
+        actions: [attackAction("提灯修士")],
       },
     ]);
     const announced = await runNpcTurn(handle.db, game.game.slug, "守烬人", { service });

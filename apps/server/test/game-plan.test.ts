@@ -1,118 +1,128 @@
 import { describe, expect, it } from "vitest";
-import {
-  addIntent,
-  buildInteractTool,
-  describeItems,
-  describeStats,
-  intentClass,
-  parseCommunication,
-  parseInteract,
-  parseMovement,
-} from "../src/game/plan";
-import type { ActorPlan } from "../src/game/types";
+import { buildAnnounceTool, parseAnnounce } from "../src/game/actions/announce";
+import { buildAttackTool, parseAttack } from "../src/game/actions/attack";
+import { buildGiveTool, parseGive } from "../src/game/actions/give";
+import { buildMoveTool, parseMove } from "../src/game/actions/move";
+import { buildPickupTool, parsePickup } from "../src/game/actions/pickup";
+import { buildSayTool, parseSay } from "../src/game/actions/say";
+import { buildStealTool, parseSteal } from "../src/game/actions/steal";
+import { buildUseTool, parseUse } from "../src/game/actions/use";
+import { buildWaitTool, parseWait } from "../src/game/actions/wait";
+import { buildWhisperTool, parseWhisper } from "../src/game/actions/whisper";
+import { describeActor, describeItems, describeStats } from "../src/game/plan";
 
-describe("actor plan intents", () => {
-  it("exposes interact as a top-level peer of communication and movement", () => {
-    const tool = buildInteractTool(["提灯修士"], ["裂齿短刃"], "断钟中殿", "守烬人");
+describe("action tools", () => {
+  it("每类动作都是独立工具，参数即它的全部输入", () => {
+    const targets = ["提灯修士"];
+    const stages = ["断钟中殿"];
+    const items = ["裂齿短刃"];
 
-    expect(tool.function.name).toBe("interact");
-    expect(tool.function.parameters.required).toEqual(["purpose"]);
-    expect(tool.function.parameters.properties).toMatchObject({
-      purpose: { enum: ["damage", "steal", "give", "pickup", "use"] },
+    expect(buildSayTool(targets).function.name).toBe("say");
+    expect(buildSayTool(targets).function.parameters.required).toEqual([
+      "mind",
+      "targetActorName",
+      "message",
+    ]);
+    expect(buildWhisperTool(targets).function.name).toBe("whisper");
+    expect(buildAnnounceTool().function.parameters.required).toEqual(["mind", "message"]);
+    expect(buildMoveTool(stages).function.parameters.required).toEqual(["targetStageName"]);
+    expect(buildWaitTool().function.parameters.required).toEqual([]);
+    expect(buildAttackTool(targets, items).function.parameters.required).toEqual([
+      "targetActorName",
+    ]);
+    expect(buildStealTool(targets).function.parameters.required).toEqual([
+      "targetActorName",
+      "itemName",
+    ]);
+    expect(buildGiveTool(targets).function.parameters.required).toEqual([
+      "targetActorName",
+      "itemName",
+    ]);
+    expect(buildPickupTool().function.parameters.required).toEqual(["itemName"]);
+    expect(buildUseTool(items, targets, "灰烬门廊").function.parameters.required).toEqual([
+      "itemName",
+    ]);
+
+    // 每个工具的参数就是它自己的输入，没有中间层字段。
+    const attackProps = Object.keys(
+      buildAttackTool(targets, items).function.parameters.properties ?? {},
+    );
+    expect(attackProps).toEqual(["targetActorName", "itemNames"]);
+    const useProps = Object.keys(
+      buildUseTool(items, targets, "灰烬门廊").function.parameters.properties ?? {},
+    );
+    expect(useProps).toEqual(["itemName", "targetActorName", "targetStageName"]);
+  });
+});
+
+describe("action parsers", () => {
+  it("只检查形状，产出平铺动作", () => {
+    expect(parseSay({ mind: "问一句。", targetActorName: "提灯修士", message: "钟声？" })).toEqual({
+      kind: "say",
+      mind: "问一句。",
+      targetActorName: "提灯修士",
+      message: "钟声？",
     });
     expect(
-      intentClass({
-        kind: "interact",
-        itemNames: [],
-        purpose: { kind: "damage", targetActorName: "提灯修士" },
-      }),
-    ).toBe("interact");
-    expect(intentClass({ kind: "movement", mode: "wait" })).toBe("movement");
-    expect(
-      intentClass({ kind: "communication", mind: "说。", mode: "announce", message: "喂" }),
-    ).toBe("communication");
-  });
-
-  it("allows one communication and one action, then rejects duplicate slots", () => {
-    const plan: ActorPlan = { intents: [] };
-
-    addIntent(
-      plan,
-      parseCommunication({
-        mind: "先开口。",
-        mode: "say",
-        targetActorName: "提灯修士",
-        message: "你听见了吗？",
-      }),
-    );
-    addIntent(plan, parseMovement({ mode: "move", targetStageName: "断钟中殿" }));
-
-    expect(plan.intents).toHaveLength(2);
-    expect(() =>
-      addIntent(
-        plan,
-        parseCommunication({ mind: "再说一句。", mode: "announce", message: "有人吗？" }),
-      ),
-    ).toThrow("沟通行动");
-    expect(() => addIntent(plan, parseMovement({ mode: "wait" }))).toThrow("移动或交互行动");
-  });
-
-  it("treats an interaction as the action-slot peer of movement", () => {
-    const plan: ActorPlan = { intents: [] };
-
-    addIntent(
-      plan,
-      parseCommunication({
-        mind: "先让他分心。",
-        mode: "announce",
-        message: "看那边。",
-      }),
-    );
-    addIntent(
-      plan,
-      parseInteract({
-        purpose: "damage",
-        targetActorName: "提灯修士",
-        itemNames: [],
-      }),
-    );
-
-    expect(plan.intents[1]).toMatchObject({
-      kind: "interact",
-      itemNames: [],
-      purpose: { kind: "damage", targetActorName: "提灯修士" },
+      parseWhisper({ mind: "低声。", targetActorName: "提灯修士", message: "别回头。" }),
+    ).toMatchObject({ kind: "whisper" });
+    expect(parseAnnounce({ mind: "让所有人听见。", message: "灰里有人。" })).toEqual({
+      kind: "announce",
+      mind: "让所有人听见。",
+      message: "灰里有人。",
     });
-    expect(() => addIntent(plan, parseMovement({ mode: "wait" }))).toThrow("移动或交互行动");
-    expect(() => parseInteract({ purpose: "damage", targetActorName: "  " })).toThrow(
+    expect(parseMove({ targetStageName: "断钟中殿" })).toEqual({
+      kind: "move",
+      targetStageName: "断钟中殿",
+    });
+    expect(parseWait()).toEqual({ kind: "wait" });
+    expect(
+      parseAttack({ targetActorName: "提灯修士", itemNames: ["裂齿短刃", "裂齿短刃", " "] }),
+    ).toEqual({ kind: "attack", targetActorName: "提灯修士", itemNames: ["裂齿短刃"] });
+    expect(parseSteal({ targetActorName: "提灯修士", itemName: "铅封提灯" })).toEqual({
+      kind: "steal",
+      targetActorName: "提灯修士",
+      itemName: "铅封提灯",
+    });
+    expect(parseGive({ targetActorName: "提灯修士", itemName: "裂齿短刃" })).toEqual({
+      kind: "give",
+      targetActorName: "提灯修士",
+      itemName: "裂齿短刃",
+    });
+    expect(parsePickup({ itemName: "武器.测试火把" })).toEqual({
+      kind: "pickup",
+      itemName: "武器.测试火把",
+    });
+    expect(parseUse({ itemName: "饰品.封骨钥匙", targetStageName: "场景.封骨之门" })).toEqual({
+      kind: "use",
+      itemName: "饰品.封骨钥匙",
+      targetStageName: "场景.封骨之门",
+    });
+  });
+
+  it("拒绝缺参数或参数冲突的调用", () => {
+    expect(() => parseSay({ mind: "", targetActorName: "提灯修士", message: "喂" })).toThrow(
+      "mind",
+    );
+    expect(() => parseSay({ mind: "说。", targetActorName: " ", message: "喂" })).toThrow(
       "targetActorName",
     );
+    expect(() => parseSay({ mind: "说。", targetActorName: "提灯修士", message: "  " })).toThrow(
+      "message",
+    );
+    expect(() => parseMove({ targetStageName: "" })).toThrow("targetStageName");
+    expect(() => parseAttack({ targetActorName: "  " })).toThrow("targetActorName");
+    expect(() => parseSteal({ targetActorName: "提灯修士" })).toThrow("itemName");
+    expect(() => parsePickup({})).toThrow("itemName");
+    expect(() => parseUse({ itemName: "钥匙" })).toThrow("targetActorName 或 targetStageName");
+    expect(() =>
+      parseUse({ itemName: "钥匙", targetActorName: "提灯修士", targetStageName: "场景.封骨之门" }),
+    ).toThrow("二选一");
   });
+});
 
-  it("parses every interact branch", () => {
-    expect(
-      parseInteract({ purpose: "damage", targetActorName: "提灯修士", itemNames: ["裂齿短刃"] }),
-    ).toEqual({
-      kind: "interact",
-      itemNames: ["裂齿短刃"],
-      purpose: { kind: "damage", targetActorName: "提灯修士" },
-    });
-    expect(
-      parseInteract({ purpose: "steal", targetActorName: "提灯修士", itemName: "铅封提灯" }),
-    ).toMatchObject({ purpose: { kind: "steal", itemName: "铅封提灯" } });
-    expect(parseInteract({ purpose: "pickup", itemName: "武器.测试火把" })).toMatchObject({
-      purpose: { kind: "pickup" },
-    });
-    expect(
-      parseInteract({
-        purpose: "use",
-        itemName: "饰品.封骨钥匙",
-        targetStageName: "场景.封骨之门",
-      }),
-    ).toMatchObject({ purpose: { kind: "use" } });
-    expect(() => parseInteract({ purpose: "dance" })).toThrow("不支持交互分支");
-  });
-
-  it("renders own stats and items for the read-only tools", () => {
+describe("read-only descriptions", () => {
+  it("renders own stats and items", () => {
     const actor = {
       id: "actor-1",
       name: "守烬人",
@@ -124,7 +134,6 @@ describe("actor plan intents", () => {
       defense: 2,
       speed: 4,
       death: false,
-      statusEffects: [],
       items: [
         {
           id: "item-1",
@@ -143,5 +152,6 @@ describe("actor plan intents", () => {
     expect(describeStats(actor)).toContain("状态：存活");
     expect(describeItems(actor)).toContain("裂齿短刃（weapon，count 1）：刃口崩了三处。");
     expect(describeItems({ items: [] })).toBe("物品：无");
+    expect(describeActor(actor)).toContain("裂齿短刃");
   });
 });

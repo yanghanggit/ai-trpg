@@ -1,6 +1,5 @@
-import type { CommunicationActionType, MessageVisibility, MovementActionType } from "./actions";
-
-export type { CommunicationActionType, MessageVisibility, MovementActionType } from "./actions";
+/** 公共消息的可见范围：场景公开或仅当事人可见。 */
+export type MessageVisibility = "stage" | "private";
 
 /**
  * 创建游戏时物化为运行时 world 的初始内容定义。
@@ -38,10 +37,9 @@ export type Connection = {
 };
 
 /**
- * World 内的初始 actor 定义，包含根属性、初始物品、技能、状态与初始死亡状态。
+ * World 内的初始 actor 定义，包含根属性、初始物品、状态与初始死亡状态。
  *
  * `death` 省略时按 false 写入；创建后由交互等行动更新数据库中的 `death`。
- * `statusEffects` 与运行时 `items` 是 actor 的两个容器。
  */
 export type Actor = {
   stageKey: string;
@@ -55,7 +53,6 @@ export type Actor = {
   speed: number;
   death?: boolean;
   items: readonly Item[];
-  statusEffects: readonly StatusEffect[];
 };
 
 /** Actor 的初始物品定义；创建后物化为 `items` 或 `stage_items` 行。 */
@@ -84,67 +81,93 @@ export type CreateGameInput = {
   world: World;
 };
 
-/** 一次交互（interact）希望达成的结果；五者都是交互分支，与技能无关。 */
-export type InteractPurpose =
-  | { kind: "damage"; targetActorName: string }
-  | { kind: "steal"; targetActorName: string; itemName: string }
-  | { kind: "give"; targetActorName: string; itemName: string }
-  | { kind: "pickup"; itemName: string }
-  | { kind: "use"; itemName: string; targetActorName?: string; targetStageName?: string };
-
-export type InteractPurposeKind = InteractPurpose["kind"];
-
-/**
- * 交互分支的行为属性。
- *
- * `broadcast` 与 `resolution` 描述的是“这个分支本身怎么结算、给谁看”，
- * 所以挂在目的上。
- */
-export type InteractBranch = {
-  broadcast: MessageVisibility;
-  resolution: "computed" | "llm";
-};
-
-/** 未来 buff/debuff 的状态条目；目前只作为 actor 的状态队列容器。 */
-export type StatusEffect = {
-  key: string;
-  name: string;
-  description: string;
-  kind: "buff" | "debuff";
-};
-
-export type CommunicationIntent = {
-  kind: "communication";
+/** 公开对同场景的一个角色说话。 */
+export type SayAction = {
+  kind: "say";
   mind: string;
-  mode: CommunicationActionType;
-  targetActorName?: string;
+  targetActorName: string;
   message: string;
 };
 
-export type MovementIntent = {
-  kind: "movement";
-  mode: MovementActionType;
-  targetStageName?: string;
+/** 对同场景的一个角色耳语，只有对方能听见。 */
+export type WhisperAction = {
+  kind: "whisper";
+  mind: string;
+  targetActorName: string;
+  message: string;
 };
 
-/**
- * 一次交互 intent。
- *
- * 交互是与沟通、移动平级的第三类顶层行动：想达成什么结果（`purpose`）、
- * 搭配哪些自己的道具（`itemNames`）。`damage` / `steal` / `give` / `pickup` /
- * `use` 都是交互分支；攻击走 `damage` 分支，当前不引入技能。
- */
-export type InteractIntent = {
-  kind: "interact";
-  purpose: InteractPurpose;
+/** 向当前场景公开说话。 */
+export type AnnounceAction = {
+  kind: "announce";
+  mind: string;
+  message: string;
+};
+
+/** 沿连接移动到相邻场景。 */
+export type MoveAction = {
+  kind: "move";
+  targetStageName: string;
+};
+
+/** 留在原地，不改变场景状态。 */
+export type WaitAction = {
+  kind: "wait";
+};
+
+/** 攻击同场景的一个角色，可搭配自己持有的武器道具。 */
+export type AttackAction = {
+  kind: "attack";
+  targetActorName: string;
   itemNames: readonly string[];
 };
 
-/** 顶层行动只有三类：沟通、移动、交互。 */
-export type ActorIntent = CommunicationIntent | MovementIntent | InteractIntent;
+/** 从同场景的一个角色身上取走一件物品。 */
+export type StealAction = {
+  kind: "steal";
+  targetActorName: string;
+  itemName: string;
+};
 
+/** 把自己持有的一件物品交给同场景的一个存活角色。 */
+export type GiveAction = {
+  kind: "give";
+  targetActorName: string;
+  itemName: string;
+};
+
+/** 拾起当前场景中的一件物品。 */
+export type PickupAction = {
+  kind: "pickup";
+  itemName: string;
+};
+
+/** 使用自己持有的一件物品，作用于一个角色或当前场景。 */
+export type UseAction = {
+  kind: "use";
+  itemName: string;
+  targetActorName?: string;
+  targetStageName?: string;
+};
+
+/** 一次 actor 行动；十个具体动作平级，不再有中间分类层。 */
+export type ActorAction =
+  | SayAction
+  | WhisperAction
+  | AnnounceAction
+  | MoveAction
+  | WaitAction
+  | AttackAction
+  | StealAction
+  | GiveAction
+  | PickupAction
+  | UseAction;
+
+export type ActionKind = ActorAction["kind"];
+
+/** 一轮计划：按提交顺序执行的动作列表；条数上限由 `MAX_ACTIONS_PER_TURN` 约束。 */
 export type ActorPlan = {
-  intents: ActorIntent[];
+  actions: ActorAction[];
 };
 
 /** stage 小 GM 的一次仲裁计划；当前只允许更新 environment。 */
@@ -162,7 +185,7 @@ export type ItemState = {
   block: number;
 };
 
-/** 运行时 actor；`items`、`statusEffects` 是两个队列。 */
+/** 运行时 actor；`items` 是它的物品队列。 */
 export type ActorState = {
   id: string;
   name: string;
@@ -175,7 +198,6 @@ export type ActorState = {
   speed: number;
   death: boolean;
   items: ItemState[];
-  statusEffects: StatusEffect[];
 };
 
 export type StageState = {

@@ -1,0 +1,102 @@
+import { eq } from "drizzle-orm";
+import { items } from "../../db/schema";
+import type { ToolDefinition } from "../../llm/types";
+import { appendPublicMessage, bumpGameVersion } from "../apply/messages";
+import {
+  assertAlive,
+  assertItemNameFree,
+  assertNotSelf,
+  findActorInStage,
+  resolveActorItem,
+} from "../apply/queries";
+import type { ActorWithStageRow, Executor, ResolvedGive } from "../apply/types";
+import { GameError } from "../errors";
+import { appendItemObservations, appendStageEvent } from "../observations";
+import type { GiveAction } from "../types";
+
+/** 构造 give 工具：把自己的物品交给同场景一个存活角色。 */
+export function buildGiveTool(targetActorNames: readonly string[]): ToolDefinition {
+  return {
+    type: "function",
+    function: {
+      name: "give",
+      description:
+        "把一次给予加入计划：把自己持有的一件物品交给同场景的一个存活角色，场景内其他角色也能看见。",
+      parameters: {
+        type: "object",
+        properties: {
+          targetActorName: {
+            type: "string",
+            description: "接收物品的同场景存活角色",
+            ...(targetActorNames.length > 0 ? { enum: [...targetActorNames] } : {}),
+          },
+          itemName: {
+            type: "string",
+            description: "要交出的自己持有的物品名",
+          },
+        },
+        required: ["targetActorName", "itemName"],
+      },
+    },
+  };
+}
+
+/** 把 give 工具参数转成动作；只检查形状。 */
+export function parseGive(args: Record<string, unknown>): GiveAction {
+  const targetActorName =
+    typeof args.targetActorName === "string" ? args.targetActorName.trim() : "";
+  const itemName = typeof args.itemName === "string" ? args.itemName.trim() : "";
+  if (targetActorName.length === 0 || itemName.length === 0) {
+    throw new GameError("invalid_action", "give 需要非空 targetActorName 与 itemName");
+  }
+  return { kind: "give", targetActorName, itemName };
+}
+
+/** 校验 give：目标存活且不是自己，自己确实持有该物品。 */
+export async function resolveGive(
+  executor: Executor,
+  stage: ResolvedGive["stage"],
+  actorId: string,
+  action: GiveAction,
+): Promise<ResolvedGive> {
+  const target = await findActorInStage(executor, stage.id, action.targetActorName);
+  assertNotSelf(target, actorId);
+  assertAlive(target);
+  const transferItem = await resolveActorItem(executor, actorId, action.itemName);
+  return { kind: "give", action, stage, target, transferItem };
+}
+
+/** 应用 give：把物品转给目标，场景公开。 */
+export async function applyGive(
+  executor: Executor,
+  gameId: string,
+  actorRow: ActorWithStageRow,
+  resolved: ResolvedGive,
+  now: Date,
+): Promise<string> {
+  const giver = { id: actorRow.actor.id, name: actorRow.actor.name };
+  const target = { id: resolved.target.id, name: resolved.target.name };
+  const item = resolved.transferItem;
+
+  await assertItemNameFree(executor, target.id, item.name);
+  await executor.update(items).set({ actorId: target.id }).where(eq(items.id, item.id));
+  await bumpGameVersion(executor, gameId, now);
+
+  const content = `${giver.name}把${item.name}交给了${target.name}。`;
+  await appendPublicMessage(executor, gameId, giver.id, {
+    kind: "give",
+    stageId: resolved.stage.id,
+    targetActorId: target.id,
+    visibility: "stage",
+    content,
+  });
+  await appendItemObservations(executor, gameId, resolved.stage, giver, "give", item.name, {
+    target,
+    broadcast: "stage",
+  });
+  await appendStageEvent(executor, gameId, resolved.stage.id, `# 场景事件\n${content}`, {
+    eventKind: "give",
+    targetActorId: target.id,
+  });
+  return `# 行动结果\n你把${item.name}交给了${target.name}。`;
+}
