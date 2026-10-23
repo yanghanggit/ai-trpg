@@ -176,6 +176,7 @@ describe.skipIf(!testDatabaseUrl)("memory-driven NPC slice", () => {
       "move",
     ]);
     expect(state.messages[1]?.targetActorId).toBeTruthy();
+    expect(state.messages[1]?.sourceActorId).toBeTruthy();
     expect(state.messages[1]?.visibility).toBe("stage");
     expect(state.messages[2]?.targetActorId).toBeTruthy();
     expect(state.messages[2]?.visibility).toBe("private");
@@ -255,6 +256,11 @@ describe.skipIf(!testDatabaseUrl)("memory-driven NPC slice", () => {
     expect(keeperService.tools).toContain("say");
     expect(keeperService.tools).toContain("attack");
     expect(keeperService.tools).not.toContain("steal");
+    expect(keeperService.tools).toContain("get_self");
+    expect(keeperService.tools).toContain("observe_actor");
+    expect(keeperService.tools).not.toContain("get_actor");
+    expect(keeperService.tools).not.toContain("get_stats");
+    expect(keeperService.tools).not.toContain("get_items");
 
     const corpseService = new ToolCaptureService();
     await runNpcTurn(handle.db, created.game.slug, "角色.无名者", { service: corpseService });
@@ -344,6 +350,7 @@ describe.skipIf(!testDatabaseUrl)("memory-driven NPC slice", () => {
     expect(state.messages.map((message) => message.kind)).toEqual(["narration", "attack"]);
     expect(state.messages[1]?.content).toContain("守烬人对提灯修士使用攻击，造成3点伤害");
     expect(state.messages[1]?.targetActorId).toBeTruthy();
+    expect(state.messages[1]?.sourceActorId).toBeTruthy();
     expect(state.messages[1]?.visibility).toBe("stage");
 
     const monkState = state.world.stages

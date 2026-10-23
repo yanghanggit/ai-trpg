@@ -12,10 +12,10 @@ import { GameError } from "./errors";
 import { appendMemoryMessages, loadAgentMemory } from "./memory";
 import { appendStageEvent } from "./observations";
 import {
-  buildActorInfoTool,
+  buildObserveActorTool,
   buildStageLookTool,
   buildSubmitEnvironmentTool,
-  describeActor,
+  describeObservedActor,
   lookStage,
   parseEnvironment,
 } from "./plan";
@@ -70,7 +70,7 @@ ${moveLines}
 # 本轮任务
 
 你是本场景的小 GM，只能看到本场景的事件与记忆。根据当前环境与本场景记忆，判断并提交更新后的完整 environment。
-细节规则见 submit_environment 的工具说明；需要更多信息时使用 look_stage / get_actor。`;
+细节规则见 submit_environment 的工具说明；需要更多信息时使用 look_stage / observe_actor。`;
 }
 
 function assertEnvironmentHasNoActorNames(
@@ -209,7 +209,7 @@ export async function runStageTurn(
   }
 
   const lookTool = buildStageLookTool(stage.name);
-  const actorInfoTool = buildActorInfoTool(stage.actors.map((actor) => actor.name));
+  const observeTool = buildObserveActorTool(stage.actors.map((actor) => actor.name));
   const canSubmit = canSubmitEnvironment(stage.actions);
   const submitTool = buildSubmitEnvironmentTool();
   let submitted: StagePlan | null = null;
@@ -218,20 +218,20 @@ export async function runStageTurn(
     name: stage.name,
     inputMessage: buildStageObservation(state, stage),
     messages: memory.messages,
-    tools: [lookTool, actorInfoTool, ...(canSubmit ? [submitTool] : [])],
+    tools: [lookTool, observeTool, ...(canSubmit ? [submitTool] : [])],
     handlers: {
       [lookTool.function.name]: (args) => {
         const stageName = typeof args.stageName === "string" ? args.stageName : "";
         return lookStage(state, stageName);
       },
-      [actorInfoTool.function.name]: (args) => {
+      [observeTool.function.name]: (args) => {
         const targetActorName =
           typeof args.targetActorName === "string" ? args.targetActorName.trim() : "";
         const target = stage.actors.find((actor) => actor.name === targetActorName);
         if (!target) {
           return `错误：当前场景内找不到角色 ${targetActorName}`;
         }
-        return describeActor(target);
+        return describeObservedActor(target);
       },
       ...(canSubmit
         ? {

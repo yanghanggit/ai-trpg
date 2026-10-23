@@ -26,14 +26,12 @@ import { isPlayerControlled } from "./control";
 import { GameError } from "./errors";
 import { loadAgentMemory } from "./memory";
 import {
-  buildActorInfoTool,
-  buildItemsTool,
   buildLookTool,
-  buildStatsTool,
+  buildObserveActorTool,
+  buildSelfInfoTool,
   buildSubmitPlanTool,
-  describeActor,
-  describeItems,
-  describeStats,
+  describeObservedActor,
+  describeSelf,
   lookStage,
 } from "./plan";
 import { getGameState } from "./service";
@@ -100,7 +98,7 @@ ${moveLines}
 
 # 本轮任务
 
-根据当前环境与自己的记忆决定行动。使用 get_stats / get_items 查看自己，使用 get_actor 查看同场景目标的状态与物品；需要多项信息时，可以一次返回多个只读工具调用，也可以分多轮调用。你能使用的行动工具：${actionList}。本轮最多 ${MAX_ACTIONS_PER_TURN} 个行动；通常一次沟通加一个其他行动，不要重复同一动作。先加入的行动先执行。最后调用 submit_plan 提交。look_stage、get_stats、get_items、get_actor 不占计划。`;
+根据当前环境与自己的记忆决定行动。使用 get_self 查看自己的完整信息，使用 observe_actor 查看同场景目标携带的物品；需要多项信息时，可以一次返回多个只读工具调用，也可以分多轮调用。你能使用的行动工具：${actionList}。本轮最多 ${MAX_ACTIONS_PER_TURN} 个行动；通常一次沟通加一个其他行动，不要重复同一动作。先加入的行动先执行。最后调用 submit_plan 提交。look_stage、get_self、observe_actor 不占计划。`;
 }
 
 /** 把动作加入本轮计划；条数上限在这里就告诉模型，避免提交后才被拒绝。 */
@@ -150,9 +148,8 @@ export async function runNpcTurn(
   const itemNames = current.actor.items.map((item) => item.name);
 
   const lookTool = buildLookTool(state);
-  const statsTool = buildStatsTool();
-  const itemsTool = buildItemsTool();
-  const actorInfoTool = buildActorInfoTool(talkTargets);
+  const selfTool = buildSelfInfoTool();
+  const observeTool = buildObserveActorTool(talkTargets);
   const submitTool = buildSubmitPlanTool();
 
   /** 十个动作的工具与参数解析器；按 kind 平铺，按权限过滤后使用。 */
@@ -209,9 +206,8 @@ export async function runNpcTurn(
     messages: memory.messages,
     tools: [
       lookTool,
-      statsTool,
-      itemsTool,
-      actorInfoTool,
+      selfTool,
+      observeTool,
       ...allowed.map((kind) => actionTools[kind]),
       submitTool,
     ],
@@ -220,16 +216,15 @@ export async function runNpcTurn(
         const stageName = typeof args.stageName === "string" ? args.stageName : "";
         return lookStage(state, stageName);
       },
-      [statsTool.function.name]: () => describeStats(current.actor),
-      [itemsTool.function.name]: () => describeItems(current.actor),
-      [actorInfoTool.function.name]: (args) => {
+      [selfTool.function.name]: () => describeSelf(current.actor),
+      [observeTool.function.name]: (args) => {
         const targetActorName =
           typeof args.targetActorName === "string" ? args.targetActorName.trim() : "";
         const target = otherActors.find((actor) => actor.name === targetActorName);
         if (!target) {
           return `错误：当前场景内找不到角色 ${targetActorName}`;
         }
-        return describeActor(target);
+        return describeObservedActor(target);
       },
       ...actionHandlers,
       [submitTool.function.name]: () => {

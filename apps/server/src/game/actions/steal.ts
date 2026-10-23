@@ -21,7 +21,7 @@ export function buildStealTool(targetActorNames: readonly string[]): ToolDefinit
     function: {
       name: "steal",
       description:
-        "把一次窃取加入计划：从同场景的一个角色身上取走一件物品；目标可以是尸体。先用 get_actor 查看对方持有的物品。只有发起者与目标会知道。",
+        "把一次窃取加入计划：从同场景的一个角色身上取走一件物品；目标可以是尸体。先用 observe_actor 查看对方携带的物品。只有发起者与目标会知道。",
       parameters: {
         type: "object",
         properties: {

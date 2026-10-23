@@ -224,7 +224,7 @@ export async function appendCommunicationObservations(
   executor: Executor,
   gameId: string,
   stage: Pick<StageState, "id" | "name">,
-  speaker: { id: string; name: string },
+  source: { id: string; name: string },
   kind: TalkKind,
   target: { id: string; name: string } | undefined,
   message: string,
@@ -237,19 +237,19 @@ export async function appendCommunicationObservations(
     executor,
     gameId,
     stage.id,
-    speaker.id,
+    source.id,
     (observer) => kind !== "whisper" || observer.id === target?.id,
     (observer) => {
       let content: string;
       if (kind === "whisper") {
-        content = `# 你听见\n${speaker.name}对你耳语（场景：${stage.name}）：${message}`;
+        content = `# 你听见\n${source.name}对你耳语（场景：${stage.name}）：${message}`;
       } else if (kind === "say") {
         content =
           observer.id === target?.id
-            ? `# 你听见\n${speaker.name}对你说（场景：${stage.name}）：${message}`
-            : `# 你听见\n${speaker.name}对${target?.name}说（场景：${stage.name}）：${message}`;
+            ? `# 你听见\n${source.name}对你说（场景：${stage.name}）：${message}`
+            : `# 你听见\n${source.name}对${target?.name}说（场景：${stage.name}）：${message}`;
       } else {
-        content = `# 你听见\n${speaker.name}公开说（场景：${stage.name}）：${message}`;
+        content = `# 你听见\n${source.name}公开说（场景：${stage.name}）：${message}`;
       }
 
       return {
@@ -259,7 +259,7 @@ export async function appendCommunicationObservations(
           kind: MEMORY_KINDS.communicationObservation,
           visibility: kind === "whisper" ? "private" : "stage",
           stageId: stage.id,
-          speakerActorId: speaker.id,
+          sourceActorId: source.id,
           ...(target ? { targetActorId: target.id } : {}),
         },
       };

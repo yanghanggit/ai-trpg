@@ -19,7 +19,7 @@ export function buildAttackTool(
     function: {
       name: "attack",
       description:
-        "把一次攻击加入计划：对同场景的一个角色造成伤害；可以搭配自己持有的武器道具，也可以空手。先用 get_actor 查看目标状态。",
+        "把一次攻击加入计划：对同场景的一个角色造成伤害；可以搭配自己持有的武器道具，也可以空手。先用 look_stage 确认目标是否在同场景。",
       parameters: {
         type: "object",
         properties: {

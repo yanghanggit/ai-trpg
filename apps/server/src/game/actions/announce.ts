@@ -49,19 +49,19 @@ export async function applyAnnounce(
   resolved: ResolvedAnnounce,
   now: Date,
 ): Promise<string> {
-  const speaker = { id: actorRow.actor.id, name: actorRow.actor.name };
+  const source = { id: actorRow.actor.id, name: actorRow.actor.name };
   await bumpGameVersion(executor, gameId, now);
-  await appendPublicMessage(executor, gameId, speaker.id, {
+  await appendPublicMessage(executor, gameId, source.id, {
     kind: "announce",
     stageId: resolved.stage.id,
     visibility: "stage",
-    content: `${speaker.name}公开说：${resolved.action.message}`,
+    content: `${source.name}公开说：${resolved.action.message}`,
   });
   await appendCommunicationObservations(
     executor,
     gameId,
     resolved.stage,
-    speaker,
+    source,
     "announce",
     undefined,
     resolved.action.message,
@@ -70,7 +70,7 @@ export async function applyAnnounce(
     executor,
     gameId,
     resolved.stage.id,
-    `# 场景事件\n${speaker.name}公开说：${resolved.action.message}`,
+    `# 场景事件\n${source.name}公开说：${resolved.action.message}`,
     { eventKind: "announce" },
   );
   return `# 行动结果\n你（场景：${resolved.stage.name}）公开说：${resolved.action.message}`;

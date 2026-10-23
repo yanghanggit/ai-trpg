@@ -9,7 +9,13 @@ import { buildStealTool, parseSteal } from "../src/game/actions/steal";
 import { buildUseTool, parseUse } from "../src/game/actions/use";
 import { buildWaitTool, parseWait } from "../src/game/actions/wait";
 import { buildWhisperTool, parseWhisper } from "../src/game/actions/whisper";
-import { describeActor, describeItems, describeStats } from "../src/game/plan";
+import {
+  describeEquipment,
+  describeItems,
+  describeObservedActor,
+  describeSelf,
+  describeStats,
+} from "../src/game/plan";
 
 describe("action tools", () => {
   it("每类动作都是独立工具，参数即它的全部输入", () => {
@@ -160,7 +166,10 @@ describe("read-only descriptions", () => {
     expect(describeStats(actor)).toContain("状态：存活");
     expect(describeItems(actor)).toContain("裂齿短刃（weapon，count 1，已穿戴）：刃口崩了三处。");
     expect(describeItems({ items: [], equipment: {} })).toBe("物品：无");
-    expect(describeActor(actor)).toContain("外观：披着旧斗篷。");
-    expect(describeActor(actor)).toContain("裂齿短刃");
+    expect(describeEquipment(actor)).toContain("武器：裂齿短刃");
+    expect(describeSelf(actor)).toContain("外观：披着旧斗篷。");
+    expect(describeSelf(actor)).toContain("裂齿短刃");
+    expect(describeObservedActor(actor)).toContain("裂齿短刃");
+    expect(describeObservedActor(actor)).not.toContain("HP：");
   });
 });

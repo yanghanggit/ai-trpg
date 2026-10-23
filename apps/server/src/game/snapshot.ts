@@ -33,7 +33,7 @@ export async function snapshotGame(
     at: message.createdAt,
     payload: {
       stageId: message.stageId,
-      speakerActorId: message.speakerActorId,
+      sourceActorId: message.sourceActorId,
       targetActorId: message.targetActorId,
       visibility: message.visibility,
       content: message.content,

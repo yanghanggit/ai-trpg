@@ -19,7 +19,7 @@ export async function bumpGameVersion(
 export async function appendPublicMessage(
   executor: Executor,
   gameId: string,
-  actorId: string | null,
+  sourceActorId: string | null,
   message: PublicMessage,
 ): Promise<void> {
   const [maxRow] = await executor
@@ -34,7 +34,7 @@ export async function appendPublicMessage(
     sequence,
     kind: message.kind,
     stageId: message.stageId,
-    speakerActorId: actorId,
+    sourceActorId,
     targetActorId: message.targetActorId ?? null,
     visibility: message.visibility,
     content: message.content,

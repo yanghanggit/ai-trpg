@@ -1,5 +1,5 @@
 {
-  "id": "8ddec9ca-0d76-4d41-8258-5f3be246ece1",
+  "id": "6fae76c4-7b60-42b4-b71f-0a7811be2bea",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "version": "7",
   "dialect": "postgresql",
@@ -477,8 +477,8 @@
           "primaryKey": false,
           "notNull": false
         },
-        "speaker_actor_id": {
-          "name": "speaker_actor_id",
+        "source_actor_id": {
+          "name": "source_actor_id",
           "type": "uuid",
           "primaryKey": false,
           "notNull": false
@@ -560,12 +560,12 @@
           "onDelete": "set null",
           "onUpdate": "no action"
         },
-        "game_messages_speaker_actor_id_actors_id_fk": {
-          "name": "game_messages_speaker_actor_id_actors_id_fk",
+        "game_messages_source_actor_id_actors_id_fk": {
+          "name": "game_messages_source_actor_id_actors_id_fk",
           "tableFrom": "game_messages",
           "tableTo": "actors",
           "columnsFrom": [
-            "speaker_actor_id"
+            "source_actor_id"
           ],
           "columnsTo": [
             "id"

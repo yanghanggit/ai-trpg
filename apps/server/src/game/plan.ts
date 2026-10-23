@@ -3,6 +3,7 @@ import { adjacentStageNames, findStageByName } from "./actors";
 import { attribute } from "./attributes";
 import { GameError } from "./errors";
 import type { ActorState, GameState } from "./types";
+import { EQUIPMENT_SLOT_LABELS, EQUIPMENT_SLOTS } from "./types";
 
 /** 构造只读环境查看工具。 */
 export function buildLookTool(state: GameState): ToolDefinition {
@@ -48,13 +49,13 @@ export function buildStageLookTool(stageName: string): ToolDefinition {
   };
 }
 
-/** 构造自身 stats 查看工具；只读，可在需要时多次调用。 */
-export function buildStatsTool(): ToolDefinition {
+/** 构造自身全信息查看工具；外观、stats、状态、穿戴与物品一次返回。 */
+export function buildSelfInfoTool(): ToolDefinition {
   return {
     type: "function",
     function: {
-      name: "get_stats",
-      description: "查看自己的当前 stats：HP、attack、defense、speed 与存活状态。只读。",
+      name: "get_self",
+      description: "查看自己的外观、stats、存活状态、穿戴槽与全部物品。只读。",
       parameters: {
         type: "object",
         properties: {},
@@ -64,36 +65,23 @@ export function buildStatsTool(): ToolDefinition {
   };
 }
 
-/** 构造自身物品查看工具；只读，可在需要时多次调用。 */
-export function buildItemsTool(): ToolDefinition {
+/** 构造对同场景目标的感知工具；只返回对方携带的物品，不暴露 stats 或状态。 */
+export function buildObserveActorTool(
+  availableTargetActorNames: readonly string[],
+): ToolDefinition {
   return {
     type: "function",
     function: {
-      name: "get_items",
-      description: "查看自己持有的物品及其描述。只读。",
-      parameters: {
-        type: "object",
-        properties: {},
-        required: [],
-      },
-    },
-  };
-}
-
-/** 构造感知工具；读取同场景目标角色的 stats、状态与背包。 */
-export function buildActorInfoTool(availableTargetActorNames: readonly string[]): ToolDefinition {
-  return {
-    type: "function",
-    function: {
-      name: "get_actor",
-      description: "查看同场景目标角色的 stats 与持有的物品。只读。",
+      name: "observe_actor",
+      description:
+        "感知同场景目标角色携带的物品（含其穿戴），用于判断能否 steal；看不到对方的 stats 或存活状态。只读。",
       parameters: {
         type: "object",
         properties: {
           targetActorName: {
             type: "string",
             enum: availableTargetActorNames,
-            description: "要查看的同场景角色名",
+            description: "要感知的同场景角色名",
           },
         },
         required: ["targetActorName"],
@@ -158,7 +146,7 @@ export function parseEnvironment(args: Record<string, unknown>): string {
   return environment;
 }
 
-/** 渲染自身 stats，供 get_stats 工具返回。 */
+/** 渲染 stats，供自身信息与目标观察共用。 */
 export function describeStats(actor: ActorState): string {
   return `角色：${actor.name}
 HP：${actor.stats.hp}/${actor.stats.maxHp}
@@ -168,7 +156,7 @@ speed：${actor.stats.speed}
 状态：${actor.status === "dead" ? "已死亡" : "存活"}`;
 }
 
-/** 渲染自身物品，供 get_items 工具返回。 */
+/** 渲染物品清单；穿戴状态由 actor 的槽位索引标记。 */
 export function describeItems(actor: Pick<ActorState, "items" | "equipment">): string {
   if (actor.items.length === 0) {
     return "物品：无";
@@ -185,10 +173,26 @@ export function describeItems(actor: Pick<ActorState, "items" | "equipment">): s
 ${lines.join("\n")}`;
 }
 
-/** 渲染同场景目标角色，供 get_actor 工具返回。 */
-export function describeActor(actor: ActorState): string {
+/** 渲染自己的穿戴槽。 */
+export function describeEquipment(actor: Pick<ActorState, "equipment">): string {
+  const lines = EQUIPMENT_SLOTS.flatMap((slot) => {
+    const itemName = actor.equipment[slot];
+    return itemName ? [`- ${EQUIPMENT_SLOT_LABELS[slot]}：${itemName}`] : [];
+  });
+  return lines.length === 0 ? "穿戴：无" : `穿戴：\n${lines.join("\n")}`;
+}
+
+/** 渲染自己的全信息，供 get_self 工具返回。 */
+export function describeSelf(actor: ActorState): string {
   return `外观：${actor.appearance}
 ${describeStats(actor)}
+${describeEquipment(actor)}
+${describeItems(actor)}`;
+}
+
+/** 渲染对目标的感知结果，只包含对方携带的物品，供 observe_actor 工具返回。 */
+export function describeObservedActor(actor: ActorState): string {
+  return `${actor.name}携带：
 ${describeItems(actor)}`;
 }
 

@@ -15,7 +15,7 @@ PostgreSQL 是游戏状态的唯一真相。`agent:game` 从数据库读取状�
 - `stages.actions`：场景自身的能力清单，JSONB 数组；当前每个场景都声明 `submit_environment`，决定 stage 小 GM 是否暴露该工具。它不限制角色动作。
 - `items`：角色持有的物品；`actor_id` 非空，不能脱离角色存在；是 actor 唯一的运行时队列。物品根字段只有 `name` / `description` / `kind` / `count`，战斗数值在 `stats`（JSONB：`damage` / `block`）；物品自身不记录穿戴状态。
 - `stage_items`：暂放在场景中的物品；`stage_id` 非空，当前只作为场景内容读取，已支持拾取并转入 actor 背包。字段与 `items` 相同，但没有穿戴状态。
-- `game_messages`：公共消息流，按 `sequence` 追加；记录 `stage_id`、`speaker_actor_id`、`target_actor_id` 与 `visibility`，供客户端增量拉取与审计；不建立 session 表。
+- `game_messages`：公共消息流，按 `sequence` 追加；记录 `stage_id`、`source_actor_id`、`target_actor_id` 与 `visibility`，供客户端增量拉取与审计；不建立 session 表。
 - `agent_memories`：每个 agent 的私有上下文；`owner_type` 当前支持 `actor` 与 `stage`，stage memory 属于场景小 GM。
 - `agent_memory_messages`：agent memory 的消息序列，保存 system / human / ai / tool 与 tool_calls、元数据。
 
@@ -45,7 +45,7 @@ PostgreSQL 是游戏状态的唯一真相。`agent:game` 从数据库读取状�
 
 NPC 回合是：数据库环境 → agent loop → 动作工具暂存动作 → `submit_plan` → 短事务按顺序应用 → 公共消息与 memory 反馈。
 
-工具包含只读 `look_stage`、`get_stats`、`get_items`、`get_actor`，以及十个动作工具 `say`、`whisper`、`announce`、`move`、`wait`、`attack`、`steal`、`give`、`pickup`、`use`；`look_stage` 与环境提示都会列出当前场景的 `stage_items`，`get_items` 只列 actor 自己的物品，`get_actor` 查看同场景目标的 stats、状态与背包；`submit_plan` 是终止工具。只读工具可多次调用；工具按模型返回的 `tool_calls` 顺序串行执行。每个动作工具只接收自己的参数；一轮最多 `MAX_ACTIONS_PER_TURN = 2` 个动作，不分类互斥，顺序按工具调用顺序保留。所有 handler 只收集计划，不写数据库；loop 结束后由服务层重新校验并在事务中按顺序更新 actor、game version、公共消息与 memory。
+工具包含只读 `look_stage`、`get_self`、`observe_actor`，以及十个动作工具 `say`、`whisper`、`announce`、`move`、`wait`、`attack`、`steal`、`give`、`pickup`、`use`；`look_stage` 与环境提示都会列出当前场景的 `stage_items`，`get_self` 返回自己的外观、stats、状态、穿戴与物品，`observe_actor` 只返回同场景目标携带的物品；`submit_plan` 是终止工具。只读工具可多次调用；工具按模型返回的 `tool_calls` 顺序串行执行。每个动作工具只接收自己的参数；一轮最多 `MAX_ACTIONS_PER_TURN = 2` 个动作，不分类互斥，顺序按工具调用顺序保留。所有 handler 只收集计划，不写数据库；loop 结束后由服务层重新校验并在事务中按顺序更新 actor、game version、公共消息与 memory。
 
 第一版动作是十个平级动作 `say`、`whisper`、`announce`、`move`、`wait`、`attack`、`steal`、`give`、`pickup`、`use`：说话、耳语、宣告、移动、等待、攻击、取物、给予、拾取与使用道具；每个动作一个工具；每个成功应用的动作都会写一条公共事件，`kind` 取动作名。`attack` 有无武器都可执行：伤害为 `max(0, 攻击者 stats.attack + 所选武器 stats.damage - 目标 stats.defense)`。空手时不加武器 damage，目标 `defense` 是唯一 block，目标物品 block 与发起者物品 block 都不参与当前伤害计算。`use` 需要自身物品，目标只能是当前场景、自己或同场景角色。`WeaponState` 只通过 `stats.damage` 参与伤害，`stats.block` 当前只存储、不参与伤害。`steal` 为 private，只有发起者与目标进入 memory，允许从尸体取物；`give` 把自身物品交给同场景存活角色；`pickup` 把 `stage_items` 移入 actor 背包。当前钥匙通关硬编码 `场景.铁闸门` 与 `饰品.闸门钥匙`，成功后 `games.status=completed`。`say` 与 `whisper` 必须指定单个 `targetActorName`；`say` 向当前 stage 广播，`whisper` 只有发起者与目标收到 memory；`announce` 无目标，向当前 stage 广播。公共消息用 `visibility` 区分 `stage` 与 `private`；私密事件后续对客户端不可见。
 
@@ -67,6 +67,6 @@ schema 定义在服务端代码中，SQL 迁移由 Drizzle Kit 生成并入库�
 
 LLM 调用不放进数据库事务：先读取状态与 memory，在事务外完成 agent loop，再用行锁与版本号在短事务内应用计划。
 
-快照是提交后的只读投影，不是第二套状态源。快照失败只记录日志，不回滚业务；正式环境通过开关关闭落盘。`game_messages` 的沟通事件同时保存 stage、speaker、target、visibility；`say` 的 memory 文本按发起者、目标、旁观者生成；`announce` 按发起者与旁观者生成；`whisper` 只生成发起者与目标两人的版本。
+快照是提交后的只读投影，不是第二套状态源。快照失败只记录日志，不回滚业务；正式环境通过开关关闭落盘。`game_messages` 的沟通事件同时保存 stage、source、target、visibility；`say` 的 memory 文本按发起者、目标、旁观者生成；`announce` 按发起者与旁观者生成；`whisper` 只生成发起者与目标两人的版本。
 
 → 参见：[架构与契约](architecture.md) → 参见：[开发期 Agent 工作流](debug-workflow.md) → 参见：[Actor 行动与记忆](actor-actions-memory.md) → 参见：[临时测试剧本](test-scenario.md) → 参见：[数据驱动目标](data-driven.md)

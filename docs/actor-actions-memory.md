@@ -59,7 +59,7 @@ context dump 是审计旁路。下一次 LLM request 只使用长期 memory 中�
 
 ## 工具
 
-NPC 工具分为只读 GET、动作与终止工具。`look_stage`、`get_stats`、`get_items` 是只读 GET，可多次调用并立即返回结果；是否一次返回多个调用或分多轮调用由 LLM 决定，循环层按返回顺序串行执行。动作工具共十个，彼此平级：`say`、`whisper`、`announce`、`move`、`wait`、`attack`、`steal`、`give`、`pickup`、`use`；每个工具的参数就是该动作的全部输入，没有中间分类或 `purpose` 参数。`submit_plan` 是终止工具，只提交已暂存计划。工具 handler 不写游戏状态。
+NPC 工具分为只读 GET、动作与终止工具。`look_stage`、`get_self`、`observe_actor` 是只读 GET，可多次调用并立即返回结果；`get_self` 返回自己的完整信息，`observe_actor` 只返回同场景目标携带的物品，不暴露 stats 或状态；是否一次返回多个调用或分多轮调用由 LLM 决定，循环层按返回顺序串行执行。动作工具共十个，彼此平级：`say`、`whisper`、`announce`、`move`、`wait`、`attack`、`steal`、`give`、`pickup`、`use`；每个工具的参数就是该动作的全部输入，没有中间分类或 `purpose` 参数。`submit_plan` 是终止工具，只提交已暂存计划。工具 handler 不写游戏状态。
 
 计划是**有序动作列表**，最多 `MAX_ACTIONS_PER_TURN = 2` 条；不做分类互斥，只限制条数。“通常一次沟通加一个其他动作”由提示词约定，工具 handler 在超过 2 条时立即报错给模型。两个动作按调用顺序应用，先移动后说话与先说话后移动是不同结果。
 

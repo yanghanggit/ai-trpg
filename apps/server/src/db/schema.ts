@@ -181,7 +181,7 @@ export const gameMessages = pgTable(
     sequence: integer("sequence").notNull(),
     kind: text("kind").notNull(),
     stageId: uuid("stage_id").references(() => stages.id, { onDelete: "set null" }),
-    speakerActorId: uuid("speaker_actor_id").references(() => actors.id, {
+    sourceActorId: uuid("source_actor_id").references(() => actors.id, {
       onDelete: "set null",
     }),
     targetActorId: uuid("target_actor_id").references(() => actors.id, {

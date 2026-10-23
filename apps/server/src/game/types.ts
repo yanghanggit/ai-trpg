@@ -284,7 +284,7 @@ export type MessageState = {
   sequence: number;
   kind: string;
   stageId: string | null;
-  speakerActorId: string | null;
+  sourceActorId: string | null;
   targetActorId: string | null;
   visibility: MessageVisibility;
   content: string;

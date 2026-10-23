@@ -71,7 +71,7 @@ Boss 路线：鼠王被本场景的非 `wait` 行为惊醒后，按 profile 追�
 | --- | --- | --- |
 | 初始世界 | `agent:game create` | 五段场景、墓园三 actor、乱葬坑一 actor、地窖一 actor、焚尸房为空且有场景物品、铁闸门为空；旁白落在乱葬坑 |
 | 玩家移动 | `player-move` | 只能沿连接移动；移动事件写入公共消息与环境记忆 |
-| 感知 | NPC 的 `get_actor` | 只能查看同场景角色；返回 stats 与目标背包 |
+| 感知 | NPC 的 `observe_actor` | 只能查看同场景角色携带的物品；不返回 stats 或状态 |
 | 攻击 | `player-attack` 或 NPC `attack` | 伤害为 `max(0, attack - defense)`；目标生命下降；死亡 actor 不再进入 loop |
 | 狗的反应 | 攻击奥德里克后推进煤渣 | 煤渣通过战斗记忆与 profile 自行决定攻击凶手；不是硬触发器 |
 | 坏运气报信 | 冲突后推进坏运气 | 坏运气移动到地窖，下一轮可对鼠王说话；是否需要两轮由计划顺序与两条上限决定 |

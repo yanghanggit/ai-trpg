@@ -50,11 +50,11 @@ stage 回合与 actor 回合平行，但不共享 actor plan：
 4. 以 `submit_environment` 提交完整的新环境；
 5. 在短事务中校验、更新 `stages.environment`、递增 game version、写公共事件与 stage memory。
 
-工具只读部分包括 `look_stage` 与 `get_actor`，且只允许查看本场景；`submit_environment` 是终止工具。工具 handler 不写数据库；LLM 调用在事务外完成。
+工具只读部分包括 `look_stage` 与 `observe_actor`，且只允许查看本场景；`submit_environment` 是终止工具。工具 handler 不写数据库；LLM 调用在事务外完成。
 
 ## 事件
 
-stage 更新产生 `environment_change` 公共事件，`stage_id` 指向该场景，`speaker_actor_id` 为空。事件进入 stage memory 与公共事件流，但不写 actor memory；actor 下一次 plan 通过当前 `stages.environment` 获取变化。
+stage 更新产生 `environment_change` 公共事件，`stage_id` 指向该场景，`source_actor_id` 为空。事件进入 stage memory 与公共事件流，但不写 actor memory；actor 下一次 plan 通过当前 `stages.environment` 获取变化。
 
 actor 行动产生的场景事件也进入 stage memory；移动会分别写入起点与终点两个 stage。环境更新本身是一个 stage 行动结果，不依赖 actor 行动。
 

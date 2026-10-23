@@ -75,21 +75,21 @@ export async function applySay(
   resolved: ResolvedSay,
   now: Date,
 ): Promise<string> {
-  const speaker = { id: actorRow.actor.id, name: actorRow.actor.name };
+  const source = { id: actorRow.actor.id, name: actorRow.actor.name };
   const target = { id: resolved.target.id, name: resolved.target.name };
   await bumpGameVersion(executor, gameId, now);
-  await appendPublicMessage(executor, gameId, speaker.id, {
+  await appendPublicMessage(executor, gameId, source.id, {
     kind: "say",
     stageId: resolved.stage.id,
     targetActorId: target.id,
     visibility: "stage",
-    content: `${speaker.name}对${target.name}说：${resolved.action.message}`,
+    content: `${source.name}对${target.name}说：${resolved.action.message}`,
   });
   await appendCommunicationObservations(
     executor,
     gameId,
     resolved.stage,
-    speaker,
+    source,
     "say",
     target,
     resolved.action.message,
@@ -98,7 +98,7 @@ export async function applySay(
     executor,
     gameId,
     resolved.stage.id,
-    `# 场景事件\n${speaker.name}对${target.name}说：${resolved.action.message}`,
+    `# 场景事件\n${source.name}对${target.name}说：${resolved.action.message}`,
     { eventKind: "say" },
   );
   return `# 行动结果\n你对${target.name}说（场景：${resolved.stage.name}）：${resolved.action.message}`;
