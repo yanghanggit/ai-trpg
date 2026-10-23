@@ -38,9 +38,9 @@ PostgreSQL 是游戏状态的唯一真相。`agent:game` 从数据库读取状�
 
 `seeds/dark-fantasy.ts` 提供黑暗奇幻的战役设定、全局规则、五个场景、三组双向连接、一条单向出口与五个角色；故事内容留在内容定义层，不写进服务逻辑。奥德里克持有 `饰品.闸门钥匙`，焚尸房放置 `武器.焚鼠火把`，鼠王在地窖沉睡；这些是初始内容，不是服务逻辑中的硬编码。具体剧情、测试目的与暂缓项见临时测试剧本。
 
-`World` / `Actor` / `Stage` 是创建世界用的初始内容定义，不是测试专用，也不是数据库模型。`createGame` 读取 `World`，在一个事务中写入 `worlds`、`stages`、`stage_items`、`actors`、`items` 与 actor/stage memory；创建完成后 PostgreSQL 是唯一真相，修改内容定义不会回改已有游戏。`World.initialStageKey` 决定初始旁白所属场景；演示世界从乱葬坑开始。测试使用独立的小型世界，不随演示剧情变化。`pnpm db:seed` 是数据库 seeding 的固定叫法，只写 demo 用户与 `app_meta`；`pnpm db:demo` 重置后再写这些基础数据；`agent:game create` 才把 `World` 物化为具体游戏。
+`World` / `Actor` / `Stage` 是创建世界用的初始内容定义，不是测试专用，也不是数据库模型。`createGame` 读取 `World`，在一个事务中写入 `worlds`、`stages`、`stage_items`、`actors`、`items` 与 actor/stage memory；创建完成后 PostgreSQL 是唯一真相，修改内容定义不会回改已有游戏。`World.initialStageKey` 决定初始旁白所属场景；演示世界从乱葬坑开始。测试使用独立的小型世界，不随演示剧情变化。`pnpm db:seed` 是数据库 seeding 的固定叫法，只写 demo 用户与 `app_meta`；`pnpm db:demo` 重置后再写这些基础数据；`agent:game create` 通过 `--seed`、`--world-file` 或 `--world` 显式提供 `World`，再把它物化为具体游戏。
 
-`pnpm db:demo` 应用迁移、清空登记过的开发表、写入固定 demo 用户与 `app_meta`。`pnpm agent:game create --user demo` 创建一局游戏，同时生成 player 座位、world、五段 stage 图、五个角色、场景物品、角色物品，以及 actor、stage 与 world 的 system memory。
+`pnpm db:demo` 应用迁移、清空登记过的开发表、写入固定 demo 用户与 `app_meta`。`pnpm agent:game create --user demo --seed dark-fantasy` 创建一局游戏，同时生成 player 座位、world、stage 图、角色、场景物品、角色物品，以及 actor、stage 与 world 的 system memory。
 
 ## NPC 行动
 

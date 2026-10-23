@@ -1,5 +1,5 @@
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { DEMO_USER } from "../seeds/dark-fantasy";
+import { DEMO_USER } from "../src/db/demo-fixture";
 import type { World } from "../src/game/types";
 import { TEST_WORLD } from "./test-world";
 import "../src/db/env";

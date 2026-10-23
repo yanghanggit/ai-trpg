@@ -20,7 +20,7 @@ RAG 是角色的“向世界求证”渠道，不是第二套记忆。它只承�
 
 ## 写入与检索
 
-`pnpm rag:ingest` 读取演示 seed 的公共知识并写入当前世界 collection；`pnpm rag:search --query "..."` 执行真实中文语义检索；`pnpm rag:check` 查看 collection 行数；`pnpm rag:delete --collection <name> --yes` 清空一个 collection。`pnpm rag:smoke` 在测试库中完成“建表 → 写入 → 真实检索 → 清理”的端到端验证。
+`pnpm rag ingest --seed <name>` 从内容注册表读取知识并写入对应 world collection；`pnpm rag search --seed <name> --query "..."` 或 `pnpm rag search --collection <name> --query "..."` 执行真实中文语义检索；`pnpm rag check --seed <name>` 或 `pnpm rag check --collection <name>` 查看 collection 行数；`pnpm rag delete --collection <name> --yes` 清空一个 collection。`pnpm rag:smoke` 在测试库中完成“建表 → 写入 → 真实检索 → 清理”的端到端验证，并从内容注册表取样本，不写死故事名。
 
 写入流程是：展开分类知识 → 生成 embedding → 在一个短事务内 upsert。检索流程是：query embedding → pgvector 余弦排序 → 返回正文、来源、分类与相似度。embedding 计算在数据库事务之外完成。
 

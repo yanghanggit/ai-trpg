@@ -1,5 +1,5 @@
 import { sql } from "drizzle-orm";
-import { DEMO_USER } from "../../seeds/dark-fantasy";
+import { DEMO_USER } from "./demo-fixture";
 import type { Database } from "./pool";
 import { appMeta, users } from "./schema";
 
@@ -59,10 +59,10 @@ export async function seedDemoData(db: Database): Promise<void> {
     .insert(appMeta)
     .values({
       key: "demo",
-      value: { version: 1, seed: "dark-fantasy.v2" },
+      value: { version: 1, fixture: "demo-user" },
     })
     .onConflictDoUpdate({
       target: appMeta.key,
-      set: { value: { version: 1, seed: "dark-fantasy.v2" }, updatedAt: new Date() },
+      set: { value: { version: 1, fixture: "demo-user" }, updatedAt: new Date() },
     });
 }

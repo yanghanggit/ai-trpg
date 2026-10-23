@@ -1,6 +1,5 @@
 import { parseArgs } from "node:util";
-import { DARK_FANTASY_WORLD } from "../seeds/dark-fantasy";
-import { DARK_FANTASY_KNOWLEDGE } from "../seeds/knowledge/dark-fantasy";
+import { CONTENT_SEEDS, type ContentSeed, getContentSeed } from "../seeds";
 import { openDatabase } from "../src/db/connect";
 import {
   countCollection,
@@ -13,15 +12,6 @@ import {
 } from "../src/rag";
 
 type Output = Record<string, unknown>;
-
-const SEEDS = {
-  "dark-fantasy": {
-    world: DARK_FANTASY_WORLD,
-    knowledge: DARK_FANTASY_KNOWLEDGE,
-  },
-} as const;
-
-type SeedName = keyof typeof SEEDS;
 
 const options = {
   seed: { type: "string" },
@@ -45,27 +35,30 @@ function usage(): void {
   emit({
     ok: true,
     usage: [
-      "pnpm rag ingest --seed dark-fantasy [--collection <name>] [--dtype q8]",
-      "pnpm rag search --seed dark-fantasy --query <text> [--top-k 5] [--min-similarity 0.3]",
+      "pnpm rag ingest --seed <name> [--collection <name>] [--dtype q8]",
+      "pnpm rag search --seed <name> --query <text> [--top-k 5] [--min-similarity 0.3]",
       "pnpm rag search --collection <name> --query <text>",
-      "pnpm rag check --seed dark-fantasy | --collection <name>",
+      "pnpm rag check --seed <name> | --collection <name>",
       "pnpm rag delete --collection <name> --yes",
+      `可用 seed: ${Object.keys(CONTENT_SEEDS).join(", ")}`,
     ],
   });
 }
 
-function resolveSeed(value: string | boolean | undefined): {
-  name: SeedName;
-  collection: string;
-  source: string;
-} {
-  const name = (typeof value === "string" ? value : "dark-fantasy") as SeedName;
-  const seed = SEEDS[name];
-  if (!seed) {
-    throw new Error(`未知 seed: ${name}；可用: ${Object.keys(SEEDS).join(", ")}`);
+function resolveSeed(
+  value: string | boolean | undefined,
+): { name: string; seed: ContentSeed; collection: string; source: string } | undefined {
+  if (value === undefined) {
+    return undefined;
   }
+  if (typeof value !== "string" || value.trim().length === 0) {
+    throw new Error("--seed 需要非空名称");
+  }
+  const name = value.trim();
+  const seed = getContentSeed(name);
   return {
     name,
+    seed,
     collection: worldCollection(seed.world.worldName, seed.world.contentVersion),
     source: `seed:${name}`,
   };
@@ -77,6 +70,9 @@ function resolveCollection(
 ): string {
   if (typeof explicit === "string" && explicit.trim().length > 0) {
     return explicit.trim();
+  }
+  if (!seed) {
+    throw new Error("需要 --seed 或 --collection");
   }
   return seed.collection;
 }
@@ -165,16 +161,16 @@ async function main(): Promise<void> {
   }
 
   if (command === "ingest") {
+    if (!seed) {
+      throw new Error("ingest 需要 --seed");
+    }
     const provider = makeProvider(values.dtype);
     const { db, pool } = openDatabase();
     try {
-      const result = await indexKnowledgeBase(
-        db,
-        provider,
-        collection,
-        SEEDS[seed.name].knowledge,
-        { source: seed.source, docType: "knowledge" },
-      );
+      const result = await indexKnowledgeBase(db, provider, collection, seed.seed.knowledge, {
+        source: seed.source,
+        docType: "knowledge",
+      });
       const count = await countCollection(db, collection);
       emit({
         ok: true,

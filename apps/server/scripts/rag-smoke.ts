@@ -1,4 +1,4 @@
-import { DARK_FANTASY_KNOWLEDGE } from "../seeds/knowledge/dark-fantasy";
+import { CONTENT_SEEDS } from "../seeds";
 import { openDatabase } from "../src/db/connect";
 import { runMigrations } from "../src/db/migrate";
 import {
@@ -10,26 +10,33 @@ import {
 } from "../src/rag";
 
 async function main(): Promise<void> {
-  const collection = `smoke:dark-fantasy:${Date.now()}`;
+  const seed = Object.values(CONTENT_SEEDS)[0];
+  if (!seed) {
+    throw new Error("没有可用的内容 seed");
+  }
+  const documents = Object.values(seed.knowledge).flat();
+  const query = documents[0];
+  if (!query) {
+    throw new Error("内容 seed 没有可检索的公共知识");
+  }
+  const collection = `smoke:${Date.now()}`;
   const provider = new TransformersEmbeddingProvider();
   const { db, pool } = openDatabase("TEST_DATABASE_URL");
   try {
     await runMigrations(db);
     await deleteCollection(db, collection);
-    const indexed = await indexKnowledgeBase(db, provider, collection, DARK_FANTASY_KNOWLEDGE, {
-      source: "smoke:dark-fantasy",
+    const indexed = await indexKnowledgeBase(db, provider, collection, seed.knowledge, {
+      source: "smoke",
       docType: "knowledge",
     });
     const results = await searchDocuments(db, provider, {
       collection,
-      query: "黑疖病死了那么多人，尸体是怎么处理的？",
+      query,
       topK: 5,
     });
-    const relevant = results
-      .slice(0, 3)
-      .some((result) => result.content.includes("石灰") || result.content.includes("焚尸房"));
+    const relevant = results.slice(0, 3).some((result) => result.content === query);
     if (!relevant) {
-      throw new Error(`top 3 未检索到瘟疫尸体处理事实：${JSON.stringify(results, null, 2)}`);
+      throw new Error(`top 3 未检索到目标知识：${JSON.stringify(results, null, 2)}`);
     }
     console.log(
       JSON.stringify(

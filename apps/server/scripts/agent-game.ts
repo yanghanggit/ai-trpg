@@ -7,7 +7,7 @@
 
 import { readFile } from "node:fs/promises";
 import { parseArgs } from "node:util";
-import { DARK_FANTASY_WORLD } from "../seeds/dark-fantasy";
+import { getContentSeed } from "../seeds";
 import { openDatabase } from "../src/db/connect";
 import type { Database } from "../src/db/pool";
 import {
@@ -42,6 +42,8 @@ import {
   snapshotGame,
   takeActorControl,
 } from "../src/game";
+import type { World } from "../src/game/types";
+import { parseWorldContent } from "../src/game/world-content";
 
 type Output = Record<string, unknown>;
 
@@ -52,6 +54,7 @@ const options = {
   snapshot: { type: "string" },
   world: { type: "string" },
   "world-file": { type: "string" },
+  seed: { type: "string" },
   name: { type: "string" },
   slug: { type: "string" },
   actor: { type: "string" },
@@ -93,7 +96,7 @@ function usage(): void {
       "agent-game latest --user <user> --game <game> [--root <dir>]",
       "agent-game show --snapshot <dir>",
       "agent-game validate --snapshot <dir>",
-      "agent-game create --user <username> [--name <gameName>] [--slug <slug>]",
+      "agent-game create --user <username> (--seed <name> | --world-file <path> | --world '<json>') [--name <gameName>] [--slug <slug>]",
       "agent-game status --game <gameId|slug>",
       "agent-game scene-map --game <gameId|slug>",
       "agent-game npc --game <gameId|slug> --actor <actorId|actorName>",
@@ -177,6 +180,29 @@ function parseWorld(values: Record<string, string | boolean | undefined>): Promi
   return Promise.resolve({});
 }
 
+async function loadCreateWorld(
+  values: Record<string, string | boolean | undefined>,
+): Promise<World> {
+  const inline = values.world;
+  const file = values["world-file"];
+  const seedName = values.seed;
+  const count = [inline, file, seedName].filter((value) => typeof value === "string").length;
+  if (count === 0) {
+    throw new Error("create 需要 --seed <name>、--world-file <path> 或 --world '<json>' 之一");
+  }
+  if (count > 1) {
+    throw new Error("create 的 --seed、--world-file、--world 只能三选一");
+  }
+  if (typeof seedName === "string") {
+    return parseWorldContent(getContentSeed(seedName).world);
+  }
+  const raw =
+    typeof file === "string"
+      ? JSON.parse(await readFile(file, "utf8"))
+      : JSON.parse(String(inline));
+  return parseWorldContent(raw);
+}
+
 async function withDatabase<T>(fn: (db: Database) => Promise<T>): Promise<T> {
   const { db, pool } = openDatabase();
   try {
@@ -215,12 +241,13 @@ async function main(): Promise<void> {
       throw new Error("create 需要 --user");
     }
     const username = values.user;
+    const world = await loadCreateWorld(values);
     const state = await withDatabase((db) =>
       createGame(db, {
         username,
         ...(typeof values.name === "string" ? { name: values.name } : {}),
         ...(typeof values.slug === "string" ? { slug: values.slug } : {}),
-        world: DARK_FANTASY_WORLD,
+        world,
       }),
     );
     emit({ ok: true, action: "create", state });

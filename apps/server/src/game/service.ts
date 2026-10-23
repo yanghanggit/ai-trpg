@@ -40,6 +40,7 @@ import type {
   StageState,
   WorldActionKind,
 } from "./types";
+import { parseWorldContent } from "./world-content";
 
 type Reader = Pick<Database, "select">;
 type GameRow = typeof games.$inferSelect;
@@ -251,6 +252,7 @@ export async function getGameState(db: Database, ref: string): Promise<GameState
 
 /** 创建一局游戏及初始 world、stage、actor、item 与 memory。 */
 export async function createGame(db: Database, input: CreateGameInput): Promise<GameState> {
+  input = { ...input, world: parseWorldContent(input.world) };
   const gameId = randomUUID();
   const gameName = input.name?.trim() || input.world.worldName;
   const requestedSlug = input.slug?.trim();

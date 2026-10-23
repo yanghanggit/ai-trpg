@@ -1,6 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { DARK_FANTASY_WORLD, DEMO_USER } from "../seeds/dark-fantasy";
+import { DARK_FANTASY_WORLD } from "../seeds/dark-fantasy";
+import { DEMO_USER } from "../src/db/demo-fixture";
 import "../src/db/env";
 import { type DatabaseHandle, openDatabase } from "../src/db/connect";
 import { resetDomainData, seedDemoData } from "../src/db/maintenance";
