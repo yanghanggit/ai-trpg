@@ -458,6 +458,42 @@ describe.skipIf(!testDatabaseUrl)("memory-driven NPC slice", () => {
     ).rejects.toThrow("已死亡");
   });
 
+  it("ends the game when the default player actor dies", async () => {
+    const world = {
+      ...TEST_WORLD,
+      actors: TEST_WORLD.actors.map((actor) =>
+        actor.name === "提灯修士"
+          ? {
+              ...actor,
+              isDefaultPlayer: true,
+              stats: { ...actor.stats, hp: 1, maxHp: 1, defense: 0 },
+            }
+          : actor,
+      ),
+    };
+    const created = await createGame(handle.db, {
+      username: DEMO_USER.username,
+      name: "默认玩家死亡测试局",
+      world,
+    });
+    const defaultPlayer = created.world.stages
+      .flatMap((stage) => stage.actors)
+      .find((actor) => actor.name === "提灯修士");
+    expect(defaultPlayer?.isDefaultPlayer).toBe(true);
+
+    const service = new ScriptedNpcService([{ actions: [attackAction("提灯修士")] }]);
+    const result = await runNpcTurn(handle.db, created.game.slug, "守烬人", { service });
+    expect(result.ok).toBe(true);
+
+    const state = await getGameState(handle.db, created.game.slug);
+    expect(state.game.status).toBe("completed");
+    expect(
+      state.messages.some(
+        (message) => message.kind === "game_completed" && message.content.includes("故事就此结束"),
+      ),
+    ).toBe(true);
+  });
+
   it("applies one talk and one move action in tool-call order", async () => {
     const created = await createGame(handle.db, {
       username: DEMO_USER.username,

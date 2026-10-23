@@ -75,6 +75,10 @@ describe("dark fantasy seed world", () => {
     });
     expect(keeper?.baseBody.race).toBe("人类");
     expect(keeper?.status).toBe("alive");
+    const defaultPlayers = DARK_FANTASY_WORLD.actors
+      .filter((actor) => actor.isDefaultPlayer)
+      .map((actor) => actor.name);
+    expect(defaultPlayers).toEqual(["角色.无名者"]);
     expect(king?.baseBody.race).toBe("鼠");
     expect(king?.stats.hp).toBeGreaterThan(keeper?.stats.hp ?? 0);
     expect(king?.stats.attack).toBeGreaterThan(20);

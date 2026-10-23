@@ -5,8 +5,9 @@ import { games, stages, worlds } from "../db/schema";
 import { agentLoop } from "../llm/agent-loop";
 import type { ChatCompletionService } from "../llm/protocol";
 import type { ChatMessage } from "../llm/types";
-import { appendPublicMessage, bumpGameVersion } from "./apply/messages";
+import { bumpGameVersion } from "./apply/messages";
 import { DEFAULT_NPC_MAX_ROUNDS, MAX_WORLD_ACTIONS_PER_TURN, MEMORY_KINDS } from "./constants";
+import { completeGame } from "./end-game";
 import { GameError } from "./errors";
 import { appendMemoryMessages, loadAgentMemory } from "./memory";
 import { buildLookTool, lookStage } from "./plan";
@@ -146,16 +147,7 @@ export async function applyWorldPlan(
         continue;
       }
 
-      await tx
-        .update(games)
-        .set({ status: "completed", updatedAt: now })
-        .where(eq(games.id, gameId));
-      await appendPublicMessage(tx, gameId, null, {
-        kind: "game_completed",
-        stageId: null,
-        visibility: "stage",
-        content: action.message,
-      });
+      await completeGame(tx, gameId, action.message, { now });
       await appendMemoryMessages(tx, memory.row.id, [
         {
           type: "human",

@@ -71,6 +71,13 @@
       "when": 1792751743394,
       "tag": "0009_strong_lake",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1792756642793,
+      "tag": "0010_big_thor_girl",
+      "breakpoints": true
     }
   ]
 }

@@ -15,7 +15,7 @@
 - `actor.openingBriefing` 是本局开局注入给角色的私有简报；建局时写成 actor memory 的第一条 human message，不进入数据库字段；
 - `item.affixes` 是词缀数组；默认 effect 执行后，affix agent 在事务外调用 LLM 与工具，再落账补充效果；
 - stage 可以用 `notify_world` 把报告写入 world memory；
-- world 可以用 `notify_stage` 下发裁决，用 `end_game` 结束游戏；
+- world 可以用 `notify_stage` 下发裁决，用 `end_game` 结束游戏；默认玩家角色死亡时由系统触发结束；
 - demo 用户是独立 fixture，`app_meta` 不记录故事名；
 - CLI 建局必须显式选择内容：`--seed`、`--world-file` 或 `--world`。
 
@@ -33,7 +33,7 @@
 | 角色与场景能力 | 已隔离 | `actors.actions` / `stages.actions` 决定 NPC 与 stage 工具 |
 | world 能力 | 已隔离 | `World.actions` 决定 world 可用的 `notify_stage` / `end_game` |
 | 物品使用 | 已 item-centric | 物品有身份、描述、分类、数值与声明式 `effect`；`attack` / `use` 只按 `effect.type` 分派 |
-| 通关条件 | 已移出框架 | 只有 world 能 `end_game`；stage/actor 没有该动作 |
+| 通关条件 | 已移出框架 | 只有 world 能 `end_game`；默认玩家角色死亡是系统终止条件 |
 | demo 用户 | 已隔离 | `src/db/demo-fixture.ts`，不依赖任何故事 seed |
 | `app_meta` | 已隔离 | 只记录 `{ version: 1, fixture: "demo-user" }`，不写故事名 |
 | CLI 建局 | 已隔离 | `create` 必须显式给 `--seed` / `--world-file` / `--world`，没有隐式默认 |
@@ -52,7 +52,7 @@ actor attack(itemName?) / use(itemName, target)
   → notify_world：把场景报告写入 world memory
   → world 回合：裁决世界级事实
   → notify_stage：把裁决写入 stage memory
-  → end_game：只有 world 能结束游戏
+  → end_game：只有 world 主动结束游戏；默认玩家角色死亡由系统终止
 ```
 
 关键边界：
@@ -112,7 +112,7 @@ pnpm rag search --collection "world:<世界名>:<内容版本>" --query "..."
 | actor 推进 | `npc` 或 `player-*` | 可用 |
 | stage 推进 | `stage`，含 `notify_world` | 可用 |
 | world 推进 | `world`，含 `notify_stage` / `end_game` | 可用 |
-| 结束游戏 | world 的 `end_game` | 只有 world 能置 `games.status = completed` |
+| 结束游戏 | ① world 的 `end_game`（如钥匙开门）；② 默认玩家角色死亡 | ① world 主动结束；② 默认玩家角色死亡由系统置 `games.status = completed` |
 | RAG 内容 | `rag ingest --seed` / `rag search --collection` | 可用，但建局时不会自动 ingest |
 
 ### 典型流程
@@ -147,7 +147,7 @@ pnpm agent:game status --game my-game
    在 world memory / `worlds.actions` / stage `notify_world` 之前创建的旧游戏，需要新建一局；旧局不会自动获得新结构。
 
 6. **结束依赖 world LLM 判断**  
-   引擎保证只有 world 能结束，但 world 是否在本轮调用 `end_game` 仍由模型和内容提示决定；内容层应在世界规则或阶段 profile 中写清目标与后果。
+   引擎保证 actor/stage 不能直接调用 `end_game`，但 world 是否在本轮调用 `end_game` 仍由模型和内容提示决定；默认玩家角色死亡则由系统确定性结束。
 
 7. **`targetDetail` 是行动描述，不是结果**  
    它帮助 stage 判断使用部位；装饰、铭文、表面纹样不应被推测为隐藏机关，普通表面行动只更新 environment。
@@ -230,7 +230,7 @@ grep -rn "DARK_FANTASY_WORLD" apps/server/src apps/server/scripts --include=*.ts
 - `src/game` 与 `scripts` 不再直接 import 具体故事 seed；
 - `create` 没有隐式内容默认值；
 - `app_meta` 不记录故事名；
-- actor 不能直接结束游戏；stage 不能直接结束游戏；只有 world 能 `end_game`；
+- actor 不能直接调用 `end_game`；stage 也不能；只有 world 能主动 `end_game`。默认玩家角色死亡由系统终结；
 - stage 通知与 world 指令都落入对应 memory；
 - 不需要修改服务层就能用另一份 `World` 创建、推进并结束另一段故事；
 - CLI 能从内容文件创建游戏；

@@ -44,7 +44,7 @@
 - 建局不会自动执行 RAG ingest；
 - compact 不会自动触发，必须显式执行 `agent:game compact`；
 - 旧局不会自动获得新的 world memory / `worlds.actions` / stage `notify_world` 结构；
-- 只有 world 的 `end_game` 能结束游戏，且是否结束由 world 回合决定。
+- world 的 `end_game` 是唯一的主动结束入口；默认玩家角色死亡会由系统自动结束游戏，不需要 world 回合。
 
 典型流程是：
 

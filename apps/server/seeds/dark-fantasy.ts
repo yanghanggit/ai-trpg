@@ -254,6 +254,7 @@ export const DARK_FANTASY_WORLD: World = {
       },
       stats: { hp: 20, maxHp: 20, attack: 6, defense: 2, speed: 3 },
       status: "alive" as const,
+      isDefaultPlayer: true,
       equipment: {
         body: "装备.发黄的裹尸布",
         accessory: "饰品.颈上的断链",

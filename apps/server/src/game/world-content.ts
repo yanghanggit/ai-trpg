@@ -75,6 +75,7 @@ const actorSchema = z.object({
   }),
   stats: actorStatsSchema,
   status: z.enum(["alive", "dead"]).optional(),
+  isDefaultPlayer: z.boolean().optional(),
   items: z.array(itemSchema),
   actions: z.array(actorCapabilitySchema),
 });

@@ -2,6 +2,7 @@ import { eq } from "drizzle-orm";
 import { actors } from "../../db/schema";
 import { appendPublicMessage, bumpGameVersion, itemListText } from "../apply/messages";
 import { attribute } from "../attributes";
+import { completeGame } from "../end-game";
 import { appendAttackObservations, appendStageEvent } from "../observations";
 import type { ItemEffectContext, ItemEffectHandler } from "./types";
 
@@ -72,6 +73,12 @@ export async function applyDamage(context: ItemEffectContext, damage: number): P
     eventKind: actionKind,
     targetActorId: target.id,
   });
+  if (status === "dead" && current.isDefaultPlayer) {
+    await completeGame(executor, gameId, `${target.name}倒下了。故事就此结束。`, {
+      now,
+      stageId: stage.id,
+    });
+  }
   const feedback =
     actionKind === "attack"
       ? `你使用攻击${itemText}对${target.name}，造成${damage}点伤害；`

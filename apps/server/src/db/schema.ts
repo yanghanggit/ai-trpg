@@ -1,4 +1,5 @@
 import {
+  boolean,
   index,
   integer,
   jsonb,
@@ -153,6 +154,8 @@ export const actors = pgTable("actors", {
   baseBody: jsonb("base_body").$type<BaseBody>().notNull(),
   stats: jsonb("stats").$type<ActorStats>().notNull(),
   status: text("status").$type<ActorStatus>().notNull().default("alive"),
+  /** 默认玩家角色；该角色死亡时整局结束。 */
+  isDefaultPlayer: boolean("is_default_player").notNull().default(false),
   equipment: jsonb("equipment").$type<EquipmentSlots>().notNull().default({}),
   actions: jsonb("actions").$type<JsonValue[]>().notNull().default([]),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),

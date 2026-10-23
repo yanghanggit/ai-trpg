@@ -116,6 +116,8 @@ export type Actor = {
   baseBody: BaseBody;
   stats: ActorStats;
   status?: ActorStatus;
+  /** 是否为默认玩家角色；该角色死亡时整局结束。 */
+  isDefaultPlayer?: boolean;
   items: readonly ItemDefinition[];
   /** 该角色可用的动作与只读能力；必须显式列出，不给默认值。 */
   actions: readonly ActorCapability[];
@@ -318,6 +320,8 @@ export type ActorState = {
   baseBody: BaseBody;
   stats: ActorStats;
   status: ActorStatus;
+  /** 是否为默认玩家角色；该角色死亡时整局结束。 */
+  isDefaultPlayer: boolean;
   equipment: EquipmentSlots;
   items: ItemState[];
   actions: readonly ActorCapability[];
