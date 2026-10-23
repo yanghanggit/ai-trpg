@@ -11,7 +11,7 @@
 
 `agent:game` 当前支持从数据库创建并推进一局游戏：
 
-- `create --user demo`：创建 game、player 座位、world、五段 stage 图、三组双向连接、浅眠墓穴到灰庭的单向出口、五个角色、场景物品、角色物品、状态容器，以及 actor/stage system memory；初始旁白落在 `场景.浅眠墓穴`。
+- `create --user demo`：创建 game、player 座位、world、五段 stage 图、三组双向连接、乱葬坑到墓园的单向出口、五个角色、场景物品、角色物品，以及 actor/stage system memory；初始旁白落在 `场景.乱葬坑`。
 - `status --game <gameId|slug>`：读取完整游戏状态。
 - `npc --game <id|slug> --actor <actorId|actorName>`：推进一个 NPC 回合。
 - `npc --game <id|slug> --all`：按当前 actor 顺序推进所有未被玩家接管的 NPC。

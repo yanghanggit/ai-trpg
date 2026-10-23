@@ -12,51 +12,64 @@ function stage(key: string) {
 }
 
 describe("dark fantasy seed world", () => {
-  it("keeps the five-stage story and naming convention", () => {
+  it("keeps the five-stage monastery story", () => {
     expect(stages.map((item) => item.name)).toEqual([
-      "场景.守墓人的灰庭",
-      "场景.浅眠墓穴",
-      "场景.鼠王的骨厅",
-      "场景.焚毛炉房",
-      "场景.封骨之门",
+      "场景.墓园",
+      "场景.乱葬坑",
+      "场景.地窖",
+      "场景.焚尸房",
+      "场景.铁闸门",
     ]);
-    expect(DARK_FANTASY_WORLD.initialStageKey).toBe("crypt");
+    expect(DARK_FANTASY_WORLD.worldName).toBe("枯钟修道院");
+    expect(DARK_FANTASY_WORLD.initialStageKey).toBe("plague-pit");
     expect(DARK_FANTASY_WORLD.actors.map((actor) => actor.name)).toEqual([
-      "角色.守墓人",
-      "角色.守墓犬",
-      "角色.灰尾小鼠",
-      "角色.苏醒者",
+      "角色.奥德里克",
+      "角色.煤渣",
+      "角色.坏运气",
+      "角色.无名者",
       "角色.鼠王",
     ]);
   });
 
-  it("places the requested actors and the fire weapon", () => {
+  it("places the actors in the monastery and keeps the fire weapon", () => {
     expect(
       DARK_FANTASY_WORLD.actors.filter((actor) => actor.stageKey === "graveyard"),
     ).toHaveLength(3);
-    expect(DARK_FANTASY_WORLD.actors.filter((actor) => actor.stageKey === "crypt")).toHaveLength(1);
-    expect(DARK_FANTASY_WORLD.actors.filter((actor) => actor.stageKey === "rat-hall")).toHaveLength(
+    expect(
+      DARK_FANTASY_WORLD.actors.filter((actor) => actor.stageKey === "plague-pit"),
+    ).toHaveLength(1);
+    expect(DARK_FANTASY_WORLD.actors.filter((actor) => actor.stageKey === "cellar")).toHaveLength(
       1,
     );
-    expect(stage("pyre").items?.map((item) => item.name)).toEqual(["武器.焚鼠火把"]);
-    expect(stage("pyre").items?.[0]).toMatchObject({
+    expect(stage("crematorium").items?.map((item) => item.name)).toEqual(["武器.焚鼠火把"]);
+    expect(stage("crematorium").items?.[0]).toMatchObject({
       kind: "weapon",
       count: 1,
       damage: 250,
       block: 0,
     });
-    expect(stage("sealed-gate").items ?? []).toEqual([]);
+    expect(stage("gate").items ?? []).toEqual([]);
   });
 
-  it("gives the keeper the key and makes the rat king a lethal sleeper", () => {
-    const keeper = DARK_FANTASY_WORLD.actors.find((actor) => actor.name === "角色.守墓人");
+  it("gives the keeper the gate key and makes the rat king a lethal sleeper", () => {
+    const keeper = DARK_FANTASY_WORLD.actors.find((actor) => actor.name === "角色.奥德里克");
     const king = DARK_FANTASY_WORLD.actors.find((actor) => actor.name === "角色.鼠王");
-    expect(keeper?.items.map((item) => item.name)).toEqual(["饰品.封骨钥匙"]);
+    expect(keeper?.items.map((item) => item.name)).toEqual(["饰品.闸门钥匙"]);
     expect(king?.hp).toBeGreaterThan(keeper?.hp ?? 0);
     expect(king?.attack).toBeGreaterThan(20);
     expect(king?.defense).toBeGreaterThan(king?.attack ?? 0);
-    expect(king?.profile).toContain("沉睡在骨厅");
+    expect(king?.profile).toContain("沉睡在地窖");
     expect(king?.profile).toContain("苏醒前你的计划只能包含 wait");
+  });
+
+  it("encodes the plague backstory in the world text", () => {
+    expect(DARK_FANTASY_WORLD.initialNarration).toContain("石灰");
+    expect(DARK_FANTASY_WORLD.initialNarration).toContain("裹尸布");
+    expect(stage("plague-pit").profile).toContain("黑疖病");
+    expect(stage("crematorium").profile).toContain("黑疖病");
+    const keeper = DARK_FANTASY_WORLD.actors.find((actor) => actor.name === "角色.奥德里克");
+    expect(keeper?.profile).toContain("黑疖病");
+    expect(keeper?.profile).toContain("旧钟无名");
   });
 
   it("declares per-actor actions explicitly in the seed", () => {
@@ -73,25 +86,25 @@ describe("dark fantasy seed world", () => {
     }
 
     // 动物不操作道具。
-    for (const animal of ["角色.守墓犬", "角色.灰尾小鼠", "角色.鼠王"]) {
+    for (const animal of ["角色.煤渣", "角色.坏运气", "角色.鼠王"]) {
       for (const action of [...ITEM_ACTIONS, "steal"]) {
         expect(actionsOf(animal)).not.toContain(action);
       }
     }
 
     // 狗与鼠王会攻击，幼崽不会。
-    expect(actionsOf("角色.守墓犬")).toContain("attack");
+    expect(actionsOf("角色.煤渣")).toContain("attack");
     expect(actionsOf("角色.鼠王")).toContain("attack");
-    expect(actionsOf("角色.灰尾小鼠")).not.toContain("attack");
+    expect(actionsOf("角色.坏运气")).not.toContain("attack");
 
-    // 人类可以操作道具；偷窃只属于苏醒者。
-    for (const human of ["角色.守墓人", "角色.苏醒者"]) {
+    // 人类可以操作道具；偷窃只属于无名者。
+    for (const human of ["角色.奥德里克", "角色.无名者"]) {
       for (const action of ITEM_ACTIONS) {
         expect(actionsOf(human)).toContain(action);
       }
     }
-    expect(actionsOf("角色.苏醒者")).toContain("steal");
-    expect(actionsOf("角色.守墓人")).not.toContain("steal");
+    expect(actionsOf("角色.无名者")).toContain("steal");
+    expect(actionsOf("角色.奥德里克")).not.toContain("steal");
 
     // 每个场景都声明了自己作为小 GM 的能力。
     for (const item of stages) {
@@ -99,19 +112,19 @@ describe("dark fantasy seed world", () => {
     }
   });
 
-  it("connects the graveyard, crypt, rat hall, pyre and sealed gate", () => {
+  it("connects the graveyard, plague pit, cellar, crematorium and gate", () => {
     const edges = new Set(
       DARK_FANTASY_WORLD.connections.map((connection) => `${connection.from}->${connection.to}`),
     );
     expect([...edges].sort()).toEqual(
       [
-        "crypt->graveyard",
-        "graveyard->rat-hall",
-        "rat-hall->graveyard",
-        "graveyard->pyre",
-        "pyre->graveyard",
-        "graveyard->sealed-gate",
-        "sealed-gate->graveyard",
+        "plague-pit->graveyard",
+        "graveyard->cellar",
+        "cellar->graveyard",
+        "graveyard->crematorium",
+        "crematorium->graveyard",
+        "graveyard->gate",
+        "gate->graveyard",
       ].sort(),
     );
   });

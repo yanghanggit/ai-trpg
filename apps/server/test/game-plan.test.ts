@@ -93,10 +93,10 @@ describe("action parsers", () => {
       kind: "pickup",
       itemName: "武器.测试火把",
     });
-    expect(parseUse({ itemName: "饰品.封骨钥匙", targetStageName: "场景.封骨之门" })).toEqual({
+    expect(parseUse({ itemName: "饰品.闸门钥匙", targetStageName: "场景.铁闸门" })).toEqual({
       kind: "use",
-      itemName: "饰品.封骨钥匙",
-      targetStageName: "场景.封骨之门",
+      itemName: "饰品.闸门钥匙",
+      targetStageName: "场景.铁闸门",
     });
   });
 
@@ -116,7 +116,7 @@ describe("action parsers", () => {
     expect(() => parsePickup({})).toThrow("itemName");
     expect(() => parseUse({ itemName: "钥匙" })).toThrow("targetActorName 或 targetStageName");
     expect(() =>
-      parseUse({ itemName: "钥匙", targetActorName: "提灯修士", targetStageName: "场景.封骨之门" }),
+      parseUse({ itemName: "钥匙", targetActorName: "提灯修士", targetStageName: "场景.铁闸门" }),
     ).toThrow("二选一");
   });
 });

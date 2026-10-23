@@ -17,7 +17,7 @@ import {
   playerUse,
   takeActorControl,
 } from "../src/game";
-import { SEALED_GATE_KEY_NAME } from "../src/game/actions/use";
+import { GATE_KEY_NAME, GATE_STAGE_NAME } from "../src/game/actions/use";
 
 const testDatabaseUrl = process.env.TEST_DATABASE_URL?.trim();
 
@@ -68,8 +68,8 @@ const SEALED_WORLD = {
     GATE_STAGE,
     {
       key: "sealed-gate",
-      name: "场景.封骨之门",
-      profile: "测试用封骨之门。",
+      name: GATE_STAGE_NAME,
+      profile: "测试用铁闸门。",
       actions: ["submit_environment"] as const,
       environment: "门板上刻着鼠牙。",
     },
@@ -84,8 +84,8 @@ const SEALED_WORLD = {
       stageKey: "gate",
       items: [
         {
-          name: SEALED_GATE_KEY_NAME,
-          description: "测试用封骨钥匙。",
+          name: GATE_KEY_NAME,
+          description: "测试用闸门钥匙。",
           kind: "key",
         },
       ],
@@ -237,12 +237,12 @@ describe.skipIf(!testDatabaseUrl)("items and interactions", () => {
     });
     await takeActorControl(handle.db, created.game.slug, "守烬人");
     await playerMove(handle.db, created.game.slug, "守烬人", {
-      targetStageName: "场景.封骨之门",
+      targetStageName: GATE_STAGE_NAME,
     });
 
     const used = await playerUse(handle.db, created.game.slug, "守烬人", {
-      targetStageName: "场景.封骨之门",
-      itemName: SEALED_GATE_KEY_NAME,
+      targetStageName: GATE_STAGE_NAME,
+      itemName: GATE_KEY_NAME,
     });
     expect(used.ok).toBe(true);
 

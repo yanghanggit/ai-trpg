@@ -251,17 +251,17 @@ describe.skipIf(!testDatabaseUrl)("memory-driven NPC slice", () => {
     });
 
     const keeperService = new ToolCaptureService();
-    await runNpcTurn(handle.db, created.game.slug, "角色.守墓人", { service: keeperService });
+    await runNpcTurn(handle.db, created.game.slug, "角色.奥德里克", { service: keeperService });
     expect(keeperService.tools).toContain("say");
     expect(keeperService.tools).toContain("attack");
     expect(keeperService.tools).not.toContain("steal");
 
     const corpseService = new ToolCaptureService();
-    await runNpcTurn(handle.db, created.game.slug, "角色.苏醒者", { service: corpseService });
+    await runNpcTurn(handle.db, created.game.slug, "角色.无名者", { service: corpseService });
     expect(corpseService.tools).toContain("steal");
 
     const mouseService = new ToolCaptureService();
-    await runNpcTurn(handle.db, created.game.slug, "角色.灰尾小鼠", { service: mouseService });
+    await runNpcTurn(handle.db, created.game.slug, "角色.坏运气", { service: mouseService });
     expect(mouseService.tools).not.toContain("attack");
     expect(mouseService.tools).not.toContain("pickup");
     expect(mouseService.tools).not.toContain("give");
@@ -372,8 +372,8 @@ describe.skipIf(!testDatabaseUrl)("memory-driven NPC slice", () => {
       name: "故事结构测试局",
       world: DARK_FANTASY_WORLD,
     });
-    const pyre = created.world.stages.find((stage) => stage.name === "场景.焚毛炉房");
-    const crypt = created.world.stages.find((stage) => stage.name === "场景.浅眠墓穴");
+    const pyre = created.world.stages.find((stage) => stage.name === "场景.焚尸房");
+    const crypt = created.world.stages.find((stage) => stage.name === "场景.乱葬坑");
     expect(pyre?.actors).toEqual([]);
     expect(pyre?.items.map((item) => [item.name, item.kind])).toEqual([
       ["武器.焚鼠火把", "weapon"],

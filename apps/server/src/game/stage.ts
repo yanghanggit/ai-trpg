@@ -21,13 +21,7 @@ import {
 } from "./plan";
 import { getGameState } from "./service";
 import { canSubmitEnvironment } from "./stage-actions";
-import type {
-  GameState,
-  StageActionKind,
-  StagePlan,
-  StageState,
-  StageTurnResult,
-} from "./types";
+import type { GameState, StageActionKind, StagePlan, StageState, StageTurnResult } from "./types";
 
 type StageActorRow = typeof actors.$inferSelect;
 

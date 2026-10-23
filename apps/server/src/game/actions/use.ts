@@ -8,9 +8,9 @@ import { GameError } from "../errors";
 import { appendItemObservations, appendStageEvent } from "../observations";
 import type { UseAction } from "../types";
 
-/** 封骨之门与钥匙的硬编码通关条件；后续再迁移到内容数据。 */
-export const SEALED_GATE_STAGE_NAME = "场景.封骨之门";
-export const SEALED_GATE_KEY_NAME = "饰品.封骨钥匙";
+/** 铁闸门与钥匙的硬编码通关条件；后续再迁移到内容数据。 */
+export const GATE_STAGE_NAME = "场景.铁闸门";
+export const GATE_KEY_NAME = "饰品.闸门钥匙";
 
 /** 构造 use 工具：用自己的物品作用于一个角色或当前场景。 */
 export function buildUseTool(
@@ -95,7 +95,7 @@ export async function resolveUse(
   return { kind: "use", action, stage, transferItem, target };
 }
 
-/** 应用 use：写使用事件；钥匙 + 封骨之门触发通关。 */
+/** 应用 use：写使用事件；钥匙 + 铁闸门触发通关。 */
 export async function applyUse(
   executor: Executor,
   gameId: string,
@@ -132,8 +132,7 @@ export async function applyUse(
     ...(targetStage ? { targetStageId: targetStage.id } : {}),
   });
 
-  const completed =
-    targetStage?.name === SEALED_GATE_STAGE_NAME && item.name === SEALED_GATE_KEY_NAME;
+  const completed = targetStage?.name === GATE_STAGE_NAME && item.name === GATE_KEY_NAME;
   if (completed && targetStage) {
     await completeGame(
       executor,
@@ -145,7 +144,7 @@ export async function applyUse(
       now,
     );
   }
-  return `# 行动结果\n你对${targetLabel}使用了${item.name}。${completed ? "\n封骨之门打开了。" : ""}`;
+  return `# 行动结果\n你对${targetLabel}使用了${item.name}。${completed ? "\n铁闸门打开了。" : ""}`;
 }
 
 /** 写通关结果：游戏状态、公共消息与场景事件。 */

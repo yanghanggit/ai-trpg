@@ -13,12 +13,12 @@ import {
 
 const input = {
   world: {
-    name: "灰烬墓园",
+    name: "枯钟修道院",
     contentVersion: "test.v1",
     campaignSetting: "世界设定正文。",
     systemRules: "全局规则正文。",
   },
-  actorPrompts: [{ name: "角色.守墓人", prompt: "ACTOR PROMPT" }],
+  actorPrompts: [{ name: "角色.奥德里克", prompt: "ACTOR PROMPT" }],
   stagePrompts: [{ name: "场景.灰烬门廊", prompt: "STAGE PROMPT" }],
 };
 
@@ -38,9 +38,9 @@ describe("prompt dump", () => {
     process.env[PROMPTS_DIR_ENV] = root;
     const dir = await dumpSystemPrompts(input, { now: new Date("2026-10-23T12:34:56") });
 
-    expect(dir).toBe(join(root, "20261023_123456_灰烬墓园"));
-    expect(await readFile(join(dir as string, "world.md"), "utf8")).toContain("# 灰烬墓园");
-    expect(await readFile(join(dir as string, "actors", "角色.守墓人.md"), "utf8")).toContain(
+    expect(dir).toBe(join(root, "20261023_123456_枯钟修道院"));
+    expect(await readFile(join(dir as string, "world.md"), "utf8")).toContain("# 枯钟修道院");
+    expect(await readFile(join(dir as string, "actors", "角色.奥德里克.md"), "utf8")).toContain(
       "ACTOR PROMPT",
     );
     expect(await readFile(join(dir as string, "stages", "场景.灰烬门廊.md"), "utf8")).toContain(
@@ -64,7 +64,7 @@ describe("prompt dump", () => {
   });
 
   it("sanitizes names and renders the world prompt", () => {
-    expect(safeFileName("场景/守墓人 的灰庭")).toBe("场景_守墓人_的灰庭");
+    expect(safeFileName("场景/奥德里克 的墓园")).toBe("场景_奥德里克_的墓园");
     expect(safeFileName("")).toBe("unnamed");
     expect(timestampName(new Date("2026-01-02T03:04:05"))).toBe("20260102_030405");
     const markdown = worldPromptMarkdown(input.world);
