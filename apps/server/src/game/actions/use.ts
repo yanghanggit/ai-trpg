@@ -2,8 +2,8 @@ import type { ToolDefinition } from "../../llm/types";
 import { appendPublicMessage, bumpGameVersion } from "../apply/messages";
 import { assertAlive, findActorInStage, resolveActorItem } from "../apply/queries";
 import type { ActorWithStageRow, Executor, ResolvedUse } from "../apply/types";
+import { MAX_TARGET_DETAIL_LENGTH } from "../constants";
 import { GameError } from "../errors";
-import { applyItemUseEffects } from "../item-effects";
 import { appendItemObservations, appendStageEvent } from "../observations";
 import type { UseAction } from "../types";
 
@@ -37,6 +37,11 @@ export function buildUseTool(
             description: "道具作用的场景；当前只允许所在场景",
             enum: [currentStageName],
           },
+          targetDetail: {
+            type: "string",
+            description:
+              "对场景具体位置或部位的描述，例如锁孔、炉膛；只用于 targetStageName，是行动描述而非结果。",
+          },
         },
         required: ["itemName"],
       },
@@ -51,21 +56,32 @@ export function parseUse(args: Record<string, unknown>): UseAction {
     typeof args.targetActorName === "string" ? args.targetActorName.trim() : "";
   const targetStageName =
     typeof args.targetStageName === "string" ? args.targetStageName.trim() : "";
+  const targetDetail = typeof args.targetDetail === "string" ? args.targetDetail.trim() : "";
   if (itemName.length === 0) {
     throw new GameError("invalid_action", "use 需要非空 itemName");
   }
   if ((targetActorName.length === 0) === (targetStageName.length === 0)) {
     throw new GameError("invalid_action", "use 需要 targetActorName 或 targetStageName 二选一");
   }
+  if (targetDetail.length > MAX_TARGET_DETAIL_LENGTH) {
+    throw new GameError(
+      "invalid_action",
+      `targetDetail 不能超过 ${MAX_TARGET_DETAIL_LENGTH} 个字符`,
+    );
+  }
+  if (targetDetail.length > 0 && targetStageName.length === 0) {
+    throw new GameError("invalid_action", "targetDetail 只能与 targetStageName 一起使用");
+  }
   return {
     kind: "use",
     itemName,
     ...(targetActorName.length > 0 ? { targetActorName } : {}),
     ...(targetStageName.length > 0 ? { targetStageName } : {}),
+    ...(targetDetail.length > 0 ? { targetDetail } : {}),
   };
 }
 
-/** 校验 use：物品必须是自己的；场景只能是当前场景；角色必须存活；物品行为必须接受目标。 */
+/** 校验 use：物品必须是自己的；场景只能是当前场景；角色必须存活。 */
 export async function resolveUse(
   executor: Executor,
   stage: ResolvedUse["stage"],
@@ -73,6 +89,16 @@ export async function resolveUse(
   action: UseAction,
 ): Promise<ResolvedUse> {
   const transferItem = await resolveActorItem(executor, actorId, action.itemName);
+  const targetDetail = action.targetDetail?.trim();
+  if (targetDetail && targetDetail.length > MAX_TARGET_DETAIL_LENGTH) {
+    throw new GameError(
+      "invalid_action",
+      `targetDetail 不能超过 ${MAX_TARGET_DETAIL_LENGTH} 个字符`,
+    );
+  }
+  if (targetDetail && action.targetStageName === undefined) {
+    throw new GameError("invalid_action", "targetDetail 只能与 targetStageName 一起使用");
+  }
 
   let target: ResolvedUse["target"];
   let targetStage: ResolvedUse["targetStage"];
@@ -91,17 +117,6 @@ export async function resolveUse(
     assertAlive(target);
   }
 
-  const use = transferItem.use;
-  if (use) {
-    const targetKind = targetStage ? "stage" : "actor";
-    if (use.target !== "any" && use.target !== targetKind) {
-      throw new GameError("invalid_action", `${transferItem.name} 不能用于这个目标`);
-    }
-    if (use.targetStageKey && targetStage?.key !== use.targetStageKey) {
-      throw new GameError("invalid_action", `${transferItem.name} 不能用于这个场景`);
-    }
-  }
-
   return {
     kind: "use",
     action,
@@ -112,7 +127,7 @@ export async function resolveUse(
   };
 }
 
-/** 应用 use：写通用使用事件，再执行物品自己声明的效果。 */
+/** 应用 use：写通用使用事件；具体后果由 stage / world 后续裁决。 */
 export async function applyUse(
   executor: Executor,
   gameId: string,
@@ -125,11 +140,13 @@ export async function applyUse(
   const target = resolved.target;
   const targetStage = resolved.targetStage;
   const targetLabel = targetStage?.name ?? target?.name ?? "目标";
+  const targetDetail = targetStage ? resolved.action.targetDetail?.trim() : undefined;
+  const stageDetailText = targetDetail ? `的${targetDetail}` : "";
 
   await bumpGameVersion(executor, gameId, now);
 
   const content = targetStage
-    ? `${actor.name}在${targetStage.name}使用了${item.name}。`
+    ? `${actor.name}在${targetStage.name}${stageDetailText}使用了${item.name}。`
     : `${actor.name}对${targetLabel}使用了${item.name}。`;
   await appendPublicMessage(executor, gameId, actor.id, {
     kind: "use",
@@ -141,6 +158,7 @@ export async function applyUse(
   await appendItemObservations(executor, gameId, resolved.stage, actor, "use", item.name, {
     ...(target ? { target: { id: target.id, name: target.name } } : {}),
     ...(targetStage ? { targetStageName: targetStage.name } : {}),
+    ...(targetDetail ? { targetDetail } : {}),
     broadcast: "stage",
   });
   await appendStageEvent(executor, gameId, resolved.stage.id, `# 场景事件\n${content}`, {
@@ -149,21 +167,7 @@ export async function applyUse(
     ...(targetStage ? { targetStageId: targetStage.id } : {}),
   });
 
-  const outcome = await applyItemUseEffects(
-    {
-      executor,
-      gameId,
-      stage: resolved.stage,
-      actor,
-      item,
-      ...(target ? { target } : {}),
-      ...(targetStage ? { targetStage } : {}),
-      now,
-    },
-    item.use?.effects ?? [],
-  );
-
-  return `# 行动结果\n你对${targetLabel}使用了${item.name}。${
-    outcome.results.length > 0 ? `\n${outcome.results.join("\n")}` : ""
-  }`;
+  return targetStage
+    ? `# 行动结果\n你在${targetLabel}${stageDetailText}使用了${item.name}。`
+    : `# 行动结果\n你对${targetLabel}使用了${item.name}。`;
 }

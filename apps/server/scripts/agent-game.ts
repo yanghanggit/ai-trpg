@@ -38,6 +38,7 @@ import {
   runNpcTurn,
   runProbe,
   runStageTurn,
+  runWorldTurn,
   snapshotGame,
   takeActorControl,
 } from "../src/game";
@@ -61,6 +62,7 @@ const options = {
   to: { type: "string" },
   stage: { type: "string" },
   item: { type: "string" },
+  detail: { type: "string" },
   reason: { type: "string" },
 } as const;
 
@@ -98,6 +100,7 @@ function usage(): void {
       "agent-game npc --game <gameId|slug> --all",
       "agent-game stage --game <gameId|slug> --stage <stageId|stageName>",
       "agent-game stage --game <gameId|slug> --all",
+      "agent-game world --game <gameId|slug>",
       "agent-game probe --game <gameId|slug> --actor <actorId|actorName> --message <text>",
       "agent-game probe --game <gameId|slug> --stage <stageId|stageName> --message <text>",
       "agent-game take-control --game <gameId|slug> --actor <actorId|actorName>",
@@ -111,7 +114,7 @@ function usage(): void {
       "agent-game player-steal --game <gameId|slug> --actor <actorId|actorName> --target <actorName> --item <itemName>",
       "agent-game player-give --game <gameId|slug> --actor <actorId|actorName> --target <actorName> --item <itemName>",
       "agent-game player-pickup --game <gameId|slug> --actor <actorId|actorName> --item <itemName>",
-      "agent-game player-use --game <gameId|slug> --actor <actorId|actorName> --item <itemName> (--target <actorName> | --stage <stageName>)",
+      "agent-game player-use --game <gameId|slug> --actor <actorId|actorName> --item <itemName> (--target <actorName> | --stage <stageName>) [--detail <text>]",
       "agent-game snapshot --game <gameId|slug> [--root <dir>]",
     ],
   });
@@ -359,14 +362,19 @@ async function main(): Promise<void> {
     }
     const targetActorName = typeof values.target === "string" ? values.target : undefined;
     const targetStageName = typeof values.stage === "string" ? values.stage : undefined;
+    const targetDetail = typeof values.detail === "string" ? values.detail : undefined;
     if ((targetActorName === undefined) === (targetStageName === undefined)) {
       throw new Error("player-use 需要 --target 或 --stage 二选一");
+    }
+    if (targetDetail !== undefined && targetStageName === undefined) {
+      throw new Error("player-use 的 --detail 只能与 --stage 一起使用");
     }
     const result = await withDatabase((db) =>
       playerUse(db, game, actor, {
         itemName: values.item as string,
         ...(targetActorName !== undefined ? { targetActorName } : {}),
         ...(targetStageName !== undefined ? { targetStageName } : {}),
+        ...(targetDetail !== undefined ? { targetDetail } : {}),
       }),
     );
     emit({ ok: true, action: command, plan: result.plan, state: result.state });
@@ -447,6 +455,23 @@ async function main(): Promise<void> {
         loopSuccess: result.loopSuccess,
         state: result.state,
       })),
+    });
+    return;
+  }
+
+  if (command === "world") {
+    if (typeof values.game !== "string") {
+      throw new Error("world 需要 --game");
+    }
+    const result = await withDatabase((db) =>
+      runWorldTurn(db, values.game as string, { service: DEEPSEEK_SERVICE }),
+    );
+    emit({
+      ok: true,
+      action: "world",
+      plan: result.plan,
+      loopSuccess: result.loopSuccess,
+      state: result.state,
     });
     return;
   }

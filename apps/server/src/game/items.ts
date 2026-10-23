@@ -5,7 +5,6 @@ import type {
   Item,
   ItemKind,
   ItemStats,
-  ItemUseDefinition,
   WearableItem,
 } from "./types";
 import { EQUIPMENT_SLOTS } from "./types";
@@ -19,7 +18,6 @@ export function toItemState(row: {
   kind: ItemKind;
   count: number;
   stats: ItemStats;
-  use?: ItemUseDefinition | null;
 }): Item {
   const base = {
     id: row.id,
@@ -27,7 +25,6 @@ export function toItemState(row: {
     name: row.name,
     description: row.description,
     count: row.count,
-    ...(row.use ? { use: row.use } : {}),
   };
   switch (row.kind) {
     case "weapon":

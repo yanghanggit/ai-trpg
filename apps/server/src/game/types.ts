@@ -48,6 +48,8 @@ export const EQUIPMENT_SLOT_KINDS: Record<EquipmentSlot, readonly ItemKind[]> = 
  * 不是数据库行，也不是测试夹具；`createGame` 读取它并在一个事务中写入
  * `worlds`、`stages`、`actors`、`items` 与 `stage_items`。创建完成后以数据库为唯一真相。
  */
+export type WorldActionKind = "notify_stage" | "end_game";
+
 export type World = {
   contentVersion: string;
   worldName: string;
@@ -59,6 +61,8 @@ export type World = {
   stages: readonly Stage[];
   connections: readonly Connection[];
   actors: readonly Actor[];
+  /** 世界实体可用的动作；必须显式列出。 */
+  actions: readonly WorldActionKind[];
 };
 
 /** World 内的初始场景定义；`key` 仅在创建时用于连接与 actor 归属。 */
@@ -101,31 +105,6 @@ export type Actor = {
   actions: readonly ActorCapability[];
 };
 
-/** 物品使用行为的目标类型；`any` 表示不限制。 */
-export type ItemUseTarget = "actor" | "stage" | "any";
-
-/** 声明式物品效果；目前只有通关，后续按需增加。 */
-export type CompleteGameEffect = {
-  type: "complete_game";
-  /** 公开的结束文案；支持 {actor} / {item} / {target} 占位。 */
-  message: string;
-  /** 返回给行动者的追加反馈；省略时使用 message。 */
-  result?: string;
-};
-
-export type ItemUseEffect = CompleteGameEffect;
-
-/**
- * 物品的使用行为。由内容提供，`use` 动作只负责通用校验、事件与效果应用。
- *
- * `targetStageKey` 只在目标是场景时生效；使用稳定 key，不用展示名。
- */
-export type ItemUseDefinition = {
-  target: ItemUseTarget;
-  targetStageKey?: string;
-  effects: readonly ItemUseEffect[];
-};
-
 /** Actor 的初始物品定义；创建后物化为 `items` 或 `stage_items` 行。 */
 export type ItemDefinition = {
   /** 世界内稳定 key；行为与内容判定用它，不用展示名。 */
@@ -135,8 +114,6 @@ export type ItemDefinition = {
   kind: ItemKind;
   count?: number;
   stats?: ItemStats;
-  /** 该物品被使用时的声明式行为；省略时只有通用使用反馈。 */
-  use?: ItemUseDefinition;
 };
 
 /** `createGame` 的输入；`world` 只在创建时读取，之后以数据库状态为准。 */
@@ -214,6 +191,8 @@ export type UseAction = {
   itemName: string;
   targetActorName?: string;
   targetStageName?: string;
+  /** 对场景的具体位置/部位，例如锁孔；只是行动描述，不是结果。 */
+  targetDetail?: string;
 };
 
 /** 一次 actor 行动；十个具体动作平级，不再有中间分类层。 */
@@ -238,16 +217,27 @@ export type ActorReadToolKind = "query";
 export type ActorCapability = ActionKind | ActorReadToolKind;
 
 /** 场景作为小 GM 能执行的动作；当前只有提交 environment。 */
-export type StageActionKind = "submit_environment";
+export type StageActionKind = "submit_environment" | "notify_world";
 
 /** 一轮计划：按提交顺序执行的动作列表；条数上限由 `MAX_ACTIONS_PER_TURN` 约束。 */
 export type ActorPlan = {
   actions: ActorAction[];
 };
 
-/** stage 小 GM 的一次仲裁计划；当前只允许更新 environment。 */
+/** stage 小 GM 的一次仲裁计划：可更新 environment，也可向 world 发通知。 */
 export type StagePlan = {
-  environment: string;
+  environment?: string;
+  notifications: string[];
+};
+
+/** world 对 stage 的下行动作。 */
+export type WorldAction =
+  | { kind: "notify_stage"; stageName: string; content: string }
+  | { kind: "end_game"; message: string };
+
+/** world 的一轮计划。 */
+export type WorldPlan = {
+  actions: WorldAction[];
 };
 
 /** 所有物品的根状态：只保留身份、分类与数量，不带任何战斗数值。 */
@@ -259,8 +249,6 @@ export type ItemState = {
   description: string;
   kind: ItemKind;
   count: number;
-  /** 使用行为；旧数据或普通物品没有。 */
-  use?: ItemUseDefinition;
 };
 
 /** 带战斗数值的可穿戴物品：武器与装备共用 `stats`。 */
@@ -377,6 +365,7 @@ export type GameState = {
     name: string;
     campaignSetting: string;
     systemRules: string;
+    actions: WorldActionKind[];
     stages: StageState[];
     connections: ConnectionState[];
   };
@@ -393,6 +382,13 @@ export type ActorTurnResult = {
 export type StageTurnResult = {
   ok: boolean;
   plan: StagePlan | null;
+  loopSuccess: boolean;
+  state: GameState;
+};
+
+export type WorldTurnResult = {
+  ok: boolean;
+  plan: WorldPlan | null;
   loopSuccess: boolean;
   state: GameState;
 };

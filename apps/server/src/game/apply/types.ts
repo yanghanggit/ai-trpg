@@ -24,7 +24,7 @@ export type ActorWithStageRow = { actor: ActorRow; stage: StageRow };
 
 export type PublicMessage = {
   kind: string;
-  stageId: string;
+  stageId: string | null;
   targetActorId?: string;
   visibility: MessageVisibility;
   content: string;

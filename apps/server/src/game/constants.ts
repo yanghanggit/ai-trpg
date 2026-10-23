@@ -1,6 +1,21 @@
 /** 一轮最多提交的动作条数；具体“做什么组合”交给提示词约定，不做分类校验。 */
 export const MAX_ACTIONS_PER_TURN = 2;
 
+/** 一轮 stage 最多向 world 发出的通知条数。 */
+export const MAX_STAGE_NOTIFICATIONS_PER_TURN = 2;
+
+/** 一轮 world 最多执行的下行/结束动作条数。 */
+export const MAX_WORLD_ACTIONS_PER_TURN = 2;
+
+/** 使用道具时，对场景具体部位描述的最大长度。 */
+export const MAX_TARGET_DETAIL_LENGTH = 120;
+
+/** stage 发给 world 的单条通知最大长度。 */
+export const MAX_WORLD_NOTIFICATION_LENGTH = 500;
+
+/** world 发给 stage 的单条指令最大长度。 */
+export const MAX_WORLD_DIRECTIVE_LENGTH = 1000;
+
 /** 未指定时的 NPC loop 最大轮数。 */
 export const DEFAULT_NPC_MAX_ROUNDS = 4;
 
@@ -17,6 +32,7 @@ export const MAX_MIND_LENGTH = 60;
 export const MEMORY_KINDS = {
   actorSystemPrompt: "actor_system_prompt",
   stageSystemPrompt: "stage_system_prompt",
+  worldSystemPrompt: "world_system_prompt",
   stageObservation: "stage_observation",
   actionFeedback: "action_feedback",
   actionRejected: "action_rejected",
@@ -24,4 +40,6 @@ export const MEMORY_KINDS = {
   environmentObservation: "environment_observation",
   actionObservation: "action_observation",
   communicationObservation: "communication_observation",
+  worldNotification: "world_notification",
+  worldDirective: "world_directive",
 } as const;

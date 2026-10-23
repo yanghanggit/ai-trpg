@@ -7,21 +7,28 @@ import type { ChatCompletionService } from "../llm/protocol";
 import type { ChatMessage } from "../llm/types";
 import { adjacentStageNames, findStage } from "./actors";
 import { appendPublicMessage, bumpGameVersion } from "./apply/messages";
-import { DEFAULT_NPC_MAX_ROUNDS, MEMORY_KINDS } from "./constants";
+import {
+  DEFAULT_NPC_MAX_ROUNDS,
+  MAX_STAGE_NOTIFICATIONS_PER_TURN,
+  MEMORY_KINDS,
+} from "./constants";
 import { GameError } from "./errors";
 import { appendMemoryMessages, loadAgentMemory } from "./memory";
 import { appendStageEvent } from "./observations";
 import {
+  buildNotifyWorldTool,
   buildObserveActorTool,
   buildStageLookTool,
   buildSubmitEnvironmentTool,
   describeObservedActor,
   lookStage,
   parseEnvironment,
+  parseWorldNotification,
 } from "./plan";
 import { getGameState } from "./service";
-import { canSubmitEnvironment } from "./stage-actions";
+import { canNotifyWorld, canSubmitEnvironment } from "./stage-actions";
 import type { GameState, StageActionKind, StagePlan, StageState, StageTurnResult } from "./types";
+import { appendWorldNotification } from "./world-events";
 
 type StageActorRow = typeof actors.$inferSelect;
 
@@ -70,7 +77,9 @@ ${moveLines}
 # 本轮任务
 
 你是本场景的小 GM，只能看到本场景的事件与记忆。根据当前环境与本场景记忆，判断并提交更新后的完整 environment。
-细节规则见 submit_environment 的工具说明；需要更多信息时使用 look_stage / observe_actor。`;
+只有当行动产生了跨场景/世界级后果、会改变其他场景，或需要 world 裁决世界级事实时，才使用 notify_world。判断标准是它是否可能改变场景的通行/封闭、机关或跨场景状态：只有当场景已有信息表明 targetDetail 是功能部位（如锁孔、门闩、机关），并且行动可能改变它时，才在结果不确定时通知。装饰、铭文、表面纹样、物品外观相似都不构成机关，不能据此推测隐藏锁扣；这类行动只更新 environment，不要通知 world。
+通知只是报告，不是既成事实；不要因为角色使用了某个物品就自动通知世界。
+细节规则见 submit_environment / notify_world 的工具说明；需要更多信息时使用 look_stage / observe_actor。`;
 }
 
 function assertEnvironmentHasNoActorNames(
@@ -122,8 +131,41 @@ export async function applyStagePlan(
       throw new GameError("invalid_state", `stage 缺少 memory: ${stage.id}`);
     }
     const stageActors = await tx.select().from(actors).where(eq(actors.stageId, stage.id));
+    const stageActions = stage.actions as unknown as StageActionKind[];
 
-    if (plan && !canSubmitEnvironment(stage.actions as unknown as StageActionKind[])) {
+    if (!plan) {
+      await appendMemoryMessages(tx, memory.row.id, [
+        ...newMessages,
+        {
+          type: "human",
+          content: "# 仲裁结果\n本轮没有提交有效计划，状态未改变。",
+          metadata: { kind: MEMORY_KINDS.planFailed, loopSuccess },
+        },
+      ]);
+      return false;
+    }
+
+    const hasEnvironment = plan.environment !== undefined;
+    const notifications = plan.notifications.slice(0, MAX_STAGE_NOTIFICATIONS_PER_TURN);
+    if (notifications.length !== plan.notifications.length) {
+      throw new GameError(
+        "invalid_state",
+        `本轮最多 ${MAX_STAGE_NOTIFICATIONS_PER_TURN} 条 world 通知`,
+      );
+    }
+    if (!hasEnvironment && notifications.length === 0) {
+      await appendMemoryMessages(tx, memory.row.id, [
+        ...newMessages,
+        {
+          type: "human",
+          content: "# 仲裁结果\n本轮没有 environment 或 world 通知，状态未改变。",
+          metadata: { kind: MEMORY_KINDS.planFailed, loopSuccess },
+        },
+      ]);
+      return false;
+    }
+
+    if (hasEnvironment && !canSubmitEnvironment(stageActions)) {
       await appendMemoryMessages(tx, memory.row.id, [
         ...newMessages,
         {
@@ -134,34 +176,35 @@ export async function applyStagePlan(
       ]);
       return false;
     }
-
-    if (!plan) {
+    if (notifications.length > 0 && !canNotifyWorld(stageActions)) {
       await appendMemoryMessages(tx, memory.row.id, [
         ...newMessages,
         {
           type: "human",
-          content: "# 仲裁结果\n本轮没有提交有效环境更新，状态未改变。",
-          metadata: { kind: MEMORY_KINDS.planFailed, loopSuccess },
+          content: "# 仲裁结果\n通知被拒绝：本场景没有 notify_world 能力。",
+          metadata: { kind: MEMORY_KINDS.actionRejected },
         },
       ]);
       return false;
     }
 
-    try {
-      assertEnvironmentHasNoActorNames(plan.environment, stageActors);
-    } catch (error) {
-      if (!(error instanceof GameError)) {
-        throw error;
+    if (hasEnvironment) {
+      try {
+        assertEnvironmentHasNoActorNames(plan.environment as string, stageActors);
+      } catch (error) {
+        if (!(error instanceof GameError)) {
+          throw error;
+        }
+        await appendMemoryMessages(tx, memory.row.id, [
+          ...newMessages,
+          {
+            type: "human",
+            content: `# 仲裁结果\n环境更新被拒绝：${error.message}`,
+            metadata: { kind: MEMORY_KINDS.actionRejected },
+          },
+        ]);
+        return false;
       }
-      await appendMemoryMessages(tx, memory.row.id, [
-        ...newMessages,
-        {
-          type: "human",
-          content: `# 仲裁结果\n环境更新被拒绝：${error.message}`,
-          metadata: { kind: MEMORY_KINDS.actionRejected },
-        },
-      ]);
-      return false;
     }
 
     if (newMessages.length > 0) {
@@ -169,26 +212,48 @@ export async function applyStagePlan(
     }
 
     const now = new Date();
-    await tx.update(stages).set({ environment: plan.environment }).where(eq(stages.id, stage.id));
+    let changed = false;
+
+    if (hasEnvironment) {
+      await tx
+        .update(stages)
+        .set({ environment: plan.environment as string })
+        .where(eq(stages.id, stage.id));
+      const content = `${stage.name}的环境发生了变化。\n${plan.environment}`;
+      await appendPublicMessage(tx, gameId, null, {
+        kind: "environment_change",
+        stageId: stage.id,
+        visibility: "stage",
+        content,
+      });
+      await appendStageEvent(tx, gameId, stage.id, `# 场景事件\n${content}`, {
+        eventKind: "environment_change",
+      });
+      changed = true;
+    }
+
+    for (const notification of notifications) {
+      await appendWorldNotification(tx, gameId, world.id, stage, notification);
+      await appendStageEvent(
+        tx,
+        gameId,
+        stage.id,
+        `# 场景事件\n${stage.name}向世界发出通知：${notification}`,
+        { eventKind: "world_notification" },
+      );
+      changed = true;
+    }
+
+    if (!changed) {
+      return false;
+    }
     await bumpGameVersion(tx, gameId, now);
-
-    const content = `${stage.name}的环境发生了变化。\n${plan.environment}`;
-    await appendPublicMessage(tx, gameId, null, {
-      kind: "environment_change",
-      stageId: stage.id,
-      visibility: "stage",
-      content,
-    });
-    await appendStageEvent(tx, gameId, stage.id, `# 场景事件\n${content}`, {
-      eventKind: "environment_change",
-    });
-
     return true;
   });
 }
 
 /**
- * 为单个 stage 跑一轮小 GM agent loop，应用 environment 更新并返回最新状态。
+ * 为单个 stage 跑一轮小 GM agent loop，应用 environment/通知并返回最新状态。
  *
  * stage 回合由调用方显式推动；不会自动随 actor 行动运行。
  */
@@ -211,14 +276,22 @@ export async function runStageTurn(
   const lookTool = buildStageLookTool(stage.name);
   const observeTool = buildObserveActorTool(stage.actors.map((actor) => actor.name));
   const canSubmit = canSubmitEnvironment(stage.actions);
+  const canNotify = canNotifyWorld(stage.actions);
   const submitTool = buildSubmitEnvironmentTool();
+  const notifyTool = buildNotifyWorldTool();
+  const notifications: string[] = [];
   let submitted: StagePlan | null = null;
 
   const loop = await agentLoop({
     name: stage.name,
     inputMessage: buildStageObservation(state, stage),
     messages: memory.messages,
-    tools: [lookTool, observeTool, ...(canSubmit ? [submitTool] : [])],
+    tools: [
+      lookTool,
+      observeTool,
+      ...(canSubmit ? [submitTool] : []),
+      ...(canNotify ? [notifyTool] : []),
+    ],
     handlers: {
       [lookTool.function.name]: (args) => {
         const stageName = typeof args.stageName === "string" ? args.stageName : "";
@@ -237,10 +310,37 @@ export async function runStageTurn(
         ? {
             [submitTool.function.name]: (args: Record<string, unknown>) => {
               if (submitted) {
-                throw new GameError("invalid_action", "环境已提交");
+                throw new GameError("invalid_action", "计划已提交");
               }
-              submitted = { environment: parseEnvironment(args) };
-              return "环境更新已提交";
+              const environment = parseEnvironment(args);
+              if (environment === undefined && notifications.length === 0) {
+                throw new GameError(
+                  "invalid_action",
+                  "计划必须包含 environment 或至少一条 notify_world 通知",
+                );
+              }
+              submitted = {
+                ...(environment !== undefined ? { environment } : {}),
+                notifications: [...notifications],
+              };
+              return "计划已提交";
+            },
+          }
+        : {}),
+      ...(canNotify
+        ? {
+            [notifyTool.function.name]: (args: Record<string, unknown>) => {
+              if (submitted) {
+                throw new GameError("invalid_action", "计划已提交");
+              }
+              if (notifications.length >= MAX_STAGE_NOTIFICATIONS_PER_TURN) {
+                throw new GameError(
+                  "invalid_action",
+                  `本轮最多 ${MAX_STAGE_NOTIFICATIONS_PER_TURN} 条 world 通知`,
+                );
+              }
+              notifications.push(parseWorldNotification(args));
+              return "通知已加入本轮计划";
             },
           }
         : {}),

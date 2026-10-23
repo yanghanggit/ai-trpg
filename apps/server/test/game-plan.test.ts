@@ -57,7 +57,7 @@ describe("action tools", () => {
     const useProps = Object.keys(
       buildUseTool(items, targets, "灰烬门廊").function.parameters.properties ?? {},
     );
-    expect(useProps).toEqual(["itemName", "targetActorName", "targetStageName"]);
+    expect(useProps).toEqual(["itemName", "targetActorName", "targetStageName", "targetDetail"]);
   });
 });
 
@@ -99,10 +99,17 @@ describe("action parsers", () => {
       kind: "pickup",
       itemName: "武器.测试火把",
     });
-    expect(parseUse({ itemName: "饰品.闸门钥匙", targetStageName: "场景.铁闸门" })).toEqual({
+    expect(
+      parseUse({
+        itemName: "饰品.闸门钥匙",
+        targetStageName: "场景.铁闸门",
+        targetDetail: "锁孔",
+      }),
+    ).toEqual({
       kind: "use",
       itemName: "饰品.闸门钥匙",
       targetStageName: "场景.铁闸门",
+      targetDetail: "锁孔",
     });
   });
 
@@ -117,6 +124,9 @@ describe("action parsers", () => {
       "message",
     );
     expect(() => parseMove({ targetStageName: "" })).toThrow("targetStageName");
+    expect(() =>
+      parseUse({ itemName: "钥匙", targetActorName: "守烬人", targetDetail: "锁孔" }),
+    ).toThrow("targetDetail");
     expect(() => parseAttack({ targetActorName: "  " })).toThrow("targetActorName");
     expect(() => parseSteal({ targetActorName: "提灯修士" })).toThrow("itemName");
     expect(() => parsePickup({})).toThrow("itemName");

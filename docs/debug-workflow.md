@@ -11,14 +11,15 @@
 
 `agent:game` 当前支持从数据库创建并推进一局游戏：
 
-- `create --user demo`：创建 game、player 座位、world、五段 stage 图、三组双向连接、乱葬坑到墓园的单向出口、五个角色、场景物品、角色物品，以及 actor/stage system memory；初始旁白落在 `场景.乱葬坑`。
+- `create --user demo`：创建 game、player 座位、world、五段 stage 图、三组双向连接、乱葬坑到墓园的单向出口、五个角色、场景物品、角色物品，以及 actor/stage/world system memory；初始旁白落在 `场景.乱葬坑`。
 - `status --game <gameId|slug>`：读取完整游戏状态。
 - `scene-map --game <gameId|slug>`：读取全场景角色分布（场景名 → 角色名列表），不调用 LLM。
 - `rag:ingest` / `rag:search` / `rag:check` / `rag:delete`：公共知识向量入库与检索；`rag:smoke` 走真实模型。
 - `npc --game <id|slug> --actor <actorId|actorName>`：推进一个 NPC 回合。
 - `npc --game <id|slug> --all`：按当前 actor 顺序推进所有未被玩家接管的 NPC。
-- `stage --game <id|slug> --stage <stageId|stageName>`：推动一个 stage 小 GM 回合，更新 environment 并写入场景事件。
+- `stage --game <id|slug> --stage <stageId|stageName>`：推动一个 stage 小 GM 回合，可更新 environment，也可通过 `notify_world` 向 world memory 写入场景报告。
 - `stage --game <id|slug> --all`：按当前 stage 顺序推动所有场景。
+- `world --game <id|slug>`：推动 world 回合，读取 stage 通知，可 `notify_stage` 下发裁决或 `end_game` 结束游戏。
 - `probe --game <id|slug> --actor <actorId|actorName> --message <text>`：向 actor 发起只读 memory 探针，不写 memory、不注入当前 observation、不改变游戏状态。
 - `probe --game <id|slug> --stage <stageId|stageName> --message <text>`：向 stage 发起只读 memory 探针，只读取 system prompt 与场景 memory，不注入当前环境或物品。
 - `take-control --game <id|slug> --actor <actorId|actorName>`：玩家接管一个 actor。
@@ -29,9 +30,9 @@
 - `player-wait --game <id|slug> --actor <actorId|actorName>`：留在原地。
 - `player-steal` / `player-give --game <id|slug> --actor <actorId|actorName> --target <actorName> --item <itemName>`：取物或给予。
 - `player-pickup --game <id|slug> --actor <actorId|actorName> --item <itemName>`：拾取当前场景物品。
-- `player-use --game <id|slug> --actor <actorId|actorName> --item <itemName> (--target <actorName> | --stage <stageName>)`：使用自己的物品。
+- `player-use --game <id|slug> --actor <actorId|actorName> --item <itemName> (--target <actorName> | --stage <stageName>) [--detail <text>]`：使用自己的物品；对场景使用时可用 `--detail` 描述锁孔、炉膛等具体部位。
 - `player-attack --game <id|slug> --actor <actorId|actorName> --target <actorName> [--item <itemName>]`：以被接管 actor 的身份直接攻击同场景目标，可指定武器；不调用 LLM。
-- `snapshot --game <id|slug>`：把当前状态与每个 actor/stage 的 memory 导出为只读快照。
+- `snapshot --game <id|slug>`：把当前状态与每个 actor/stage/world 的 memory 导出为只读快照。
 
 ## 运行时 system prompt 导出
 
@@ -39,7 +40,8 @@
 
 ```text
 prompts/<YYYYMMDD_HHmmss>_<world 名>/
-  world.md                # 世界级设定与全局规则（actor/stage prompt 的公共部分）
+  world.md                # 世界级设定与全局规则（actor/stage/world prompt 的公共部分）
+  world-agent.md          # world 作为全局叙事者的 system prompt
   actors/<角色名>.md       # 该 actor 的完整 system prompt
   stages/<场景名>.md       # 该 stage 小 GM 的完整 system prompt
 ```
@@ -60,7 +62,7 @@ NPC 回合由 agent loop 驱动：先读取环境与私有 memory，再通过工
 - `new --user <user> --game <game>`：手写一份开发快照。
 - `list` / `latest` / `show` / `validate`：枚举、定位、查看与校验。
 
-快照目录按 `worlds/<user>/<gameSlug>/<snapshotId>/` 组织，包含 `manifest.json`、`world.json`、`session.jsonl` 与可选 parts。数据库快照额外记录 `source`、`gameId`、`dbVersion` 与 `contentVersion`，并通过 `memories/<actor>.json`、`memories/<actor>.meta.json` 导出每个 NPC 的私有上下文。
+快照目录按 `worlds/<user>/<gameSlug>/<snapshotId>/` 组织，包含 `manifest.json`、`world.json`、`session.jsonl` 与可选 parts。数据库快照额外记录 `source`、`gameId`、`dbVersion` 与 `contentVersion`，并通过 `memories/<name>.json`、`memories/<name>.meta.json` 导出 actor、stage 与 world 的私有上下文。
 
 快照是数据库提交后的只读投影，用于观察、比对与留痕，不作为写入源。stage 与 actor 的 memory 都会导出。分支与回溯由数据库层负责，不通过修改快照文件实现。
 

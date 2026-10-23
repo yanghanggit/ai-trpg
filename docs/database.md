@@ -8,23 +8,23 @@ PostgreSQL 是游戏状态的唯一真相。`agent:game` 从数据库读取状�
 - `games`：一局游戏，聚合根；拥有 `owner_id`、稳定 `slug`、状态、内容版本与并发版本号。
 - `game_players`：游戏中的座位/参与者；v1 一局只有一个 player。
 - `actor_controls`：玩家接管 actor 的显式关系；有记录时该 actor 不再由 NPC loop 驱动。
-- `worlds`：游戏的世界状态，`game_id` 唯一，强制一局一个 world。
+- `worlds`：游戏的世界状态，`game_id` 唯一，强制一局一个 world；`actions` 是 world 实体的能力清单（当前 `notify_stage` / `end_game`）。
 - `stages`：world 下的场景；`world_id` 非空，按 `ordinal` 保持稳定顺序；`key` 是内容层稳定 key（旧数据可能为空），`environment` 是当前环境快照，由 stage 小 GM 更新。
 - `stage_connections`：场景图的有向边；连接两端必须属于同一 world；演示世界使用三组双向连接，乱葬坑到墓园另有一条单向出口。
 - `actors`：场景中的角色；`stage_id` 非空，不能脱离场景存在；当前没有玩家控制字段；`appearance` 是当前可见外观（含衣着、装备与伤势，text），`base_body` 是未穿装备的种族 + 裸体描述（JSONB），`stats` 是根属性（JSONB：`hp` / `maxHp` / `attack` / `defense` / `speed`），`status` 是 `alive | dead` 枚举（默认 `alive`），`equipment` 是槽位到物品名的索引（JSONB），`actions` 是该角色被允许的动作列表（JSONB 数组，必须显式写入，无默认值；例如动物不含道具操作）；`query` 作为只读能力写在同一 `actions` 列表中，拥有它的 actor 才会在 plan 中看到知识检索工具。
-- `stages.actions`：场景自身的能力清单，JSONB 数组；当前每个场景都声明 `submit_environment`，决定 stage 小 GM 是否暴露该工具。它不限制角色动作。
-- `items`：角色持有的物品；`actor_id` 非空，不能脱离角色存在；是 actor 唯一的运行时队列。物品根字段有 `key` / `name` / `description` / `kind` / `count`，战斗数值在 `stats`（JSONB：`damage` / `block`）；`use` 是声明式使用行为（JSONB，可空）；物品自身不记录穿戴状态。
+- `stages.actions`：场景自身的能力清单，JSONB 数组；当前每个场景都声明 `submit_environment` 与 `notify_world`，决定 stage 小 GM 是否暴露这些工具。它不限制角色动作。
+- `items`：角色持有的物品；`actor_id` 非空，不能脱离角色存在；是 actor 唯一的运行时队列。物品根字段有 `key` / `name` / `description` / `kind` / `count`，战斗数值在 `stats`（JSONB：`damage` / `block`）；物品自身不记录穿戴状态，也不携带使用效果。
 - `stage_items`：暂放在场景中的物品；`stage_id` 非空，当前只作为场景内容读取，已支持拾取并转入 actor 背包。字段与 `items` 相同，但没有穿戴状态。
 - `game_messages`：公共消息流，按 `sequence` 追加；记录 `stage_id`、`source_actor_id`、`target_actor_id` 与 `visibility`，供客户端增量拉取与审计；不建立 session 表。
 - `vector_documents`：公共知识向量；`collection` 隔离世界内容，`content_hash` 保证幂等，`embedding vector(384)` 由 pgvector 提供，`embedding_model` 防止不同模型向量混搜。它不进入 actor 私有 memory，也不承载剧情秘密。
-- `agent_memories`：每个 agent 的私有上下文；`owner_type` 当前支持 `actor` 与 `stage`，stage memory 属于场景小 GM。
+- `agent_memories`：每个 agent 的私有上下文；`owner_type` 支持 `actor`、`stage` 与 `world`，world memory 属于全局叙事者。
 - `agent_memory_messages`：agent memory 的消息序列，保存 system / human / ai / tool 与 tool_calls、元数据。
 
 ## 属性与物品
 
 `src/game/attributes.ts` 的 `ATTRIBUTE_DEFINITIONS` 是本系统 TRPG 属性总表：actor 的 `hp` / `maxHp` / `attack` / `defense` / `speed`，以及物品的 `damage` / `block`。新增属性先登记再决定作用域；所有计算通过 `attribute()` / `sumAttribute()` 读取，缺省为 0。
 
-`ItemState` 根字段只有 `id` / `name` / `description` / `kind` / `count`，没有根级 `damage` / `block`，也没有 `stats` 或穿戴状态。武器与装备扩展出 `StatItemState`（`stats`：`damage` / `block`）；饰品只有根字段。钥匙属于 `accessory`，不携带战斗数值。`block` 目前只存储，不参与伤害计算。
+`ItemState` 根字段有 `id` / `key` / `name` / `description` / `kind` / `count`，没有根级 `damage` / `block`，也没有 `stats` 或穿戴状态。武器与装备扩展出 `StatItemState`（`stats`：`damage` / `block`）；饰品只有根字段。钥匙属于 `accessory`，不携带战斗数值。`block` 目前只存储，不参与伤害计算。
 
 `base_body` 是“捏脸完成、还没穿装备”的形态，`formatBaseBody()` 输出 `[种族] 描述`，system prompt 用 `### 基础体型` 展示它。`appearance` 是其他角色实际看到的样子，包含衣着、装备与当前伤势；内容可以显式提供，动物/怪物省略时回退到 `baseBody.description`。NPC 与 stage 的同场景观察只读 `appearance`，不会把人类看成裸体。
 
@@ -40,7 +40,7 @@ PostgreSQL 是游戏状态的唯一真相。`agent:game` 从数据库读取状�
 
 `World` / `Actor` / `Stage` 是创建世界用的初始内容定义，不是测试专用，也不是数据库模型。`createGame` 读取 `World`，在一个事务中写入 `worlds`、`stages`、`stage_items`、`actors`、`items` 与 actor/stage memory；创建完成后 PostgreSQL 是唯一真相，修改内容定义不会回改已有游戏。`World.initialStageKey` 决定初始旁白所属场景；演示世界从乱葬坑开始。测试使用独立的小型世界，不随演示剧情变化。`pnpm db:seed` 是数据库 seeding 的固定叫法，只写 demo 用户与 `app_meta`；`pnpm db:demo` 重置后再写这些基础数据；`agent:game create` 才把 `World` 物化为具体游戏。
 
-`pnpm db:demo` 应用迁移、清空登记过的开发表、写入固定 demo 用户与 `app_meta`。`pnpm agent:game create --user demo` 创建一局游戏，同时生成 player 座位、world、五段 stage 图、五个角色、场景物品、角色物品，以及 actor 与 stage 的 system memory。
+`pnpm db:demo` 应用迁移、清空登记过的开发表、写入固定 demo 用户与 `app_meta`。`pnpm agent:game create --user demo` 创建一局游戏，同时生成 player 座位、world、五段 stage 图、五个角色、场景物品、角色物品，以及 actor、stage 与 world 的 system memory。
 
 ## NPC 行动
 
@@ -48,15 +48,17 @@ NPC 回合是：数据库环境 → agent loop → 动作工具暂存动作 → 
 
 工具包含只读 `look_stage`、`get_self`、`observe_actor`，以及十个动作工具 `say`、`whisper`、`announce`、`move`、`wait`、`attack`、`steal`、`give`、`pickup`、`use`；`look_stage` 与环境提示都会列出当前场景的 `stage_items`，`get_self` 返回自己的外观、stats、状态、穿戴与物品，`observe_actor` 只返回同场景目标携带的物品；`submit_plan` 是终止工具。只读工具可多次调用；工具按模型返回的 `tool_calls` 顺序串行执行。每个动作工具只接收自己的参数；一轮最多 `MAX_ACTIONS_PER_TURN = 2` 个动作，不分类互斥，顺序按工具调用顺序保留。所有 handler 只收集计划，不写数据库；loop 结束后由服务层重新校验并在事务中按顺序更新 actor、game version、公共消息与 memory。
 
-第一版动作是十个平级动作 `say`、`whisper`、`announce`、`move`、`wait`、`attack`、`steal`、`give`、`pickup`、`use`：说话、耳语、宣告、移动、等待、攻击、取物、给予、拾取与使用道具；每个动作一个工具；每个成功应用的动作都会写一条公共事件，`kind` 取动作名。`attack` 有无武器都可执行：伤害为 `max(0, 攻击者 stats.attack + 所选武器 stats.damage - 目标 stats.defense)`。空手时不加武器 damage，目标 `defense` 是唯一 block，目标物品 block 与发起者物品 block 都不参与当前伤害计算。`use` 需要自身物品，目标只能是当前场景、自己或同场景角色。`WeaponState` 只通过 `stats.damage` 参与伤害，`stats.block` 当前只存储、不参与伤害。`steal` 为 private，只有发起者与目标进入 memory，允许从尸体取物；`give` 把自身物品交给同场景存活角色；`pickup` 把 `stage_items` 移入 actor 背包。`use` 的通用流程只校验物品归属、目标与场景，然后执行物品自己的声明式 `use.effects`；当前钥匙在 seed 中用稳定 `targetStageKey: "gate"` 声明 `complete_game`，成功后 `games.status=completed`。`say` 与 `whisper` 必须指定单个 `targetActorName`；`say` 向当前 stage 广播，`whisper` 只有发起者与目标收到 memory；`announce` 无目标，向当前 stage 广播。公共消息用 `visibility` 区分 `stage` 与 `private`；私密事件后续对客户端不可见。
+第一版动作是十个平级动作 `say`、`whisper`、`announce`、`move`、`wait`、`attack`、`steal`、`give`、`pickup`、`use`：说话、耳语、宣告、移动、等待、攻击、取物、给予、拾取与使用道具；每个动作一个工具；每个成功应用的动作都会写一条公共事件，`kind` 取动作名。`attack` 有无武器都可执行：伤害为 `max(0, 攻击者 stats.attack + 所选武器 stats.damage - 目标 stats.defense)`。空手时不加武器 damage，目标 `defense` 是唯一 block，目标物品 block 与发起者物品 block 都不参与当前伤害计算。`use` 需要自身物品，目标只能是当前场景、自己或同场景角色。`WeaponState` 只通过 `stats.damage` 参与伤害，`stats.block` 当前只存储、不参与伤害。`steal` 为 private，只有发起者与目标进入 memory，允许从尸体取物；`give` 把自身物品交给同场景存活角色；`pickup` 把 `stage_items` 移入 actor 背包。`use` 的通用流程只校验物品归属、目标与场景；对场景使用时可以带 `targetDetail`，它作为 actor 的行动描述写入 stage memory，不代表结果。物品不再直接结束游戏；世界级后果由 stage 通知 world，再由 world 的 `end_game` 结束。`say` 与 `whisper` 必须指定单个 `targetActorName`；`say` 向当前 stage 广播，`whisper` 只有发起者与目标收到 memory；`announce` 无目标，向当前 stage 广播。公共消息用 `visibility` 区分 `stage` 与 `private`；私密事件后续对客户端不可见。
 
-`agent:game npc --game <gameId|slug> --actor <actorId|actorName>` 推进一个 NPC；`--all` 跳过被玩家接管或已死亡的 actor。`agent:game take-control` / `release-control` 接管或释放一个 actor；玩家入口是十个子命令：`player-say` / `player-whisper` / `player-announce` / `player-move` / `player-wait` / `player-attack` / `player-steal` / `player-give` / `player-pickup` / `player-use`，每个子命令只接收自己的参数。`agent:game stage --game <gameId|slug> --stage <stageId|stageName>` 推动一个 stage 回合；`--all` 按场景顺序推动全部场景。`agent:game status` 读取完整状态；`agent:game scene-map` 返回场景名到角色名列表的映射；`pnpm rag:*` 管理公共知识向量，细节见公共知识检索文档；`agent:game snapshot` 导出快照，包含 actor 与 stage 的 memory。沉睡与苏醒由 actor profile / system prompt 约束，并由 LLM 在正常 plan 中判断，系统不为特定状态维护唤醒规则。
+`agent:game npc --game <gameId|slug> --actor <actorId|actorName>` 推进一个 NPC；`--all` 跳过被玩家接管或已死亡的 actor。`agent:game take-control` / `release-control` 接管或释放一个 actor；玩家入口是十个子命令：`player-say` / `player-whisper` / `player-announce` / `player-move` / `player-wait` / `player-attack` / `player-steal` / `player-give` / `player-pickup` / `player-use`，每个子命令只接收自己的参数。`agent:game stage --game <gameId|slug> --stage <stageId|stageName>` 推动一个 stage 回合；`--all` 按场景顺序推动全部场景；`agent:game world --game <gameId|slug>` 推动 world 回合。`agent:game status` 读取完整状态；`agent:game scene-map` 返回场景名到角色名列表的映射；`pnpm rag:*` 管理公共知识向量，细节见公共知识检索文档；`agent:game snapshot` 导出快照，包含 actor、stage 与 world 的 memory。沉睡与苏醒由 actor profile / system prompt 约束，并由 LLM 在正常 plan 中判断，系统不为特定状态维护唤醒规则。
 
 ## Stage 回合
 
 stage 是活着的场景实体与小 GM，拥有自己的 `agent_memories` 记录、生命周期和显式推动的仲裁回合。当前能力只有更新 `stages.environment`。
 
-stage 回合读取本场景全部事件，包括 private 沟通与移动进出；事件只进入 stage memory，不改变 actor 可见性。stage 回合通过 `submit_environment` 提交完整环境，事务内校验 environment 不含角色名、更新场景、递增版本，写 `environment_change` 公共事件与 stage memory；不写 actor memory，actor 下一次 plan 重新读取当前 environment。它不会自动随 actor 行动运行，当前由 `agent:game stage` 显式推动。
+stage 回合读取本场景全部事件，包括 private 沟通与移动进出；事件只进入 stage memory，不改变 actor 可见性。stage 回合通过 `submit_environment` 提交 environment 与 `notify_world` 通知：environment 可省略，但计划必须至少有一项。事务内校验 environment 不含角色名、更新场景、把通知写入 world memory、递增版本，写 `environment_change` 公共事件与 stage memory；不写 actor memory，actor 下一次 plan 重新读取当前 environment。它不会自动随 actor 行动运行，当前由 `agent:game stage` 显式推动。
+
+world 回合读取 world memory 中的 stage 通知；可用 `notify_stage` 把世界裁决写入指定 stage memory，或用 `end_game` 结束游戏。`end_game` 必须是本轮最后一个动作，且只有 world 工具列表提供；stage 与 actor 都没有该工具。world 回合由 `agent:game world` 显式推动，不嵌在 stage 事务内。
 
 ## 迁移与重置
 

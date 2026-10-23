@@ -141,10 +141,11 @@ export async function appendItemObservations(
   options: {
     target?: { id: string; name: string };
     targetStageName?: string;
+    targetDetail?: string;
     broadcast: "stage" | "private";
   },
 ): Promise<void> {
-  const { target, targetStageName, broadcast } = options;
+  const { target, targetStageName, targetDetail, broadcast } = options;
   await appendStageObservations(
     executor,
     gameId,
@@ -178,7 +179,7 @@ export async function appendItemObservations(
               ? `# 场景动态\n${actor.name}拾取了${itemName}。`
               : target
                 ? `# 场景动态\n${actor.name}对${target.name}使用了${itemName}。`
-                : `# 场景动态\n${actor.name}在${stage.name}使用了${itemName}。`;
+                : `# 场景动态\n${actor.name}在${stage.name}${targetDetail ? `的${targetDetail}` : ""}使用了${itemName}。`;
       return {
         type: "human",
         content,
@@ -188,6 +189,7 @@ export async function appendItemObservations(
           itemName,
           ...(target ? { targetActorId: target.id } : {}),
           ...(targetStageName ? { targetStageName } : {}),
+          ...(targetDetail ? { targetDetail } : {}),
         },
       };
     },

@@ -64,7 +64,7 @@ export const DARK_FANTASY_WORLD: World = {
       name: "场景.墓园",
       profile: `修道院的中庭兼墓园。北面是封死的铁闸门，西侧石阶通向下沉的地窖，东边小屋后是焚尸房，南面斜坡通向乱葬坑。
 地面撒过石灰，墓碑之间插着几十块木牌，那是黑疖病最盛时留下的计数，字迹已被雨水泡烂。`,
-      actions: ["submit_environment"],
+      actions: ["submit_environment", "notify_world"],
       environment:
         "墓园被一圈倒塌的石墙围住，石灰在枯草上结出白斑；墓碑之间插着几十块木牌，只剩模糊的日期。北侧铁闸门缠着三圈铁链，锁孔里塞着蜡。西侧石阶向下没入黑暗，东边小屋后飘出焦糊味。南面斜坡塌了半边，能爬上来，却下不去。",
     },
@@ -73,7 +73,7 @@ export const DARK_FANTASY_WORLD: World = {
       name: "场景.乱葬坑",
       profile: `修道院南坡下的乱葬坑。黑疖病最盛的四十多天里，尸体被石灰一层层压在这里，没有名字，也没有墓碑。
 只有一条塌了半边的斜坡通向墓园，离开后无法再下来。`,
-      actions: ["submit_environment"],
+      actions: ["submit_environment", "notify_world"],
       environment:
         "坑壁是潮湿的黑土，裹尸布被石灰烧出洞；尸堆之间插着几根木桩，绳子上挂着写满日期与“无名”的木牌。斜坡从坑沿通向墓园，土很松，踩一步会滑下半步。",
     },
@@ -82,7 +82,7 @@ export const DARK_FANTASY_WORLD: World = {
       name: "场景.地窖",
       profile: `修道院的酒窖与储粮间。黑疖病之后，这里成了鼠群的巢：酒桶被啃穿，粮袋被咬空，地面积着骨渣与鼠毛。
 鼠王盘踞在最深处，它是这场瘟疫里活得最久、吃得最饱的东西。`,
-      actions: ["submit_environment"],
+      actions: ["submit_environment", "notify_world"],
       environment:
         "地窖顶很低，酒桶被啃出大洞，干涸的酒渍发黑；梁上垂着破绳，墙角堆着咬碎的骨头与发霉的粮袋。尽头的鼠王窝由骨渣、破布和啃断的钥匙串堆成。",
     },
@@ -91,7 +91,7 @@ export const DARK_FANTASY_WORLD: World = {
       name: "场景.焚尸房",
       profile: `修道院小屋后的焚尸房。黑疖病最盛时，这里日夜不停地烧；炉膛冷下来之后，墙上还留着人形的油印。
 屋角靠着一支浸透松脂的火把——对鼠群来说，那是唯一能烧穿毛皮的东西。`,
-      actions: ["submit_environment"],
+      actions: ["submit_environment", "notify_world"],
       environment:
         "焚尸房的墙壁被烟熏成黑色，铁钩上挂着焦黑的布片；炉膛早已冷了，炉门半敞，内壁结着厚厚的灰白余烬。墙角靠着一支浸透松脂的火把，尖端缠着干枯的鼠尾。",
       items: [
@@ -110,7 +110,7 @@ export const DARK_FANTASY_WORLD: World = {
       name: "场景.铁闸门",
       profile:
         "修道院北侧的铁闸门。黑疖病流行时，院长下令把它封死，带着还能走的修士从别的路离开；门后是通往外面的路。锁孔与奥德里克腰间的钥匙吻合。",
-      actions: ["submit_environment"],
+      actions: ["submit_environment", "notify_world"],
       environment:
         "铁闸门嵌在墓园北侧的岩壁里，门板上刻着修道院的钟形纹；铁链缠了三圈，锁孔里塞着干蜡。门外没有声音，只有风从门缝里挤进来的细响。",
     },
@@ -157,17 +157,6 @@ export const DARK_FANTASY_WORLD: World = {
           description: "一把铸铁的闸门钥匙，柄上刻着修道院的钟形纹；齿纹被磨得很亮。",
           kind: "accessory" as const,
           count: 1,
-          use: {
-            target: "stage",
-            targetStageKey: "gate",
-            effects: [
-              {
-                type: "complete_game",
-                message: "{actor}用{item}打开了{target}，游戏结束。",
-                result: "铁闸门打开了。",
-              },
-            ],
-          },
         },
         {
           key: "gravedigger-shovel",
@@ -318,4 +307,5 @@ export const DARK_FANTASY_WORLD: World = {
       actions: ["say", "whisper", "announce", "move", "wait", "attack", "query"],
     },
   ],
+  actions: ["notify_stage", "end_game"],
 };

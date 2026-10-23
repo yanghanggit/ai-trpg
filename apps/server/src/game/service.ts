@@ -20,8 +20,10 @@ import { toItemState } from "./items";
 import {
   buildActorSystemPrompt,
   buildStageSystemPrompt,
+  buildWorldSystemPrompt,
   createActorMemory,
   createStageMemory,
+  createWorldMemory,
 } from "./memory";
 import { appendStageEvent } from "./observations";
 import type {
@@ -36,6 +38,7 @@ import type {
   PlayerState,
   StageActionKind,
   StageState,
+  WorldActionKind,
 } from "./types";
 
 type Reader = Pick<Database, "select">;
@@ -238,6 +241,7 @@ export async function getGameState(db: Database, ref: string): Promise<GameState
       name: worldRow.name,
       campaignSetting: worldRow.campaignSetting,
       systemRules: worldRow.systemRules,
+      actions: worldRow.actions as unknown as WorldActionKind[],
       stages: stageState,
       connections,
     },
@@ -259,6 +263,7 @@ export async function createGame(db: Database, input: CreateGameInput): Promise<
   // 建局时收集最终 system prompt，事务提交后导出为人类可读的 md。
   const stagePrompts: { name: string; prompt: string }[] = [];
   const actorPrompts: { name: string; prompt: string }[] = [];
+  const worldPrompt = buildWorldSystemPrompt(input.world);
 
   await db.transaction(async (tx) => {
     const [user] = await tx.select().from(users).where(eq(users.username, input.username)).limit(1);
@@ -292,7 +297,19 @@ export async function createGame(db: Database, input: CreateGameInput): Promise<
       name: input.world.worldName,
       campaignSetting: input.world.campaignSetting,
       systemRules: input.world.systemRules,
+      actions: input.world.actions as unknown as typeof worlds.$inferInsert.actions,
     });
+    await createWorldMemory(
+      tx,
+      gameId,
+      {
+        id: worldId,
+        worldName: input.world.worldName,
+        campaignSetting: input.world.campaignSetting,
+        systemRules: input.world.systemRules,
+      },
+      worldPrompt,
+    );
 
     const stageIds = new Map<string, string>();
     for (const [ordinal, stage] of input.world.stages.entries()) {
@@ -338,7 +355,6 @@ export async function createGame(db: Database, input: CreateGameInput): Promise<
           kind: item.kind,
           count: item.count ?? 1,
           stats: item.stats ?? {},
-          use: item.use ?? null,
         });
       }
     }
@@ -357,13 +373,6 @@ export async function createGame(db: Database, input: CreateGameInput): Promise<
         throw new GameError("invalid_state", `重复的物品 key: ${item.key}`);
       }
       itemKeys.add(item.key);
-      const targetStageKey = item.use?.targetStageKey;
-      if (targetStageKey && !stageIds.has(targetStageKey)) {
-        throw new GameError(
-          "invalid_state",
-          `物品 ${item.key} 引用了不存在的 stage key: ${targetStageKey}`,
-        );
-      }
     }
 
     for (const connection of input.world.connections) {
@@ -413,7 +422,6 @@ export async function createGame(db: Database, input: CreateGameInput): Promise<
           kind: item.kind,
           count: item.count ?? 1,
           stats: item.stats ?? {},
-          use: item.use ?? null,
         });
       }
 
@@ -481,6 +489,7 @@ export async function createGame(db: Database, input: CreateGameInput): Promise<
     },
     stagePrompts,
     actorPrompts,
+    worldAgentPrompt: worldPrompt,
   });
 
   return getGameState(db, gameId);

@@ -45,36 +45,6 @@ const ITEM_WORLD = {
   ),
 };
 
-const STAGE_ITEM_USE_WORLD: World = {
-  ...TEST_WORLD,
-  stages: TEST_WORLD.stages.map((stage) =>
-    stage.key === "gate"
-      ? {
-          ...stage,
-          items: [
-            {
-              key: "stage-gate-key",
-              name: "测试门钥",
-              description: "放在场景中的测试钥匙。",
-              kind: "accessory" as const,
-              use: {
-                target: "stage",
-                targetStageKey: "gate",
-                effects: [
-                  {
-                    type: "complete_game",
-                    message: "{actor}用{item}打开了{target}，测试结束。",
-                    result: "门开了。",
-                  },
-                ],
-              },
-            },
-          ],
-        }
-      : stage,
-  ),
-};
-
 const GATE_STAGE = TEST_WORLD.stages.find((stage) => stage.key === "gate");
 const KEEPER_ACTOR = TEST_WORLD.actors.find((actor) => actor.name === "守烬人");
 if (!GATE_STAGE || !KEEPER_ACTOR) {
@@ -121,17 +91,6 @@ const SEALED_WORLD: World = {
           name: SEALED_KEY_NAME,
           description: "测试用闸门钥匙。",
           kind: "accessory" as const,
-          use: {
-            target: "stage",
-            targetStageKey: "sealed-gate",
-            effects: [
-              {
-                type: "complete_game",
-                message: "{actor}用{item}打开了{target}，测试结束。",
-                result: "封印门打开了。",
-              },
-            ],
-          },
         },
       ],
     },
@@ -278,38 +237,10 @@ describe.skipIf(!testDatabaseUrl)("items and interactions", () => {
     });
   });
 
-  it("keeps item behavior when a stage item is picked up", async () => {
+  it("records where an item was used on a stage without completing the game", async () => {
     const created = await createGame(handle.db, {
       username: DEMO_USER.username,
-      name: "场景物品行为测试局",
-      world: STAGE_ITEM_USE_WORLD,
-    });
-    await takeActorControl(handle.db, created.game.slug, "守烬人");
-
-    await playerPickup(handle.db, created.game.slug, "守烬人", {
-      itemName: "测试门钥",
-    });
-    const state = await getGameState(handle.db, created.game.slug);
-    const keeper = state.world.stages
-      .flatMap((stage) => stage.actors)
-      .find((actor) => actor.name === "守烬人");
-    expect(keeper?.items.find((item) => item.name === "测试门钥")).toMatchObject({
-      key: "stage-gate-key",
-      use: { target: "stage", targetStageKey: "gate" },
-    });
-
-    const used = await playerUse(handle.db, created.game.slug, "守烬人", {
-      itemName: "测试门钥",
-      targetStageName: "灰烬门廊",
-    });
-    expect(used.ok).toBe(true);
-    expect((await getGameState(handle.db, created.game.slug)).game.status).toBe("completed");
-  });
-
-  it("completes the game by using the key on the sealed gate", async () => {
-    const created = await createGame(handle.db, {
-      username: DEMO_USER.username,
-      name: "通关测试局",
+      name: "场景使用描述测试局",
       world: SEALED_WORLD,
     });
     await takeActorControl(handle.db, created.game.slug, "守烬人");
@@ -317,29 +248,20 @@ describe.skipIf(!testDatabaseUrl)("items and interactions", () => {
       targetStageName: SEALED_STAGE_NAME,
     });
 
-    await expect(
-      playerUse(handle.db, created.game.slug, "守烬人", {
-        targetActorName: "守烬人",
-        itemName: SEALED_KEY_NAME,
-      }),
-    ).rejects.toThrow("不能用于这个目标");
-
     const used = await playerUse(handle.db, created.game.slug, "守烬人", {
       targetStageName: SEALED_STAGE_NAME,
       itemName: SEALED_KEY_NAME,
+      targetDetail: "锁孔",
     });
     expect(used.ok).toBe(true);
 
     const state = await getGameState(handle.db, created.game.slug);
-    expect(state.game.status).toBe("completed");
-    expect(state.messages.find((message) => message.kind === "game_completed")?.content).toContain(
-      "测试结束",
-    );
-    expect(used).toMatchObject({ ok: true });
-    await expect(
-      playerMove(handle.db, created.game.slug, "守烬人", {
-        targetStageName: "场景.灰烬门廊",
-      }),
-    ).rejects.toThrow("游戏已结束");
+    expect(state.game.status).toBe("active");
+    expect(state.messages.at(-1)?.content).toContain("的锁孔");
+    expect(state.messages.some((message) => message.kind === "game_completed")).toBe(false);
+
+    const memories = await getGameMemories(handle.db, created.game.id);
+    const stageMemory = memories.find((memory) => memory.name === SEALED_STAGE_NAME);
+    expect(stageMemory?.messages.some((message) => message.content.includes("的锁孔"))).toBe(true);
   });
 });

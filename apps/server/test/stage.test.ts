@@ -184,7 +184,7 @@ describe.skipIf(!testDatabaseUrl)("stage mini-GM", () => {
       handle.db,
       created.game.id,
       stage?.id as string,
-      { environment: "无人的门廊，风停在石阶上。" },
+      { environment: "无人的门廊，风停在石阶上。", notifications: [] },
       [],
       true,
     );

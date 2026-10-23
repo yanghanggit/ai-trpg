@@ -16,7 +16,7 @@ import type {
   BaseBody,
   EquipmentSlots,
   ItemKind,
-  ItemUseDefinition,
+  WorldActionKind,
 } from "../game/types";
 import { EMBEDDING_DIMENSIONS } from "../rag/constants";
 import type { RagMetadata } from "../rag/types";
@@ -91,6 +91,7 @@ export const worlds = pgTable(
     name: text("name").notNull(),
     campaignSetting: text("campaign_setting").notNull(),
     systemRules: text("system_rules").notNull(),
+    actions: jsonb("actions").$type<WorldActionKind[]>().notNull().default([]),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
   },
@@ -168,7 +169,6 @@ export const items = pgTable("items", {
   kind: text("kind").$type<ItemKind>().notNull(),
   count: integer("count").notNull().default(1),
   stats: jsonb("stats").$type<ItemStats>().notNull().default({}),
-  use: jsonb("use").$type<ItemUseDefinition>(),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
 
@@ -183,7 +183,6 @@ export const stageItems = pgTable("stage_items", {
   kind: text("kind").$type<ItemKind>().notNull(),
   count: integer("count").notNull().default(1),
   stats: jsonb("stats").$type<ItemStats>().notNull().default({}),
-  use: jsonb("use").$type<ItemUseDefinition>(),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
 

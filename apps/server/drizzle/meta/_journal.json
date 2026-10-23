@@ -43,6 +43,13 @@
       "when": 1792739723052,
       "tag": "0005_tiny_gorgon",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1792740792776,
+      "tag": "0006_awesome_victor_mancha",
+      "breakpoints": true
     }
   ]
 }

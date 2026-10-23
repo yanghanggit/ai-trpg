@@ -5,7 +5,7 @@
  * 而不必翻数据库或日志。产物是调试旁路，不属于请求主路径：
  *
  * - 目录：`<repo>/prompts/<时间戳>_<world 名>/`（可用 `PROMPTS_DIR` 覆盖）；
- * - 内容：`world.md`、`actors/<角色名>.md`、`stages/<场景名>.md`；
+ * - 内容：`world.md`、`world-agent.md`、`actors/<角色名>.md`、`stages/<场景名>.md`；
  * - 测试环境默认跳过，避免每次建局都往仓库写文件；测试要验证本模块时显式设置
  *   `PROMPTS_DIR` 即可。
  */
@@ -29,6 +29,8 @@ export type PromptDumpInput = {
   };
   actorPrompts: readonly { name: string; prompt: string }[];
   stagePrompts: readonly { name: string; prompt: string }[];
+  /** world 作为全局 agent 的 system prompt；旧调用可省略。 */
+  worldAgentPrompt?: string;
 };
 
 /** 导出根目录：`PROMPTS_DIR` > `<repo>/prompts`。 */
@@ -114,6 +116,14 @@ export async function dumpSystemPrompts(
     await mkdir(join(dir, "stages"), { recursive: true });
 
     await writeFile(join(dir, "world.md"), worldPromptMarkdown(input.world), "utf8");
+    if (input.worldAgentPrompt) {
+      await writeFile(
+        join(dir, "world-agent.md"),
+        `${input.worldAgentPrompt}
+`,
+        "utf8",
+      );
+    }
     for (const stage of input.stagePrompts) {
       await writeFile(
         join(dir, "stages", `${safeFileName(stage.name)}.md`),

@@ -18,7 +18,7 @@
 | `场景.乱葬坑` | `角色.无名者` | 无 | 玩家起点；被当作瘟疫死者抛下的地方 |
 | `场景.地窖` | `角色.鼠王` | 无 | 酒窖鼠巢、沉睡 Boss、鼠王幼崽、致命威胁 |
 | `场景.焚尸房` | 无 | `武器.焚鼠火把` | 火武器伤害 |
-| `场景.铁闸门` | 无 | 无 | 被封死的北门；钥匙通关终点 |
+| `场景.铁闸门` | 无 | 无 | 被封死的北门；钥匙使用与 world 裁决终点 |
 
 连接由三组双向边和一条单向出口组成，全部以墓园为枢纽。双向表示两个方向各有一条有向边；单向表示只有一个方向存在边：
 
@@ -45,7 +45,7 @@
 
 ### 角色能力（种子中逐条显式声明）
 
-能力写在每个 actor 的 `actions` 里，没有共享默认值；每个场景的 `actions` 都声明 `submit_environment`，表示它具备更新 environment 的小 GM 能力。
+能力写在每个 actor 的 `actions` 里，没有共享默认值；每个场景的 `actions` 都声明 `submit_environment` 与 `notify_world`，表示它既能更新 environment，也能向 world 报告。world 的 `actions` 声明 `notify_stage` 与 `end_game`。
 
 | 角色 | 是否活物 | 移动/说话类 | 战斗 | 道具操作（give/pickup/use） | steal |
 | --- | --- | --- | --- | --- | --- |
@@ -79,8 +79,8 @@ Boss 路线：鼠王被本场景的非 `wait` 行为惊醒后，按 profile 追�
 | 窃取 | `steal` | 物品从目标转到发起者；事件为 private；只有发起者与目标有记忆；目标存活时下一轮会反应；允许对尸体使用 |
 | 给予 | NPC `give` 或暗语触发 | 物品从发起者转到同场景存活目标；暗语通过 say 写入记忆，奥德里克下一轮自行选择 give；没有硬控制状态 |
 | 拾取 | `pickup` | 场景物品移入 actor 背包；场景物品消失 |
-| 使用钥匙 | `use` | 目标必须是当前场景、自己或同场景角色；钥匙的 `ItemDefinition.use` 再限定 `targetStageKey: "gate"`，并以 `complete_game` 效果通关 |
-| 游戏结束 | 成功使用钥匙 | `games.status` 变为 `completed`；写 `game_completed` 公共事件；后续行动被拒绝；完成日志写 stderr，避免污染 CLI JSON |
+| 使用钥匙 | `use` | 对当前场景使用钥匙，并传入 `targetDetail`（如“锁孔”）；stage memory 收到行动描述，不直接通关 |
+| 游戏结束 | world 执行 `end_game` | 只有 world 能把 `games.status` 变为 `completed`；写 `game_completed` 公共事件；后续行动被拒绝 |
 | 普通攻击 Boss | `attack` | 鼠王 defense 100，空手伤害为 0；装备火把后 damage 250，配合 attack 6 足以一击击杀 |
 | 鼠王攻击 | 苏醒后推进鼠王 | attack 60，普通角色会被秒杀；清空本场景后沿墓园 → 焚尸房 → 墓园 → 铁闸门继续搜索 |
 | stage 记忆 | 私密沟通或 actor 移动 | 起点与终点 stage 都写入 memory；私密事件只对 stage 与既有可见者可见 |
@@ -100,7 +100,7 @@ Boss 路线：鼠王被本场景的非 `wait` 行为惊醒后，按 profile 追�
 - 玩家对奥德里克说出暗语“灰烬之下，旧钟无名”后，奥德里克下一轮先回应，再 `give` 交出钥匙。
 - 玩家可拾取焚尸房场景物品。
 - 玩家拾取 `武器.焚鼠火把` 后攻击鼠王，造成 156 点伤害并击杀。
-- 玩家可走到铁闸门，用钥匙使游戏进入 `completed`；钥匙行为由 seed 的 `ItemDefinition.use` 声明，使用稳定 `targetStageKey: "gate"` 和 `complete_game` 效果。
+- 玩家可走到铁闸门，用钥匙并传入场景部位；stage 若需要世界裁决则 `notify_world`，world 回合再决定是否 `end_game`。（待真实 provider 走查）
 - 玩家推动奥德里克、再推动墓园、再推动奥德里克：墓园 environment 已更新，奥德里克的下一次 plan 读取到新环境，stage memory 同时保留本场景事件。
 - 玩家在焚尸房拾取 `武器.焚鼠火把` 后推动焚尸房：stage 依据当前场景物品（已为空）与 pickup 记忆，生成只描述当前焚尸房状态的 environment，不再出现火把，也不写消失过程或历史痕迹。
 - 对焚尸房发起 stage 探针，依据 stage memory 回答当前场景没有火把；对无名者发起 actor 探针，依据 actor memory 回答自己曾拾取火把；两次探针都不写入 memory 或游戏事件。

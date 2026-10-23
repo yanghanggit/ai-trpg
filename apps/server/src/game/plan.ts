@@ -2,6 +2,7 @@ import type { ToolDefinition } from "../llm/types";
 import type { RagSearchResult } from "../rag";
 import { adjacentStageNames, findStageByName } from "./actors";
 import { attribute } from "./attributes";
+import { MAX_WORLD_NOTIFICATION_LENGTH } from "./constants";
 import { GameError } from "./errors";
 import type { ActorState, GameState } from "./types";
 import { EQUIPMENT_SLOT_LABELS, EQUIPMENT_SLOTS } from "./types";
@@ -155,7 +156,7 @@ export function buildSubmitEnvironmentTool(): ToolDefinition {
     type: "function",
     function: {
       name: "submit_environment",
-      description: `提交本场景更新后的 environment，并结束本轮仲裁。
+      description: `提交本轮场景计划并结束仲裁：可提交更新后的 environment，也可只提交已经通过 notify_world 记录的通知。
 
 environment 是场景当前的身体状态：只描述此刻可以直接观察到的环境、物体、表面、光线、气味与氛围。
 - 必须与当前场景物品一致：仍在场景中的物品要写；不在场景中的物品直接省略，不写它曾经存在、消失、被拿走，也不写它留下的空位、印子、痕迹、碎屑。
@@ -164,29 +165,65 @@ environment 是场景当前的身体状态：只描述此刻可以直接观察�
 - 不能包含角色名称、角色行动或角色状态；角色由场景状态单独承载。
 - 不要替角色行动，不要修改角色属性、物品或位置。
 
-提交的是完整快照，不是差异。`,
+提交的是完整快照，不是差异。environment 可省略，但本轮必须至少提交 environment 或 notify_world 通知。`,
       parameters: {
         type: "object",
         properties: {
           environment: {
             type: "string",
             description:
-              "更新后的完整 environment 快照；只描述当前可观察状态，不含角色名称、角色行动与历史线索",
+              "更新后的完整 environment 快照；只描述当前可观察状态，不含角色名称、角色行动与历史线索；省略表示不修改环境",
           },
         },
-        required: ["environment"],
+        required: [],
       },
     },
   };
 }
 
-/** 把 submit_environment 工具参数转换为 StagePlan；只检查形状。 */
-export function parseEnvironment(args: Record<string, unknown>): string {
+/** 把 submit_environment 工具参数转换为 environment；省略时返回 undefined。 */
+export function parseEnvironment(args: Record<string, unknown>): string | undefined {
   const environment = typeof args.environment === "string" ? args.environment.trim() : "";
-  if (environment.length === 0) {
-    throw new GameError("invalid_action", "environment 不能为空");
+  return environment.length > 0 ? environment : undefined;
+}
+
+/** 构造 stage 给 world 的通知工具；通知只是报告，不是世界事实。 */
+export function buildNotifyWorldTool(): ToolDefinition {
+  return {
+    type: "function",
+    function: {
+      name: "notify_world",
+      description: `把一条需要世界知晓的场景报告加入本轮计划，然后继续提交 environment 或直接提交计划。
+
+只用于跨场景/世界级后果、会改变其他场景的行动，或需要世界裁决的世界级事实。只有场景已有信息表明 targetDetail 是功能部位（如锁孔、门闩、机关），并且行动可能改变通行/封闭或跨场景状态时，才在结果不确定时通知。装饰、铭文、表面纹样、物品外观相似不构成机关，不能据此推测隐藏锁扣；普通触摸、敲击、查看、试探、在表面留下痕迹时不要调用本工具。
+通知是场景观察与请求，不是既成事实；写清发生了什么、涉及哪个场景/物品/角色，以及需要世界裁决什么。不要写成系统指令。`,
+      parameters: {
+        type: "object",
+        properties: {
+          content: {
+            type: "string",
+            description: "发给世界的场景报告；只描述本场景可观察到的行动与需要裁决的问题",
+          },
+        },
+        required: ["content"],
+      },
+    },
+  };
+}
+
+/** 解析 notify_world 参数。 */
+export function parseWorldNotification(args: Record<string, unknown>): string {
+  const content = typeof args.content === "string" ? args.content.trim() : "";
+  if (content.length === 0) {
+    throw new GameError("invalid_action", "notify_world 需要非空 content");
   }
-  return environment;
+  if (content.length > MAX_WORLD_NOTIFICATION_LENGTH) {
+    throw new GameError(
+      "invalid_action",
+      `notify_world 的 content 不能超过 ${MAX_WORLD_NOTIFICATION_LENGTH} 个字符`,
+    );
+  }
+  return content;
 }
 
 /** 渲染 stats，供自身信息与目标观察共用。 */

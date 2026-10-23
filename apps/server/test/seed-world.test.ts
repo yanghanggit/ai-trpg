@@ -71,17 +71,6 @@ describe("dark fantasy seed world", () => {
     });
     expect(keeper?.items.find((item) => item.name === "饰品.闸门钥匙")).toMatchObject({
       key: "gate-key",
-      use: {
-        target: "stage",
-        targetStageKey: "gate",
-        effects: [
-          {
-            type: "complete_game",
-            message: "{actor}用{item}打开了{target}，游戏结束。",
-            result: "铁闸门打开了。",
-          },
-        ],
-      },
     });
     expect(keeper?.baseBody.race).toBe("人类");
     expect(keeper?.status).toBe("alive");
@@ -150,8 +139,9 @@ describe("dark fantasy seed world", () => {
 
     // 每个场景都声明了自己作为小 GM 的能力。
     for (const item of stages) {
-      expect(item.actions).toEqual(["submit_environment"]);
+      expect(item.actions).toEqual(["submit_environment", "notify_world"]);
     }
+    expect(DARK_FANTASY_WORLD.actions).toEqual(["notify_stage", "end_game"]);
   });
 
   it("keeps the public knowledge base free of actor secrets", () => {

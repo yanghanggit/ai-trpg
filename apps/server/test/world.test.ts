@@ -1,0 +1,129 @@
+import { randomUUID } from "node:crypto";
+import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { DEMO_USER } from "../seeds/dark-fantasy";
+import "../src/db/env";
+import { type DatabaseHandle, openDatabase } from "../src/db/connect";
+import { resetDomainData, seedDemoData } from "../src/db/maintenance";
+import { runMigrations } from "../src/db/migrate";
+import { createGame, getGameMemories, getGameState, runStageTurn, runWorldTurn } from "../src/game";
+import { ChatCompletionResult, type ChatCompletionService, type ToolCall } from "../src/llm";
+import { TEST_WORLD } from "./test-world";
+
+const testDatabaseUrl = process.env.TEST_DATABASE_URL?.trim();
+
+function call(name: string, args: Record<string, unknown> = {}): ToolCall {
+  return {
+    id: randomUUID(),
+    type: "function",
+    function: { name, arguments: JSON.stringify(args) },
+  };
+}
+
+class ScriptedService implements ChatCompletionService {
+  private readonly toolCalls: ToolCall[];
+
+  constructor(toolCalls: ToolCall[]) {
+    this.toolCalls = toolCalls;
+  }
+
+  async complete(request: Parameters<ChatCompletionService["complete"]>[0]) {
+    return new ChatCompletionResult({
+      request,
+      aiMessage: { type: "ai", content: "", toolCalls: this.toolCalls },
+      finishReason: "tool_calls",
+      toolCalls: this.toolCalls,
+    });
+  }
+}
+
+describe.skipIf(!testDatabaseUrl)("world agent", () => {
+  let handle: DatabaseHandle;
+
+  beforeAll(async () => {
+    handle = openDatabase("TEST_DATABASE_URL");
+    await runMigrations(handle.db);
+    await resetDomainData(handle.db);
+    await seedDemoData(handle.db);
+  });
+
+  afterAll(async () => {
+    await handle.pool.end();
+  });
+
+  it("lets a stage notify the world without changing environment", async () => {
+    const created = await createGame(handle.db, {
+      username: DEMO_USER.username,
+      name: "世界通知测试局",
+      world: TEST_WORLD,
+    });
+    const notification = "守烬人把钥匙插进了灰烬门廊的锁孔，锁芯有转动声。";
+    const result = await runStageTurn(handle.db, created.game.slug, "灰烬门廊", {
+      service: new ScriptedService([
+        call("notify_world", { content: notification }),
+        call("submit_environment", {}),
+      ]),
+    });
+
+    expect(result.ok).toBe(true);
+    expect(result.plan).toEqual({ notifications: [notification] });
+    expect(result.state.world.stages.find((stage) => stage.name === "灰烬门廊")?.environment).toBe(
+      "风从破窗灌入，灰烬像雪一样落在石阶上。",
+    );
+
+    const memories = await getGameMemories(handle.db, created.game.id);
+    const world = memories.find((memory) => memory.ownerType === "world");
+    expect(world?.messages.some((message) => message.content.includes(notification))).toBe(true);
+  });
+
+  it("lets the world notify a stage and end the game as the last action", async () => {
+    const created = await createGame(handle.db, {
+      username: DEMO_USER.username,
+      name: "世界裁决测试局",
+      world: TEST_WORLD,
+    });
+    const notification = "守烬人把钥匙插进了灰烬门廊的锁孔，锁芯有转动声。";
+    await runStageTurn(handle.db, created.game.slug, "灰烬门廊", {
+      service: new ScriptedService([
+        call("notify_world", { content: notification }),
+        call("submit_environment", {}),
+      ]),
+    });
+
+    const directive = "灰烬门廊的门已经打开，外面的风进入了门厅。";
+    const ending = "门后的路出现了，故事在此收束。";
+    const result = await runWorldTurn(handle.db, created.game.slug, {
+      service: new ScriptedService([
+        call("notify_stage", { stageName: "灰烬门廊", content: directive }),
+        call("end_game", { message: ending }),
+        call("submit_world_plan", {}),
+      ]),
+    });
+
+    expect(result.ok).toBe(true);
+    expect(result.state.game.status).toBe("completed");
+    expect(result.state.messages.some((message) => message.kind === "game_completed")).toBe(true);
+
+    const memories = await getGameMemories(handle.db, created.game.id);
+    const gate = memories.find((memory) => memory.name === "灰烬门廊");
+    expect(gate?.messages.some((message) => message.content.includes(directive))).toBe(true);
+  });
+
+  it("rejects an end_game that is not the last world action", async () => {
+    const created = await createGame(handle.db, {
+      username: DEMO_USER.username,
+      name: "世界顺序测试局",
+      world: TEST_WORLD,
+    });
+    const result = await runWorldTurn(handle.db, created.game.slug, {
+      service: new ScriptedService([
+        call("end_game", { message: "提前结束。" }),
+        call("notify_stage", { stageName: "灰烬门廊", content: "迟到的通知。" }),
+        call("submit_world_plan", {}),
+      ]),
+    });
+
+    expect(result.ok).toBe(false);
+    expect(result.state.game.status).toBe("active");
+    expect((await getGameState(handle.db, created.game.slug)).game.status).toBe("active");
+  });
+});
