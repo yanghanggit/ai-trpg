@@ -11,7 +11,7 @@ PostgreSQL 是游戏状态的唯一真相。`agent:game` 从数据库读取状�
 - `worlds`：游戏的世界状态，`game_id` 唯一，强制一局一个 world；`actions` 是 world 实体的能力清单（当前 `notify_stage` / `end_game`）。
 - `stages`：world 下的场景；`world_id` 非空，按 `ordinal` 保持稳定顺序；`key` 是内容层稳定 key（旧数据可能为空），`environment` 是当前环境快照，由 stage 小 GM 更新。
 - `stage_connections`：场景图的有向边；连接两端必须属于同一 world；演示世界使用三组双向连接，乱葬坑到墓园另有一条单向出口。
-- `actors`：场景中的角色；`stage_id` 非空，不能脱离场景存在；`is_default_player` 是默认玩家角色标记（默认 `false`），玩家接管仍由独立控制关系表达；`appearance` 是当前可见外观（含衣着、装备与伤势，text），`base_body` 是未穿装备的种族 + 裸体描述（JSONB），`stats` 是根属性（JSONB：`hp` / `maxHp` / `attack` / `defense` / `speed`），`status` 是 `alive | dead` 枚举（默认 `alive`），`equipment` 是槽位到物品名的索引（JSONB），`actions` 是该角色被允许的动作列表（JSONB 数组，必须显式写入，无默认值；例如动物不含道具操作）；`query` 作为只读能力写在同一 `actions` 列表中，拥有它的 actor 才会在 plan 中看到知识检索工具。
+- `actors`：场景中的角色；`stage_id` 非空，不能脱离场景存在；`is_default_player` 是默认玩家角色标记（默认 `false`），玩家接管仍由独立控制关系表达；`appearance` 是当前可见外观（含衣着、装备与伤势，text），`base_body` 是未穿装备的种族 + 裸体描述（JSONB），`stats` 是根属性（JSONB：`hp` / `maxHp` / `attack` / `defense` / `speed`），`status` 是 `alive | dead` 枚举（默认 `alive`），`equipment` 是槽位到物品名的索引（JSONB），`actions` 是该角色被允许的十个动作（JSONB 数组，必须显式写入，无默认值；例如动物不含道具操作）；`can_query` 表示该角色能否检索公共知识库（boolean，默认 `false`），它是只读工具而不是动作，所以不占行动、也不属于 `actions`。
 - `stages.actions`：场景自身的能力清单，JSONB 数组；当前每个场景都声明 `submit_environment` 与 `notify_world`，决定 stage 小 GM 是否暴露这些工具。它不限制角色动作。
 - `items`：角色持有的物品；`actor_id` 非空，不能脱离角色存在；是 actor 唯一的运行时队列。物品根字段有 `key` / `name` / `description` / `kind` / `count` / `affixes`，战斗数值在 `stats`（JSONB：`damage` / `block`），声明式使用效果在 `effect`（JSONB，必须包含 `type`）；`affixes` 是词缀字符串数组，默认空数组。物品自身不记录穿戴状态。
 - `stage_items`：暂放在场景中的物品；`stage_id` 非空，当前只作为场景内容读取，已支持拾取并转入 actor 背包。字段与 `items` 相同，但没有穿戴状态。
@@ -58,7 +58,7 @@ NPC 回合是：数据库环境 → agent loop → 动作工具暂存动作 → 
 
 stage 是活着的场景实体与小 GM，拥有自己的 `agent_memories` 记录、生命周期和显式推动的仲裁回合。当前能力只有更新 `stages.environment`。
 
-stage 回合读取本场景全部事件，包括 private 沟通与移动进出；事件只进入 stage memory，不改变 actor 可见性。stage 回合通过 `submit_environment` 提交 environment 与 `notify_world` 通知：environment 可省略，但计划必须至少有一项。事务内校验 environment 不含角色名、更新场景、把通知写入 world memory、递增版本，写 `environment_change` 公共事件与 stage memory；不写 actor memory，actor 下一次 plan 重新读取当前 environment。它不会自动随 actor 行动运行，当前由 `agent:game stage` 显式推动。
+stage 回合读取本场景全部事件，包括 private 沟通与移动进出；事件只进入 stage memory，不改变 actor 可见性。stage 回合通过 `submit_environment` / `notify_world` 提交有序动作列表（`StagePlan.actions`）：environment 可省略，但计划必须至少有一项。事务内校验 environment 不含角色名、更新场景、把通知写入 world memory、递增版本，写 `environment_change` 公共事件与 stage memory；不写 actor memory，actor 下一次 plan 重新读取当前 environment。它不会自动随 actor 行动运行，当前由 `agent:game stage` 显式推动。
 
 world 回合读取 world memory 中的 stage 通知；可用 `notify_stage` 把世界裁决写入指定 stage memory，或用 `end_game` 结束游戏。`end_game` 必须是本轮最后一个动作，且只有 world 工具列表提供；stage 与 actor 都没有该工具。另一种结束路径是 `is_default_player = true` 的 actor 死亡：由 `damage` 结算自动调用完成游戏的系统逻辑，不经过 actor/stage 的 `end_game`。因此当前有两条结束路径：钥匙开门等 world 裁决走 `end_game`；默认玩家角色死亡走系统终止。world 回合由 `agent:game world` 显式推动，不嵌在 stage 事务内。
 
@@ -67,6 +67,8 @@ world 回合读取 world memory 中的 stage 通知；可用 `notify_stage` 把�
 schema 定义在服务端代码中，SQL 迁移由 Drizzle Kit 生成并入库。迁移是唯一建表路径，不在应用启动时调用隐式同步。
 
 `pnpm db:migrate` 应用迁移；迁移前会确保 `vector` 扩展可用，空库也能直接建出向量表。`pnpm db:reset --yes` 清空显式登记的开发表（包括 `vector_documents`）；`pnpm db:check` 探测连接、pgvector 版本与向量行数。重置清单集中在 `src/db/maintenance.ts`，新增业务表必须登记。`db:reset` 与 `db:demo` 只允许本机数据库；数据库重置不会删除 `worlds/` 下的历史快照，需要时手动清理。
+
+开发期不做旧数据搬运：迁移只描述目标形状（加列、改类型），不写 backfill / 数据重写语句。字段改名或语义变更时，直接改 schema、生成迁移，然后 `db:reset --yes` + `db:demo` 用当前 seed 重刷一局；不要为一个没人保留的旧库额外维护一段一次性 UPDATE。
 
 ## 事务边界
 

@@ -49,7 +49,9 @@ stage 回合与 actor 回合平行，但不共享 actor plan：
 3. 通过 agent loop 读取本场景，推理环境是否变化、是否需要通知 world；
 4. 用 `notify_world` 把场景报告加入本轮计划；
 5. 以 `submit_environment` 提交计划；`environment` 可省略，但计划必须包含 environment 或至少一条通知；
-6. 在短事务中校验、更新 `stages.environment`、写 world/stage memory、递增 game version、写公共事件。
+6. 在短事务中校验、按计划顺序执行、递增 game version、写公共事件。
+
+`StagePlan` 与 `ActorPlan` / `WorldPlan` 同构，都是 `{ actions: [...] }` 的有序列表：`{ kind: "submit_environment", environment }` 或 `{ kind: "notify_world", notification }`。environment 至多一条，通知至多 `MAX_STAGE_NOTIFICATIONS_PER_TURN` 条；开始写库前全部校验完。
 
 工具只读部分包括 `look_stage` 与 `observe_actor`，且只允许查看本场景；`notify_world` 把报告写入本轮计划，`submit_environment` 是终止工具。工具 handler 不写数据库；LLM 调用在事务外完成。
 

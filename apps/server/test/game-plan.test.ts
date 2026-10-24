@@ -162,6 +162,7 @@ describe("read-only descriptions", () => {
         "pickup",
         "use",
       ] as const,
+      canQuery: false,
       items: [
         {
           id: "item-1",

@@ -12,8 +12,7 @@ import { GameError } from "./errors";
 import { appendMemoryMessages, loadAgentMemory } from "./memory";
 import { buildLookTool, lookStage } from "./plan";
 import { getGameState } from "./service";
-import type { GameState, WorldAction, WorldActionKind, WorldPlan, WorldTurnResult } from "./types";
-import { canEndGame, canNotifyStage } from "./world-actions";
+import type { GameState, WorldAction, WorldPlan, WorldTurnResult } from "./types";
 import { appendStageDirective } from "./world-events";
 import {
   buildEndGameTool,
@@ -90,7 +89,7 @@ export async function applyWorldPlan(
       throw new GameError("invalid_state", `world 缺少 memory: ${world.id}`);
     }
     const actions = plan?.actions ?? [];
-    const worldActions = world.actions as unknown as WorldActionKind[];
+    const worldActions = world.actions;
 
     const reject = async (content: string): Promise<false> => {
       await appendMemoryMessages(tx, memory.row.id, [
@@ -115,10 +114,10 @@ export async function applyWorldPlan(
       return reject("end_game 必须是本轮最后一个动作。");
     }
     for (const action of actions) {
-      if (action.kind === "end_game" && !canEndGame(worldActions)) {
+      if (action.kind === "end_game" && !worldActions.includes("end_game")) {
         return reject("world 没有 end_game 能力。");
       }
-      if (action.kind === "notify_stage" && !canNotifyStage(worldActions)) {
+      if (action.kind === "notify_stage" && !worldActions.includes("notify_stage")) {
         return reject("world 没有 notify_stage 能力。");
       }
     }
@@ -196,8 +195,8 @@ export async function runWorldTurn(
     return `${action.kind} 已加入计划`;
   };
 
-  const canNotify = canNotifyStage(state.world.actions);
-  const canEnd = canEndGame(state.world.actions);
+  const canNotify = state.world.actions.includes("notify_stage");
+  const canEnd = state.world.actions.includes("end_game");
 
   const loop = await agentLoop({
     name: state.world.name,

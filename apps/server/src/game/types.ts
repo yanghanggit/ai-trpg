@@ -59,8 +59,6 @@ export const EQUIPMENT_SLOT_KINDS: Record<EquipmentSlot, readonly ItemKind[]> = 
  * 不是数据库行，也不是测试夹具；`createGame` 读取它并在一个事务中写入
  * `worlds`、`stages`、`actors`、`items` 与 `stage_items`。创建完成后以数据库为唯一真相。
  */
-export type WorldActionKind = "notify_stage" | "end_game";
-
 export type World = {
   contentVersion: string;
   worldName: string;
@@ -84,7 +82,7 @@ export type Stage = {
   environment: string;
   /** 暂放在场景中的物品；创建时物化为 `stage_items`。 */
   items?: readonly ItemDefinition[];
-  /** 场景自身的能力清单；必须显式列出，目前只有 submit_environment。 */
+  /** 场景自身的能力清单；必须显式列出，当前有 submit_environment 与 notify_world。 */
   actions: readonly StageActionKind[];
 };
 
@@ -119,8 +117,10 @@ export type Actor = {
   /** 是否为默认玩家角色；该角色死亡时整局结束。 */
   isDefaultPlayer?: boolean;
   items: readonly ItemDefinition[];
-  /** 该角色可用的动作与只读能力；必须显式列出，不给默认值。 */
-  actions: readonly ActorCapability[];
+  /** 该角色能执行的行动；必须显式列出，不给默认值。 */
+  actions: readonly ActionKind[];
+  /** 能否检索公共知识库；唯一的条件只读工具，不占行动。 */
+  canQuery?: boolean;
 };
 
 /** Actor 的初始物品定义；创建后物化为 `items` 或 `stage_items` 行。 */
@@ -237,30 +237,31 @@ export type ActorAction =
 
 export type ActionKind = ActorAction["kind"];
 
-/** 只读能力不是行动，但与行动共用 actor.actions 的能力清单。 */
-export type ActorReadToolKind = "query";
+/** stage 的一次仲裁动作；与 actor / world 的计划同构，都是有序动作列表。 */
+export type StageAction =
+  | { kind: "submit_environment"; environment: string }
+  | { kind: "notify_world"; notification: string };
 
-/** actor.actions 的成员：十个动作或只读工具。 */
-export type ActorCapability = ActionKind | ActorReadToolKind;
-
-/** 场景作为小 GM 能执行的动作；当前只有提交 environment。 */
-export type StageActionKind = "submit_environment" | "notify_world";
+/** 场景作为小 GM 能执行的动作；能力清单成员，由 `StageAction` 派生。 */
+export type StageActionKind = StageAction["kind"];
 
 /** 一轮计划：按提交顺序执行的动作列表；条数上限由 `MAX_ACTIONS_PER_TURN` 约束。 */
 export type ActorPlan = {
   actions: ActorAction[];
 };
 
-/** stage 小 GM 的一次仲裁计划：可更新 environment，也可向 world 发通知。 */
+/** stage 小 GM 的一轮仲裁计划：按提交顺序更新 environment 或向 world 发通知。 */
 export type StagePlan = {
-  environment?: string;
-  notifications: string[];
+  actions: StageAction[];
 };
 
 /** world 对 stage 的下行动作。 */
 export type WorldAction =
   | { kind: "notify_stage"; stageName: string; content: string }
   | { kind: "end_game"; message: string };
+
+/** world 的能力清单成员；由 `WorldAction` 派生。 */
+export type WorldActionKind = WorldAction["kind"];
 
 /** world 的一轮计划。 */
 export type WorldPlan = {
@@ -324,7 +325,8 @@ export type ActorState = {
   isDefaultPlayer: boolean;
   equipment: EquipmentSlots;
   items: ItemState[];
-  actions: readonly ActorCapability[];
+  actions: readonly ActionKind[];
+  canQuery: boolean;
 };
 
 export type StageState = {

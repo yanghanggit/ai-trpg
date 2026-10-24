@@ -1,22 +1,15 @@
 import { z } from "zod";
-import type { World } from "./types";
+import { ACTION_KINDS } from "./actions";
+import type { StageActionKind, World, WorldActionKind } from "./types";
 
-const actorCapabilitySchema = z.enum([
-  "say",
-  "whisper",
-  "announce",
-  "move",
-  "wait",
-  "attack",
-  "steal",
-  "give",
-  "pickup",
-  "use",
-  "query",
-]);
+/** 十个动作直接复用运行时清单，避免新增动作时漏改。 */
+const actionKindSchema = z.enum(ACTION_KINDS);
 
-const stageActionSchema = z.enum(["submit_environment", "notify_world"]);
-const worldActionSchema = z.enum(["notify_stage", "end_game"]);
+const stageActionSchema = z.enum([
+  "submit_environment",
+  "notify_world",
+] satisfies readonly StageActionKind[]);
+const worldActionSchema = z.enum(["notify_stage", "end_game"] satisfies readonly WorldActionKind[]);
 const itemKindSchema = z.enum(["weapon", "equipment", "accessory", "consumable", "valuable"]);
 const itemStatsSchema = z.object({
   damage: z.number().optional(),
@@ -77,7 +70,8 @@ const actorSchema = z.object({
   status: z.enum(["alive", "dead"]).optional(),
   isDefaultPlayer: z.boolean().optional(),
   items: z.array(itemSchema),
-  actions: z.array(actorCapabilitySchema),
+  actions: z.array(actionKindSchema),
+  canQuery: z.boolean().optional(),
 });
 
 const worldSchema = z.object({

@@ -13,11 +13,13 @@ import {
 } from "drizzle-orm/pg-core";
 import type { ActorStats, ItemStats } from "../game/attributes";
 import type {
+  ActionKind,
   ActorStatus,
   BaseBody,
   EquipmentSlots,
   ItemEffect,
   ItemKind,
+  StageActionKind,
   WorldActionKind,
 } from "../game/types";
 import { EMBEDDING_DIMENSIONS } from "../rag/constants";
@@ -112,7 +114,7 @@ export const stages = pgTable(
     name: text("name").notNull(),
     profile: text("profile").notNull(),
     environment: text("environment").notNull(),
-    actions: jsonb("actions").$type<JsonValue[]>().notNull().default([]),
+    actions: jsonb("actions").$type<StageActionKind[]>().notNull().default([]),
     ordinal: integer("ordinal").notNull().default(0),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },
@@ -157,7 +159,9 @@ export const actors = pgTable("actors", {
   /** 默认玩家角色；该角色死亡时整局结束。 */
   isDefaultPlayer: boolean("is_default_player").notNull().default(false),
   equipment: jsonb("equipment").$type<EquipmentSlots>().notNull().default({}),
-  actions: jsonb("actions").$type<JsonValue[]>().notNull().default([]),
+  actions: jsonb("actions").$type<ActionKind[]>().notNull().default([]),
+  /** 能否检索公共知识库；唯一的条件只读工具。 */
+  canQuery: boolean("can_query").notNull().default(false),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
 });

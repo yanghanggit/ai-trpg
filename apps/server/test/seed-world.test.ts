@@ -181,15 +181,15 @@ describe("dark fantasy seed world", () => {
     }
   });
 
-  it("only native actors list the public knowledge tool in actions", () => {
-    const actionsOf = (name: string) =>
-      DARK_FANTASY_WORLD.actors.find((actor) => actor.name === name)?.actions ?? [];
+  it("only native actors can query the public knowledge base", () => {
+    const canQueryOf = (name: string) =>
+      DARK_FANTASY_WORLD.actors.find((actor) => actor.name === name)?.canQuery ?? false;
 
     for (const native of ["角色.奥德里克", "角色.坏运气", "角色.鼠王"]) {
-      expect(actionsOf(native)).toContain("query");
+      expect(canQueryOf(native)).toBe(true);
     }
     for (const other of ["角色.煤渣", "角色.无名者"]) {
-      expect(actionsOf(other)).not.toContain("query");
+      expect(canQueryOf(other)).toBe(false);
     }
   });
 

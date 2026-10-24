@@ -27,7 +27,6 @@ import {
 } from "./memory";
 import { appendStageEvent } from "./observations";
 import type {
-  ActorCapability,
   ActorState,
   ConnectionState,
   CreateGameInput,
@@ -36,9 +35,7 @@ import type {
   MessageState,
   MessageVisibility,
   PlayerState,
-  StageActionKind,
   StageState,
-  WorldActionKind,
 } from "./types";
 import { parseWorldContent } from "./world-content";
 
@@ -182,7 +179,8 @@ export async function getGameState(db: Database, ref: string): Promise<GameState
       isDefaultPlayer: actor.isDefaultPlayer,
       equipment: actor.equipment,
       items: itemsByActor.get(actor.id) ?? [],
-      actions: actor.actions as unknown as ActorCapability[],
+      actions: actor.actions,
+      canQuery: actor.canQuery,
     });
     actorsByStage.set(actor.stageId, list);
   }
@@ -196,7 +194,7 @@ export async function getGameState(db: Database, ref: string): Promise<GameState
     ordinal: stage.ordinal,
     actors: actorsByStage.get(stage.id) ?? [],
     items: itemsByStage.get(stage.id) ?? [],
-    actions: stage.actions as unknown as StageActionKind[],
+    actions: stage.actions,
   }));
 
   const connections: ConnectionState[] = connectionRows.map((connection) => ({
@@ -243,7 +241,7 @@ export async function getGameState(db: Database, ref: string): Promise<GameState
       name: worldRow.name,
       campaignSetting: worldRow.campaignSetting,
       systemRules: worldRow.systemRules,
-      actions: worldRow.actions as unknown as WorldActionKind[],
+      actions: worldRow.actions,
       stages: stageState,
       connections,
     },
@@ -300,7 +298,7 @@ export async function createGame(db: Database, input: CreateGameInput): Promise<
       name: input.world.worldName,
       campaignSetting: input.world.campaignSetting,
       systemRules: input.world.systemRules,
-      actions: input.world.actions as unknown as typeof worlds.$inferInsert.actions,
+      actions: [...input.world.actions],
     });
     await createWorldMemory(
       tx,
@@ -328,7 +326,7 @@ export async function createGame(db: Database, input: CreateGameInput): Promise<
         name: stage.name,
         profile: stage.profile,
         environment: stage.environment,
-        actions: stage.actions as unknown as typeof stages.$inferInsert.actions,
+        actions: [...stage.actions],
         ordinal,
       });
 
@@ -415,7 +413,8 @@ export async function createGame(db: Database, input: CreateGameInput): Promise<
         status: actor.status ?? "alive",
         isDefaultPlayer: actor.isDefaultPlayer ?? false,
         equipment: actor.equipment ?? {},
-        actions: actor.actions as unknown as typeof actors.$inferInsert.actions,
+        actions: [...actor.actions],
+        canQuery: actor.canQuery ?? false,
       });
 
       for (const item of actor.items) {

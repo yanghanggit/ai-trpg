@@ -65,7 +65,7 @@ describe.skipIf(!testDatabaseUrl)("world agent", () => {
     });
 
     expect(result.ok).toBe(true);
-    expect(result.plan).toEqual({ notifications: [notification] });
+    expect(result.plan).toEqual({ actions: [{ kind: "notify_world", notification }] });
     expect(result.state.world.stages.find((stage) => stage.name === "灰烬门廊")?.environment).toBe(
       "风从破窗灌入，灰烬像雪一样落在石阶上。",
     );

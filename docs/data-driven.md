@@ -141,7 +141,7 @@ pnpm agent:game status --game my-game
    不直接加载 TypeScript seed；TS seed 通过 `seeds/index.ts` 注册。
 
 4. **RAG 不会在建局时自动执行**  
-   新世界若要支持 `query`，需要单独执行 `pnpm rag ingest --seed <name>`，并确保 collection 与游戏内容版本一致。
+   新世界若要支持 `query`，需要单独执行 `pnpm rag ingest --seed <name>`，并确保 collection 与游戏内容版本一致；同时把需要检索的角色写成 `canQuery: true`。
 
 5. **旧局不自动升级**  
    在 world memory / `worlds.actions` / stage `notify_world` 之前创建的旧游戏，需要新建一局；旧局不会自动获得新结构。
@@ -202,7 +202,7 @@ grep -rn "DARK_FANTASY_WORLD" apps/server/src apps/server/scripts --include=*.ts
 
 - `World.actions` 与 `worlds.actions`；
 - world memory / system prompt / `runWorldTurn`；
-- stage `notify_world` 与 `StagePlan.notifications`；
+- stage `notify_world` 与 `StagePlan.actions`；
 - world `notify_stage` 与 `end_game`；
 - `use.targetDetail` 写入 stage memory；
 - 移除物品直接通关；改为 `item.effect` 声明式效果 + dispatcher；

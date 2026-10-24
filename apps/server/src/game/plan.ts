@@ -92,7 +92,7 @@ export function buildObserveActorTool(
   };
 }
 
-/** 构造公共知识库检索工具；只对 actions 中显式列出 query 的角色暴露。 */
+/** 构造公共知识库检索工具；只对 canQuery 为真的角色暴露。 */
 export function buildKnowledgeTool(): ToolDefinition {
   return {
     type: "function",

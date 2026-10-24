@@ -10,6 +10,7 @@ import {
   applyStagePlan,
   createGame,
   getGameMemories,
+  getGameState,
   playerMove,
   playerWhisper,
   releaseActorControl,
@@ -171,7 +172,7 @@ describe.skipIf(!testDatabaseUrl)("stage mini-GM", () => {
     });
 
     expect(result.ok).toBe(true);
-    expect(result.plan?.environment).toBe(environment);
+    expect(result.plan?.actions).toEqual([{ kind: "submit_environment", environment }]);
     expect(result.state.game.version).toBe(1);
     expect(result.state.world.stages.find((stage) => stage.name === "灰烬门廊")?.environment).toBe(
       environment,
@@ -203,8 +204,10 @@ describe.skipIf(!testDatabaseUrl)("stage mini-GM", () => {
     });
 
     expect(result.ok).toBe(true);
-    expect(result.plan?.environment).toContain("风停了");
-    expect(result.plan?.notifications).toEqual(["守烬人在门廊里找到了通往中殿的线索。"]);
+    expect(result.plan?.actions).toEqual([
+      { kind: "submit_environment", environment: "风停了，灰烬沉在石阶缝里。" },
+      { kind: "notify_world", notification: "守烬人在门廊里找到了通往中殿的线索。" },
+    ]);
     expect(result.state.game.version).toBe(1);
   });
 
@@ -227,7 +230,7 @@ describe.skipIf(!testDatabaseUrl)("stage mini-GM", () => {
       handle.db,
       created.game.id,
       stage?.id as string,
-      { environment: "无人的门廊，风停在石阶上。", notifications: [] },
+      { actions: [{ kind: "submit_environment", environment: "无人的门廊，风停在石阶上。" }] },
       [],
       true,
     );
@@ -262,6 +265,35 @@ describe.skipIf(!testDatabaseUrl)("stage mini-GM", () => {
         message.content.includes("environment 不能包含角色名"),
       ),
     ).toBe(true);
+  });
+
+  it("rejects a plan that updates the environment twice", async () => {
+    const created = await createGame(handle.db, {
+      username: DEMO_USER.username,
+      name: "重复环境测试局",
+      world: TEST_WORLD,
+    });
+    const stage = created.world.stages.find((item) => item.name === "灰烬门廊");
+
+    const ok = await applyStagePlan(
+      handle.db,
+      created.game.id,
+      stage?.id as string,
+      {
+        actions: [
+          { kind: "submit_environment", environment: "风停了。" },
+          { kind: "submit_environment", environment: "风又起了。" },
+        ],
+      },
+      [],
+      true,
+    );
+    expect(ok).toBe(false);
+    expect(
+      (await getGameState(handle.db, created.game.slug)).world.stages.find(
+        (item) => item.id === stage?.id,
+      )?.environment,
+    ).toBe("风从破窗灌入，灰烬像雪一样落在石阶上。");
   });
 
   it("keeps the demo environment free of actor names", () => {

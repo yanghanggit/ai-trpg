@@ -49,7 +49,7 @@ export type NpcTurnOptions = {
   service: ChatCompletionService;
   maxRounds?: number;
   logger?: Parameters<typeof agentLoop>[0]["logger"];
-  /** 真实 RAG provider；仅 actions 中包含 query 的 actor 会使用。测试可注入假 provider。 */
+  /** 真实 RAG provider；仅 canQuery 为真的 actor 会使用。测试可注入假 provider。 */
   knowledgeProvider?: EmbeddingProvider;
 };
 
@@ -81,7 +81,7 @@ export function buildActorObservation(state: GameState, current: ActorWithStage)
   const talks = targets.length === 0 ? "无" : targets.join("、");
   const interactables = aliveTargets.length === 0 ? "无" : aliveTargets.join("、");
   const moveLines = moves.length === 0 ? "无" : moves.join("、");
-  const hasKnowledge = current.actor.actions.includes("query");
+  const hasKnowledge = current.actor.canQuery;
   const knowledgeHint = hasKnowledge
     ? "当问题涉及建筑、地理、历史、地名、瘟疫处理或习俗等公共事实，而当前场景与记忆无法直接确认时，必须先调用 query 检索，再回答或行动；不要用常识补全，也不要把检索结果当成亲眼所见。query 只读、不占行动，不提供角色秘密或当前状态。"
     : "";
@@ -167,7 +167,7 @@ export async function runNpcTurn(
     .map((item) => item.name);
   const availableUseItemNames = current.actor.items.map((item) => item.name);
 
-  const hasKnowledge = current.actor.actions.includes("query");
+  const hasKnowledge = current.actor.canQuery;
   const knowledgeTool = hasKnowledge ? buildKnowledgeTool() : undefined;
   const knowledgeProvider = hasKnowledge
     ? (options.knowledgeProvider ?? new TransformersEmbeddingProvider())
