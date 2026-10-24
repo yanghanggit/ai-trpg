@@ -5,7 +5,11 @@ import { appendPublicMessage, bumpGameVersion } from "../apply/messages";
 import { resolveAdjacentStage } from "../apply/queries";
 import type { ActorWithStageRow, Executor, ResolvedMove, WorldRow } from "../apply/types";
 import { GameError } from "../errors";
-import { appendEnvironmentObservations, appendStageEvent } from "../observations";
+import {
+  appendActionObservations,
+  appendEnvironmentObservations,
+  appendStageEvent,
+} from "../observations";
 import type { MoveAction } from "../types";
 
 /** 构造 move 工具：沿连接移动到相邻场景。 */
@@ -71,26 +75,32 @@ export async function applyMove(
     visibility: "stage",
     content: `${actorRow.actor.name}从${resolved.stage.name}走向${target.name}。`,
   });
+  // 信息不对称：旧场景只知道「他走了」，新场景只知道「他来了」，
+  // 起点到终点的完整路线只有移动者自己知道（写进它的行动结果）。
+  const leaveText = `${actorRow.actor.name}离开了${resolved.stage.name}。`;
+  const enterText = `${actorRow.actor.name}进入了${target.name}。`;
+
+  // 旧场景的旁观者：与 say / attack / give 共用同一个可见行动观察原语。
+  // 此时移动者已经在目标场景，所以这里不会被自己收到。
+  await appendActionObservations(
+    executor,
+    gameId,
+    resolved.stage.id,
+    actorRow.actor.id,
+    `# 场景动态\n${leaveText}`,
+  );
   await appendEnvironmentObservations(
     executor,
     gameId,
     target.id,
     actorRow.actor.id,
-    `# 环境变化\n${actorRow.actor.name}从${resolved.stage.name}进入了${target.name}。`,
+    `# 环境变化\n${enterText}`,
   );
-  await appendStageEvent(
-    executor,
-    gameId,
-    resolved.stage.id,
-    `# 场景事件\n${actorRow.actor.name}离开${resolved.stage.name}，前往${target.name}。`,
-    { eventKind: "move_leave" },
-  );
-  await appendStageEvent(
-    executor,
-    gameId,
-    target.id,
-    `# 场景事件\n${actorRow.actor.name}从${resolved.stage.name}进入${target.name}。`,
-    { eventKind: "move_enter" },
-  );
-  return `# 行动结果\n你抵达了${target.name}。`;
+  await appendStageEvent(executor, gameId, resolved.stage.id, `# 场景事件\n${leaveText}`, {
+    eventKind: "move_leave",
+  });
+  await appendStageEvent(executor, gameId, target.id, `# 场景事件\n${enterText}`, {
+    eventKind: "move_enter",
+  });
+  return `# 行动结果\n你从${resolved.stage.name}抵达了${target.name}。`;
 }

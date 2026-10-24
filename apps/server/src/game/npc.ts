@@ -64,7 +64,6 @@ export function buildActorObservation(state: GameState, current: ActorWithStage)
   const moves = adjacentStageNames(state, current.stage.id);
   const others = otherActorsInStage(current.stage, current.actor.id);
   const targets = others.map((actor) => actor.name);
-  const aliveTargets = others.filter(isAlive).map((actor) => actor.name);
   const allowed = allowedActionKinds(current.actor.actions);
   const actionList = allowed.map((kind) => `${kind}（${ACTION_SUMMARIES[kind]}）`).join("、");
   const actorLines =
@@ -79,8 +78,7 @@ export function buildActorObservation(state: GameState, current: ActorWithStage)
       : current.stage.items
           .map((item) => `${item.name}（${item.kind}）：${item.description}`)
           .join("\n");
-  const talks = targets.length === 0 ? "无" : targets.join("、");
-  const interactables = aliveTargets.length === 0 ? "无" : aliveTargets.join("、");
+  const targetLines = targets.length === 0 ? "无" : targets.join("、");
   const moveLines = moves.length === 0 ? "无" : moves.join("、");
   const knowledgeHint =
     "当问题涉及建筑、地理、历史、地名、瘟疫处理或习俗等公共事实，而当前场景与记忆无法直接确认时，必须先调用 query 检索，再回答或行动；不要用常识补全，也不要把检索结果当成亲眼所见。query 只读、不占行动，不提供角色秘密或当前状态。";
@@ -100,11 +98,8 @@ ${actorLines}
 ## 场景物品
 ${itemLines}
 
-## 可交谈对象
-${talks}
-
 ## 可作用对象
-${interactables}
+${targetLines}
 
 ## 可移动至
 ${moveLines}
@@ -153,9 +148,10 @@ export async function runNpcTurn(
 
   const stageNames = adjacentStageNames(state, current.stage.id);
   const otherActors = otherActorsInStage(current.stage, current.actor.id);
-  const talkTargets = otherActors.map((actor) => actor.name);
-  const aliveTargets = otherActors.filter(isAlive).map((actor) => actor.name);
-  const selfAndAlive = [current.actor.name, ...aliveTargets];
+  // 目标不区分存活：尸体可以被说话、攻击、给予、使用与偷窃；
+  // 唯一的存活要求是行动者自己，由行动入口统一把关。
+  const targets = otherActors.map((actor) => actor.name);
+  const selfAndTargets = [current.actor.name, ...targets];
   const availableUseItemNames = current.actor.items.map((item) => item.name);
   const wearableItemNames = current.actor.items
     .filter(
@@ -172,21 +168,21 @@ export async function runNpcTurn(
 
   const lookTool = buildLookTool(state);
   const selfTool = buildSelfInfoTool();
-  const observeTool = buildObserveActorTool(talkTargets);
+  const observeTool = buildObserveActorTool(targets);
   const submitTool = buildSubmitPlanTool();
 
   /** 十二个动作的工具与参数解析器；按 kind 平铺，按权限过滤后使用。 */
   const actionTools: Record<ActionKind, ToolDefinition> = {
-    say: buildSayTool(talkTargets),
-    whisper: buildWhisperTool(talkTargets),
+    say: buildSayTool(targets),
+    whisper: buildWhisperTool(targets),
     announce: buildAnnounceTool(),
     move: buildMoveTool(stageNames),
     wait: buildWaitTool(),
-    attack: buildAttackTool(aliveTargets),
-    steal: buildStealTool(talkTargets),
-    give: buildGiveTool(aliveTargets),
+    attack: buildAttackTool(targets),
+    steal: buildStealTool(targets),
+    give: buildGiveTool(targets),
     pickup: buildPickupTool(),
-    use: buildUseTool(availableUseItemNames, selfAndAlive, current.stage.name),
+    use: buildUseTool(availableUseItemNames, selfAndTargets, current.stage.name),
     equip: buildEquipTool(wearableItemNames),
     unequip: buildUnequipTool(occupiedSlots),
   };

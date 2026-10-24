@@ -23,16 +23,14 @@ export async function findActorInStage(
   return target;
 }
 
-/** 生命判定：唯一的依据是当前生命。ActorRow 与 ActorState 都满足。 */
+/**
+ * 生命判定：唯一的依据是当前生命。ActorRow 与 ActorState 都满足。
+ *
+ * 它只用来判断「能不能自主行动」（行动入口）与展示，**不**用来限制目标：
+ * 尸体可以被攻击、给予、使用、偷窃，这是给复活类玩法留的口子。
+ */
 export function isAlive(target: { hp: number }): boolean {
   return target.hp > 0;
-}
-
-/** 拒绝已死亡的目标。 */
-export function assertAlive(target: ActorRow): void {
-  if (!isAlive(target)) {
-    throw new GameError("invalid_action", `目标已经死亡: ${target.name}`);
-  }
 }
 
 /** 拒绝把自己当成目标。 */

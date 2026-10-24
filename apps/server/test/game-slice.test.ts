@@ -215,9 +215,7 @@ describe.skipIf(!testDatabaseUrl)("memory-driven NPC slice", () => {
     ).toBe(true);
     expect(keeper?.messages.some((message) => message.type === "tool")).toBe(true);
     expect(
-      keeper?.messages.some((message) =>
-        message.content.includes("提灯修士从灰烬门廊进入了断钟中殿"),
-      ),
+      keeper?.messages.some((message) => message.content.includes("提灯修士进入了断钟中殿")),
     ).toBe(true);
 
     const result = await snapshotGame(handle.db, created.game.slug, {

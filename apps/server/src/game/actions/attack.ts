@@ -1,10 +1,5 @@
 import type { ToolDefinition } from "../../llm/types";
-import {
-  assertAlive,
-  assertNotSelf,
-  findActorInStage,
-  resolveEquippedItems,
-} from "../apply/queries";
+import { assertNotSelf, findActorInStage, resolveEquippedItems } from "../apply/queries";
 import type { ActorWithStageRow, Executor, ResolvedAttack } from "../apply/types";
 import { GameError } from "../errors";
 import { applyItemEffect, UNARMED_EFFECT } from "../item-effects";
@@ -23,7 +18,7 @@ export function buildAttackTool(targetActorNames: readonly string[]): ToolDefini
         properties: {
           targetActorName: {
             type: "string",
-            description: "要攻击的同场景角色",
+            description: "要攻击的同场景角色；尸体也可以（伤害结算会空转）",
             ...(targetActorNames.length > 0 ? { enum: [...targetActorNames] } : {}),
           },
         },
@@ -43,7 +38,12 @@ export function parseAttack(args: Record<string, unknown>): AttackAction {
   return { kind: "attack", targetActorName };
 }
 
-/** 校验 attack：目标存活且不是自己。 */
+/**
+ * 校验 attack：目标不是自己。
+ *
+ * 目标不要求存活：尸体也能被攻击，伤害结算会在 `isAlive` 处空转。
+ * 唯一的存活要求是行动者自己——尸体不能自主行动。
+ */
 export async function resolveAttack(
   executor: Executor,
   stage: ResolvedAttack["stage"],
@@ -52,7 +52,6 @@ export async function resolveAttack(
 ): Promise<ResolvedAttack> {
   const target = await findActorInStage(executor, stage.id, action.targetActorName);
   assertNotSelf(target, actorRow.actor.id);
-  assertAlive(target);
   // 武器只来自装备：weapon 槽里的物品，且必须声明 damage 效果。其余情况按空手。
   const weaponName = actorRow.actor.equipment.weapon;
   const item =

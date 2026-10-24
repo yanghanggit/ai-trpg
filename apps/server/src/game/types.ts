@@ -193,7 +193,7 @@ export type StealAction = {
   itemName: string;
 };
 
-/** 把自己持有的一件物品交给同场景的一个存活角色。 */
+/** 把自己持有的一件物品交给同场景的一个角色；尸体也可以是接收方。 */
 export type GiveAction = {
   kind: "give";
   targetActorName: string;

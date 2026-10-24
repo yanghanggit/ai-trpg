@@ -82,15 +82,13 @@ export async function applyDamage(context: ItemEffectContext, damage: number): P
       stageId: stage.id,
     });
   }
+  // 出手者只知道这一下打得多重、对方有没有倒下；对方剩余生命只写进公共消息（上帝视角）
+  // 与受害者自己，不进出手者的记忆。
   const feedback =
     actionKind === "attack"
-      ? `你使用攻击${itemText}对${target.name}，造成${damage}点伤害；`
-      : `你对${target.name}使用${item?.name ?? "空手"}，造成${damage}点伤害；`;
-  return `# 行动结果\n${feedback}${
-    remainingHp <= 0
-      ? `${target.name}倒下了`
-      : `${target.name}剩余 HP ${remainingHp}/${current.stats.maxHp}`
-  }。`;
+      ? `你使用攻击${itemText}对${target.name}，造成${damage}点伤害`
+      : `你对${target.name}使用${item?.name ?? "空手"}，造成${damage}点伤害`;
+  return `# 行动结果\n${feedback}${remainingHp <= 0 ? `；${target.name}倒下了` : ""}。`;
 }
 
 /** 固定伤害 handler。 */

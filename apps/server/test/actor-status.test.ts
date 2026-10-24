@@ -11,8 +11,11 @@ import {
   createGame,
   getGameState,
   playerAttack,
+  playerGive,
   playerSteal,
+  playerWait,
   refreshAppearances,
+  releaseActorControl,
   runNpcTurn,
   settleDeaths,
   takeActorControl,
@@ -122,10 +125,12 @@ describe.skipIf(!testDatabaseUrl)("actor status", () => {
       runNpcTurn(handle.db, created.game.slug, "提灯修士", { service: new WaitService() }),
     ).rejects.toThrow("已死亡");
 
+    // 尸体仍可被攻击，只是伤害结算空转；行动主体才必须活着。
     await takeActorControl(handle.db, created.game.slug, "守烬人");
-    await expect(
-      playerAttack(handle.db, created.game.slug, "守烬人", { targetActorName: "提灯修士" }),
-    ).rejects.toThrow("目标已经死亡");
+    const swing = await playerAttack(handle.db, created.game.slug, "守烬人", {
+      targetActorName: "提灯修士",
+    });
+    expect(swing.ok).toBe(true);
 
     const state = await getGameState(handle.db, created.game.slug);
     const updated = state.world.stages
@@ -145,7 +150,10 @@ class DeathAppearanceService implements ChatCompletionService {
 
   async complete(request: Parameters<ChatCompletionService["complete"]>[0]) {
     this.calls += 1;
-    this.input = request.inputMessage;
+    // 只有第一轮带 inputMessage，后续轮次沿用同一份 messages。
+    if (this.input === "") {
+      this.input = request.inputMessage;
+    }
     const toolCalls = [
       {
         id: "appearance-1",
@@ -465,5 +473,210 @@ describe.skipIf(!testDatabaseUrl)("death phase does not block death", () => {
     expect(await readMemory("actor", keeper.id)).toContain("倒下了，不再有任何生命迹象");
     // 死者自己也留一条，供未来的复活类扩展使用。
     expect(await readMemory("actor", monk.id)).toContain("你已经死亡");
+  });
+});
+
+/** 记录本轮 input 与完整工具定义的假服务；用于检查目标枚举。 */
+class TargetCaptureService implements ChatCompletionService {
+  input = "";
+  tools: { function: { name: string; parameters: unknown } }[] = [];
+
+  async complete(request: Parameters<ChatCompletionService["complete"]>[0]) {
+    // 只有第一轮带 inputMessage，后续轮次沿用同一份 messages。
+    if (this.input === "") {
+      this.input = request.inputMessage;
+    }
+    this.tools = (request.tools ?? []) as unknown as {
+      function: { name: string; parameters: unknown };
+    }[];
+    const toolCalls = [
+      {
+        id: "capture-1",
+        type: "function" as const,
+        function: { name: "submit_plan", arguments: "{}" },
+      },
+    ];
+    return new ChatCompletionResult({
+      request,
+      aiMessage: { type: "ai", content: "", toolCalls },
+      finishReason: "tool_calls",
+      toolCalls,
+    });
+  }
+}
+
+describe.skipIf(!testDatabaseUrl)("corpses can be operated on", () => {
+  let handle: DatabaseHandle;
+
+  beforeAll(async () => {
+    handle = openDatabase("TEST_DATABASE_URL");
+    await runMigrations(handle.db);
+    await resetDomainData(handle.db);
+    await seedDemoData(handle.db);
+  });
+
+  afterAll(async () => {
+    await handle.pool.end();
+  });
+
+  /** 造一具尸体：守烬人两刀打死提灯修士。 */
+  const killMonk = async (name: string, service?: ChatCompletionService) => {
+    const created = await createGame(handle.db, {
+      username: DEMO_USER.username,
+      name,
+      world: TEST_WORLD,
+    });
+    await takeActorControl(handle.db, created.game.slug, "守烬人");
+    const strike = () =>
+      playerAttack(
+        handle.db,
+        created.game.slug,
+        "守烬人",
+        { targetActorName: "提灯修士" },
+        service ? { appearanceService: service } : {},
+      );
+    await strike();
+    await strike();
+    return created;
+  };
+
+  const findMonk = async (slug: string) => {
+    const state = await getGameState(handle.db, slug);
+    return state.world.stages
+      .flatMap((stage) => stage.actors)
+      .find((actor) => actor.name === "提灯修士");
+  };
+
+  it("尸体可以被攻击：结算空转，不改 hp，也不重复宣布死亡", async () => {
+    const created = await killMonk("攻击尸体测试局");
+    const before = await findMonk(created.game.slug);
+    expect(before?.hp).toBe(0);
+
+    const again = await playerAttack(handle.db, created.game.slug, "守烬人", {
+      targetActorName: "提灯修士",
+    });
+    expect(again.ok).toBe(true);
+
+    const after = await getGameState(handle.db, created.game.slug);
+    const monk = after.world.stages
+      .flatMap((stage) => stage.actors)
+      .find((actor) => actor.name === "提灯修士");
+    expect(monk?.hp).toBe(0);
+    expect(monk?.appearance).toBe(before?.appearance);
+    expect(after.messages.filter((message) => message.kind === "death")).toHaveLength(1);
+  });
+
+  it("物品可以交给尸体（为复活类玩法留口）", async () => {
+    const created = await killMonk("给予尸体测试局");
+    const given = await playerGive(handle.db, created.game.slug, "守烬人", {
+      targetActorName: "提灯修士",
+      itemName: "裂齿短刃",
+    });
+    expect(given.ok).toBe(true);
+
+    const monk = await findMonk(created.game.slug);
+    expect(monk?.hp).toBe(0);
+    expect(monk?.items.map((item) => item.name)).toContain("裂齿短刃");
+  });
+
+  it("NPC 的工具目标与观察文本都包含尸体（只有一套规则）", async () => {
+    const created = await killMonk("尸体也是合法目标测试局");
+    const capture = new TargetCaptureService();
+    // 守烬人已经被玩家接管，改用同场景的旁观者视角检查工具枚举。
+    await takeActorControl(handle.db, created.game.slug, "守烬人");
+    await releaseActorControl(handle.db, created.game.slug, "守烬人");
+    await runNpcTurn(handle.db, created.game.slug, "守烬人", { service: capture });
+
+    // attack / give / use 的参数枚举都包含尸体名，没有第二套存活过滤。
+    for (const toolName of ["attack", "give", "use"]) {
+      const tool = capture.tools.find((tool) => tool.function.name === toolName);
+      const enumValues = (tool?.function.parameters as { properties?: Record<string, unknown> })
+        ?.properties;
+      const targetName = enumValues?.targetActorName as { enum?: string[] } | undefined;
+      expect(targetName?.enum).toContain("提灯修士");
+    }
+    // 观察文本只有一个「可作用对象」，且包含尸体。
+    expect(capture.input).toContain("## 可作用对象");
+    expect(capture.input).not.toContain("## 可交谈对象");
+    expect(capture.input).toContain("提灯修士");
+  });
+
+  it("旁观者与出手者都只知道伤害，对方的剩余生命只有受害者自己知道", async () => {
+    // 门廊里加一个旁观者：攻击者与目标之外，必须有第三方才谈得上「旁观者视角」。
+    const world = {
+      ...TEST_WORLD,
+      actors: [
+        ...TEST_WORLD.actors,
+        {
+          stageKey: "gate",
+          name: "旁听者",
+          profile: "一个缩在门廊阴影里的无关者。",
+          appearance: "只看得见一双贴在石墙后的眼睛。",
+          baseBody: { race: "人类", description: "瘦小，总把自己藏在阴影里。" },
+          hp: 8,
+          stats: { maxHp: 8, strength: 1, wisdom: 1, agility: 2, damage: 1, block: 1 },
+          items: [],
+          actions: ["say", "whisper", "move", "wait"] as const,
+        },
+      ],
+    };
+    const created = await createGame(handle.db, {
+      username: DEMO_USER.username,
+      name: "旁观者信息隔离测试局",
+      world,
+    });
+    await takeActorControl(handle.db, created.game.slug, "守烬人");
+    await playerAttack(handle.db, created.game.slug, "守烬人", {
+      targetActorName: "提灯修士",
+    });
+
+    const state = await getGameState(handle.db, created.game.slug);
+    const monk = state.world.stages
+      .flatMap((stage) => stage.actors)
+      .find((actor) => actor.name === "提灯修士");
+    const scribe = state.world.stages
+      .flatMap((stage) => stage.actors)
+      .find((actor) => actor.name === "旁听者");
+    const keeper = state.world.stages
+      .flatMap((stage) => stage.actors)
+      .find((actor) => actor.name === "守烬人");
+    if (!monk || !scribe || !keeper) {
+      throw new Error("缺少测试数据");
+    }
+    const read = async (id: string) => {
+      const memory = await loadAgentMemory(handle.db, created.game.id, "actor", id);
+      return memory?.messages.map((message) => message.content).join("\n") ?? "";
+    };
+
+    // 受害者自己：知道自己掉了多少血。
+    const victim = await read(monk.id);
+    expect(victim).toContain("造成6点伤害");
+    expect(victim).toContain("你剩余 HP 4/10");
+
+    // 同场景旁观者：知道这一下打得多重、对方有没有倒下，但不知道对方还剩多少生命。
+    const observer = await read(scribe.id);
+    expect(observer).toContain("守烬人对提灯修士使用攻击");
+    expect(observer).toContain("造成6点伤害");
+    expect(observer).not.toContain("剩余 HP");
+    expect(observer).not.toContain("倒下");
+
+    // 发起者：知道这一下打得多重，但同样看不到对方的剩余生命。
+    const attacker = await read(keeper.id);
+    expect(attacker).toContain("造成6点伤害");
+    expect(attacker).not.toContain("剩余 HP");
+  });
+
+  it("尸体不能自主行动", async () => {
+    const created = await killMonk("尸体不能行动测试局");
+    // 玩家入口：没接管也不行，接管了也不行——行动入口统一拒绝。
+    await expect(
+      playerGive(handle.db, created.game.slug, "提灯修士", {
+        targetActorName: "守烬人",
+        itemName: "铅封提灯",
+      }),
+    ).rejects.toThrow("未被玩家接管");
+
+    await takeActorControl(handle.db, created.game.slug, "提灯修士");
+    await expect(playerWait(handle.db, created.game.slug, "提灯修士")).rejects.toThrow("已死亡");
   });
 });

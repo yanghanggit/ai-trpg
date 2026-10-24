@@ -81,7 +81,7 @@ Boss 路线：鼠王被本场景的非 `wait` 行为惊醒后，按 openingBrief
 | 初始世界 | `agent:game create --seed dark-fantasy` | 五段场景、墓园三 actor、乱葬坑一 actor、地窖一 actor、焚尸房为空且有场景物品、铁闸门为空；旁白落在乱葬坑 |
 | 玩家移动 | `player-move` | 只能沿连接移动；移动事件写入公共消息与环境记忆 |
 | 感知 | NPC 的 `observe_actor` | 只能查看同场景角色携带的物品；不返回 stats 或状态 |
-| 攻击 | `player-attack` 或 NPC `attack` | 伤害为 `max(0, damage - block)`；目标生命下降；死亡 actor 不再进入 loop |
+| 攻击 | `player-attack` 或 NPC `attack` | 伤害为 `max(0, damage - block)`；目标生命下降；死亡 actor 不再进入 loop，但仍可被攻击（伤害空转） |
 | 默认玩家死亡 | 伤害使 `isDefaultPlayer` actor 的 HP 归零 | 写 `game_completed`，`games.status=completed`，后续行动被拒绝 |
 | 动物语言 | NPC `say` / `whisper` / `announce` | 同族可清晰沟通；对非同族只能发出本族叫声；`mind` 不受限制 |
 | 狗的反应 | 攻击奥德里克后推进煤渣 | 煤渣通过战斗记忆、profile 与 openingBriefing 自行决定攻击凶手；不是硬触发器 |

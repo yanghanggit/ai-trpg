@@ -149,12 +149,13 @@ describe.skipIf(!testDatabaseUrl)("stage mini-GM", () => {
       gate?.messages.some((message) => message.content.includes("守烬人对提灯修士耳语。")),
     ).toBe(true);
     expect(gate?.messages.some((message) => message.content.includes("别回头"))).toBe(false);
-    expect(gate?.messages.some((message) => message.content.includes("守烬人离开灰烬门廊"))).toBe(
-      true,
-    );
-    expect(
-      nave?.messages.some((message) => message.content.includes("守烬人从灰烬门廊进入断钟中殿")),
-    ).toBe(true);
+    // 信息不对称：旧场景只知道“离开”，新场景只知道“进入”，路线只有移动者自己知道。
+    const gateText = gate?.messages.map((message) => message.content).join("\n") ?? "";
+    const naveText = nave?.messages.map((message) => message.content).join("\n") ?? "";
+    expect(gateText).toContain("守烬人离开了灰烬门廊");
+    expect(gateText).not.toContain("断钟中殿");
+    expect(naveText).toContain("守烬人进入了断钟中殿");
+    expect(naveText).not.toContain("灰烬门廊");
     expect(monk?.messages.some((message) => message.content.includes("别回头"))).toBe(true);
     expect(scribe?.messages.some((message) => message.content.includes("别回头"))).toBe(false);
   });

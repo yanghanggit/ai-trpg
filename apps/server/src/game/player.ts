@@ -188,7 +188,7 @@ export async function playerSteal(
   return applyPlayerAction(db, gameRef, actorRef, action);
 }
 
-/** 玩家 `give`：把自己的一件物品交给同场景一个存活角色。 */
+/** 玩家 `give`：把自己的一件物品交给同场景一个角色。 */
 export async function playerGive(
   db: Database,
   gameRef: string,

@@ -3,7 +3,6 @@ import { actors, items } from "../../db/schema";
 import type { ToolDefinition } from "../../llm/types";
 import { appendPublicMessage, bumpGameVersion } from "../apply/messages";
 import {
-  assertAlive,
   assertItemNameFree,
   assertNotSelf,
   findActorInStage,
@@ -15,20 +14,20 @@ import { withoutEquippedItem } from "../items";
 import { appendItemObservations, appendStageEvent } from "../observations";
 import type { GiveAction } from "../types";
 
-/** 构造 give 工具：把自己的物品交给同场景一个存活角色。 */
+/** 构造 give 工具：把自己的物品交给同场景的一个角色。 */
 export function buildGiveTool(targetActorNames: readonly string[]): ToolDefinition {
   return {
     type: "function",
     function: {
       name: "give",
       description:
-        "把一次给予加入计划：把自己持有的一件物品交给同场景的一个存活角色，场景内其他角色也能看见。",
+        "把一次给予加入计划：把自己持有的一件物品交给同场景的一个角色，场景内其他角色也能看见。",
       parameters: {
         type: "object",
         properties: {
           targetActorName: {
             type: "string",
-            description: "接收物品的同场景存活角色",
+            description: "接收物品的同场景角色；尸体也可以",
             ...(targetActorNames.length > 0 ? { enum: [...targetActorNames] } : {}),
           },
           itemName: {
@@ -53,7 +52,7 @@ export function parseGive(args: Record<string, unknown>): GiveAction {
   return { kind: "give", targetActorName, itemName };
 }
 
-/** 校验 give：目标存活且不是自己，自己确实持有该物品。 */
+/** 校验 give：目标不是自己，自己确实持有该物品；尸体也可以是接收方。 */
 export async function resolveGive(
   executor: Executor,
   stage: ResolvedGive["stage"],
@@ -62,7 +61,6 @@ export async function resolveGive(
 ): Promise<ResolvedGive> {
   const target = await findActorInStage(executor, stage.id, action.targetActorName);
   assertNotSelf(target, actorId);
-  assertAlive(target);
   const transferItem = await resolveActorItem(executor, actorId, action.itemName);
   return { kind: "give", action, stage, target, transferItem };
 }

@@ -1,5 +1,5 @@
 import type { ToolDefinition } from "../../llm/types";
-import { assertAlive, findActorInStage, resolveActorItem } from "../apply/queries";
+import { findActorInStage, resolveActorItem } from "../apply/queries";
 import type { ActorWithStageRow, Executor, ResolvedUse } from "../apply/types";
 import { MAX_TARGET_DETAIL_LENGTH } from "../constants";
 import { GameError } from "../errors";
@@ -28,7 +28,7 @@ export function buildUseTool(
           },
           targetActorName: {
             type: "string",
-            description: "道具作用的对象角色；可以是自己",
+            description: "道具作用的对象角色；可以是自己，也可以是尸体",
             ...(targetActorNames.length > 0 ? { enum: [...targetActorNames] } : {}),
           },
           targetStageName: {
@@ -112,8 +112,8 @@ export async function resolveUse(
     if (!targetActorName) {
       throw new GameError("invalid_action", "use 缺少目标");
     }
+    // 目标不要求存活：对尸体使用道具同样合法（例如未来的复活类玩法）。
     target = await findActorInStage(executor, stage.id, targetActorName);
-    assertAlive(target);
   }
 
   return {

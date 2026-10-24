@@ -109,12 +109,11 @@ export async function appendAttackObservations(
           },
         };
       }
+      // 旁观者视角：知道这一下造成多少伤害、对方有没有倒下，但不知道对方剩多少生命。
       return {
         type: "human",
-        content: `# 战斗\n${attacker.name}对${target.name}使用攻击${itemText}，造成${damage}点伤害；${
-          remainingHp <= 0
-            ? `${target.name}倒下了`
-            : `${target.name}剩余 HP ${remainingHp}/${target.maxHp}`
+        content: `# 战斗\n${attacker.name}对${target.name}使用攻击${itemText}，造成${damage}点伤害${
+          remainingHp <= 0 ? `；${target.name}倒下了` : ""
         }。`,
         metadata: {
           kind: MEMORY_KINDS.actionObservation,
