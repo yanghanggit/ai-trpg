@@ -10,12 +10,11 @@ import { bumpGameVersion } from "./apply/messages";
 import { formatBaseBody } from "./body";
 import { DEFAULT_APPEARANCE_MAX_ROUNDS, MAX_APPEARANCE_LENGTH } from "./constants";
 import { GameError } from "./errors";
-import { equippedItems } from "./items";
+import { equippedItems, equipSlot, unequipSlot } from "./items";
 import { loadAgentMemory } from "./memory";
 import { getGameState } from "./service";
 import {
   type ActorState,
-  EQUIPMENT_SLOT_KINDS,
   EQUIPMENT_SLOT_LABELS,
   type EquipmentSlot,
   type GameState,
@@ -204,29 +203,15 @@ export async function setEquipmentSlot(
   }
   const actor = findActor(state, actorRef);
 
+  let equipment = actor.equipment;
   if (itemName !== null) {
     const item = actor.items.find((candidate) => candidate.name === itemName);
     if (!item) {
       throw new GameError("not_found", `actor 没有物品: ${itemName}`);
     }
-    if (!EQUIPMENT_SLOT_KINDS[slot].includes(item.kind)) {
-      throw new GameError(
-        "invalid_action",
-        `物品不能放进${EQUIPMENT_SLOT_LABELS[slot]}槽: ${itemName}`,
-      );
-    }
-  }
-
-  const equipment = { ...actor.equipment };
-  if (itemName !== null) {
-    for (const [otherSlot, otherName] of Object.entries(equipment)) {
-      if (otherName === itemName) {
-        delete equipment[otherSlot as EquipmentSlot];
-      }
-    }
-    equipment[slot] = itemName;
+    equipment = equipSlot(equipment, slot, item);
   } else {
-    delete equipment[slot];
+    equipment = unequipSlot(equipment, slot);
   }
 
   const now = new Date();

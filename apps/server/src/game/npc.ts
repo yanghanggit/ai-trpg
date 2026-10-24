@@ -12,11 +12,13 @@ import {
 import { ACTION_SUMMARIES, allowedActionKinds } from "./actions";
 import { buildAnnounceTool, parseAnnounce } from "./actions/announce";
 import { buildAttackTool, parseAttack } from "./actions/attack";
+import { buildEquipTool, parseEquip } from "./actions/equip";
 import { buildGiveTool, parseGive } from "./actions/give";
 import { buildMoveTool, parseMove } from "./actions/move";
 import { buildPickupTool, parsePickup } from "./actions/pickup";
 import { buildSayTool, parseSay } from "./actions/say";
 import { buildStealTool, parseSteal } from "./actions/steal";
+import { buildUnequipTool, parseUnequip } from "./actions/unequip";
 import { buildUseTool, parseUse } from "./actions/use";
 import { buildWaitTool, parseWait } from "./actions/wait";
 import { buildWhisperTool, parseWhisper } from "./actions/whisper";
@@ -44,6 +46,7 @@ import {
 } from "./plan";
 import { getGameState } from "./service";
 import type { ActionKind, ActorAction, ActorPlan, ActorTurnResult, GameState } from "./types";
+import { EQUIPMENT_SLOTS } from "./types";
 
 export type NpcTurnOptions = {
   service: ChatCompletionService;
@@ -163,6 +166,14 @@ export async function runNpcTurn(
     .map((actor) => actor.name);
   const selfAndAlive = [current.actor.name, ...aliveTargets];
   const availableUseItemNames = current.actor.items.map((item) => item.name);
+  const wearableItemNames = current.actor.items
+    .filter(
+      (item) => item.kind === "weapon" || item.kind === "equipment" || item.kind === "accessory",
+    )
+    .map((item) => item.name);
+  const occupiedSlots = EQUIPMENT_SLOTS.filter(
+    (slot) => current.actor.equipment[slot] !== undefined,
+  );
 
   const hasKnowledge = current.actor.canQuery;
   const knowledgeTool = hasKnowledge ? buildKnowledgeTool() : undefined;
@@ -175,7 +186,7 @@ export async function runNpcTurn(
   const observeTool = buildObserveActorTool(talkTargets);
   const submitTool = buildSubmitPlanTool();
 
-  /** 十个动作的工具与参数解析器；按 kind 平铺，按权限过滤后使用。 */
+  /** 十二个动作的工具与参数解析器；按 kind 平铺，按权限过滤后使用。 */
   const actionTools: Record<ActionKind, ToolDefinition> = {
     say: buildSayTool(talkTargets),
     whisper: buildWhisperTool(talkTargets),
@@ -187,6 +198,8 @@ export async function runNpcTurn(
     give: buildGiveTool(aliveTargets),
     pickup: buildPickupTool(),
     use: buildUseTool(availableUseItemNames, selfAndAlive, current.stage.name),
+    equip: buildEquipTool(wearableItemNames),
+    unequip: buildUnequipTool(occupiedSlots),
   };
   const parsers: Record<ActionKind, (args: Record<string, unknown>) => ActorAction> = {
     say: parseSay,
@@ -199,6 +212,8 @@ export async function runNpcTurn(
     give: parseGive,
     pickup: parsePickup,
     use: parseUse,
+    equip: parseEquip,
+    unequip: parseUnequip,
   };
 
   const allowed = allowedActionKinds(current.actor.actions);

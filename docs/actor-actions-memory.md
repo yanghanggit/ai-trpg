@@ -114,7 +114,7 @@ agent:game compact --game <game> --owner all
 
 ## 工具
 
-NPC 工具分为只读 GET、动作与终止工具。`look_stage`、`get_self`、`observe_actor` 是只读 GET，可多次调用并立即返回结果；`get_self` 返回自己的完整信息，`observe_actor` 只返回同场景目标携带的物品，不暴露 stats 或状态。只有 `canQuery` 为真的原住民 actor 额外拥有该工具；它检索公共知识，不返回秘密或当前状态，不占行动。它是唯一的条件只读工具，因此用独立布尔位声明，不混进 `actions`；`actions` 只装十个动作。是否一次返回多个调用或分多轮调用由 LLM 决定，循环层按返回顺序串行执行。动作工具共十个，彼此平级：`say`、`whisper`、`announce`、`move`、`wait`、`attack`、`steal`、`give`、`pickup`、`use`；每个工具的参数就是该动作的全部输入，没有中间分类或 `purpose` 参数。`submit_plan` 是终止工具，只提交已暂存计划。工具 handler 不写游戏状态。
+NPC 工具分为只读 GET、动作与终止工具。`look_stage`、`get_self`、`observe_actor` 是只读 GET，可多次调用并立即返回结果；`get_self` 返回自己的完整信息，`observe_actor` 只返回同场景目标携带的物品，不暴露 stats 或状态。只有 `canQuery` 为真的原住民 actor 额外拥有该工具；它检索公共知识，不返回秘密或当前状态，不占行动。它是唯一的条件只读工具，因此用独立布尔位声明，不混进 `actions`；`actions` 只装十二个动作。是否一次返回多个调用或分多轮调用由 LLM 决定，循环层按返回顺序串行执行。动作工具共十二个，彼此平级：`say`、`whisper`、`announce`、`move`、`wait`、`attack`、`steal`、`give`、`pickup`、`use`、`equip`、`unequip`；每个工具的参数就是该动作的全部输入，没有中间分类或 `purpose` 参数。`submit_plan` 是终止工具，只提交已暂存计划。工具 handler 不写游戏状态。
 
 计划是**有序动作列表**，最多 `MAX_ACTIONS_PER_TURN = 2` 条；不做分类互斥，只限制条数。“通常一次沟通加一个其他动作”由提示词约定，工具 handler 在超过 2 条时立即报错给模型。两个动作按调用顺序应用，先移动后说话与先说话后移动是不同结果。
 
@@ -134,7 +134,7 @@ NPC 工具分为只读 GET、动作与终止工具。`look_stage`、`get_self`�
 
 ## 动作
 
-动作只有一层，十个动作平级，没有“沟通 / 移动 / 交互”这类收口概念。每个 actor 有一个显式的 `actions` 列表，决定它能用哪些动作；stage 也有自己的 `actions`（当前有 `submit_environment` / `notify_world`），决定它作为小 GM 能调用哪些工具。
+动作只有一层，十二个动作平级，没有“沟通 / 移动 / 交互”这类收口概念。每个 actor 有一个显式的 `actions` 列表，决定它能用哪些动作；stage 也有自己的 `actions`（当前有 `submit_environment` / `notify_world`），决定它作为小 GM 能调用哪些工具。
 
 | 动作 | 参数 | 可见性 |
 | --- | --- | --- |
@@ -148,6 +148,8 @@ NPC 工具分为只读 GET、动作与终止工具。`look_stage`、`get_self`�
 | `give` | targetActorName / itemName | stage |
 | `pickup` | itemName | stage |
 | `use` | itemName /（targetActorName 或 targetStageName）/ targetDetail（仅场景） | stage |
+| `equip` | itemName / slot | stage |
+| `unequip` | slot | stage |
 
 物品触发的统一原则是 **item-centric**：`attack` 与 `use` 只是 dispatcher，负责选择物品、校验目标并调用 `item.effect`；具体效果由 `effect.type` 路由到的 handler 承担。每个动作最多引用一件物品。
 

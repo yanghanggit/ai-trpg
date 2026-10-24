@@ -30,15 +30,18 @@ import {
   listPlayerControlledActorIds,
   playerAnnounce,
   playerAttack,
+  playerEquip,
   playerGive,
   playerMove,
   playerPickup,
   playerSay,
   playerSteal,
+  playerUnequip,
   playerUse,
   playerWait,
   playerWhisper,
   releaseActorControl,
+  runAppearanceTurn,
   runNpcTurn,
   runProbe,
   runStageTurn,
@@ -47,7 +50,8 @@ import {
   snapshotGame,
   takeActorControl,
 } from "../src/game";
-import type { World } from "../src/game/types";
+import type { EquipmentSlot, World } from "../src/game/types";
+import { EQUIPMENT_SLOTS } from "../src/game/types";
 import { parseWorldContent } from "../src/game/world-content";
 
 type Output = Record<string, unknown>;
@@ -70,6 +74,7 @@ const options = {
   to: { type: "string" },
   stage: { type: "string" },
   item: { type: "string" },
+  slot: { type: "string" },
   detail: { type: "string" },
   reason: { type: "string" },
   owner: { type: "string" },
@@ -125,6 +130,9 @@ function usage(): void {
       "agent-game player-give --game <gameId|slug> --actor <actorId|actorName> --target <actorName> --item <itemName>",
       "agent-game player-pickup --game <gameId|slug> --actor <actorId|actorName> --item <itemName>",
       "agent-game player-use --game <gameId|slug> --actor <actorId|actorName> --item <itemName> (--target <actorName> | --stage <stageName>) [--detail <text>]",
+      "agent-game player-equip --game <gameId|slug> --actor <actorId|actorName> --slot <slot> --item <itemName>",
+      "agent-game player-unequip --game <gameId|slug> --actor <actorId|actorName> --slot <slot>",
+      "agent-game appearance --game <gameId|slug> (--actor <actorId|actorName> | --all)",
       "agent-game snapshot --game <gameId|slug> [--root <dir>]",
       "agent-game compact --game <gameId|slug> --owner actor --name <actorId|actorName> [--min-ratio <0..1>]",
       "agent-game compact --game <gameId|slug> --owner stage --name <stageId|stageName> [--min-ratio <0..1>]",
@@ -175,6 +183,26 @@ function requireTargetItemArgs(
     throw new Error(`${command} 需要 --target <actorName> 与 --item <itemName>`);
   }
   return { game, actor, target, item };
+}
+
+/** 读取换装命令的 --slot，只接受四个槽位。 */
+function requireSlot(values: Record<string, string | boolean | undefined>): EquipmentSlot {
+  const slot = typeof values.slot === "string" ? values.slot.trim() : "";
+  if (!EQUIPMENT_SLOTS.includes(slot as EquipmentSlot)) {
+    throw new Error(`--slot 必须是 ${EQUIPMENT_SLOTS.join(" / ")} 之一`);
+  }
+  return slot as EquipmentSlot;
+}
+
+/** 读取 appearance 的 --actor。 */
+function requireActorName(
+  values: Record<string, string | boolean | undefined>,
+  command: string,
+): string {
+  if (typeof values.actor !== "string" || values.actor.trim().length === 0) {
+    throw new Error(`${command} 需要 --actor <actorId|actorName> 或 --all`);
+  }
+  return values.actor;
 }
 
 function parseWorld(values: Record<string, string | boolean | undefined>): Promise<JsonValue> {
@@ -428,6 +456,53 @@ async function main(): Promise<void> {
       ),
     );
     emit({ ok: true, action: command, plan: result.plan, state: result.state });
+    return;
+  }
+
+  if (command === "player-equip") {
+    const { game, actor } = requireActorArgs(values, command);
+    if (typeof values.item !== "string" || values.item.trim().length === 0) {
+      throw new Error("player-equip 需要 --item <itemName>");
+    }
+    const result = await withDatabase((db) =>
+      playerEquip(db, game, actor, {
+        itemName: values.item as string,
+        slot: requireSlot(values),
+      }),
+    );
+    emit({ ok: true, action: command, plan: result.plan, state: result.state });
+    return;
+  }
+
+  if (command === "player-unequip") {
+    const { game, actor } = requireActorArgs(values, command);
+    const result = await withDatabase((db) =>
+      playerUnequip(db, game, actor, { slot: requireSlot(values) }),
+    );
+    emit({ ok: true, action: command, plan: result.plan, state: result.state });
+    return;
+  }
+
+  if (command === "appearance") {
+    if (typeof values.game !== "string") {
+      throw new Error("appearance 需要 --game <gameId|slug>");
+    }
+    const actorNames = values.all === true ? null : [requireActorName(values, "appearance")];
+    const results = await withDatabase(async (db) => {
+      const state = await getGameState(db, values.game as string);
+      const targets =
+        actorNames ??
+        state.world.stages.flatMap((stage) => stage.actors).map((actor) => actor.name);
+      const collected: Output[] = [];
+      for (const actorName of targets) {
+        const result = await runAppearanceTurn(db, values.game as string, actorName, {
+          service: DEEPSEEK_SERVICE,
+        });
+        collected.push({ actor: actorName, ok: result.ok, appearance: result.appearance });
+      }
+      return collected;
+    });
+    emit({ ok: results.every((result) => result.ok === true), action: command, results });
     return;
   }
 

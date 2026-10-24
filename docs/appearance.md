@@ -23,7 +23,9 @@ system prompt 不包含 `appearance`。它只描述稳定的 `base_body`；如�
 
 ## 换装入口
 
-`setEquipmentSlot` 修改 actor 的某个槽位（指向物品名或清空），然后立刻调用一次外观推理。后续装备动作、客户端换装都走这个入口；LLM 调用在事务外，槽位与外观更新各自使用短事务。
+换装动作 `equip` / `unequip` 只修改穿戴索引，**不**触发外观推理：动作在事务内完成，而外观推理是一次 LLM loop，必须留在事务外。外观快照因此可能短暂落后于 `equipment`，由 `agent:game appearance --actor <name>`（或客户端调用 `setEquipmentSlot` / `runAppearanceTurn`）显式推动一次合并推理。
+
+`setEquipmentSlot` 是“改槽位 + 立刻重算外观”的便捷入口：修改 actor 的某个槽位（指向物品名或清空），然后立刻调用一次外观推理。后续装备动作、客户端换装都走这个入口；LLM 调用在事务外，槽位与外观更新各自使用短事务。
 
 槽位只有四个：`weapon`（武器）、`armor`（护甲，合并了原来的副手 / 头 / 身体 / 足部）、`accessory1` 与 `accessory2`（饰品一、饰品二）。每个槽位只允许对应大类的物品（`armor` 只收 `equipment`，两个饰品槽只收 `accessory`）。同一件物品只能占一个槽位，换到新槽位时会从旧槽位移除，因此在两个饰品槽之间移动物品不会留下重复索引。
 

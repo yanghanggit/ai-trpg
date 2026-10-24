@@ -176,8 +176,20 @@ export const DARK_FANTASY_WORLD: World = {
           effect: { type: "event" },
         },
       ],
-      // 人类：会说话、走动、战斗，也操作道具；只有她会查公共知识库。
-      actions: ["say", "whisper", "announce", "move", "wait", "attack", "give", "pickup", "use"],
+      // 人类：会说话、走动、战斗，也操作道具、穿脱装备；只有她会查公共知识库。
+      actions: [
+        "say",
+        "whisper",
+        "announce",
+        "move",
+        "wait",
+        "attack",
+        "give",
+        "pickup",
+        "use",
+        "equip",
+        "unequip",
+      ],
       canQuery: true,
     },
     {
@@ -285,6 +297,8 @@ export const DARK_FANTASY_WORLD: World = {
         "pickup",
         "use",
         "steal",
+        "equip",
+        "unequip",
       ],
     },
     {

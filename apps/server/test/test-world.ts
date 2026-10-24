@@ -54,6 +54,8 @@ export const TEST_WORLD: World = {
         "pickup",
         "use",
         "steal",
+        "equip",
+        "unequip",
       ],
       items: [
         {
@@ -76,7 +78,19 @@ export const TEST_WORLD: World = {
       hp: 10,
       stats: { maxHp: 10, attack: 5, defense: 3, speed: 3, damage: 0, block: 0 },
       status: "alive" as const,
-      actions: ["say", "whisper", "announce", "move", "wait", "attack", "give", "pickup", "use"],
+      actions: [
+        "say",
+        "whisper",
+        "announce",
+        "move",
+        "wait",
+        "attack",
+        "give",
+        "pickup",
+        "use",
+        "equip",
+        "unequip",
+      ],
       items: [
         {
           key: "lead-lantern",
@@ -98,7 +112,19 @@ export const TEST_WORLD: World = {
       hp: 9,
       stats: { maxHp: 9, attack: 4, defense: 4, speed: 2, damage: 0, block: 0 },
       status: "alive" as const,
-      actions: ["say", "whisper", "announce", "move", "wait", "attack", "give", "pickup", "use"],
+      actions: [
+        "say",
+        "whisper",
+        "announce",
+        "move",
+        "wait",
+        "attack",
+        "give",
+        "pickup",
+        "use",
+        "equip",
+        "unequip",
+      ],
       items: [
         {
           key: "blank-scripture",

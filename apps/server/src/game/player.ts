@@ -4,7 +4,7 @@ import { type ApplyActorPlanOptions, applyActorPlan } from "./apply";
 import { isPlayerControlled } from "./control";
 import { GameError } from "./errors";
 import { getGameState } from "./service";
-import type { ActorAction, ActorPlan, ActorTurnResult } from "./types";
+import type { ActorAction, ActorPlan, ActorTurnResult, EquipmentSlot } from "./types";
 
 /** 玩家直接提交计划；只允许玩家接管的 actor。 */
 async function applyPlayerAction(
@@ -68,6 +68,15 @@ export type PlayerGiveInput = {
 
 export type PlayerPickupInput = {
   itemName: string;
+};
+
+export type PlayerEquipInput = {
+  itemName: string;
+  slot: EquipmentSlot;
+};
+
+export type PlayerUnequipInput = {
+  slot: EquipmentSlot;
 };
 
 export type PlayerUseInput = {
@@ -202,6 +211,28 @@ export async function playerPickup(
   input: PlayerPickupInput,
 ): Promise<ActorTurnResult> {
   const action: ActorAction = { kind: "pickup", itemName: input.itemName };
+  return applyPlayerAction(db, gameRef, actorRef, action);
+}
+
+/** 玩家 `equip`：把背包里的一件物品穿到槽位；不触发外观重算。 */
+export async function playerEquip(
+  db: Database,
+  gameRef: string,
+  actorRef: string,
+  input: PlayerEquipInput,
+): Promise<ActorTurnResult> {
+  const action: ActorAction = { kind: "equip", itemName: input.itemName, slot: input.slot };
+  return applyPlayerAction(db, gameRef, actorRef, action);
+}
+
+/** 玩家 `unequip`：卸下某个槽位的装备；不触发外观重算。 */
+export async function playerUnequip(
+  db: Database,
+  gameRef: string,
+  actorRef: string,
+  input: PlayerUnequipInput,
+): Promise<ActorTurnResult> {
+  const action: ActorAction = { kind: "unequip", slot: input.slot };
   return applyPlayerAction(db, gameRef, actorRef, action);
 }
 

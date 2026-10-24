@@ -224,7 +224,20 @@ export type UseAction = {
   targetDetail?: string;
 };
 
-/** 一次 actor 行动；十个具体动作平级，不再有中间分类层。 */
+/** 把背包里的一件物品穿到指定槽位；同一物品会从其他槽位移除。 */
+export type EquipAction = {
+  kind: "equip";
+  itemName: string;
+  slot: EquipmentSlot;
+};
+
+/** 卸下某个槽位的装备；物品仍留在背包，只是不再计入穿戴。 */
+export type UnequipAction = {
+  kind: "unequip";
+  slot: EquipmentSlot;
+};
+
+/** 一次 actor 行动；十二个具体动作平级，不再有中间分类层。 */
 export type ActorAction =
   | SayAction
   | WhisperAction
@@ -235,7 +248,9 @@ export type ActorAction =
   | StealAction
   | GiveAction
   | PickupAction
-  | UseAction;
+  | UseAction
+  | EquipAction
+  | UnequipAction;
 
 export type ActionKind = ActorAction["kind"];
 

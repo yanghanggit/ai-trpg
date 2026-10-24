@@ -2,7 +2,7 @@ import { z } from "zod";
 import { ACTION_KINDS } from "./actions";
 import type { StageActionKind, World, WorldActionKind } from "./types";
 
-/** 十个动作直接复用运行时清单，避免新增动作时漏改。 */
+/** 十二个动作直接复用运行时清单，避免新增动作时漏改。 */
 const actionKindSchema = z.enum(ACTION_KINDS);
 
 const stageActionSchema = z.enum([

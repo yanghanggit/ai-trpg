@@ -25,7 +25,7 @@ import { ChatCompletionResult, type ChatCompletionService, type ToolCall } from 
 
 const testDatabaseUrl = process.env.TEST_DATABASE_URL?.trim();
 
-/** 攻击动作：十个平级动作之一。 */
+/** 攻击动作：十二个平级动作之一。 */
 function attackAction(targetActorName: string): ActorAction {
   return { kind: "attack", targetActorName };
 }
@@ -292,6 +292,9 @@ describe.skipIf(!testDatabaseUrl)("memory-driven NPC slice", () => {
     expect(keeperService.tools).not.toContain("get_stats");
     expect(keeperService.tools).not.toContain("get_items");
     expect(keeperService.tools).toContain("query");
+    // 会操作道具的人类能自己穿脱装备；动物不能。
+    expect(keeperService.tools).toContain("equip");
+    expect(keeperService.tools).toContain("unequip");
 
     const corpseService = new ToolCaptureService();
     await runNpcTurn(handle.db, created.game.slug, "角色.无名者", { service: corpseService });
@@ -301,6 +304,8 @@ describe.skipIf(!testDatabaseUrl)("memory-driven NPC slice", () => {
     const dogService = new ToolCaptureService();
     await runNpcTurn(handle.db, created.game.slug, "角色.煤渣", { service: dogService });
     expect(dogService.tools).not.toContain("query");
+    expect(dogService.tools).not.toContain("equip");
+    expect(dogService.tools).not.toContain("unequip");
 
     const mouseService = new ToolCaptureService();
     await runNpcTurn(handle.db, created.game.slug, "角色.坏运气", { service: mouseService });

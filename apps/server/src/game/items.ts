@@ -1,4 +1,5 @@
 import { type Stats, toStats } from "./attributes";
+import { GameError } from "./errors";
 import type {
   ActorState,
   EquipmentSlot,
@@ -8,7 +9,7 @@ import type {
   ItemState,
   WearableItemState,
 } from "./types";
-import { EQUIPMENT_SLOTS } from "./types";
+import { EQUIPMENT_SLOT_KINDS, EQUIPMENT_SLOT_LABELS, EQUIPMENT_SLOTS } from "./types";
 
 /** 把数据库行的通用字段收窄成对应物品子类；新增 kind 时在这里补分支。 */
 export function toItemState(row: {
@@ -80,6 +81,30 @@ export function equippedItems(actor: Pick<ActorState, "items" | "equipment">): E
     }
   }
   return equipped;
+}
+
+/** 把背包里的物品放进槽位：校验大类，并清掉同一物品在其它槽位的索引。 */
+export function equipSlot(
+  equipment: EquipmentSlots,
+  slot: EquipmentSlot,
+  item: { name: string; kind: ItemKind },
+): EquipmentSlots {
+  if (!EQUIPMENT_SLOT_KINDS[slot].includes(item.kind)) {
+    throw new GameError(
+      "invalid_action",
+      `物品不能放进${EQUIPMENT_SLOT_LABELS[slot]}槽: ${item.name}`,
+    );
+  }
+  const next = withoutEquippedItem(equipment, item.name);
+  next[slot] = item.name;
+  return next;
+}
+
+/** 卸下槽位；物品本身不动，只是不再被索引。 */
+export function unequipSlot(equipment: EquipmentSlots, slot: EquipmentSlot): EquipmentSlots {
+  const next = { ...equipment };
+  delete next[slot];
+  return next;
 }
 
 /** 物品离开 actor 时，从所有槽位里移除对它的索引。 */

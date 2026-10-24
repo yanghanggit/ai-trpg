@@ -1,11 +1,13 @@
 import { describe, expect, it } from "vitest";
 import { buildAnnounceTool, parseAnnounce } from "../src/game/actions/announce";
 import { buildAttackTool, parseAttack } from "../src/game/actions/attack";
+import { buildEquipTool, parseEquip } from "../src/game/actions/equip";
 import { buildGiveTool, parseGive } from "../src/game/actions/give";
 import { buildMoveTool, parseMove } from "../src/game/actions/move";
 import { buildPickupTool, parsePickup } from "../src/game/actions/pickup";
 import { buildSayTool, parseSay } from "../src/game/actions/say";
 import { buildStealTool, parseSteal } from "../src/game/actions/steal";
+import { buildUnequipTool, parseUnequip } from "../src/game/actions/unequip";
 import { buildUseTool, parseUse } from "../src/game/actions/use";
 import { buildWaitTool, parseWait } from "../src/game/actions/wait";
 import { buildWhisperTool, parseWhisper } from "../src/game/actions/whisper";
@@ -46,6 +48,8 @@ describe("action tools", () => {
     expect(buildUseTool(items, targets, "灰烬门廊").function.parameters.required).toEqual([
       "itemName",
     ]);
+    expect(buildEquipTool(items).function.parameters.required).toEqual(["itemName", "slot"]);
+    expect(buildUnequipTool(["weapon"]).function.parameters.required).toEqual(["slot"]);
 
     // 每个工具的参数就是它自己的输入，没有中间层字段。
     const attackProps = Object.keys(buildAttackTool(targets).function.parameters.properties ?? {});
@@ -54,6 +58,10 @@ describe("action tools", () => {
       buildUseTool(items, targets, "灰烬门廊").function.parameters.properties ?? {},
     );
     expect(useProps).toEqual(["itemName", "targetActorName", "targetStageName", "targetDetail"]);
+    expect(Object.keys(buildEquipTool(items).function.parameters.properties ?? {})).toEqual([
+      "itemName",
+      "slot",
+    ]);
   });
 });
 
@@ -83,6 +91,13 @@ describe("action parsers", () => {
       kind: "attack",
       targetActorName: "提灯修士",
     });
+    expect(parseEquip({ itemName: " 裂齿短刃 ", slot: " weapon " })).toEqual({
+      kind: "equip",
+      itemName: "裂齿短刃",
+      slot: "weapon",
+    });
+    expect(parseUnequip({ slot: "armor" })).toEqual({ kind: "unequip", slot: "armor" });
+    expect(() => parseUnequip({ slot: "head" })).toThrow("未知的装备槽位");
     expect(parseSteal({ targetActorName: "提灯修士", itemName: "铅封提灯" })).toEqual({
       kind: "steal",
       targetActorName: "提灯修士",

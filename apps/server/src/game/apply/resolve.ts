@@ -1,10 +1,12 @@
 import { assertActionAllowed } from "../actions";
 import { resolveAttack } from "../actions/attack";
+import { resolveEquip } from "../actions/equip";
 import { resolveGive } from "../actions/give";
 import { resolveMove } from "../actions/move";
 import { resolvePickup } from "../actions/pickup";
 import { resolveSay } from "../actions/say";
 import { resolveSteal } from "../actions/steal";
+import { resolveUnequip } from "../actions/unequip";
 import { resolveUse } from "../actions/use";
 import { resolveWait } from "../actions/wait";
 import { resolveWhisper } from "../actions/whisper";
@@ -58,6 +60,12 @@ export async function resolvePlan(
         break;
       case "pickup":
         resolved.push(await resolvePickup(executor, stage, action));
+        break;
+      case "equip":
+        resolved.push(await resolveEquip(executor, actorRow, action));
+        break;
+      case "unequip":
+        resolved.push(resolveUnequip(actorRow, action));
         break;
       case "use":
         resolved.push(await resolveUse(executor, stage, actorRow.actor.id, action));

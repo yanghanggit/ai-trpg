@@ -3,12 +3,14 @@ import type { actors, items, stageItems, stages, worlds } from "../../db/schema"
 import type {
   AnnounceAction,
   AttackAction,
+  EquipAction,
   GiveAction,
   MessageVisibility,
   MoveAction,
   PickupAction,
   SayAction,
   StealAction,
+  UnequipAction,
   UseAction,
   WaitAction,
   WhisperAction,
@@ -104,6 +106,20 @@ export type ResolvedUse = {
   targetStage?: StageRow;
 };
 
+export type ResolvedEquip = {
+  kind: "equip";
+  action: EquipAction;
+  stage: StageRow;
+  item: ItemRow;
+};
+
+export type ResolvedUnequip = {
+  kind: "unequip";
+  action: UnequipAction;
+  stage: StageRow;
+  itemName: string;
+};
+
 export type ResolvedAction =
   | ResolvedSay
   | ResolvedWhisper
@@ -114,4 +130,6 @@ export type ResolvedAction =
   | ResolvedSteal
   | ResolvedGive
   | ResolvedPickup
-  | ResolvedUse;
+  | ResolvedUse
+  | ResolvedEquip
+  | ResolvedUnequip;

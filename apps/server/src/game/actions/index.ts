@@ -13,6 +13,8 @@ export const ACTION_KINDS = [
   "give",
   "pickup",
   "use",
+  "equip",
+  "unequip",
 ] as const satisfies readonly ActionKind[];
 
 /** 每个动作给提示词用的一句话说明。 */
@@ -27,6 +29,8 @@ export const ACTION_SUMMARIES: Record<ActionKind, string> = {
   give: "把自己的物品交给目标",
   pickup: "拾起场景物品",
   use: "用自己的物品作用于角色或场景",
+  equip: "把背包里的物品穿到槽位",
+  unequip: "卸下某个槽位的装备",
 };
 
 /** 角色可用的行动：按固定顺序排列，供提示词与工具挂载使用。 */

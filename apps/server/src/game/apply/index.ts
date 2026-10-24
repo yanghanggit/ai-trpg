@@ -5,11 +5,13 @@ import type { ChatCompletionService } from "../../llm/protocol";
 import type { ChatMessage } from "../../llm/types";
 import { applyAnnounce } from "../actions/announce";
 import { applyAttack } from "../actions/attack";
+import { applyEquip } from "../actions/equip";
 import { applyGive } from "../actions/give";
 import { applyMove } from "../actions/move";
 import { applyPickup } from "../actions/pickup";
 import { applySay } from "../actions/say";
 import { applySteal } from "../actions/steal";
+import { applyUnequip } from "../actions/unequip";
 import { applyUse } from "../actions/use";
 import { applyWait } from "../actions/wait";
 import { applyWhisper } from "../actions/whisper";
@@ -51,6 +53,10 @@ async function applyResolvedAction(
       return applyPickup(executor, gameId, actorRow, resolved, now);
     case "use":
       return applyUse(executor, gameId, actorRow, resolved, now);
+    case "equip":
+      return applyEquip(executor, gameId, actorRow, resolved, now);
+    case "unequip":
+      return applyUnequip(executor, gameId, actorRow, resolved, now);
   }
 }
 
