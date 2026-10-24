@@ -226,13 +226,17 @@ export function parseWorldNotification(args: Record<string, unknown>): string {
   return content;
 }
 
-/** 渲染 stats，供自身信息与目标观察共用。 */
+/**
+ * 渲染 stats，供自身信息与目标观察共用。
+ *
+ * 只列参与结算的两项；力量 / 智慧 / 敏捷虽然留在数据结构里，但不展示，
+ * 免得模型据此推断出不存在的战斗机制。
+ */
 export function describeStats(actor: ActorState): string {
   return `角色：${actor.name}
 HP：${actor.hp}/${actor.stats.maxHp}
-attack：${actor.stats.attack}
-defense：${actor.stats.defense}
-speed：${actor.stats.speed}
+damage：${actor.stats.damage}
+block：${actor.stats.block}
 状态：${isAlive(actor) ? "存活" : "已死亡"}`;
 }
 

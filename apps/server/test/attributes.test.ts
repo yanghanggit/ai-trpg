@@ -21,15 +21,17 @@ describe("stats", () => {
   });
 
   it("逐字段相加：装备加成与本体属性走同一条规则", () => {
-    expect(addStats({ attack: 5 }, { damage: 3 }, undefined)).toEqual({
+    // strength / wisdom / agility 也走同一条加法规则，虽然当前没有结算读取它们。
+    expect(addStats({ strength: 5 }, { damage: 3 }, undefined)).toEqual({
       ...EMPTY_STATS,
-      attack: 5,
+      strength: 5,
       damage: 3,
     });
-    expect(addStats({ maxHp: 10, defense: 2 }, { maxHp: 4 }, { block: 1 })).toEqual({
+    expect(addStats({ maxHp: 10, wisdom: 2 }, { maxHp: 4 }, { block: 1, agility: 3 })).toEqual({
       ...EMPTY_STATS,
       maxHp: 14,
-      defense: 2,
+      wisdom: 2,
+      agility: 3,
       block: 1,
     });
     expect(addStats()).toEqual(EMPTY_STATS);

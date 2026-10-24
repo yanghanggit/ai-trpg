@@ -24,12 +24,13 @@ const SYSTEM_RULES = `### 角色扮演契约
 
 ### 根属性
 
-角色数值仅由以下四项构成，禁止新增或替换、禁止引入常驻数值轴：
+角色数值只由以下三项参与结算，禁止新增或替换、禁止引入常驻数值轴：
 
 - **hp / max_hp**：当前/最大生命值；
-- **attack**：基础攻击力；
-- **defense**：基础防御力；
-- **speed**：行动速度。
+- **damage**：自身的基础伤害，与武器 damage 相加；
+- **block**：减伤，结算时从对方的 damage 里直接扣掉。
+
+（\`strength\` / \`wisdom\` / \`agility\`（力量 / 智慧 / 敏捷）是保留属性，写入也不会被读取。）
 
 ### 战斗专用规则
 
@@ -141,7 +142,7 @@ export const DARK_FANTASY_WORLD: World = {
           "高瘦，肩背因常年掘墓而佝偻；手背结着土垢与旧疤，左眉断了一截，指甲缝里洗不净黑泥。",
       },
       hp: 14,
-      stats: { maxHp: 14, attack: 5, defense: 2, speed: 3, damage: 0, block: 0 },
+      stats: { maxHp: 14, strength: 5, wisdom: 2, agility: 3, damage: 5, block: 2 },
       equipment: {
         weapon: "武器.掘墓人的铁锹",
         armor: "装备.补丁斗篷",
@@ -208,7 +209,7 @@ export const DARK_FANTASY_WORLD: World = {
           "肋骨从短毛下顶出来，左耳缺了一角，毛色像烧过的灰；后腿留着一道旧咬伤，走路时微微跛。",
       },
       hp: 10,
-      stats: { maxHp: 10, attack: 7, defense: 1, speed: 7, damage: 0, block: 0 },
+      stats: { maxHp: 10, strength: 7, wisdom: 1, agility: 7, damage: 7, block: 1 },
       items: [],
       // 动物：会说话、走动与战斗，但不操作道具。
       actions: ["say", "whisper", "announce", "move", "wait", "attack"],
@@ -230,7 +231,7 @@ export const DARK_FANTASY_WORLD: World = {
         description: "只有巴掌大，灰尾巴末端有一撮白毛，右前爪缺了一趾；眼睛始终盯着活物的手。",
       },
       hp: 4,
-      stats: { maxHp: 4, attack: 1, defense: 0, speed: 10, damage: 0, block: 0 },
+      stats: { maxHp: 4, strength: 1, wisdom: 0, agility: 10, damage: 1, block: 0 },
       items: [],
       // 幼崽只会说话、走动与躲避；不会战斗，也不操作道具。
       actions: ["say", "whisper", "announce", "move", "wait"],
@@ -254,7 +255,7 @@ export const DARK_FANTASY_WORLD: World = {
           "皮肤灰白，关节干涩；锁骨与手腕上留着被锁链磨出的旧痕，指缝里塞满湿泥，像刚从土里被挖出来。",
       },
       hp: 20,
-      stats: { maxHp: 20, attack: 6, defense: 2, speed: 3, damage: 0, block: 0 },
+      stats: { maxHp: 20, strength: 6, wisdom: 2, agility: 3, damage: 6, block: 2 },
       isDefaultPlayer: true,
       equipment: {
         armor: "装备.发黄的裹尸布",
@@ -313,7 +314,7 @@ export const DARK_FANTASY_WORLD: World = {
           "灰黑的毛皮结着骨渣与旧血，尾巴比人的手臂还粗，左眼蒙着一层白翳；即便闭着眼，胡须也会随脚步声抽动。",
       },
       hp: 120,
-      stats: { maxHp: 120, attack: 60, defense: 100, speed: 8, damage: 0, block: 0 },
+      stats: { maxHp: 120, strength: 60, wisdom: 100, agility: 8, damage: 60, block: 100 },
       items: [],
       // 动物：沉睡时由 openingBriefing 约束只用 wait；苏醒后可以移动与攻击，不操作道具。
       actions: ["say", "whisper", "announce", "move", "wait", "attack"],

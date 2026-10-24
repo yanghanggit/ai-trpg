@@ -377,7 +377,7 @@ describe.skipIf(!testDatabaseUrl)("memory-driven NPC slice", () => {
     ).toBe(true);
   });
 
-  it("applies attack using attack and defense, and writes combat feedback", async () => {
+  it("applies attack using damage and block, and writes combat feedback", async () => {
     const created = await createGame(handle.db, {
       username: DEMO_USER.username,
       name: "攻击测试局",
@@ -391,7 +391,7 @@ describe.skipIf(!testDatabaseUrl)("memory-driven NPC slice", () => {
     const state = await getGameState(handle.db, created.game.slug);
     expect(state.game.version).toBe(1);
     expect(state.messages.map((message) => message.kind)).toEqual(["narration", "attack"]);
-    // 守烬人装备了裂齿短刃：6（attack）+ 3（damage）- 3（防御）= 6 点伤害。
+    // 守烬人装备了裂齿短刃：6（自身 damage）+ 3（武器 damage）- 3（修士 block）= 6 点伤害。
     expect(state.messages[1]?.content).toContain(
       "守烬人对提灯修士使用攻击（使用裂齿短刃），造成6点伤害",
     );
@@ -441,7 +441,7 @@ describe.skipIf(!testDatabaseUrl)("memory-driven NPC slice", () => {
       ...TEST_WORLD,
       actors: TEST_WORLD.actors.map((actor) =>
         actor.name === "提灯修士"
-          ? { ...actor, hp: 1, stats: { ...actor.stats, maxHp: 1, defense: 0 } }
+          ? { ...actor, hp: 1, stats: { ...actor.stats, maxHp: 1, block: 0 } }
           : actor,
       ),
     };
@@ -478,7 +478,7 @@ describe.skipIf(!testDatabaseUrl)("memory-driven NPC slice", () => {
               ...actor,
               isDefaultPlayer: true,
               hp: 1,
-              stats: { ...actor.stats, maxHp: 1, defense: 0 },
+              stats: { ...actor.stats, maxHp: 1, block: 0 },
             }
           : actor,
       ),
@@ -560,7 +560,7 @@ describe.skipIf(!testDatabaseUrl)("memory-driven NPC slice", () => {
           appearance: "只看得见一双贴在石墙后的眼睛。",
           baseBody: { race: "人类", description: "瘦小，总把自己藏在阴影里。" },
           hp: 8,
-          stats: { maxHp: 8, attack: 1, defense: 1, speed: 2, damage: 0, block: 0 },
+          stats: { maxHp: 8, strength: 1, wisdom: 1, agility: 2, damage: 1, block: 1 },
           items: [],
           actions: ["say", "whisper", "move", "wait"] as const,
         },

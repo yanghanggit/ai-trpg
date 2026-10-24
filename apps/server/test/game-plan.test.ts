@@ -159,7 +159,7 @@ describe("read-only descriptions", () => {
       appearance: "披着旧斗篷。",
       baseBody: { race: "人类", description: "瘦削，手腕有旧绳痕。" },
       hp: 12,
-      stats: { maxHp: 12, attack: 3, defense: 2, speed: 4, damage: 0, block: 0 },
+      stats: { maxHp: 12, strength: 3, wisdom: 2, agility: 4, damage: 3, block: 2 },
       isDefaultPlayer: false,
       equipment: { weapon: "裂齿短刃" },
       actions: [
@@ -181,7 +181,7 @@ describe("read-only descriptions", () => {
           description: "刃口崩了三处。",
           kind: "weapon" as const,
           count: 1,
-          stats: { maxHp: 0, attack: 0, defense: 0, speed: 0, damage: 3, block: 0 },
+          stats: { maxHp: 0, strength: 0, wisdom: 0, agility: 0, damage: 3, block: 0 },
           effect: { type: "damage" },
           affixes: [],
         },
@@ -189,7 +189,11 @@ describe("read-only descriptions", () => {
     };
 
     expect(describeStats(actor)).toContain("HP：12/12");
-    expect(describeStats(actor)).toContain("attack：3");
+    expect(describeStats(actor)).toContain("damage：3");
+    expect(describeStats(actor)).toContain("block：2");
+    // attack / defense 保留在数据里，但不再对外展示。
+    expect(describeStats(actor)).not.toContain("attack：");
+    expect(describeStats(actor)).not.toContain("defense：");
     expect(describeStats(actor)).toContain("状态：存活");
     expect(describeItems(actor)).toContain("裂齿短刃（weapon，count 1，已穿戴）：刃口崩了三处。");
     expect(describeItems({ items: [], equipment: {} })).toBe("物品：无");

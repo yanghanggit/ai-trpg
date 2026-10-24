@@ -6,6 +6,7 @@ import { agentLoop } from "../../llm/agent-loop";
 import type { ChatCompletionService } from "../../llm/protocol";
 import type { ToolDefinition } from "../../llm/types";
 import type { Executor } from "../apply/types";
+import { addStats } from "../attributes";
 import { GameError } from "../errors";
 import { getGameState } from "../service";
 import { applyDamage } from "./damage";
@@ -24,11 +25,11 @@ function buildObservation(input: {
   itemDamage: number;
   affixes: readonly string[];
   defaultFeedback: string;
-  actorAttack: number;
+  actorDamage: number;
   targetName?: string;
   targetRace?: string;
   targetHp?: string;
-  targetDefense?: number;
+  targetBlock?: number;
   stageName: string;
 }): string {
   return `# 物品词缀补充效果
@@ -43,7 +44,7 @@ ${input.stageName}
 
 ## 持有者
 ${input.actorName}
-attack：${input.actorAttack}
+damage：${input.actorDamage}
 
 ## 物品
 ${input.itemName}
@@ -56,7 +57,7 @@ ${input.affixes.map((affix) => `- ${affix}`).join("\n")}
 ## 目标
 ${input.targetName ?? "无角色目标"}
 ${input.targetRace ? `种族：${input.targetRace}` : ""}
-${input.targetDefense !== undefined ? `defense：${input.targetDefense}` : ""}
+${input.targetBlock !== undefined ? `block：${input.targetBlock}` : ""}
 ${input.targetHp ? `HP：${input.targetHp}` : ""}
 
 ## 规则
@@ -152,10 +153,10 @@ export async function runAffixEffect(
       itemDamage: item.stats.damage,
       affixes: item.affixes,
       defaultFeedback: request.defaultFeedback,
-      actorAttack: actor.stats.attack,
+      actorDamage: addStats(actor.stats, item.stats).damage,
       stageName: stage.name,
       ...(target ? { targetName: target.name, targetRace: target.baseBody.race } : {}),
-      ...(target ? { targetDefense: target.stats.defense } : {}),
+      ...(target ? { targetBlock: target.stats.block } : {}),
       ...(target ? { targetHp: `${target.hp}/${target.stats.maxHp}` } : {}),
     }),
     messages: [],

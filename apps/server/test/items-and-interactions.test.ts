@@ -324,7 +324,7 @@ describe.skipIf(!testDatabaseUrl)("items and interactions", () => {
     expect(recent[1]).toContain("造成42点伤害");
   });
 
-  it("adds equipped weapon damage and lets the target's equipped block raise its defense", async () => {
+  it("adds equipped weapon damage and lets the target's equipped block reduce it", async () => {
     const created = await createGame(handle.db, {
       username: DEMO_USER.username,
       name: "武器伤害测试局",
@@ -341,7 +341,7 @@ describe.skipIf(!testDatabaseUrl)("items and interactions", () => {
     const monk = state.world.stages
       .flatMap((stage) => stage.actors)
       .find((actor) => actor.name === "提灯修士");
-    // 6（守烬人 attack）+ 3（装备武器的 damage，裂齿短刃已装备）- 3（修士 defense）- 2（铅封提灯 block）= 4
+    // 6（守烬人自身 damage）+ 3（装备武器的 damage，裂齿短刃已装备）- 3（修士 block）- 2（铅封提灯 block）= 4
     expect(monk?.hp).toBe(6);
     expect(state.messages.at(-1)?.content).toContain("造成4点伤害");
   });
@@ -369,7 +369,7 @@ describe.skipIf(!testDatabaseUrl)("items and interactions", () => {
     const monk = state.world.stages
       .flatMap((stage) => stage.actors)
       .find((actor) => actor.name === "提灯修士");
-    // 空手：6（attack）- 3（防御）= 3 点伤害；背包里的裂齿短刃没装备，不参与结算。
+    // 空手：6（自身 damage）- 3（修士 block）= 3 点伤害；背包里的裂齿短刃没装备，不参与结算。
     expect(monk?.hp).toBe(7);
     expect(state.messages.at(-1)?.content).toContain("造成3点伤害");
   });

@@ -4,8 +4,11 @@
  * 六个字段都是恒定配置：可逐字段相加、可继承、可覆盖。当前生命是可变运行时
  * 状态而不是属性，所以不在 `Stats` 里，放在 `ActorState.hp` / `actors.hp`。
  * 新增属性只改 `STAT_KEYS`，类型自动跟着变。
+ *
+ * 结算只读 `damage` 与 `block`；`strength` / `wisdom` / `agility` 是标准角色属性
+ * （力量 / 智慧 / 敏捷），留在结构里但没有任何代码读取——写进内容也不会影响游戏。
  */
-const STAT_KEYS = ["maxHp", "attack", "defense", "speed", "damage", "block"] as const;
+const STAT_KEYS = ["maxHp", "strength", "wisdom", "agility", "damage", "block"] as const;
 
 type StatKey = (typeof STAT_KEYS)[number];
 export type Stats = Record<StatKey, number>;
@@ -13,9 +16,9 @@ export type Stats = Record<StatKey, number>;
 /** 全 0 属性；归一化与聚合的起点。 */
 export const EMPTY_STATS: Stats = {
   maxHp: 0,
-  attack: 0,
-  defense: 0,
-  speed: 0,
+  strength: 0,
+  wisdom: 0,
+  agility: 0,
   damage: 0,
   block: 0,
 };
@@ -27,9 +30,9 @@ export const EMPTY_STATS: Stats = {
 export function toStats(stats: Partial<Stats> | undefined): Stats {
   return {
     maxHp: stats?.maxHp ?? 0,
-    attack: stats?.attack ?? 0,
-    defense: stats?.defense ?? 0,
-    speed: stats?.speed ?? 0,
+    strength: stats?.strength ?? 0,
+    wisdom: stats?.wisdom ?? 0,
+    agility: stats?.agility ?? 0,
     damage: stats?.damage ?? 0,
     block: stats?.block ?? 0,
   };

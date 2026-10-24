@@ -81,8 +81,8 @@ describe("dark fantasy seed world", () => {
     expect(defaultPlayers).toEqual(["角色.无名者"]);
     expect(king?.baseBody.race).toBe("鼠");
     expect(king?.hp).toBeGreaterThan(keeper?.hp ?? 0);
-    expect(king?.stats.attack).toBeGreaterThan(20);
-    expect(king?.stats.defense).toBeGreaterThan(king?.stats.attack ?? 0);
+    expect(king?.stats.damage).toBeGreaterThan(20);
+    expect(king?.stats.block).toBeGreaterThan(king?.stats.damage ?? 0);
     expect(king?.profile).not.toContain("沉睡在地窖");
     expect(king?.openingBriefing).toContain("你正沉睡在地窖");
     expect(king?.openingBriefing).toContain("苏醒前你的计划只能包含 wait");

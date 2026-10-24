@@ -8,9 +8,11 @@ import { appendAttackObservations, appendStageEvent } from "../observations";
 import type { ItemEffectContext, ItemEffectHandler } from "./types";
 
 /**
- * 固定战斗公式：max(0, 攻击方 attack + 物品 damage - (目标 defense + 目标装备总 block))。
+ * 固定战斗公式：max(0, 攻击方 damage - 目标 block)。
  *
- * 属性只走 addStats 一条加法规则；目标的装备加成在结算时现读，避免旧快照。
+ * 只读 `damage` 与 `block` 两项：`strength` / `wisdom` / `agility` 字段仍保留在 `Stats` 里，
+ * 但不参与任何结算。双方都走 addStats 一条加法规则——攻击方是自身 stats + 本次物品 stats，
+ * 目标是自身 stats + 已穿戴物品 stats；target 的装备加成在结算时现读，避免旧快照。
  */
 export async function calculateFixedDamage(context: ItemEffectContext): Promise<number> {
   const { executor, actorRow, item, target } = context;
@@ -18,8 +20,8 @@ export async function calculateFixedDamage(context: ItemEffectContext): Promise<
     throw new Error("damage effect 需要角色目标");
   }
   const attacker = addStats(actorRow.actor.stats, item?.stats);
-  const defender = await resolveEquippedStats(executor, target);
-  return Math.max(0, attacker.attack + attacker.damage - target.stats.defense - defender.block);
+  const defender = addStats(target.stats, await resolveEquippedStats(executor, target));
+  return Math.max(0, attacker.damage - defender.block);
 }
 
 /** 把已经算好的伤害写入数据库、消息与观察。 */
