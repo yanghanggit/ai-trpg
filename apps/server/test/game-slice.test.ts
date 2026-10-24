@@ -296,14 +296,15 @@ describe.skipIf(!testDatabaseUrl)("memory-driven NPC slice", () => {
     expect(keeperService.tools).toContain("equip");
     expect(keeperService.tools).toContain("unequip");
 
+    // 公共知识库检索对所有 actor 开放，不按角色开关。
     const corpseService = new ToolCaptureService();
     await runNpcTurn(handle.db, created.game.slug, "角色.无名者", { service: corpseService });
     expect(corpseService.tools).toContain("steal");
-    expect(corpseService.tools).not.toContain("query");
+    expect(corpseService.tools).toContain("query");
 
     const dogService = new ToolCaptureService();
     await runNpcTurn(handle.db, created.game.slug, "角色.煤渣", { service: dogService });
-    expect(dogService.tools).not.toContain("query");
+    expect(dogService.tools).toContain("query");
     expect(dogService.tools).not.toContain("equip");
     expect(dogService.tools).not.toContain("unequip");
 

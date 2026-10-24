@@ -92,7 +92,7 @@ export function buildObserveActorTool(
   };
 }
 
-/** 构造公共知识库检索工具；只对 canQuery 为真的角色暴露。 */
+/** 构造公共知识库检索工具；所有 actor 都能用，它是只读工具而不是动作。 */
 export function buildKnowledgeTool(): ToolDefinition {
   return {
     type: "function",

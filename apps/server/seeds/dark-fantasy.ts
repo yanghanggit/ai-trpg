@@ -175,7 +175,7 @@ export const DARK_FANTASY_WORLD: World = {
           effect: { type: "event" },
         },
       ],
-      // 人类：会说话、走动、战斗，也操作道具、穿脱装备；只有她会查公共知识库。
+      // 人类：会说话、走动、战斗，也操作道具、穿脱装备。
       actions: [
         "say",
         "whisper",
@@ -189,7 +189,6 @@ export const DARK_FANTASY_WORLD: World = {
         "equip",
         "unequip",
       ],
-      canQuery: true,
     },
     {
       stageKey: "graveyard",
@@ -233,9 +232,8 @@ export const DARK_FANTASY_WORLD: World = {
       hp: 4,
       stats: { maxHp: 4, attack: 1, defense: 0, speed: 10, damage: 0, block: 0 },
       items: [],
-      // 幼崽只会说话、走动与躲避；不会战斗，也不操作道具；能查公共知识库。
+      // 幼崽只会说话、走动与躲避；不会战斗，也不操作道具。
       actions: ["say", "whisper", "announce", "move", "wait"],
-      canQuery: true,
     },
     {
       stageKey: "plague-pit",
@@ -317,9 +315,8 @@ export const DARK_FANTASY_WORLD: World = {
       hp: 120,
       stats: { maxHp: 120, attack: 60, defense: 100, speed: 8, damage: 0, block: 0 },
       items: [],
-      // 动物：沉睡时由 openingBriefing 约束只用 wait；苏醒后可以移动与攻击，不操作道具；能查公共知识库。
+      // 动物：沉睡时由 openingBriefing 约束只用 wait；苏醒后可以移动与攻击，不操作道具。
       actions: ["say", "whisper", "announce", "move", "wait", "attack"],
-      canQuery: true,
     },
   ],
   actions: ["notify_stage", "end_game"],

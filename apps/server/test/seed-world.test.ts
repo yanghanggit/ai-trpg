@@ -181,18 +181,6 @@ describe("dark fantasy seed world", () => {
     }
   });
 
-  it("only native actors can query the public knowledge base", () => {
-    const canQueryOf = (name: string) =>
-      DARK_FANTASY_WORLD.actors.find((actor) => actor.name === name)?.canQuery ?? false;
-
-    for (const native of ["角色.奥德里克", "角色.坏运气", "角色.鼠王"]) {
-      expect(canQueryOf(native)).toBe(true);
-    }
-    for (const other of ["角色.煤渣", "角色.无名者"]) {
-      expect(canQueryOf(other)).toBe(false);
-    }
-  });
-
   it("connects the graveyard, plague pit, cellar, crematorium and gate", () => {
     const edges = new Set(
       DARK_FANTASY_WORLD.connections.map((connection) => `${connection.from}->${connection.to}`),

@@ -55,7 +55,7 @@ export type NpcTurnOptions = {
   appearanceService?: ChatCompletionService;
   maxRounds?: number;
   logger?: Parameters<typeof agentLoop>[0]["logger"];
-  /** 真实 RAG provider；仅 canQuery 为真的 actor 会使用。测试可注入假 provider。 */
+  /** 真实 RAG provider；所有 actor 都能用 query 检索，测试可注入假 provider。 */
   knowledgeProvider?: EmbeddingProvider;
 };
 
@@ -82,13 +82,8 @@ export function buildActorObservation(state: GameState, current: ActorWithStage)
   const talks = targets.length === 0 ? "无" : targets.join("、");
   const interactables = aliveTargets.length === 0 ? "无" : aliveTargets.join("、");
   const moveLines = moves.length === 0 ? "无" : moves.join("、");
-  const hasKnowledge = current.actor.canQuery;
-  const knowledgeHint = hasKnowledge
-    ? "当问题涉及建筑、地理、历史、地名、瘟疫处理或习俗等公共事实，而当前场景与记忆无法直接确认时，必须先调用 query 检索，再回答或行动；不要用常识补全，也不要把检索结果当成亲眼所见。query 只读、不占行动，不提供角色秘密或当前状态。"
-    : "";
-  const readOnlyTools = hasKnowledge
-    ? "look_stage、get_self、observe_actor、query"
-    : "look_stage、get_self、observe_actor";
+  const knowledgeHint =
+    "当问题涉及建筑、地理、历史、地名、瘟疫处理或习俗等公共事实，而当前场景与记忆无法直接确认时，必须先调用 query 检索，再回答或行动；不要用常识补全，也不要把检索结果当成亲眼所见。query 只读、不占行动，不提供角色秘密或当前状态。";
 
   return `# 当前环境
 
@@ -116,7 +111,7 @@ ${moveLines}
 
 # 本轮任务
 
-根据当前环境与自己的记忆决定行动。使用 get_self 查看自己的完整信息，使用 observe_actor 查看同场景目标携带的物品；需要多项信息时，可以一次返回多个只读工具调用，也可以分多轮调用。${knowledgeHint}你能使用的行动工具：${actionList}。本轮最多 ${MAX_ACTIONS_PER_TURN} 个行动；通常一次沟通加一个其他行动，不要重复同一动作。先加入的行动先执行。最后调用 submit_plan 提交。${readOnlyTools} 不占计划。`;
+根据当前环境与自己的记忆决定行动。使用 get_self 查看自己的完整信息，使用 observe_actor 查看同场景目标携带的物品；需要多项信息时，可以一次返回多个只读工具调用，也可以分多轮调用。${knowledgeHint}你能使用的行动工具：${actionList}。本轮最多 ${MAX_ACTIONS_PER_TURN} 个行动；通常一次沟通加一个其他行动，不要重复同一动作。先加入的行动先执行。最后调用 submit_plan 提交。look_stage、get_self、observe_actor、query 不占计划。`;
 }
 
 /** 把动作加入本轮计划；条数上限在这里就告诉模型，避免提交后才被拒绝。 */
@@ -171,11 +166,9 @@ export async function runNpcTurn(
     (slot) => current.actor.equipment[slot] !== undefined,
   );
 
-  const hasKnowledge = current.actor.canQuery;
-  const knowledgeTool = hasKnowledge ? buildKnowledgeTool() : undefined;
-  const knowledgeProvider = hasKnowledge
-    ? (options.knowledgeProvider ?? new TransformersEmbeddingProvider())
-    : undefined;
+  // 公共知识库检索是所有 actor 都能用的只读工具，不按角色开关。
+  const knowledgeTool = buildKnowledgeTool();
+  const knowledgeProvider = options.knowledgeProvider ?? new TransformersEmbeddingProvider();
 
   const lookTool = buildLookTool(state);
   const selfTool = buildSelfInfoTool();
@@ -242,7 +235,7 @@ export async function runNpcTurn(
       lookTool,
       selfTool,
       observeTool,
-      ...(knowledgeTool ? [knowledgeTool] : []),
+      knowledgeTool,
       ...allowed.map((kind) => actionTools[kind]),
       submitTool,
     ],
@@ -261,22 +254,18 @@ export async function runNpcTurn(
         }
         return describeObservedActor(target);
       },
-      ...(knowledgeTool && knowledgeProvider
-        ? {
-            [knowledgeTool.function.name]: async (args: Record<string, unknown>) => {
-              const question = typeof args.question === "string" ? args.question.trim() : "";
-              if (question.length === 0) {
-                throw new GameError("invalid_action", "question 不能为空");
-              }
-              const results = await searchDocuments(db, knowledgeProvider, {
-                collection: worldCollection(state.world.name, state.game.contentVersion),
-                query: question,
-                topK: 5,
-              });
-              return describeKnowledgeResults(question, results);
-            },
-          }
-        : {}),
+      [knowledgeTool.function.name]: async (args: Record<string, unknown>) => {
+        const question = typeof args.question === "string" ? args.question.trim() : "";
+        if (question.length === 0) {
+          throw new GameError("invalid_action", "question 不能为空");
+        }
+        const results = await searchDocuments(db, knowledgeProvider, {
+          collection: worldCollection(state.world.name, state.game.contentVersion),
+          query: question,
+          topK: 5,
+        });
+        return describeKnowledgeResults(question, results);
+      },
       ...actionHandlers,
       [submitTool.function.name]: () => {
         if (actions.length === 0) {

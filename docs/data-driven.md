@@ -141,7 +141,7 @@ pnpm agent:game status --game my-game
    不直接加载 TypeScript seed；TS seed 通过 `seeds/index.ts` 注册。
 
 4. **RAG 不会在建局时自动执行**  
-   新世界若要支持 `query`，需要单独执行 `pnpm rag ingest --seed <name>`，并确保 collection 与游戏内容版本一致；同时把需要检索的角色写成 `canQuery: true`。
+   新世界若要支持 `query`，需要单独执行 `pnpm rag ingest --seed <name>`，并确保 collection 与游戏内容版本一致；工具对所有 actor 开放，不需要按角色声明。
 
 5. **旧局不自动升级**  
    在 world memory / `worlds.actions` / stage `notify_world` 之前创建的旧游戏，需要新建一局；旧局不会自动获得新结构。

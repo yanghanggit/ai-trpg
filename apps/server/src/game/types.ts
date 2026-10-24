@@ -117,8 +117,6 @@ export type Actor = {
   items: readonly ItemDefinition[];
   /** 该角色能执行的行动；必须显式列出，不给默认值。 */
   actions: readonly ActionKind[];
-  /** 能否检索公共知识库；唯一的条件只读工具，不占行动。 */
-  canQuery?: boolean;
 };
 
 /** Actor 的初始物品定义；创建后物化为 `items` 或 `stage_items` 行。 */
@@ -339,7 +337,6 @@ export type ActorState = {
   equipment: EquipmentSlots;
   items: ItemState[];
   actions: readonly ActionKind[];
-  canQuery: boolean;
 };
 
 export type StageState = {

@@ -113,6 +113,13 @@
       "when": 1792819238421,
       "tag": "0015_drop_actor_status",
       "breakpoints": true
+    },
+    {
+      "idx": 16,
+      "version": "7",
+      "when": 1792846967003,
+      "tag": "0016_drop_actor_can_query",
+      "breakpoints": true
     }
   ]
 }

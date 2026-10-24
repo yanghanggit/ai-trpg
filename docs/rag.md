@@ -26,11 +26,11 @@ RAG 是角色的“向世界求证”渠道，不是第二套记忆。它只承�
 
 ## Actor 工具
 
-只有 `can_query` 为真的原住民 actor 才会在 plan 中看到该工具。当前演示世界是奥德里克、坏运气与鼠王；煤渣、无名者没有该工具。`无名者` 是玩家角色，玩家入口不经过 NPC tool loop；煤渣是动物，不参与公共知识检索。
+`query` 对所有 actor 开放：只要走 NPC tool loop，就能在 plan 中看到这个只读工具；玩家入口不经过 tool loop，因此玩家角色不使用它。没有按角色的白名单。
 
 该工具是只读、非终止工具，可多次调用，不占 `MAX_ACTIONS_PER_TURN`。它只返回当前世界 collection 的公共知识，不返回 actor profile、私有 memory、stats、物品或场景实时状态。工具描述与返回文本都强调“公共知识不等于亲眼所见”。
 
-能力随 actor 的 `canQuery` 写入数据库，创建游戏时物化；运行时以数据库为准。新增原住民角色若要检索知识，必须在 seed 中写出 `canQuery: true`，不能依靠角色名或默认值；`query` 不是动作，不写进 `actions`。
+工具本身不需要按角色声明：`query` 不是动作，不写进 `actions`，所有 actor 都有。要让某个世界真的能检索到内容，仍需为该世界执行 `pnpm rag ingest --seed <name>`，并确保 collection 与游戏内容版本一致；没有入库时 `query` 只会返回“未检索到相关信息”。
 
 ## 尚未包含
 

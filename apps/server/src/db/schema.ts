@@ -162,8 +162,6 @@ export const actors = pgTable("actors", {
   isDefaultPlayer: boolean("is_default_player").notNull().default(false),
   equipment: jsonb("equipment").$type<EquipmentSlots>().notNull().default({}),
   actions: jsonb("actions").$type<ActionKind[]>().notNull().default([]),
-  /** 能否检索公共知识库；唯一的条件只读工具。 */
-  canQuery: boolean("can_query").notNull().default(false),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
 });

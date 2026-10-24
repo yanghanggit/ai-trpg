@@ -67,7 +67,6 @@ const actorSchema = z.object({
   isDefaultPlayer: z.boolean().optional(),
   items: z.array(itemSchema),
   actions: z.array(actionKindSchema),
-  canQuery: z.boolean().optional(),
 });
 
 const worldSchema = z.object({

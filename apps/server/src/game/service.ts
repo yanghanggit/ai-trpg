@@ -181,7 +181,6 @@ export async function getGameState(db: Database, ref: string): Promise<GameState
       equipment: actor.equipment,
       items: itemsByActor.get(actor.id) ?? [],
       actions: actor.actions,
-      canQuery: actor.canQuery,
     });
     actorsByStage.set(actor.stageId, list);
   }
@@ -418,7 +417,6 @@ export async function createGame(db: Database, input: CreateGameInput): Promise<
         isDefaultPlayer: actor.isDefaultPlayer ?? false,
         equipment: actor.equipment ?? {},
         actions: [...actor.actions],
-        canQuery: actor.canQuery ?? false,
       });
 
       for (const item of actor.items) {
