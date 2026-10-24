@@ -21,6 +21,10 @@ import { runAffixEffect } from "../item-effects/affix-agent";
 import type { AffixRequest } from "../item-effects/types";
 import { appendMemoryMessages, loadAgentMemory } from "../memory";
 import type { ActorPlan } from "../types";
+import { isAlive } from "./queries";
+
+export * from "./queries";
+
 import { resolvePlan } from "./resolve";
 import type { ActorWithStageRow, Executor, ResolvedAction } from "./types";
 
@@ -137,7 +141,7 @@ export async function applyActorPlan(
     if (!actorRow) {
       throw new GameError("not_found", `actor 不存在: ${actorId}`);
     }
-    if (actorRow.actor.status === "dead") {
+    if (!isAlive(actorRow.actor)) {
       throw new GameError("invalid_action", `actor 已死亡: ${actorRow.actor.name}`);
     }
     const memory = await loadAgentMemory(tx, gameId, "actor", actorId);

@@ -2,6 +2,7 @@ import { and, eq } from "drizzle-orm";
 import { actors, items, stageConnections, stageItems, stages } from "../../db/schema";
 import { addStats, type Stats } from "../attributes";
 import { GameError } from "../errors";
+import type { ActorStatus } from "../types";
 import { EQUIPMENT_SLOTS } from "../types";
 import type { ActorRow, Executor, ItemRow, StageItemRow, StageRow, WorldRow } from "./types";
 
@@ -23,8 +24,8 @@ export async function findActorInStage(
   return target;
 }
 
-/** 生命判定：`status` 与 `hp` 只要有一项显示已死就算死亡。 */
-export function isAlive(target: ActorRow): boolean {
+/** 生命判定：`status` 与 `hp` 只要有一项显示已死就算死亡。ActorRow 与 ActorState 都满足。 */
+export function isAlive(target: { status: ActorStatus; hp: number }): boolean {
   return target.status !== "dead" && target.hp > 0;
 }
 

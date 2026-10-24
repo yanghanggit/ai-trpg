@@ -29,6 +29,7 @@ import {
   otherActorsInStage,
 } from "./actors";
 import { applyActorPlan } from "./apply";
+import { isAlive } from "./apply/queries";
 import { DEFAULT_NPC_MAX_ROUNDS, MAX_ACTIONS_PER_TURN } from "./constants";
 import { isPlayerControlled } from "./control";
 import { GameError } from "./errors";
@@ -61,19 +62,14 @@ export function buildActorObservation(state: GameState, current: ActorWithStage)
   const moves = adjacentStageNames(state, current.stage.id);
   const others = otherActorsInStage(current.stage, current.actor.id);
   const targets = others.map((actor) => actor.name);
-  const aliveTargets = others
-    .filter((actor) => actor.status === "alive")
-    .map((actor) => actor.name);
+  const aliveTargets = others.filter(isAlive).map((actor) => actor.name);
   const allowed = allowedActionKinds(current.actor.actions);
   const actionList = allowed.map((kind) => `${kind}（${ACTION_SUMMARIES[kind]}）`).join("、");
   const actorLines =
     others.length === 0
       ? "无"
       : others
-          .map(
-            (actor) =>
-              `${actor.name}：${actor.appearance}${actor.status === "dead" ? "（已死亡）" : ""}`,
-          )
+          .map((actor) => `${actor.name}：${actor.appearance}${isAlive(actor) ? "" : "（已死亡）"}`)
           .join("\n");
   const itemLines =
     current.stage.items.length === 0
@@ -146,7 +142,7 @@ export async function runNpcTurn(
     throw new GameError("invalid_state", `游戏已结束: ${state.game.status}`);
   }
   const current = findActorWithStage(state, actorRef);
-  if (current.actor.status === "dead") {
+  if (!isAlive(current.actor)) {
     throw new GameError("invalid_action", `actor 已死亡: ${current.actor.name}`);
   }
   if (await isPlayerControlled(db, state.game.id, current.actor.id)) {
@@ -161,9 +157,7 @@ export async function runNpcTurn(
   const stageNames = adjacentStageNames(state, current.stage.id);
   const otherActors = otherActorsInStage(current.stage, current.actor.id);
   const talkTargets = otherActors.map((actor) => actor.name);
-  const aliveTargets = otherActors
-    .filter((actor) => actor.status === "alive")
-    .map((actor) => actor.name);
+  const aliveTargets = otherActors.filter(isAlive).map((actor) => actor.name);
   const selfAndAlive = [current.actor.name, ...aliveTargets];
   const availableUseItemNames = current.actor.items.map((item) => item.name);
   const wearableItemNames = current.actor.items

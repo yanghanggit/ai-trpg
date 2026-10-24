@@ -6,6 +6,7 @@ import { agentLoop } from "../llm/agent-loop";
 import type { ChatCompletionService } from "../llm/protocol";
 import type { ChatMessage } from "../llm/types";
 import { bumpGameVersion } from "./apply/messages";
+import { isAlive } from "./apply/queries";
 import { DEFAULT_NPC_MAX_ROUNDS, MAX_WORLD_ACTIONS_PER_TURN, MEMORY_KINDS } from "./constants";
 import { completeGame } from "./end-game";
 import { GameError } from "./errors";
@@ -36,7 +37,7 @@ export function buildWorldObservation(state: GameState): string {
         stage.actors.length === 0
           ? "无"
           : stage.actors
-              .map((actor) => `${actor.name}${actor.status === "dead" ? "（已死亡）" : ""}`)
+              .map((actor) => `${actor.name}${isAlive(actor) ? "" : "（已死亡）"}`)
               .join("、");
       return `### ${stage.name}
 

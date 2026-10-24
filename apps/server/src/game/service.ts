@@ -405,6 +405,9 @@ export async function createGame(db: Database, input: CreateGameInput): Promise<
 
       const actorId = randomUUID();
       const stats = toStats(actor.stats);
+      // status 由 hp 派生：内容声明为尸体时，当前生命必须是 0。
+      const status = actor.status ?? "alive";
+      const hp = status === "dead" ? 0 : (actor.hp ?? stats.maxHp);
       await tx.insert(actors).values({
         id: actorId,
         stageId: actorStageId,
@@ -413,8 +416,8 @@ export async function createGame(db: Database, input: CreateGameInput): Promise<
         appearance: resolveAppearance(actor),
         baseBody: actor.baseBody,
         stats,
-        hp: actor.hp ?? stats.maxHp,
-        status: actor.status ?? "alive",
+        hp,
+        status,
         isDefaultPlayer: actor.isDefaultPlayer ?? false,
         equipment: actor.equipment ?? {},
         actions: [...actor.actions],

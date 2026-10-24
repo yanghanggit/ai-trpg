@@ -27,6 +27,7 @@ import {
   compactMemory,
   createGame,
   getGameState,
+  isAlive,
   listPlayerControlledActorIds,
   playerAnnounce,
   playerAttack,
@@ -524,9 +525,7 @@ async function main(): Promise<void> {
       const state = await getGameState(db, gameRef);
       const controlled = new Set(await listPlayerControlledActorIds(db, state.game.id));
       const actorIds = state.world.stages
-        .flatMap((stage) =>
-          stage.actors.filter((actor) => actor.status === "alive").map((actor) => actor.id),
-        )
+        .flatMap((stage) => stage.actors.filter(isAlive).map((actor) => actor.id))
         .filter((actorId) => !controlled.has(actorId));
       const output = [];
       for (const actorId of actorIds) {

@@ -1,6 +1,7 @@
 import type { ToolDefinition } from "../llm/types";
 import type { RagSearchResult } from "../rag";
 import { adjacentStageNames, findStageByName } from "./actors";
+import { isAlive } from "./apply/queries";
 import { MAX_WORLD_NOTIFICATION_LENGTH } from "./constants";
 import { GameError } from "./errors";
 import type { ActorState, GameState } from "./types";
@@ -232,7 +233,7 @@ HP：${actor.hp}/${actor.stats.maxHp}
 attack：${actor.stats.attack}
 defense：${actor.stats.defense}
 speed：${actor.stats.speed}
-状态：${actor.status === "dead" ? "已死亡" : "存活"}`;
+状态：${isAlive(actor) ? "存活" : "已死亡"}`;
 }
 
 /** 渲染物品清单；穿戴状态由 actor 的槽位索引标记。 */
@@ -284,7 +285,7 @@ export function lookStage(state: GameState, stageName: string): string {
     stage.actors.length === 0
       ? "无"
       : stage.actors
-          .map((actor) => `${actor.name}${actor.status === "dead" ? "（已死亡）" : ""}`)
+          .map((actor) => `${actor.name}${isAlive(actor) ? "" : "（已死亡）"}`)
           .join("、");
   const items =
     stage.items.length === 0

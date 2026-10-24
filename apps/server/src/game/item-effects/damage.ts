@@ -1,7 +1,7 @@
 import { eq } from "drizzle-orm";
 import { actors } from "../../db/schema";
 import { appendPublicMessage, bumpGameVersion, itemListText } from "../apply/messages";
-import { resolveEquippedStats } from "../apply/queries";
+import { isAlive, resolveEquippedStats } from "../apply/queries";
 import { addStats } from "../attributes";
 import { completeGame } from "../end-game";
 import { appendAttackObservations, appendStageEvent } from "../observations";
@@ -33,7 +33,7 @@ export async function applyDamage(context: ItemEffectContext, damage: number): P
   if (!current) {
     throw new Error(`目标不存在: ${target.name}`);
   }
-  if (current.status === "dead") {
+  if (!isAlive(current)) {
     return `# 行动结果\n${target.name}已经倒下。`;
   }
   const remainingHp = Math.max(0, current.hp - damage);
