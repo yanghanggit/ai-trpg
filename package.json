@@ -21,6 +21,7 @@
     "test": "pnpm --filter @ai-trpg/server test && pnpm --filter @ai-trpg/web test",
     "test:run": "pnpm --filter @ai-trpg/server test:run && pnpm --filter @ai-trpg/web test:run",
     "screenshot": "tsx scripts/screenshot.ts",
+    "clean:dev": "tsx scripts/clean-dev.ts",
     "smoke:deepseek": "pnpm --filter @ai-trpg/server smoke:deepseek",
     "smoke:deepseek:full": "pnpm --filter @ai-trpg/server smoke:deepseek:full",
     "smoke:deepseek:dump": "pnpm --filter @ai-trpg/server smoke:deepseek:dump",
