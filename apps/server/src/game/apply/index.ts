@@ -233,8 +233,14 @@ export async function applyActorPlan(
   if (!result.ok) {
     return result;
   }
-  const deathPhase = await settleDeaths(db, gameId, {
-    ...(options.appearanceService ? { service: options.appearanceService } : {}),
-  });
-  return deathPhase.pending.length > 0 ? { ...result, deathPending: deathPhase.pending } : result;
+  // 死亡判定（hp）早已随事务落库；这里只是宣布死亡 + 尽力补尸体外观。
+  // 这一步的失败（含外观推理失败）都不能反过来否定这次行动。
+  try {
+    await settleDeaths(db, gameId, {
+      ...(options.appearanceService ? { service: options.appearanceService } : {}),
+    });
+  } catch {
+    // 宣布死亡没写成：标记没写，下一次 hp 变化或 `agent:game deaths` 会再来。
+  }
+  return result;
 }

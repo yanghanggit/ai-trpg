@@ -319,7 +319,11 @@ describe.skipIf(!testDatabaseUrl)("items and interactions", () => {
       .flatMap((stage) => stage.actors)
       .find((actor) => actor.name === "提灯修士");
     expect(monk?.hp).toBe(0);
-    const recent = state.messages.slice(-2).map((message) => message.content);
+    // 死亡广播会追加一条 kind=death 的消息，所以按攻击消息取最近两条。
+    const recent = state.messages
+      .filter((message) => message.kind === "attack")
+      .slice(-2)
+      .map((message) => message.content);
     expect(recent[0]).toContain("造成6点伤害");
     expect(recent[1]).toContain("造成42点伤害");
   });

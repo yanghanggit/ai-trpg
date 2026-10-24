@@ -498,7 +498,7 @@ async function main(): Promise<void> {
         const state = await getGameState(db, values.game as string);
         return refreshAppearances(db, state.game.id, { service: DEEPSEEK_SERVICE });
       });
-      emit({ ok: result.pending.length === 0, action: command, ...result });
+      emit({ ok: true, action: command, ...result });
       return;
     }
     const actorName = requireActorName(values, "appearance");
@@ -519,7 +519,8 @@ async function main(): Promise<void> {
       const state = await getGameState(db, values.game as string);
       return settleDeaths(db, state.game.id, { service: DEEPSEEK_SERVICE });
     });
-    emit({ ok: result.pending.length === 0, action: command, ...result });
+    // 外观失败按设计可以不管，所以 ok 只看死亡是否宣布成功。
+    emit({ ok: true, action: command, ...result });
     return;
   }
 

@@ -17,6 +17,7 @@ import {
   settleDeaths,
   takeActorControl,
 } from "../src/game";
+import { loadAgentMemory } from "../src/game/memory";
 import { describeStats } from "../src/game/plan";
 import { ChatCompletionResult, type ChatCompletionService } from "../src/llm";
 
@@ -318,5 +319,151 @@ describe.skipIf(!testDatabaseUrl)("appearance maintenance", () => {
       .flatMap((stage) => stage.actors)
       .find((actor) => actor.name === "提灯修士")?.appearance;
     expect(after).toBe(corpseAppearance);
+  });
+});
+
+/** 永远失败的外观服务：模拟 LLM 超时 / 报错。 */
+class FailingAppearanceService implements ChatCompletionService {
+  calls = 0;
+
+  async complete(request: Parameters<ChatCompletionService["complete"]>[0]) {
+    this.calls += 1;
+    return new ChatCompletionResult({
+      request,
+      aiMessage: { type: "ai", content: "" },
+      finishReason: "error",
+      toolCalls: [],
+    });
+  }
+}
+
+describe.skipIf(!testDatabaseUrl)("death phase does not block death", () => {
+  let handle: DatabaseHandle;
+
+  beforeAll(async () => {
+    handle = openDatabase("TEST_DATABASE_URL");
+    await runMigrations(handle.db);
+    await resetDomainData(handle.db);
+    await seedDemoData(handle.db);
+  });
+
+  afterAll(async () => {
+    await handle.pool.end();
+  });
+
+  it("外观推理失败时，死亡照样宣布并广播，只是没有尸体快照", async () => {
+    const created = await createGame(handle.db, {
+      username: DEMO_USER.username,
+      name: "收尾失败测试局",
+      world: TEST_WORLD,
+    });
+    await takeActorControl(handle.db, created.game.slug, "守烬人");
+
+    const failing = new FailingAppearanceService();
+    const kill = () =>
+      playerAttack(
+        handle.db,
+        created.game.slug,
+        "守烬人",
+        { targetActorName: "提灯修士" },
+        { appearanceService: failing },
+      );
+    await kill();
+    const killing = await kill();
+    // 外观失败不影响行动本身：攻击照样成功，hp 照样归零。
+    expect(killing.ok).toBe(true);
+
+    const after = await getGameState(handle.db, created.game.slug);
+    const monk = after.world.stages
+      .flatMap((stage) => stage.actors)
+      .find((actor) => actor.name === "提灯修士");
+    expect(monk?.hp).toBe(0);
+    // 外观没推成 → 保持死亡前的样子，但这不影响死亡本身的宣布。
+    expect(monk?.appearance).not.toContain("倒");
+    expect(failing.calls).toBeGreaterThan(0);
+
+    // 死亡广播是公共事件，不依赖 LLM。
+    const deathMessage = after.messages.find((message) => message.kind === "death");
+    expect(deathMessage?.content).toBe("提灯修士倒下了，不再有任何生命迹象。");
+
+    // 死亡已经宣布过：标记已写，再来一次不会重复广播，也不会重试外观。
+    const again = await settleDeaths(handle.db, created.game.id, {
+      service: new DeathAppearanceService(),
+    });
+    expect(again.settled).toEqual([]);
+    expect(again.appearanceFailed).toEqual([]);
+    const after2 = await getGameState(handle.db, created.game.slug);
+    expect(after2.messages.filter((message) => message.kind === "death")).toHaveLength(1);
+  });
+
+  it("没有 LLM 也能宣布死亡：广播与标记都不依赖推理", async () => {
+    const created = await createGame(handle.db, {
+      username: DEMO_USER.username,
+      name: "无 LLM 宣布死亡测试局",
+      world: TEST_WORLD,
+    });
+    const monk = created.world.stages
+      .flatMap((stage) => stage.actors)
+      .find((actor) => actor.name === "提灯修士");
+    if (!monk) {
+      throw new Error("缺少提灯修士");
+    }
+    await handle.db.update(actors).set({ hp: 0 }).where(eq(actors.id, monk.id));
+
+    // 完全不传 service：死亡判定与广播必须照常发生，只有外观快照被跳过。
+    const phase = await settleDeaths(handle.db, created.game.id);
+    expect(phase.settled).toEqual(["提灯修士"]);
+    expect(phase.appearanceFailed).toEqual([]);
+
+    const state = await getGameState(handle.db, created.game.slug);
+    expect(state.messages.filter((message) => message.kind === "death")).toHaveLength(1);
+    expect(
+      state.world.stages.flatMap((stage) => stage.actors).find((actor) => actor.name === "提灯修士")
+        ?.appearance,
+    ).toBe(monk.appearance);
+  });
+
+  it("宣布死亡会写场景、旁观者与死者自己的记忆", async () => {
+    const created = await createGame(handle.db, {
+      username: DEMO_USER.username,
+      name: "死亡广播记忆测试局",
+      world: TEST_WORLD,
+    });
+    await takeActorControl(handle.db, created.game.slug, "守烬人");
+    const service = new DeathAppearanceService();
+    const strike = () =>
+      playerAttack(
+        handle.db,
+        created.game.slug,
+        "守烬人",
+        { targetActorName: "提灯修士" },
+        { appearanceService: service },
+      );
+    await strike();
+    await strike();
+
+    const state = await getGameState(handle.db, created.game.slug);
+    const monk = state.world.stages
+      .flatMap((stage) => stage.actors)
+      .find((actor) => actor.name === "提灯修士");
+    const keeper = state.world.stages
+      .flatMap((stage) => stage.actors)
+      .find((actor) => actor.name === "守烬人");
+    const stageId = state.world.stages.find((stage) =>
+      stage.actors.some((actor) => actor.name === "提灯修士"),
+    )?.id;
+    if (!monk || !keeper || !stageId) {
+      throw new Error("缺少测试数据");
+    }
+
+    const readMemory = async (kind: "stage" | "actor", id: string) => {
+      const memory = await loadAgentMemory(handle.db, created.game.id, kind, id);
+      return memory?.messages.map((message) => message.content).join("\n") ?? "";
+    };
+    // 场景记忆与旁观者记忆都收到死亡事件。
+    expect(await readMemory("stage", stageId)).toContain("提灯修士的生命归零");
+    expect(await readMemory("actor", keeper.id)).toContain("倒下了，不再有任何生命迹象");
+    // 死者自己也留一条，供未来的复活类扩展使用。
+    expect(await readMemory("actor", monk.id)).toContain("你已经死亡");
   });
 });

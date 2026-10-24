@@ -283,7 +283,7 @@ export async function runNpcTurn(
   });
 
   const newMessages = loop.messages.slice(loop.startIndex, loop.endIndex);
-  const { ok } = await applyActorPlan(
+  const applied = await applyActorPlan(
     db,
     state.game.id,
     current.actor.id,
@@ -297,7 +297,7 @@ export async function runNpcTurn(
   );
 
   return {
-    ok,
+    ok: applied.ok,
     plan: submitted,
     loopSuccess: loop.success,
     state: await getGameState(db, state.game.id),
