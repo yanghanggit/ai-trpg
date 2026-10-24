@@ -7,7 +7,7 @@ import type { KnowledgeBase } from "../../src/rag/types";
  * 瘟疫留下的痕迹与公开的处理方式。不写角色身世、秘密、钥匙归属、
  * 怪物弱点或当前动态环境；这些属于角色 profile / memory，不是公共知识库。
  */
-export const DARK_FANTASY_KNOWLEDGE: KnowledgeBase = {
+export const BELL_MONASTERY_KNOWLEDGE: KnowledgeBase = {
   修道院: [
     "枯钟修道院建在山坳里，主体由灰石砌成，四周是一圈倒塌了一半的石墙。",
     "修道院的钟楼在墓园北侧，铜钟多年无人敲响，钟身上结着绿色的铜锈。",

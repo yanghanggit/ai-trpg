@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { DARK_FANTASY_WORLD } from "../seeds/dark-fantasy";
+import { BELL_MONASTERY_WORLD } from "../seeds/dark-fantasy";
 import { DEMO_USER } from "../src/db/demo-fixture";
 import "../src/db/env";
 import { type DatabaseHandle, openDatabase } from "../src/db/connect";
@@ -297,8 +297,8 @@ describe.skipIf(!testDatabaseUrl)("stage mini-GM", () => {
   });
 
   it("keeps the demo environment free of actor names", () => {
-    for (const stage of DARK_FANTASY_WORLD.stages) {
-      const actorNames = DARK_FANTASY_WORLD.actors
+    for (const stage of BELL_MONASTERY_WORLD.stages) {
+      const actorNames = BELL_MONASTERY_WORLD.actors
         .filter((actor) => actor.stageKey === stage.key)
         .map((actor) => actor.name);
       for (const actorName of actorNames) {

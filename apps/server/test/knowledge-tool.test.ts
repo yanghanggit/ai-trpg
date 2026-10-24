@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { DARK_FANTASY_WORLD } from "../seeds/dark-fantasy";
+import { BELL_MONASTERY_WORLD } from "../seeds/dark-fantasy";
 import { DEMO_USER } from "../src/db/demo-fixture";
 import "../src/db/env";
 import { type DatabaseHandle, openDatabase } from "../src/db/connect";
@@ -75,7 +75,7 @@ describe.skipIf(!testDatabaseUrl)("knowledge retrieval tool", () => {
     const created = await createGame(handle.db, {
       username: DEMO_USER.username,
       name: "知识检索工具测试局",
-      world: DARK_FANTASY_WORLD,
+      world: BELL_MONASTERY_WORLD,
     });
     const collection = worldCollection(created.world.name, created.game.contentVersion);
     const provider = new DeterministicEmbeddingProvider({

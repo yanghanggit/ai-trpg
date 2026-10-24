@@ -34,6 +34,8 @@ RAG 是角色的“向世界求证”渠道，不是第二套记忆。它只承�
 
 ## 尚未包含
 
+知识库与剧本 1:1 绑定：每个剧本在同目录带一个 `<剧本>.knowledge.ts`，collection 仍由剧本的 `worldName` + `contentVersion` 拼成（如 `world:枯钟修道院:dark-fantasy.v11`），所以换剧本不会串库。跨剧本通用的只有战役文本（`campaign.ts` 的 `campaignSetting` / `systemRules`），它不进知识库。
+
 当前不做正文自动分块、混合检索、rerank、知识库 HTTP API 或建局时自动 ingest。知识条目由 seed 直接提供，默认是短事实；长文档分块与增量重建留到内容规模需要时再加。
 
 → 参见：[数据库](database.md) → 参见：[Actor 行动与记忆](actor-actions-memory.md) → 参见：[本地开发](dev-setup.md)

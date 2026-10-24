@@ -9,7 +9,7 @@
 当前边界：
 
 - 数据库 schema、领域类型、prompt 组装、动作结算、stage/world 能力全部与具体故事无关；
-- 故事内容集中在 `seeds/dark-fantasy.ts` 与 `seeds/knowledge/dark-fantasy.ts`，通过 `seeds/index.ts` 注册；
+- 故事内容集中在 `seeds/dark-fantasy/`：`campaign.ts` 是不可变的战役文本（`campaignSetting` / `systemRules`），每个剧本一个文件（如 `bell-monastery.ts`），知识库与剧本 1:1 绑在同目录，`index.ts` 用 `assembleWorld()` 拼成 `World` 后由 `seeds/index.ts` 注册；
 - `use` 对场景可以携带 `targetDetail`，它只是 actor 的行动描述，写入 stage memory；
 - `attack` / `use` 只做 dispatcher；物品通过 `item.effect` 声明 `event` / `damage` 等效果；
 - `actor.openingBriefing` 是本局开局注入给角色的私有简报；建局时写成 actor memory 的第一条 human message，不进入数据库字段；
@@ -160,7 +160,7 @@ pnpm agent:game status --game my-game
 - `GATE_STAGE_NAME` / `GATE_KEY_NAME`；
 - 物品 use 直接设置 `games.status=completed` 的路径；
 - `DEMO_USER` 与 `app_meta` 的故事耦合；
-- CLI `create` 的隐式 `DARK_FANTASY_WORLD`；
+- CLI `create` 的隐式默认 seed（当前是剧本「枯钟修道院」）；
 - `src` / `scripts` 对具体故事 seed 的静态 import。
 
 物品仍保留稳定 `key`；新的 `item.effect` 只声明效果，不直接改变世界级状态。世界级后果仍由 stage / world 裁决。
@@ -176,7 +176,7 @@ grep -rn "铁闸门\|闸门钥匙\|枯钟\|黑疖\|奥德里克\|煤渣\|坏运�
 grep -rn "seeds/dark-fantasy" apps/server/src apps/server/scripts --include=*.ts
 
 # 框架层是否静态引用具体世界观
-grep -rn "DARK_FANTASY_WORLD" apps/server/src apps/server/scripts --include=*.ts
+grep -rn "BELL_MONASTERY_WORLD" apps/server/src apps/server/scripts --include=*.ts
 ```
 
 前三条都应为空；`DEMO_USER` 只允许存在于通用 demo fixture 与 maintenance 中，不属于故事内容。内容注册表与故事 seed 只在 `apps/server/seeds/` 内互相引用。

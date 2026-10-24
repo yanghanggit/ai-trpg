@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { DARK_FANTASY_WORLD } from "../seeds/dark-fantasy";
+import { BELL_MONASTERY_WORLD } from "../seeds/dark-fantasy";
 import { DEMO_USER } from "../src/db/demo-fixture";
 import "../src/db/env";
 import { type DatabaseHandle, openDatabase } from "../src/db/connect";
@@ -58,7 +58,7 @@ describe.skipIf(!testDatabaseUrl)("appearance fusion", () => {
     const created = await createGame(handle.db, {
       username: DEMO_USER.username,
       name: "外观融合测试局",
-      world: DARK_FANTASY_WORLD,
+      world: BELL_MONASTERY_WORLD,
     });
     const keeper = created.world.stages
       .flatMap((stage) => stage.actors)
@@ -106,7 +106,7 @@ describe.skipIf(!testDatabaseUrl)("appearance fusion", () => {
     const created = await createGame(handle.db, {
       username: DEMO_USER.username,
       name: "槽位收敛测试局",
-      world: DARK_FANTASY_WORLD,
+      world: BELL_MONASTERY_WORLD,
     });
     const service = new AppearanceService("无名者裹着发黄的布，颈上的断链垂在锁骨前。");
     const wear = (slot: "armor" | "accessory1" | "accessory2", itemName: string) =>

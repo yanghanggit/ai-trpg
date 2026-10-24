@@ -1,18 +1,22 @@
 import type { World } from "../src/game/types";
 import type { KnowledgeBase } from "../src/rag";
-import { DARK_FANTASY_WORLD } from "./dark-fantasy";
-import { DARK_FANTASY_KNOWLEDGE } from "./knowledge/dark-fantasy";
+import { BELL_MONASTERY_KNOWLEDGE, BELL_MONASTERY_WORLD } from "./dark-fantasy";
 
 export type ContentSeed = {
   world: World;
   knowledge: KnowledgeBase;
 };
 
-/** 显式内容注册表；CLI 通过名称选取，不在框架层写死故事路径。 */
+/**
+ * 显式内容注册表；CLI 通过名称选取，不在框架层写死故事路径。
+ *
+ * 一个条目 = 一个剧本（World + 与它 1:1 绑定的知识库）。`dark-fantasy` 是战役名，
+ * 当前指向该战役唯一的剧本「枯钟修道院」；同一战役新增剧本时在这里加条目。
+ */
 export const CONTENT_SEEDS = {
   "dark-fantasy": {
-    world: DARK_FANTASY_WORLD,
-    knowledge: DARK_FANTASY_KNOWLEDGE,
+    world: BELL_MONASTERY_WORLD,
+    knowledge: BELL_MONASTERY_KNOWLEDGE,
   },
 } as const satisfies Record<string, ContentSeed>;
 

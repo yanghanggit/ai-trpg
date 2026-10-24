@@ -1,9 +1,8 @@
 import { describe, expect, it } from "vitest";
-import { DARK_FANTASY_WORLD } from "../seeds/dark-fantasy";
-import { DARK_FANTASY_KNOWLEDGE } from "../seeds/knowledge/dark-fantasy";
+import { BELL_MONASTERY_KNOWLEDGE, BELL_MONASTERY_WORLD } from "../seeds/dark-fantasy";
 import { resolveAppearance } from "../src/game/body";
 
-const { stages } = DARK_FANTASY_WORLD;
+const { stages } = BELL_MONASTERY_WORLD;
 
 function stage(key: string) {
   const found = stages.find((candidate) => candidate.key === key);
@@ -22,9 +21,9 @@ describe("dark fantasy seed world", () => {
       "场景.焚尸房",
       "场景.铁闸门",
     ]);
-    expect(DARK_FANTASY_WORLD.worldName).toBe("枯钟修道院");
-    expect(DARK_FANTASY_WORLD.initialStageKey).toBe("plague-pit");
-    expect(DARK_FANTASY_WORLD.actors.map((actor) => actor.name)).toEqual([
+    expect(BELL_MONASTERY_WORLD.worldName).toBe("枯钟修道院");
+    expect(BELL_MONASTERY_WORLD.initialStageKey).toBe("plague-pit");
+    expect(BELL_MONASTERY_WORLD.actors.map((actor) => actor.name)).toEqual([
       "角色.奥德里克",
       "角色.煤渣",
       "角色.坏运气",
@@ -35,12 +34,12 @@ describe("dark fantasy seed world", () => {
 
   it("places the actors in the monastery and keeps the fire weapon", () => {
     expect(
-      DARK_FANTASY_WORLD.actors.filter((actor) => actor.stageKey === "graveyard"),
+      BELL_MONASTERY_WORLD.actors.filter((actor) => actor.stageKey === "graveyard"),
     ).toHaveLength(3);
     expect(
-      DARK_FANTASY_WORLD.actors.filter((actor) => actor.stageKey === "plague-pit"),
+      BELL_MONASTERY_WORLD.actors.filter((actor) => actor.stageKey === "plague-pit"),
     ).toHaveLength(1);
-    expect(DARK_FANTASY_WORLD.actors.filter((actor) => actor.stageKey === "cellar")).toHaveLength(
+    expect(BELL_MONASTERY_WORLD.actors.filter((actor) => actor.stageKey === "cellar")).toHaveLength(
       1,
     );
     expect(stage("crematorium").items?.map((item) => item.name)).toEqual(["武器.焚鼠火把"]);
@@ -55,8 +54,8 @@ describe("dark fantasy seed world", () => {
   });
 
   it("gives the keeper the gate key and makes the rat king a lethal sleeper", () => {
-    const keeper = DARK_FANTASY_WORLD.actors.find((actor) => actor.name === "角色.奥德里克");
-    const king = DARK_FANTASY_WORLD.actors.find((actor) => actor.name === "角色.鼠王");
+    const keeper = BELL_MONASTERY_WORLD.actors.find((actor) => actor.name === "角色.奥德里克");
+    const king = BELL_MONASTERY_WORLD.actors.find((actor) => actor.name === "角色.鼠王");
     expect(keeper?.items.map((item) => item.name)).toEqual(
       expect.arrayContaining(["饰品.闸门钥匙", "武器.掘墓人的铁锹", "装备.补丁斗篷"]),
     );
@@ -75,7 +74,7 @@ describe("dark fantasy seed world", () => {
     });
     expect(keeper?.baseBody.race).toBe("人类");
     expect(keeper?.hp).toBe(14);
-    const defaultPlayers = DARK_FANTASY_WORLD.actors
+    const defaultPlayers = BELL_MONASTERY_WORLD.actors
       .filter((actor) => actor.isDefaultPlayer)
       .map((actor) => actor.name);
     expect(defaultPlayers).toEqual(["角色.无名者"]);
@@ -89,8 +88,8 @@ describe("dark fantasy seed world", () => {
   });
 
   it("keeps human appearance clothed and lets animals fall back to base body", () => {
-    const keeper = DARK_FANTASY_WORLD.actors.find((actor) => actor.name === "角色.奥德里克");
-    const king = DARK_FANTASY_WORLD.actors.find((actor) => actor.name === "角色.鼠王");
+    const keeper = BELL_MONASTERY_WORLD.actors.find((actor) => actor.name === "角色.奥德里克");
+    const king = BELL_MONASTERY_WORLD.actors.find((actor) => actor.name === "角色.鼠王");
     if (!king) {
       throw new Error("缺少鼠王");
     }
@@ -100,25 +99,25 @@ describe("dark fantasy seed world", () => {
   });
 
   it("encodes the plague backstory in the world text", () => {
-    expect(DARK_FANTASY_WORLD.initialNarration).toContain("石灰");
-    expect(DARK_FANTASY_WORLD.initialNarration).toContain("裹尸布");
+    expect(BELL_MONASTERY_WORLD.initialNarration).toContain("石灰");
+    expect(BELL_MONASTERY_WORLD.initialNarration).toContain("裹尸布");
     expect(stage("plague-pit").profile).toContain("黑疖病");
     expect(stage("crematorium").profile).toContain("黑疖病");
-    const keeper = DARK_FANTASY_WORLD.actors.find((actor) => actor.name === "角色.奥德里克");
+    const keeper = BELL_MONASTERY_WORLD.actors.find((actor) => actor.name === "角色.奥德里克");
     expect(keeper?.profile).toContain("黑疖病");
     expect(keeper?.profile).toContain("旧钟无名");
   });
 
   it("declares per-actor actions explicitly in the seed", () => {
     const actionsOf = (name: string) => [
-      ...(DARK_FANTASY_WORLD.actors.find((actor) => actor.name === name)?.actions ?? []),
+      ...(BELL_MONASTERY_WORLD.actors.find((actor) => actor.name === name)?.actions ?? []),
     ];
 
     const TALK_AND_MOVE = ["say", "whisper", "announce", "move", "wait"];
     const ITEM_ACTIONS = ["give", "pickup", "use"];
 
     // 活物都会说话、走动与等待。
-    for (const actor of DARK_FANTASY_WORLD.actors) {
+    for (const actor of BELL_MONASTERY_WORLD.actors) {
       expect(actor.actions).toEqual(expect.arrayContaining(TALK_AND_MOVE));
     }
 
@@ -147,18 +146,18 @@ describe("dark fantasy seed world", () => {
     for (const item of stages) {
       expect(item.actions).toEqual(["submit_environment", "notify_world"]);
     }
-    expect(DARK_FANTASY_WORLD.actions).toEqual(["notify_stage", "end_game"]);
+    expect(BELL_MONASTERY_WORLD.actions).toEqual(["notify_stage", "end_game"]);
   });
 
   it("puts animal language rules in profiles, not in global rules", () => {
-    const rules = DARK_FANTASY_WORLD.systemRules;
+    const rules = BELL_MONASTERY_WORLD.systemRules;
     expect(rules).not.toContain("种族语言与发声");
     expect(rules).not.toContain("动物只能与同族");
     expect(rules).not.toContain("鼠王对非同族");
 
-    const dog = DARK_FANTASY_WORLD.actors.find((actor) => actor.name === "角色.煤渣");
-    const pup = DARK_FANTASY_WORLD.actors.find((actor) => actor.name === "角色.坏运气");
-    const king = DARK_FANTASY_WORLD.actors.find((actor) => actor.name === "角色.鼠王");
+    const dog = BELL_MONASTERY_WORLD.actors.find((actor) => actor.name === "角色.煤渣");
+    const pup = BELL_MONASTERY_WORLD.actors.find((actor) => actor.name === "角色.坏运气");
+    const king = BELL_MONASTERY_WORLD.actors.find((actor) => actor.name === "角色.鼠王");
     expect(dog?.profile).toContain("汪汪");
     expect(dog?.profile).toContain("内心独白不受叫声限制");
     expect(pup?.profile).toContain("吱吱、丝丝");
@@ -172,8 +171,8 @@ describe("dark fantasy seed world", () => {
   });
 
   it("keeps the public knowledge base free of actor secrets", () => {
-    const text = Object.values(DARK_FANTASY_KNOWLEDGE).flat().join("\n");
-    for (const actor of DARK_FANTASY_WORLD.actors) {
+    const text = Object.values(BELL_MONASTERY_KNOWLEDGE).flat().join("\n");
+    for (const actor of BELL_MONASTERY_WORLD.actors) {
       expect(text).not.toContain(actor.name);
     }
     for (const secret of ["钥匙", "秘密", "弱点", "沉睡", "追杀"]) {
@@ -183,7 +182,7 @@ describe("dark fantasy seed world", () => {
 
   it("connects the graveyard, plague pit, cellar, crematorium and gate", () => {
     const edges = new Set(
-      DARK_FANTASY_WORLD.connections.map((connection) => `${connection.from}->${connection.to}`),
+      BELL_MONASTERY_WORLD.connections.map((connection) => `${connection.from}->${connection.to}`),
     );
     expect([...edges].sort()).toEqual(
       [

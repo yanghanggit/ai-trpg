@@ -1,5 +1,5 @@
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { DARK_FANTASY_WORLD } from "../seeds/dark-fantasy";
+import { BELL_MONASTERY_WORLD } from "../seeds/dark-fantasy";
 import { DEMO_USER } from "../src/db/demo-fixture";
 import { TEST_WORLD } from "./test-world";
 import "../src/db/env";
@@ -34,7 +34,7 @@ describe.skipIf(!testDatabaseUrl)("equip and unequip actions", () => {
     const created = await createGame(handle.db, {
       username: DEMO_USER.username,
       name,
-      world: DARK_FANTASY_WORLD,
+      world: BELL_MONASTERY_WORLD,
     });
     await takeActorControl(handle.db, created.game.slug, "角色.奥德里克");
     return created;

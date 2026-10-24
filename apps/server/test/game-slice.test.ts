@@ -3,7 +3,7 @@ import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { DARK_FANTASY_WORLD } from "../seeds/dark-fantasy";
+import { BELL_MONASTERY_WORLD } from "../seeds/dark-fantasy";
 import { DEMO_USER } from "../src/db/demo-fixture";
 import { TEST_WORLD } from "./test-world";
 import "../src/db/env";
@@ -278,7 +278,7 @@ describe.skipIf(!testDatabaseUrl)("memory-driven NPC slice", () => {
     const created = await createGame(handle.db, {
       username: DEMO_USER.username,
       name: "能力过滤测试局",
-      world: DARK_FANTASY_WORLD,
+      world: BELL_MONASTERY_WORLD,
     });
 
     const keeperService = new ToolCaptureService();
@@ -425,7 +425,7 @@ describe.skipIf(!testDatabaseUrl)("memory-driven NPC slice", () => {
     const created = await createGame(handle.db, {
       username: DEMO_USER.username,
       name: "故事结构测试局",
-      world: DARK_FANTASY_WORLD,
+      world: BELL_MONASTERY_WORLD,
     });
     const pyre = created.world.stages.find((stage) => stage.name === "场景.焚尸房");
     const crypt = created.world.stages.find((stage) => stage.name === "场景.乱葬坑");
