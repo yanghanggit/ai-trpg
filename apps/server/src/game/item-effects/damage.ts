@@ -37,17 +37,16 @@ export async function applyDamage(context: ItemEffectContext, damage: number): P
     return `# 行动结果\n${target.name}已经倒下。`;
   }
   const remainingHp = Math.max(0, current.hp - damage);
-  const status = remainingHp <= 0 ? "dead" : "alive";
-
+  // 这里只写 hp。是否"死亡"完全由 hp 派生，不由攻击方断定。
   await executor
     .update(actors)
-    .set({ hp: remainingHp, status, updatedAt: now })
+    .set({ hp: remainingHp, updatedAt: now })
     .where(eq(actors.id, target.id));
   await bumpGameVersion(executor, gameId, now);
 
   const itemText = item ? itemListText([item]) : "";
   const outcome =
-    status === "dead"
+    remainingHp <= 0
       ? `；${target.name}倒下了。`
       : `；${target.name}剩余 HP ${remainingHp}/${current.stats.maxHp}。`;
   const actionText =
@@ -70,13 +69,12 @@ export async function applyDamage(context: ItemEffectContext, damage: number): P
     item ? [item] : [],
     damage,
     remainingHp,
-    status,
   );
   await appendStageEvent(executor, gameId, stage.id, `# 场景事件\n${content}`, {
     eventKind: actionKind,
     targetActorId: target.id,
   });
-  if (status === "dead" && current.isDefaultPlayer) {
+  if (remainingHp <= 0 && current.isDefaultPlayer) {
     await completeGame(executor, gameId, `${target.name}倒下了。故事就此结束。`, {
       now,
       stageId: stage.id,
@@ -87,7 +85,7 @@ export async function applyDamage(context: ItemEffectContext, damage: number): P
       ? `你使用攻击${itemText}对${target.name}，造成${damage}点伤害；`
       : `你对${target.name}使用${item?.name ?? "空手"}，造成${damage}点伤害；`;
   return `# 行动结果\n${feedback}${
-    status === "dead"
+    remainingHp <= 0
       ? `${target.name}倒下了`
       : `${target.name}剩余 HP ${remainingHp}/${current.stats.maxHp}`
   }。`;

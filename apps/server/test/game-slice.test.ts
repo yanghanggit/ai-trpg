@@ -459,7 +459,7 @@ describe.skipIf(!testDatabaseUrl)("memory-driven NPC slice", () => {
     const monk = state.world.stages
       .flatMap((stage) => stage.actors)
       .find((actor) => actor.name === "提灯修士");
-    expect(monk).toMatchObject({ hp: 0, status: "dead" });
+    expect(monk?.hp).toBe(0);
 
     await expect(
       runNpcTurn(handle.db, created.game.slug, "提灯修士", {
@@ -560,7 +560,6 @@ describe.skipIf(!testDatabaseUrl)("memory-driven NPC slice", () => {
           baseBody: { race: "人类", description: "瘦小，总把自己藏在阴影里。" },
           hp: 8,
           stats: { maxHp: 8, attack: 1, defense: 1, speed: 2, damage: 0, block: 0 },
-          status: "alive" as const,
           items: [],
           actions: ["say", "whisper", "move", "wait"] as const,
         },

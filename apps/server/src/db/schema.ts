@@ -14,7 +14,6 @@ import {
 import type { Stats } from "../game/attributes";
 import type {
   ActionKind,
-  ActorStatus,
   BaseBody,
   EquipmentSlots,
   ItemEffect,
@@ -155,9 +154,10 @@ export const actors = pgTable("actors", {
   appearance: text("appearance").notNull(),
   baseBody: jsonb("base_body").$type<BaseBody>().notNull(),
   stats: jsonb("stats").$type<Stats>().notNull(),
-  /** 当前生命；与 stats 分开存，扣血只写这一列。 */
+  /** 当前生命；与 stats 分开存，扣血只写这一列。`hp === 0` 即死亡，没有单独的死亡状态。 */
   hp: integer("hp").notNull(),
-  status: text("status").$type<ActorStatus>().notNull().default("alive"),
+  /** 死亡阶段已处理的时间；null 表示 `hp === 0` 但还没跑过死亡阶段（外观更新、未来的复活判定）。 */
+  deathSettledAt: timestamp("death_settled_at", { withTimezone: true }),
   /** 默认玩家角色；该角色死亡时整局结束。 */
   isDefaultPlayer: boolean("is_default_player").notNull().default(false),
   equipment: jsonb("equipment").$type<EquipmentSlots>().notNull().default({}),

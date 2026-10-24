@@ -74,7 +74,7 @@ describe("dark fantasy seed world", () => {
       key: "gate-key",
     });
     expect(keeper?.baseBody.race).toBe("人类");
-    expect(keeper?.status).toBe("alive");
+    expect(keeper?.hp).toBe(14);
     const defaultPlayers = DARK_FANTASY_WORLD.actors
       .filter((actor) => actor.isDefaultPlayer)
       .map((actor) => actor.name);

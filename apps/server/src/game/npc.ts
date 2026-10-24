@@ -51,6 +51,8 @@ import { EQUIPMENT_SLOTS } from "./types";
 
 export type NpcTurnOptions = {
   service: ChatCompletionService;
+  /** 死亡阶段的外观快照；不传则死者外观留到显式调用。 */
+  appearanceService?: ChatCompletionService;
   maxRounds?: number;
   logger?: Parameters<typeof agentLoop>[0]["logger"];
   /** 真实 RAG provider；仅 canQuery 为真的 actor 会使用。测试可注入假 provider。 */
@@ -299,7 +301,10 @@ export async function runNpcTurn(
     submitted,
     newMessages,
     loop.success,
-    { service: options.service },
+    {
+      service: options.service,
+      ...(options.appearanceService ? { appearanceService: options.appearanceService } : {}),
+    },
   );
 
   return {

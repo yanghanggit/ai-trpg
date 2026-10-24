@@ -118,7 +118,7 @@ NPC 工具分为只读 GET、动作与终止工具。`look_stage`、`get_self`�
 
 计划是**有序动作列表**，最多 `MAX_ACTIONS_PER_TURN = 2` 条；不做分类互斥，只限制条数。“通常一次沟通加一个其他动作”由提示词约定，工具 handler 在超过 2 条时立即报错给模型。两个动作按调用顺序应用，先移动后说话与先说话后移动是不同结果。
 
-每个成功应用的动作都产生一条公共事件，`kind` 就是动作名（`say` / `whisper` / `attack` / …）；可见范围由动作自己决定（`whisper` 与 `steal` 为 private，其余为 stage）。同场景公开动作会向其他 actor 写入可见行动观察。`wait` 只是不改变场景状态。actor 的 `status` 为 `dead` 时不能进入下一次 loop；伤害使目标 `hp` 归零时同时写入 `status=dead`。工具调用轨迹属于本次 loop，进入 context dump，不进入长期 memory 的顶层事实。行动的应用发生在 loop 结束后，由统一行动应用层校验并按顺序提交。
+每个成功应用的动作都产生一条公共事件，`kind` 就是动作名（`say` / `whisper` / `attack` / …）；可见范围由动作自己决定（`whisper` 与 `steal` 为 private，其余为 stage）。同场景公开动作会向其他 actor 写入可见行动观察。`wait` 只是不改变场景状态。actor 的 `hp` 为 0 时不能进入下一次 loop；伤害只写 `hp`，不判定死亡。工具调用轨迹属于本次 loop，进入 context dump，不进入长期 memory 的顶层事实。行动的应用发生在 loop 结束后，由统一行动应用层校验并按顺序提交。
 
 ## 沟通动作
 

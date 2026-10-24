@@ -16,6 +16,7 @@ import { applyUse } from "../actions/use";
 import { applyWait } from "../actions/wait";
 import { applyWhisper } from "../actions/whisper";
 import { MAX_ACTIONS_PER_TURN, MEMORY_KINDS } from "../constants";
+import { settleDeaths } from "../death";
 import { GameError } from "../errors";
 import { runAffixEffect } from "../item-effects/affix-agent";
 import type { AffixRequest } from "../item-effects/types";
@@ -97,11 +98,15 @@ export type ApplyPlanResult = {
   ok: boolean;
   rejection?: string;
   affixRequests?: AffixRequest[];
+  /** 死亡阶段没跑完的死者名字；下次 hp 变化或显式调用会重试。 */
+  deathPending?: string[];
 };
 
 export type ApplyActorPlanOptions = {
   /** 词缀补充效果需要 LLM agent。 */
   service?: ChatCompletionService;
+  /** 死亡阶段的外观快照需要 LLM；不传则跳过（下次 hp 变化或显式调用再补）。 */
+  appearanceService?: ChatCompletionService;
 };
 
 /**
@@ -224,5 +229,12 @@ export async function applyActorPlan(
     }
   }
 
-  return result;
+  // hp 已落库；死亡收尾（外观快照，未来的复活判定）属于死者自己，在事务外跑一遍。
+  if (!result.ok) {
+    return result;
+  }
+  const deathPhase = await settleDeaths(db, gameId, {
+    ...(options.appearanceService ? { service: options.appearanceService } : {}),
+  });
+  return deathPhase.pending.length > 0 ? { ...result, deathPending: deathPhase.pending } : result;
 }

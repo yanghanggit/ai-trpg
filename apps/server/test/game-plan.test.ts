@@ -160,7 +160,6 @@ describe("read-only descriptions", () => {
       baseBody: { race: "人类", description: "瘦削，手腕有旧绳痕。" },
       hp: 12,
       stats: { maxHp: 12, attack: 3, defense: 2, speed: 4, damage: 0, block: 0 },
-      status: "alive" as const,
       isDefaultPlayer: false,
       equipment: { weapon: "裂齿短刃" },
       actions: [

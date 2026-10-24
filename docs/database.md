@@ -11,7 +11,7 @@ PostgreSQL 是游戏状态的唯一真相。`agent:game` 从数据库读取状�
 - `worlds`：游戏的世界状态，`game_id` 唯一，强制一局一个 world；`actions` 是 world 实体的能力清单（当前 `notify_stage` / `end_game`）。
 - `stages`：world 下的场景；`world_id` 非空，按 `ordinal` 保持稳定顺序；`key` 是内容层稳定 key（旧数据可能为空），`environment` 是当前环境快照，由 stage 小 GM 更新。
 - `stage_connections`：场景图的有向边；连接两端必须属于同一 world；演示世界使用三组双向连接，乱葬坑到墓园另有一条单向出口。
-- `actors`：场景中的角色；`stage_id` 非空，不能脱离场景存在；`is_default_player` 是默认玩家角色标记（默认 `false`），玩家接管仍由独立控制关系表达；`appearance` 是当前可见外观（含衣着、装备与伤势，text），`base_body` 是未穿装备的种族 + 裸体描述（JSONB），`stats` 是恒定属性（JSONB：`maxHp` / `attack` / `defense` / `speed` / `damage` / `block`），`hp` 是当前生命（integer），与 `stats` 分开存，`status` 是 `alive | dead` 枚举（默认 `alive`；由 `hp` 派生：唯一写入点是 damage handler，内容声明 `dead` 时创建阶段会把 `hp` 归一为 0，判定统一走 `isAlive()`），`equipment` 是槽位到物品名的索引（JSONB，四个槽：`weapon` / `armor` / `accessory1` / `accessory2`，每槽至多一件），`actions` 是该角色被允许的十二个动作（JSONB 数组，必须显式写入，无默认值；例如动物不含道具操作）；`can_query` 表示该角色能否检索公共知识库（boolean，默认 `false`），它是只读工具而不是动作，所以不占行动、也不属于 `actions`。
+- `actors`：场景中的角色；`stage_id` 非空，不能脱离场景存在；`is_default_player` 是默认玩家角色标记（默认 `false`），玩家接管仍由独立控制关系表达；`appearance` 是当前可见外观（含衣着、装备与伤势，text），`base_body` 是未穿装备的种族 + 裸体描述（JSONB），`stats` 是恒定属性（JSONB：`maxHp` / `attack` / `defense` / `speed` / `damage` / `block`），`hp` 是当前生命（integer），与 `stats` 分开存，没有单独的死亡状态列：**`hp === 0` 就是死亡**，判定统一走 `isAlive()`，伤害只写 `hp` 不判定死亡；`death_settled_at` 是「这次死亡的收尾跑过了吗」的处理标记（不是生命状态），`equipment` 是槽位到物品名的索引（JSONB，四个槽：`weapon` / `armor` / `accessory1` / `accessory2`，每槽至多一件），`actions` 是该角色被允许的十二个动作（JSONB 数组，必须显式写入，无默认值；例如动物不含道具操作）；`can_query` 表示该角色能否检索公共知识库（boolean，默认 `false`），它是只读工具而不是动作，所以不占行动、也不属于 `actions`。
 - `stages.actions`：场景自身的能力清单，JSONB 数组；当前每个场景都声明 `submit_environment` 与 `notify_world`，决定 stage 小 GM 是否暴露这些工具。它不限制角色动作。
 - `items`：角色持有的物品；`actor_id` 非空，不能脱离角色存在；是 actor 唯一的运行时队列。物品根字段有 `key` / `name` / `description` / `kind` / `count` / `affixes`，属性在 `stats`（JSONB，六项齐全，未用到的为 0），声明式使用效果在 `effect`（JSONB，必须包含 `type`）；`affixes` 是词缀字符串数组，默认空数组。物品自身不记录穿戴状态。`items.id` 是稳定 uuid 身份；动作与装备槽用的是 `name`，因此 `(actor_id, name)` 与 `(stage_id, name)` 各建了唯一索引，保证同一持有者内名字不重名。
 - `stage_items`：暂放在场景中的物品；`stage_id` 非空，当前只作为场景内容读取，已支持拾取并转入 actor 背包。字段与 `items` 相同，但没有穿戴状态。
@@ -71,6 +71,16 @@ schema 定义在服务端代码中，SQL 迁移由 Drizzle Kit 生成并入库�
 `pnpm db:migrate` 应用迁移；迁移前会确保 `vector` 扩展可用，空库也能直接建出向量表。`pnpm db:reset --yes` 清空显式登记的开发表（包括 `vector_documents`）；`pnpm db:check` 探测连接、pgvector 版本与向量行数。重置清单集中在 `src/db/maintenance.ts`，新增业务表必须登记。`db:reset` 与 `db:demo` 只允许本机数据库；数据库重置不会删除 `worlds/` 下的历史快照，需要时手动清理。
 
 开发期不做旧数据搬运：迁移只描述目标形状（加列、改类型），不写 backfill / 数据重写语句。字段改名或语义变更时，直接改 schema、生成迁移，然后 `db:reset --yes` + `db:demo` 用当前 seed 重刷一局；不要为一个没人保留的旧库额外维护一段一次性 UPDATE。
+
+## 死亡阶段
+
+死亡不是一个状态字段，而是 `hp === 0` 这个事实：攻击方只写 `hp`，不断定死亡，也不在攻击事务里做死亡收尾。
+
+收尾属于死者自己。`settleDeaths()` 扫描本局全部 actor，把「`hp <= 0` 且 `death_settled_at IS NULL`」的死者各跑一次收尾（当前是外观快照，未来是复活饰品判定），彼此并发、互不影响。它在 `applyActorPlan` 的事务与词缀补充效果之后调用，因此任何改变 `hp` 的事件都会触发；没有可用的 LLM 服务时整段跳过，留待下次或 `agent:game deaths` 显式推动。
+
+`death_settled_at` 只是处理标记：一旦 `hp` 被抬回正数（复活），标记会被清空，下次死亡重新收尾。这条留白是给「身上带复活饰品就能自主复活」这类扩展用的。
+
+批量外观入口（`refreshAppearances` / `agent:game appearance --all`）用这个标记做幂等：活人重推、未收尾的死者收尾、已收尾的尸体跳过。重推尸体必须单点指定 actor——否则每跑一次批量就会把尸体外观重写一遍，同一具尸体也会被反复收费。
 
 ## 事务边界
 

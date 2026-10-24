@@ -5,6 +5,7 @@ export * from "./apply";
 export * from "./compact";
 export * from "./constants";
 export * from "./control";
+export * from "./death";
 export * from "./end-game";
 export * from "./errors";
 export * from "./memory";

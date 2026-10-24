@@ -40,7 +40,6 @@ export const TEST_WORLD: World = {
       baseBody: { race: "人类", description: "瘦高，手背有旧烧伤，脸上覆着一层洗不净的灰。" },
       hp: 12,
       stats: { maxHp: 12, attack: 6, defense: 2, speed: 4, damage: 0, block: 0 },
-      status: "alive" as const,
       equipment: { weapon: "裂齿短刃" },
       // 测试世界里的玩家角色额外拥有 steal，用于验证私密事件。
       actions: [
@@ -77,7 +76,6 @@ export const TEST_WORLD: World = {
       baseBody: { race: "人类", description: "中等身量，右手虎口有一圈烫疤，指节被灯烟熏黄。" },
       hp: 10,
       stats: { maxHp: 10, attack: 5, defense: 3, speed: 3, damage: 0, block: 0 },
-      status: "alive" as const,
       actions: [
         "say",
         "whisper",
@@ -111,7 +109,6 @@ export const TEST_WORLD: World = {
       baseBody: { race: "人类", description: "枯瘦，指节沾满黑蜡，右膝因常年跪坐而变形。" },
       hp: 9,
       stats: { maxHp: 9, attack: 4, defense: 4, speed: 2, damage: 0, block: 0 },
-      status: "alive" as const,
       actions: [
         "say",
         "whisper",

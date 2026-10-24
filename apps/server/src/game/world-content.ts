@@ -64,7 +64,6 @@ const actorSchema = z.object({
   }),
   stats: statsSchema,
   hp: z.number().optional(),
-  status: z.enum(["alive", "dead"]).optional(),
   isDefaultPlayer: z.boolean().optional(),
   items: z.array(itemSchema),
   actions: z.array(actionKindSchema),

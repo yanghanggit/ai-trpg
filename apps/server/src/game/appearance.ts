@@ -7,6 +7,7 @@ import type { ChatCompletionService } from "../llm/protocol";
 import type { ToolDefinition } from "../llm/types";
 import { findActor } from "./actors";
 import { bumpGameVersion } from "./apply/messages";
+import { isAlive } from "./apply/queries";
 import { formatBaseBody } from "./body";
 import { DEFAULT_APPEARANCE_MAX_ROUNDS, MAX_APPEARANCE_LENGTH } from "./constants";
 import { GameError } from "./errors";
@@ -24,6 +25,8 @@ export type AppearanceTurnOptions = {
   service: ChatCompletionService;
   maxRounds?: number;
   logger?: Parameters<typeof agentLoop>[0]["logger"];
+  /** 死亡阶段的外观更新：写尸体而不是活人。 */
+  dead?: boolean;
 };
 
 export type AppearanceTurnResult = {
@@ -72,7 +75,7 @@ export function parseAppearance(args: Record<string, unknown>): string {
 }
 
 /** 构造外观推理的当前观察：基础体型 + 当前穿戴；自身润色从 actor memory 读取。 */
-export function buildAppearanceObservation(actor: ActorState): string {
+export function buildAppearanceObservation(actor: ActorState, dead = false): string {
   const worn = equippedItems(actor);
   const wornLines =
     worn.length === 0
@@ -83,6 +86,11 @@ export function buildAppearanceObservation(actor: ActorState): string {
               `- ${EQUIPMENT_SLOT_LABELS[slot]}：${item.name}（${item.kind}）：${item.description}`,
           )
           .join("\n");
+
+  const task = dead
+    ? `角色已经倒下（当前生命 0）。写一段尸体外观快照：姿势、伤口、血迹、衣物与装备的错位、周围的痕迹。
+不写动作、心理或后续，也不要把死亡写成原因；只写现在看得见的样子。`
+    : `结合你的记忆（伤势、血迹、灰尘、姿态、最近发生的事），把基础体型、当前穿戴与自身润色融合成一段第三人称外观快照。`;
 
   return `# 外观更新
 
@@ -98,7 +106,7 @@ ${wornLines}
 
 # 本轮任务
 
-结合你的记忆（伤势、血迹、灰尘、姿态、最近发生的事），把基础体型、当前穿戴与自身润色融合成一段第三人称外观快照。
+${task}
 
 只使用上面列出的穿戴；未列出的衣物、护甲、武器与饰品不存在，不要虚构。base body 没有写到的衣物视为没有穿上。不要改写种族与身体特征。
 
@@ -131,9 +139,10 @@ export async function runAppearanceTurn(
 
   const tool = buildSubmitAppearanceTool();
   let submitted: string | null = null;
+  const dead = !isAlive(actor);
   const loop = await agentLoop({
     name: actor.name,
-    inputMessage: buildAppearanceObservation(actor),
+    inputMessage: buildAppearanceObservation(actor, dead),
     messages: memory.messages,
     mutateMessages: false,
     tools: [tool],

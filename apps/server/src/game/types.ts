@@ -3,9 +3,6 @@ import type { Stats } from "./attributes";
 /** 公共消息的可见范围：场景公开或仅当事人可见。 */
 export type MessageVisibility = "stage" | "private";
 
-/** actor 的生命状态；不再使用 death 布尔值。 */
-export type ActorStatus = "alive" | "dead";
-
 /** 初始裸体形态：种族 + 外观描述；不含衣物与装备。 */
 export type BaseBody = {
   race: string;
@@ -113,9 +110,8 @@ export type Actor = {
   baseBody: BaseBody;
   /** 完整属性；`maxHp` / `attack` / `defense` / `speed` / `damage` / `block` 全部显式写出。 */
   stats: Stats;
-  /** 初始当前生命；省略时等于 `stats.maxHp`。 */
+  /** 初始当前生命；省略时等于 `stats.maxHp`。`hp` 为 0 就是尸体。 */
   hp?: number;
-  status?: ActorStatus;
   /** 是否为默认玩家角色；该角色死亡时整局结束。 */
   isDefaultPlayer?: boolean;
   items: readonly ItemDefinition[];
@@ -336,9 +332,8 @@ export type ActorState = {
   appearance: string;
   baseBody: BaseBody;
   stats: Stats;
-  /** 当前生命；扣血只写这个字段，不再重写整块属性。 */
+  /** 当前生命；扣血只写这个字段，不再重写整块属性。`hp === 0` 即死亡。 */
   hp: number;
-  status: ActorStatus;
   /** 是否为默认玩家角色；该角色死亡时整局结束。 */
   isDefaultPlayer: boolean;
   equipment: EquipmentSlots;

@@ -41,6 +41,7 @@ import {
   playerUse,
   playerWait,
   playerWhisper,
+  refreshAppearances,
   releaseActorControl,
   runAppearanceTurn,
   runNpcTurn,
@@ -48,6 +49,7 @@ import {
   runStageTurn,
   runStory,
   runWorldTurn,
+  settleDeaths,
   snapshotGame,
   takeActorControl,
 } from "../src/game";
@@ -134,6 +136,7 @@ function usage(): void {
       "agent-game player-equip --game <gameId|slug> --actor <actorId|actorName> --slot <slot> --item <itemName>",
       "agent-game player-unequip --game <gameId|slug> --actor <actorId|actorName> --slot <slot>",
       "agent-game appearance --game <gameId|slug> (--actor <actorId|actorName> | --all)",
+      "agent-game deaths --game <gameId|slug>（对每个 hp 归零且未收尾的 actor 跑一次死亡阶段）",
       "agent-game snapshot --game <gameId|slug> [--root <dir>]",
       "agent-game compact --game <gameId|slug> --owner actor --name <actorId|actorName> [--min-ratio <0..1>]",
       "agent-game compact --game <gameId|slug> --owner stage --name <stageId|stageName> [--min-ratio <0..1>]",
@@ -398,7 +401,7 @@ async function main(): Promise<void> {
         game,
         actor,
         { targetActorName: values.target as string },
-        { service: DEEPSEEK_SERVICE },
+        { service: DEEPSEEK_SERVICE, appearanceService: DEEPSEEK_SERVICE },
       ),
     );
     emit({ ok: true, action: command, plan: result.plan, state: result.state });
@@ -453,7 +456,7 @@ async function main(): Promise<void> {
           ...(targetStageName !== undefined ? { targetStageName } : {}),
           ...(targetDetail !== undefined ? { targetDetail } : {}),
         },
-        { service: DEEPSEEK_SERVICE },
+        { service: DEEPSEEK_SERVICE, appearanceService: DEEPSEEK_SERVICE },
       ),
     );
     emit({ ok: true, action: command, plan: result.plan, state: result.state });
@@ -488,22 +491,35 @@ async function main(): Promise<void> {
     if (typeof values.game !== "string") {
       throw new Error("appearance 需要 --game <gameId|slug>");
     }
-    const actorNames = values.all === true ? null : [requireActorName(values, "appearance")];
-    const results = await withDatabase(async (db) => {
+    // --all 是批量维护：活人重推、未收尾的死者收尾、已收尾的尸体跳过。
+    // --actor 是单点干预：强制重推，尸体也照推（不会写收尾标记）。
+    if (values.all === true) {
+      const result = await withDatabase(async (db) => {
+        const state = await getGameState(db, values.game as string);
+        return refreshAppearances(db, state.game.id, { service: DEEPSEEK_SERVICE });
+      });
+      emit({ ok: result.pending.length === 0, action: command, ...result });
+      return;
+    }
+    const actorName = requireActorName(values, "appearance");
+    const result = await withDatabase((db) =>
+      runAppearanceTurn(db, values.game as string, actorName, {
+        service: DEEPSEEK_SERVICE,
+      }),
+    );
+    emit({ ok: result.ok, action: command, actor: actorName, appearance: result.appearance });
+    return;
+  }
+
+  if (command === "deaths") {
+    if (typeof values.game !== "string") {
+      throw new Error("deaths 需要 --game");
+    }
+    const result = await withDatabase(async (db) => {
       const state = await getGameState(db, values.game as string);
-      const targets =
-        actorNames ??
-        state.world.stages.flatMap((stage) => stage.actors).map((actor) => actor.name);
-      const collected: Output[] = [];
-      for (const actorName of targets) {
-        const result = await runAppearanceTurn(db, values.game as string, actorName, {
-          service: DEEPSEEK_SERVICE,
-        });
-        collected.push({ actor: actorName, ok: result.ok, appearance: result.appearance });
-      }
-      return collected;
+      return settleDeaths(db, state.game.id, { service: DEEPSEEK_SERVICE });
     });
-    emit({ ok: results.every((result) => result.ok === true), action: command, results });
+    emit({ ok: result.pending.length === 0, action: command, ...result });
     return;
   }
 
@@ -520,7 +536,12 @@ async function main(): Promise<void> {
 
     const results = await withDatabase(async (db) => {
       if (!all && actorRef !== undefined) {
-        return [await runNpcTurn(db, gameRef, actorRef, { service: DEEPSEEK_SERVICE })];
+        return [
+          await runNpcTurn(db, gameRef, actorRef, {
+            service: DEEPSEEK_SERVICE,
+            appearanceService: DEEPSEEK_SERVICE,
+          }),
+        ];
       }
       const state = await getGameState(db, gameRef);
       const controlled = new Set(await listPlayerControlledActorIds(db, state.game.id));
@@ -529,7 +550,12 @@ async function main(): Promise<void> {
         .filter((actorId) => !controlled.has(actorId));
       const output = [];
       for (const actorId of actorIds) {
-        output.push(await runNpcTurn(db, gameRef, actorId, { service: DEEPSEEK_SERVICE }));
+        output.push(
+          await runNpcTurn(db, gameRef, actorId, {
+            service: DEEPSEEK_SERVICE,
+            appearanceService: DEEPSEEK_SERVICE,
+          }),
+        );
       }
       return output;
     });

@@ -1,0 +1,1 @@
+ALTER TABLE "actors" ADD COLUMN "death_settled_at" timestamp with time zone;

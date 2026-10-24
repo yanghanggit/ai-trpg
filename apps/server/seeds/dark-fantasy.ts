@@ -142,7 +142,6 @@ export const DARK_FANTASY_WORLD: World = {
       },
       hp: 14,
       stats: { maxHp: 14, attack: 5, defense: 2, speed: 3, damage: 0, block: 0 },
-      status: "alive" as const,
       equipment: {
         weapon: "武器.掘墓人的铁锹",
         armor: "装备.补丁斗篷",
@@ -211,7 +210,6 @@ export const DARK_FANTASY_WORLD: World = {
       },
       hp: 10,
       stats: { maxHp: 10, attack: 7, defense: 1, speed: 7, damage: 0, block: 0 },
-      status: "alive" as const,
       items: [],
       // 动物：会说话、走动与战斗，但不操作道具。
       actions: ["say", "whisper", "announce", "move", "wait", "attack"],
@@ -234,7 +232,6 @@ export const DARK_FANTASY_WORLD: World = {
       },
       hp: 4,
       stats: { maxHp: 4, attack: 1, defense: 0, speed: 10, damage: 0, block: 0 },
-      status: "alive" as const,
       items: [],
       // 幼崽只会说话、走动与躲避；不会战斗，也不操作道具；能查公共知识库。
       actions: ["say", "whisper", "announce", "move", "wait"],
@@ -260,7 +257,6 @@ export const DARK_FANTASY_WORLD: World = {
       },
       hp: 20,
       stats: { maxHp: 20, attack: 6, defense: 2, speed: 3, damage: 0, block: 0 },
-      status: "alive" as const,
       isDefaultPlayer: true,
       equipment: {
         armor: "装备.发黄的裹尸布",
@@ -320,7 +316,6 @@ export const DARK_FANTASY_WORLD: World = {
       },
       hp: 120,
       stats: { maxHp: 120, attack: 60, defense: 100, speed: 8, damage: 0, block: 0 },
-      status: "alive" as const,
       items: [],
       // 动物：沉睡时由 openingBriefing 约束只用 wait；苏醒后可以移动与攻击，不操作道具；能查公共知识库。
       actions: ["say", "whisper", "announce", "move", "wait", "attack"],
