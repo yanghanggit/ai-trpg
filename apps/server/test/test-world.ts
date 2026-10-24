@@ -38,7 +38,8 @@ export const TEST_WORLD: World = {
       profile: "一个把自己裹在旧羊毛斗篷里的拾荒者。",
       appearance: "斗篷边缘被烧焦，脸上覆着一层洗不净的灰。",
       baseBody: { race: "人类", description: "瘦高，手背有旧烧伤，脸上覆着一层洗不净的灰。" },
-      stats: { hp: 12, maxHp: 12, attack: 6, defense: 2, speed: 4 },
+      hp: 12,
+      stats: { maxHp: 12, attack: 6, defense: 2, speed: 4, damage: 0, block: 0 },
       status: "alive" as const,
       // 测试世界里的玩家角色额外拥有 steal，用于验证私密事件。
       actions: [
@@ -71,7 +72,8 @@ export const TEST_WORLD: World = {
       profile: "一个不肯摘下兜帽的修士。",
       appearance: "灰袍下摆浸着泥水，右手始终握着灯柄。",
       baseBody: { race: "人类", description: "中等身量，右手虎口有一圈烫疤，指节被灯烟熏黄。" },
-      stats: { hp: 10, maxHp: 10, attack: 5, defense: 3, speed: 3 },
+      hp: 10,
+      stats: { maxHp: 10, attack: 5, defense: 3, speed: 3, damage: 0, block: 0 },
       status: "alive" as const,
       actions: ["say", "whisper", "announce", "move", "wait", "attack", "give", "pickup", "use"],
       items: [
@@ -92,7 +94,8 @@ export const TEST_WORLD: World = {
       profile: "一个在断钟旁抄写无字经文的老人。",
       appearance: "指节沾满黑蜡，膝上摊着一卷空白经页。",
       baseBody: { race: "人类", description: "枯瘦，指节沾满黑蜡，右膝因常年跪坐而变形。" },
-      stats: { hp: 9, maxHp: 9, attack: 4, defense: 4, speed: 2 },
+      hp: 9,
+      stats: { maxHp: 9, attack: 4, defense: 4, speed: 2, damage: 0, block: 0 },
       status: "alive" as const,
       actions: ["say", "whisper", "announce", "move", "wait", "attack", "give", "pickup", "use"],
       items: [

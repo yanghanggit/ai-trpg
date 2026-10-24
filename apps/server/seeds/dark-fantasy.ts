@@ -140,7 +140,8 @@ export const DARK_FANTASY_WORLD: World = {
         description:
           "高瘦，肩背因常年掘墓而佝偻；手背结着土垢与旧疤，左眉断了一截，指甲缝里洗不净黑泥。",
       },
-      stats: { hp: 14, maxHp: 14, attack: 5, defense: 2, speed: 3 },
+      hp: 14,
+      stats: { maxHp: 14, attack: 5, defense: 2, speed: 3, damage: 0, block: 0 },
       status: "alive" as const,
       equipment: {
         weapon: "武器.掘墓人的铁锹",
@@ -196,7 +197,8 @@ export const DARK_FANTASY_WORLD: World = {
         description:
           "肋骨从短毛下顶出来，左耳缺了一角，毛色像烧过的灰；后腿留着一道旧咬伤，走路时微微跛。",
       },
-      stats: { hp: 10, maxHp: 10, attack: 7, defense: 1, speed: 7 },
+      hp: 10,
+      stats: { maxHp: 10, attack: 7, defense: 1, speed: 7, damage: 0, block: 0 },
       status: "alive" as const,
       items: [],
       // 动物：会说话、走动与战斗，但不操作道具。
@@ -218,7 +220,8 @@ export const DARK_FANTASY_WORLD: World = {
         race: "鼠",
         description: "只有巴掌大，灰尾巴末端有一撮白毛，右前爪缺了一趾；眼睛始终盯着活物的手。",
       },
-      stats: { hp: 4, maxHp: 4, attack: 1, defense: 0, speed: 10 },
+      hp: 4,
+      stats: { maxHp: 4, attack: 1, defense: 0, speed: 10, damage: 0, block: 0 },
       status: "alive" as const,
       items: [],
       // 幼崽只会说话、走动与躲避；不会战斗，也不操作道具；能查公共知识库。
@@ -243,7 +246,8 @@ export const DARK_FANTASY_WORLD: World = {
         description:
           "皮肤灰白，关节干涩；锁骨与手腕上留着被锁链磨出的旧痕，指缝里塞满湿泥，像刚从土里被挖出来。",
       },
-      stats: { hp: 20, maxHp: 20, attack: 6, defense: 2, speed: 3 },
+      hp: 20,
+      stats: { maxHp: 20, attack: 6, defense: 2, speed: 3, damage: 0, block: 0 },
       status: "alive" as const,
       isDefaultPlayer: true,
       equipment: {
@@ -300,7 +304,8 @@ export const DARK_FANTASY_WORLD: World = {
         description:
           "灰黑的毛皮结着骨渣与旧血，尾巴比人的手臂还粗，左眼蒙着一层白翳；即便闭着眼，胡须也会随脚步声抽动。",
       },
-      stats: { hp: 120, maxHp: 120, attack: 60, defense: 100, speed: 8 },
+      hp: 120,
+      stats: { maxHp: 120, attack: 60, defense: 100, speed: 8, damage: 0, block: 0 },
       status: "alive" as const,
       items: [],
       // 动物：沉睡时由 openingBriefing 约束只用 wait；苏醒后可以移动与攻击，不操作道具；能查公共知识库。

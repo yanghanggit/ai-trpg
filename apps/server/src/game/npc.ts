@@ -96,7 +96,7 @@ ${current.stage.name}
 ${current.stage.environment}
 
 ## 你的状态
-${current.actor.name} | HP ${current.actor.stats.hp}/${current.actor.stats.maxHp}
+${current.actor.name} | HP ${current.actor.hp}/${current.actor.stats.maxHp}
 
 ## 同场景角色
 ${actorLines}

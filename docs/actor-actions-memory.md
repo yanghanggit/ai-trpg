@@ -118,7 +118,7 @@ NPC 工具分为只读 GET、动作与终止工具。`look_stage`、`get_self`�
 
 计划是**有序动作列表**，最多 `MAX_ACTIONS_PER_TURN = 2` 条；不做分类互斥，只限制条数。“通常一次沟通加一个其他动作”由提示词约定，工具 handler 在超过 2 条时立即报错给模型。两个动作按调用顺序应用，先移动后说话与先说话后移动是不同结果。
 
-每个成功应用的动作都产生一条公共事件，`kind` 就是动作名（`say` / `whisper` / `attack` / …）；可见范围由动作自己决定（`whisper` 与 `steal` 为 private，其余为 stage）。同场景公开动作会向其他 actor 写入可见行动观察。`wait` 只是不改变场景状态。actor 的 `status` 为 `dead` 时不能进入下一次 loop；伤害使目标 `stats.hp` 归零时同时写入 `status=dead`。工具调用轨迹属于本次 loop，进入 context dump，不进入长期 memory 的顶层事实。行动的应用发生在 loop 结束后，由统一行动应用层校验并按顺序提交。
+每个成功应用的动作都产生一条公共事件，`kind` 就是动作名（`say` / `whisper` / `attack` / …）；可见范围由动作自己决定（`whisper` 与 `steal` 为 private，其余为 stage）。同场景公开动作会向其他 actor 写入可见行动观察。`wait` 只是不改变场景状态。actor 的 `status` 为 `dead` 时不能进入下一次 loop；伤害使目标 `hp` 归零时同时写入 `status=dead`。工具调用轨迹属于本次 loop，进入 context dump，不进入长期 memory 的顶层事实。行动的应用发生在 loop 结束后，由统一行动应用层校验并按顺序提交。
 
 ## 沟通动作
 
@@ -151,7 +151,7 @@ NPC 工具分为只读 GET、动作与终止工具。`look_stage`、`get_self`�
 
 物品触发的统一原则是 **item-centric**：`attack` 与 `use` 只是 dispatcher，负责选择物品、校验目标并调用 `item.effect`；具体效果由 `effect.type` 路由到的 handler 承担。每个动作最多引用一件物品。
 
-- `{ "type": "damage" }`：先走固定战斗公式 `max(0, 攻击者 stats.attack + 物品 stats.damage - 目标 stats.defense)`；如果物品有 `affixes`，默认 effect 执行完后再执行一次 LLM 补充效果。
+- `{ "type": "damage" }`：先走固定战斗公式 `max(0, 攻击者 stats.attack + 物品 stats.damage - 目标 stats.defense)`，六项属性只走 `addStats()` 一条加法规则；如果物品有 `affixes`，默认 effect 执行完后再执行一次 LLM 补充效果。
 - `{ "type": "event" }`：只写“使用了某物”的事件，后果交给 stage / world。
 
 物品必须显式声明 effect，没有默认效果，也没有 `actions` 元数据。`affixes` 是根部的字符串数组；它是默认 effect 之后的补充效果机制，不改变 effect.type 的路由。空手攻击使用系统 `{ "type": "damage" }`，不依赖物品行。`attack` 只接受 `damage` effect，NPC 工具也只暴露 damage 物品；`use` 接受全部物品。运行时两者都只按 `effect.type` 分派。未来新增 `heal`、`open` 等效果时，只注册新的 handler，不在 `attack` / `use` 里写分支。目标 defense 是唯一 block，物品 block 不参与当前伤害。`steal` 允许对尸体取物；`give` 只能给存活角色；`pickup` 把 `stage_items` 移入背包；`use` 的目标只能是当前场景、自己或同场景角色，对场景使用时可用 `targetDetail` 描述锁孔、炉膛等具体部位。该描述只是一次行动声明，具体后果由 stage / world 裁决。

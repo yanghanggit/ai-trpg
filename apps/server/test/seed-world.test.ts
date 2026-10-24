@@ -80,7 +80,7 @@ describe("dark fantasy seed world", () => {
       .map((actor) => actor.name);
     expect(defaultPlayers).toEqual(["角色.无名者"]);
     expect(king?.baseBody.race).toBe("鼠");
-    expect(king?.stats.hp).toBeGreaterThan(keeper?.stats.hp ?? 0);
+    expect(king?.hp).toBeGreaterThan(keeper?.hp ?? 0);
     expect(king?.stats.attack).toBeGreaterThan(20);
     expect(king?.stats.defense).toBeGreaterThan(king?.stats.attack ?? 0);
     expect(king?.profile).not.toContain("沉睡在地窖");

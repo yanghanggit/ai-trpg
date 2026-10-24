@@ -1,6 +1,4 @@
-import type { ActorStats, ItemStats } from "./attributes";
-
-export type { ActorStats, AttributeKey, Attributes, ItemStats } from "./attributes";
+import type { Stats } from "./attributes";
 
 /** 公共消息的可见范围：场景公开或仅当事人可见。 */
 export type MessageVisibility = "stage" | "private";
@@ -112,7 +110,10 @@ export type Actor = {
   /** 初始穿戴：槽位 → 物品名；物品本身不记录穿戴状态。 */
   equipment?: EquipmentSlots;
   baseBody: BaseBody;
-  stats: ActorStats;
+  /** 完整属性；`maxHp` / `attack` / `defense` / `speed` / `damage` / `block` 全部显式写出。 */
+  stats: Stats;
+  /** 初始当前生命；省略时等于 `stats.maxHp`。 */
+  hp?: number;
   status?: ActorStatus;
   /** 是否为默认玩家角色；该角色死亡时整局结束。 */
   isDefaultPlayer?: boolean;
@@ -131,7 +132,8 @@ export type ItemDefinition = {
   description: string;
   kind: ItemKind;
   count?: number;
-  stats?: ItemStats;
+  /** 属性；可省略，未写出的字段按 0 归一。 */
+  stats?: Partial<Stats>;
   /** 物品效果；必须显式声明，type 路由到 handler。 */
   effect: ItemEffect;
   /** 词缀；可省略，创建时归一化为空数组。 */
@@ -268,7 +270,7 @@ export type WorldPlan = {
   actions: WorldAction[];
 };
 
-/** 所有物品状态的公共根字段：只保留身份、分类与数量，不带任何战斗数值。 */
+/** 所有物品状态的公共根字段：身份、分类、数量与属性。 */
 export type ItemBaseState = {
   id: string;
   /** 世界内稳定 key；旧数据缺失时由 toItemState 回退到 name。 */
@@ -281,16 +283,15 @@ export type ItemBaseState = {
   effect: ItemEffect;
   /** 词缀；非空时 damage 路由到 LLM 结算 handler。 */
   affixes: readonly string[];
+  /** 归一化后的完整属性；五种物品都携带，未用到的字段为 0。 */
+  stats: Stats;
 };
 
-/** 带战斗数值的可穿戴物品：武器与装备共用 `stats`。 */
-export type StatItemState = ItemBaseState & { stats: ItemStats };
-
 /** 武器：`stats.damage` 参与攻击，`stats.block` 只存储。 */
-export type WeaponState = StatItemState & { kind: "weapon" };
+export type WeaponState = ItemBaseState & { kind: "weapon" };
 
 /** 装备：`stats.block` 提供防御；当前不参与伤害计算。 */
-export type EquipmentState = StatItemState & { kind: "equipment" };
+export type EquipmentState = ItemBaseState & { kind: "equipment" };
 
 /** 饰品：钥匙、护符等非战斗物品。 */
 export type AccessoryState = ItemBaseState & { kind: "accessory" };
@@ -319,7 +320,9 @@ export type ActorState = {
   profile: string;
   appearance: string;
   baseBody: BaseBody;
-  stats: ActorStats;
+  stats: Stats;
+  /** 当前生命；扣血只写这个字段，不再重写整块属性。 */
+  hp: number;
   status: ActorStatus;
   /** 是否为默认玩家角色；该角色死亡时整局结束。 */
   isDefaultPlayer: boolean;

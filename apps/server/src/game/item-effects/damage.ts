@@ -1,21 +1,19 @@
 import { eq } from "drizzle-orm";
 import { actors } from "../../db/schema";
 import { appendPublicMessage, bumpGameVersion, itemListText } from "../apply/messages";
-import { attribute } from "../attributes";
+import { addStats } from "../attributes";
 import { completeGame } from "../end-game";
 import { appendAttackObservations, appendStageEvent } from "../observations";
 import type { ItemEffectContext, ItemEffectHandler } from "./types";
 
-/** 固定战斗公式：max(0, actor.attack + item.damage - target.defense)。 */
+/** 固定战斗公式：max(0, 自身 attack + 物品 damage - 目标 defense)；属性只走 addStats 一条加法规则。 */
 export function calculateFixedDamage(context: ItemEffectContext): number {
   const { actorRow, item, target } = context;
   if (!target) {
     throw new Error("damage effect 需要角色目标");
   }
-  return Math.max(
-    0,
-    actorRow.actor.stats.attack + attribute(item?.stats, "damage") - target.stats.defense,
-  );
+  const attacker = addStats(actorRow.actor.stats, item?.stats);
+  return Math.max(0, attacker.attack + attacker.damage - target.stats.defense);
 }
 
 /** 把已经算好的伤害写入数据库、消息与观察。 */
@@ -32,13 +30,12 @@ export async function applyDamage(context: ItemEffectContext, damage: number): P
   if (current.status === "dead") {
     return `# 行动结果\n${target.name}已经倒下。`;
   }
-  const currentStats = current.stats;
-  const remainingHp = Math.max(0, currentStats.hp - damage);
+  const remainingHp = Math.max(0, current.hp - damage);
   const status = remainingHp <= 0 ? "dead" : "alive";
 
   await executor
     .update(actors)
-    .set({ stats: { ...currentStats, hp: remainingHp }, status, updatedAt: now })
+    .set({ hp: remainingHp, status, updatedAt: now })
     .where(eq(actors.id, target.id));
   await bumpGameVersion(executor, gameId, now);
 
@@ -46,7 +43,7 @@ export async function applyDamage(context: ItemEffectContext, damage: number): P
   const outcome =
     status === "dead"
       ? `；${target.name}倒下了。`
-      : `；${target.name}剩余 HP ${remainingHp}/${currentStats.maxHp}。`;
+      : `；${target.name}剩余 HP ${remainingHp}/${current.stats.maxHp}。`;
   const actionText =
     actionKind === "attack" ? `使用攻击${itemText}` : `使用${item?.name ?? "空手"}`;
   const content = `${actorRow.actor.name}对${target.name}${actionText}，造成${damage}点伤害${outcome}`;
@@ -62,7 +59,7 @@ export async function applyDamage(context: ItemEffectContext, damage: number): P
     gameId,
     stage,
     { id: actorRow.actor.id, name: actorRow.actor.name },
-    { id: target.id, name: target.name, maxHp: currentStats.maxHp },
+    { id: target.id, name: target.name, maxHp: current.stats.maxHp },
     "stage",
     item ? [item] : [],
     damage,
@@ -86,7 +83,7 @@ export async function applyDamage(context: ItemEffectContext, damage: number): P
   return `# 行动结果\n${feedback}${
     status === "dead"
       ? `${target.name}倒下了`
-      : `${target.name}剩余 HP ${remainingHp}/${currentStats.maxHp}`
+      : `${target.name}剩余 HP ${remainingHp}/${current.stats.maxHp}`
   }。`;
 }
 

@@ -235,7 +235,7 @@ describe.skipIf(!testDatabaseUrl)("items and interactions", () => {
     const monk = state.world.stages
       .flatMap((stage) => stage.actors)
       .find((actor) => actor.name === "提灯修士");
-    expect(monk?.stats.hp).toBe(4);
+    expect(monk?.hp).toBe(4);
     expect(state.messages.at(-1)?.kind).toBe("use");
   });
 
@@ -264,7 +264,7 @@ describe.skipIf(!testDatabaseUrl)("items and interactions", () => {
     const monk = state.world.stages
       .flatMap((stage) => stage.actors)
       .find((actor) => actor.name === "提灯修士");
-    expect(monk?.stats.hp).toBe(0);
+    expect(monk?.hp).toBe(0);
     const recent = state.messages.slice(-2).map((message) => message.content);
     expect(recent[0]).toContain("造成6点伤害");
     expect(recent[1]).toContain("造成42点伤害");
@@ -288,7 +288,7 @@ describe.skipIf(!testDatabaseUrl)("items and interactions", () => {
     const monk = state.world.stages
       .flatMap((stage) => stage.actors)
       .find((actor) => actor.name === "提灯修士");
-    expect(monk?.stats.hp).toBe(4);
+    expect(monk?.hp).toBe(4);
     expect(state.messages.at(-1)?.content).toContain("造成6点伤害");
   });
 

@@ -1,7 +1,6 @@
 import type { ToolDefinition } from "../llm/types";
 import type { RagSearchResult } from "../rag";
 import { adjacentStageNames, findStageByName } from "./actors";
-import { attribute } from "./attributes";
 import { MAX_WORLD_NOTIFICATION_LENGTH } from "./constants";
 import { GameError } from "./errors";
 import type { ActorState, GameState } from "./types";
@@ -229,7 +228,7 @@ export function parseWorldNotification(args: Record<string, unknown>): string {
 /** 渲染 stats，供自身信息与目标观察共用。 */
 export function describeStats(actor: ActorState): string {
   return `角色：${actor.name}
-HP：${actor.stats.hp}/${actor.stats.maxHp}
+HP：${actor.hp}/${actor.stats.maxHp}
 attack：${actor.stats.attack}
 defense：${actor.stats.defense}
 speed：${actor.stats.speed}
@@ -242,9 +241,7 @@ export function describeItems(actor: Pick<ActorState, "items" | "equipment">): s
     return "物品：无";
   }
   const lines = actor.items.map((item) => {
-    const itemStats = "stats" in item ? item.stats : undefined;
-    const damage = attribute(itemStats, "damage");
-    const block = attribute(itemStats, "block");
+    const { damage, block } = item.stats;
     const stats = damage > 0 || block > 0 ? `（damage ${damage}，block ${block}）` : "";
     const worn = Object.values(actor.equipment).includes(item.name) ? "，已穿戴" : "";
     return `- ${item.name}（${item.kind}，count ${item.count}${worn}）：${item.description}${stats}`;

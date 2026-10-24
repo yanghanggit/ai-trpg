@@ -1,11 +1,5 @@
 import { describe, expect, it } from "vitest";
-import {
-  ACTOR_ATTRIBUTE_KEYS,
-  ATTRIBUTE_DEFINITIONS,
-  attribute,
-  ITEM_ATTRIBUTE_KEYS,
-  sumAttribute,
-} from "../src/game/attributes";
+import { addStats, EMPTY_STATS, toStats } from "../src/game/attributes";
 import { formatBaseBody, resolveAppearance } from "../src/game/body";
 import { toItemState } from "../src/game/items";
 
@@ -17,40 +11,37 @@ const ROW = {
   effect: { type: "event" },
 };
 
-describe("attribute registry", () => {
-  it("lists actor and item attributes in one table", () => {
-    expect(Object.keys(ATTRIBUTE_DEFINITIONS)).toEqual([
-      "hp",
-      "maxHp",
-      "attack",
-      "defense",
-      "speed",
-      "damage",
-      "block",
-    ]);
-    for (const key of ACTOR_ATTRIBUTE_KEYS) {
-      expect(ATTRIBUTE_DEFINITIONS[key].scope).toBe("actor");
-    }
-    for (const key of ITEM_ATTRIBUTE_KEYS) {
-      expect(ATTRIBUTE_DEFINITIONS[key].scope).toBe("item");
-    }
+describe("stats", () => {
+  it("归一化：缺失字段补 0，多余的旧字段被丢弃", () => {
+    expect(toStats(undefined)).toEqual(EMPTY_STATS);
+    expect(toStats({ damage: 7 })).toEqual({ ...EMPTY_STATS, damage: 7 });
+    // 旧数据里可能有已移出 Stats 的 hp，归一化后不应保留。
+    const legacy = { maxHp: 10, hp: 3 } as unknown as Partial<typeof EMPTY_STATS>;
+    expect(toStats(legacy)).toEqual({ ...EMPTY_STATS, maxHp: 10 });
   });
 
-  it("defaults missing attributes to zero and sums item stats", () => {
-    expect(attribute(undefined, "damage")).toBe(0);
-    expect(attribute({}, "block")).toBe(0);
-    expect(attribute({ damage: 3 }, "damage")).toBe(3);
-    expect(sumAttribute([{ damage: 3 }, { damage: 4, block: 1 }, undefined], "damage")).toBe(7);
-    expect(sumAttribute([{ damage: 3 }, { block: 1 }], "block")).toBe(1);
+  it("逐字段相加：装备加成与本体属性走同一条规则", () => {
+    expect(addStats({ attack: 5 }, { damage: 3 }, undefined)).toEqual({
+      ...EMPTY_STATS,
+      attack: 5,
+      damage: 3,
+    });
+    expect(addStats({ maxHp: 10, defense: 2 }, { maxHp: 4 }, { block: 1 })).toEqual({
+      ...EMPTY_STATS,
+      maxHp: 14,
+      defense: 2,
+      block: 1,
+    });
+    expect(addStats()).toEqual(EMPTY_STATS);
   });
 });
 
 describe("item state", () => {
-  it("keeps the root minimal and puts combat numbers in stats", () => {
+  it("所有物品都携带归一化后的完整属性", () => {
     const item = toItemState({
       ...ROW,
       kind: "weapon",
-      stats: { damage: 7, block: 1 },
+      stats: toStats({ damage: 7, block: 1 }),
     });
     expect(item).toMatchObject({
       id: "item-1",
@@ -66,16 +57,14 @@ describe("item state", () => {
 
   it("narrows every registered item kind", () => {
     for (const kind of ["weapon", "equipment", "accessory", "consumable", "valuable"] as const) {
-      expect(toItemState({ ...ROW, kind, stats: {} }).kind).toBe(kind);
+      expect(toItemState({ ...ROW, kind, stats: EMPTY_STATS }).kind).toBe(kind);
     }
   });
 
-  it("keeps the bare root free of stats for non-combat items", () => {
-    const key = toItemState({ ...ROW, kind: "accessory", stats: {} });
-    expect("stats" in key).toBe(false);
+  it("非战斗物品同样有 stats，只是全为 0", () => {
+    const key = toItemState({ ...ROW, kind: "accessory", stats: toStats(undefined) });
+    expect(key.stats).toEqual(EMPTY_STATS);
     expect("equipped" in key).toBe(false);
-    const weapon = toItemState({ ...ROW, kind: "weapon", stats: { damage: 1 } });
-    expect("stats" in weapon).toBe(true);
   });
 });
 

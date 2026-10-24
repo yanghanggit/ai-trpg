@@ -11,9 +11,9 @@ PostgreSQL 是游戏状态的唯一真相。`agent:game` 从数据库读取状�
 - `worlds`：游戏的世界状态，`game_id` 唯一，强制一局一个 world；`actions` 是 world 实体的能力清单（当前 `notify_stage` / `end_game`）。
 - `stages`：world 下的场景；`world_id` 非空，按 `ordinal` 保持稳定顺序；`key` 是内容层稳定 key（旧数据可能为空），`environment` 是当前环境快照，由 stage 小 GM 更新。
 - `stage_connections`：场景图的有向边；连接两端必须属于同一 world；演示世界使用三组双向连接，乱葬坑到墓园另有一条单向出口。
-- `actors`：场景中的角色；`stage_id` 非空，不能脱离场景存在；`is_default_player` 是默认玩家角色标记（默认 `false`），玩家接管仍由独立控制关系表达；`appearance` 是当前可见外观（含衣着、装备与伤势，text），`base_body` 是未穿装备的种族 + 裸体描述（JSONB），`stats` 是根属性（JSONB：`hp` / `maxHp` / `attack` / `defense` / `speed`），`status` 是 `alive | dead` 枚举（默认 `alive`），`equipment` 是槽位到物品名的索引（JSONB），`actions` 是该角色被允许的十个动作（JSONB 数组，必须显式写入，无默认值；例如动物不含道具操作）；`can_query` 表示该角色能否检索公共知识库（boolean，默认 `false`），它是只读工具而不是动作，所以不占行动、也不属于 `actions`。
+- `actors`：场景中的角色；`stage_id` 非空，不能脱离场景存在；`is_default_player` 是默认玩家角色标记（默认 `false`），玩家接管仍由独立控制关系表达；`appearance` 是当前可见外观（含衣着、装备与伤势，text），`base_body` 是未穿装备的种族 + 裸体描述（JSONB），`stats` 是恒定属性（JSONB：`maxHp` / `attack` / `defense` / `speed` / `damage` / `block`），`hp` 是当前生命（integer），与 `stats` 分开存，`status` 是 `alive | dead` 枚举（默认 `alive`），`equipment` 是槽位到物品名的索引（JSONB），`actions` 是该角色被允许的十个动作（JSONB 数组，必须显式写入，无默认值；例如动物不含道具操作）；`can_query` 表示该角色能否检索公共知识库（boolean，默认 `false`），它是只读工具而不是动作，所以不占行动、也不属于 `actions`。
 - `stages.actions`：场景自身的能力清单，JSONB 数组；当前每个场景都声明 `submit_environment` 与 `notify_world`，决定 stage 小 GM 是否暴露这些工具。它不限制角色动作。
-- `items`：角色持有的物品；`actor_id` 非空，不能脱离角色存在；是 actor 唯一的运行时队列。物品根字段有 `key` / `name` / `description` / `kind` / `count` / `affixes`，战斗数值在 `stats`（JSONB：`damage` / `block`），声明式使用效果在 `effect`（JSONB，必须包含 `type`）；`affixes` 是词缀字符串数组，默认空数组。物品自身不记录穿戴状态。
+- `items`：角色持有的物品；`actor_id` 非空，不能脱离角色存在；是 actor 唯一的运行时队列。物品根字段有 `key` / `name` / `description` / `kind` / `count` / `affixes`，属性在 `stats`（JSONB，六项齐全，未用到的为 0），声明式使用效果在 `effect`（JSONB，必须包含 `type`）；`affixes` 是词缀字符串数组，默认空数组。物品自身不记录穿戴状态。
 - `stage_items`：暂放在场景中的物品；`stage_id` 非空，当前只作为场景内容读取，已支持拾取并转入 actor 背包。字段与 `items` 相同，但没有穿戴状态。
 - `game_messages`：公共消息流，按 `sequence` 追加；记录 `stage_id`、`source_actor_id`、`target_actor_id` 与 `visibility`，供客户端增量拉取与审计；不建立 session 表。
 - `vector_documents`：公共知识向量；`collection` 隔离世界内容，`content_hash` 保证幂等，`embedding vector(384)` 由 pgvector 提供，`embedding_model` 防止不同模型向量混搜。它不进入 actor 私有 memory，也不承载剧情秘密。
@@ -22,9 +22,11 @@ PostgreSQL 是游戏状态的唯一真相。`agent:game` 从数据库读取状�
 
 ## 属性与物品
 
-`src/game/attributes.ts` 的 `ATTRIBUTE_DEFINITIONS` 是本系统 TRPG 属性总表：actor 的 `hp` / `maxHp` / `attack` / `defense` / `speed`，以及物品的 `damage` / `block`。新增属性先登记再决定作用域；所有计算通过 `attribute()` / `sumAttribute()` 读取，缺省为 0。
+`src/game/attributes.ts` 只有一个属性结构 `Stats`：`maxHp` / `attack` / `defense` / `speed` / `damage` / `block`，actor 与物品共用，字段由 `STAT_KEYS` 派生，新增属性只改这一处。六项都是恒定配置，可逐字段相加；`toStats()` 把内容或旧数据归一成完整结构（缺字段补 0、多余字段丢弃），`addStats()` 是全局唯一的属性加法规则（装备加成与临时修正都走它）。
 
-`ItemBaseState` 根字段有 `id` / `key` / `name` / `description` / `kind` / `count` / `effect` / `affixes`，没有根级 `damage` / `block`，也没有 `stats` 或穿戴状态；`ItemState` 是各 `kind` 子类的运行时联合。武器与装备扩展出 `StatItemState`（`stats`：`damage` / `block`）；饰品只有根字段。钥匙属于 `accessory`，显式声明 `effect: { "type": "event" }`，不携带战斗数值。`block` 目前只存储，不参与伤害计算。
+**当前生命不是属性**：`hp` 是可变运行时状态，单独存在 `actors.hp`（integer），扣血只写这一列，不再重写整块 `stats`。`stats.maxHp` 才是上限。
+
+`ItemBaseState` 根字段有 `id` / `key` / `name` / `description` / `kind` / `count` / `effect` / `affixes` / `stats`，没有根级 `damage` / `block`，也没有穿戴状态；`ItemState` 是各 `kind` 子类的运行时联合。五种物品都携带完整的 `stats`，未用到的字段为 0，因此不能再靠“有没有 stats”区分可穿戴性（用 `kind`）。钥匙属于 `accessory`，显式声明 `effect: { "type": "event" }`，属性全 0。`block` 目前只存储，不参与伤害计算。
 
 `effect` 是物品的声明式行为：JSON 中必须包含 `type`，其余字段由对应 handler 解释。数据库只存 JSON，不存函数；`src/game/item-effects/` 用 `effect.type` 作为路由 key。当前注册了 `event` 与 `damage` 两个 handler，没有默认效果，也没有 `actions` 元数据。物品先执行默认 `effect`；如果 `affixes` 非空，再运行一次补充 affix agent。affix agent 在事务外调用 LLM 和工具，工具只收集操作，最后在短事务中落账；普通物品没有 affix 时只执行默认 effect。
 

@@ -1,3 +1,4 @@
+import { type Stats, toStats } from "./attributes";
 import type {
   ActorState,
   EquipmentSlot,
@@ -5,7 +6,6 @@ import type {
   ItemEffect,
   ItemKind,
   ItemState,
-  ItemStats,
   WearableItemState,
 } from "./types";
 import { EQUIPMENT_SLOTS } from "./types";
@@ -18,7 +18,7 @@ export function toItemState(row: {
   description: string;
   kind: ItemKind;
   count: number;
-  stats: ItemStats;
+  stats: Stats;
   effect: ItemEffect;
   affixes?: readonly string[];
 }): ItemState {
@@ -30,12 +30,13 @@ export function toItemState(row: {
     count: row.count,
     effect: row.effect,
     affixes: row.affixes ?? [],
+    stats: toStats(row.stats),
   };
   switch (row.kind) {
     case "weapon":
-      return { ...base, kind: "weapon", stats: row.stats };
+      return { ...base, kind: "weapon" };
     case "equipment":
-      return { ...base, kind: "equipment", stats: row.stats };
+      return { ...base, kind: "equipment" };
     case "accessory":
       return { ...base, kind: "accessory" };
     case "consumable":

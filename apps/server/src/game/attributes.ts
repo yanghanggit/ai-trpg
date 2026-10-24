@@ -1,50 +1,48 @@
-/** 属性的作用域：角色根属性，或物品的战斗属性。 */
-export type AttributeScope = "actor" | "item";
+/**
+ * 角色与物品共用的唯一属性结构。
+ *
+ * 六个字段都是恒定配置：可逐字段相加、可继承、可覆盖。当前生命是可变运行时
+ * 状态而不是属性，所以不在 `Stats` 里，放在 `ActorState.hp` / `actors.hp`。
+ * 新增属性只改 `STAT_KEYS`，类型自动跟着变。
+ */
+const STAT_KEYS = ["maxHp", "attack", "defense", "speed", "damage", "block"] as const;
 
-export type AttributeDefinition = {
-  label: string;
-  scope: AttributeScope;
-  description: string;
+type StatKey = (typeof STAT_KEYS)[number];
+export type Stats = Record<StatKey, number>;
+
+/** 全 0 属性；归一化与聚合的起点。 */
+export const EMPTY_STATS: Stats = {
+  maxHp: 0,
+  attack: 0,
+  defense: 0,
+  speed: 0,
+  damage: 0,
+  block: 0,
 };
 
 /**
- * 本系统 TRPG 能承载的全部数值属性。
- *
- * 新属性先在这里登记，再决定作用域；所有计算只通过这里登记的 key 进行，
- * 不在动作代码里临时发明字段。
+ * 归一化成完整属性：内容可能省略字段，旧数据可能残留已移出的字段（如 hp）。
+ * 显式逐字段读取，因此多余字段会被丢掉，运行时 `Stats` 一定齐全。
  */
-export const ATTRIBUTE_DEFINITIONS = {
-  hp: { label: "生命", scope: "actor", description: "当前生命；降到 0 时角色死亡" },
-  maxHp: { label: "生命上限", scope: "actor", description: "生命上限" },
-  attack: { label: "攻击", scope: "actor", description: "攻击的基础伤害" },
-  defense: { label: "防御", scope: "actor", description: "受到攻击时减免的伤害" },
-  speed: { label: "速度", scope: "actor", description: "行动顺序与追逐判定" },
-  damage: { label: "伤害", scope: "item", description: "武器参与攻击时增加的伤害" },
-  block: { label: "格挡", scope: "item", description: "装备提供的减免；当前只存储" },
-} as const satisfies Record<string, AttributeDefinition>;
-
-export type AttributeKey = keyof typeof ATTRIBUTE_DEFINITIONS;
-export type Attributes = Partial<Record<AttributeKey, number>>;
-
-/** actor 的根属性必须齐全。 */
-export const ACTOR_ATTRIBUTE_KEYS = ["hp", "maxHp", "attack", "defense", "speed"] as const;
-export type ActorAttributeKey = (typeof ACTOR_ATTRIBUTE_KEYS)[number];
-export type ActorStats = Record<ActorAttributeKey, number>;
-
-/** 物品只携带战斗相关属性。 */
-export const ITEM_ATTRIBUTE_KEYS = ["damage", "block"] as const;
-export type ItemAttributeKey = (typeof ITEM_ATTRIBUTE_KEYS)[number];
-export type ItemStats = Partial<Record<ItemAttributeKey, number>>;
-
-/** 读取属性；缺省为 0，避免每个调用点重复写 `?? 0`。 */
-export function attribute(stats: Attributes | undefined, key: AttributeKey): number {
-  return stats?.[key] ?? 0;
+export function toStats(stats: Partial<Stats> | undefined): Stats {
+  return {
+    maxHp: stats?.maxHp ?? 0,
+    attack: stats?.attack ?? 0,
+    defense: stats?.defense ?? 0,
+    speed: stats?.speed ?? 0,
+    damage: stats?.damage ?? 0,
+    block: stats?.block ?? 0,
+  };
 }
 
-/** 汇总多件物品的同一属性；武器伤害等计算统一走这里。 */
-export function sumAttribute(
-  statsList: readonly (Attributes | undefined)[],
-  key: AttributeKey,
-): number {
-  return statsList.reduce((total, stats) => total + attribute(stats, key), 0);
+/** 逐字段相加：装备加成与临时修正都走这里，全局只有这一条加法规则。 */
+export function addStats(...list: readonly (Partial<Stats> | undefined)[]): Stats {
+  const total: Stats = { ...EMPTY_STATS };
+  for (const stats of list) {
+    const normalized = toStats(stats);
+    for (const key of STAT_KEYS) {
+      total[key] += normalized[key];
+    }
+  }
+  return total;
 }

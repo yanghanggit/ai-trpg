@@ -11,9 +11,14 @@ const stageActionSchema = z.enum([
 ] satisfies readonly StageActionKind[]);
 const worldActionSchema = z.enum(["notify_stage", "end_game"] satisfies readonly WorldActionKind[]);
 const itemKindSchema = z.enum(["weapon", "equipment", "accessory", "consumable", "valuable"]);
-const itemStatsSchema = z.object({
-  damage: z.number().optional(),
-  block: z.number().optional(),
+/** 六项属性共用一张表；未写出的字段补 0，运行时因此总是完整 Stats。 */
+const statsSchema = z.object({
+  maxHp: z.number().default(0),
+  attack: z.number().default(0),
+  defense: z.number().default(0),
+  speed: z.number().default(0),
+  damage: z.number().default(0),
+  block: z.number().default(0),
 });
 
 const itemEffectSchema = z.object({ type: z.string().min(1) }).passthrough();
@@ -24,7 +29,7 @@ const itemSchema = z.object({
   description: z.string().min(1),
   kind: itemKindSchema,
   count: z.number().int().positive().optional(),
-  stats: itemStatsSchema.optional(),
+  stats: statsSchema.optional(),
   effect: itemEffectSchema,
   affixes: z.array(z.string()).optional(),
 });
@@ -47,14 +52,6 @@ const stageSchema = z.object({
   actions: z.array(stageActionSchema),
 });
 
-const actorStatsSchema = z.object({
-  hp: z.number(),
-  maxHp: z.number(),
-  attack: z.number(),
-  defense: z.number(),
-  speed: z.number(),
-});
-
 const actorSchema = z.object({
   stageKey: z.string().min(1),
   name: z.string().min(1),
@@ -66,7 +63,8 @@ const actorSchema = z.object({
     race: z.string().min(1),
     description: z.string(),
   }),
-  stats: actorStatsSchema,
+  stats: statsSchema,
+  hp: z.number().optional(),
   status: z.enum(["alive", "dead"]).optional(),
   isDefaultPlayer: z.boolean().optional(),
   items: z.array(itemSchema),

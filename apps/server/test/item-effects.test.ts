@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { EMPTY_STATS } from "../src/game/attributes";
 import { applyItemEffect, UNARMED_EFFECT } from "../src/game/item-effects";
 import { toItemState } from "../src/game/items";
 
@@ -7,7 +8,7 @@ const ROW = {
   name: "测试物品",
   description: "测试描述",
   count: 1,
-  stats: {},
+  stats: EMPTY_STATS,
   effect: { type: "event" },
 };
 

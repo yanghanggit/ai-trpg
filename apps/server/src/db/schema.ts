@@ -11,7 +11,7 @@ import {
   uuid,
   vector,
 } from "drizzle-orm/pg-core";
-import type { ActorStats, ItemStats } from "../game/attributes";
+import type { Stats } from "../game/attributes";
 import type {
   ActionKind,
   ActorStatus,
@@ -154,7 +154,9 @@ export const actors = pgTable("actors", {
   profile: text("profile").notNull(),
   appearance: text("appearance").notNull(),
   baseBody: jsonb("base_body").$type<BaseBody>().notNull(),
-  stats: jsonb("stats").$type<ActorStats>().notNull(),
+  stats: jsonb("stats").$type<Stats>().notNull(),
+  /** 当前生命；与 stats 分开存，扣血只写这一列。 */
+  hp: integer("hp").notNull(),
   status: text("status").$type<ActorStatus>().notNull().default("alive"),
   /** 默认玩家角色；该角色死亡时整局结束。 */
   isDefaultPlayer: boolean("is_default_player").notNull().default(false),
@@ -176,7 +178,7 @@ export const items = pgTable("items", {
   description: text("description").notNull(),
   kind: text("kind").$type<ItemKind>().notNull(),
   count: integer("count").notNull().default(1),
-  stats: jsonb("stats").$type<ItemStats>().notNull().default({}),
+  stats: jsonb("stats").$type<Stats>().notNull(),
   effect: jsonb("effect").$type<ItemEffect>().notNull(),
   affixes: jsonb("affixes").$type<string[]>().notNull().default([]),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
@@ -192,7 +194,7 @@ export const stageItems = pgTable("stage_items", {
   description: text("description").notNull(),
   kind: text("kind").$type<ItemKind>().notNull(),
   count: integer("count").notNull().default(1),
-  stats: jsonb("stats").$type<ItemStats>().notNull().default({}),
+  stats: jsonb("stats").$type<Stats>().notNull(),
   effect: jsonb("effect").$type<ItemEffect>().notNull(),
   affixes: jsonb("affixes").$type<string[]>().notNull().default([]),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),

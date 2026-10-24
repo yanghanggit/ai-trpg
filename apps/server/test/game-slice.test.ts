@@ -393,7 +393,7 @@ describe.skipIf(!testDatabaseUrl)("memory-driven NPC slice", () => {
     const monkState = state.world.stages
       .flatMap((stage) => stage.actors)
       .find((actor) => actor.name === "提灯修士");
-    expect(monkState?.stats.hp).toBe(7);
+    expect(monkState?.hp).toBe(7);
 
     const memories = await getGameMemories(handle.db, created.game.id);
     const keeper = memories.find((memory) => memory.name === "守烬人");
@@ -430,7 +430,7 @@ describe.skipIf(!testDatabaseUrl)("memory-driven NPC slice", () => {
       ...TEST_WORLD,
       actors: TEST_WORLD.actors.map((actor) =>
         actor.name === "提灯修士"
-          ? { ...actor, stats: { ...actor.stats, hp: 1, maxHp: 1, defense: 0 } }
+          ? { ...actor, hp: 1, stats: { ...actor.stats, maxHp: 1, defense: 0 } }
           : actor,
       ),
     };
@@ -449,7 +449,7 @@ describe.skipIf(!testDatabaseUrl)("memory-driven NPC slice", () => {
     const monk = state.world.stages
       .flatMap((stage) => stage.actors)
       .find((actor) => actor.name === "提灯修士");
-    expect(monk).toMatchObject({ stats: { hp: 0 }, status: "dead" });
+    expect(monk).toMatchObject({ hp: 0, status: "dead" });
 
     await expect(
       runNpcTurn(handle.db, created.game.slug, "提灯修士", {
@@ -466,7 +466,8 @@ describe.skipIf(!testDatabaseUrl)("memory-driven NPC slice", () => {
           ? {
               ...actor,
               isDefaultPlayer: true,
-              stats: { ...actor.stats, hp: 1, maxHp: 1, defense: 0 },
+              hp: 1,
+              stats: { ...actor.stats, maxHp: 1, defense: 0 },
             }
           : actor,
       ),
@@ -547,7 +548,8 @@ describe.skipIf(!testDatabaseUrl)("memory-driven NPC slice", () => {
           profile: "一个缩在门廊阴影里的无关者。",
           appearance: "只看得见一双贴在石墙后的眼睛。",
           baseBody: { race: "人类", description: "瘦小，总把自己藏在阴影里。" },
-          stats: { hp: 8, maxHp: 8, attack: 1, defense: 1, speed: 2 },
+          hp: 8,
+          stats: { maxHp: 8, attack: 1, defense: 1, speed: 2, damage: 0, block: 0 },
           status: "alive" as const,
           items: [],
           actions: ["say", "whisper", "move", "wait"] as const,

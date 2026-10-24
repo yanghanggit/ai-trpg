@@ -14,6 +14,7 @@ import {
   worlds,
 } from "../db/schema";
 import { dumpSystemPrompts } from "../debug/prompt-dump";
+import { toStats } from "./attributes";
 import { resolveAppearance } from "./body";
 import { GameError } from "./errors";
 import { toItemState } from "./items";
@@ -175,6 +176,7 @@ export async function getGameState(db: Database, ref: string): Promise<GameState
       appearance: actor.appearance,
       baseBody: actor.baseBody,
       stats: actor.stats,
+      hp: actor.hp,
       status: actor.status,
       isDefaultPlayer: actor.isDefaultPlayer,
       equipment: actor.equipment,
@@ -355,7 +357,7 @@ export async function createGame(db: Database, input: CreateGameInput): Promise<
           description: item.description,
           kind: item.kind,
           count: item.count ?? 1,
-          stats: item.stats ?? {},
+          stats: toStats(item.stats),
           effect: item.effect,
           affixes: [...(item.affixes ?? [])],
         });
@@ -402,6 +404,7 @@ export async function createGame(db: Database, input: CreateGameInput): Promise<
       }
 
       const actorId = randomUUID();
+      const stats = toStats(actor.stats);
       await tx.insert(actors).values({
         id: actorId,
         stageId: actorStageId,
@@ -409,7 +412,8 @@ export async function createGame(db: Database, input: CreateGameInput): Promise<
         profile: actor.profile,
         appearance: resolveAppearance(actor),
         baseBody: actor.baseBody,
-        stats: actor.stats,
+        stats,
+        hp: actor.hp ?? stats.maxHp,
         status: actor.status ?? "alive",
         isDefaultPlayer: actor.isDefaultPlayer ?? false,
         equipment: actor.equipment ?? {},
@@ -426,7 +430,7 @@ export async function createGame(db: Database, input: CreateGameInput): Promise<
           description: item.description,
           kind: item.kind,
           count: item.count ?? 1,
-          stats: item.stats ?? {},
+          stats: toStats(item.stats),
           effect: item.effect,
           affixes: [...(item.affixes ?? [])],
         });
