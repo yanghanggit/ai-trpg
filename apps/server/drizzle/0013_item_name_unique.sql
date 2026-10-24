@@ -1,0 +1,2 @@
+CREATE UNIQUE INDEX "items_actor_name_unique" ON "items" USING btree ("actor_id","name");--> statement-breakpoint
+CREATE UNIQUE INDEX "stage_items_stage_name_unique" ON "stage_items" USING btree ("stage_id","name");

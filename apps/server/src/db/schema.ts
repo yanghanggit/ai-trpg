@@ -168,37 +168,50 @@ export const actors = pgTable("actors", {
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
 });
 
-export const items = pgTable("items", {
-  id: uuid("id").primaryKey(),
-  actorId: uuid("actor_id")
-    .notNull()
-    .references(() => actors.id, { onDelete: "cascade" }),
-  key: text("key"),
-  name: text("name").notNull(),
-  description: text("description").notNull(),
-  kind: text("kind").$type<ItemKind>().notNull(),
-  count: integer("count").notNull().default(1),
-  stats: jsonb("stats").$type<Stats>().notNull(),
-  effect: jsonb("effect").$type<ItemEffect>().notNull(),
-  affixes: jsonb("affixes").$type<string[]>().notNull().default([]),
-  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
-});
+/**
+ * `id` 是物品的稳定身份（uuid）；`name` 是动作与装备槽使用的可读句柄，
+ * 因此在同一个 actor 内必须唯一——这是 `(actor_id, name)` 唯一索引的含义。
+ */
+export const items = pgTable(
+  "items",
+  {
+    id: uuid("id").primaryKey(),
+    actorId: uuid("actor_id")
+      .notNull()
+      .references(() => actors.id, { onDelete: "cascade" }),
+    key: text("key"),
+    name: text("name").notNull(),
+    description: text("description").notNull(),
+    kind: text("kind").$type<ItemKind>().notNull(),
+    count: integer("count").notNull().default(1),
+    stats: jsonb("stats").$type<Stats>().notNull(),
+    effect: jsonb("effect").$type<ItemEffect>().notNull(),
+    affixes: jsonb("affixes").$type<string[]>().notNull().default([]),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [uniqueIndex("items_actor_name_unique").on(table.actorId, table.name)],
+);
 
-export const stageItems = pgTable("stage_items", {
-  id: uuid("id").primaryKey(),
-  stageId: uuid("stage_id")
-    .notNull()
-    .references(() => stages.id, { onDelete: "cascade" }),
-  key: text("key"),
-  name: text("name").notNull(),
-  description: text("description").notNull(),
-  kind: text("kind").$type<ItemKind>().notNull(),
-  count: integer("count").notNull().default(1),
-  stats: jsonb("stats").$type<Stats>().notNull(),
-  effect: jsonb("effect").$type<ItemEffect>().notNull(),
-  affixes: jsonb("affixes").$type<string[]>().notNull().default([]),
-  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
-});
+/** 与 `items` 同构；名字在同一个场景内唯一，拾取时才能按名字定位。 */
+export const stageItems = pgTable(
+  "stage_items",
+  {
+    id: uuid("id").primaryKey(),
+    stageId: uuid("stage_id")
+      .notNull()
+      .references(() => stages.id, { onDelete: "cascade" }),
+    key: text("key"),
+    name: text("name").notNull(),
+    description: text("description").notNull(),
+    kind: text("kind").$type<ItemKind>().notNull(),
+    count: integer("count").notNull().default(1),
+    stats: jsonb("stats").$type<Stats>().notNull(),
+    effect: jsonb("effect").$type<ItemEffect>().notNull(),
+    affixes: jsonb("affixes").$type<string[]>().notNull().default([]),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [uniqueIndex("stage_items_stage_name_unique").on(table.stageId, table.name)],
+);
 
 export const gameMessages = pgTable(
   "game_messages",

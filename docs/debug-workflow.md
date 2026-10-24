@@ -31,7 +31,7 @@
 - `player-steal` / `player-give --game <id|slug> --actor <actorId|actorName> --target <actorName> --item <itemName>`：取物或给予。
 - `player-pickup --game <id|slug> --actor <actorId|actorName> --item <itemName>`：拾取当前场景物品。
 - `player-use --game <id|slug> --actor <actorId|actorName> --item <itemName> (--target <actorName> | --stage <stageName>) [--detail <text>]`：使用自己的物品；对场景使用时可用 `--detail` 描述锁孔、炉膛等具体部位。
-- `player-attack --game <id|slug> --actor <actorId|actorName> --target <actorName> [--item <itemName>]`：以被接管 actor 的身份直接攻击同场景目标，可指定带 `attack` effect 的物品；不调用 LLM。
+- `player-attack --game <id|slug> --actor <actorId|actorName> --target <actorName>`：以被接管 actor 的身份直接攻击同场景目标；武器由 `equipment.weapon` 决定，不接受物品参数；不调用 LLM。
 - `snapshot --game <id|slug>`：把当前状态与每个 actor/stage/world 的 memory 导出为只读快照。
 - `story --game <id|slug>`：任意时刻运行只读故事整理 agent，读取全部 memory 与事件流，输出一段故事到 CLI，并写入 `stories/<时间戳>_<slug>.md`；不写数据库，不要求游戏已结束。
 - `compact --game <id|slug> --owner actor --name <actorId|actorName>`：手动压缩一个 actor memory；`--owner stage --name <stageId|stageName>`、`--owner world`、`--owner all` 同理。默认总是压缩，可用 `--min-ratio <0..1>` 在 `contextUsageRatio` 低于阈值时跳过。
@@ -72,7 +72,7 @@ prompts/<YYYYMMDD_HHmmss>_<world 名>/
 - `PROMPTS_DIR` 可以覆盖根目录（例如导出到临时目录）。
 - 导出失败只打印告警，不影响建局；数据库仍是唯一权威状态。
 
-NPC 回合由 agent loop 驱动：先读取环境与私有 memory，再通过工具决定行动。`look_stage`、`get_self`、`observe_actor` 是只读 GET，可多次调用；`get_self` 返回自己的完整信息，`observe_actor` 只返回同场景目标携带的物品；`look_stage` 会显示场景中的 `stage_items`；工具按模型返回顺序串行执行；十个动作工具 `say` / `whisper` / `announce` / `move` / `wait` / `attack` / `steal` / `give` / `pickup` / `use` 各自只接收自己的参数，且只暴露给被允许的角色（见 `actors.actions`）；一轮最多两个动作，不分类互斥，按调用顺序保留；`submit_plan` 是终止工具，handler 只收集计划，不写数据库。loop 结束后服务层在事务中按顺序校验并应用全部动作。`say` 是有目标公开说话，向当前 stage 广播；`announce` 是无目标公开说话；`whisper` 必须指定单个 `targetActorName`，只有发起者与目标进入 memory；`attack` 与 `use` 只做 dispatcher：按 `item.effect` 选择执行器。无词缀 `damage` 的伤害为攻击者 `stats.attack` 加物品 `stats.damage`，减去目标 `stats.defense`，最低 0；默认 effect 执行后，非空 `affixes` 会运行事务外的 affix agent；agent 通过工具收集补充效果，再落账；空手时使用系统 damage effect，只读 actor 的 `stats.attack` 与目标 `stats.defense`；目标物品 block 与发起者物品 block 当前都不参与伤害；目标 `hp` 归零后 `status=dead`，不能再执行 loop。`event` effect 只写使用事件，后果交给 stage / world。`game_messages` 用 `visibility` 区分公开与私密。
+NPC 回合由 agent loop 驱动：先读取环境与私有 memory，再通过工具决定行动。`look_stage`、`get_self`、`observe_actor` 是只读 GET，可多次调用；`get_self` 返回自己的完整信息，`observe_actor` 只返回同场景目标携带的物品；`look_stage` 会显示场景中的 `stage_items`；工具按模型返回顺序串行执行；十个动作工具 `say` / `whisper` / `announce` / `move` / `wait` / `attack` / `steal` / `give` / `pickup` / `use` 各自只接收自己的参数，且只暴露给被允许的角色（见 `actors.actions`）；一轮最多两个动作，不分类互斥，按调用顺序保留；`submit_plan` 是终止工具，handler 只收集计划，不写数据库。loop 结束后服务层在事务中按顺序校验并应用全部动作。`say` 是有目标公开说话，向当前 stage 广播；`announce` 是无目标公开说话；`whisper` 必须指定单个 `targetActorName`，只有发起者与目标进入 memory；`attack` 与 `use` 只做 dispatcher：按 `item.effect` 选择执行器。无词缀 `damage` 的伤害为攻击者 `stats.attack` 加物品 `stats.damage`，减去目标 `stats.defense` 与目标装备总 `block`，最低 0；默认 effect 执行后，非空 `affixes` 会运行事务外的 affix agent；agent 通过工具收集补充效果，再落账；`attack` 只用已装备的武器（`equipment.weapon` 且声明 `damage` 效果），没有则空手；目标 `hp` 归零后 `status=dead`，不能再执行 loop。`event` effect 只写使用事件，后果交给 stage / world。`game_messages` 用 `visibility` 区分公开与私密。
 
 它不需要启动 HTTP 服务端，但需要 `DATABASE_URL` 与 `DEEPSEEK_API_KEY`。`agent:game status` 不调用 LLM，可用于观察当前状态。
 

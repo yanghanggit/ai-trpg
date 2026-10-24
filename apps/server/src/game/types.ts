@@ -27,28 +27,29 @@ export type ItemEffect = {
 };
 
 /** actor 的穿戴槽；槽里只记录物品名，物品自身不知道被谁穿戴。 */
-export const EQUIPMENT_SLOTS = ["weapon", "offhand", "head", "body", "feet", "accessory"] as const;
+/**
+ * actor 的穿戴槽；槽里只记录物品名，物品自身不知道被谁穿戴。
+ *
+ * 开发期只保留四个槽：一武器、一护甲（合并了副手/头/身体/足部）、两饰品。
+ */
+export const EQUIPMENT_SLOTS = ["weapon", "armor", "accessory1", "accessory2"] as const;
 export type EquipmentSlot = (typeof EQUIPMENT_SLOTS)[number];
 export type EquipmentSlots = Partial<Record<EquipmentSlot, string>>;
 
 /** 槽位标签，用于 prompt 与调试输出。 */
 export const EQUIPMENT_SLOT_LABELS: Record<EquipmentSlot, string> = {
   weapon: "武器",
-  offhand: "副手",
-  head: "头部",
-  body: "身体",
-  feet: "足部",
-  accessory: "饰品",
+  armor: "护甲",
+  accessory1: "饰品一",
+  accessory2: "饰品二",
 };
 
 /** 每个槽位允许的物品大类。 */
 export const EQUIPMENT_SLOT_KINDS: Record<EquipmentSlot, readonly ItemKind[]> = {
   weapon: ["weapon"],
-  offhand: ["weapon", "equipment"],
-  head: ["equipment"],
-  body: ["equipment"],
-  feet: ["equipment"],
-  accessory: ["accessory"],
+  armor: ["equipment"],
+  accessory1: ["accessory"],
+  accessory2: ["accessory"],
 };
 
 /**
@@ -182,11 +183,10 @@ export type WaitAction = {
   kind: "wait";
 };
 
-/** 攻击同场景的一个角色；可引用一件自己持有的武器。 */
+/** 攻击同场景的一个角色；固定使用已装备的武器，没有可用武器时空手。 */
 export type AttackAction = {
   kind: "attack";
   targetActorName: string;
-  itemName?: string;
 };
 
 /** 从同场景的一个角色身上取走一件物品。 */

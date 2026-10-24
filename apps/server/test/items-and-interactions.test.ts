@@ -95,6 +95,7 @@ const WEAPON_WORLD = {
     actor.name === "提灯修士"
       ? {
           ...actor,
+          equipment: { armor: "铅封提灯" },
           items: actor.items.map((item) =>
             item.name === "铅封提灯" ? { ...item, stats: { ...item.stats, block: 2 } } : item,
           ),
@@ -104,8 +105,8 @@ const WEAPON_WORLD = {
 };
 
 const AFFIX_WORLD = {
-  ...WEAPON_WORLD,
-  actors: WEAPON_WORLD.actors.map((actor) =>
+  ...TEST_WORLD,
+  actors: TEST_WORLD.actors.map((actor) =>
     actor.name === "守烬人"
       ? {
           ...actor,
@@ -116,6 +117,20 @@ const AFFIX_WORLD = {
           ),
         }
       : actor,
+  ),
+};
+
+const ARMORED_MONK_WORLD = {
+  ...ITEM_WORLD,
+  actors: ITEM_WORLD.actors.map((actor) =>
+    actor.name === "提灯修士" ? { ...actor, equipment: { armor: "铅封提灯" } } : actor,
+  ),
+};
+
+const CORPSE_WORLD = {
+  ...ARMORED_MONK_WORLD,
+  actors: ARMORED_MONK_WORLD.actors.map((actor) =>
+    actor.name === "提灯修士" ? { ...actor, hp: 0, status: "dead" as const } : actor,
   ),
 };
 
@@ -166,7 +181,7 @@ describe.skipIf(!testDatabaseUrl)("items and interactions", () => {
     await handle.pool.end();
   });
 
-  it("steals an item privately and leaves an observer unaware", async () => {
+  it("steals a backpack item from a living actor privately and leaves an observer unaware", async () => {
     const created = await createGame(handle.db, {
       username: DEMO_USER.username,
       name: "窃取测试局",
@@ -199,6 +214,44 @@ describe.skipIf(!testDatabaseUrl)("items and interactions", () => {
     expect(observerMemory?.messages.some((message) => message.content.includes("取走了"))).toBe(
       false,
     );
+  });
+
+  it("refuses to take a worn item from a living actor", async () => {
+    const created = await createGame(handle.db, {
+      username: DEMO_USER.username,
+      name: "活人窃取测试局",
+      world: ARMORED_MONK_WORLD,
+    });
+    await takeActorControl(handle.db, created.game.slug, "守烬人");
+
+    await expect(
+      playerSteal(handle.db, created.game.slug, "守烬人", {
+        targetActorName: "提灯修士",
+        itemName: "铅封提灯",
+      }),
+    ).rejects.toThrow("拿不走已装备的物品");
+  });
+
+  it("takes a worn item from a corpse and clears the corpse's slot", async () => {
+    const created = await createGame(handle.db, {
+      username: DEMO_USER.username,
+      name: "尸体取物测试局",
+      world: CORPSE_WORLD,
+    });
+    await takeActorControl(handle.db, created.game.slug, "守烬人");
+
+    const stolen = await playerSteal(handle.db, created.game.slug, "守烬人", {
+      targetActorName: "提灯修士",
+      itemName: "铅封提灯",
+    });
+    expect(stolen.ok).toBe(true);
+
+    const state = await getGameState(handle.db, created.game.slug);
+    const actors = state.world.stages.flatMap((stage) => stage.actors);
+    expect(
+      actors.find((actor) => actor.name === "守烬人")?.items.map((item) => item.name),
+    ).toContain("铅封提灯");
+    expect(actors.find((actor) => actor.name === "提灯修士")?.equipment.armor).toBeUndefined();
   });
 
   it("rejects steal for an actor whose actions do not include it", async () => {
@@ -235,7 +288,8 @@ describe.skipIf(!testDatabaseUrl)("items and interactions", () => {
     const monk = state.world.stages
       .flatMap((stage) => stage.actors)
       .find((actor) => actor.name === "提灯修士");
-    expect(monk?.hp).toBe(4);
+    // use 也走同一个伤害公式：6 + 3 - 3（防御）- 2（提灯 block）= 4。
+    expect(monk?.hp).toBe(6);
     expect(state.messages.at(-1)?.kind).toBe("use");
   });
 
@@ -252,7 +306,7 @@ describe.skipIf(!testDatabaseUrl)("items and interactions", () => {
       handle.db,
       created.game.slug,
       "守烬人",
-      { targetActorName: "提灯修士", itemName: "裂齿短刃" },
+      { targetActorName: "提灯修士" },
       { service },
     );
     expect(attacked.ok).toBe(true);
@@ -270,7 +324,7 @@ describe.skipIf(!testDatabaseUrl)("items and interactions", () => {
     expect(recent[1]).toContain("造成42点伤害");
   });
 
-  it("adds weapon damage but uses target defense as the only block", async () => {
+  it("adds equipped weapon damage and lets the target's equipped block raise its defense", async () => {
     const created = await createGame(handle.db, {
       username: DEMO_USER.username,
       name: "武器伤害测试局",
@@ -280,7 +334,6 @@ describe.skipIf(!testDatabaseUrl)("items and interactions", () => {
 
     const attacked = await playerAttack(handle.db, created.game.slug, "守烬人", {
       targetActorName: "提灯修士",
-      itemName: "裂齿短刃",
     });
     expect(attacked.ok).toBe(true);
 
@@ -288,8 +341,37 @@ describe.skipIf(!testDatabaseUrl)("items and interactions", () => {
     const monk = state.world.stages
       .flatMap((stage) => stage.actors)
       .find((actor) => actor.name === "提灯修士");
-    expect(monk?.hp).toBe(4);
-    expect(state.messages.at(-1)?.content).toContain("造成6点伤害");
+    // 6（守烬人 attack）+ 3（装备武器的 damage，裂齿短刃已装备）- 3（修士 defense）- 2（铅封提灯 block）= 4
+    expect(monk?.hp).toBe(6);
+    expect(state.messages.at(-1)?.content).toContain("造成4点伤害");
+  });
+
+  it("attacks unarmed when the weapon slot is empty", async () => {
+    const world = {
+      ...TEST_WORLD,
+      actors: TEST_WORLD.actors.map((actor) =>
+        actor.name === "守烬人" ? { ...actor, equipment: {} } : actor,
+      ),
+    };
+    const created = await createGame(handle.db, {
+      username: DEMO_USER.username,
+      name: "空手攻击测试局",
+      world,
+    });
+    await takeActorControl(handle.db, created.game.slug, "守烬人");
+
+    const attacked = await playerAttack(handle.db, created.game.slug, "守烬人", {
+      targetActorName: "提灯修士",
+    });
+    expect(attacked.ok).toBe(true);
+
+    const state = await getGameState(handle.db, created.game.slug);
+    const monk = state.world.stages
+      .flatMap((stage) => stage.actors)
+      .find((actor) => actor.name === "提灯修士");
+    // 空手：6（attack）- 3（防御）= 3 点伤害；背包里的裂齿短刃没装备，不参与结算。
+    expect(monk?.hp).toBe(7);
+    expect(state.messages.at(-1)?.content).toContain("造成3点伤害");
   });
 
   it("gives an owned item to a living actor in the same stage", async () => {

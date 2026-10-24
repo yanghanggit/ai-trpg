@@ -6,6 +6,7 @@ import {
   assertItemNameFree,
   assertNotSelf,
   findActorInStage,
+  isAlive,
   resolveActorItem,
 } from "../apply/queries";
 import type { ActorWithStageRow, Executor, ResolvedSteal } from "../apply/types";
@@ -14,14 +15,14 @@ import { withoutEquippedItem } from "../items";
 import { appendItemObservations, appendStageEvent } from "../observations";
 import type { StealAction } from "../types";
 
-/** 构造 steal 工具：从同场景角色身上取走一件物品；目标可以已经死亡。 */
+/** 构造 steal 工具：从同场景角色身上取走一件物品。 */
 export function buildStealTool(targetActorNames: readonly string[]): ToolDefinition {
   return {
     type: "function",
     function: {
       name: "steal",
       description:
-        "把一次窃取加入计划：从同场景的一个角色身上取走一件物品；目标可以是尸体。先用 observe_actor 查看对方携带的物品。只有发起者与目标会知道。",
+        "把一次窃取加入计划：从同场景的一个角色身上取走一件物品。目标还活着时只能拿走背包里的东西，已经穿戴在身上的拿不走；目标死亡（尸体）时什么都能拿走。先用 observe_actor 查看对方携带的物品。只有发起者与目标会知道。",
       parameters: {
         type: "object",
         properties: {
@@ -49,7 +50,11 @@ export function parseSteal(args: Record<string, unknown>): StealAction {
   return { kind: "steal", targetActorName, itemName };
 }
 
-/** 校验 steal：目标不是自己，且确实持有该物品。 */
+/**
+ * 校验 steal：不是自己、确实持有该物品；目标活着时不能拿已穿戴的东西。
+ *
+ * 尸体上什么都能拿，所以死亡目标不需要额外判断。
+ */
 export async function resolveSteal(
   executor: Executor,
   stage: ResolvedSteal["stage"],
@@ -59,6 +64,12 @@ export async function resolveSteal(
   const target = await findActorInStage(executor, stage.id, action.targetActorName);
   assertNotSelf(target, actorId);
   const transferItem = await resolveActorItem(executor, target.id, action.itemName);
+  if (isAlive(target) && Object.values(target.equipment).includes(transferItem.name)) {
+    throw new GameError(
+      "invalid_action",
+      `${target.name}还活着，拿不走已装备的物品: ${transferItem.name}`,
+    );
+  }
   return { kind: "steal", action, stage, target, transferItem };
 }
 

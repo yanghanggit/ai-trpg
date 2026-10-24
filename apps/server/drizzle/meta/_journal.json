@@ -92,6 +92,13 @@
       "when": 1792815058739,
       "tag": "0012_actor_hp",
       "breakpoints": true
+    },
+    {
+      "idx": 13,
+      "version": "7",
+      "when": 1792816778387,
+      "tag": "0013_item_name_unique",
+      "breakpoints": true
     }
   ]
 }

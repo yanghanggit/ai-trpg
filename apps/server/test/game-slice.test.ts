@@ -385,7 +385,10 @@ describe.skipIf(!testDatabaseUrl)("memory-driven NPC slice", () => {
     const state = await getGameState(handle.db, created.game.slug);
     expect(state.game.version).toBe(1);
     expect(state.messages.map((message) => message.kind)).toEqual(["narration", "attack"]);
-    expect(state.messages[1]?.content).toContain("守烬人对提灯修士使用攻击，造成3点伤害");
+    // 守烬人装备了裂齿短刃：6（attack）+ 3（damage）- 3（防御）= 6 点伤害。
+    expect(state.messages[1]?.content).toContain(
+      "守烬人对提灯修士使用攻击（使用裂齿短刃），造成6点伤害",
+    );
     expect(state.messages[1]?.targetActorId).toBeTruthy();
     expect(state.messages[1]?.sourceActorId).toBeTruthy();
     expect(state.messages[1]?.visibility).toBe("stage");
@@ -393,19 +396,21 @@ describe.skipIf(!testDatabaseUrl)("memory-driven NPC slice", () => {
     const monkState = state.world.stages
       .flatMap((stage) => stage.actors)
       .find((actor) => actor.name === "提灯修士");
-    expect(monkState?.hp).toBe(7);
+    expect(monkState?.hp).toBe(4);
 
     const memories = await getGameMemories(handle.db, created.game.id);
     const keeper = memories.find((memory) => memory.name === "守烬人");
     const monk = memories.find((memory) => memory.name === "提灯修士");
     expect(
       keeper?.messages.some((message) =>
-        message.content.includes("你使用攻击对提灯修士，造成3点伤害"),
+        message.content.includes("你使用攻击（使用裂齿短刃）对提灯修士，造成6点伤害"),
       ),
     ).toBe(true);
     expect(
       monk?.messages.some((message) =>
-        message.content.includes("守烬人对你使用攻击，造成3点伤害；你剩余 HP 7/10。"),
+        message.content.includes(
+          "守烬人对你使用攻击（使用裂齿短刃），造成6点伤害；你剩余 HP 4/10。",
+        ),
       ),
     ).toBe(true);
   });

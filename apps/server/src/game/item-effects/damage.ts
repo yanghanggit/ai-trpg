@@ -1,19 +1,25 @@
 import { eq } from "drizzle-orm";
 import { actors } from "../../db/schema";
 import { appendPublicMessage, bumpGameVersion, itemListText } from "../apply/messages";
+import { resolveEquippedStats } from "../apply/queries";
 import { addStats } from "../attributes";
 import { completeGame } from "../end-game";
 import { appendAttackObservations, appendStageEvent } from "../observations";
 import type { ItemEffectContext, ItemEffectHandler } from "./types";
 
-/** 固定战斗公式：max(0, 自身 attack + 物品 damage - 目标 defense)；属性只走 addStats 一条加法规则。 */
-export function calculateFixedDamage(context: ItemEffectContext): number {
-  const { actorRow, item, target } = context;
+/**
+ * 固定战斗公式：max(0, 攻击方 attack + 物品 damage - (目标 defense + 目标装备总 block))。
+ *
+ * 属性只走 addStats 一条加法规则；目标的装备加成在结算时现读，避免旧快照。
+ */
+export async function calculateFixedDamage(context: ItemEffectContext): Promise<number> {
+  const { executor, actorRow, item, target } = context;
   if (!target) {
     throw new Error("damage effect 需要角色目标");
   }
   const attacker = addStats(actorRow.actor.stats, item?.stats);
-  return Math.max(0, attacker.attack + attacker.damage - target.stats.defense);
+  const defender = await resolveEquippedStats(executor, target);
+  return Math.max(0, attacker.attack + attacker.damage - target.stats.defense - defender.block);
 }
 
 /** 把已经算好的伤害写入数据库、消息与观察。 */
@@ -89,5 +95,5 @@ export async function applyDamage(context: ItemEffectContext, damage: number): P
 
 /** 固定伤害 handler。 */
 export const applyDamageEffect: ItemEffectHandler = async (context) => {
-  return applyDamage(context, calculateFixedDamage(context));
+  return applyDamage(context, await calculateFixedDamage(context));
 };

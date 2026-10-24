@@ -48,7 +48,7 @@ export async function resolvePlan(
         resolved.push(resolveWait(stage, action));
         break;
       case "attack":
-        resolved.push(await resolveAttack(executor, stage, actorRow.actor.id, action));
+        resolved.push(await resolveAttack(executor, stage, actorRow, action));
         break;
       case "steal":
         resolved.push(await resolveSteal(executor, stage, actorRow.actor.id, action));

@@ -120,7 +120,7 @@ function usage(): void {
       "agent-game player-announce --game <gameId|slug> --actor <actorId|actorName> --message <text> [--reason <text>]",
       "agent-game player-move --game <gameId|slug> --actor <actorId|actorName> --to <stageName>",
       "agent-game player-wait --game <gameId|slug> --actor <actorId|actorName>",
-      "agent-game player-attack --game <gameId|slug> --actor <actorId|actorName> --target <actorName> [--item <itemName>]",
+      "agent-game player-attack --game <gameId|slug> --actor <actorId|actorName> --target <actorName>（武器由装备决定）",
       "agent-game player-steal --game <gameId|slug> --actor <actorId|actorName> --target <actorName> --item <itemName>",
       "agent-game player-give --game <gameId|slug> --actor <actorId|actorName> --target <actorName> --item <itemName>",
       "agent-game player-pickup --game <gameId|slug> --actor <actorId|actorName> --item <itemName>",
@@ -363,16 +363,12 @@ async function main(): Promise<void> {
     if (typeof values.target !== "string" || values.target.trim().length === 0) {
       throw new Error("player-attack 需要 --target <actorName>");
     }
-    const itemName = typeof values.item === "string" ? values.item : undefined;
     const result = await withDatabase((db) =>
       playerAttack(
         db,
         game,
         actor,
-        {
-          targetActorName: values.target as string,
-          ...(itemName !== undefined ? { itemName } : {}),
-        },
+        { targetActorName: values.target as string },
         { service: DEEPSEEK_SERVICE },
       ),
     );

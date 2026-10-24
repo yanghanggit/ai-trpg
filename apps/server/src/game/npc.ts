@@ -162,9 +162,6 @@ export async function runNpcTurn(
     .filter((actor) => actor.status === "alive")
     .map((actor) => actor.name);
   const selfAndAlive = [current.actor.name, ...aliveTargets];
-  const availableAttackItemNames = current.actor.items
-    .filter((item) => item.effect.type === "damage")
-    .map((item) => item.name);
   const availableUseItemNames = current.actor.items.map((item) => item.name);
 
   const hasKnowledge = current.actor.canQuery;
@@ -185,7 +182,7 @@ export async function runNpcTurn(
     announce: buildAnnounceTool(),
     move: buildMoveTool(stageNames),
     wait: buildWaitTool(),
-    attack: buildAttackTool(aliveTargets, availableAttackItemNames),
+    attack: buildAttackTool(aliveTargets),
     steal: buildStealTool(talkTargets),
     give: buildGiveTool(aliveTargets),
     pickup: buildPickupTool(),

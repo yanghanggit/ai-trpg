@@ -41,6 +41,7 @@ export const TEST_WORLD: World = {
       hp: 12,
       stats: { maxHp: 12, attack: 6, defense: 2, speed: 4, damage: 0, block: 0 },
       status: "alive" as const,
+      equipment: { weapon: "裂齿短刃" },
       // 测试世界里的玩家角色额外拥有 steal，用于验证私密事件。
       actions: [
         "say",

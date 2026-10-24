@@ -1,6 +1,8 @@
 import { and, eq } from "drizzle-orm";
 import { actors, items, stageConnections, stageItems, stages } from "../../db/schema";
+import { addStats, type Stats } from "../attributes";
 import { GameError } from "../errors";
+import { EQUIPMENT_SLOTS } from "../types";
 import type { ActorRow, Executor, ItemRow, StageItemRow, StageRow, WorldRow } from "./types";
 
 /** 在当前场景内按名字找唯一角色；不判断存活与自我，由调用方决定。 */
@@ -21,9 +23,14 @@ export async function findActorInStage(
   return target;
 }
 
+/** 生命判定：`status` 与 `hp` 只要有一项显示已死就算死亡。 */
+export function isAlive(target: ActorRow): boolean {
+  return target.status !== "dead" && target.hp > 0;
+}
+
 /** 拒绝已死亡的目标。 */
 export function assertAlive(target: ActorRow): void {
-  if (target.status === "dead" || target.hp <= 0) {
+  if (!isAlive(target)) {
     throw new GameError("invalid_action", `目标已经死亡: ${target.name}`);
   }
 }
@@ -33,6 +40,26 @@ export function assertNotSelf(target: ActorRow, actorId: string): void {
   if (target.id === actorId) {
     throw new GameError("invalid_action", "目标不能是自己");
   }
+}
+
+/** 按槽位索引解析出穿戴中的物品行；指向不存在物品的悬空索引直接跳过。 */
+export async function resolveEquippedItems(
+  executor: Executor,
+  actor: ActorRow,
+): Promise<ItemRow[]> {
+  const rows = await executor.select().from(items).where(eq(items.actorId, actor.id));
+  const byName = new Map(rows.map((row) => [row.name, row]));
+  return EQUIPMENT_SLOTS.flatMap((slot) => {
+    const name = actor.equipment[slot];
+    const item = name === undefined ? undefined : byName.get(name);
+    return item ? [item] : [];
+  });
+}
+
+/** 当前穿戴中的全部属性之和；装备加成只有这一条来源。 */
+export async function resolveEquippedStats(executor: Executor, actor: ActorRow): Promise<Stats> {
+  const worn = await resolveEquippedItems(executor, actor);
+  return addStats(...worn.map((item) => item.stats));
 }
 
 /** 读取 actor 持有的一件物品；名字必须唯一。 */

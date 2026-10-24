@@ -75,13 +75,13 @@ describe.skipIf(!testDatabaseUrl)("appearance fusion", () => {
       handle.db,
       created.game.slug,
       "角色.奥德里克",
-      "body",
+      "armor",
       null,
       { service },
     );
 
     expect(result.ok).toBe(true);
-    expect(result.slot).toBe("body");
+    expect(result.slot).toBe("armor");
     expect(result.itemName).toBeNull();
     expect(result.appearance).toBe("奥德里克只穿旧衬衣，手背沾着新土。");
     expect(service.calls).toBe(1);
@@ -93,12 +93,39 @@ describe.skipIf(!testDatabaseUrl)("appearance fusion", () => {
       .flatMap((stage) => stage.actors)
       .find((actor) => actor.name === "角色.奥德里克");
     expect(updated?.appearance).toBe("奥德里克只穿旧衬衣，手背沾着新土。");
-    expect(updated?.equipment.body).toBeUndefined();
+    expect(updated?.equipment.armor).toBeUndefined();
 
     const memories = await getGameMemories(handle.db, created.game.id);
     const keeperMemory = memories.find((memory) => memory.name === "角色.奥德里克");
     const systemPrompt = keeperMemory?.messages.find((message) => message.type === "system");
     expect(systemPrompt?.content).toContain("[人类]");
     expect(systemPrompt?.content).not.toContain("奥德里克只穿旧衬衣");
+  });
+
+  it("keeps one armor slot plus two independent accessory slots", async () => {
+    const created = await createGame(handle.db, {
+      username: DEMO_USER.username,
+      name: "槽位收敛测试局",
+      world: DARK_FANTASY_WORLD,
+    });
+    const service = new AppearanceService("无名者裹着发黄的布，颈上的断链垂在锁骨前。");
+    const wear = (slot: "armor" | "accessory1" | "accessory2", itemName: string) =>
+      setEquipmentSlot(handle.db, created.game.slug, "角色.无名者", slot, itemName, { service });
+
+    // 护甲槽只接受 equipment 大类。
+    await expect(wear("armor", "饰品.颈上的断链")).rejects.toThrow("不能放进护甲槽");
+
+    expect((await wear("accessory2", "饰品.颈上的断链")).ok).toBe(true);
+    // 同一件物品只能占一个槽位：移到饰品一后，饰品二被清空。
+    expect((await wear("accessory1", "饰品.颈上的断链")).ok).toBe(true);
+
+    const state = await getGameState(handle.db, created.game.slug);
+    const actor = state.world.stages
+      .flatMap((stage) => stage.actors)
+      .find((candidate) => candidate.name === "角色.无名者");
+    expect(actor?.equipment).toEqual({
+      armor: "装备.发黄的裹尸布",
+      accessory1: "饰品.颈上的断链",
+    });
   });
 });

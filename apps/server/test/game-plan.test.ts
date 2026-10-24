@@ -33,9 +33,7 @@ describe("action tools", () => {
     expect(buildAnnounceTool().function.parameters.required).toEqual(["mind", "message"]);
     expect(buildMoveTool(stages).function.parameters.required).toEqual(["targetStageName"]);
     expect(buildWaitTool().function.parameters.required).toEqual([]);
-    expect(buildAttackTool(targets, items).function.parameters.required).toEqual([
-      "targetActorName",
-    ]);
+    expect(buildAttackTool(targets).function.parameters.required).toEqual(["targetActorName"]);
     expect(buildStealTool(targets).function.parameters.required).toEqual([
       "targetActorName",
       "itemName",
@@ -50,10 +48,8 @@ describe("action tools", () => {
     ]);
 
     // 每个工具的参数就是它自己的输入，没有中间层字段。
-    const attackProps = Object.keys(
-      buildAttackTool(targets, items).function.parameters.properties ?? {},
-    );
-    expect(attackProps).toEqual(["targetActorName", "itemName"]);
+    const attackProps = Object.keys(buildAttackTool(targets).function.parameters.properties ?? {});
+    expect(attackProps).toEqual(["targetActorName"]);
     const useProps = Object.keys(
       buildUseTool(items, targets, "灰烬门廊").function.parameters.properties ?? {},
     );
@@ -82,10 +78,10 @@ describe("action parsers", () => {
       targetStageName: "断钟中殿",
     });
     expect(parseWait()).toEqual({ kind: "wait" });
-    expect(parseAttack({ targetActorName: "提灯修士", itemName: " 裂齿短刃 " })).toEqual({
+    // attack 不再接收物品名：武器由装备决定。
+    expect(parseAttack({ targetActorName: " 提灯修士 ", itemName: "裂齿短刃" })).toEqual({
       kind: "attack",
       targetActorName: "提灯修士",
-      itemName: "裂齿短刃",
     });
     expect(parseSteal({ targetActorName: "提灯修士", itemName: "铅封提灯" })).toEqual({
       kind: "steal",

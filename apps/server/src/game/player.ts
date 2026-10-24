@@ -54,7 +54,6 @@ export type PlayerMoveInput = {
 
 export type PlayerAttackInput = {
   targetActorName: string;
-  itemName?: string;
 };
 
 export type PlayerStealInput = {
@@ -150,7 +149,7 @@ export async function playerWait(
   return applyPlayerAction(db, gameRef, actorRef, action);
 }
 
-/** 玩家 `attack`：攻击同场景一个角色，可引用一件自己持有的武器。 */
+/** 玩家 `attack`：攻击同场景一个角色；武器由装备决定。 */
 export async function playerAttack(
   db: Database,
   gameRef: string,
@@ -161,7 +160,6 @@ export async function playerAttack(
   const action: ActorAction = {
     kind: "attack",
     targetActorName: input.targetActorName,
-    ...(input.itemName !== undefined ? { itemName: input.itemName } : {}),
   };
   return applyPlayerAction(db, gameRef, actorRef, action, options);
 }

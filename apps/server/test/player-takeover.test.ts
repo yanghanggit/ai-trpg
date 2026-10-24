@@ -177,6 +177,7 @@ describe.skipIf(!testDatabaseUrl)("player takeover", () => {
     const monk = state.world.stages
       .flatMap((stage) => stage.actors)
       .find((actor) => actor.name === "提灯修士");
-    expect(monk?.hp).toBe(7);
+    // 6（attack）+ 3（已装备的裂齿短刃）- 3（防御）= 6 点伤害。
+    expect(monk?.hp).toBe(4);
   });
 });

@@ -145,8 +145,8 @@ export const DARK_FANTASY_WORLD: World = {
       status: "alive" as const,
       equipment: {
         weapon: "武器.掘墓人的铁锹",
-        body: "装备.补丁斗篷",
-        accessory: "饰品.闸门钥匙",
+        armor: "装备.补丁斗篷",
+        accessory1: "饰品.闸门钥匙",
       },
       items: [
         {
@@ -251,8 +251,8 @@ export const DARK_FANTASY_WORLD: World = {
       status: "alive" as const,
       isDefaultPlayer: true,
       equipment: {
-        body: "装备.发黄的裹尸布",
-        accessory: "饰品.颈上的断链",
+        armor: "装备.发黄的裹尸布",
+        accessory1: "饰品.颈上的断链",
       },
       items: [
         {

@@ -14,7 +14,7 @@
 
 入口在 `src/game/appearance.ts`。它用 actor memory 作为上下文，追加一段“外观更新”任务，然后跑一次 agent loop：
 
-- 观察只提供 `base_body` 与 actor 槽位索引解析出的穿戴物品，不提供旧 `appearance`，避免模型复述旧值；
+- 观察只提供 `base_body` 与 actor 槽位索引解析出的穿戴物品，不提供旧 `appearance`，避免模型复述旧值；提示词明确要求「穿戴不等于露出」：被衣物遮住的饰品与贴身物件不写进外观，只有明显露在外面的才写；
 - 唯一工具是 `submit_appearance`，终止时提交新的第三人称外观快照；
 - 推理过程不写 memory，也不修改 system prompt；
 - 结果写回 `actors.appearance`，递增 game version，之后所有同场景观察立即使用新值。
@@ -25,7 +25,7 @@ system prompt 不包含 `appearance`。它只描述稳定的 `base_body`；如�
 
 `setEquipmentSlot` 修改 actor 的某个槽位（指向物品名或清空），然后立刻调用一次外观推理。后续装备动作、客户端换装都走这个入口；LLM 调用在事务外，槽位与外观更新各自使用短事务。
 
-槽位目前包括武器、副手、头部、身体、足部与饰品；每个槽位只允许对应大类的物品。同一件物品只能占一个槽位，换到新槽位时会从旧槽位移除。
+槽位只有四个：`weapon`（武器）、`armor`（护甲，合并了原来的副手 / 头 / 身体 / 足部）、`accessory1` 与 `accessory2`（饰品一、饰品二）。每个槽位只允许对应大类的物品（`armor` 只收 `equipment`，两个饰品槽只收 `accessory`）。同一件物品只能占一个槽位，换到新槽位时会从旧槽位移除，因此在两个饰品槽之间移动物品不会留下重复索引。
 
 ## 种子数据
 
