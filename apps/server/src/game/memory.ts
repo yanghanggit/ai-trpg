@@ -80,7 +80,6 @@ function toRow(memoryId: string, sequence: number, message: ChatMessage) {
   return { ...base, toolCalls: null, toolCallId: null };
 }
 
-/** 构造 actor 的稳定 system prompt：实体标题、游戏设定、角色设定与全局规则。 */
 export function buildActorSystemPrompt(
   world: { id: string; name: string; campaignSetting: string; systemRules: string },
   actor: Pick<Actor, "name" | "profile" | "baseBody">,
@@ -106,7 +105,6 @@ ${formatBaseBody(actor.baseBody)}
 ${world.systemRules}`;
 }
 
-/** 把本局开局简报包装成进入 actor 长期 memory 的第一条 human message。 */
 export function buildActorOpeningBriefing(briefing: string): string {
   return `# 本局开局简报
 
@@ -115,7 +113,6 @@ export function buildActorOpeningBriefing(briefing: string): string {
 ${briefing}`;
 }
 
-/** 构造场景作为小 GM 的稳定 system prompt：实体标题、游戏设定、场景设定与职责。 */
 export function buildStageSystemPrompt(
   world: { name: string; campaignSetting: string; systemRules: string },
   stage: Pick<Stage, "name" | "profile">,
@@ -137,7 +134,6 @@ ${stage.profile}
 ${world.systemRules}`;
 }
 
-/** 构造 world 作为全局叙事者的稳定 system prompt。 */
 export function buildWorldSystemPrompt(
   world: Pick<World, "worldName" | "campaignSetting" | "systemRules">,
 ): string {
@@ -160,7 +156,6 @@ ${world.systemRules}
 只有你可以结束游戏。`;
 }
 
-/** 创建 memory 并写入 system prompt。 */
 async function createMemory(
   executor: Executor,
   gameId: string,
@@ -198,7 +193,6 @@ async function createMemory(
   return memory;
 }
 
-/** 创建 actor memory，写入 system prompt；有开局简报时再写入第一条 human message。 */
 export async function createActorMemory(
   executor: Executor,
   gameId: string,
@@ -226,7 +220,6 @@ export async function createActorMemory(
   return memory;
 }
 
-/** 创建 stage memory 并写入小 GM system prompt。 */
 export async function createStageMemory(
   executor: Executor,
   gameId: string,
@@ -243,7 +236,6 @@ export async function createStageMemory(
   );
 }
 
-/** 创建 world memory 并写入世界 system prompt。 */
 export async function createWorldMemory(
   executor: Executor,
   gameId: string,
@@ -260,7 +252,6 @@ export async function createWorldMemory(
   );
 }
 
-/** 按 game、owner 类型与 owner id 读取持久 memory；不存在时返回 undefined。 */
 export async function loadAgentMemory(
   db: Pick<Database, "select">,
   gameId: string,
@@ -291,7 +282,6 @@ export async function loadAgentMemory(
   return { row, messages: rows.map(toChatMessage) };
 }
 
-/** 从消息里取最近一条 AI 的 contextUsageRatio；不是 AI 或没有 usage 时返回 undefined。 */
 function latestContextUsageRatio(messages: readonly ChatMessage[]): number | undefined {
   for (let index = messages.length - 1; index >= 0; index -= 1) {
     const message = messages[index];
@@ -306,7 +296,6 @@ function latestContextUsageRatio(messages: readonly ChatMessage[]): number | und
   return undefined;
 }
 
-/** 在 memory 末尾追加消息并返回追加条数。 */
 export async function appendMemoryMessages(
   executor: Executor,
   memoryId: string,
@@ -339,7 +328,6 @@ export async function appendMemoryMessages(
   return rows.length;
 }
 
-/** 读取一局游戏内全部 actor memory，按 actor 名称排序。 */
 export async function getGameMemories(db: Database, gameId: string): Promise<AgentMemoryState[]> {
   const memories = await db
     .select()

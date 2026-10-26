@@ -18,7 +18,6 @@ export type GameSnapshotOptions = {
   now?: Date;
 };
 
-/** 把当前数据库状态导出为一份只读快照。 */
 export async function snapshotGame(
   db: Database,
   gameRef: string,

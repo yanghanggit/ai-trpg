@@ -13,9 +13,7 @@ const stageActionSchema = z.enum([
 const worldActionSchema = z.enum(["notify_stage", "end_game"] satisfies readonly WorldActionKind[]);
 const itemKindSchema = z.enum(["weapon", "equipment", "accessory", "consumable", "valuable"]);
 /**
- * 六项属性共用一张表；未写出的字段补 0，运行时因此总是完整 Stats。
- * 其中只有 maxHp / damage / block 参与结算；strength / wisdom / agility（力量 / 智慧 / 敏捷）
- * 是保留的标准角色属性，当前没有任何读取点。
+ * 未写出的字段补 0，运行时总是完整 Stats。
  */
 const statsSchema = z.object({
   maxHp: z.number().default(0),

@@ -40,7 +40,7 @@ export type EquipmentResult = AppearanceTurnResult & {
   itemName: string | null;
 };
 
-/** 构造提交外观的工具；外观推理只有这一个终止工具。 */
+/** 外观推理只有这一个终止工具。 */
 export function buildSubmitAppearanceTool(): ToolDefinition {
   return {
     type: "function",
@@ -62,7 +62,6 @@ export function buildSubmitAppearanceTool(): ToolDefinition {
   };
 }
 
-/** 解析 submit_appearance 参数；只检查形状与长度。 */
 export function parseAppearance(args: Record<string, unknown>): string {
   const appearance = typeof args.appearance === "string" ? args.appearance.trim() : "";
   if (appearance.length === 0) {
@@ -74,7 +73,6 @@ export function parseAppearance(args: Record<string, unknown>): string {
   return appearance;
 }
 
-/** 构造外观推理的当前观察：基础体型 + 当前穿戴；自身润色从 actor memory 读取。 */
 export function buildAppearanceObservation(actor: ActorState, dead = false): string {
   const worn = equippedItems(actor);
   const wornLines =
@@ -116,10 +114,7 @@ ${task}
 }
 
 /**
- * 用 actor memory 作为上下文跑一次外观推理，并把结果写回 `actors.appearance`。
- *
- * 只更新运行时外观，不修改 system prompt：base body 才是稳定身份，appearance
- * 是动态量，供其他 actor 与 stage 的观察使用。
+ * 只更新运行时外观，不改 system prompt：base body 才是稳定身份。
  */
 export async function runAppearanceTurn(
   db: Database,
@@ -188,10 +183,7 @@ export async function runAppearanceTurn(
 }
 
 /**
- * 换装入口：把某个槽位指向一件物品（或清空），然后立刻重算外观。
- *
- * 槽位只保存物品名；物品自身不知道自己被穿戴。后续装备动作、UI 换装
- * 都调用这里；LLM 调用发生在事务外，槽位与外观更新各自使用短事务。
+ * 换装后立刻重算外观；LLM 调用在事务外，槽位与外观各自短事务。
  */
 export async function setEquipmentSlot(
   db: Database,

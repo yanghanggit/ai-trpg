@@ -1,11 +1,7 @@
 /**
- * 与具体 provider 无关的 chat completion 数据类型。
+ * 与 provider 无关的 chat completion 数据类型。
  *
- * 命名对齐 OpenAI / DeepSeek 的 `POST /chat/completions`：一次请求 = 给定消息
- * 历史 + 本轮用户输入，让模型**补全**下一条 assistant 消息；返回的就是那条补全结果。
- *
- * 内部字段用 camelCase；DeepSeek 的 snake_case 只在 `deepseek/client.ts` 的
- * payload / response 边界转换。这样业务代码不需要记住 provider 的命名习惯。
+ * 内部字段用 camelCase，snake_case 只在 provider 的 payload / response 边界转换。
  */
 
 import type { ChatError } from "./errors";
@@ -29,13 +25,12 @@ export type ToolDefinition = {
   function: ToolFunction;
 };
 
-/** LLM 返回的单次工具调用指令（finishReason == "tool_calls" 时存在）。 */
+/** 模型发起的工具调用指令。 */
 export type ToolCall = {
   id: string;
   type: "function";
   function: {
     name: string;
-    /** JSON 序列化的参数字符串。 */
     arguments: string;
   };
 };
@@ -79,7 +74,6 @@ export type ToolMessage = {
   type: "tool";
   content: string;
   metadata?: MessageMetadata;
-  /** 对应 LLM 发出的 ToolCall.id。 */
   toolCallId: string;
 };
 
@@ -114,12 +108,7 @@ export type ChatCompletionRequestInit = {
   dump?: boolean;
 };
 
-/**
- * 一次 chat completion 请求（不可变值对象）。
- *
- * Python 版用冻结 dataclass + `assert`；这里用显式校验，避免 `python -O`
- * 之类「校验被静默关闭」的问题，也给调用方明确的 TypeError / RangeError。
- */
+/** 不可变值对象；构造时显式校验，失败抛 TypeError / RangeError。 */
 export class ChatCompletionRequest {
   readonly label: string;
   readonly inputMessage: string;
@@ -186,10 +175,9 @@ export type ChatCompletionResultInit = {
 };
 
 /**
- * 一次 chat completion 的结果（不可变值对象）。
+ * 一次 chat completion 的结果。
  *
- * `error` 是唯一的失败通道：预期内的通讯失败（超时/连接/非 200）不抛异常，
- * 而是落在 `error` 上，因此批量场景不需要再靠 client 旁路对账。
+ * `error` 是唯一的失败通道：预期内的通讯失败不抛异常，而是落在 `error` 上。
  */
 export class ChatCompletionResult {
   readonly request: ChatCompletionRequest;

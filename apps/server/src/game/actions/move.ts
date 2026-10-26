@@ -11,7 +11,6 @@ import {
 import { moveActorToStage } from "../persistence/actors";
 import type { MoveAction } from "../types";
 
-/** 构造 move 工具：沿连接移动到相邻场景。 */
 export function buildMoveTool(stageNames: readonly string[]): ToolDefinition {
   return {
     type: "function",
@@ -33,7 +32,6 @@ export function buildMoveTool(stageNames: readonly string[]): ToolDefinition {
   };
 }
 
-/** 把 move 工具参数转成动作；只检查形状。 */
 export function parseMove(args: Record<string, unknown>): MoveAction {
   const targetStageName =
     typeof args.targetStageName === "string" ? args.targetStageName.trim() : "";
@@ -43,7 +41,6 @@ export function parseMove(args: Record<string, unknown>): MoveAction {
   return { kind: "move", targetStageName };
 }
 
-/** 校验 move：目标场景存在且与当前场景有连接。 */
 export async function resolveMove(
   executor: Executor,
   world: WorldRow,
@@ -54,7 +51,6 @@ export async function resolveMove(
   return { kind: "move", action, stage, targetStage };
 }
 
-/** 应用 move：更新场景、写移动事件与环境记忆。 */
 export async function applyMove(
   executor: Executor,
   gameId: string,
@@ -71,13 +67,11 @@ export async function applyMove(
     visibility: "stage",
     content: `${actorRow.actor.name}从${resolved.stage.name}走向${target.name}。`,
   });
-  // 信息不对称：旧场景只知道「他走了」，新场景只知道「他来了」，
-  // 起点到终点的完整路线只有移动者自己知道（写进它的行动结果）。
+  // 信息不对称：旧场景只知道「他走了」，新场景只知道「他来了」，完整路线只有移动者知道。
   const leaveText = `${actorRow.actor.name}离开了${resolved.stage.name}。`;
   const enterText = `${actorRow.actor.name}进入了${target.name}。`;
 
-  // 旧场景的旁观者：与 say / attack / give 共用同一个可见行动观察原语。
-  // 此时移动者已经在目标场景，所以这里不会被自己收到。
+  // 此时移动者已在目标场景，所以不会被自己收到。
   await appendActionObservations(
     executor,
     gameId,

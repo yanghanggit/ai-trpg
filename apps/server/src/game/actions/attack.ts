@@ -5,7 +5,6 @@ import { GameError } from "../errors";
 import { applyItemEffect, UNARMED_EFFECT } from "../item-effects";
 import type { AttackAction } from "../types";
 
-/** 构造 attack 工具：攻击同场景一个角色；武器由装备决定，不作为参数。 */
 export function buildAttackTool(targetActorNames: readonly string[]): ToolDefinition {
   return {
     type: "function",
@@ -28,7 +27,6 @@ export function buildAttackTool(targetActorNames: readonly string[]): ToolDefini
   };
 }
 
-/** 把 attack 工具参数转成动作；只检查形状。 */
 export function parseAttack(args: Record<string, unknown>): AttackAction {
   const targetActorName =
     typeof args.targetActorName === "string" ? args.targetActorName.trim() : "";
@@ -39,10 +37,8 @@ export function parseAttack(args: Record<string, unknown>): AttackAction {
 }
 
 /**
- * 校验 attack：目标不是自己。
- *
- * 目标不要求存活：尸体也能被攻击，伤害结算会在 `isAlive` 处空转。
- * 唯一的存活要求是行动者自己——尸体不能自主行动。
+ * 目标不要求存活：尸体也能被攻击，伤害结算会在 `isAlive` 处空转；
+ * 唯一的存活要求是行动者自己。
  */
 export async function resolveAttack(
   executor: Executor,
@@ -52,7 +48,7 @@ export async function resolveAttack(
 ): Promise<ResolvedAttack> {
   const target = await findActorInStage(executor, stage.id, action.targetActorName);
   assertNotSelf(target, actorRow.actor.id);
-  // 武器只来自装备：weapon 槽里的物品，且必须声明 damage 效果。其余情况按空手。
+  // 武器只来自 weapon 槽，且必须声明 damage 效果；其余情况按空手。
   const weaponName = actorRow.actor.equipment.weapon;
   const item =
     weaponName === undefined

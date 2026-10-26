@@ -33,10 +33,7 @@ ${question}`;
 }
 
 /**
- * 对 actor 或 stage 做一次只读探针。
- *
- * 读取目标的 system prompt、memory 与当前 observation，临时追加问题后调用一次 LLM；
- * 不写入 memory、不产生公共事件、不改变游戏状态，也不提交行动计划。
+ * 只读：不写 memory、不产生公共事件、不改变游戏状态，也不提交行动计划。
  */
 export async function runProbe(
   db: Database,

@@ -6,7 +6,6 @@ import { GameError } from "../errors";
 import { appendCommunicationObservations, appendStageEvent } from "../observations";
 import type { AnnounceAction } from "../types";
 
-/** 构造 announce 工具：向当前场景公开说话，没有指定对象。 */
 export function buildAnnounceTool(): ToolDefinition {
   return {
     type: "function",
@@ -28,7 +27,6 @@ export function buildAnnounceTool(): ToolDefinition {
   };
 }
 
-/** 把 announce 工具参数转成动作；只检查形状。 */
 export function parseAnnounce(args: Record<string, unknown>): AnnounceAction {
   const mind = typeof args.mind === "string" ? args.mind.trim() : "";
   const message = typeof args.message === "string" ? args.message : "";
@@ -41,7 +39,6 @@ export function parseAnnounce(args: Record<string, unknown>): AnnounceAction {
   return { kind: "announce", mind, message };
 }
 
-/** 应用 announce：场景公开消息 + 全体听觉观察。 */
 export async function applyAnnounce(
   executor: Executor,
   gameId: string,

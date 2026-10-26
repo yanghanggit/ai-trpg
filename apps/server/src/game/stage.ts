@@ -115,11 +115,7 @@ function assertEnvironmentHasNoActorNames(
   }
 }
 
-/**
- * 在事务中应用一次 stage 仲裁计划。
- *
- * 计划非法时写入 stage memory 并返回 false；数据库错误继续抛出。
- */
+/** 计划非法时写入 stage memory 并返回 false；数据库错误继续抛出。 */
 export async function applyStagePlan(
   db: Database,
   gameId: string,
@@ -288,11 +284,7 @@ export async function applyStagePlan(
   });
 }
 
-/**
- * 为单个 stage 跑一轮小 GM agent loop，应用 environment/通知并返回最新状态。
- *
- * stage 回合由调用方显式推动；不会自动随 actor 行动运行。
- */
+/** stage 回合由调用方显式推动，不随 actor 行动自动运行。 */
 export async function runStageTurn(
   db: Database,
   gameRef: string,
@@ -321,7 +313,7 @@ export async function runStageTurn(
   const actions: StageAction[] = [];
   let submitted: StagePlan | null = null;
 
-  /** 提交后仍可继续补充通知；每次都以当前列表为准快照。 */
+  /** 每次写入后都刷新一次快照；模型忘记调终止工具时本轮动作也不会丢。 */
   const submit = (): StagePlan => {
     const plan = { actions: actions.map((action) => ({ ...action })) };
     submitted = plan;
@@ -358,7 +350,6 @@ export async function runStageTurn(
             [submitTool.function.name]: (args: Record<string, unknown>) => {
               const environment = parseEnvironment(args);
               if (environment !== undefined) {
-                // 写入动作会即时更新计划快照，这里只负责补上/替换 environment。
                 const index = actions.findIndex((action) => action.kind === "submit_environment");
                 if (index >= 0) {
                   actions[index] = { kind: "submit_environment", environment };
@@ -388,8 +379,6 @@ export async function runStageTurn(
                 );
               }
               actions.push({ kind: "notify_world", notification: parseWorldNotification(args) });
-              // 写入动作加入即刷新计划快照：模型忘记调用终止工具时，本轮动作也不会丢；
-              // 已提交后再补充动作同样以最新列表为准。
               submit();
               return "通知已加入本轮计划";
             },

@@ -13,27 +13,21 @@ export type BaseBody = {
 export type ItemKind = "weapon" | "equipment" | "accessory" | "consumable" | "valuable";
 
 /**
- * 物品的声明式效果。
- *
- * 只存可序列化 JSON；`type` 是 handler 的路由 key，其余字段由对应 handler
- * 解释。物品不持有函数。
+ * 物品的声明式效果：只存可序列化 JSON，`type` 路由到 handler，物品不持有函数。
  */
 export type ItemEffect = {
   type: string;
   [key: string]: unknown;
 };
 
-/** actor 的穿戴槽；槽里只记录物品名，物品自身不知道被谁穿戴。 */
 /**
- * actor 的穿戴槽；槽里只记录物品名，物品自身不知道被谁穿戴。
- *
- * 开发期只保留四个槽：一武器、一护甲（合并了副手/头/身体/足部）、两饰品。
+ * actor 的穿戴槽：槽里只记录物品名，物品自身不知道被谁穿戴。
+ * 开发期只保留一武器、一护甲（合并副手/头/身体/足部）、两饰品。
  */
 export const EQUIPMENT_SLOTS = ["weapon", "armor", "accessory1", "accessory2"] as const;
 export type EquipmentSlot = (typeof EQUIPMENT_SLOTS)[number];
 export type EquipmentSlots = Partial<Record<EquipmentSlot, string>>;
 
-/** 槽位标签，用于 prompt 与调试输出。 */
 export const EQUIPMENT_SLOT_LABELS: Record<EquipmentSlot, string> = {
   weapon: "武器",
   armor: "护甲",
@@ -41,7 +35,6 @@ export const EQUIPMENT_SLOT_LABELS: Record<EquipmentSlot, string> = {
   accessory2: "饰品二",
 };
 
-/** 每个槽位允许的物品大类。 */
 export const EQUIPMENT_SLOT_KINDS: Record<EquipmentSlot, readonly ItemKind[]> = {
   weapon: ["weapon"],
   armor: ["equipment"],
@@ -50,10 +43,8 @@ export const EQUIPMENT_SLOT_KINDS: Record<EquipmentSlot, readonly ItemKind[]> = 
 };
 
 /**
- * 创建游戏时物化为运行时 world 的初始内容定义。
- *
- * 不是数据库行，也不是测试夹具；`createGame` 读取它并在一个事务中写入
- * `worlds`、`stages`、`actors`、`items` 与 `stage_items`。创建完成后以数据库为唯一真相。
+ * 创建游戏时的初始内容定义；`createGame` 在一个事务里把它物化为数据库行，
+ * 之后以数据库为唯一真相。
  */
 export type World = {
   contentVersion: string;
@@ -92,9 +83,8 @@ export type Connection = {
 };
 
 /**
- * World 内的初始 actor 定义，包含 base body、根属性、初始物品与初始状态。
+ * World 内的初始 actor 定义。
  *
- * `status` 省略时按 alive 写入；创建后由攻击等行动更新数据库中的 `status`。
  * `baseBody` 是未穿装备的形态，之后与装备融合成 appearance。
  */
 export type Actor = {
@@ -149,7 +139,6 @@ export type CreateGameInput = {
   world: World;
 };
 
-/** 公开对同场景的一个角色说话。 */
 export type SayAction = {
   kind: "say";
   mind: string;
@@ -165,20 +154,17 @@ export type WhisperAction = {
   message: string;
 };
 
-/** 向当前场景公开说话。 */
 export type AnnounceAction = {
   kind: "announce";
   mind: string;
   message: string;
 };
 
-/** 沿连接移动到相邻场景。 */
 export type MoveAction = {
   kind: "move";
   targetStageName: string;
 };
 
-/** 留在原地，不改变场景状态。 */
 export type WaitAction = {
   kind: "wait";
 };
@@ -189,7 +175,6 @@ export type AttackAction = {
   targetActorName: string;
 };
 
-/** 从同场景的一个角色身上取走一件物品。 */
 export type StealAction = {
   kind: "steal";
   targetActorName: string;
@@ -203,7 +188,6 @@ export type GiveAction = {
   itemName: string;
 };
 
-/** 拾起当前场景中的一件物品。 */
 export type PickupAction = {
   kind: "pickup";
   itemName: string;
@@ -224,14 +208,12 @@ export type UseAction = {
   targetDetail?: string;
 };
 
-/** 把背包里的一件物品穿到指定槽位；同一物品会从其他槽位移除。 */
 export type EquipAction = {
   kind: "equip";
   itemName: string;
   slot: EquipmentSlot;
 };
 
-/** 卸下某个槽位的装备；物品仍留在背包，只是不再计入穿戴。 */
 export type UnequipAction = {
   kind: "unequip";
   slot: EquipmentSlot;
@@ -303,10 +285,10 @@ export type ItemBaseState = {
   stats: Stats;
 };
 
-/** 武器：`stats.damage` 参与攻击，`stats.block` 只存储。 */
+/** 武器：`attack` 只读它的 `damage`；穿戴后 `block` 与其它槽一样计入减伤。 */
 export type WeaponState = ItemBaseState & { kind: "weapon" };
 
-/** 装备：`stats.block` 提供防御；当前不参与伤害计算。 */
+/** 装备：不能用于出手，但穿戴后 `block` 计入减伤。 */
 export type EquipmentState = ItemBaseState & { kind: "equipment" };
 
 /** 饰品：随身携带的非战斗物品。 */
@@ -321,7 +303,6 @@ export type ConsumableState = ItemBaseState & { kind: "consumable" };
 /** 贵重物品：无战斗数值的剧情物品。 */
 export type ValuableState = ItemBaseState & { kind: "valuable" };
 
-/** 运行时物品状态；按 `kind` 收窄到具体子类。 */
 export type ItemState =
   | WeaponState
   | EquipmentState
@@ -329,7 +310,6 @@ export type ItemState =
   | ConsumableState
   | ValuableState;
 
-/** 运行时 actor；`items` 是它的物品队列，`actions` 是它被允许的动作。 */
 export type ActorState = {
   id: string;
   name: string;
@@ -434,11 +414,33 @@ export type GameState = {
   messages: MessageState[];
 };
 
+/** 死亡阶段里一个没做成的收尾动作；失败不改变 hp，也不撤销已宣布的死亡。 */
+export type DeathPhaseFailure = {
+  actorName: string;
+  reason: string;
+};
+
+/**
+ * 一次死亡阶段的结果。
+ *
+ * 阶段本身不抛业务错误：单个死者失败只记录在这里，标记没写成，下次调用会重试。
+ */
+export type DeathPhaseResult = {
+  /** 本次认领并宣布死亡的 actor。 */
+  settled: string[];
+  /** 认领、宣布或结束整局失败的 actor 与原因。 */
+  failed: DeathPhaseFailure[];
+  /** 死亡已宣布、但尸体外观快照没推成的 actor；按设计可以放着不管。 */
+  appearanceFailed: string[];
+};
+
 export type ActorTurnResult = {
   ok: boolean;
   plan: ActorPlan | null;
   loopSuccess: boolean;
   state: GameState;
+  /** 本次行动之后死亡阶段的结果；失败不回滚这次行动，但要让上层看得见。 */
+  death?: DeathPhaseResult;
 };
 
 export type StageTurnResult = {

@@ -54,9 +54,10 @@ import {
   snapshotGame,
   takeActorControl,
 } from "../src/game";
-import type { EquipmentSlot, World } from "../src/game/types";
+import type { ActorTurnResult, EquipmentSlot, World } from "../src/game/types";
 import { EQUIPMENT_SLOTS } from "../src/game/types";
 import { parseWorldContent } from "../src/game/world-content";
+import { consoleLogger } from "../src/llm/logger";
 
 type Output = Record<string, unknown>;
 
@@ -85,6 +86,17 @@ const options = {
   owner: { type: "string" },
   "min-ratio": { type: "string" },
 } as const;
+
+/** 行动回合的输出；死亡阶段的结果（失败与重试信息）一并交给上层。 */
+function emitTurn(command: string, result: ActorTurnResult): void {
+  emit({
+    ok: true,
+    action: command,
+    plan: result.plan,
+    state: result.state,
+    ...(result.death ? { death: result.death } : {}),
+  });
+}
 
 function emit(payload: Output, exitCode = 0): void {
   process.stdout.write(`${JSON.stringify(payload, null, 2)}\n`);
@@ -365,7 +377,7 @@ async function main(): Promise<void> {
             ...(reason !== undefined ? { reason } : {}),
           }),
     );
-    emit({ ok: true, action: command, plan: result.plan, state: result.state });
+    emitTurn(command, result);
     return;
   }
 
@@ -378,7 +390,7 @@ async function main(): Promise<void> {
         ...(reason !== undefined ? { reason } : {}),
       }),
     );
-    emit({ ok: true, action: command, plan: result.plan, state: result.state });
+    emitTurn(command, result);
     return;
   }
 
@@ -390,14 +402,14 @@ async function main(): Promise<void> {
     const result = await withDatabase((db) =>
       playerMove(db, game, actor, { targetStageName: values.to as string }),
     );
-    emit({ ok: true, action: command, plan: result.plan, state: result.state });
+    emitTurn(command, result);
     return;
   }
 
   if (command === "player-wait") {
     const { game, actor } = requireActorArgs(values, command);
     const result = await withDatabase((db) => playerWait(db, game, actor));
-    emit({ ok: true, action: command, plan: result.plan, state: result.state });
+    emitTurn(command, result);
     return;
   }
 
@@ -415,7 +427,7 @@ async function main(): Promise<void> {
         { service: DEEPSEEK_SERVICE, appearanceService: DEEPSEEK_SERVICE },
       ),
     );
-    emit({ ok: true, action: command, plan: result.plan, state: result.state });
+    emitTurn(command, result);
     return;
   }
 
@@ -426,7 +438,7 @@ async function main(): Promise<void> {
         ? playerSteal(db, game, actor, { targetActorName: target, itemName: item })
         : playerGive(db, game, actor, { targetActorName: target, itemName: item }),
     );
-    emit({ ok: true, action: command, plan: result.plan, state: result.state });
+    emitTurn(command, result);
     return;
   }
 
@@ -438,7 +450,7 @@ async function main(): Promise<void> {
     const result = await withDatabase((db) =>
       playerPickup(db, game, actor, { itemName: values.item as string }),
     );
-    emit({ ok: true, action: command, plan: result.plan, state: result.state });
+    emitTurn(command, result);
     return;
   }
 
@@ -470,7 +482,7 @@ async function main(): Promise<void> {
         { service: DEEPSEEK_SERVICE, appearanceService: DEEPSEEK_SERVICE },
       ),
     );
-    emit({ ok: true, action: command, plan: result.plan, state: result.state });
+    emitTurn(command, result);
     return;
   }
 
@@ -485,7 +497,7 @@ async function main(): Promise<void> {
         slot: requireSlot(values),
       }),
     );
-    emit({ ok: true, action: command, plan: result.plan, state: result.state });
+    emitTurn(command, result);
     return;
   }
 
@@ -494,7 +506,7 @@ async function main(): Promise<void> {
     const result = await withDatabase((db) =>
       playerUnequip(db, game, actor, { slot: requireSlot(values) }),
     );
-    emit({ ok: true, action: command, plan: result.plan, state: result.state });
+    emitTurn(command, result);
     return;
   }
 
@@ -566,6 +578,7 @@ async function main(): Promise<void> {
           await runNpcTurn(db, gameRef, actorId, {
             service: DEEPSEEK_SERVICE,
             appearanceService: DEEPSEEK_SERVICE,
+            logger: consoleLogger,
           }),
         );
       }
@@ -580,6 +593,7 @@ async function main(): Promise<void> {
         plan: result.plan,
         loopSuccess: result.loopSuccess,
         state: result.state,
+        ...(result.death ? { death: result.death } : {}),
       })),
     });
     return;

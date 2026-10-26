@@ -7,9 +7,7 @@ import { getGameState } from "./service";
 
 export type ActorControl = typeof actorControls.$inferSelect;
 
-/**
- * 把 actor 的控制权交给当前玩家；重复接管是幂等 upsert。
- */
+/** 重复接管是幂等 upsert。 */
 export async function takeActorControl(
   db: Database,
   gameRef: string,
@@ -43,7 +41,6 @@ export async function takeActorControl(
   return control;
 }
 
-/** 释放 actor 的玩家控制关系。 */
 export async function releaseActorControl(
   db: Database,
   gameRef: string,
@@ -54,7 +51,6 @@ export async function releaseActorControl(
   await db.delete(actorControls).where(eq(actorControls.actorId, actor.id));
 }
 
-/** 判断 actor 当前是否由玩家控制。 */
 export async function isPlayerControlled(
   db: Pick<Database, "select">,
   gameId: string,
@@ -74,7 +70,6 @@ export async function isPlayerControlled(
   return control !== undefined;
 }
 
-/** 返回本局中由玩家控制的 actor id。 */
 export async function listPlayerControlledActorIds(
   db: Pick<Database, "select">,
   gameId: string,

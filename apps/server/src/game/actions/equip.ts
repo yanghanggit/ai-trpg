@@ -17,7 +17,6 @@ const SLOT_LABELS = EQUIPMENT_SLOTS.map((slot) => `${slot}（${EQUIPMENT_SLOT_LA
   " / ",
 );
 
-/** 构造 equip 工具：把背包里的一件物品穿到槽位。 */
 export function buildEquipTool(wearableItemNames: readonly string[]): ToolDefinition {
   return {
     type: "function",
@@ -44,7 +43,6 @@ export function buildEquipTool(wearableItemNames: readonly string[]): ToolDefini
   };
 }
 
-/** 解析槽位参数。 */
 export function parseSlot(value: unknown): EquipmentSlot {
   const slot = typeof value === "string" ? value.trim() : "";
   if (!EQUIPMENT_SLOTS.includes(slot as EquipmentSlot)) {
@@ -53,7 +51,6 @@ export function parseSlot(value: unknown): EquipmentSlot {
   return slot as EquipmentSlot;
 }
 
-/** 把 equip 工具参数转成动作；只检查形状。 */
 export function parseEquip(args: Record<string, unknown>): EquipAction {
   const itemName = typeof args.itemName === "string" ? args.itemName.trim() : "";
   if (itemName.length === 0) {
@@ -62,7 +59,6 @@ export function parseEquip(args: Record<string, unknown>): EquipAction {
   return { kind: "equip", itemName, slot: parseSlot(args.slot) };
 }
 
-/** 校验 equip：物品在背包里，且槽位接受它的大类。 */
 export async function resolveEquip(
   executor: Executor,
   actorRow: ActorWithStageRow,
@@ -74,7 +70,6 @@ export async function resolveEquip(
   return { kind: "equip", action, stage: actorRow.stage, item };
 }
 
-/** 应用 equip：只改穿戴索引，物品本身不动。 */
 export async function applyEquip(
   executor: Executor,
   gameId: string,

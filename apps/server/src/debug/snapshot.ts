@@ -153,7 +153,6 @@ function sessionJsonl(session: readonly SessionEvent[]): string {
   return `${session.map((event) => JSON.stringify(event)).join("\n")}\n`;
 }
 
-/** 保存一份完整快照；返回落盘后的路径与内容。 */
 export async function saveSnapshot(input: SaveSnapshotInput): Promise<Snapshot> {
   assertSafeSegment("user", input.user);
   assertSafeSegment("game", input.game);
@@ -226,7 +225,6 @@ export async function saveSnapshot(input: SaveSnapshotInput): Promise<Snapshot> 
   return { path: target, manifest, world: input.world, session: [...session], parts: { ...parts } };
 }
 
-/** 读取任意一份快照；缺失或不符合 schema 时直接失败。 */
 export async function loadSnapshot(snapshotDir: string): Promise<Snapshot> {
   const path = resolve(snapshotDir);
   const manifest = manifestSchema.parse(
@@ -300,7 +298,6 @@ async function listDirectories(path: string): Promise<string[]> {
     .sort();
 }
 
-/** 返回指定 user/game 的最新快照；不存在时返回 undefined。 */
 export async function findLatestSnapshot(
   options: ListSnapshotsOptions & { user: string; game: string },
 ): Promise<SnapshotSummary | undefined> {

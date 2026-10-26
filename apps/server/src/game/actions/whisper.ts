@@ -7,7 +7,6 @@ import { GameError } from "../errors";
 import { appendCommunicationObservations, appendStageEvent } from "../observations";
 import type { WhisperAction } from "../types";
 
-/** 构造 whisper 工具：对同场景一个具名角色耳语，只有对方能听见。 */
 export function buildWhisperTool(targets: readonly string[]): ToolDefinition {
   return {
     type: "function",
@@ -34,7 +33,6 @@ export function buildWhisperTool(targets: readonly string[]): ToolDefinition {
   };
 }
 
-/** 把 whisper 工具参数转成动作；只检查形状。 */
 export function parseWhisper(args: Record<string, unknown>): WhisperAction {
   const mind = typeof args.mind === "string" ? args.mind.trim() : "";
   const message = typeof args.message === "string" ? args.message : "";
@@ -52,7 +50,6 @@ export function parseWhisper(args: Record<string, unknown>): WhisperAction {
   return { kind: "whisper", mind, targetActorName, message };
 }
 
-/** 校验 whisper 目标：同场景唯一角色，不能是自己。 */
 export async function resolveWhisper(
   executor: Executor,
   stage: ResolvedWhisper["stage"],
@@ -66,7 +63,6 @@ export async function resolveWhisper(
   return { kind: "whisper", action, stage, target };
 }
 
-/** 应用 whisper：私密消息 + 只有目标收到观察。 */
 export async function applyWhisper(
   executor: Executor,
   gameId: string,

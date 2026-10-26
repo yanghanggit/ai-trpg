@@ -32,6 +32,7 @@ async function applyPlayerAction(
     plan,
     loopSuccess: true,
     state: await getGameState(db, state.game.id),
+    ...(result.death ? { death: result.death } : {}),
   };
 }
 
@@ -42,7 +43,6 @@ export type PlayerTalkInput = {
   reason?: string;
 };
 
-/** 玩家提交的公开宣告动作。 */
 export type PlayerAnnounceInput = {
   message: string;
   reason?: string;
@@ -90,7 +90,6 @@ function playerMind(reason: string | undefined): string {
   return reason?.trim() || "玩家直接提交";
 }
 
-/** 玩家 `say`：对同场景一个角色公开说话。 */
 export async function playerSay(
   db: Database,
   gameRef: string,
@@ -106,7 +105,6 @@ export async function playerSay(
   return applyPlayerAction(db, gameRef, actorRef, action);
 }
 
-/** 玩家 `whisper`：对同场景一个角色耳语，只有对方听见。 */
 export async function playerWhisper(
   db: Database,
   gameRef: string,
@@ -122,7 +120,6 @@ export async function playerWhisper(
   return applyPlayerAction(db, gameRef, actorRef, action);
 }
 
-/** 玩家 `announce`：向当前场景公开说话。 */
 export async function playerAnnounce(
   db: Database,
   gameRef: string,
@@ -137,7 +134,6 @@ export async function playerAnnounce(
   return applyPlayerAction(db, gameRef, actorRef, action);
 }
 
-/** 玩家 `move`：沿连接移动到相邻场景。 */
 export async function playerMove(
   db: Database,
   gameRef: string,
@@ -148,7 +144,6 @@ export async function playerMove(
   return applyPlayerAction(db, gameRef, actorRef, action);
 }
 
-/** 玩家 `wait`：留在原地。 */
 export async function playerWait(
   db: Database,
   gameRef: string,
@@ -158,7 +153,6 @@ export async function playerWait(
   return applyPlayerAction(db, gameRef, actorRef, action);
 }
 
-/** 玩家 `attack`：攻击同场景一个角色；武器由装备决定。 */
 export async function playerAttack(
   db: Database,
   gameRef: string,
@@ -173,7 +167,6 @@ export async function playerAttack(
   return applyPlayerAction(db, gameRef, actorRef, action, options);
 }
 
-/** 玩家 `steal`：从同场景一个角色身上取走一件物品。 */
 export async function playerSteal(
   db: Database,
   gameRef: string,
@@ -188,7 +181,6 @@ export async function playerSteal(
   return applyPlayerAction(db, gameRef, actorRef, action);
 }
 
-/** 玩家 `give`：把自己的一件物品交给同场景一个角色。 */
 export async function playerGive(
   db: Database,
   gameRef: string,
@@ -203,7 +195,6 @@ export async function playerGive(
   return applyPlayerAction(db, gameRef, actorRef, action);
 }
 
-/** 玩家 `pickup`：拾起当前场景中的一件物品。 */
 export async function playerPickup(
   db: Database,
   gameRef: string,
@@ -214,7 +205,6 @@ export async function playerPickup(
   return applyPlayerAction(db, gameRef, actorRef, action);
 }
 
-/** 玩家 `equip`：把背包里的一件物品穿到槽位；不触发外观重算。 */
 export async function playerEquip(
   db: Database,
   gameRef: string,
@@ -225,7 +215,6 @@ export async function playerEquip(
   return applyPlayerAction(db, gameRef, actorRef, action);
 }
 
-/** 玩家 `unequip`：卸下某个槽位的装备；不触发外观重算。 */
 export async function playerUnequip(
   db: Database,
   gameRef: string,
@@ -236,7 +225,6 @@ export async function playerUnequip(
   return applyPlayerAction(db, gameRef, actorRef, action);
 }
 
-/** 玩家 `use`：用自己的物品作用于一个角色或当前场景。 */
 export async function playerUse(
   db: Database,
   gameRef: string,

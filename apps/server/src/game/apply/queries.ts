@@ -24,16 +24,13 @@ export async function findActorInStage(
 }
 
 /**
- * 生命判定：唯一的依据是当前生命。ActorRow 与 ActorState 都满足。
- *
- * 它只用来判断「能不能自主行动」（行动入口）与展示，**不**用来限制目标：
+ * 生命只用来判断「能不能自主行动」与展示，**不**用来限制目标：
  * 尸体可以被攻击、给予、使用、偷窃，这是给复活类玩法留的口子。
  */
 export function isAlive(target: { hp: number }): boolean {
   return target.hp > 0;
 }
 
-/** 拒绝把自己当成目标。 */
 export function assertNotSelf(target: ActorRow, actorId: string): void {
   if (target.id === actorId) {
     throw new GameError("invalid_action", "目标不能是自己");
@@ -54,13 +51,12 @@ export async function resolveEquippedItems(
   });
 }
 
-/** 当前穿戴中的全部属性之和；装备加成只有这一条来源。 */
+/** 装备加成只有这一条来源。 */
 export async function resolveEquippedStats(executor: Executor, actor: ActorRow): Promise<Stats> {
   const worn = await resolveEquippedItems(executor, actor);
   return addStats(...worn.map((item) => item.stats));
 }
 
-/** 读取 actor 持有的一件物品；名字必须唯一。 */
 export async function resolveActorItem(
   executor: Executor,
   actorId: string,
@@ -78,7 +74,6 @@ export async function resolveActorItem(
   return item;
 }
 
-/** 读取当前场景中的一件物品。 */
 export async function resolveStageItem(
   executor: Executor,
   stageId: string,

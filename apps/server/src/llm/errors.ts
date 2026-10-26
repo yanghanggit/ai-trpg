@@ -1,12 +1,7 @@
 /**
- * 对话通讯层错误模型（provider 无关）。
+ * 通讯层错误模型（provider 无关）。
  *
- * 单次通讯的失败统一用 `ChatError` 表达。通讯层只负责如实记录与抛出，
- * **不做重试**；`retryable` 仅作为元数据交给业务层，由其决定重试策略。
- *
- * 与 Python 版的差异：
- * - 不用 `assert` 做参数校验（`python -O` 会静默失效），而是显式抛错；
- * - 额外携带 `details`（例如非 200 响应的正文片段），方便定位问题。
+ * 通讯层只记录与抛出，**不做重试**；`retryable` 是给业务层决定重试策略的元数据。
  */
 
 export type ErrorKind = "timeout" | "connection" | "api";

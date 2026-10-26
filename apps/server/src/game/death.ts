@@ -1,108 +1,133 @@
 import type { Database } from "../db/pool";
+import type { LlmLogger } from "../llm/logger";
 import type { ChatCompletionService } from "../llm/protocol";
 import { runAppearanceTurn } from "./appearance";
 import { appendPublicMessage, bumpGameVersion } from "./apply/messages";
 import { MEMORY_KINDS } from "./constants";
+import { completeGame } from "./end-game";
 import { appendMemoryMessages, loadAgentMemory } from "./memory";
 import { appendActionObservations, appendStageEvent } from "./observations";
 import { listActorsForAppearance } from "./persistence/actors";
 import {
+  claimDeath,
+  listDeadDefaultPlayers,
   listDeathsToSettle,
   listStageIdsOfGame,
-  markDeathSettled,
   resetRevivedDeathMarkers,
 } from "./persistence/deaths";
+import type { DeathPhaseFailure, DeathPhaseResult } from "./types";
 
 export type DeathPhaseOptions = {
-  /** 死亡广播不需要 LLM；只有随后的外观快照需要，没给就跳过外观。 */
+  /** 只有尸体外观快照需要 LLM；不传就跳过外观。 */
   service?: ChatCompletionService;
-  logger?: Parameters<typeof runAppearanceTurn>[3]["logger"];
+  logger?: LlmLogger;
 };
 
-export type DeathPhaseResult = {
-  /** 本次宣布死亡的 actor 名字。 */
-  settled: string[];
-  /** 死亡已经广播、但外观快照没推成的 actor；按设计可以放着不管。 */
-  appearanceFailed: string[];
-};
+/** 同一局的并发调用合流到同一次扫描。 */
+const running = new Map<string, Promise<DeathPhaseResult>>();
 
 /**
- * 死亡阶段：扫描本局全部 actor，把「`hp` 已归零但还没宣布过」的死者各处理一次。
+ * 死亡阶段：把「`hp` 归零但还没宣布」的死者各收尾一次。
  *
- * 两个部分，顺序固定：
- * 1. **宣布死亡**（不需要 LLM，权威）：写公共事件、场景记忆、旁观者记忆与死者自己的记忆，
- *    并在同一个事务里写 `death_settled_at`。这一步完成，死亡就算处理完了。
- * 2. **尸体外观快照**（需要 LLM，尽力而为）：失败只记进 `appearanceFailed`，不回退第 1 步，
- *    也不重试——死者的外观留在死亡前的样子是可以接受的。
+ * 由 hp 变化的调用方在事务之后触发，也可显式调用。顺序固定为 宣布 → 尸体外观 → 结束整局：
+ * 外观推理只服务 active 局。
  *
- * 三条约定：
- * - 死亡不是状态字段，而是 `hp === 0` 这个事实；攻击方只写 hp，不判定死亡。
- * - 宣布与收尾属于死者自己，因此在 hp 变化的事务之后全局扫描，而不是塞进攻击方的结算里；
- *   每个死者彼此独立、并发执行。
- * - `death_settled_at` 只是「这次死亡已经宣布过了吗」的处理标记，不是生命状态；
- *   一旦 hp 被抬回正数（复活），标记会被清空，等下次死亡重新宣布。
+ * 每个死者独立结算；失败只进返回值与日志，不回滚也不否定触发它的行动，等下次调用重试。
+ * 认领语义见 `claimDeath`，取舍见 docs/database.md。
  */
 export async function settleDeaths(
   db: Database,
   gameId: string,
   options: DeathPhaseOptions = {},
 ): Promise<DeathPhaseResult> {
-  const result: DeathPhaseResult = { settled: [], appearanceFailed: [] };
-  const { service } = options;
+  const inFlight = running.get(gameId);
+  if (inFlight) {
+    return inFlight;
+  }
+  const phase = runDeathPhase(db, gameId, options).finally(() => {
+    running.delete(gameId);
+  });
+  running.set(gameId, phase);
+  return phase;
+}
+
+async function runDeathPhase(
+  db: Database,
+  gameId: string,
+  options: DeathPhaseOptions,
+): Promise<DeathPhaseResult> {
+  const result: DeathPhaseResult = { settled: [], failed: [], appearanceFailed: [] };
+  const { service, logger } = options;
 
   const stageIds = await listStageIdsOfGame(db, gameId);
   if (stageIds.length === 0) {
     return result;
   }
 
-  // 复活或外部写入把 hp 拉回正数时，清掉旧的收尾标记，等下次死亡重新宣布。
+  // 复活或外部写入把 hp 抬回正数时清标记，等下次死亡重新宣布。
   await resetRevivedDeathMarkers(db, stageIds);
   const dying = await listDeathsToSettle(db, gameId);
 
-  // 第一步：宣布死亡。只写库，没有 LLM；失败的死者不影响其它人。
+  const settled: typeof dying = [];
   await Promise.all(
     dying.map(async (actor) => {
       try {
-        await announceDeath(db, gameId, actor);
-        result.settled.push(actor.name);
-      } catch {
-        // 连广播都没写成就跳过：标记没写，下一次 hp 变化或 `agent:game deaths` 会再来。
+        if (await announceDeath(db, gameId, actor)) {
+          result.settled.push(actor.name);
+          settled.push(actor);
+        }
+      } catch (error) {
+        // 事务回滚会连认领一起回滚，所以失败仍然可以重试。
+        result.failed.push({ actorName: actor.name, reason: describeError(error) });
+        logger?.warn(`死亡宣布失败，下次调用会重试: ${actor.name}`, error);
       }
     }),
   );
 
-  // 第二步：尸体外观快照，尽力而为。失败不回退已宣布的死亡，也不重试。
-  if (!service) {
-    return result;
-  }
-  await Promise.all(
-    dying.map(async (actor) => {
-      try {
-        const appearance = await runAppearanceTurn(db, gameId, actor.id, {
-          service,
-          ...(options.logger ? { logger: options.logger } : {}),
-        });
-        if (!appearance.ok) {
+  // 只补宣布成功的死者；输了认领的那份已由别处收尾。
+  if (service) {
+    await Promise.all(
+      settled.map(async (actor) => {
+        try {
+          const appearance = await runAppearanceTurn(db, gameId, actor.id, { service });
+          if (!appearance.ok) {
+            result.appearanceFailed.push(actor.name);
+          }
+        } catch (error) {
           result.appearanceFailed.push(actor.name);
+          logger?.warn(`尸体外观快照失败: ${actor.name}`, error);
         }
-      } catch {
-        result.appearanceFailed.push(actor.name);
-      }
-    }),
-  );
+      }),
+    );
+  }
+
+  // 与宣布解耦：不靠结算方记得调用，任何写 hp 的路径都由这里收口。
+  for (const player of await listDeadDefaultPlayers(db, gameId)) {
+    try {
+      await completeGame(db, gameId, `${player.name}倒下了。故事就此结束。`, {
+        stageId: player.stageId,
+      });
+    } catch (error) {
+      result.failed.push({ actorName: player.name, reason: describeError(error) });
+      logger?.warn(`结束整局失败，下次调用会重试: ${player.name}`, error);
+    }
+  }
 
   return result;
 }
 
-/** 宣布一个 actor 死亡：公共事件 + 场景记忆 + 旁观者记忆 + 死者自己的记忆 + 收尾标记。 */
+/** 宣布一个 actor 死亡；认领失败（别人已宣布，或死者刚复活）时返回 false。 */
 async function announceDeath(
   db: Database,
   gameId: string,
   actor: { id: string; name: string; stageId: string },
-): Promise<void> {
+): Promise<boolean> {
   const content = `${actor.name}倒下了，不再有任何生命迹象。`;
   const now = new Date();
-  await db.transaction(async (tx) => {
+  return db.transaction(async (tx) => {
+    if (!(await claimDeath(tx, actor.id, now))) {
+      return false;
+    }
     await appendPublicMessage(tx, gameId, null, {
       kind: "death",
       stageId: actor.stageId,
@@ -127,8 +152,12 @@ async function announceDeath(
       ]);
     }
     await bumpGameVersion(tx, gameId, now);
-    await markDeathSettled(tx, actor.id, now);
+    return true;
   });
+}
+
+function describeError(error: unknown): string {
+  return error instanceof Error ? error.message : String(error);
 }
 
 export type AppearanceMaintenanceResult = {
@@ -136,6 +165,8 @@ export type AppearanceMaintenanceResult = {
   refreshed: string[];
   /** 本次宣布死亡的死者。 */
   settled: string[];
+  /** 死亡阶段的失败（宣布或结束整局），需要重试。 */
+  failed: DeathPhaseFailure[];
   /** 死亡已广播、但外观快照没推成的死者。 */
   appearanceFailed: string[];
   /** 已宣布过死亡、被批量入口跳过的尸体；要重推必须显式指定 actor。 */
@@ -143,11 +174,9 @@ export type AppearanceMaintenanceResult = {
 };
 
 /**
- * 批量外观维护：活人各推一次；未宣布死亡的死者交给死亡阶段；已收尾的尸体跳过。
+ * 批量外观维护：活人重推、未收尾的死者交给死亡阶段、已收尾的尸体跳过。
  *
- * 批量入口必须幂等——`hp` 只是"是不是死的"，判断不出"这次死亡宣布过没有"，
- * 所以这里用 `death_settled_at` 过滤，避免每跑一次就把尸体外观重写一遍。
- * 想重推某具尸体的外观，用单点入口（`agent:game appearance --actor <name>`）。
+ * 靠 `death_settled_at` 保证幂等；要重推尸体外观用单点入口（`agent:game appearance --actor`）。
  */
 export async function refreshAppearances(
   db: Database,
@@ -157,6 +186,7 @@ export async function refreshAppearances(
   const result: AppearanceMaintenanceResult = {
     refreshed: [],
     settled: [],
+    failed: [],
     appearanceFailed: [],
     skipped: [],
   };
@@ -180,11 +210,14 @@ export async function refreshAppearances(
     });
     if (appearance.ok) {
       result.refreshed.push(row.name);
+    } else {
+      options.logger?.warn(`外观重推失败: ${row.name}`);
     }
   }
 
   const deathPhase = await settleDeaths(db, gameId, options);
   result.settled = deathPhase.settled;
+  result.failed = deathPhase.failed;
   result.appearanceFailed = deathPhase.appearanceFailed;
   return result;
 }

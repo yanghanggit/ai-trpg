@@ -11,7 +11,6 @@ import type {
 } from "./types";
 import { EQUIPMENT_SLOT_KINDS, EQUIPMENT_SLOT_LABELS, EQUIPMENT_SLOTS } from "./types";
 
-/** 把数据库行的通用字段收窄成对应物品子类；新增 kind 时在这里补分支。 */
 export function toItemState(row: {
   id: string;
   key?: string | null;
@@ -51,7 +50,6 @@ export function toItemState(row: {
   }
 }
 
-/** 物品是否能放进某个穿戴槽。 */
 export function isWearable(item: ItemState): item is WearableItemState {
   return item.kind === "weapon" || item.kind === "equipment" || item.kind === "accessory";
 }
@@ -83,7 +81,6 @@ export function equippedItems(actor: Pick<ActorState, "items" | "equipment">): E
   return equipped;
 }
 
-/** 把背包里的物品放进槽位：校验大类，并清掉同一物品在其它槽位的索引。 */
 export function equipSlot(
   equipment: EquipmentSlots,
   slot: EquipmentSlot,
@@ -107,7 +104,6 @@ export function unequipSlot(equipment: EquipmentSlots, slot: EquipmentSlot): Equ
   return next;
 }
 
-/** 物品离开 actor 时，从所有槽位里移除对它的索引。 */
 export function withoutEquippedItem(equipment: EquipmentSlots, itemName: string): EquipmentSlots {
   const next = { ...equipment };
   for (const slot of EQUIPMENT_SLOTS) {

@@ -76,7 +76,6 @@ function resolveTarget(state: GameState, target: CompactTarget): ResolvedOwner {
   }
 }
 
-/** 所有拥有 memory 的 owner：world、各 stage、各 actor。 */
 function resolveAllOwners(state: GameState): ResolvedOwner[] {
   return [
     resolveWorldOwner(state),
@@ -142,10 +141,7 @@ function validateMinRatio(minRatio: number | undefined): void {
 }
 
 /**
- * 压缩一个 memory：保留 sequence 1 的 system，把 sequence >= 2 的历史
- * 替换成一条 human summary，让 memory 回到 [system, human] 的闭环。
- *
- * LLM 调用在事务外；事务内只做并发检查和落账。
+ * 压缩后 memory 回到 [system, human] 的闭环；LLM 调用在事务外，事务内只做并发检查和落账。
  */
 async function compactResolvedMemory(
   db: Database,
@@ -238,7 +234,6 @@ async function compactResolvedMemory(
   };
 }
 
-/** 手动压缩指定 actor/stage/world 的 memory。 */
 export async function compactMemory(
   db: Database,
   gameRef: string,
@@ -250,7 +245,6 @@ export async function compactMemory(
   return compactResolvedMemory(db, state.game.id, owner, options);
 }
 
-/** 手动压缩一局游戏中所有 actor/stage/world memory。 */
 export async function compactAllMemories(
   db: Database,
   gameRef: string,

@@ -1,15 +1,8 @@
 /**
- * transcript：把一次 chat completion 的请求 / 结果记录到 `logs/llm/`，
- * 供后续人工或 LLM 分析提示词、工具调用与上下文结构。
+ * transcript：把请求与结果记录到 `logs/llm/`，供后验分析。
  *
- * 这是后验分析旁路，不属于请求主路径。写入要同时满足两级开关（AND）：
- *
- * 1. 请求级：`ChatCompletionRequest.dump`（默认 true）——「这次想不想留痕」；
- * 2. 进程级：环境变量 `LLM_DUMP_ENABLED`——「这台进程允不允许落盘」。
- *
- * 与 Python 版的差异：
- * - 进程级默认**关闭**，避免生产环境无意中把 prompt / 回复写满磁盘；
- * - 目录在写入时才创建，不在模块 import 时产生文件系统副作用。
+ * 后验旁路，不属于请求主路径。落盘要同时满足请求级 `dump` 与进程级开关：
+ * 进程级默认关闭，避免生产环境把 prompt / 回复写满磁盘。
  */
 
 import { appendFile, mkdir, writeFile } from "node:fs/promises";

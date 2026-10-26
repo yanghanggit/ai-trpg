@@ -17,7 +17,6 @@ const SLOT_LABELS = EQUIPMENT_SLOTS.map((slot) => `${slot}（${EQUIPMENT_SLOT_LA
   " / ",
 );
 
-/** 构造 unequip 工具：卸下某个槽位的装备。 */
 export function buildUnequipTool(occupiedSlots: readonly EquipmentSlot[]): ToolDefinition {
   return {
     type: "function",
@@ -39,12 +38,10 @@ export function buildUnequipTool(occupiedSlots: readonly EquipmentSlot[]): ToolD
   };
 }
 
-/** 把 unequip 工具参数转成动作；只检查形状。 */
 export function parseUnequip(args: Record<string, unknown>): UnequipAction {
   return { kind: "unequip", slot: parseSlot(args.slot) };
 }
 
-/** 校验 unequip：槽位上确实有装备。 */
 export function resolveUnequip(
   actorRow: ActorWithStageRow,
   action: UnequipAction,
@@ -59,7 +56,6 @@ export function resolveUnequip(
   return { kind: "unequip", action, stage: actorRow.stage, itemName };
 }
 
-/** 应用 unequip：只删除穿戴索引。 */
 export async function applyUnequip(
   executor: Executor,
   gameId: string,

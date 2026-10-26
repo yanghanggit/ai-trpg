@@ -72,7 +72,7 @@ ${input.story.trim()}
 `;
 }
 
-/** 写一份故事总结；返回文件路径。写入失败时抛错，由调用方决定是否降级。 */
+/** 写入失败时抛错，由调用方决定是否降级。 */
 export async function dumpStory(
   input: StoryDumpInput,
   options: { root?: string } = {},

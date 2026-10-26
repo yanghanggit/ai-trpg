@@ -7,7 +7,6 @@ import { GameError } from "./errors";
 import type { ActorState, GameState, StageAction } from "./types";
 import { EQUIPMENT_SLOT_LABELS, EQUIPMENT_SLOTS } from "./types";
 
-/** 构造只读环境查看工具。 */
 export function buildLookTool(state: GameState): ToolDefinition {
   return {
     type: "function",
@@ -29,7 +28,7 @@ export function buildLookTool(state: GameState): ToolDefinition {
   };
 }
 
-/** 构造 stage 小 GM 的只读场景查看工具；只允许查看本场景。 */
+/** 只允许查看本场景。 */
 export function buildStageLookTool(stageName: string): ToolDefinition {
   return {
     type: "function",
@@ -51,7 +50,6 @@ export function buildStageLookTool(stageName: string): ToolDefinition {
   };
 }
 
-/** 构造自身全信息查看工具；外观、stats、状态、穿戴与物品一次返回。 */
 export function buildSelfInfoTool(): ToolDefinition {
   return {
     type: "function",
@@ -67,7 +65,7 @@ export function buildSelfInfoTool(): ToolDefinition {
   };
 }
 
-/** 构造对同场景目标的感知工具；只返回对方携带的物品，不暴露 stats 或状态。 */
+/** 只返回对方携带的物品，不暴露 stats 或状态。 */
 export function buildObserveActorTool(
   availableTargetActorNames: readonly string[],
 ): ToolDefinition {
@@ -92,7 +90,7 @@ export function buildObserveActorTool(
   };
 }
 
-/** 构造公共知识库检索工具；所有 actor 都能用，它是只读工具而不是动作。 */
+/** 只读工具，不占动作名额。 */
 export function buildKnowledgeTool(): ToolDefinition {
   return {
     type: "function",
@@ -115,7 +113,6 @@ export function buildKnowledgeTool(): ToolDefinition {
   };
 }
 
-/** 渲染知识库检索结果：带分类标签，不带相似度。 */
 export function describeKnowledgeResults(
   keywords: string,
   results: readonly RagSearchResult[],
@@ -139,7 +136,6 @@ ${lines.join("\n")}
 检索结果只是文本参考资料；公共知识不等于你亲眼所见，也不能据此知道角色秘密或当前状态。`;
 }
 
-/** 构造终止工具；调用后本轮计划结束。 */
 export function buildSubmitPlanTool(): ToolDefinition {
   return {
     type: "function",
@@ -155,7 +151,6 @@ export function buildSubmitPlanTool(): ToolDefinition {
   };
 }
 
-/** 构造 stage 小 GM 的环境提交终止工具；环境写法规则放在工具描述里。 */
 export function buildSubmitEnvironmentTool(): ToolDefinition {
   return {
     type: "function",
@@ -186,13 +181,12 @@ environment 是场景当前的身体状态：只描述此刻可以直接观察�
   };
 }
 
-/** 把 submit_environment 工具参数转换为 environment；省略时返回 undefined。 */
 export function parseEnvironment(args: Record<string, unknown>): string | undefined {
   const environment = typeof args.environment === "string" ? args.environment.trim() : "";
   return environment.length > 0 ? environment : undefined;
 }
 
-/** 构造 stage 给 world 的通知工具；通知只是报告，不是世界事实。 */
+/** 通知只是报告，不是世界事实。 */
 export function buildNotifyWorldTool(terminalToolName: string): ToolDefinition {
   return {
     type: "function",
@@ -217,7 +211,6 @@ export function buildNotifyWorldTool(terminalToolName: string): ToolDefinition {
   };
 }
 
-/** 解析 notify_world 参数。 */
 export function parseWorldNotification(args: Record<string, unknown>): string {
   const content = typeof args.content === "string" ? args.content.trim() : "";
   if (content.length === 0) {
@@ -232,7 +225,7 @@ export function parseWorldNotification(args: Record<string, unknown>): string {
   return content;
 }
 
-/** 构造 stage 打开通道的工具；候选只包含本场景已声明、仍未开启的邻边。 */
+/** 候选只含本场景已声明、仍未开启的邻边。 */
 export function buildOpenPassageTool(
   sealedStageNames: readonly string[],
   terminalToolName: string,
@@ -262,7 +255,6 @@ export function buildOpenPassageTool(
   };
 }
 
-/** 解析 open_passage 参数。 */
 export function parseOpenPassage(args: Record<string, unknown>): StageAction {
   const targetStageName =
     typeof args.targetStageName === "string" ? args.targetStageName.trim() : "";
@@ -273,10 +265,7 @@ export function parseOpenPassage(args: Record<string, unknown>): StageAction {
 }
 
 /**
- * 渲染 stats，供自身信息与目标观察共用。
- *
- * 只列参与结算的两项；力量 / 智慧 / 敏捷虽然留在数据结构里，但不展示，
- * 免得模型据此推断出不存在的战斗机制。
+ * 只列参与结算的两项，免得模型据此推断出不存在的战斗机制。
  */
 export function describeStats(actor: ActorState): string {
   return `角色：${actor.name}
@@ -286,7 +275,6 @@ block：${actor.stats.block}
 状态：${isAlive(actor) ? "存活" : "已死亡"}`;
 }
 
-/** 渲染物品清单；穿戴状态由 actor 的槽位索引标记。 */
 export function describeItems(actor: Pick<ActorState, "items" | "equipment">): string {
   if (actor.items.length === 0) {
     return "物品：无";
@@ -301,7 +289,6 @@ export function describeItems(actor: Pick<ActorState, "items" | "equipment">): s
 ${lines.join("\n")}`;
 }
 
-/** 渲染自己的穿戴槽。 */
 export function describeEquipment(actor: Pick<ActorState, "equipment">): string {
   const lines = EQUIPMENT_SLOTS.flatMap((slot) => {
     const itemName = actor.equipment[slot];
@@ -310,7 +297,6 @@ export function describeEquipment(actor: Pick<ActorState, "equipment">): string 
   return lines.length === 0 ? "穿戴：无" : `穿戴：\n${lines.join("\n")}`;
 }
 
-/** 渲染自己的全信息，供 get_self 工具返回。 */
 export function describeSelf(actor: ActorState): string {
   return `外观：${actor.appearance}
 ${describeStats(actor)}
@@ -318,13 +304,11 @@ ${describeEquipment(actor)}
 ${describeItems(actor)}`;
 }
 
-/** 渲染对目标的感知结果，只包含对方携带的物品，供 observe_actor 工具返回。 */
 export function describeObservedActor(actor: ActorState): string {
   return `${actor.name}携带：
 ${describeItems(actor)}`;
 }
 
-/** 读取某个场景的公开信息，供 look_stage 工具返回。 */
 export function lookStage(state: GameState, stageName: string): string {
   const stage = findStageByName(state, stageName);
   if (!stage) {

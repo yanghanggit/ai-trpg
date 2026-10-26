@@ -20,7 +20,6 @@ function formatToolCalls(toolCalls: readonly ToolCall[] | undefined): string {
 ${lines.join("\n")}`;
 }
 
-/** 把消息序列转换为单一字符串（用于调试、日志或 prompt 拼接）。 */
 export function getBufferString(
   messages: readonly ChatMessage[],
   options: BufferStringOptions = {},

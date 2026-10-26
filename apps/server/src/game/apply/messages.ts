@@ -3,7 +3,6 @@ import { eq, sql } from "drizzle-orm";
 import { gameMessages, games } from "../../db/schema";
 import type { Executor, PublicMessage } from "./types";
 
-/** 递增 game 版本；每个成功动作都调用一次。 */
 export async function bumpGameVersion(
   executor: Executor,
   gameId: string,
@@ -15,7 +14,6 @@ export async function bumpGameVersion(
     .where(eq(games.id, gameId));
 }
 
-/** 追加一条公共事件并自动分配 sequence。 */
 export async function appendPublicMessage(
   executor: Executor,
   gameId: string,
@@ -41,7 +39,6 @@ export async function appendPublicMessage(
   });
 }
 
-/** 渲染本次技能选用的物品。 */
 export function itemListText(items: readonly { name: string }[]): string {
   return items.length > 0 ? `（使用${items.map((item) => item.name).join("、")}）` : "";
 }

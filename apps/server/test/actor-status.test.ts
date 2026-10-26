@@ -21,6 +21,7 @@ import {
   takeActorControl,
 } from "../src/game";
 import { loadAgentMemory } from "../src/game/memory";
+import { claimDeath } from "../src/game/persistence/deaths";
 import { describeStats } from "../src/game/plan";
 import { ChatCompletionResult, type ChatCompletionService } from "../src/llm";
 
@@ -274,6 +275,117 @@ describe.skipIf(!testDatabaseUrl)("death phase", () => {
     const second = await settleDeaths(handle.db, created.game.id, { service });
     expect(second.settled).toEqual(["提灯修士"]);
     expect(service.calls).toBe(2);
+  });
+
+  it("认领是 compare-and-set：同一次死亡只有一个调用者有权宣布", async () => {
+    const created = await createGame(handle.db, {
+      username: DEMO_USER.username,
+      name: "认领竞争测试局",
+      world: TEST_WORLD,
+    });
+    const monk = created.world.stages
+      .flatMap((stage) => stage.actors)
+      .find((actor) => actor.name === "提灯修士");
+    if (!monk) {
+      throw new Error("缺少提灯修士");
+    }
+    const now = new Date();
+    await handle.db.update(actors).set({ hp: 0 }).where(eq(actors.id, monk.id));
+
+    expect(await claimDeath(handle.db, monk.id, now)).toBe(true);
+    expect(await claimDeath(handle.db, monk.id, now)).toBe(false);
+
+    // 条件里带 hp：尸体被抬回正数后，认领不成立，不会被误宣布。
+    await handle.db.update(actors).set({ hp: 3 }).where(eq(actors.id, monk.id));
+    expect(await claimDeath(handle.db, monk.id, now)).toBe(false);
+  });
+
+  it("同一局并发调用死亡阶段只宣布一次", async () => {
+    const created = await createGame(handle.db, {
+      username: DEMO_USER.username,
+      name: "并发死亡阶段测试局",
+      world: TEST_WORLD,
+    });
+    const monk = created.world.stages
+      .flatMap((stage) => stage.actors)
+      .find((actor) => actor.name === "提灯修士");
+    if (!monk) {
+      throw new Error("缺少提灯修士");
+    }
+    await handle.db.update(actors).set({ hp: 0 }).where(eq(actors.id, monk.id));
+
+    const [first, second] = await Promise.all([
+      settleDeaths(handle.db, created.game.id),
+      settleDeaths(handle.db, created.game.id),
+    ]);
+    // 进程内同局合流：两个调用共享同一次扫描，不会各自宣布一遍。
+    expect(first.settled).toEqual(["提灯修士"]);
+    expect(second.settled).toEqual(first.settled);
+
+    const state = await getGameState(handle.db, created.game.slug);
+    expect(state.messages.filter((message) => message.kind === "death")).toHaveLength(1);
+  });
+
+  it("默认玩家死亡由死亡阶段结束整局，不依赖伤害结算与 LLM", async () => {
+    const world = {
+      ...TEST_WORLD,
+      actors: TEST_WORLD.actors.map((actor) =>
+        actor.name === "提灯修士" ? { ...actor, isDefaultPlayer: true, hp: 0 } : actor,
+      ),
+    };
+    const created = await createGame(handle.db, {
+      username: DEMO_USER.username,
+      name: "默认玩家离线死亡测试局",
+      world,
+    });
+
+    // 没有攻击、没有外观服务：只有 hp 归零这个事实。
+    const phase = await settleDeaths(handle.db, created.game.id);
+    expect(phase.settled).toEqual(["提灯修士"]);
+    expect(phase.failed).toEqual([]);
+
+    const state = await getGameState(handle.db, created.game.slug);
+    expect(state.game.status).toBe("completed");
+    const completed = state.messages.filter((message) => message.kind === "game_completed");
+    expect(completed).toHaveLength(1);
+    expect(completed[0]?.content).toContain("故事就此结束");
+  });
+
+  it("外观失败不阻塞默认玩家的死亡结局，失败结果交给调用方", async () => {
+    const world = {
+      ...TEST_WORLD,
+      actors: TEST_WORLD.actors.map((actor) =>
+        actor.name === "提灯修士"
+          ? {
+              ...actor,
+              isDefaultPlayer: true,
+              hp: 1,
+              stats: { ...actor.stats, maxHp: 1, block: 0 },
+            }
+          : actor,
+      ),
+    };
+    const created = await createGame(handle.db, {
+      username: DEMO_USER.username,
+      name: "默认玩家死亡外观失败测试局",
+      world,
+    });
+    await takeActorControl(handle.db, created.game.slug, "守烬人");
+
+    const result = await playerAttack(
+      handle.db,
+      created.game.slug,
+      "守烬人",
+      { targetActorName: "提灯修士" },
+      { appearanceService: new FailingAppearanceService() },
+    );
+    expect(result.ok).toBe(true);
+    expect(result.death?.settled).toEqual(["提灯修士"]);
+    expect(result.death?.failed).toEqual([]);
+    expect(result.death?.appearanceFailed).toEqual(["提灯修士"]);
+
+    const state = await getGameState(handle.db, created.game.slug);
+    expect(state.game.status).toBe("completed");
   });
 });
 

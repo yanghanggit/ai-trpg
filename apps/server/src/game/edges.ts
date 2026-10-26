@@ -2,10 +2,10 @@ import { GameError } from "./errors";
 import type { ConnectionState, PassageState } from "./types";
 
 /**
- * 场景连通性的唯一形状：一条有向边 + 通行状态。
+ * 场景连通性的唯一形状：有向边 + 通行状态。
  *
- * 图是有向的，**不做对称推导**：双向通行必须显式存在两条边。`sealed` 表示两侧在
- * 剧情上相连、当前无法通过，只能由持有相应能力的 stage 把自己的出边打开。
+ * 有向且**不做对称推导**：双向通行必须显式存在两条边。`sealed` 是剧情相连但当前不可通过，
+ * 只能由持有相应能力的 stage 打开自己的出边。
  */
 export type StageEdge = {
   fromStageId: string;
@@ -20,7 +20,6 @@ export type EdgeIndex = {
   outgoing: (stageId: string) => StageEdge[];
 };
 
-/** 把边列表归一成按起点索引的查询结构；不做对称或隐式推断。 */
 export function buildEdgeIndex(edges: readonly EdgeSource[]): EdgeIndex {
   const byFrom = new Map<string, StageEdge[]>();
   for (const edge of edges) {
@@ -39,7 +38,6 @@ export function buildEdgeIndex(edges: readonly EdgeSource[]): EdgeIndex {
   return { outgoing: (stageId) => byFrom.get(stageId) ?? [] };
 }
 
-/** 从 `from` 出发的可通行邻居 id。 */
 export function openNeighborIds(index: EdgeIndex, fromStageId: string): string[] {
   return index
     .outgoing(fromStageId)
@@ -47,7 +45,6 @@ export function openNeighborIds(index: EdgeIndex, fromStageId: string): string[]
     .map((edge) => edge.toStageId);
 }
 
-/** 从 `from` 出发、尚未开启的邻居 id。 */
 export function sealedNeighborIds(index: EdgeIndex, fromStageId: string): string[] {
   return index
     .outgoing(fromStageId)

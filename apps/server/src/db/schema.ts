@@ -161,7 +161,7 @@ export const actors = pgTable("actors", {
   stats: jsonb("stats").$type<Stats>().notNull(),
   /** 当前生命；与 stats 分开存，扣血只写这一列。`hp === 0` 即死亡，没有单独的死亡状态。 */
   hp: integer("hp").notNull(),
-  /** 死亡阶段已处理的时间；null 表示 `hp === 0` 但还没跑过死亡阶段（外观更新、未来的复活判定）。 */
+  /** 死亡阶段已处理的时间；null 表示 `hp === 0` 但还没收尾。 */
   deathSettledAt: timestamp("death_settled_at", { withTimezone: true }),
   /** 默认玩家角色；该角色死亡时整局结束。 */
   isDefaultPlayer: boolean("is_default_player").notNull().default(false),
@@ -171,10 +171,7 @@ export const actors = pgTable("actors", {
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
 });
 
-/**
- * `id` 是物品的稳定身份（uuid）；`name` 是动作与装备槽使用的可读句柄，
- * 因此在同一个 actor 内必须唯一——这是 `(actor_id, name)` 唯一索引的含义。
- */
+/** `id` 是稳定身份，`name` 是动作与槽位使用的可读句柄，因此同一 actor 内唯一。 */
 export const items = pgTable(
   "items",
   {

@@ -14,7 +14,6 @@ import { setActorEquipment } from "../persistence/actors";
 import { transferItemToActor } from "../persistence/items";
 import type { GiveAction } from "../types";
 
-/** 构造 give 工具：把自己的物品交给同场景的一个角色。 */
 export function buildGiveTool(targetActorNames: readonly string[]): ToolDefinition {
   return {
     type: "function",
@@ -41,7 +40,6 @@ export function buildGiveTool(targetActorNames: readonly string[]): ToolDefiniti
   };
 }
 
-/** 把 give 工具参数转成动作；只检查形状。 */
 export function parseGive(args: Record<string, unknown>): GiveAction {
   const targetActorName =
     typeof args.targetActorName === "string" ? args.targetActorName.trim() : "";
@@ -65,7 +63,6 @@ export async function resolveGive(
   return { kind: "give", action, stage, target, transferItem };
 }
 
-/** 应用 give：把物品转给目标，场景公开。 */
 export async function applyGive(
   executor: Executor,
   gameId: string,

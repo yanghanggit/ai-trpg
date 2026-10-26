@@ -7,7 +7,6 @@ import { GameError } from "../errors";
 import { appendCommunicationObservations, appendStageEvent } from "../observations";
 import type { SayAction } from "../types";
 
-/** 构造 say 工具：对同场景一个具名角色公开说话。 */
 export function buildSayTool(targets: readonly string[]): ToolDefinition {
   return {
     type: "function",
@@ -35,7 +34,6 @@ export function buildSayTool(targets: readonly string[]): ToolDefinition {
   };
 }
 
-/** 把 say 工具参数转成动作；只检查形状。 */
 export function parseSay(args: Record<string, unknown>): SayAction {
   const mind = typeof args.mind === "string" ? args.mind.trim() : "";
   const message = typeof args.message === "string" ? args.message : "";
@@ -53,7 +51,6 @@ export function parseSay(args: Record<string, unknown>): SayAction {
   return { kind: "say", mind, targetActorName, message };
 }
 
-/** 校验 say 目标：同场景唯一角色，不能是自己。 */
 export async function resolveSay(
   executor: Executor,
   stage: ResolvedSay["stage"],
@@ -67,7 +64,6 @@ export async function resolveSay(
   return { kind: "say", action, stage, target };
 }
 
-/** 应用 say：场景公开消息 + 听觉观察。 */
 export async function applySay(
   executor: Executor,
   gameId: string,

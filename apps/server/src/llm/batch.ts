@@ -16,12 +16,7 @@ export type BatchCompleteOptions = {
   logger?: LlmLogger;
 };
 
-/**
- * 并发发送一批请求，返回与 `requests` 等长且同序的结果。
- *
- * `maxConcurrency` 只限制并发数，不限制速率。service 的预期内失败会落在
- * `result.error`；意外异常也会被收敛成 error，保证返回长度与入参一致。
- */
+/** 结果与入参等长同序；意外异常也收敛成 `error`，不只覆盖预期内失败。 */
 export async function batchComplete(
   service: ChatCompletionService,
   requests: readonly ChatCompletionRequest[],

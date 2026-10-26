@@ -1,14 +1,9 @@
 /**
- * DeepSeek 直连客户端。
+ * DeepSeek 直连客户端：无状态服务，只持有 provider 私有事实
+ * （模型名、接口地址、鉴权与传输实现）。
  *
- * 直接调用 DeepSeek 平台的 `POST /chat/completions`。本类是**无状态服务**：
- * 请求内容在 `ChatCompletionRequest` 里，结果在 `ChatCompletionResult` 里，
- * 自己只保留 provider 私有事实（模型名 / 接口地址 / 鉴权 / 传输实现）。
- *
- * 与 Python 版的差异：
- * - `listModels` / `getBalance` 改为 async，不再在事件循环里跑同步 `requests`；
- * - 响应缺失 `usage`、空 `choices`、非法 JSON 都收敛成 `ChatCompletionResult.error`；
- * - 不打印完整响应正文，避免把 prompt / 回复写进生产日志。
+ * 预期内的失败收敛成 `ChatCompletionResult.error`；不打印完整响应正文，
+ * 避免把 prompt / 回复写进生产日志。
  */
 
 import { ChatError, type ErrorKind } from "../llm/errors";

@@ -15,7 +15,6 @@ import { setActorEquipment } from "../persistence/actors";
 import { transferItemToActor } from "../persistence/items";
 import type { StealAction } from "../types";
 
-/** 构造 steal 工具：从同场景角色身上取走一件物品。 */
 export function buildStealTool(targetActorNames: readonly string[]): ToolDefinition {
   return {
     type: "function",
@@ -39,7 +38,6 @@ export function buildStealTool(targetActorNames: readonly string[]): ToolDefinit
   };
 }
 
-/** 把 steal 工具参数转成动作；只检查形状。 */
 export function parseSteal(args: Record<string, unknown>): StealAction {
   const targetActorName =
     typeof args.targetActorName === "string" ? args.targetActorName.trim() : "";
@@ -50,11 +48,7 @@ export function parseSteal(args: Record<string, unknown>): StealAction {
   return { kind: "steal", targetActorName, itemName };
 }
 
-/**
- * 校验 steal：不是自己、确实持有该物品；目标活着时不能拿已穿戴的东西。
- *
- * 尸体上什么都能拿，所以死亡目标不需要额外判断。
- */
+/** 尸体上什么都能拿，所以只有活着目标要挡已穿戴的物品。 */
 export async function resolveSteal(
   executor: Executor,
   stage: ResolvedSteal["stage"],
@@ -73,7 +67,6 @@ export async function resolveSteal(
   return { kind: "steal", action, stage, target, transferItem };
 }
 
-/** 应用 steal：把物品转给发起者，事件为 private。 */
 export async function applySteal(
   executor: Executor,
   gameId: string,

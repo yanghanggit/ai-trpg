@@ -6,7 +6,6 @@ import { GameError } from "../errors";
 import { applyItemEffect } from "../item-effects";
 import type { UseAction } from "../types";
 
-/** 构造 use 工具：用自己的一件物品作用于一个角色或当前场景。 */
 export function buildUseTool(
   availableItemNames: readonly string[],
   targetActorNames: readonly string[],
@@ -48,7 +47,6 @@ export function buildUseTool(
   };
 }
 
-/** 把 use 工具参数转成动作；只检查形状。 */
 export function parseUse(args: Record<string, unknown>): UseAction {
   const itemName = typeof args.itemName === "string" ? args.itemName.trim() : "";
   const targetActorName =
@@ -80,7 +78,6 @@ export function parseUse(args: Record<string, unknown>): UseAction {
   };
 }
 
-/** 校验 use：物品必须是自己的，目标必须有效。 */
 export async function resolveUse(
   executor: Executor,
   stage: ResolvedUse["stage"],
@@ -126,7 +123,6 @@ export async function resolveUse(
   };
 }
 
-/** 应用 use：只选择物品与目标，并把声明式 effect 交给效果执行器。 */
 export async function applyUse(
   executor: Executor,
   gameId: string,

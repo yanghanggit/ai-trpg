@@ -119,12 +119,7 @@ function addAction(actions: ActorAction[], action: ActorAction): void {
   actions.push(action);
 }
 
-/**
- * 为单个 actor 跑一轮 agent loop，应用提交的计划并返回最新状态。
- *
- * 已死亡或被玩家接管的 actor 不进入 NPC loop；工具只暴露该 actor 与场景
- * 允许的动作，模型看不到未授权的工具。
- */
+/** 已死亡或被玩家接管的 actor 进不来。 */
 export async function runNpcTurn(
   db: Database,
   gameRef: string,
@@ -150,8 +145,7 @@ export async function runNpcTurn(
 
   const stageNames = adjacentStageNames(state, current.stage.id);
   const otherActors = otherActorsInStage(current.stage, current.actor.id);
-  // 目标不区分存活：尸体可以被说话、攻击、给予、使用与偷窃；
-  // 唯一的存活要求是行动者自己，由行动入口统一把关。
+  // 目标不区分存活：唯一的存活要求是行动者自己，由行动入口统一把关。
   const targets = otherActors.map((actor) => actor.name);
   const selfAndTargets = [current.actor.name, ...targets];
   const availableUseItemNames = current.actor.items.map((item) => item.name);
@@ -297,6 +291,7 @@ export async function runNpcTurn(
     {
       service: options.service,
       ...(options.appearanceService ? { appearanceService: options.appearanceService } : {}),
+      ...(options.logger ? { logger: options.logger } : {}),
     },
   );
 
@@ -305,5 +300,6 @@ export async function runNpcTurn(
     plan: submitted,
     loopSuccess: loop.success,
     state: await getGameState(db, state.game.id),
+    ...(applied.death ? { death: applied.death } : {}),
   };
 }

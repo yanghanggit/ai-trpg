@@ -1,13 +1,8 @@
 /**
- * 运行时 system prompt 导出。
+ * 运行时 system prompt 导出：调试旁路，不属于请求主路径。
  *
- * 目的：设计者在建局后能直接看到 actor / stage 实际拿到的完整 system prompt，
- * 而不必翻数据库或日志。产物是调试旁路，不属于请求主路径：
- *
- * - 目录：`<repo>/prompts/<时间戳>_<world 名>/`（可用 `PROMPTS_DIR` 覆盖）；
- * - 内容：`world.md`、`world-agent.md`、`actors/<角色名>.md`、`stages/<场景名>.md`；
- * - 测试环境默认跳过，避免每次建局都往仓库写文件；测试要验证本模块时显式设置
- *   `PROMPTS_DIR` 即可。
+ * 让设计者直接看到 actor / stage 实际拿到的完整 prompt，不必翻数据库或日志。
+ * 测试环境默认跳过，设置 `PROMPTS_DIR` 才强制导出。
  */
 
 import { existsSync } from "node:fs";
@@ -45,13 +40,11 @@ export function promptsRoot(root?: string): string {
   return join(findRepoRoot(), "prompts");
 }
 
-/** 把名字压成安全文件名；中文与点号保留。 */
 export function safeFileName(value: string): string {
   const safe = value.replace(SAFE_FILENAME_PATTERN, "_").replace(/^\.+/, "_").trim();
   return safe.length > 0 ? safe : "unnamed";
 }
 
-/** `YYYYMMDD_HHmmss`，本地时间。 */
 export function timestampName(now = new Date()): string {
   const pad = (value: number) => String(value).padStart(2, "0");
   return `${now.getFullYear()}${pad(now.getMonth() + 1)}${pad(now.getDate())}_${pad(now.getHours())}${pad(now.getMinutes())}${pad(now.getSeconds())}`;
@@ -73,7 +66,6 @@ ${input.systemRules}
 `;
 }
 
-/** 在测试进程里默认不落盘；显式设置 PROMPTS_DIR 时仍然导出。 */
 function shouldDump(): boolean {
   if (process.env[PROMPTS_DIR_ENV]?.trim()) {
     return true;
@@ -81,7 +73,6 @@ function shouldDump(): boolean {
   return !process.env.VITEST && process.env.NODE_ENV !== "test";
 }
 
-/** 在当前进程的目录里找一个不冲突的容器目录名。 */
 function uniqueContainer(root: string, base: string): string {
   let candidate = base;
   let index = 2;
@@ -92,11 +83,7 @@ function uniqueContainer(root: string, base: string): string {
   return candidate;
 }
 
-/**
- * 导出一次建局的 system prompt；返回容器目录，跳过导出时返回 null。
- *
- * 写入失败只告警，不影响建局主流程。
- */
+/** 写入失败只告警，不影响建局主流程。 */
 export async function dumpSystemPrompts(
   input: PromptDumpInput,
   options: { root?: string; now?: Date } = {},

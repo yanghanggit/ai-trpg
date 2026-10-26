@@ -1,7 +1,6 @@
 import { appendPublicMessage, bumpGameVersion, itemListText } from "../apply/messages";
 import { resolveEquippedStats } from "../apply/queries";
 import { addStats } from "../attributes";
-import { completeGame } from "../end-game";
 import { appendAttackObservations, appendStageEvent } from "../observations";
 import { damageActor } from "../persistence/actors";
 import type { ItemEffectContext, ItemEffectHandler } from "./types";
@@ -30,7 +29,8 @@ export async function applyDamage(context: ItemEffectContext, damage: number): P
     throw new Error("damage effect 需要角色目标");
   }
   // 默认效果与 affix 会连续结算同一个目标：扣血走带行锁的读-改-写，不拿旧快照覆盖。
-  // 这里只写 hp，是否"死亡"完全由 hp 派生，不由攻击方断定。
+  // 这里只写 hp：「是否死亡」与「默认玩家死亡是否结束整局」都由死亡阶段按 hp 派生，
+  // 结算方不判定死亡，也就不会漏掉其它写 hp 的路径。
   const hit = await damageActor(executor, target.id, damage, now);
   if (hit.status === "missing") {
     throw new Error(`目标不存在: ${target.name}`);
@@ -72,12 +72,6 @@ export async function applyDamage(context: ItemEffectContext, damage: number): P
     eventKind: actionKind,
     targetActorId: target.id,
   });
-  if (remainingHp <= 0 && current.isDefaultPlayer) {
-    await completeGame(executor, gameId, `${target.name}倒下了。故事就此结束。`, {
-      now,
-      stageId: stage.id,
-    });
-  }
   // 出手者只知道这一下打得多重、对方有没有倒下；对方剩余生命只写进公共消息（上帝视角）
   // 与受害者自己，不进出手者的记忆。
   const feedback =

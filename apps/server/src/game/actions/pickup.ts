@@ -7,7 +7,6 @@ import { appendItemObservations, appendStageEvent } from "../observations";
 import { moveStageItemToActor } from "../persistence/items";
 import type { PickupAction } from "../types";
 
-/** 构造 pickup 工具：拾起当前场景中的一件物品。 */
 export function buildPickupTool(): ToolDefinition {
   return {
     type: "function",
@@ -26,7 +25,6 @@ export function buildPickupTool(): ToolDefinition {
   };
 }
 
-/** 把 pickup 工具参数转成动作；只检查形状。 */
 export function parsePickup(args: Record<string, unknown>): PickupAction {
   const itemName = typeof args.itemName === "string" ? args.itemName.trim() : "";
   if (itemName.length === 0) {
@@ -35,7 +33,6 @@ export function parsePickup(args: Record<string, unknown>): PickupAction {
   return { kind: "pickup", itemName };
 }
 
-/** 校验 pickup：当前场景里确实有这件物品。 */
 export async function resolvePickup(
   executor: Executor,
   stage: ResolvedPickup["stage"],
@@ -45,7 +42,6 @@ export async function resolvePickup(
   return { kind: "pickup", action, stage, stageItem };
 }
 
-/** 应用 pickup：把场景物品移入 actor 背包。 */
 export async function applyPickup(
   executor: Executor,
   gameId: string,

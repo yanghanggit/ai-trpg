@@ -4,7 +4,6 @@ import type { ActorWithStageRow, Executor, ResolvedWait } from "../apply/types";
 import { appendActionObservations, appendStageEvent } from "../observations";
 import type { WaitAction } from "../types";
 
-/** 构造 wait 工具：留在原地，不改变场景状态。 */
 export function buildWaitTool(): ToolDefinition {
   return {
     type: "function",
@@ -20,17 +19,14 @@ export function buildWaitTool(): ToolDefinition {
   };
 }
 
-/** 把 wait 工具参数转成动作；wait 没有参数。 */
 export function parseWait(): WaitAction {
   return { kind: "wait" };
 }
 
-/** 校验 wait：只需要当前场景。 */
 export function resolveWait(stage: ResolvedWait["stage"], action: WaitAction): ResolvedWait {
   return { kind: "wait", action, stage };
 }
 
-/** 应用 wait：只写事件与观察，不改变状态。 */
 export async function applyWait(
   executor: Executor,
   gameId: string,

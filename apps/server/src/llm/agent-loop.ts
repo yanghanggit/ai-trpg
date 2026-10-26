@@ -46,9 +46,7 @@ export type AgentLoopOptions = {
 };
 
 export type AgentLoopRound = {
-  /** 本轮拿到的 completion（finishReason / toolCalls / usage / error）。 */
   completion: ChatCompletionResult;
-  /** 本轮向 history 追加的消息引用（按追加顺序）。 */
   appended: ChatMessage[];
 };
 

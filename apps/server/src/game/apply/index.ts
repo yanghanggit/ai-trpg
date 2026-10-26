@@ -1,6 +1,7 @@
 import { and, eq } from "drizzle-orm";
 import type { Database } from "../../db/pool";
 import { actors, games, stages, worlds } from "../../db/schema";
+import type { LlmLogger } from "../../llm/logger";
 import type { ChatCompletionService } from "../../llm/protocol";
 import type { ChatMessage } from "../../llm/types";
 import { applyAnnounce } from "../actions/announce";
@@ -21,7 +22,7 @@ import { GameError } from "../errors";
 import { runAffixEffect } from "../item-effects/affix-agent";
 import type { AffixRequest } from "../item-effects/types";
 import { appendMemoryMessages, loadAgentMemory } from "../memory";
-import type { ActorPlan } from "../types";
+import type { ActorPlan, DeathPhaseResult } from "../types";
 import { isAlive } from "./queries";
 
 export * from "./queries";
@@ -29,7 +30,7 @@ export * from "./queries";
 import { resolvePlan } from "./resolve";
 import type { ActorWithStageRow, Executor, ResolvedAction } from "./types";
 
-/** 应用单条已校验的动作；dispatch 是扁平 table，没有分类层。 */
+/** 扁平 dispatch，没有分类层。 */
 async function applyResolvedAction(
   executor: Executor,
   gameId: string,
@@ -98,8 +99,10 @@ export type ApplyPlanResult = {
   ok: boolean;
   rejection?: string;
   affixRequests?: AffixRequest[];
-  /** 死亡阶段没跑完的死者名字；下次 hp 变化或显式调用会重试。 */
-  deathPending?: string[];
+  /** 死亡阶段的结果（含失败与重试信息）；失败不回滚这次行动。 */
+  death?: DeathPhaseResult;
+  /** 死亡阶段整体没能跑起来的原因（例如数据库错误）；行动本身仍然成功。 */
+  deathError?: string;
 };
 
 export type ApplyActorPlanOptions = {
@@ -107,13 +110,12 @@ export type ApplyActorPlanOptions = {
   service?: ChatCompletionService;
   /** 死亡阶段的外观快照需要 LLM；不传则跳过（下次 hp 变化或显式调用再补）。 */
   appearanceService?: ChatCompletionService;
+  /** 死亡阶段的失败只进日志与返回值，不抛给调用方。 */
+  logger?: LlmLogger;
 };
 
 /**
- * 校验并应用一次 actor 计划。
- *
- * 默认效果在事务内提交；带词缀的物品在默认效果后收集成 AffixRequest，
- * 事务提交后再运行补充 affix agent。LLM 不进入数据库事务。
+ * 默认效果在事务内提交；词缀 agent 在事务外补结算。LLM 不进入数据库事务。
  */
 export async function applyActorPlan(
   db: Database,
@@ -125,7 +127,7 @@ export async function applyActorPlan(
   options: ApplyActorPlanOptions = {},
 ): Promise<ApplyPlanResult> {
   const affixRequests: AffixRequest[] = [];
-  const result = await db.transaction(async (tx) => {
+  const result: ApplyPlanResult = await db.transaction(async (tx) => {
     const [game] = await tx.select().from(games).where(eq(games.id, gameId)).limit(1).for("update");
     if (!game) {
       throw new GameError("not_found", `游戏不存在: ${gameId}`);
@@ -229,18 +231,19 @@ export async function applyActorPlan(
     }
   }
 
-  // hp 已落库；死亡收尾（外观快照，未来的复活判定）属于死者自己，在事务外跑一遍。
   if (!result.ok) {
     return result;
   }
-  // 死亡判定（hp）早已随事务落库；这里只是宣布死亡 + 尽力补尸体外观。
-  // 这一步的失败（含外观推理失败）都不能反过来否定这次行动。
+  // 死亡阶段在事务外跑：它要调 LLM，失败也不能回滚这次行动。
   try {
-    await settleDeaths(db, gameId, {
+    result.death = await settleDeaths(db, gameId, {
       ...(options.appearanceService ? { service: options.appearanceService } : {}),
+      ...(options.logger ? { logger: options.logger } : {}),
     });
-  } catch {
-    // 宣布死亡没写成：标记没写，下一次 hp 变化或 `agent:game deaths` 会再来。
+  } catch (error) {
+    // 标记没写成：下一次 hp 变化或 `agent:game deaths` 会再来。
+    result.deathError = error instanceof Error ? error.message : String(error);
+    options.logger?.warn("死亡阶段失败，下次调用会重试", error);
   }
   return result;
 }

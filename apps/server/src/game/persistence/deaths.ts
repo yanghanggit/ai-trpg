@@ -59,14 +59,30 @@ export async function listDeathsToSettle(
     .where(and(eq(worlds.gameId, gameId), lte(actors.hp, 0), isNull(actors.deathSettledAt)));
 }
 
-/** 写收尾标记：这次死亡已经宣布过。 */
-export async function markDeathSettled(
-  executor: Executor,
-  actorId: string,
-  now: Date,
-): Promise<void> {
-  await executor
+/**
+ * 认领一次死亡收尾：把标记从未置位改成已置位的调用者才有资格宣布。
+ *
+ * 条件带 `hp <= 0`，所以这是针对整个死亡谓词的 compare-and-set：并发只有一个赢家，
+ * 刚被复活的死者也不会被误宣布。
+ */
+export async function claimDeath(executor: Executor, actorId: string, now: Date): Promise<boolean> {
+  const claimed = await executor
     .update(actors)
     .set({ deathSettledAt: now, updatedAt: now })
-    .where(eq(actors.id, actorId));
+    .where(and(eq(actors.id, actorId), lte(actors.hp, 0), isNull(actors.deathSettledAt)))
+    .returning({ id: actors.id });
+  return claimed.length > 0;
+}
+
+/** 本局里 hp 归零的默认玩家；结束整局是确定性不变量，与死亡宣布分开判。 */
+export async function listDeadDefaultPlayers(
+  executor: Executor,
+  gameId: string,
+): Promise<{ id: string; name: string; stageId: string }[]> {
+  return executor
+    .select({ id: actors.id, name: actors.name, stageId: actors.stageId })
+    .from(actors)
+    .innerJoin(stages, eq(actors.stageId, stages.id))
+    .innerJoin(worlds, eq(stages.worldId, worlds.id))
+    .where(and(eq(worlds.gameId, gameId), lte(actors.hp, 0), eq(actors.isDefaultPlayer, true)));
 }

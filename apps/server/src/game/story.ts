@@ -221,7 +221,6 @@ const STORY_SYSTEM_PROMPT = `你是本局游戏的叙事整理者，不是世界
 - 把场景/世界的通知与裁决改写成故事世界中实际发生的事件，不要解释“谁向谁报告、谁如何裁决”；
 - 不解释机制、不逐条复述事件，只写读者能读到的一段连贯故事。`;
 
-/** 对当前游戏跑一个只读的叙事整理 agent。 */
 export async function runStory(
   db: Parameters<typeof getGameMemories>[0],
   gameRef: string,

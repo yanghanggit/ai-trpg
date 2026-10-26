@@ -17,7 +17,6 @@ export const ACTION_KINDS = [
   "unequip",
 ] as const satisfies readonly ActionKind[];
 
-/** 每个动作给提示词用的一句话说明。 */
 export const ACTION_SUMMARIES: Record<ActionKind, string> = {
   say: "对目标公开说话",
   whisper: "对目标耳语，只有对方听见",
