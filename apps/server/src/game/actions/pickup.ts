@@ -1,12 +1,10 @@
-import { randomUUID } from "node:crypto";
-import { eq } from "drizzle-orm";
-import { items, stageItems } from "../../db/schema";
 import type { ToolDefinition } from "../../llm/types";
 import { appendPublicMessage, bumpGameVersion } from "../apply/messages";
 import { assertItemNameFree, resolveStageItem } from "../apply/queries";
 import type { ActorWithStageRow, Executor, ResolvedPickup } from "../apply/types";
 import { GameError } from "../errors";
 import { appendItemObservations, appendStageEvent } from "../observations";
+import { moveStageItemToActor } from "../persistence/items";
 import type { PickupAction } from "../types";
 
 /** 构造 pickup 工具：拾起当前场景中的一件物品。 */
@@ -59,19 +57,7 @@ export async function applyPickup(
   const stageItem = resolved.stageItem;
 
   await assertItemNameFree(executor, actor.id, stageItem.name);
-  await executor.delete(stageItems).where(eq(stageItems.id, stageItem.id));
-  await executor.insert(items).values({
-    id: randomUUID(),
-    actorId: actor.id,
-    key: stageItem.key,
-    name: stageItem.name,
-    description: stageItem.description,
-    kind: stageItem.kind,
-    count: stageItem.count,
-    stats: stageItem.stats,
-    effect: stageItem.effect,
-    affixes: [...stageItem.affixes],
-  });
+  await moveStageItemToActor(executor, stageItem, actor.id);
   await bumpGameVersion(executor, gameId, now);
 
   const content = `${actor.name}拾取了${stageItem.name}。`;

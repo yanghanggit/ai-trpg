@@ -1,7 +1,5 @@
 import { randomUUID } from "node:crypto";
-import { eq } from "drizzle-orm";
 import type { Database } from "../db/pool";
-import { games, stages, worlds } from "../db/schema";
 import { agentLoop } from "../llm/agent-loop";
 import type { ChatCompletionService } from "../llm/protocol";
 import type { ChatMessage } from "../llm/types";
@@ -11,6 +9,9 @@ import { DEFAULT_NPC_MAX_ROUNDS, MAX_WORLD_ACTIONS_PER_TURN, MEMORY_KINDS } from
 import { completeGame } from "./end-game";
 import { GameError } from "./errors";
 import { appendMemoryMessages, loadAgentMemory } from "./memory";
+import { lockGameRow } from "./persistence/games";
+import { listStagesOfWorld } from "./persistence/stages";
+import { loadWorldByGame } from "./persistence/worlds";
 import { buildLookTool, lookStage } from "./plan";
 import { getGameState } from "./service";
 import type { GameState, WorldAction, WorldPlan, WorldTurnResult } from "./types";
@@ -74,14 +75,14 @@ export async function applyWorldPlan(
   loopSuccess: boolean,
 ): Promise<boolean> {
   return db.transaction(async (tx) => {
-    const [game] = await tx.select().from(games).where(eq(games.id, gameId)).limit(1).for("update");
+    const game = await lockGameRow(tx, gameId);
     if (!game) {
       throw new GameError("not_found", `游戏不存在: ${gameId}`);
     }
     if (game.status !== "active") {
       throw new GameError("invalid_state", `游戏已结束，不能继续行动: ${game.status}`);
     }
-    const [world] = await tx.select().from(worlds).where(eq(worlds.gameId, gameId)).limit(1);
+    const world = await loadWorldByGame(tx, gameId);
     if (!world) {
       throw new GameError("invalid_state", `游戏缺少 world: ${gameId}`);
     }
@@ -123,7 +124,7 @@ export async function applyWorldPlan(
       }
     }
 
-    const stageRows = await tx.select().from(stages).where(eq(stages.worldId, world.id));
+    const stageRows = await listStagesOfWorld(tx, world.id);
     const stageByName = new Map(stageRows.map((stage) => [stage.name, stage]));
     for (const action of actions) {
       if (action.kind === "notify_stage" && !stageByName.has(action.stageName)) {

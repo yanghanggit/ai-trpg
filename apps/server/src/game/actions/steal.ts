@@ -1,5 +1,3 @@
-import { eq } from "drizzle-orm";
-import { actors, items } from "../../db/schema";
 import type { ToolDefinition } from "../../llm/types";
 import { appendPublicMessage, bumpGameVersion } from "../apply/messages";
 import {
@@ -13,6 +11,8 @@ import type { ActorWithStageRow, Executor, ResolvedSteal } from "../apply/types"
 import { GameError } from "../errors";
 import { withoutEquippedItem } from "../items";
 import { appendItemObservations, appendStageEvent } from "../observations";
+import { setActorEquipment } from "../persistence/actors";
+import { transferItemToActor } from "../persistence/items";
 import type { StealAction } from "../types";
 
 /** 构造 steal 工具：从同场景角色身上取走一件物品。 */
@@ -86,11 +86,13 @@ export async function applySteal(
   const item = resolved.transferItem;
 
   await assertItemNameFree(executor, thief.id, item.name);
-  await executor.update(items).set({ actorId: thief.id }).where(eq(items.id, item.id));
-  await executor
-    .update(actors)
-    .set({ equipment: withoutEquippedItem(resolved.target.equipment, item.name) })
-    .where(eq(actors.id, target.id));
+  await transferItemToActor(executor, item.id, thief.id);
+  await setActorEquipment(
+    executor,
+    target.id,
+    withoutEquippedItem(resolved.target.equipment, item.name),
+    now,
+  );
   await bumpGameVersion(executor, gameId, now);
 
   const content = `${thief.name}从${target.name}身上取走了${item.name}。`;

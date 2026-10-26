@@ -1,5 +1,3 @@
-import { eq } from "drizzle-orm";
-import { actors, items } from "../../db/schema";
 import type { ToolDefinition } from "../../llm/types";
 import { appendPublicMessage, bumpGameVersion } from "../apply/messages";
 import {
@@ -12,6 +10,8 @@ import type { ActorWithStageRow, Executor, ResolvedGive } from "../apply/types";
 import { GameError } from "../errors";
 import { withoutEquippedItem } from "../items";
 import { appendItemObservations, appendStageEvent } from "../observations";
+import { setActorEquipment } from "../persistence/actors";
+import { transferItemToActor } from "../persistence/items";
 import type { GiveAction } from "../types";
 
 /** 构造 give 工具：把自己的物品交给同场景的一个角色。 */
@@ -78,11 +78,13 @@ export async function applyGive(
   const item = resolved.transferItem;
 
   await assertItemNameFree(executor, target.id, item.name);
-  await executor.update(items).set({ actorId: target.id }).where(eq(items.id, item.id));
-  await executor
-    .update(actors)
-    .set({ equipment: withoutEquippedItem(actorRow.actor.equipment, item.name) })
-    .where(eq(actors.id, giver.id));
+  await transferItemToActor(executor, item.id, target.id);
+  await setActorEquipment(
+    executor,
+    giver.id,
+    withoutEquippedItem(actorRow.actor.equipment, item.name),
+    now,
+  );
   await bumpGameVersion(executor, gameId, now);
 
   const content = `${giver.name}把${item.name}交给了${target.name}。`;

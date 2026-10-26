@@ -1,13 +1,10 @@
-import { eq } from "drizzle-orm";
-import type { Database } from "../db/pool";
-import { actors } from "../db/schema";
 import type { ChatMessage } from "../llm/types";
+import type { ActorRow, Executor } from "./apply/types";
 import { MEMORY_KINDS } from "./constants";
 import { appendMemoryMessages, loadAgentMemory } from "./memory";
+import { listStageActors } from "./persistence/actors";
 import type { MessageVisibility, StageState } from "./types";
 
-type Executor = Pick<Database, "select" | "insert" | "update">;
-type ActorRow = typeof actors.$inferSelect;
 type ObservationBuilder = (observer: ActorRow) => ChatMessage;
 type TalkKind = "say" | "whisper" | "announce";
 
@@ -19,7 +16,7 @@ async function appendStageObservations(
   include: (observer: ActorRow) => boolean,
   build: ObservationBuilder,
 ): Promise<void> {
-  const observerRows = await executor.select().from(actors).where(eq(actors.stageId, stageId));
+  const observerRows = await listStageActors(executor, stageId);
   for (const observer of observerRows) {
     if (observer.id === excludedActorId || !include(observer)) {
       continue;

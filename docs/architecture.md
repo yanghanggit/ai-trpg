@@ -11,6 +11,8 @@
 
 目标拓扑是「客户端 ⇄ 业务服务端 ⇄ PostgreSQL」。当前数据库由 `agent:game` 直接使用，HTTP 路由接入后服务端复用同一 `game` 服务层；服务端不保留跨请求的权威世界对象。连接池、迁移与开发数据流程见数据库文档。
 
+服务端内部再分一层：**玩法模块不写 SQL**。`game/actions/`、`game/item-effects/`、stage/world 回合、死亡与外观只调用 `game/persistence/` 里的具名读写原语；解析动作用的只读查询在 `game/apply/queries.ts`，事务边界在 `game/apply/index.ts`，建局与整局读取在 `game/service.ts`。`test/persistence-boundary.test.ts` 用源码扫描守住这条边界，玩法模块里出现 `drizzle-orm` 或 `db/schema` 会直接失败。
+
 → 参见：[开发规范](conventions.md)
 
 ## 契约链

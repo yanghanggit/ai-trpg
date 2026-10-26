@@ -1,12 +1,17 @@
-import { and, eq, gt, inArray, isNull, lte, not } from "drizzle-orm";
 import type { Database } from "../db/pool";
-import { actors, stages, worlds } from "../db/schema";
 import type { ChatCompletionService } from "../llm/protocol";
 import { runAppearanceTurn } from "./appearance";
 import { appendPublicMessage, bumpGameVersion } from "./apply/messages";
 import { MEMORY_KINDS } from "./constants";
 import { appendMemoryMessages, loadAgentMemory } from "./memory";
 import { appendActionObservations, appendStageEvent } from "./observations";
+import { listActorsForAppearance } from "./persistence/actors";
+import {
+  listDeathsToSettle,
+  listStageIdsOfGame,
+  markDeathSettled,
+  resetRevivedDeathMarkers,
+} from "./persistence/deaths";
 
 export type DeathPhaseOptions = {
   /** 死亡广播不需要 LLM；只有随后的外观快照需要，没给就跳过外观。 */
@@ -45,25 +50,14 @@ export async function settleDeaths(
   const result: DeathPhaseResult = { settled: [], appearanceFailed: [] };
   const { service } = options;
 
-  const stageIds = await stageIdsOf(db, gameId);
+  const stageIds = await listStageIdsOfGame(db, gameId);
   if (stageIds.length === 0) {
     return result;
   }
 
   // 复活或外部写入把 hp 拉回正数时，清掉旧的收尾标记，等下次死亡重新宣布。
-  await db
-    .update(actors)
-    .set({ deathSettledAt: null })
-    .where(
-      and(inArray(actors.stageId, stageIds), gt(actors.hp, 0), not(isNull(actors.deathSettledAt))),
-    );
-
-  const dying = await db
-    .select({ id: actors.id, name: actors.name, stageId: actors.stageId })
-    .from(actors)
-    .innerJoin(stages, eq(actors.stageId, stages.id))
-    .innerJoin(worlds, eq(stages.worldId, worlds.id))
-    .where(and(eq(worlds.gameId, gameId), lte(actors.hp, 0), isNull(actors.deathSettledAt)));
+  await resetRevivedDeathMarkers(db, stageIds);
+  const dying = await listDeathsToSettle(db, gameId);
 
   // 第一步：宣布死亡。只写库，没有 LLM；失败的死者不影响其它人。
   await Promise.all(
@@ -133,32 +127,8 @@ async function announceDeath(
       ]);
     }
     await bumpGameVersion(tx, gameId, now);
-    await tx
-      .update(actors)
-      .set({ deathSettledAt: now, updatedAt: now })
-      .where(eq(actors.id, actor.id));
+    await markDeathSettled(tx, actor.id, now);
   });
-}
-
-/** 本局所有场景 id；死亡阶段与收尾标记清理都只在局内生效。 */
-async function stageIdsOf(db: Database, gameId: string): Promise<string[]> {
-  const worldRows = await db
-    .select({ id: worlds.id })
-    .from(worlds)
-    .where(eq(worlds.gameId, gameId));
-  if (worldRows.length === 0) {
-    return [];
-  }
-  const rows = await db
-    .select({ id: stages.id })
-    .from(stages)
-    .where(
-      inArray(
-        stages.worldId,
-        worldRows.map((row) => row.id),
-      ),
-    );
-  return rows.map((row) => row.id);
 }
 
 export type AppearanceMaintenanceResult = {
@@ -195,18 +165,7 @@ export async function refreshAppearances(
     return result;
   }
 
-  const rows = await db
-    .select({
-      id: actors.id,
-      name: actors.name,
-      hp: actors.hp,
-      deathSettledAt: actors.deathSettledAt,
-    })
-    .from(actors)
-    .innerJoin(stages, eq(actors.stageId, stages.id))
-    .innerJoin(worlds, eq(stages.worldId, worlds.id))
-    .where(eq(worlds.gameId, gameId))
-    .orderBy(actors.name);
+  const rows = await listActorsForAppearance(db, gameId);
 
   for (const row of rows) {
     if (row.hp <= 0) {

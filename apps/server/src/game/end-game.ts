@@ -1,7 +1,6 @@
-import { eq } from "drizzle-orm";
-import { games } from "../db/schema";
 import { appendPublicMessage } from "./apply/messages";
 import type { Executor } from "./apply/types";
+import { completeGameIfActive } from "./persistence/games";
 
 export type CompleteGameOptions = {
   now?: Date;
@@ -20,23 +19,11 @@ export async function completeGame(
   message: string,
   options: CompleteGameOptions = {},
 ): Promise<boolean> {
-  const [game] = await executor
-    .select({ status: games.status })
-    .from(games)
-    .where(eq(games.id, gameId))
-    .limit(1);
-  if (!game) {
-    throw new Error(`游戏不存在: ${gameId}`);
-  }
-  if (game.status === "completed") {
+  const now = options.now ?? new Date();
+  const completed = await completeGameIfActive(executor, gameId, now);
+  if (!completed) {
     return false;
   }
-
-  const now = options.now ?? new Date();
-  await executor
-    .update(games)
-    .set({ status: "completed", updatedAt: now })
-    .where(eq(games.id, gameId));
   await appendPublicMessage(executor, gameId, null, {
     kind: "game_completed",
     stageId: options.stageId ?? null,

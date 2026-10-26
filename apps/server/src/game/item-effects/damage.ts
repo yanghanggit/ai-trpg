@@ -1,10 +1,9 @@
-import { eq } from "drizzle-orm";
-import { actors } from "../../db/schema";
 import { appendPublicMessage, bumpGameVersion, itemListText } from "../apply/messages";
-import { isAlive, resolveEquippedStats } from "../apply/queries";
+import { resolveEquippedStats } from "../apply/queries";
 import { addStats } from "../attributes";
 import { completeGame } from "../end-game";
 import { appendAttackObservations, appendStageEvent } from "../observations";
+import { damageActor } from "../persistence/actors";
 import type { ItemEffectContext, ItemEffectHandler } from "./types";
 
 /**
@@ -30,20 +29,17 @@ export async function applyDamage(context: ItemEffectContext, damage: number): P
   if (!target) {
     throw new Error("damage effect 需要角色目标");
   }
-  // 默认 effect 与 affix 可能连续结算；伤害前重新读取目标当前 HP，避免旧快照覆盖。
-  const [current] = await executor.select().from(actors).where(eq(actors.id, target.id)).limit(1);
-  if (!current) {
+  // 默认效果与 affix 会连续结算同一个目标：扣血走带行锁的读-改-写，不拿旧快照覆盖。
+  // 这里只写 hp，是否"死亡"完全由 hp 派生，不由攻击方断定。
+  const hit = await damageActor(executor, target.id, damage, now);
+  if (hit.status === "missing") {
     throw new Error(`目标不存在: ${target.name}`);
   }
-  if (!isAlive(current)) {
+  const current = hit.row;
+  if (hit.status === "already-dead") {
     return `# 行动结果\n${target.name}已经倒下。`;
   }
-  const remainingHp = Math.max(0, current.hp - damage);
-  // 这里只写 hp。是否"死亡"完全由 hp 派生，不由攻击方断定。
-  await executor
-    .update(actors)
-    .set({ hp: remainingHp, updatedAt: now })
-    .where(eq(actors.id, target.id));
+  const remainingHp = hit.remainingHp;
   await bumpGameVersion(executor, gameId, now);
 
   const itemText = item ? itemListText([item]) : "";

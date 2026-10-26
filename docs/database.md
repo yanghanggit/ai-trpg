@@ -93,6 +93,21 @@ schema 定义在服务端代码中，SQL 迁移由 Drizzle Kit 生成并入库�
 
 批量外观入口（`refreshAppearances` / `agent:game appearance --all`）用这个标记做幂等：活人重推、未宣布过死亡的死者交给死亡阶段、已宣布过的尸体跳过。重推尸体必须单点指定 actor——否则每跑一次批量就会把尸体外观重写一遍，同一具尸体也会被反复收费。
 
+## 持久化边界
+
+玩法层不写 SQL。`actions/`、`item-effects/`、`stage` / `world` 回合、死亡与外观这些模块只调用具名函数，表名、列名、`for update` 与「删一行插一行」这类细节集中在 `src/game/persistence/`：
+
+- `actors.ts`：穿戴索引、所在场景、外观、扣血（`damageActor`）；
+- `items.ts`：场景物品转入背包、物品转移；
+- `deaths.ts`：死亡扫描、收尾标记；
+- `stages.ts` / `worlds.ts` / `games.ts`：场景环境、按局读 world、游戏行锁与置为 completed。
+
+读分两处：解析动作用的只读查询在 `apply/queries.ts`，写入前需要重新读取的行在 `persistence/`。命名约定：`load*` 是数据库读、`list*` 是集合读、`set*` / `move*` / `mark*` 是写；`find*` 只用于对 `GameState` 的内存查找（`game/actors.ts`），两者不重名。`memory.ts`、`observations.ts`、`apply/messages.ts` 是记忆、观察与公共事件的写入原语；`service.ts` 是建局与整局读取。这些是存取层与编排层，不属于玩法规则。
+
+规则是「玩法层不出现 SQL」，不是「全仓库只有一个地方碰数据库」：`apply/index.ts` 负责事务边界，`compact.ts` / `control.ts` 是记忆维护与玩家控制。
+
+**扣血必须原子**：`damageActor` 接收 `actorId` 而不是快照，在带行锁的读里取当前 `hp` 再写，返回写后的行与剩余 HP。默认效果与词缀会连续结算同一个目标，调用方拿着旧快照直接写会互相覆盖——这条不变式放在持久化层，而不是靠每个调用点记得重读。
+
 ## 事务边界
 
 LLM 调用不放进数据库事务：先读取状态与 memory，在事务外完成 agent loop，再用行锁与版本号在短事务内应用计划。

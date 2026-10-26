@@ -1,7 +1,5 @@
 import { randomUUID } from "node:crypto";
-import { eq } from "drizzle-orm";
 import type { Database } from "../db/pool";
-import { actors, games } from "../db/schema";
 import { agentLoop } from "../llm/agent-loop";
 import type { ChatCompletionService } from "../llm/protocol";
 import type { ToolDefinition } from "../llm/types";
@@ -13,6 +11,8 @@ import { DEFAULT_APPEARANCE_MAX_ROUNDS, MAX_APPEARANCE_LENGTH } from "./constant
 import { GameError } from "./errors";
 import { equippedItems, equipSlot, unequipSlot } from "./items";
 import { loadAgentMemory } from "./memory";
+import { setActorAppearance, setActorEquipment } from "./persistence/actors";
+import { lockGameRow } from "./persistence/games";
 import { getGameState } from "./service";
 import {
   type ActorState,
@@ -169,19 +169,14 @@ export async function runAppearanceTurn(
 
   const now = new Date();
   await db.transaction(async (tx) => {
-    const [game] = await tx
-      .select()
-      .from(games)
-      .where(eq(games.id, state.game.id))
-      .limit(1)
-      .for("update");
+    const game = await lockGameRow(tx, state.game.id);
     if (!game) {
       throw new GameError("not_found", `游戏不存在: ${state.game.id}`);
     }
     if (game.status !== "active") {
       throw new GameError("invalid_state", `游戏已结束，不能更新外观: ${game.status}`);
     }
-    await tx.update(actors).set({ appearance, updatedAt: now }).where(eq(actors.id, actor.id));
+    await setActorAppearance(tx, actor.id, appearance, now);
     await bumpGameVersion(tx, state.game.id, now);
   });
 
@@ -225,19 +220,14 @@ export async function setEquipmentSlot(
 
   const now = new Date();
   await db.transaction(async (tx) => {
-    const [game] = await tx
-      .select()
-      .from(games)
-      .where(eq(games.id, state.game.id))
-      .limit(1)
-      .for("update");
+    const game = await lockGameRow(tx, state.game.id);
     if (!game) {
       throw new GameError("not_found", `游戏不存在: ${state.game.id}`);
     }
     if (game.status !== "active") {
       throw new GameError("invalid_state", `游戏已结束，不能换装: ${game.status}`);
     }
-    await tx.update(actors).set({ equipment, updatedAt: now }).where(eq(actors.id, actor.id));
+    await setActorEquipment(tx, actor.id, equipment, now);
     await bumpGameVersion(tx, state.game.id, now);
   });
 

@@ -1,13 +1,15 @@
 import { randomUUID } from "node:crypto";
-import { and, eq } from "drizzle-orm";
 import type { Database } from "../../db/pool";
-import { actors, games, items, stages, worlds } from "../../db/schema";
 import { agentLoop } from "../../llm/agent-loop";
 import type { ChatCompletionService } from "../../llm/protocol";
 import type { ToolDefinition } from "../../llm/types";
 import type { Executor } from "../apply/types";
 import { STAT_KEYS, type Stats } from "../attributes";
 import { GameError } from "../errors";
+import { loadActorByNameInStage, loadActorWithStage } from "../persistence/actors";
+import { lockGameRow } from "../persistence/games";
+import { loadActorItem } from "../persistence/items";
+import { loadWorldByGame } from "../persistence/worlds";
 import { getGameState } from "../service";
 import { applyDamage } from "./damage";
 import type { AffixRequest } from "./types";
@@ -218,38 +220,29 @@ export async function runAffixEffect(
   if (!loop.success || operations.length === 0) {
     return;
   }
+  // 落账是独立的一次短事务：词缀的 LLM 调用在事务外，重新读取参与结算的行，
+  // 并用游戏行锁把同一局的写入串行化。
   await db.transaction(async (tx) => {
-    const [game] = await tx.select().from(games).where(eq(games.id, gameId)).limit(1).for("update");
+    const game = await lockGameRow(tx, gameId);
     if (game?.status !== "active") {
       return;
     }
-    const [world] = await tx.select().from(worlds).where(eq(worlds.gameId, gameId)).limit(1);
+    const world = await loadWorldByGame(tx, gameId);
     if (!world) {
       return;
     }
-    const [actorRow] = await tx
-      .select({ actor: actors, stage: stages })
-      .from(actors)
-      .innerJoin(stages, eq(actors.stageId, stages.id))
-      .where(and(eq(actors.id, request.actorId), eq(stages.worldId, world.id)))
-      .limit(1);
-    const [itemRow] = await tx
-      .select()
-      .from(items)
-      .where(and(eq(items.id, request.itemId), eq(items.actorId, request.actorId)))
-      .limit(1);
+    const actorRow = await loadActorWithStage(tx, request.actorId, world.id);
+    const itemRow = await loadActorItem(tx, request.actorId, request.itemId);
     if (!actorRow || !itemRow) {
       return;
     }
     const now = new Date();
     for (const operation of operations) {
-      const [targetRow] = await tx
-        .select()
-        .from(actors)
-        .where(
-          and(eq(actors.stageId, actorRow.stage.id), eq(actors.name, operation.targetActorName)),
-        )
-        .limit(1);
+      const targetRow = await loadActorByNameInStage(
+        tx,
+        actorRow.stage.id,
+        operation.targetActorName,
+      );
       if (!targetRow) {
         continue;
       }

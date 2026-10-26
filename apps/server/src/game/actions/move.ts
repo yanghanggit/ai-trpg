@@ -1,5 +1,3 @@
-import { eq } from "drizzle-orm";
-import { actors } from "../../db/schema";
 import type { ToolDefinition } from "../../llm/types";
 import { appendPublicMessage, bumpGameVersion } from "../apply/messages";
 import { resolveAdjacentStage } from "../apply/queries";
@@ -10,6 +8,7 @@ import {
   appendEnvironmentObservations,
   appendStageEvent,
 } from "../observations";
+import { moveActorToStage } from "../persistence/actors";
 import type { MoveAction } from "../types";
 
 /** 构造 move 工具：沿连接移动到相邻场景。 */
@@ -64,10 +63,7 @@ export async function applyMove(
   now: Date,
 ): Promise<string> {
   const target = resolved.targetStage;
-  await executor
-    .update(actors)
-    .set({ stageId: target.id, updatedAt: now })
-    .where(eq(actors.id, actorRow.actor.id));
+  await moveActorToStage(executor, actorRow.actor.id, target.id, now);
   await bumpGameVersion(executor, gameId, now);
   await appendPublicMessage(executor, gameId, actorRow.actor.id, {
     kind: "move",

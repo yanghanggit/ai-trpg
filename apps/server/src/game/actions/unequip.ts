@@ -1,11 +1,10 @@
-import { eq } from "drizzle-orm";
-import { actors } from "../../db/schema";
 import type { ToolDefinition } from "../../llm/types";
 import { appendPublicMessage, bumpGameVersion } from "../apply/messages";
 import type { ActorWithStageRow, Executor, ResolvedUnequip } from "../apply/types";
 import { GameError } from "../errors";
 import { unequipSlot } from "../items";
 import { appendActionObservations, appendStageEvent } from "../observations";
+import { setActorEquipment } from "../persistence/actors";
 import {
   EQUIPMENT_SLOT_LABELS,
   EQUIPMENT_SLOTS,
@@ -70,7 +69,7 @@ export async function applyUnequip(
 ): Promise<string> {
   const actor = { id: actorRow.actor.id, name: actorRow.actor.name };
   const equipment = unequipSlot(actorRow.actor.equipment, resolved.action.slot);
-  await executor.update(actors).set({ equipment, updatedAt: now }).where(eq(actors.id, actor.id));
+  await setActorEquipment(executor, actor.id, equipment, now);
   await bumpGameVersion(executor, gameId, now);
 
   const label = EQUIPMENT_SLOT_LABELS[resolved.action.slot];

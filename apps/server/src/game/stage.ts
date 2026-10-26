@@ -1,13 +1,12 @@
 import { randomUUID } from "node:crypto";
-import { and, eq } from "drizzle-orm";
 import type { Database } from "../db/pool";
-import { actors, games, stages, worlds } from "../db/schema";
 import { agentLoop } from "../llm/agent-loop";
 import type { ChatCompletionService } from "../llm/protocol";
 import type { ChatMessage } from "../llm/types";
 import { adjacentStageNames, findStage } from "./actors";
 import { appendPublicMessage, bumpGameVersion } from "./apply/messages";
 import { isAlive } from "./apply/queries";
+import type { ActorRow } from "./apply/types";
 import {
   DEFAULT_NPC_MAX_ROUNDS,
   MAX_STAGE_NOTIFICATIONS_PER_TURN,
@@ -16,6 +15,10 @@ import {
 import { GameError } from "./errors";
 import { appendMemoryMessages, loadAgentMemory } from "./memory";
 import { appendStageEvent } from "./observations";
+import { listStageActors } from "./persistence/actors";
+import { lockGameRow } from "./persistence/games";
+import { loadStageInWorld, setStageEnvironment } from "./persistence/stages";
+import { loadWorldByGame } from "./persistence/worlds";
 import {
   buildNotifyWorldTool,
   buildObserveActorTool,
@@ -30,7 +33,7 @@ import { getGameState } from "./service";
 import type { GameState, StageAction, StagePlan, StageState, StageTurnResult } from "./types";
 import { appendWorldNotification } from "./world-events";
 
-type StageActorRow = typeof actors.$inferSelect;
+type StageActorRow = ActorRow;
 
 export type StageTurnOptions = {
   service: ChatCompletionService;
@@ -104,22 +107,18 @@ export async function applyStagePlan(
   loopSuccess: boolean,
 ): Promise<boolean> {
   return db.transaction(async (tx) => {
-    const [game] = await tx.select().from(games).where(eq(games.id, gameId)).limit(1).for("update");
+    const game = await lockGameRow(tx, gameId);
     if (!game) {
       throw new GameError("not_found", `游戏不存在: ${gameId}`);
     }
     if (game.status !== "active") {
       throw new GameError("invalid_state", `游戏已结束，不能继续行动: ${game.status}`);
     }
-    const [world] = await tx.select().from(worlds).where(eq(worlds.gameId, gameId)).limit(1);
+    const world = await loadWorldByGame(tx, gameId);
     if (!world) {
       throw new GameError("invalid_state", `游戏缺少 world: ${gameId}`);
     }
-    const [stage] = await tx
-      .select()
-      .from(stages)
-      .where(and(eq(stages.id, stageId), eq(stages.worldId, world.id)))
-      .limit(1);
+    const stage = await loadStageInWorld(tx, stageId, world.id);
     if (!stage) {
       throw new GameError("not_found", `stage 不存在: ${stageId}`);
     }
@@ -127,7 +126,7 @@ export async function applyStagePlan(
     if (!memory) {
       throw new GameError("invalid_state", `stage 缺少 memory: ${stage.id}`);
     }
-    const stageActors = await tx.select().from(actors).where(eq(actors.stageId, stage.id));
+    const stageActors = await listStageActors(tx, stage.id);
     const stageActions = stage.actions;
 
     const reject = async (content: string, kind: string): Promise<false> => {
@@ -191,10 +190,7 @@ export async function applyStagePlan(
     const now = new Date();
     for (const action of plan.actions) {
       if (action.kind === "submit_environment") {
-        await tx
-          .update(stages)
-          .set({ environment: action.environment })
-          .where(eq(stages.id, stage.id));
+        await setStageEnvironment(tx, stage.id, action.environment);
         const content = `${stage.name}的环境发生了变化。\n${action.environment}`;
         await appendPublicMessage(tx, gameId, null, {
           kind: "environment_change",
