@@ -35,6 +35,8 @@ import { isAlive } from "./apply/queries";
 import { DEFAULT_NPC_MAX_ROUNDS, MAX_ACTIONS_PER_TURN } from "./constants";
 import { isPlayerControlled } from "./control";
 import { GameError } from "./errors";
+import { hasItemEffectHandler } from "./item-effects";
+import { isWearable } from "./items";
 import { loadAgentMemory } from "./memory";
 import {
   buildKnowledgeTool,
@@ -148,12 +150,11 @@ export async function runNpcTurn(
   // 目标不区分存活：唯一的存活要求是行动者自己，由行动入口统一把关。
   const targets = otherActors.map((actor) => actor.name);
   const selfAndTargets = [current.actor.name, ...targets];
-  const availableUseItemNames = current.actor.items.map((item) => item.name);
-  const wearableItemNames = current.actor.items
-    .filter(
-      (item) => item.kind === "weapon" || item.kind === "equipment" || item.kind === "accessory",
-    )
+  // 材料之类的惰性物品没有可用效果，不列进 use 的候选，免得模型拿它当道具。
+  const availableUseItemNames = current.actor.items
+    .filter((item) => hasItemEffectHandler(item.effect.type))
     .map((item) => item.name);
+  const wearableItemNames = current.actor.items.filter(isWearable).map((item) => item.name);
   const occupiedSlots = EQUIPMENT_SLOTS.filter(
     (slot) => current.actor.equipment[slot] !== undefined,
   );

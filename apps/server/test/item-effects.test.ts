@@ -23,7 +23,7 @@ describe("item effects", () => {
 
   it("routes by effect.type and rejects unknown handlers", async () => {
     await expect(applyItemEffect({ effect: { type: "unknown" } } as never)).rejects.toThrow(
-      "未知物品效果",
+      "没有可以直接使用的效果",
     );
   });
 });

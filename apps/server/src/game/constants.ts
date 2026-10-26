@@ -34,6 +34,21 @@ export const DEFAULT_APPEARANCE_MAX_ROUNDS = 3;
 /** 一次外观快照的最大字符数。 */
 export const MAX_APPEARANCE_LENGTH = 300;
 
+/** 掉落推理 loop 的最大轮数；只有一个终止工具，留一次纠偏。 */
+export const DEFAULT_DROP_MAX_ROUNDS = 3;
+
+/** 一具尸体一轮最多掉落的材料条数。 */
+export const MAX_DROP_MATERIALS = 2;
+
+/** 掉落材料名的最大字符数。 */
+export const MAX_MATERIAL_NAME_LENGTH = 20;
+
+/** 掉落材料描述的最大字符数。 */
+export const MAX_MATERIAL_DESCRIPTION_LENGTH = 120;
+
+/** 单条掉落材料的数量上限。 */
+export const MAX_MATERIAL_COUNT = 10;
+
 /** 结局标签的最大字符数：world 自己命名的短标签。 */
 export const MAX_OUTCOME_LENGTH = 24;
 

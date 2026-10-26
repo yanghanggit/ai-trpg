@@ -10,7 +10,13 @@ export type BaseBody = {
 };
 
 /** 物品大类；每个大类对应一个运行时子类。 */
-export type ItemKind = "weapon" | "equipment" | "accessory" | "consumable" | "valuable";
+export type ItemKind =
+  | "weapon"
+  | "equipment"
+  | "accessory"
+  | "consumable"
+  | "valuable"
+  | "material";
 
 /**
  * 物品的声明式效果：只存可序列化 JSON，`type` 路由到 handler，物品不持有函数。
@@ -108,7 +114,7 @@ export type Actor = {
   stats: Stats;
   /** 初始当前生命；省略时等于 `stats.maxHp`。`hp` 为 0 就是尸体。 */
   hp?: number;
-  /** 是否为默认玩家角色；该角色死亡时整局结束。 */
+  /** 是否为默认玩家角色；主角死亡时只通知 world，收尾由 world 回合决定。 */
   isDefaultPlayer?: boolean;
   items: readonly ItemDefinition[];
   /** 该角色能执行的行动；必须显式列出，不给默认值。 */
@@ -303,12 +309,16 @@ export type ConsumableState = ItemBaseState & { kind: "consumable" };
 /** 贵重物品：无战斗数值的剧情物品。 */
 export type ValuableState = ItemBaseState & { kind: "valuable" };
 
+/** 材料：尸体留下的物理素材；不可穿戴、没有效果，只能搬运与堆叠。 */
+export type MaterialState = ItemBaseState & { kind: "material" };
+
 export type ItemState =
   | WeaponState
   | EquipmentState
   | AccessoryState
   | ConsumableState
-  | ValuableState;
+  | ValuableState
+  | MaterialState;
 
 export type ActorState = {
   id: string;
@@ -319,7 +329,7 @@ export type ActorState = {
   stats: Stats;
   /** 当前生命；扣血只写这个字段，不再重写整块属性。`hp === 0` 即死亡。 */
   hp: number;
-  /** 是否为默认玩家角色；该角色死亡时整局结束。 */
+  /** 是否为默认玩家角色；主角死亡时只通知 world，收尾由 world 回合决定。 */
   isDefaultPlayer: boolean;
   equipment: EquipmentSlots;
   items: ItemState[];
@@ -435,6 +445,10 @@ export type DeathPhaseResult = {
   failed: DeathPhaseFailure[];
   /** 死亡已宣布、但尸体外观快照没推成的 actor；按设计可以放着不管。 */
   appearanceFailed: string[];
+  /** 本次掉落进场景的材料；`items` 是落到地上的物品名。 */
+  dropped: { actorName: string; items: string[] }[];
+  /** 宣布成功但掉落没跑成、或返回物不合法的 actor；按设计可以放着不管。 */
+  dropFailed: string[];
 };
 
 export type ActorTurnResult = {

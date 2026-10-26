@@ -65,6 +65,44 @@ describe("world content validation", () => {
     ).toThrow();
   });
 
+  it("accepts material items alongside the other kinds", () => {
+    const world = {
+      ...TEST_WORLD,
+      actors: TEST_WORLD.actors.map((actor) =>
+        actor.name === "守烬人"
+          ? {
+              ...actor,
+              items: [
+                ...actor.items,
+                {
+                  key: "ash-scrap",
+                  name: "灰烬碎片",
+                  description: "一撮混着石粉的冷灰。",
+                  kind: "material" as const,
+                  effect: { type: "none" },
+                },
+              ],
+            }
+          : actor,
+      ),
+    };
+    const parsed = parseWorldContent(world);
+    expect(
+      parsed.actors
+        .flatMap((actor) => actor.items)
+        .some((item) => item.kind === "material" && item.name === "灰烬碎片"),
+    ).toBe(true);
+    expect(() =>
+      parseWorldContent({
+        ...world,
+        actors: world.actors.map((actor) => ({
+          ...actor,
+          items: actor.items.map((item) => ({ ...item, kind: "relic" })),
+        })),
+      }),
+    ).toThrow();
+  });
+
   it("requires the world to describe itself", () => {
     const { profile: _profile, ...withoutProfile } = TEST_WORLD;
     expect(() => parseWorldContent(withoutProfile)).toThrow(/profile/);

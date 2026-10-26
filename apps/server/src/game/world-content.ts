@@ -11,7 +11,14 @@ const stageActionSchema = z.enum([
   "open_passage",
 ] satisfies readonly StageActionKind[]);
 const worldActionSchema = z.enum(["notify_stage", "end_game"] satisfies readonly WorldActionKind[]);
-const itemKindSchema = z.enum(["weapon", "equipment", "accessory", "consumable", "valuable"]);
+const itemKindSchema = z.enum([
+  "weapon",
+  "equipment",
+  "accessory",
+  "consumable",
+  "valuable",
+  "material",
+]);
 /**
  * 未写出的字段补 0，运行时总是完整 Stats。
  */

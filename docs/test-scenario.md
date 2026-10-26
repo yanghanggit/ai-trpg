@@ -80,6 +80,7 @@ Boss 路线：鼠王被本场景的非 `wait` 行为惊醒后追杀所有非鼠�
 | 沉睡唤醒 | 场景内说话、攻击或非 `wait` | 由鼠王 openingBriefing 与 LLM 判断，不做确定性断言 |
 | 窃取/给予 | `steal` / 暗语触发 `give` | 窃取为 private；活人身上被穿戴的物品不可窃取，尸体不限；钥匙不在穿戴槽，活着也能偷；暗语通过 say 进入记忆，奥德里克自行选择 give |
 | 拾取 | `pickup` | 场景物品移入背包并从场景消失 |
+| 尸体掉落 | 死亡阶段第三步 | 只产 `material` 并写进尸体背包；同名材料合并数量；重推外观不会再次掉落；搜刮走 `steal` |
 | 使用钥匙 | `use` + `targetDetail` | 只写场景事件，不改连通性、不通知 world；开门由铁闸门下一轮裁决 |
 | 游戏结束 | world `end_game`（主角死亡只是通知 world） | 只有 world 收尾，写 `game_completed` 与它自己命名的 `outcome` |
 | 普通攻击 Boss | `attack` | 鼠王 block 100，空手伤害为 0；火把词缀由 LLM 额外放大 |
@@ -96,6 +97,7 @@ Boss 路线：鼠王被本场景的非 `wait` 行为惊醒后追杀所有非鼠�
 - 玩家活着时私密窃取奥德里克背包里的钥匙：受害者收到被窃记忆，旁观者没有。
 - 玩家说出暗语后，奥德里克下一轮先回应再 `give` 钥匙。
 - 玩家拾取火把、装备后攻击鼠王：fixed damage 为 0，affix LLM 依据“厚毛皮”判定命中，补充“基础 damage × 100”并击杀（实测 800）。
+- 掉落实测：玩家接管无名者，在墓园一拳打死坏运气，死亡阶段三步走完，`dropped` 给出 `带血的灰鼠毛 ×2` 与 `鼠尾白毛簇 ×1`，两件都挂在坏运气的尸体背包里、场景物品没有增加；`player-steal` 从尸体取走一件后进背包（`kind=material`），`use` 报「没有可以直接使用的效果」；`appearance --actor 角色.坏运气` 重推尸体外观后掉落不重复。
 - v13 实测（奥德里克由玩家接管）：对锁孔使用钥匙后，铁闸门 stage 一轮内完成 `open_passage + submit_environment`，未通知 world；山道 stage 一轮内完成 `notify_world + submit_environment`；world 一轮内 `notify_stage ×2 + end_game` 收束，`status=completed`、`outcome=escaped`。
 - 推动奥德里克、墓园、再推动奥德里克：environment 已更新，奥德里克下一次 plan 读到新环境，stage memory 保留事件。
 - 拾取火把后推动焚尸房：environment 只描述当前空场景，不写消失过程或历史痕迹。

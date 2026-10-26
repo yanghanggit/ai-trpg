@@ -43,6 +43,8 @@ export function toItemState(row: {
       return { ...base, kind: "consumable" };
     case "valuable":
       return { ...base, kind: "valuable" };
+    case "material":
+      return { ...base, kind: "material" };
     default: {
       const exhaustive: never = row.kind;
       throw new Error(`未知物品类型: ${String(exhaustive)}`);

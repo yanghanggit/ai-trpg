@@ -6,6 +6,7 @@ export * from "./compact";
 export * from "./constants";
 export * from "./control";
 export * from "./death";
+export * from "./drops";
 export * from "./end-game";
 export * from "./errors";
 export * from "./memory";

@@ -4,6 +4,7 @@ import type { ChatCompletionService } from "../llm/protocol";
 import { runAppearanceTurn } from "./appearance";
 import { appendPublicMessage, bumpGameVersion } from "./apply/messages";
 import { MEMORY_KINDS } from "./constants";
+import { runDropTurn } from "./drops";
 import { GameError } from "./errors";
 import { appendMemoryMessages, loadAgentMemory } from "./memory";
 import { appendActionObservations, appendStageEvent } from "./observations";
@@ -29,8 +30,9 @@ const running = new Map<string, Promise<DeathPhaseResult>>();
 /**
  * 死亡阶段：把「`hp` 归零但还没宣布」的死者各收尾一次。
  *
- * 由 hp 变化的调用方在事务之后触发，也可显式调用。顺序固定为 宣布 → 尸体外观：
- * 宣布时顺带把默认玩家的死亡通知 world，是否收尾由 world 回合决定。
+ * 由 hp 变化的调用方在事务之后触发，也可显式调用。顺序固定为 宣布 → 尸体外观 → 掉落：
+ * 宣布时顺带把默认玩家的死亡通知 world，是否收尾由 world 回合决定；尸体外观
+ * 排在掉落之前，掉落才能读到刚写下的尸体描写。
  *
  * 每个死者独立结算；失败只进返回值与日志，不回滚也不否定触发它的行动，等下次调用重试。
  * 认领语义见 `claimDeath`，取舍见 docs/database.md。
@@ -56,7 +58,13 @@ async function runDeathPhase(
   gameId: string,
   options: DeathPhaseOptions,
 ): Promise<DeathPhaseResult> {
-  const result: DeathPhaseResult = { settled: [], failed: [], appearanceFailed: [] };
+  const result: DeathPhaseResult = {
+    settled: [],
+    failed: [],
+    appearanceFailed: [],
+    dropped: [],
+    dropFailed: [],
+  };
   const { service, logger } = options;
 
   const stageIds = await listStageIdsOfGame(db, gameId);
@@ -96,6 +104,24 @@ async function runDeathPhase(
         } catch (error) {
           result.appearanceFailed.push(actor.name);
           logger?.warn(`尸体外观快照失败: ${actor.name}`, error);
+        }
+      }),
+    );
+    // 排在外观之后：掉落要读到刚写下的尸体描写。
+    await Promise.all(
+      settled.map(async (actor) => {
+        try {
+          const drop = await runDropTurn(db, gameId, actor.id, { service });
+          if (!drop.ok) {
+            result.dropFailed.push(actor.name);
+            return;
+          }
+          if (drop.dropped.length > 0) {
+            result.dropped.push({ actorName: actor.name, items: drop.dropped });
+          }
+        } catch (error) {
+          result.dropFailed.push(actor.name);
+          logger?.warn(`尸体掉落失败: ${actor.name}`, error);
         }
       }),
     );

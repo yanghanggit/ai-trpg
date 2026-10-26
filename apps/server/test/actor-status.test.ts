@@ -144,12 +144,28 @@ describe.skipIf(!testDatabaseUrl)("actor status", () => {
   });
 });
 
-/** 只提交尸体外观的假服务。 */
+/** 只提交尸体外观、掉落一律为空的假服务；calls 只数外观推理。 */
 class DeathAppearanceService implements ChatCompletionService {
   calls = 0;
   input = "";
 
   async complete(request: Parameters<ChatCompletionService["complete"]>[0]) {
+    const dropping = (request.tools ?? []).some((tool) => tool.function.name === "drop_materials");
+    if (dropping) {
+      const dropCalls = [
+        {
+          id: "drop-1",
+          type: "function" as const,
+          function: { name: "drop_materials", arguments: JSON.stringify({ items: [] }) },
+        },
+      ];
+      return new ChatCompletionResult({
+        request,
+        aiMessage: { type: "ai", content: "", toolCalls: dropCalls },
+        finishReason: "tool_calls",
+        toolCalls: dropCalls,
+      });
+    }
     this.calls += 1;
     // 只有第一轮带 inputMessage，后续轮次沿用同一份 messages。
     if (this.input === "") {
