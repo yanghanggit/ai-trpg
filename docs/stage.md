@@ -59,6 +59,8 @@ stage 回合与 actor 回合平行，但不共享 actor plan：
 5. 用 `submit_environment` 提交计划（environment 可省略，也可以只提交已加入的其他动作）；计划至少要有一条动作；
 6. 在短事务中校验、按计划顺序执行、递增 game version、写公共事件。
 
+两个 GM 都是**写入即快照**：每加入一个动作就刷新一次计划快照，模型忘记调用终止工具或轮次用尽时，已暂存的动作仍会落账。轮数上限按「定位 + 全部写动作 + 一次纠偏」配置，保证按任务文本正常规划时结构上装得下；回合结果里的 `loopSuccess` 只表示模型是否显式提交过计划。
+
 `StagePlan` 与 `ActorPlan` / `WorldPlan` 同构，都是 `{ actions: [...] }` 的有序列表：`{ kind: "submit_environment", environment }`、`{ kind: "open_passage", targetStageName }` 或 `{ kind: "notify_world", notification }`。environment 至多一条、通道至多一条，通知至多 `MAX_STAGE_NOTIFICATIONS_PER_TURN` 条；开始写库前全部校验完。
 
 额度只约束**会写库的动作**：只读工具（`look_stage` / `observe_actor`）可以多次调用、不占额度。额度会写进 stage 的任务文本，模型不必靠试错发现上限。
@@ -83,6 +85,6 @@ actor 行动产生的场景事件也进入 stage memory；移动会分别写入�
 
 `agent:game stage --game <gameId|slug> --stage <stageId|stageName>` 推动一个 stage 回合；`--all` 按当前 stage 顺序推动全部场景。它不调用 actor loop，也不自动跟随 actor 行动。
 
-`agent:game world --game <gameId|slug>` 推动 world 回合，读取 stage 通知并执行 world 裁决；只有 world 能 `end_game`。world 的只读工具（`look_stage`）同样不限次数，写动作（`notify_stage` / `end_game`）一轮最多 `MAX_WORLD_ACTIONS_PER_TURN` 个，足够“通知两个场景并在同一轮收束”；上限同样写进任务文本。
+`agent:game world --game <gameId|slug>` 推动 world 回合，读取 stage 通知并执行 world 裁决；只有 world 能 `end_game`。world 的只读工具（`look_stage`）同样不限次数，写动作（`notify_stage` / `end_game`）一轮最多 `MAX_WORLD_ACTIONS_PER_TURN` 个，足够“通知两个场景并在同一轮收束”；动作上限与提交节奏同样写进任务文本。
 
 → 参见：[数据库](database.md) → 参见：[Actor 行动与记忆](actor-actions-memory.md) → 参见：[Agent 探针](probe.md) → 参见：[开发期 Agent 工作流](debug-workflow.md)

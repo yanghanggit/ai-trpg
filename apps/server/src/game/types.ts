@@ -22,24 +22,22 @@ export type ItemEffect = {
 
 /**
  * actor 的穿戴槽：槽里只记录物品名，物品自身不知道被谁穿戴。
- * 开发期只保留一武器、一护甲（合并副手/头/身体/足部）、两饰品。
+ * 开发期只保留一武器、一护甲（合并副手/头/身体/足部）、一饰品。
  */
-export const EQUIPMENT_SLOTS = ["weapon", "armor", "accessory1", "accessory2"] as const;
+export const EQUIPMENT_SLOTS = ["weapon", "armor", "accessory"] as const;
 export type EquipmentSlot = (typeof EQUIPMENT_SLOTS)[number];
 export type EquipmentSlots = Partial<Record<EquipmentSlot, string>>;
 
 export const EQUIPMENT_SLOT_LABELS: Record<EquipmentSlot, string> = {
   weapon: "武器",
   armor: "护甲",
-  accessory1: "饰品一",
-  accessory2: "饰品二",
+  accessory: "饰品",
 };
 
 export const EQUIPMENT_SLOT_KINDS: Record<EquipmentSlot, readonly ItemKind[]> = {
   weapon: ["weapon"],
   armor: ["equipment"],
-  accessory1: ["accessory"],
-  accessory2: ["accessory"],
+  accessory: ["accessory"],
 };
 
 /**

@@ -114,13 +114,13 @@ describe("action parsers", () => {
     });
     expect(
       parseUse({
-        itemName: "饰品.闸门钥匙",
+        itemName: "物品.闸门钥匙",
         targetStageName: "场景.铁闸门",
         targetDetail: "锁孔",
       }),
     ).toEqual({
       kind: "use",
-      itemName: "饰品.闸门钥匙",
+      itemName: "物品.闸门钥匙",
       targetStageName: "场景.铁闸门",
       targetDetail: "锁孔",
     });

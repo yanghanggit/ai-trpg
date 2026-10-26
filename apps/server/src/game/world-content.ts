@@ -37,12 +37,11 @@ const itemSchema = z.object({
   affixes: z.array(z.string()).optional(),
 });
 
-/** 槽位键只有四个；写错或用了旧键（body / head / feet / offhand）会直接报错，不静默丢弃。 */
+/** 槽位键固定为 weapon / armor / accessory；写错会直接报错，不静默丢弃。 */
 const equipmentSchema = z.strictObject({
   weapon: z.string().optional(),
   armor: z.string().optional(),
-  accessory1: z.string().optional(),
-  accessory2: z.string().optional(),
+  accessory: z.string().optional(),
 });
 
 const stageSchema = z.object({

@@ -5,7 +5,17 @@ import "../src/db/env";
 import { type DatabaseHandle, openDatabase } from "../src/db/connect";
 import { resetDomainData, seedDemoData } from "../src/db/maintenance";
 import { runMigrations } from "../src/db/migrate";
-import { createGame, getGameMemories, getGameState, runStageTurn, runWorldTurn } from "../src/game";
+import {
+  createGame,
+  DEFAULT_STAGE_MAX_ROUNDS,
+  DEFAULT_WORLD_MAX_ROUNDS,
+  getGameMemories,
+  getGameState,
+  MAX_STAGE_NOTIFICATIONS_PER_TURN,
+  MAX_WORLD_ACTIONS_PER_TURN,
+  runStageTurn,
+  runWorldTurn,
+} from "../src/game";
 import { ChatCompletionResult, type ChatCompletionService, type ToolCall } from "../src/llm";
 import { TEST_WORLD } from "./test-world";
 
@@ -35,6 +45,33 @@ class ScriptedService implements ChatCompletionService {
     });
   }
 }
+
+/** 按轮次返回不同工具调用；空数组表示这一轮直接 stop。 */
+class ScriptedRoundsService implements ChatCompletionService {
+  private round = 0;
+
+  constructor(private readonly rounds: ToolCall[][]) {}
+
+  async complete(request: Parameters<ChatCompletionService["complete"]>[0]) {
+    const toolCalls = this.rounds[this.round] ?? [];
+    this.round += 1;
+    return new ChatCompletionResult({
+      request,
+      aiMessage: { type: "ai", content: "", toolCalls },
+      finishReason: toolCalls.length > 0 ? "tool_calls" : "stop",
+      toolCalls,
+    });
+  }
+}
+
+describe("turn round budgets", () => {
+  it("按任务提示正常规划时，探查、全部写动作与提交能装进一轮", () => {
+    // world：look_stage + 全部写动作 + submit_world_plan
+    expect(DEFAULT_WORLD_MAX_ROUNDS).toBeGreaterThanOrEqual(MAX_WORLD_ACTIONS_PER_TURN + 2);
+    // stage：look_stage + submit_environment + open_passage + 两条通知
+    expect(DEFAULT_STAGE_MAX_ROUNDS).toBeGreaterThanOrEqual(MAX_STAGE_NOTIFICATIONS_PER_TURN + 3);
+  });
+});
 
 describe.skipIf(!testDatabaseUrl)("world agent", () => {
   let handle: DatabaseHandle;
@@ -146,5 +183,36 @@ describe.skipIf(!testDatabaseUrl)("world agent", () => {
     expect(result.ok).toBe(false);
     expect(result.state.game.status).toBe("active");
     expect((await getGameState(handle.db, created.game.slug)).game.status).toBe("active");
+  });
+
+  it("轮次用尽时仍落账已暂存的动作，不丢 end_game", async () => {
+    const created = await createGame(handle.db, {
+      username: DEMO_USER.username,
+      name: "世界轮次耗尽测试局",
+      world: TEST_WORLD,
+    });
+    const directive = "门廊的灯灭了。";
+    const ending = "门后的路出现了，故事在此收束。";
+
+    // 写两个动作后模型不再调终止工具：纠偏到上限后 loop 以失败结束。
+    const result = await runWorldTurn(handle.db, created.game.slug, {
+      service: new ScriptedRoundsService([
+        [call("notify_stage", { stageName: "灰烬门廊", content: directive })],
+        [call("end_game", { message: ending })],
+        [],
+        [],
+        [],
+      ]),
+    });
+
+    expect(result.loopSuccess).toBe(false);
+    expect(result.ok).toBe(true);
+    expect(result.plan?.actions.map((action) => action.kind)).toEqual(["notify_stage", "end_game"]);
+    expect(result.state.game.status).toBe("completed");
+    expect(result.state.messages.some((message) => message.kind === "game_completed")).toBe(true);
+
+    const memories = await getGameMemories(handle.db, created.game.id);
+    const gate = memories.find((memory) => memory.name === "灰烬门廊");
+    expect(gate?.messages.some((message) => message.content.includes(directive))).toBe(true);
   });
 });

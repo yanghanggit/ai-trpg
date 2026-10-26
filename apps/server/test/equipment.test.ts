@@ -94,7 +94,7 @@ describe.skipIf(!testDatabaseUrl)("equip and unequip actions", () => {
     const created = await createKeeperGame("槽位大类测试局");
     await expect(
       playerEquip(handle.db, created.game.slug, "角色.奥德里克", {
-        itemName: "饰品.闸门钥匙",
+        itemName: "物品.闸门钥匙",
         slot: "armor",
       }),
     ).rejects.toThrow("不能放进护甲槽");
@@ -103,7 +103,7 @@ describe.skipIf(!testDatabaseUrl)("equip and unequip actions", () => {
   it("空槽位不能卸下", async () => {
     const created = await createKeeperGame("空槽位测试局");
     await expect(
-      playerUnequip(handle.db, created.game.slug, "角色.奥德里克", { slot: "accessory2" }),
+      playerUnequip(handle.db, created.game.slug, "角色.奥德里克", { slot: "accessory" }),
     ).rejects.toThrow("槽没有装备");
   });
 

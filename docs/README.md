@@ -37,6 +37,7 @@
 | [公共知识检索](rag.md)                   | 知识边界、向量存储、query 工具与评测基线      |
 | [Actor 记忆](actor-actions-memory.md)    | actor 控制、行动事实、context dump 与接管     |
 | [外观](appearance.md)                    | base body、穿戴、外观推理与换装入口           |
+| [物品](items.md)                         | 大类语义、可见性通道、转移与偷取条件          |
 | [Stage 小 GM](stage.md)                  | 场景实体、场景记忆、环境仲裁与显式推动        |
 | [Agent 探针](probe.md)                   | 只读上下文探针、无副作用问答与目标边界        |
 | [故事整理](story.md)                     | 任意时刻的只读故事总结与上下文串联验证        |

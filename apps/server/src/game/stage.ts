@@ -8,7 +8,7 @@ import { appendPublicMessage, bumpGameVersion } from "./apply/messages";
 import { isAlive } from "./apply/queries";
 import type { ActorRow } from "./apply/types";
 import {
-  DEFAULT_NPC_MAX_ROUNDS,
+  DEFAULT_STAGE_MAX_ROUNDS,
   MAX_STAGE_NOTIFICATIONS_PER_TURN,
   MEMORY_KINDS,
 } from "./constants";
@@ -400,7 +400,7 @@ export async function runStageTurn(
     },
     terminalTools: canSubmit ? [submitTool] : [],
     service: options.service,
-    maxRounds: options.maxRounds ?? DEFAULT_NPC_MAX_ROUNDS,
+    maxRounds: options.maxRounds ?? DEFAULT_STAGE_MAX_ROUNDS,
     loopId: randomUUID(),
     ...(options.logger ? { logger: options.logger } : {}),
   });

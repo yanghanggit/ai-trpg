@@ -52,7 +52,7 @@ compact 手动触发：`agent:game compact --game <game> --owner actor --name <a
 
 ## 工具
 
-只读 GET 有 `look_stage`、`get_self`、`observe_actor`，可多次调用并立即返回：`get_self` 返回自己的完整信息，`observe_actor` 只返回同场景目标携带的物品，不暴露 stats 或状态。所有 actor 都拥有 `query`：检索公共知识，参数是关键词 `keywords` 而非整句提问，只读、不占动作额度，因此不写进 `actions`。
+只读 GET 有 `look_stage`、`get_self`、`observe_actor`，可多次调用并立即返回：`get_self` 返回自己的完整信息，`observe_actor` 只返回同场景目标携带的物品（含物品级数值与是否穿戴），不暴露对方的角色属性与生命。所有 actor 都拥有 `query`：检索公共知识，参数是关键词 `keywords` 而非整句提问，只读、不占动作额度，因此不写进 `actions`。
 
 动作工具共十二个，彼此平级，每个工具的参数就是该动作的全部输入，没有中间分类或 `purpose` 参数，也不写游戏状态；是否一次返回多个调用由 LLM 决定，循环层按顺序串行执行。`submit_plan` 是终止工具，只提交已暂存计划。
 
@@ -100,7 +100,9 @@ compact 手动触发：`agent:game compact --game <game> --owner actor --name <a
 
 物品必须显式声明 effect，没有默认效果；`affixes` 是根部的字符串数组，是默认 effect 之后的补充机制，不改变路由。空手攻击使用系统 `damage`，不依赖物品行；`attack` 的武器固定来自 `equipment.weapon` 且必须声明 `damage`，否则按空手结算；`use` 接受全部物品。未来新增 `heal`、`open` 等效果时只注册新 handler，不在 `attack` / `use` 里写分支。
 
-`equip` / `unequip` 只改 `actors.equipment` 的“槽位 → 物品名”索引：物品行不动，也不触发外观推理。同槽再装备是替换，旧装备自动退回背包；同一物品换槽会先从原槽移除，不会同时占两个槽。
+`equip` / `unequip` 只改 `actors.equipment` 的“槽位 → 物品名”索引：物品行不动，也不触发外观推理。同槽再装备是替换，旧装备自动退回背包；大类与槽位一一对应，所以一件物品只可能出现在一个槽位。
+
+物品能被谁看见、能被谁拿走，与效果和槽位无关，见 → 参见：[物品](items.md)。
 
 目标不需要存活：规则全局只有一条——行动者自己必须活着，尸体可以被说话、攻击、给予、使用与偷窃（对尸体攻击在伤害结算处空转，不改 HP）。这是给复活类玩法留的口子；NPC 的可选目标与观察里的“可作用对象”也包含尸体，没有第二套过滤。`pickup` 把 `stage_items` 移入背包；`use` 的目标只能是当前场景、自己或同场景角色，对场景使用时可用 `targetDetail` 描述具体部位，该描述只是行动声明，后果由 stage / world 裁决。
 

@@ -59,20 +59,21 @@ describe("dark fantasy seed world", () => {
     const keeper = BELL_MONASTERY_WORLD.actors.find((actor) => actor.name === "角色.奥德里克");
     const king = BELL_MONASTERY_WORLD.actors.find((actor) => actor.name === "角色.鼠王");
     expect(keeper?.items.map((item) => item.name)).toEqual(
-      expect.arrayContaining(["饰品.闸门钥匙", "武器.掘墓人的铁锹", "装备.补丁斗篷"]),
+      expect.arrayContaining(["物品.闸门钥匙", "武器.掘墓人的铁锹", "装备.补丁斗篷"]),
     );
     expect(keeper?.equipment).toEqual({
       weapon: "武器.掘墓人的铁锹",
       armor: "装备.补丁斗篷",
-      accessory1: "饰品.闸门钥匙",
     });
     expect(keeper?.items.find((item) => item.name === "装备.补丁斗篷")).toMatchObject({
       key: "patched-cloak",
       kind: "equipment",
       stats: { block: 1 },
     });
-    expect(keeper?.items.find((item) => item.name === "饰品.闸门钥匙")).toMatchObject({
+    // 钥匙是剧情道具（valuable），不在穿戴槽里，所以活着时也能被窃取。
+    expect(keeper?.items.find((item) => item.name === "物品.闸门钥匙")).toMatchObject({
       key: "gate-key",
+      kind: "valuable",
     });
     expect(keeper?.baseBody.race).toBe("人类");
     expect(keeper?.hp).toBe(14);
