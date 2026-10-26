@@ -108,6 +108,27 @@ describe.skipIf(!testDatabaseUrl)("world agent", () => {
     expect(gate?.messages.some((message) => message.content.includes(directive))).toBe(true);
   });
 
+  it("fits two stage directives plus end_game in one turn", async () => {
+    const created = await createGame(handle.db, {
+      username: DEMO_USER.username,
+      name: "世界多动作测试局",
+      world: TEST_WORLD,
+    });
+    const ending = "门后的路出现了，故事在此收束。";
+    const result = await runWorldTurn(handle.db, created.game.slug, {
+      service: new ScriptedService([
+        call("notify_stage", { stageName: "灰烬门廊", content: "门廊的灯灭了。" }),
+        call("notify_stage", { stageName: "断钟中殿", content: "中殿的钟裂开了。" }),
+        call("end_game", { message: ending }),
+        call("submit_world_plan", {}),
+      ]),
+    });
+
+    expect(result.ok).toBe(true);
+    expect(result.plan?.actions).toHaveLength(3);
+    expect(result.state.game.status).toBe("completed");
+  });
+
   it("rejects an end_game that is not the last world action", async () => {
     const created = await createGame(handle.db, {
       username: DEMO_USER.username,

@@ -13,13 +13,14 @@ function stage(key: string) {
 }
 
 describe("dark fantasy seed world", () => {
-  it("keeps the five-stage monastery story", () => {
+  it("keeps the six-stage monastery story", () => {
     expect(stages.map((item) => item.name)).toEqual([
       "场景.墓园",
       "场景.棺材",
       "场景.地窖",
       "场景.焚尸房",
       "场景.铁闸门",
+      "场景.山道",
     ]);
     expect(BELL_MONASTERY_WORLD.worldName).toBe("枯钟修道院");
     // 开局完全由棺材的 environment 与角色自己的记忆表达，没有单独的开场文本。
@@ -158,10 +159,16 @@ describe("dark fantasy seed world", () => {
     expect(actionsOf("角色.无名者")).toContain("steal");
     expect(actionsOf("角色.奥德里克")).not.toContain("steal");
 
-    // 每个场景都声明了自己作为小 GM 的能力。
+    // 所有场景都必须能更新 environment；只有山道能向 world 报告，
+    // 只有铁闸门能改变与门外的连通性。
     for (const item of stages) {
-      expect(item.actions).toEqual(["submit_environment", "notify_world"]);
+      expect(item.actions).toContain("submit_environment");
+      if (item.key !== "mountain-path") {
+        expect(item.actions).not.toContain("notify_world");
+      }
     }
+    expect(stage("gate").actions).toEqual(["submit_environment", "open_passage"]);
+    expect(stage("mountain-path").actions).toEqual(["submit_environment", "notify_world"]);
     expect(BELL_MONASTERY_WORLD.actions).toEqual(["notify_stage", "end_game"]);
   });
 
@@ -196,7 +203,7 @@ describe("dark fantasy seed world", () => {
     }
   });
 
-  it("connects the graveyard, coffin, cellar, crematorium and gate", () => {
+  it("connects the graveyard, coffin, cellar, crematorium, gate and mountain path", () => {
     const edges = new Set(
       BELL_MONASTERY_WORLD.connections.map((connection) => `${connection.from}->${connection.to}`),
     );
@@ -209,7 +216,21 @@ describe("dark fantasy seed world", () => {
         "crematorium->graveyard",
         "graveyard->gate",
         "gate->graveyard",
+        "gate->mountain-path",
       ].sort(),
     );
+  });
+
+  it("keeps the way out sealed until the gate stage opens it", () => {
+    const wayOut = BELL_MONASTERY_WORLD.connections.find(
+      (connection) => connection.from === "gate" && connection.to === "mountain-path",
+    );
+    expect(wayOut?.passage).toBe("sealed");
+    // 单向：逃出修道院后没有回头路。
+    expect(
+      BELL_MONASTERY_WORLD.connections.some(
+        (connection) => connection.from === "mountain-path" && connection.to === "gate",
+      ),
+    ).toBe(false);
   });
 });

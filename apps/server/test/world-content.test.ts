@@ -24,6 +24,16 @@ describe("world content validation", () => {
     expect(keeper?.profile).toBe(TEST_WORLD.actors[0]?.profile);
   });
 
+  it("requires every stage to expose environment updates", () => {
+    const world = {
+      ...TEST_WORLD,
+      stages: TEST_WORLD.stages.map((stage, index) =>
+        index === 0 ? { ...stage, actions: ["notify_world"] } : stage,
+      ),
+    };
+    expect(() => parseWorldContent(world)).toThrow(/submit_environment/);
+  });
+
   it("rejects a world without explicit capabilities", () => {
     const { actions: _actions, ...withoutActions } = TEST_WORLD;
     expect(() => parseWorldContent(withoutActions)).toThrow();

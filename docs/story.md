@@ -79,7 +79,7 @@ CLI 输出 JSON：
   "gameStatus": "completed",
   "story": "...",
   "rounds": 5,
-  "memoriesRead": ["world:枯钟修道院", "actor:角色.奥德里克"],
+  "memoriesRead": ["world:<世界名>", "actor:<角色名>"],
   "eventsRead": true,
   "path": "<repo>/stories/20260102_030405_player-death-e2e.md"
 }
@@ -136,4 +136,4 @@ pnpm agent:game story --game player-death-e2e
 pnpm agent:game story --game e2e-mini
 ```
 
-前者验证默认玩家死亡结局，后者验证钥匙开门结局；进行中的游戏也可以直接生成当前故事。
+前者验证默认玩家死亡结局，后者验证 world 裁决的结束路径；进行中的游戏也可以直接生成当前故事。

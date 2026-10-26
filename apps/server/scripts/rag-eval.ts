@@ -11,8 +11,9 @@
  */
 
 import { parseArgs } from "node:util";
-import { CONTENT_SEEDS, type ContentSeed, getContentSeed } from "../seeds";
+import { CONTENT_PACKS, getContentPack } from "../seeds";
 import { RAG_EVAL_SETS } from "../seeds/eval";
+import type { ContentPack } from "../src/content-pack";
 import { openDatabase } from "../src/db/connect";
 import type { Database } from "../src/db/pool";
 import {
@@ -108,7 +109,7 @@ function resolveSeedNames(value: string | boolean | undefined): string[] {
  * 用例自检：`expect` 是硬编码片段，内容一改就会静默变成“永远 miss”。
  * 同时检查覆盖度——每条知识至少要被一个正例命中，否则新增知识不会进入评测。
  */
-function assertEvalSetMatchesKnowledge(name: string, seed: ContentSeed, evalSet: RagEvalSet): void {
+function assertEvalSetMatchesKnowledge(name: string, seed: ContentPack, evalSet: RagEvalSet): void {
   const contents = Object.values(seed.knowledge).flat();
   const stale = evalSet.positive.filter(
     (testCase) => !contents.some((content) => content.includes(testCase.expect)),
@@ -161,7 +162,7 @@ async function evaluateSet(input: {
   db: Database;
   provider: TransformersEmbeddingProvider;
   name: string;
-  seed: ContentSeed;
+  seed: ContentPack;
   evalSet: RagEvalSet;
   topK: number;
   reindex: boolean;
@@ -279,7 +280,7 @@ async function main(): Promise<void> {
           db,
           provider,
           name,
-          seed: getContentSeed(name),
+          seed: getContentPack(name),
           evalSet,
           topK,
           reindex: values.reindex === true,
@@ -288,7 +289,7 @@ async function main(): Promise<void> {
     }
 
     // 注册了剧本却没有评测集：默认只提示，--check 时算失败（防止新剧本悄悄跳过评测）。
-    const missingEvalSets = Object.keys(CONTENT_SEEDS).filter((name) => !(name in RAG_EVAL_SETS));
+    const missingEvalSets = Object.keys(CONTENT_PACKS).filter((name) => !(name in RAG_EVAL_SETS));
     const failures = sets.flatMap((set) => set.failures);
     const ok = failures.length === 0 && missingEvalSets.length === 0;
 

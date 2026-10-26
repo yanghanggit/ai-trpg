@@ -96,7 +96,7 @@ export async function resolveStageItem(
   return item;
 }
 
-/** 读取与当前场景相邻的目标场景；必须存在连接。 */
+/** 读取与当前场景相邻的目标场景；必须存在**已通行**的连接。 */
 export async function resolveAdjacentStage(
   executor: Executor,
   world: WorldRow,
@@ -119,11 +119,12 @@ export async function resolveAdjacentStage(
         eq(stageConnections.worldId, world.id),
         eq(stageConnections.fromStageId, stage.id),
         eq(stageConnections.toStageId, target.id),
+        eq(stageConnections.passage, "open"),
       ),
     )
     .limit(1);
   if (!connection) {
-    throw new GameError("invalid_action", `没有从 ${stage.name} 到 ${target.name} 的连接`);
+    throw new GameError("invalid_action", `没有从 ${stage.name} 到 ${target.name} 的通道`);
   }
   return target;
 }

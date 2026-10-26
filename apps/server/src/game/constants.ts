@@ -4,8 +4,8 @@ export const MAX_ACTIONS_PER_TURN = 2;
 /** 一轮 stage 最多向 world 发出的通知条数。 */
 export const MAX_STAGE_NOTIFICATIONS_PER_TURN = 2;
 
-/** 一轮 world 最多执行的下行/结束动作条数。 */
-export const MAX_WORLD_ACTIONS_PER_TURN = 2;
+/** 一轮 world 最多执行的下行/结束动作条数；只读工具不计入。 */
+export const MAX_WORLD_ACTIONS_PER_TURN = 3;
 
 /** 使用道具时，对场景具体部位描述的最大长度。 */
 export const MAX_TARGET_DETAIL_LENGTH = 120;

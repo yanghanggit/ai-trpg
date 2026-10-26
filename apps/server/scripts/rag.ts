@@ -1,5 +1,7 @@
 import { parseArgs } from "node:util";
-import { CONTENT_SEEDS, type ContentSeed, getContentSeed } from "../seeds";
+import { CONTENT_PACKS, getContentPack } from "../seeds";
+import type { ContentPack } from "../src/content-pack";
+import { readContentPackFile } from "../src/content-pack";
 import { openDatabase } from "../src/db/connect";
 import {
   contentHash,
@@ -17,6 +19,7 @@ type Output = Record<string, unknown>;
 
 const options = {
   seed: { type: "string" },
+  file: { type: "string" },
   collection: { type: "string" },
   query: { type: "string" },
   "top-k": { type: "string" },
@@ -37,46 +40,68 @@ function usage(): void {
   emit({
     ok: true,
     usage: [
-      "pnpm rag ingest --seed <name> [--collection <name>] [--dtype q8]",
+      "pnpm rag ingest (--seed <name> | --file <content-pack.json>) [--collection <name>] [--dtype q8]",
       "pnpm rag search --seed <name> --query <text> [--top-k 5] [--min-similarity 0.3]",
       "pnpm rag search --collection <name> --query <text>",
-      "pnpm rag check --seed <name> | --collection <name>",
+      "pnpm rag check (--seed <name> | --file <content-pack.json>) | --collection <name>",
       "pnpm rag delete --collection <name> --yes",
-      `可用 seed: ${Object.keys(CONTENT_SEEDS).join(", ")}`,
+      `可用内容包: ${Object.keys(CONTENT_PACKS).join(", ")}`,
     ],
   });
 }
 
-function resolveSeed(
-  value: string | boolean | undefined,
-): { name: string; seed: ContentSeed; collection: string; source: string } | undefined {
-  if (value === undefined) {
-    return undefined;
+type ContentSource = {
+  name: string;
+  pack: ContentPack;
+  collection: string;
+  source: string;
+};
+
+async function resolveSource(values: Record<string, string | boolean | undefined>) {
+  const seedName = values.seed;
+  const file = values.file;
+  if (typeof seedName === "string" && typeof file === "string") {
+    throw new Error("--seed 与 --file 只能二选一");
   }
-  if (typeof value !== "string" || value.trim().length === 0) {
-    throw new Error("--seed 需要非空名称");
+  if (typeof seedName === "string") {
+    if (seedName.trim().length === 0) {
+      throw new Error("--seed 需要非空名称");
+    }
+    const name = seedName.trim();
+    const pack = getContentPack(name);
+    return {
+      name,
+      pack,
+      collection: worldCollection(pack.world.contentKey, pack.world.contentVersion),
+      source: `seed:${name}`,
+    } satisfies ContentSource;
   }
-  const name = value.trim();
-  const seed = getContentSeed(name);
-  return {
-    name,
-    seed,
-    collection: worldCollection(seed.world.contentKey, seed.world.contentVersion),
-    source: `seed:${name}`,
-  };
+  if (typeof file === "string") {
+    if (file.trim().length === 0) {
+      throw new Error("--file 需要非空路径");
+    }
+    const pack = await readContentPackFile(file.trim());
+    return {
+      name: file.trim(),
+      pack,
+      collection: worldCollection(pack.world.contentKey, pack.world.contentVersion),
+      source: `file:${file.trim()}`,
+    } satisfies ContentSource;
+  }
+  return undefined;
 }
 
 function resolveCollection(
   explicit: string | boolean | undefined,
-  seed: ReturnType<typeof resolveSeed>,
+  source: ContentSource | undefined,
 ): string {
   if (typeof explicit === "string" && explicit.trim().length > 0) {
     return explicit.trim();
   }
-  if (!seed) {
+  if (!source) {
     throw new Error("需要 --seed 或 --collection");
   }
-  return seed.collection;
+  return source.collection;
 }
 
 function parseTopK(value: string | boolean | undefined): number | undefined {
@@ -131,8 +156,8 @@ async function main(): Promise<void> {
     throw new Error(`未知命令: ${command}`);
   }
 
-  const seed = resolveSeed(values.seed);
-  const collection = resolveCollection(values.collection, seed);
+  const source = await resolveSource(values);
+  const collection = resolveCollection(values.collection, source);
 
   if (command === "delete") {
     if (typeof values.collection !== "string" || values.collection.trim().length === 0) {
@@ -155,13 +180,13 @@ async function main(): Promise<void> {
     const { db, pool } = openDatabase();
     try {
       const documents = await listCollectionDocuments(db, collection);
-      if (!seed) {
+      if (!source) {
         emit({ ok: true, action: "rag-check", collection, count: documents.length });
         return;
       }
-      // 对账：seed 是唯一事实源，库里多出来的（orphan）与少掉的（missing）都要报出来。
+      // 对账：内容包是唯一事实源，库里多出来的（orphan）与少掉的（missing）都要报出来。
       const expected = new Map(
-        Object.values(seed.seed.knowledge)
+        Object.values(source.pack.knowledge)
           .flat()
           .map((content) => [contentHash(content), content] as const),
       );
@@ -192,21 +217,21 @@ async function main(): Promise<void> {
   }
 
   if (command === "ingest") {
-    if (!seed) {
-      throw new Error("ingest 需要 --seed");
+    if (!source) {
+      throw new Error("ingest 需要 --seed 或 --file");
     }
     const provider = makeProvider(values.dtype);
     const { db, pool } = openDatabase();
     try {
-      const result = await indexKnowledgeBase(db, provider, collection, seed.seed.knowledge, {
-        source: seed.source,
+      const result = await indexKnowledgeBase(db, provider, collection, source.pack.knowledge, {
+        source: source.source,
         docType: "knowledge",
       });
       const count = await countCollection(db, collection);
       emit({
         ok: true,
         action: "rag-ingest",
-        seed: seed.name,
+        source: source.source,
         collection,
         model: provider.model,
         written: result.written,

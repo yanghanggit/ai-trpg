@@ -16,6 +16,7 @@ import {
 import { dumpSystemPrompts } from "../debug/prompt-dump";
 import { toStats } from "./attributes";
 import { resolveAppearance } from "./body";
+import { assertEdgeShape } from "./edges";
 import { GameError } from "./errors";
 import { toItemState } from "./items";
 import {
@@ -200,6 +201,7 @@ export async function getGameState(db: Database, ref: string): Promise<GameState
     id: connection.id,
     fromStageId: connection.fromStageId,
     toStageId: connection.toStageId,
+    passage: connection.passage,
   }));
 
   const player: PlayerState = {
@@ -388,11 +390,13 @@ export async function createGame(db: Database, input: CreateGameInput): Promise<
           `连接引用了不存在的 stage: ${connection.from} -> ${connection.to}`,
         );
       }
+      assertEdgeShape(fromStageId, toStageId);
       await tx.insert(stageConnections).values({
         id: randomUUID(),
         worldId,
         fromStageId,
         toStageId,
+        passage: connection.passage ?? "open",
       });
     }
 

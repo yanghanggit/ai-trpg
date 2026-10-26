@@ -39,7 +39,7 @@ export function buildUseTool(
           targetDetail: {
             type: "string",
             description:
-              "对场景具体位置或部位的描述，例如锁孔、炉膛；只用于 targetStageName，是行动描述而非结果。",
+              "对场景中具体位置或部位的描述；只用于 targetStageName，是行动描述而非结果。",
           },
         },
         required: ["itemName"],

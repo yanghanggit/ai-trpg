@@ -1,3 +1,4 @@
+import { buildEdgeIndex, openNeighborIds, sealedNeighborIds } from "./edges";
 import { GameError } from "./errors";
 import type { ActorState, GameState, StageState } from "./types";
 
@@ -33,18 +34,28 @@ export function otherActorsInStage(stage: StageState, actorId: string): ActorSta
   return stage.actors.filter((actor) => actor.id !== actorId);
 }
 
-/** 返回从指定场景可直接到达的场景。 */
+/** 返回从指定场景可直接到达的场景；只走已通行的边。 */
 export function adjacentStages(state: GameState, stageId: string): StageState[] {
   const byId = new Map(state.world.stages.map((stage) => [stage.id, stage]));
-  return state.world.connections
-    .filter((connection) => connection.fromStageId === stageId)
-    .map((connection) => byId.get(connection.toStageId))
+  const edges = buildEdgeIndex(state.world.connections);
+  return openNeighborIds(edges, stageId)
+    .map((id) => byId.get(id))
     .filter((stage): stage is StageState => stage !== undefined);
 }
 
 /** 返回从指定场景可直接到达的场景名。 */
 export function adjacentStageNames(state: GameState, stageId: string): string[] {
   return adjacentStages(state, stageId).map((stage) => stage.name);
+}
+
+/** 返回与本场景相连、但仍未开启的场景名。 */
+export function sealedStageNames(state: GameState, stageId: string): string[] {
+  const byId = new Map(state.world.stages.map((stage) => [stage.id, stage]));
+  const edges = buildEdgeIndex(state.world.connections);
+  return sealedNeighborIds(edges, stageId).flatMap((id) => {
+    const stage = byId.get(id);
+    return stage ? [stage.name] : [];
+  });
 }
 
 /** 按 id 或唯一名称查找场景。 */

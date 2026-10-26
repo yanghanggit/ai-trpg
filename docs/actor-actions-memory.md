@@ -6,7 +6,7 @@
 
 `actor` 是第一级实体。NPC 与玩家不是两种 actor 表，而是同一个 actor 的两种控制者。NPC 由 agent loop 驱动，玩家通过接管关系直接提交行动；actor 的身份、场景归属、物品、状态与 memory 不因控制者改变。
 
-actor 目前只有一个运行时容器：`items` 道具队列。鼠王的沉睡属于 actor 的开局简报（`openingBriefing`），由 LLM 根据场景记忆判断是否苏醒。
+actor 目前只有一个运行时容器：`items` 道具队列。沉睡这类开局状态属于 actor 的开局简报（`openingBriefing`），由 LLM 根据场景记忆判断何时解除。
 
 玩家接管通过独立的控制关系表达，不把控制字段塞回 actor 本体。释放接管后，同一个 actor 恢复 NPC 驱动，继续使用原 memory。
 
@@ -134,7 +134,7 @@ NPC 工具分为只读 GET、动作与终止工具。`look_stage`、`get_self`�
 
 ## 动作
 
-动作只有一层，十二个动作平级，没有“沟通 / 移动 / 交互”这类收口概念。每个 actor 有一个显式的 `actions` 列表，决定它能用哪些动作；stage 也有自己的 `actions`（当前有 `submit_environment` / `notify_world`），决定它作为小 GM 能调用哪些工具。
+动作只有一层，十二个动作平级，没有“沟通 / 移动 / 交互”这类收口概念。每个 actor 有一个显式的 `actions` 列表，决定它能用哪些动作；stage 也有自己的 `actions`（`submit_environment` / `open_passage` / `notify_world`，逐场景声明），决定它作为小 GM 能调用哪些工具。
 
 | 动作 | 参数 | 可见性 |
 | --- | --- | --- |
@@ -162,9 +162,9 @@ NPC 工具分为只读 GET、动作与终止工具。`look_stage`、`get_self`�
 - `{ "type": "damage" }`：先走固定战斗公式 `max(0, 攻击方总 damage - 目标总 block)`，两侧都用 `addStats()` 一条加法规则（自身 stats + 物品 stats），目标的装备属性在结算时现读；`strength` / `wisdom` / `agility`（力量 / 智慧 / 敏捷）保留在 `Stats` 里但不参与结算；如果物品有 `affixes`，默认 effect 执行完后再执行一次 LLM 补充效果。
 - `{ "type": "event" }`：只写“使用了某物”的事件，后果交给 stage / world。
 
-物品必须显式声明 effect，没有默认效果，也没有 `actions` 元数据。`affixes` 是根部的字符串数组；它是默认 effect 之后的补充效果机制，不改变 effect.type 的路由。空手攻击使用系统 `{ "type": "damage" }`，不依赖物品行。`attack` 的武器固定来自 `equipment.weapon`，且该物品必须声明 `damage` effect，否则按空手结算；要用背包里的其他物品请走 `use`，`use` 接受全部物品。运行时两者都只按 `effect.type` 分派。未来新增 `heal`、`open` 等效果时，只注册新的 handler，不在 `attack` / `use` 里写分支。目标减伤由它自己的 `stats.block` 与所有已穿戴物品的 `block` 相加得到。`steal` 对活人只能拿背包里的物品，对尸体不限；`give`、`use`、`attack` 的目标同样不要求存活。**规则全局只有一条**：行动者自己必须活着，目标没有存活要求；尸体可以被说话、攻击、给予、使用与偷窃（对尸体攻击会在伤害结算处空转，不改 hp），这是给复活类玩法留的口子。NPC 的可选目标与观察里的「可作用对象」也一并包含尸体，没有第二套过滤；`pickup` 把 `stage_items` 移入背包；`use` 的目标只能是当前场景、自己或同场景角色，对场景使用时可用 `targetDetail` 描述锁孔、炉膛等具体部位。该描述只是一次行动声明，具体后果由 stage / world 裁决。
+物品必须显式声明 effect，没有默认效果，也没有 `actions` 元数据。`affixes` 是根部的字符串数组；它是默认 effect 之后的补充效果机制，不改变 effect.type 的路由。空手攻击使用系统 `{ "type": "damage" }`，不依赖物品行。`attack` 的武器固定来自 `equipment.weapon`，且该物品必须声明 `damage` effect，否则按空手结算；要用背包里的其他物品请走 `use`，`use` 接受全部物品。运行时两者都只按 `effect.type` 分派。未来新增 `heal`、`open` 等效果时，只注册新的 handler，不在 `attack` / `use` 里写分支。目标减伤由它自己的 `stats.block` 与所有已穿戴物品的 `block` 相加得到。`steal` 对活人只能拿背包里的物品，对尸体不限；`give`、`use`、`attack` 的目标同样不要求存活。**规则全局只有一条**：行动者自己必须活着，目标没有存活要求；尸体可以被说话、攻击、给予、使用与偷窃（对尸体攻击会在伤害结算处空转，不改 hp），这是给复活类玩法留的口子。NPC 的可选目标与观察里的「可作用对象」也一并包含尸体，没有第二套过滤；`pickup` 把 `stage_items` 移入背包；`use` 的目标只能是当前场景、自己或同场景角色，对场景使用时可用 `targetDetail` 描述场景中可被作用的具体部位。该描述只是一次行动声明，具体后果由 stage / world 裁决。
 
-能力在剧本种子（`seeds/dark-fantasy/bell-monastery.ts`）里**逐角色逐条**写出，不设共享默认值：动物只有 `say` / `whisper` / `announce` / `move` / `wait`（狗与鼠王再加 `attack`），人类才有 `give` / `pickup` / `use`，偷窃只属于当前剧本的无名者。知识检索作为只读能力写进同一个 `actions` 清单，当前只给奥德里克、坏运气与鼠王；玩家角色与煤渣没有该工具。创建游戏时写进 `actors.actions` / `stages.actions`，运行时以数据库为准。stage 的能力是 `submit_environment` 与 `notify_world`，环境写法与通知边界写在工具描述里，属于“工具即上下文”；world 的能力是 `notify_stage` 与 `end_game`。NPC 只暴露被允许的工具；结算层 `assertActionAllowed` 是权威校验，玩家入口与脚本调用同样受约束（拒绝原因会直接返回给调用方）。计划条数由 `MAX_ACTIONS_PER_TURN` 限制。
+能力在剧本种子里**逐角色逐条**写出，不设共享默认值：哪些角色能战斗、能操作道具或能偷窃，全由内容声明。创建游戏时写进 `actors.actions` / `stages.actions`，运行时以数据库为准。stage 的能力是 `submit_environment` / `open_passage` / `notify_world`，写法与边界写在工具描述里，属于“工具即上下文”；world 的能力是 `notify_stage` 与 `end_game`。NPC 只暴露被允许的工具；结算层 `assertActionAllowed` 是权威校验，玩家入口与脚本调用同样受约束（拒绝原因会直接返回给调用方）。计划条数由 `MAX_ACTIONS_PER_TURN` 限制。
 
 ## 事务边界
 

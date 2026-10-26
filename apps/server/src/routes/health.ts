@@ -11,8 +11,6 @@ const healthResponseSchema = z.object({
   serverTime: z.iso.datetime(),
 });
 
-export type HealthResponse = z.infer<typeof healthResponseSchema>;
-
 export const healthRoutes: FastifyPluginAsyncZod = async (app) => {
   app.get(
     "/health",

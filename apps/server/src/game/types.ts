@@ -77,14 +77,18 @@ export type Stage = {
   environment: string;
   /** 暂放在场景中的物品；创建时物化为 `stage_items`。 */
   items?: readonly ItemDefinition[];
-  /** 场景自身的能力清单；必须显式列出，当前有 submit_environment 与 notify_world。 */
+  /** 场景自身的能力清单；必须显式列出。 */
   actions: readonly StageActionKind[];
 };
 
-/** 场景图的初始有向连接；两端引用 `Stage.key`。 */
+/** 场景边的通行状态；sealed 表示两侧在剧情上相连，但当前不能通过。 */
+export type PassageState = "open" | "sealed";
+
+/** 场景图的初始有向连接；两端引用 `Stage.key`，默认已通行。 */
 export type Connection = {
   from: string;
   to: string;
+  passage?: PassageState;
 };
 
 /**
@@ -216,7 +220,7 @@ export type UseAction = {
   itemName: string;
   targetActorName?: string;
   targetStageName?: string;
-  /** 对场景的具体位置/部位，例如锁孔；只是行动描述，不是结果。 */
+  /** 对场景中具体位置/部位的描述；只是行动描述，不是结果。 */
   targetDetail?: string;
 };
 
@@ -253,7 +257,8 @@ export type ActionKind = ActorAction["kind"];
 /** stage 的一次仲裁动作；与 actor / world 的计划同构，都是有序动作列表。 */
 export type StageAction =
   | { kind: "submit_environment"; environment: string }
-  | { kind: "notify_world"; notification: string };
+  | { kind: "notify_world"; notification: string }
+  | { kind: "open_passage"; targetStageName: string };
 
 /** 场景作为小 GM 能执行的动作；能力清单成员，由 `StageAction` 派生。 */
 export type StageActionKind = StageAction["kind"];
@@ -304,7 +309,7 @@ export type WeaponState = ItemBaseState & { kind: "weapon" };
 /** 装备：`stats.block` 提供防御；当前不参与伤害计算。 */
 export type EquipmentState = ItemBaseState & { kind: "equipment" };
 
-/** 饰品：钥匙、护符等非战斗物品。 */
+/** 饰品：随身携带的非战斗物品。 */
 export type AccessoryState = ItemBaseState & { kind: "accessory" };
 
 /** 可穿戴物品状态的联合，用于外观推理筛选。 */
@@ -358,6 +363,7 @@ export type ConnectionState = {
   id: string;
   fromStageId: string;
   toStageId: string;
+  passage: PassageState;
 };
 
 export type MessageState = {

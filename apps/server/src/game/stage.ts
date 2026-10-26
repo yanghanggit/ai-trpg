@@ -3,7 +3,7 @@ import type { Database } from "../db/pool";
 import { agentLoop } from "../llm/agent-loop";
 import type { ChatCompletionService } from "../llm/protocol";
 import type { ChatMessage } from "../llm/types";
-import { adjacentStageNames, findStage } from "./actors";
+import { adjacentStageNames, findStage, sealedStageNames } from "./actors";
 import { appendPublicMessage, bumpGameVersion } from "./apply/messages";
 import { isAlive } from "./apply/queries";
 import type { ActorRow } from "./apply/types";
@@ -16,24 +16,25 @@ import { GameError } from "./errors";
 import { appendMemoryMessages, loadAgentMemory } from "./memory";
 import { appendStageEvent } from "./observations";
 import { listStageActors } from "./persistence/actors";
+import { isPassageSealed, openPassage } from "./persistence/edges";
 import { lockGameRow } from "./persistence/games";
-import { loadStageInWorld, setStageEnvironment } from "./persistence/stages";
+import { listStagesOfWorld, loadStageInWorld, setStageEnvironment } from "./persistence/stages";
 import { loadWorldByGame } from "./persistence/worlds";
 import {
   buildNotifyWorldTool,
   buildObserveActorTool,
+  buildOpenPassageTool,
   buildStageLookTool,
   buildSubmitEnvironmentTool,
   describeObservedActor,
   lookStage,
   parseEnvironment,
+  parseOpenPassage,
   parseWorldNotification,
 } from "./plan";
 import { getGameState } from "./service";
 import type { GameState, StageAction, StagePlan, StageState, StageTurnResult } from "./types";
 import { appendWorldNotification } from "./world-events";
-
-type StageActorRow = ActorRow;
 
 export type StageTurnOptions = {
   service: ChatCompletionService;
@@ -44,6 +45,10 @@ export type StageTurnOptions = {
 /** 构造 stage 小 GM 本轮的当前场景观察；仲裁与探针共用。 */
 export function buildStageObservation(state: GameState, stage: StageState): string {
   const moves = adjacentStageNames(state, stage.id);
+  const sealed = sealedStageNames(state, stage.id);
+  const canSubmit = stage.actions.includes("submit_environment");
+  const canOpen = stage.actions.includes("open_passage");
+  const canNotify = stage.actions.includes("notify_world");
   const actorLines =
     stage.actors.length === 0
       ? "无"
@@ -55,6 +60,23 @@ export function buildStageObservation(state: GameState, stage: StageState): stri
       ? "无"
       : stage.items.map((item) => `${item.name}（${item.kind}）：${item.description}`).join("\n");
   const moveLines = moves.length === 0 ? "无" : moves.join("、");
+  const sealedLines = sealed.length === 0 ? "无" : sealed.join("、");
+  const taskLines = [
+    "你是本场景的小 GM，只能看到本场景的事件与记忆。",
+    ...(canSubmit ? ["根据当前环境与本场景记忆，判断并提交更新后的完整 environment。"] : []),
+    ...(canOpen
+      ? [
+          "如果本场景已有的信息表明某个未开启通道确实存在，并且本轮事件确实解除了它的阻断，用 open_passage 打开它；只改变连通性，不向世界报告，也不改变对面场景。",
+        ]
+      : []),
+    ...(canNotify
+      ? [
+          "只有当行动产生了跨场景/世界级后果、会改变其他场景，或需要 world 裁决世界级事实时，才使用 notify_world。判断依据必须来自本场景已有的信息（设定、环境、本场景事件）：只有当它把这个目标描述成可被操作的机制，并且本轮事件表明该机制可能被改变时才通知。仅凭外观、装饰或相似形状不能推断出机制或隐藏功能。通知只是报告，不是既成事实；也不要因为角色使用了某个物品就自动通知世界。",
+        ]
+      : []),
+    "只读工具（look_stage / observe_actor）可以多次调用，不占额度；本轮会写库的动作最多：environment 一次、通道一条、world 通知两条。",
+    "细节规则见各工具说明。",
+  ];
 
   return `# 当前场景
 
@@ -74,17 +96,17 @@ ${itemLines}
 ## 可去场景
 ${moveLines}
 
+## 未开启的通道
+${sealedLines}
+
 # 本轮任务
 
-你是本场景的小 GM，只能看到本场景的事件与记忆。根据当前环境与本场景记忆，判断并提交更新后的完整 environment。
-只有当行动产生了跨场景/世界级后果、会改变其他场景，或需要 world 裁决世界级事实时，才使用 notify_world。判断标准是它是否可能改变场景的通行/封闭、机关或跨场景状态：只有当场景已有信息表明 targetDetail 是功能部位（如锁孔、门闩、机关），并且行动可能改变它时，才在结果不确定时通知。装饰、铭文、表面纹样、物品外观相似都不构成机关，不能据此推测隐藏锁扣；这类行动只更新 environment，不要通知 world。
-通知只是报告，不是既成事实；不要因为角色使用了某个物品就自动通知世界。
-细节规则见 submit_environment / notify_world 的工具说明；需要更多信息时使用 look_stage / observe_actor。`;
+${taskLines.join("\n")}`;
 }
 
 function assertEnvironmentHasNoActorNames(
   environment: string,
-  stageActors: readonly Pick<StageActorRow, "name">[],
+  stageActors: readonly Pick<ActorRow, "name">[],
 ): void {
   for (const actor of stageActors) {
     if (environment.includes(actor.name)) {
@@ -151,8 +173,14 @@ export async function applyStagePlan(
     const notifications = plan.actions.flatMap((action) =>
       action.kind === "notify_world" ? [action.notification] : [],
     );
+    const passages = plan.actions.flatMap((action) =>
+      action.kind === "open_passage" ? [action.targetStageName] : [],
+    );
     if (environments.length > 1) {
       return reject("本轮最多一次 environment 更新。", MEMORY_KINDS.actionRejected);
+    }
+    if (passages.length > 1) {
+      return reject("本轮最多打开一条通道。", MEMORY_KINDS.actionRejected);
     }
     if (notifications.length > MAX_STAGE_NOTIFICATIONS_PER_TURN) {
       throw new GameError(
@@ -160,17 +188,32 @@ export async function applyStagePlan(
         `本轮最多 ${MAX_STAGE_NOTIFICATIONS_PER_TURN} 条 world 通知`,
       );
     }
-    if (environments.length === 0 && notifications.length === 0) {
-      return reject("本轮没有 environment 或 world 通知，状态未改变。", MEMORY_KINDS.planFailed);
-    }
-    if (environments.length > 0 && !stageActions.includes("submit_environment")) {
+    if (environments.length === 0 && notifications.length === 0 && passages.length === 0) {
       return reject(
-        "环境更新被拒绝：本场景没有 submit_environment 能力。",
-        MEMORY_KINDS.actionRejected,
+        "本轮没有 environment、通道或 world 通知，状态未改变。",
+        MEMORY_KINDS.planFailed,
       );
     }
     if (notifications.length > 0 && !stageActions.includes("notify_world")) {
       return reject("通知被拒绝：本场景没有 notify_world 能力。", MEMORY_KINDS.actionRejected);
+    }
+    if (passages.length > 0 && !stageActions.includes("open_passage")) {
+      return reject("通道变更被拒绝：本场景没有 open_passage 能力。", MEMORY_KINDS.actionRejected);
+    }
+
+    const stagesOfWorld = await listStagesOfWorld(tx, world.id);
+    const stageByName = new Map(stagesOfWorld.map((candidate) => [candidate.name, candidate]));
+    for (const targetStageName of passages) {
+      const target = stageByName.get(targetStageName);
+      if (!target) {
+        return reject("通道变更被拒绝：目标场景不存在。", MEMORY_KINDS.actionRejected);
+      }
+      if (!(await isPassageSealed(tx, world.id, stage.id, target.id))) {
+        return reject(
+          `通道变更被拒绝：没有从 ${stage.name} 到 ${target.name} 的未开启通道。`,
+          MEMORY_KINDS.actionRejected,
+        );
+      }
     }
     for (const environment of environments) {
       try {
@@ -200,6 +243,32 @@ export async function applyStagePlan(
         });
         await appendStageEvent(tx, gameId, stage.id, `# 场景事件\n${content}`, {
           eventKind: "environment_change",
+        });
+        continue;
+      }
+
+      if (action.kind === "open_passage") {
+        const target = stageByName.get(action.targetStageName);
+        if (!target) {
+          throw new GameError("invalid_state", `通道目标场景不存在: ${action.targetStageName}`);
+        }
+        const opened = await openPassage(tx, world.id, stage.id, target.id);
+        if (!opened) {
+          throw new GameError(
+            "invalid_state",
+            `没有通往 ${target.name} 的未开启通道: ${stage.name}`,
+          );
+        }
+        const content = `${stage.name}通往${target.name}的通道开启了。`;
+        await appendPublicMessage(tx, gameId, null, {
+          kind: "passage_change",
+          stageId: stage.id,
+          visibility: "stage",
+          content,
+        });
+        await appendStageEvent(tx, gameId, stage.id, `# 场景事件\n${content}`, {
+          eventKind: "passage_change",
+          targetStageId: target.id,
         });
         continue;
       }
@@ -244,8 +313,11 @@ export async function runStageTurn(
   const observeTool = buildObserveActorTool(stage.actors.map((actor) => actor.name));
   const canSubmit = stage.actions.includes("submit_environment");
   const canNotify = stage.actions.includes("notify_world");
+  const sealed = sealedStageNames(state, stage.id);
+  const canOpen = stage.actions.includes("open_passage") && sealed.length > 0;
   const submitTool = buildSubmitEnvironmentTool();
-  const notifyTool = buildNotifyWorldTool();
+  const notifyTool = buildNotifyWorldTool(submitTool.function.name);
+  const openTool = buildOpenPassageTool(sealed, submitTool.function.name);
   const actions: StageAction[] = [];
   let submitted: StagePlan | null = null;
 
@@ -265,6 +337,7 @@ export async function runStageTurn(
       observeTool,
       ...(canSubmit ? [submitTool] : []),
       ...(canNotify ? [notifyTool] : []),
+      ...(canOpen ? [openTool] : []),
     ],
     handlers: {
       [lookTool.function.name]: (args) => {
@@ -283,17 +356,20 @@ export async function runStageTurn(
       ...(canSubmit
         ? {
             [submitTool.function.name]: (args: Record<string, unknown>) => {
-              if (submitted) {
-                throw new GameError("invalid_action", "计划已提交");
-              }
               const environment = parseEnvironment(args);
               if (environment !== undefined) {
-                actions.push({ kind: "submit_environment", environment });
+                // 写入动作会即时更新计划快照，这里只负责补上/替换 environment。
+                const index = actions.findIndex((action) => action.kind === "submit_environment");
+                if (index >= 0) {
+                  actions[index] = { kind: "submit_environment", environment };
+                } else {
+                  actions.push({ kind: "submit_environment", environment });
+                }
               }
               if (actions.length === 0) {
                 throw new GameError(
                   "invalid_action",
-                  "计划必须包含 environment 或至少一条 notify_world 通知",
+                  "计划必须包含 environment、通道开启或至少一条 notify_world 通知",
                 );
               }
               submit();
@@ -312,12 +388,23 @@ export async function runStageTurn(
                 );
               }
               actions.push({ kind: "notify_world", notification: parseWorldNotification(args) });
-              // 模型可能先 submit_environment 再 notify_world；通知仍属于同一轮计划，
-              // 因此提交后继续补充通知，而不是丢弃或报错。
-              if (submitted) {
-                submit();
-              }
+              // 写入动作加入即刷新计划快照：模型忘记调用终止工具时，本轮动作也不会丢；
+              // 已提交后再补充动作同样以最新列表为准。
+              submit();
               return "通知已加入本轮计划";
+            },
+          }
+        : {}),
+      ...(canOpen
+        ? {
+            [openTool.function.name]: (args: Record<string, unknown>) => {
+              const count = actions.filter((action) => action.kind === "open_passage").length;
+              if (count >= 1) {
+                throw new GameError("invalid_action", "本轮最多打开一条通道");
+              }
+              actions.push(parseOpenPassage(args));
+              submit();
+              return "通道开启已加入本轮计划";
             },
           }
         : {}),

@@ -8,6 +8,7 @@ const actionKindSchema = z.enum(ACTION_KINDS);
 const stageActionSchema = z.enum([
   "submit_environment",
   "notify_world",
+  "open_passage",
 ] satisfies readonly StageActionKind[]);
 const worldActionSchema = z.enum(["notify_stage", "end_game"] satisfies readonly WorldActionKind[]);
 const itemKindSchema = z.enum(["weapon", "equipment", "accessory", "consumable", "valuable"]);
@@ -73,17 +74,35 @@ const actorSchema = z.object({
   actions: z.array(actionKindSchema),
 });
 
-const worldSchema = z.object({
-  contentVersion: z.string().min(1),
-  contentKey: z.string().min(1),
-  worldName: z.string().min(1),
-  campaignSetting: z.string(),
-  systemRules: z.string(),
-  stages: z.array(stageSchema).min(1),
-  connections: z.array(z.object({ from: z.string(), to: z.string() })),
-  actors: z.array(actorSchema),
-  actions: z.array(worldActionSchema),
-});
+const worldSchema = z
+  .object({
+    contentVersion: z.string().min(1),
+    contentKey: z.string().min(1),
+    worldName: z.string().min(1),
+    campaignSetting: z.string(),
+    systemRules: z.string(),
+    stages: z.array(stageSchema).min(1),
+    connections: z.array(
+      z.object({
+        from: z.string(),
+        to: z.string(),
+        passage: z.enum(["open", "sealed"]).optional(),
+      }),
+    ),
+    actors: z.array(actorSchema),
+    actions: z.array(worldActionSchema),
+  })
+  .superRefine((value, ctx) => {
+    value.stages.forEach((stage, index) => {
+      if (!stage.actions.includes("submit_environment")) {
+        ctx.addIssue({
+          code: "custom",
+          message: "每个场景都必须声明 submit_environment",
+          path: ["stages", index, "actions"],
+        });
+      }
+    });
+  });
 
 /** 校验并收窄外部内容；CLI 的 --world-file 与 seed 都经过这里。 */
 export function parseWorldContent(value: unknown): World {

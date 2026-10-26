@@ -4,7 +4,7 @@ import { adjacentStageNames, findStageByName } from "./actors";
 import { isAlive } from "./apply/queries";
 import { MAX_WORLD_NOTIFICATION_LENGTH } from "./constants";
 import { GameError } from "./errors";
-import type { ActorState, GameState } from "./types";
+import type { ActorState, GameState, StageAction } from "./types";
 import { EQUIPMENT_SLOT_LABELS, EQUIPMENT_SLOTS } from "./types";
 
 /** 构造只读环境查看工具。 */
@@ -99,14 +99,14 @@ export function buildKnowledgeTool(): ToolDefinition {
     function: {
       name: "query",
       description:
-        "检索当前世界的公共知识库：建筑、地理、历史、瘟疫、习俗等任何人都可能观察或听说的事实。只读，可多次调用，不占行动。它不包含角色秘密、当前场景状态、物品位置或未公开剧情；检索结果不等于亲眼所见。检索按关键词匹配，给名词短语比整句提问更容易命中。",
+        "检索当前世界的公共知识库：任何进入该世界的人都可能观察、询问或从公开记载中得知的固定事实。只读，可多次调用，不占行动。它不包含角色秘密、当前场景状态、物品位置或未公开剧情；检索结果不等于亲眼所见。检索按关键词匹配，给名词短语比整句提问更容易命中。",
       parameters: {
         type: "object",
         properties: {
           keywords: {
             type: "string",
             description:
-              "检索关键词：2～4 个名词或短语，空格分隔，例如“枯钟 得名”；不要写整句提问，也不要询问角色秘密或当前状态",
+              "检索关键词：2～4 个名词或短语，空格分隔；不要写整句提问，也不要询问角色秘密或当前状态",
           },
         },
         required: ["keywords"],
@@ -170,7 +170,7 @@ environment 是场景当前的身体状态：只描述此刻可以直接观察�
 - 不能包含角色名称、角色行动或角色状态；角色由场景状态单独承载。
 - 不要替角色行动，不要修改角色属性、物品或位置。
 
-提交的是完整快照，不是差异。environment 可省略，但本轮必须至少提交 environment 或 notify_world 通知。`,
+提交的是完整快照，不是差异。environment 可省略，但本轮必须至少提交一条动作。`,
       parameters: {
         type: "object",
         properties: {
@@ -193,15 +193,16 @@ export function parseEnvironment(args: Record<string, unknown>): string | undefi
 }
 
 /** 构造 stage 给 world 的通知工具；通知只是报告，不是世界事实。 */
-export function buildNotifyWorldTool(): ToolDefinition {
+export function buildNotifyWorldTool(terminalToolName: string): ToolDefinition {
   return {
     type: "function",
     function: {
       name: "notify_world",
-      description: `把一条需要世界知晓的场景报告加入本轮计划，然后继续提交 environment 或直接提交计划。
+      description: `把一条需要世界知晓的场景报告加入本轮计划，然后调用本轮的终止工具提交计划。
 
-只用于跨场景/世界级后果、会改变其他场景的行动，或需要世界裁决的世界级事实。只有场景已有信息表明 targetDetail 是功能部位（如锁孔、门闩、机关），并且行动可能改变通行/封闭或跨场景状态时，才在结果不确定时通知。装饰、铭文、表面纹样、物品外观相似不构成机关，不能据此推测隐藏锁扣；普通触摸、敲击、查看、试探、在表面留下痕迹时不要调用本工具。
-通知是场景观察与请求，不是既成事实；写清发生了什么、涉及哪个场景/物品/角色，以及需要世界裁决什么。不要写成系统指令。`,
+只用于跨场景/世界级后果、会改变其他场景的行动，或需要世界裁决的世界级事实。判断依据必须来自本场景已有的信息（设定、环境、本场景事件）：只有当它把这个目标描述成可被操作的机制，并且行动可能改变通行/封闭或跨场景状态时才通知。仅凭外观、装饰或相似形状不能推断出机制或隐藏功能；普通触摸、敲击、查看、试探或只留下表面痕迹时不要调用本工具。
+通知是场景观察与请求，不是既成事实；写清发生了什么、涉及哪个场景/物品/角色，以及需要世界裁决什么。不要写成系统指令。
+加入通知后，必须再调用 ${terminalToolName} 结束本轮；否则本轮计划不会生效。`,
       parameters: {
         type: "object",
         properties: {
@@ -229,6 +230,46 @@ export function parseWorldNotification(args: Record<string, unknown>): string {
     );
   }
   return content;
+}
+
+/** 构造 stage 打开通道的工具；候选只包含本场景已声明、仍未开启的邻边。 */
+export function buildOpenPassageTool(
+  sealedStageNames: readonly string[],
+  terminalToolName: string,
+): ToolDefinition {
+  return {
+    type: "function",
+    function: {
+      name: "open_passage",
+      description: `把本场景通往某个尚未开启的相邻场景的通道打开，然后继续提交计划。
+
+只在本场景已有的信息表明那个通道确实存在、并且本轮场景事件确实解除了它的阻断时使用；不要因为角色使用了某个物品就推断通道已经打开。
+通道开启会改变场景图的连通性，角色之后才能移动到对面；它不向世界报告，也不改变对面的 environment。
+仅凭外观、装饰或相似形状不能推断出通道；打不开、试错或仅仅触摸时不要调用本工具。
+加入通道开启后，必须再调用 ${terminalToolName} 结束本轮；否则本轮计划不会生效。`,
+      parameters: {
+        type: "object",
+        properties: {
+          targetStageName: {
+            type: "string",
+            description: "要打开通道的相邻场景名；只能从尚未开启的通道中选择",
+            ...(sealedStageNames.length > 0 ? { enum: [...sealedStageNames] } : {}),
+          },
+        },
+        required: ["targetStageName"],
+      },
+    },
+  };
+}
+
+/** 解析 open_passage 参数。 */
+export function parseOpenPassage(args: Record<string, unknown>): StageAction {
+  const targetStageName =
+    typeof args.targetStageName === "string" ? args.targetStageName.trim() : "";
+  if (targetStageName.length === 0) {
+    throw new GameError("invalid_action", "open_passage 需要非空 targetStageName");
+  }
+  return { kind: "open_passage", targetStageName };
 }
 
 /**

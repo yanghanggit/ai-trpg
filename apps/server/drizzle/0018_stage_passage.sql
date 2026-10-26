@@ -1,0 +1,1 @@
+ALTER TABLE "stage_connections" ADD COLUMN "passage" text DEFAULT 'open' NOT NULL;

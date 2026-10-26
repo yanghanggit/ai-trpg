@@ -11,10 +11,10 @@
 
 `agent:game` 当前支持从数据库创建并推进一局游戏：
 
-- `create --user demo --seed dark-fantasy`：从内容注册表读取世界并创建 game、player 座位、world、stage 图、连接、角色、场景物品、角色物品，以及 actor/stage/world system memory；actor 的 `openingBriefing` 会作为第一条 human message 写入其 memory。`--world-file <path>` 可从外部 JSON 内容建局。
+- `create --user demo --seed dark-fantasy`：从内容注册表读取世界并创建 game、player 座位、world、stage 图、连接、角色、场景物品、角色物品，以及 actor/stage/world system memory；actor 的 `openingBriefing` 会作为第一条 human message 写入其 memory。`--content-file <path>` 从外部 JSON 内容包（world + knowledge）建局，`--world-file <path>` 只提供 world。
 - `status --game <gameId|slug>`：读取完整游戏状态。
 - `scene-map --game <gameId|slug>`：读取全场景角色分布（场景名 → 角色名列表），不调用 LLM。
-- `rag ingest --seed <name>` / `rag search --seed <name> --query <text>` / `rag check --seed <name>` / `rag delete --collection <name> --yes`：公共知识向量入库与检索；`rag:smoke` 走真实模型，`rag:eval` 跑检索质量评测。
+- `rag ingest (--seed <name> | --file <pack>)` / `rag search` / `rag check` / `rag delete --collection <name> --yes`：公共知识向量入库与检索；`rag:smoke` 走真实模型，`rag:eval` 跑检索质量评测。
 - `npc --game <id|slug> --actor <actorId|actorName>`：推进一个 NPC 回合。
 - `npc --game <id|slug> --all`：按当前 actor 顺序推进所有未被玩家接管的 NPC。
 - `stage --game <id|slug> --stage <stageId|stageName>`：推动一个 stage 小 GM 回合，可更新 environment，也可通过 `notify_world` 向 world memory 写入场景报告。
@@ -30,7 +30,7 @@
 - `player-wait --game <id|slug> --actor <actorId|actorName>`：留在原地。
 - `player-steal` / `player-give --game <id|slug> --actor <actorId|actorName> --target <actorName> --item <itemName>`：取物或给予。
 - `player-pickup --game <id|slug> --actor <actorId|actorName> --item <itemName>`：拾取当前场景物品。
-- `player-use --game <id|slug> --actor <actorId|actorName> --item <itemName> (--target <actorName> | --stage <stageName>) [--detail <text>]`：使用自己的物品；对场景使用时可用 `--detail` 描述锁孔、炉膛等具体部位。
+- `player-use --game <id|slug> --actor <actorId|actorName> --item <itemName> (--target <actorName> | --stage <stageName>) [--detail <text>]`：使用自己的物品；对场景使用时可用 `--detail` 描述场景中可被作用的具体部位。
 - `player-equip --game <id|slug> --actor <actorId|actorName> --slot <weapon|armor|accessory1|accessory2> --item <itemName>` / `player-unequip ... --slot <slot>`：穿脱装备；只改穿戴索引，物品仍在背包。
 - `appearance --game <id|slug> --actor <actorId|actorName>`：单点干预，强制重推一个 actor 的外观（尸体也照推，不写死亡收尾标记）。
 - `appearance --game <id|slug> --all`：批量维护，幂等——活人各重推一次，未收尾的死者交给死亡阶段，已收尾的尸体跳过。
@@ -45,7 +45,7 @@
 `agent:game` 能完成内容选择、建局和 actor/stage/world 推进，但不会自动编排回合：
 
 - `stage` 与 `world` 必须分别显式执行；
-- `create` 必须显式提供 `--seed`、`--world-file` 或 `--world`；
+- `create` 必须显式提供 `--seed`、`--content-file`、`--world-file` 或 `--world`；
 - 建局不会自动执行 RAG ingest；
 - compact 不会自动触发，必须显式执行 `agent:game compact`；
 - 旧局不会自动获得新的 world memory / `worlds.actions` / stage `notify_world` 结构；
@@ -55,7 +55,7 @@
 
 ```bash
 pnpm agent:game create --user demo --seed dark-fantasy --slug my-game
-pnpm agent:game stage --game my-game --stage "场景.铁闸门"
+pnpm agent:game stage --game my-game --stage "<场景名>"
 pnpm agent:game world --game my-game
 ```
 

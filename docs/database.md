@@ -5,7 +5,7 @@ PostgreSQL 是游戏状态的唯一真相。`agent:game` 从数据库读取状�
 ## 当前模型
 
 - **身份与对局**：`users` 不进入游戏状态；`games` 是聚合根（`slug`、状态、内容版本、并发版本号）；`game_players` 是座位，v1 一局一个；`actor_controls` 表达玩家接管，不改 actor 本体，释放后同一 actor 恢复 NPC 驱动。
-- **世界与场景**：`worlds` 一局一个（`game_id` 唯一），`content_key` 锚定知识库 collection 而非展示名，`actions` 是 world 能力清单；`stages` 按 `ordinal` 保持稳定顺序，`environment` 是 stage 回合覆盖的环境快照，`actions` 声明它作为小 GM 能做什么；`stage_connections` 是同一 world 内的**有向**边，单向出口靠“没有反向边”表达，不做对称推导。`world` 是 game 的运行时子状态而非可复用模板：数据库 `worlds` 存状态，目录 `worlds/` 存导出的开发期快照。
+- **世界与场景**：`worlds` 一局一个（`game_id` 唯一），`content_key` 锚定知识库 collection 而非展示名，`actions` 是 world 能力清单；`stages` 按 `ordinal` 保持稳定顺序，`environment` 是 stage 回合覆盖的环境快照，`actions` 声明它作为小 GM 能做什么；`stage_connections` 是同一 world 内的**有向**边，带 `passage`（`open` / `sealed`）通行状态；单向靠“没有反向边”表达，不做对称推导，运行时只能把已声明的边从 `sealed` 打开，不能新建边。`world` 是 game 的运行时子状态而非可复用模板：数据库 `worlds` 存状态，目录 `worlds/` 存导出的开发期快照。
 - **角色**：`actors` 依附场景（`stage_id` 非空），有 `is_default_player` 标记与 `actions` 能力清单；`hp` 是可变运行时状态，独立成列，**`hp === 0` 就是死亡**，没有死亡状态列，`death_settled_at` 只是“死亡收尾跑过了吗”的处理标记；`stats` 是恒定属性，`base_body` 是裸体描述，`appearance` 是他人实际所见的快照，`equipment` 是「槽位 → 物品名」索引且每槽至多一件。
 - **物品**：`items` 依附角色，`stage_items` 依附场景，两者字段相同、都不记录穿戴状态；动作与穿戴槽按 `name` 定位，因此同一持有者内名字唯一。
 - **消息与记忆**：`game_messages` 是公共事件流（`sequence` 追加，带 stage / source / target / visibility），供客户端增量拉取与审计，没有 session 表；`agent_memories` + `agent_memory_messages` 是 actor / stage / world 各自的私有上下文，压缩摘要与被压缩的旧消息都留在 memory 里形成可回述的树。两者不能合并：`mind` 只进 memory，不进公共消息。
@@ -23,7 +23,7 @@ PostgreSQL 是游戏状态的唯一真相。`agent:game` 从数据库读取状�
 
 `seeds/` 是开发期测试内容，不是框架的一部分：剧本、知识库与检索评测集同目录维护，故事文本不写进服务逻辑，结构与内容入口见 → 参见：[数据驱动目标](data-driven.md)，当前剧本的剧情与测试矩阵见 → 参见：[临时测试剧本](test-scenario.md)。
 
-`createGame` 在一个事务里把 `World` 物化成 `worlds` / `stages` / `stage_items` / `actors` / `items` 与各自的 system memory；之后 PostgreSQL 是唯一真相，改内容定义不会回改已有游戏。开场信息只存在于 stage 的 `environment` 与 actor 的 `openingBriefing`，建局不写开场消息；测试用独立的小型世界，不随演示剧本变化。
+内容包是 `{ world, knowledge }`：建局只消费 `world`，`createGame` 在一个事务里把它物化成 `worlds` / `stages` / `stage_items` / `actors` / `items` 与各自的 system memory；`knowledge` 走 `rag ingest`。之后 PostgreSQL 是唯一真相，改内容定义不会回改已有游戏。开场信息只存在于 stage 的 `environment` 与 actor 的 `openingBriefing`，建局不写开场消息；测试用独立的小型世界，不随演示剧本变化。
 
 ## 回合与事务
 

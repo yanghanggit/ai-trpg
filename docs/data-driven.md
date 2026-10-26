@@ -4,7 +4,7 @@
 
 ## 结论
 
-`World`、`Stage`、`Actor`、`ItemDefinition` 是内容定义；`WorldState`、`StageState`、`ActorState`、`ItemState` 是运行时状态。故事文本、角色关系、场景图、物品、能力与使用描述由内容输入提供，不写进 `game` 服务。
+`World`、`Stage`、`Actor`、`ItemDefinition` 是内容定义；`WorldState`、`StageState`、`ActorState`、`ItemState` 是运行时状态。故事文本、角色关系、场景图、物品、能力与使用描述由内容输入提供，不写进 `game` 服务。内容输入的单位是**内容包** `{ world, knowledge }`：`seeds/` 只是内置内容包的一个 provider，外部 JSON 走同一个契约。
 
 当前边界：
 
@@ -17,7 +17,7 @@
 - stage 可以用 `notify_world` 把报告写入 world memory；
 - world 可以用 `notify_stage` 下发裁决，用 `end_game` 结束游戏；默认玩家角色死亡时由系统触发结束；
 - demo 用户是独立 fixture，`app_meta` 不记录故事名；
-- CLI 建局必须显式选择内容：`--seed`、`--world-file` 或 `--world`。
+- CLI 建局必须显式选择内容：`--seed`、`--content-file`、`--world-file` 或 `--world`。
 
 ## 当前隔离边界
 
@@ -25,7 +25,7 @@
 | --- | --- | --- |
 | 数据库 schema | 已隔离 | world / stage / actor / item / message / memory 等通用概念；能力用 `actions` JSONB 承载 |
 | 领域类型 | 已隔离 | `World` / `Stage` / `Actor` / `ItemDefinition` 是内容定义；`WorldState` / `StageState` / `ActorState` / `ItemState` 是运行时状态 |
-| 内容校验 | 已隔离 | `parseWorldContent` 在建局前校验外部内容；缺能力、缺 key、类型错误直接拒绝 |
+| 内容校验 | 已隔离 | `parseContentPack` 校验内容包、`parseWorldContent` 校验世界内容；缺能力、缺 key、类型错误直接拒绝 |
 | 故事内容 | 已隔离到 seed | 场景、角色、profile、openingBriefing、连接、物品、能力、环境在内容文件 |
 | 内容注册 | 显式 | `seeds/index.ts` 只做显式 `name → { world, knowledge }` 映射，不写默认故事 |
 | system prompt | 由内容生成 | 角色、场景与 world 的身份、设定与全局规则来自 `World` 字段；actor 的 `openingBriefing` 另以 human message 注入 memory |
@@ -36,7 +36,7 @@
 | 通关条件 | 已移出框架 | 只有 world 能 `end_game`；默认玩家角色死亡是系统终止条件 |
 | demo 用户 | 已隔离 | `src/db/demo-fixture.ts`，不依赖任何故事 seed |
 | `app_meta` | 已隔离 | 只记录 `{ version: 1, fixture: "demo-user" }`，不写故事名 |
-| CLI 建局 | 已隔离 | `create` 必须显式给 `--seed` / `--world-file` / `--world`，没有隐式默认 |
+| CLI 建局 | 已隔离 | `create` 必须显式给 `--seed` / `--content-file` / `--world-file` / `--world`，没有隐式默认 |
 | RAG CLI | 已隔离 | `--seed` 从内容注册表读取；也可以直接 `--collection` 检索，不再写死演示 seed |
 | 测试 | 已隔离 | 主要用例使用独立的 `TEST_WORLD`；演示 seed 回归单独存在 |
 | 导出产物 | 不属于泄漏 | `prompts/` 是从内容生成的调试旁路，gitignore，数据库仍是运行时唯一真相 |
@@ -71,8 +71,8 @@ actor attack(itemName?) / use(itemName, target)
 `seeds/index.ts` 暴露：
 
 ```ts
-CONTENT_SEEDS["dark-fantasy"] // { world, knowledge }
-getContentSeed("dark-fantasy")
+CONTENT_PACKS["dark-fantasy"] // ContentPack：{ world, knowledge }
+getContentPack("dark-fantasy")
 ```
 
 注册表只负责明确映射，不提供隐式默认值。
@@ -86,17 +86,23 @@ pnpm agent:game create --user demo --seed dark-fantasy --slug my-game
 ### 从文件建局
 
 ```bash
+# 内容包：world + knowledge，与 seed 等价
+pnpm agent:game create --user demo --content-file ./pack.json --slug my-game
+pnpm rag ingest --file ./pack.json
+
+# 只有 world 时也可以建局，但这个世界没有公共知识
 pnpm agent:game create --user demo --world-file ./world.json --slug my-game
 ```
 
-外部内容经过 `parseWorldContent` 校验后才会进入 `createGame`。
+外部内容分别经过 `parseContentPack` / `parseWorldContent` 校验后才会进入 `createGame`；知识库不随建局自动入库，`rag ingest --file` 显式同步。
 
 ### RAG
 
 ```bash
 pnpm rag ingest --seed dark-fantasy
+pnpm rag ingest --file ./pack.json
 pnpm rag search --seed dark-fantasy --query "..."
-pnpm rag search --collection "world:<世界名>:<内容版本>" --query "..."
+pnpm rag search --collection "world:<内容标识>:<内容版本>" --query "..."
 ```
 
 `rag:smoke` 从内容注册表中取第一份知识，不再写死故事名或问题。
@@ -112,7 +118,7 @@ pnpm rag search --collection "world:<世界名>:<内容版本>" --query "..."
 | actor 推进 | `npc` 或 `player-*` | 可用 |
 | stage 推进 | `stage`，含 `notify_world` | 可用 |
 | world 推进 | `world`，含 `notify_stage` / `end_game` | 可用 |
-| 结束游戏 | ① world 的 `end_game`（如钥匙开门）；② 默认玩家角色死亡 | ① world 主动结束；② 默认玩家角色死亡由系统置 `games.status = completed` |
+| 结束游戏 | ① world 的 `end_game`（如达成内容声明的结束条件）；② 默认玩家角色死亡 | ① world 主动结束；② 默认玩家角色死亡由系统置 `games.status = completed` |
 | RAG 内容 | `rag ingest --seed` / `rag search --collection` | 可用，但建局时不会自动 ingest |
 
 ### 典型流程
@@ -120,11 +126,11 @@ pnpm rag search --collection "world:<世界名>:<内容版本>" --query "..."
 ```bash
 pnpm agent:game create --user demo --seed dark-fantasy --slug my-game
 
-pnpm agent:game take-control --game my-game --actor "角色.无名者"
-pnpm agent:game player-use --game my-game --actor "角色.无名者" \
-  --item "饰品.闸门钥匙" --stage "场景.铁闸门" --detail "锁孔"
+pnpm agent:game take-control --game my-game --actor "<角色名>"
+pnpm agent:game player-use --game my-game --actor "<角色名>" \
+  --item "<物品名>" --stage "<场景名>" --detail "<场景部位>"
 
-pnpm agent:game stage --game my-game --stage "场景.铁闸门"
+pnpm agent:game stage --game my-game --stage "<场景名>"
 pnpm agent:game world --game my-game
 pnpm agent:game status --game my-game
 ```
@@ -150,7 +156,7 @@ pnpm agent:game status --game my-game
    引擎保证 actor/stage 不能直接调用 `end_game`，但 world 是否在本轮调用 `end_game` 仍由模型和内容提示决定；默认玩家角色死亡则由系统确定性结束。
 
 7. **`targetDetail` 是行动描述，不是结果**  
-   它帮助 stage 判断使用部位；装饰、铭文、表面纹样不应被推测为隐藏机关，普通表面行动只更新 environment。
+   它帮助 stage 判断使用部位；引擎不规定哪些部位有效，只看本场景已有信息与该轮事件，仅凭外观不能推断出隐藏机制。
 
 ## 已移除的旧模型
 
@@ -160,17 +166,19 @@ pnpm agent:game status --game my-game
 - `GATE_STAGE_NAME` / `GATE_KEY_NAME`；
 - 物品 use 直接设置 `games.status=completed` 的路径；
 - `DEMO_USER` 与 `app_meta` 的故事耦合；
-- CLI `create` 的隐式默认 seed（当前是剧本「枯钟修道院」）；
+- CLI `create` 的隐式默认 seed；
 - `src` / `scripts` 对具体故事 seed 的静态 import。
 
 物品仍保留稳定 `key`；新的 `item.effect` 只声明效果，不直接改变世界级状态。世界级后果仍由 stage / world 裁决。
 
 ## 检查方法
 
+这条约束由 `apps/server/test/prompt-genericity.test.ts` 自动守卫：它从当前 seed 取出角色、场景、物品专名，扫描框架层源码，并额外拒绝把具体机构部件写成样例词。
+
 ```bash
-# 框架层（src/scripts）里是否出现故事专名
-grep -rn "铁闸门\|闸门钥匙\|枯钟\|黑疖\|奥德里克\|煤渣\|坏运气\|无名者\|鼠王" \
-  apps/server/src apps/server/scripts --include=*.ts
+# 手工复核时，把当前 seed 的角色 / 场景 / 物品专名拼成 "专名1\|专名2" 传给 grep；
+# 自动守卫见上面的测试。
+grep -rn "<专名1>\|<专名2>" apps/server/src apps/server/scripts --include=*.ts
 
 # 框架层是否直接 import 内容文件
 grep -rn "seeds/dark-fantasy" apps/server/src apps/server/scripts --include=*.ts
@@ -226,7 +234,7 @@ grep -rn "BELL_MONASTERY_WORLD" apps/server/src apps/server/scripts --include=*.
 
 ## 验收标准
 
-- `src/game` 与 `scripts` 中不再出现具体故事名、钥匙名、鼠王、铁闸门等专名；
+- `src/game` 与 `scripts` 中不再出现当前 seed 的专名（角色、场景、物品）；
 - `src/game` 与 `scripts` 不再直接 import 具体故事 seed；
 - `create` 没有隐式内容默认值；
 - `app_meta` 不记录故事名；

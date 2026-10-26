@@ -1,4 +1,4 @@
-import { CONTENT_SEEDS } from "../seeds";
+import { CONTENT_PACKS } from "../seeds";
 import { openDatabase } from "../src/db/connect";
 import { runMigrations } from "../src/db/migrate";
 import {
@@ -10,14 +10,14 @@ import {
 } from "../src/rag";
 
 async function main(): Promise<void> {
-  const seed = Object.values(CONTENT_SEEDS)[0];
-  if (!seed) {
-    throw new Error("没有可用的内容 seed");
+  const pack = Object.values(CONTENT_PACKS)[0];
+  if (!pack) {
+    throw new Error("没有可用的内容包");
   }
-  const documents = Object.values(seed.knowledge).flat();
+  const documents = Object.values(pack.knowledge).flat();
   const query = documents[0];
   if (!query) {
-    throw new Error("内容 seed 没有可检索的公共知识");
+    throw new Error("内容包没有可检索的公共知识");
   }
   const collection = `smoke:${Date.now()}`;
   const provider = new TransformersEmbeddingProvider();
@@ -25,7 +25,7 @@ async function main(): Promise<void> {
   try {
     await runMigrations(db);
     await deleteCollection(db, collection);
-    const indexed = await indexKnowledgeBase(db, provider, collection, seed.knowledge, {
+    const indexed = await indexKnowledgeBase(db, provider, collection, pack.knowledge, {
       source: "smoke",
       docType: "knowledge",
     });

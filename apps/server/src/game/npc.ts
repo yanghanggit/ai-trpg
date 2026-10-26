@@ -83,7 +83,7 @@ export function buildActorObservation(state: GameState, current: ActorWithStage)
   const targetLines = targets.length === 0 ? "无" : targets.join("、");
   const moveLines = moves.length === 0 ? "无" : moves.join("、");
   const knowledgeHint =
-    "当问题涉及建筑、地理、历史、地名、瘟疫处理或习俗等公共事实，而当前场景与记忆无法直接确认时，必须先调用 query 检索，再回答或行动；不要用常识补全，也不要把检索结果当成亲眼所见。query 只读、不占行动，不提供角色秘密或当前状态。";
+    "当问题涉及任何进入该世界的人都可能观察、询问或从公开记载中得知的固定事实，而当前场景与记忆无法直接确认时，必须先调用 query 检索，再回答或行动；不要用常识补全，也不要把检索结果当成亲眼所见。query 只读、不占行动，不提供角色秘密或当前状态。";
 
   return `# 当前环境
 

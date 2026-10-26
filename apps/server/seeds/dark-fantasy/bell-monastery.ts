@@ -2,7 +2,7 @@ import type { Script } from "../assemble";
 
 /** 剧本「枯钟修道院」：黑暗奇幻战役下的第一个故事切片。 */
 export const BELL_MONASTERY: Script = {
-  contentVersion: "dark-fantasy.v12",
+  contentVersion: "dark-fantasy.v13",
   contentKey: "bell-monastery",
   worldName: "枯钟修道院",
   stages: [
@@ -12,7 +12,7 @@ export const BELL_MONASTERY: Script = {
       profile: `修道院的中庭兼墓园。北面是封死的铁闸门，西侧石阶通向下沉的地窖，东边小屋后是焚尸房，南面斜坡通向乱葬坑。
 地面撒过石灰，墓碑之间插着几十块木牌，那是黑疖病最盛时留下的计数，字迹已被雨水泡烂。
 南坡的坑沿上搁着一口只压了薄土的棺材，没有人说得清是谁抬来的。`,
-      actions: ["submit_environment", "notify_world"],
+      actions: ["submit_environment"],
       environment:
         "墓园被一圈倒塌的石墙围住，石灰在枯草上结出白斑；墓碑之间插着几十块木牌，只剩模糊的日期。北侧铁闸门缠着三圈铁链，锁孔里塞着蜡。西侧石阶向下没入黑暗，东边小屋后飘出焦糊味。南面斜坡塌了半边，坡底的坑沿上搁着一口只压了薄土的棺材；坡能爬上来，却下不去。",
     },
@@ -23,7 +23,7 @@ export const BELL_MONASTERY: Script = {
 黑疖病最盛的四十多天里，死人都被石灰一层层压进南坡的坑里，修士从不用棺材下葬；这口棺材是谁备下的、里面为什么有人，没有人说过。
 棺壁内侧刻满符文，刻痕里塞着干涸的黑蜡；钟形花纹当中本该刻名字的地方被指甲抠出一道浅坑。
 坑壁陡而松，只有一条塌了半边的土坡通向墓园，只能往上爬，回不去。`,
-      actions: ["submit_environment", "notify_world"],
+      actions: ["submit_environment"],
       environment:
         "棺内很窄，肩背抵着两侧棺板；棺盖缝里漏下石灰和一线灰白的天光，空气里全是土腥与蜡味。内壁的符文在暗处泛出干涸的黑亮，钟形花纹中央被指甲抠出一道浅坑，坑里还剩着黑蜡的碎屑。棺底积着薄薄一层石灰、碎木屑和几粒发黑的种子；棺角被鼠牙啃出一个破洞。",
     },
@@ -32,7 +32,7 @@ export const BELL_MONASTERY: Script = {
       name: "场景.地窖",
       profile: `修道院的酒窖与储粮间。黑疖病之后，这里成了鼠群的巢：酒桶被啃穿，粮袋被咬空，地面积着骨渣与鼠毛。
 鼠王盘踞在最深处，它是这场瘟疫里活得最久、吃得最饱的东西。`,
-      actions: ["submit_environment", "notify_world"],
+      actions: ["submit_environment"],
       environment:
         "地窖顶很低，酒桶被啃出大洞，干涸的酒渍发黑；梁上垂着破绳，墙角堆着咬碎的骨头与发霉的粮袋。尽头的鼠王窝由骨渣、破布和啃断的钥匙串堆成。",
     },
@@ -41,7 +41,7 @@ export const BELL_MONASTERY: Script = {
       name: "场景.焚尸房",
       profile: `修道院小屋后的焚尸房。黑疖病最盛时，这里日夜不停地烧；炉膛冷下来之后，墙上还留着人形的油印。
 屋角靠着一支浸透松脂的火把——对毛皮厚实的活物来说，那是少数能顺着毛根烧进去的东西。`,
-      actions: ["submit_environment", "notify_world"],
+      actions: ["submit_environment"],
       environment:
         "焚尸房的墙壁被烟熏成黑色，铁钩上挂着焦黑的布片；炉膛早已冷了，炉门半敞，内壁结着厚厚的灰白余烬。墙角靠着一支浸透松脂的火把，火头缠着一团干枯的毛。",
       items: [
@@ -62,10 +62,21 @@ export const BELL_MONASTERY: Script = {
       key: "gate",
       name: "场景.铁闸门",
       profile:
-        "修道院北侧的铁闸门。黑疖病流行时，院长下令把它封死，带着还能走的修士从别的路离开；门后是通往外面的路。锁孔与奥德里克腰间的钥匙吻合。",
-      actions: ["submit_environment", "notify_world"],
+        "修道院北侧的铁闸门。黑疖病流行时，院长下令把它封死，带着还能走的修士从别的路离开；门后是一条沿山壁凿出的窄道，通往修道院之外。锁孔与奥德里克腰间的钥匙吻合。",
+      actions: ["submit_environment", "open_passage"],
       environment:
         "铁闸门嵌在墓园北侧的岩壁里，门板上刻着修道院的钟形纹；铁链缠了三圈，锁孔里塞着干蜡。门外没有声音，只有风从门缝里挤进来的细响。",
+    },
+    {
+      key: "mountain-path",
+      name: "场景.山道",
+      profile: `铁闸门外沿山壁凿出的一条窄道，一头往河谷去，一头绕过钟楼后墙。
+黑疖病之后没有人再走过这里，石阶上长满湿滑的苔藓。
+这里是修道院与外界唯一的缺口：任何一个活物出现在山道上，都意味着枯钟修道院的封锁已经被打破，也就是有人逃出了枯钟修道院。把这件事报告给世界，并说明故事可以在这里收束，由世界裁决是否结束。`,
+      // 只有走出修道院之后，才由这里向 world 报告；场景自身仍负责维护 environment。
+      actions: ["submit_environment", "notify_world"],
+      environment:
+        "山道贴着岩壁折下去，石阶被雨水冲得坑洼，一侧是没有护栏的陡坡；坡下是雾气里的河谷，远处有烟。身后的铁闸门嵌在岩壁里，门板背面同样刻着钟形纹。",
     },
   ],
   connections: [
@@ -76,6 +87,7 @@ export const BELL_MONASTERY: Script = {
     { from: "crematorium", to: "graveyard" },
     { from: "graveyard", to: "gate" },
     { from: "gate", to: "graveyard" },
+    { from: "gate", to: "mountain-path", passage: "sealed" },
   ],
   actors: [
     {

@@ -18,6 +18,7 @@ import type {
   EquipmentSlots,
   ItemEffect,
   ItemKind,
+  PassageState,
   StageActionKind,
   WorldActionKind,
 } from "../game/types";
@@ -135,6 +136,8 @@ export const stageConnections = pgTable(
     toStageId: uuid("to_stage_id")
       .notNull()
       .references(() => stages.id, { onDelete: "cascade" }),
+    /** 通行状态；sealed 表示剧情上相连但当前不可通过。 */
+    passage: text("passage").$type<PassageState>().notNull().default("open"),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (table) => [
@@ -335,5 +338,3 @@ export const schema = {
   agentMemories,
   agentMemoryMessages,
 };
-
-export type AppSchema = typeof schema;
