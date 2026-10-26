@@ -2,10 +2,12 @@ import { parseArgs } from "node:util";
 import { CONTENT_SEEDS, type ContentSeed, getContentSeed } from "../seeds";
 import { openDatabase } from "../src/db/connect";
 import {
+  contentHash,
   countCollection,
   deleteCollection,
   type EmbeddingDtype,
   indexKnowledgeBase,
+  listCollectionDocuments,
   searchDocuments,
   TransformersEmbeddingProvider,
   worldCollection,
@@ -59,7 +61,7 @@ function resolveSeed(
   return {
     name,
     seed,
-    collection: worldCollection(seed.world.worldName, seed.world.contentVersion),
+    collection: worldCollection(seed.world.contentKey, seed.world.contentVersion),
     source: `seed:${name}`,
   };
 }
@@ -152,8 +154,37 @@ async function main(): Promise<void> {
   if (command === "check") {
     const { db, pool } = openDatabase();
     try {
-      const count = await countCollection(db, collection);
-      emit({ ok: true, action: "rag-check", collection, count });
+      const documents = await listCollectionDocuments(db, collection);
+      if (!seed) {
+        emit({ ok: true, action: "rag-check", collection, count: documents.length });
+        return;
+      }
+      // 对账：seed 是唯一事实源，库里多出来的（orphan）与少掉的（missing）都要报出来。
+      const expected = new Map(
+        Object.values(seed.seed.knowledge)
+          .flat()
+          .map((content) => [contentHash(content), content] as const),
+      );
+      const actual = new Map(documents.map((doc) => [doc.contentHash, doc] as const));
+      const missing = [...expected.entries()]
+        .filter(([hash]) => !actual.has(hash))
+        .map(([, content]) => content);
+      const orphan = [...actual.entries()]
+        .filter(([hash]) => !expected.has(hash))
+        .map(([, doc]) => doc.content);
+      const model = new TransformersEmbeddingProvider().model;
+      const staleModel = documents.filter((doc) => doc.embeddingModel !== model).length;
+      emit({
+        ok: true,
+        action: "rag-check",
+        collection,
+        count: documents.length,
+        expected: expected.size,
+        missing: { count: missing.length, samples: missing.slice(0, 5) },
+        orphan: { count: orphan.length, samples: orphan.slice(0, 5) },
+        staleModel,
+        inSync: missing.length === 0 && orphan.length === 0 && staleModel === 0,
+      });
     } finally {
       await pool.end();
     }
@@ -179,6 +210,7 @@ async function main(): Promise<void> {
         collection,
         model: provider.model,
         written: result.written,
+        removed: result.removed,
         count,
       });
     } finally {

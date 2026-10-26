@@ -1,10 +1,11 @@
 import { createHash } from "node:crypto";
-import { and, cosineDistance, eq, gte, sql } from "drizzle-orm";
+import { and, cosineDistance, eq, gte, notInArray, sql } from "drizzle-orm";
 import type { Database } from "../db/pool";
 import { vectorDocuments } from "../db/schema";
 import { DEFAULT_RAG_TOP_K, MAX_RAG_TOP_K } from "./constants";
 import type {
   EmbeddingProvider,
+  IndexDocumentsOptions,
   KnowledgeBase,
   RagDocumentInput,
   RagIndexResult,
@@ -65,11 +66,13 @@ export async function indexDocuments(
   provider: EmbeddingProvider,
   collection: string,
   documents: readonly RagDocumentInput[],
+  options: IndexDocumentsOptions = {},
 ): Promise<RagIndexResult> {
   const targetCollection = assertCollection(collection);
   const normalized = documents.map(normalizeDocument);
   if (normalized.length === 0) {
-    return { collection: targetCollection, written: 0 };
+    const removed = options.pruneMissing ? await deleteCollection(db, targetCollection) : 0;
+    return { collection: targetCollection, written: 0, removed };
   }
 
   // 同一批里出现重复内容时只保留第一条，避免 ON CONFLICT 在同一语句内命中两次。
@@ -113,6 +116,8 @@ export async function indexDocuments(
     };
   });
 
+  const hashes = rows.map((row) => row.contentHash);
+  let removed = 0;
   await db.transaction(async (tx) => {
     const batchSize = 100;
     for (let offset = 0; offset < rows.length; offset += batchSize) {
@@ -133,9 +138,38 @@ export async function indexDocuments(
           },
         });
     }
+    if (options.pruneMissing) {
+      // 同步语义：本批之外的旧行（改过的文案、删掉的条目）清掉。
+      // 换了模型但内容没变的行，已经在上面的 upsert 里更新成新向量，不需要单独处理。
+      const dropped = await tx
+        .delete(vectorDocuments)
+        .where(
+          and(
+            eq(vectorDocuments.collection, targetCollection),
+            notInArray(vectorDocuments.contentHash, hashes),
+          ),
+        )
+        .returning({ id: vectorDocuments.id });
+      removed = dropped.length;
+    }
   });
 
-  return { collection: targetCollection, written: rows.length };
+  return { collection: targetCollection, written: rows.length, removed };
+}
+
+/** collection 里现有文档的 hash / 模型 / 内容，用于入库对账。 */
+export async function listCollectionDocuments(
+  db: Database,
+  collection: string,
+): Promise<{ contentHash: string; content: string; embeddingModel: string }[]> {
+  return db
+    .select({
+      contentHash: vectorDocuments.contentHash,
+      content: vectorDocuments.content,
+      embeddingModel: vectorDocuments.embeddingModel,
+    })
+    .from(vectorDocuments)
+    .where(eq(vectorDocuments.collection, assertCollection(collection)));
 }
 
 /** 只按当前 collection 与 provider.model 检索，避免不同模型向量混用。 */

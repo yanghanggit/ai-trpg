@@ -75,6 +75,7 @@ const actorSchema = z.object({
 
 const worldSchema = z.object({
   contentVersion: z.string().min(1),
+  contentKey: z.string().min(1),
   worldName: z.string().min(1),
   campaignSetting: z.string(),
   systemRules: z.string(),

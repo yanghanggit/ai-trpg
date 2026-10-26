@@ -1,0 +1,1 @@
+ALTER TABLE "worlds" ADD COLUMN "content_key" text NOT NULL;

@@ -239,6 +239,7 @@ export async function getGameState(db: Database, ref: string): Promise<GameState
     world: {
       id: worldRow.id,
       name: worldRow.name,
+      contentKey: worldRow.contentKey,
       campaignSetting: worldRow.campaignSetting,
       systemRules: worldRow.systemRules,
       actions: worldRow.actions,
@@ -296,6 +297,7 @@ export async function createGame(db: Database, input: CreateGameInput): Promise<
       id: worldId,
       gameId,
       name: input.world.worldName,
+      contentKey: input.world.contentKey,
       campaignSetting: input.world.campaignSetting,
       systemRules: input.world.systemRules,
       actions: [...input.world.actions],

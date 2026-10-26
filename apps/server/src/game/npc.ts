@@ -4,6 +4,8 @@ import { agentLoop } from "../llm/agent-loop";
 import type { ChatCompletionService } from "../llm/protocol";
 import type { ToolDefinition } from "../llm/types";
 import {
+  countCollection,
+  DEFAULT_RAG_TOP_K,
   type EmbeddingProvider,
   searchDocuments,
   TransformersEmbeddingProvider,
@@ -251,16 +253,22 @@ export async function runNpcTurn(
         return describeObservedActor(target);
       },
       [knowledgeTool.function.name]: async (args: Record<string, unknown>) => {
-        const question = typeof args.question === "string" ? args.question.trim() : "";
-        if (question.length === 0) {
-          throw new GameError("invalid_action", "question 不能为空");
+        const keywords = typeof args.keywords === "string" ? args.keywords.trim() : "";
+        if (keywords.length === 0) {
+          throw new GameError("invalid_action", "keywords 不能为空");
         }
+        // collection 为空 = 这个世界没入库（或换了内容版本），与“查得到但没这条”区分开，
+        // 免得把空结果当成事实不存在。
+        const collection = worldCollection(state.world.contentKey, state.game.contentVersion);
         const results = await searchDocuments(db, knowledgeProvider, {
-          collection: worldCollection(state.world.name, state.game.contentVersion),
-          query: question,
-          topK: 5,
+          collection,
+          query: keywords,
+          topK: DEFAULT_RAG_TOP_K,
         });
-        return describeKnowledgeResults(question, results);
+        if (results.length === 0 && (await countCollection(db, collection)) === 0) {
+          return `# 公共知识检索\n检索词：${keywords}\n（这个世界没有可检索的公共知识）`;
+        }
+        return describeKnowledgeResults(keywords, results);
       },
       ...actionHandlers,
       [submitTool.function.name]: () => {

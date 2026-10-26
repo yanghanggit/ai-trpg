@@ -11,7 +11,7 @@ import { ChatCompletionResult, type ChatCompletionService, type ToolCall } from 
 import { EMBEDDING_DIMENSIONS } from "../src/rag/constants";
 import { DeterministicEmbeddingProvider } from "../src/rag/embeddings";
 import { worldCollection } from "../src/rag/knowledge";
-import { indexDocuments } from "../src/rag/store";
+import { deleteCollection, indexDocuments } from "../src/rag/store";
 
 const testDatabaseUrl = process.env.TEST_DATABASE_URL?.trim();
 
@@ -32,7 +32,7 @@ class KnowledgeService implements ChatCompletionService {
               type: "function",
               function: {
                 name: "query",
-                arguments: JSON.stringify({ question: "尸体怎么处理" }),
+                arguments: JSON.stringify({ keywords: "尸体 处理" }),
               },
             },
           ]
@@ -77,10 +77,10 @@ describe.skipIf(!testDatabaseUrl)("knowledge retrieval tool", () => {
       name: "知识检索工具测试局",
       world: BELL_MONASTERY_WORLD,
     });
-    const collection = worldCollection(created.world.name, created.game.contentVersion);
+    const collection = worldCollection(created.world.contentKey, created.game.contentVersion);
     const provider = new DeterministicEmbeddingProvider({
       vectors: {
-        尸体怎么处理: vector(),
+        "尸体 处理": vector(),
         "瘟疫最盛时，修士在墓园地面撒石灰，把尸体压进乱葬坑。": vector(),
       },
     });
@@ -104,5 +104,7 @@ describe.skipIf(!testDatabaseUrl)("knowledge retrieval tool", () => {
       (message) => message.type === "tool" && message.content.includes("公共知识检索"),
     );
     expect(toolMessage?.content).toContain("石灰");
+    // 这里借用了 seed 的真实 collection；测完清空，避免向测试库留下 orphan 文档。
+    await deleteCollection(handle.db, collection);
   });
 });

@@ -41,7 +41,8 @@
     "rag": "pnpm --filter @ai-trpg/server rag",
     "rag:ingest": "pnpm --filter @ai-trpg/server rag:ingest",
     "rag:search": "pnpm --filter @ai-trpg/server rag:search",
-    "rag:smoke": "pnpm --filter @ai-trpg/server rag:smoke"
+    "rag:smoke": "pnpm --filter @ai-trpg/server rag:smoke",
+    "rag:eval": "pnpm --filter @ai-trpg/server rag:eval"
   },
   "devDependencies": {
     "@ai-trpg/shared": "workspace:*",

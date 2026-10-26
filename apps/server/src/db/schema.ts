@@ -92,6 +92,8 @@ export const worlds = pgTable(
       .notNull()
       .references(() => games.id, { onDelete: "cascade" }),
     name: text("name").notNull(),
+    /** 剧本稳定标识；知识库 collection 用它寻址，不随展示名变化。 */
+    contentKey: text("content_key").notNull(),
     campaignSetting: text("campaign_setting").notNull(),
     systemRules: text("system_rules").notNull(),
     actions: jsonb("actions").$type<WorldActionKind[]>().notNull().default([]),

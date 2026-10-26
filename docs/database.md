@@ -8,7 +8,7 @@ PostgreSQL 是游戏状态的唯一真相。`agent:game` 从数据库读取状�
 - `games`：一局游戏，聚合根；拥有 `owner_id`、稳定 `slug`、状态、内容版本与并发版本号。
 - `game_players`：游戏中的座位/参与者；v1 一局只有一个 player。
 - `actor_controls`：玩家接管 actor 的显式关系；有记录时该 actor 不再由 NPC loop 驱动。
-- `worlds`：游戏的世界状态，`game_id` 唯一，强制一局一个 world；`actions` 是 world 实体的能力清单（当前 `notify_stage` / `end_game`）。
+- `worlds`：游戏的世界状态，`game_id` 唯一，强制一局一个 world；`content_key` 是剧本的稳定标识（来自 `World.contentKey`），知识库 collection 用它寻址——改展示名不会让知识库断链；`actions` 是 world 实体的能力清单（当前 `notify_stage` / `end_game`）。
 - `stages`：world 下的场景；`world_id` 非空，按 `ordinal` 保持稳定顺序；`key` 是内容层稳定 key（旧数据可能为空），`environment` 是当前环境快照，由 stage 小 GM 更新。
 - `stage_connections`：场景图的有向边；连接两端必须属于同一 world；演示世界使用三组双向连接，乱葬坑到墓园另有一条单向出口。
 - `actors`：场景中的角色；`stage_id` 非空，不能脱离场景存在；`is_default_player` 是默认玩家角色标记（默认 `false`），玩家接管仍由独立控制关系表达；`appearance` 是当前可见外观（含衣着、装备与伤势，text），`base_body` 是未穿装备的种族 + 裸体描述（JSONB），`stats` 是恒定属性（JSONB：`maxHp` / `strength` / `wisdom` / `agility` / `damage` / `block`，其中只有 `maxHp` / `damage` / `block` 参与结算），`hp` 是当前生命（integer），与 `stats` 分开存，没有单独的死亡状态列：**`hp === 0` 就是死亡**，判定统一走 `isAlive()`，伤害只写 `hp` 不判定死亡；`death_settled_at` 是「这次死亡的收尾跑过了吗」的处理标记（不是生命状态），`equipment` 是槽位到物品名的索引（JSONB，四个槽：`weapon` / `armor` / `accessory1` / `accessory2`，每槽至多一件），`actions` 是该角色被允许的十二个动作（JSONB 数组，必须显式写入，无默认值；例如动物不含道具操作）。公共知识库检索 `query` 是所有 actor 都能用的只读工具，不占行动，也不属于 `actions`；没有按角色的开关。
@@ -42,9 +42,9 @@ PostgreSQL 是游戏状态的唯一真相。`agent:game` 从数据库读取状�
 
 ## 开发数据
 
-`seeds/dark-fantasy/` 是「黑暗奇幻」战役：`campaign.ts` 是跨剧本不变的战役设定与全局规则，`bell-monastery.ts` 是剧本「枯钟修道院」，提供五个场景、三组双向连接、一条单向出口与五个角色，`bell-monastery.knowledge.ts` 是与该剧本 1:1 绑定的公共知识库，`index.ts` 用 `assembleWorld()` 把两者拼成运行时的 `World`；故事内容留在内容定义层，不写进服务逻辑。奥德里克持有 `饰品.闸门钥匙`，焚尸房放置 `武器.松脂火把`（词缀按目标外观与种族自行判定“多毛类”，不写死鼠类），鼠王在地窖沉睡；这些是初始内容，不是服务逻辑中的硬编码。具体剧情、测试目的与暂缓项见临时测试剧本。
+`seeds/dark-fantasy/` 是「黑暗奇幻」战役：`campaign.ts` 是跨剧本不变的战役设定与全局规则，`bell-monastery.ts` 是剧本「枯钟修道院」，提供五个场景、三组双向连接、一条单向出口与五个角色，`bell-monastery.knowledge.ts` 是与该剧本 1:1 绑定的公共知识库，`bell-monastery.eval.ts` 是同一剧本的检索评测集（在 `seeds/eval.ts` 的 `RAG_EVAL_SETS` 里注册），`index.ts` 用 `assembleWorld()` 把两者拼成运行时的 `World`；故事内容留在内容定义层，不写进服务逻辑。奥德里克持有 `饰品.闸门钥匙`，焚尸房放置 `武器.松脂火把`（词缀按目标外观与种族自行判定“多毛类”，不写死鼠类），鼠王在地窖沉睡；这些是初始内容，不是服务逻辑中的硬编码。具体剧情、测试目的与暂缓项见临时测试剧本。
 
-`World` / `Actor` / `Stage` 是创建世界用的初始内容定义，不是测试专用，也不是数据库模型。`createGame` 读取 `World`，在一个事务中写入 `worlds`、`stages`、`stage_items`、`actors`、`items` 与 actor/stage memory；创建完成后 PostgreSQL 是唯一真相，修改内容定义不会回改已有游戏。`Actor.openingBriefing` 只用于建局注入：它在 actor memory 中写成 system prompt 之后的第一条 human message，不写入 `actors` 表。`World.initialStageKey` 决定初始旁白所属场景；演示世界从乱葬坑开始。测试使用独立的小型世界，不随演示剧情变化。`pnpm db:seed` 是数据库 seeding 的固定叫法，只写 demo 用户与 `app_meta`；`pnpm db:demo` 重置后再写这些基础数据；`agent:game create` 通过 `--seed`、`--world-file` 或 `--world` 显式提供 `World`，再把它物化为具体游戏。
+`World` / `Actor` / `Stage` 是创建世界用的初始内容定义，不是测试专用，也不是数据库模型。`createGame` 读取 `World`，在一个事务中写入 `worlds`、`stages`、`stage_items`、`actors`、`items` 与 actor/stage memory；创建完成后 PostgreSQL 是唯一真相，修改内容定义不会回改已有游戏。`Actor.openingBriefing` 只用于建局注入：它在 actor memory 中写成 system prompt 之后的第一条 human message，不写入 `actors` 表。`World.contentKey` 是剧本的稳定标识，建局时写进 `worlds.content_key`，知识库 collection 用它寻址（改 `worldName` 不会断链）。`World.initialStageKey` 决定初始旁白所属场景；演示世界从乱葬坑开始。测试使用独立的小型世界，不随演示剧情变化。`pnpm db:seed` 是数据库 seeding 的固定叫法，只写 demo 用户与 `app_meta`；`pnpm db:demo` 重置后再写这些基础数据；`agent:game create` 通过 `--seed`、`--world-file` 或 `--world` 显式提供 `World`，再把它物化为具体游戏。
 
 `pnpm db:demo` 应用迁移、清空登记过的开发表、写入固定 demo 用户与 `app_meta`。`pnpm agent:game create --user demo --seed dark-fantasy` 创建一局游戏，同时生成 player 座位、world、stage 图、角色、场景物品、角色物品，以及 actor、stage 与 world 的 system memory；有 `openingBriefing` 的 actor 会额外写入一条开局简报 human message。
 

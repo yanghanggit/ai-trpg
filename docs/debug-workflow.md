@@ -14,7 +14,7 @@
 - `create --user demo --seed dark-fantasy`：从内容注册表读取世界并创建 game、player 座位、world、stage 图、连接、角色、场景物品、角色物品，以及 actor/stage/world system memory；actor 的 `openingBriefing` 会作为第一条 human message 写入其 memory。`--world-file <path>` 可从外部 JSON 内容建局。
 - `status --game <gameId|slug>`：读取完整游戏状态。
 - `scene-map --game <gameId|slug>`：读取全场景角色分布（场景名 → 角色名列表），不调用 LLM。
-- `rag ingest --seed <name>` / `rag search --seed <name> --query <text>` / `rag check --seed <name>` / `rag delete --collection <name> --yes`：公共知识向量入库与检索；`rag:smoke` 走真实模型。
+- `rag ingest --seed <name>` / `rag search --seed <name> --query <text>` / `rag check --seed <name>` / `rag delete --collection <name> --yes`：公共知识向量入库与检索；`rag:smoke` 走真实模型，`rag:eval` 跑检索质量评测。
 - `npc --game <id|slug> --actor <actorId|actorName>`：推进一个 NPC 回合。
 - `npc --game <id|slug> --all`：按当前 actor 顺序推进所有未被玩家接管的 NPC。
 - `stage --game <id|slug> --stage <stageId|stageName>`：推动一个 stage 小 GM 回合，可更新 environment，也可通过 `notify_world` 向 world memory 写入场景报告。

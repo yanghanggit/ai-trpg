@@ -57,6 +57,8 @@ export const EQUIPMENT_SLOT_KINDS: Record<EquipmentSlot, readonly ItemKind[]> = 
  */
 export type World = {
   contentVersion: string;
+  /** 稳定内容标识（剧本 slug）：知识库 collection 用它寻址，改展示名不会断链。 */
+  contentKey: string;
   worldName: string;
   campaignSetting: string;
   systemRules: string;
@@ -404,6 +406,7 @@ export type AgentMemoryState = {
 export type WorldState = {
   id: string;
   name: string;
+  contentKey: string;
   campaignSetting: string;
   systemRules: string;
   actions: WorldActionKind[];

@@ -14,6 +14,7 @@ import {
 const testDatabaseUrl = process.env.TEST_DATABASE_URL?.trim();
 const baseCollection = `test:rag:${Date.now()}:${Math.random().toString(36).slice(2)}`;
 const otherCollection = `${baseCollection}:other`;
+const syncCollection = `${baseCollection}:sync`;
 
 function vector(values: Record<number, number>): number[] {
   return Array.from({ length: EMBEDDING_DIMENSIONS }, (_, index) => values[index] ?? 0);
@@ -45,11 +46,13 @@ describe.skipIf(!testDatabaseUrl)("pgvector rag store", () => {
     await runMigrations(handle.db);
     await deleteCollection(handle.db, baseCollection);
     await deleteCollection(handle.db, otherCollection);
+    await deleteCollection(handle.db, syncCollection);
   });
 
   afterAll(async () => {
     await deleteCollection(handle.db, baseCollection);
     await deleteCollection(handle.db, otherCollection);
+    await deleteCollection(handle.db, syncCollection);
     await handle.pool.end();
   });
 
@@ -120,5 +123,49 @@ describe.skipIf(!testDatabaseUrl)("pgvector rag store", () => {
   it("deletes a whole collection", async () => {
     expect(await deleteCollection(handle.db, baseCollection)).toBe(3);
     expect(await countCollection(handle.db, baseCollection)).toBe(0);
+  });
+
+  // seed 入库是“同步”而不是“追加”：改文案、删条目都要把旧行带走，
+  // 否则被删掉的知识会继续被检索到。
+  it("prunes documents that are missing from the batch", async () => {
+    await indexDocuments(
+      handle.db,
+      provider,
+      syncCollection,
+      [{ content: "alpha" }, { content: "beta" }, { content: "gamma" }],
+      { pruneMissing: true },
+    );
+
+    const result = await indexDocuments(
+      handle.db,
+      provider,
+      syncCollection,
+      [{ content: "alpha" }],
+      { pruneMissing: true },
+    );
+
+    expect(result.written).toBe(1);
+    expect(result.removed).toBe(2);
+    const remaining = await searchDocuments(handle.db, provider, {
+      collection: syncCollection,
+      query: "query",
+      topK: 5,
+    });
+    expect(remaining.map((entry) => entry.content)).toEqual(["alpha"]);
+  });
+
+  it("keeps other documents when pruning is off", async () => {
+    const result = await indexDocuments(handle.db, provider, syncCollection, [{ content: "beta" }]);
+    expect(result.removed).toBe(0);
+    expect(await countCollection(handle.db, syncCollection)).toBe(2);
+  });
+
+  it("empties the collection when syncing an empty batch", async () => {
+    const result = await indexDocuments(handle.db, provider, syncCollection, [], {
+      pruneMissing: true,
+    });
+    expect(result.written).toBe(0);
+    expect(result.removed).toBe(2);
+    expect(await countCollection(handle.db, syncCollection)).toBe(0);
   });
 });

@@ -99,39 +99,44 @@ export function buildKnowledgeTool(): ToolDefinition {
     function: {
       name: "query",
       description:
-        "检索当前世界的公共知识库：建筑、地理、历史、瘟疫、习俗等任何人都可能观察或听说的事实。只读，可多次调用，不占行动。它不包含角色秘密、当前场景状态、物品位置或未公开剧情；检索结果不等于亲眼所见。",
+        "检索当前世界的公共知识库：建筑、地理、历史、瘟疫、习俗等任何人都可能观察或听说的事实。只读，可多次调用，不占行动。它不包含角色秘密、当前场景状态、物品位置或未公开剧情；检索结果不等于亲眼所见。检索按关键词匹配，给名词短语比整句提问更容易命中。",
       parameters: {
         type: "object",
         properties: {
-          question: {
+          keywords: {
             type: "string",
-            description: "要查询的公共知识问题；用自然语言描述，不要询问角色秘密或当前状态",
+            description:
+              "检索关键词：2～4 个名词或短语，空格分隔，例如“枯钟 得名”；不要写整句提问，也不要询问角色秘密或当前状态",
           },
         },
-        required: ["question"],
+        required: ["keywords"],
       },
     },
   };
 }
 
-/** 渲染知识库检索结果；相似度只是文本接近度，不是事实权威。 */
+/** 渲染知识库检索结果：带分类标签，不带相似度。 */
 export function describeKnowledgeResults(
-  question: string,
+  keywords: string,
   results: readonly RagSearchResult[],
 ): string {
   if (results.length === 0) {
     return `# 公共知识检索
-问题：${question}
+检索词：${keywords}
 （知识库中未检索到相关信息）`;
   }
-  const lines = results.map(
-    (result, index) => `${index + 1}. [相似度 ${result.similarity.toFixed(3)}] ${result.content}`,
-  );
+  // 分类来自入库时写下的 metadata.category：它是结构信息，模型用它组织回答；
+  // 相似度不写进文本——它只是余弦距离，模型容易读成置信度。
+  const lines = results.map((result, index) => {
+    const { category } = result.metadata;
+    const label = typeof category === "string" && category.length > 0 ? `（${category}）` : "";
+    return `${index + 1}. ${label}${result.content}`;
+  });
   return `# 公共知识检索
-问题：${question}
+检索词：${keywords}
 ${lines.join("\n")}
 
-相似度仅表示文本接近程度；公共知识不等于你亲眼所见，也不能据此知道角色秘密或当前状态。`;
+检索结果只是文本参考资料；公共知识不等于你亲眼所见，也不能据此知道角色秘密或当前状态。`;
 }
 
 /** 构造终止工具；调用后本轮计划结束。 */

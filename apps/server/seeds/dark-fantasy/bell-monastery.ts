@@ -3,6 +3,7 @@ import type { Script } from "../assemble";
 /** 剧本「枯钟修道院」：黑暗奇幻战役下的第一个故事切片。 */
 export const BELL_MONASTERY: Script = {
   contentVersion: "dark-fantasy.v12",
+  contentKey: "bell-monastery",
   worldName: "枯钟修道院",
   initialNarration:
     "你在一层石灰与裹尸布之间醒来。坑壁很高，尸体一层压着一层，最近的一具脸上还盖着写了一半的祷文。钟楼没有响，远处有人在钉木板。一只老鼠从你手边跑过，嘴里叼着半枚生锈的钥匙。",

@@ -9,7 +9,7 @@
 当前边界：
 
 - 数据库 schema、领域类型、prompt 组装、动作结算、stage/world 能力全部与具体故事无关；
-- 故事内容集中在 `seeds/dark-fantasy/`：`campaign.ts` 是不可变的战役文本（`campaignSetting` / `systemRules`），每个剧本一个文件（如 `bell-monastery.ts`），知识库与剧本 1:1 绑在同目录，`index.ts` 用 `assembleWorld()` 拼成 `World` 后由 `seeds/index.ts` 注册；
+- 故事内容集中在 `seeds/dark-fantasy/`：`campaign.ts` 是不可变的战役文本（`campaignSetting` / `systemRules`），每个剧本一个文件（如 `bell-monastery.ts`），知识库与剧本 1:1 绑在同目录（`<剧本>.knowledge.ts`），检索评测集也放在同一目录（`<剧本>.eval.ts`，由 `seeds/eval.ts` 注册），`index.ts` 用 `assembleWorld()` 拼成 `World` 后由 `seeds/index.ts` 注册；
 - `use` 对场景可以携带 `targetDetail`，它只是 actor 的行动描述，写入 stage memory；
 - `attack` / `use` 只做 dispatcher；物品通过 `item.effect` 声明 `event` / `damage` 等效果；
 - `actor.openingBriefing` 是本局开局注入给角色的私有简报；建局时写成 actor memory 的第一条 human message，不进入数据库字段；
