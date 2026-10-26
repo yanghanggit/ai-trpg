@@ -43,9 +43,5 @@
 | [故事整理 Agent](story-agent.md)               | 任意时刻的只读故事总结与上下文串联验证        |
 | [开发期 Agent 工作流](debug-workflow.md)       | 快照驱动推进、HTTP 走查、两套入口的共同边界   |
 | [临时测试剧本](test-scenario.md)               | 枯钟修道院的剧情、测试矩阵、已验流程与暂缓项  |
-| [游戏故事设定（草案）](story-setting-draft.md) | 海门的世界、血族统治、城下古墓与闯入的外乡人  |
 | [数据驱动目标](data-driven.md)                 | 框架与内容隔离、当前缺口、未来内容层目标      |
-
-## 当前范围
-
-工程骨架、OpenAPI 契约链、LLM 基础组件、数据库、actor 行动与记忆、玩家接管、stage 小 GM 与场景连通性、world 全局叙事者、公共知识检索、内容包注入（world + knowledge）、Agent 探针、故事整理 Agent、开发期 Agent 工作流与临时测试剧本。后续玩法与内容随实现补充；`story-setting-draft.md` 记录的是尚未实现的海门剧本设定，与当前测试剧本并列存放。
+| [故事设定草案](story-setting.md)               | 洛恩：不死族远征军的城邦统治与外乡人寻药      |
