@@ -62,9 +62,6 @@ export type World = {
   worldName: string;
   campaignSetting: string;
   systemRules: string;
-  initialNarration?: string;
-  /** 初始旁白所属场景；省略时使用 `stages[0]`。 */
-  initialStageKey?: string;
   stages: readonly Stage[];
   connections: readonly Connection[];
   actors: readonly Actor[];

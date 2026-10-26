@@ -34,7 +34,7 @@
 | [开发规范](conventions.md)               | 目录依赖、文件命名、API 字段、数据库与测试    |
 | [本地开发](dev-setup.md)                 | 启动、局域网访问、环境变量、测试、排错        |
 | [LLM 基础组件](llm.md)                   | provider 分层、失败模型、agent loop、对话留痕 |
-| [数据库](database.md)                    | PostgreSQL 状态源、NPC 记忆、迁移、事务边界   |
+| [数据库](database.md)                    | PostgreSQL 状态源、表与不变式、死亡、迁移     |
 | [Actor 记忆](actor-actions-memory.md)    | actor 控制、行动事实、context dump 与接管     |
 | [外观](appearance.md)                    | base body、穿戴、外观推理与换装入口           |
 | [Stage 小 GM](stage.md)                  | 场景实体、场景记忆、环境仲裁与显式推动        |

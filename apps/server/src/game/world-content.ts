@@ -79,8 +79,6 @@ const worldSchema = z.object({
   worldName: z.string().min(1),
   campaignSetting: z.string(),
   systemRules: z.string(),
-  initialNarration: z.string().optional(),
-  initialStageKey: z.string().optional(),
   stages: z.array(stageSchema).min(1),
   connections: z.array(z.object({ from: z.string(), to: z.string() })),
   actors: z.array(actorSchema),

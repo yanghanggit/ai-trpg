@@ -16,13 +16,14 @@ describe("dark fantasy seed world", () => {
   it("keeps the five-stage monastery story", () => {
     expect(stages.map((item) => item.name)).toEqual([
       "场景.墓园",
-      "场景.乱葬坑",
+      "场景.棺材",
       "场景.地窖",
       "场景.焚尸房",
       "场景.铁闸门",
     ]);
     expect(BELL_MONASTERY_WORLD.worldName).toBe("枯钟修道院");
-    expect(BELL_MONASTERY_WORLD.initialStageKey).toBe("plague-pit");
+    // 开局完全由棺材的 environment 与角色自己的记忆表达，没有单独的开场文本。
+    expect(BELL_MONASTERY_WORLD.actors.filter((actor) => actor.isDefaultPlayer)).toHaveLength(1);
     expect(BELL_MONASTERY_WORLD.actors.map((actor) => actor.name)).toEqual([
       "角色.奥德里克",
       "角色.煤渣",
@@ -36,9 +37,9 @@ describe("dark fantasy seed world", () => {
     expect(
       BELL_MONASTERY_WORLD.actors.filter((actor) => actor.stageKey === "graveyard"),
     ).toHaveLength(3);
-    expect(
-      BELL_MONASTERY_WORLD.actors.filter((actor) => actor.stageKey === "plague-pit"),
-    ).toHaveLength(1);
+    expect(BELL_MONASTERY_WORLD.actors.filter((actor) => actor.stageKey === "coffin")).toHaveLength(
+      1,
+    );
     expect(BELL_MONASTERY_WORLD.actors.filter((actor) => actor.stageKey === "cellar")).toHaveLength(
       1,
     );
@@ -99,13 +100,28 @@ describe("dark fantasy seed world", () => {
   });
 
   it("encodes the plague backstory in the world text", () => {
-    expect(BELL_MONASTERY_WORLD.initialNarration).toContain("石灰");
-    expect(BELL_MONASTERY_WORLD.initialNarration).toContain("裹尸布");
-    expect(stage("plague-pit").profile).toContain("黑疖病");
+    expect(stage("coffin").environment).toContain("石灰");
+    const player = BELL_MONASTERY_WORLD.actors.find((actor) => actor.isDefaultPlayer);
+    expect(player?.appearance).toContain("裹尸布");
+    expect(stage("coffin").profile).toContain("黑疖病");
     expect(stage("crematorium").profile).toContain("黑疖病");
     const keeper = BELL_MONASTERY_WORLD.actors.find((actor) => actor.name === "角色.奥德里克");
     expect(keeper?.profile).toContain("黑疖病");
     expect(keeper?.profile).toContain("旧钟无名");
+  });
+
+  it("makes the coffin a one-way start that hints at the player's oddity", () => {
+    const coffin = stage("coffin");
+    // 符文是主角特殊性的伏笔，但不能直接交出铁闸门的暗语。
+    expect(coffin.environment).toContain("符文");
+    expect(coffin.environment).toContain("钟形花纹");
+    expect(`${coffin.profile}${coffin.environment}`).not.toContain("旧钟无名");
+    // 棺材是唯一入口，且只能出不能进。
+    const edges = BELL_MONASTERY_WORLD.connections.map(
+      (connection) => `${connection.from}->${connection.to}`,
+    );
+    expect(edges.filter((edge) => edge.endsWith("->coffin"))).toEqual([]);
+    expect(edges).toContain("coffin->graveyard");
   });
 
   it("declares per-actor actions explicitly in the seed", () => {
@@ -180,13 +196,13 @@ describe("dark fantasy seed world", () => {
     }
   });
 
-  it("connects the graveyard, plague pit, cellar, crematorium and gate", () => {
+  it("connects the graveyard, coffin, cellar, crematorium and gate", () => {
     const edges = new Set(
       BELL_MONASTERY_WORLD.connections.map((connection) => `${connection.from}->${connection.to}`),
     );
     expect([...edges].sort()).toEqual(
       [
-        "plague-pit->graveyard",
+        "coffin->graveyard",
         "graveyard->cellar",
         "cellar->graveyard",
         "graveyard->crematorium",

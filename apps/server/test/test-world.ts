@@ -11,7 +11,6 @@ export const TEST_WORLD: World = {
   worldName: "灰烬测试局",
   campaignSetting: "这是一个用于验证服务层行为的封闭测试世界。",
   systemRules: "角色只能沿场景连接移动；行动结果由服务层结算。",
-  initialNarration: "钟声早已停了。你在灰烬门廊里醒来。",
   stages: [
     {
       key: "gate",

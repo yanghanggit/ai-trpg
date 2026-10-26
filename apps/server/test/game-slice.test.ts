@@ -170,18 +170,17 @@ describe.skipIf(!testDatabaseUrl)("memory-driven NPC slice", () => {
     const state = await getGameState(handle.db, created.game.slug);
     expect(state.game.version).toBe(4);
     expect(state.messages.map((message) => message.kind)).toEqual([
-      "narration",
       "say",
       "whisper",
       "move",
       "move",
     ]);
+    expect(state.messages[0]?.targetActorId).toBeTruthy();
+    expect(state.messages[0]?.sourceActorId).toBeTruthy();
+    expect(state.messages[0]?.visibility).toBe("stage");
     expect(state.messages[1]?.targetActorId).toBeTruthy();
-    expect(state.messages[1]?.sourceActorId).toBeTruthy();
-    expect(state.messages[1]?.visibility).toBe("stage");
-    expect(state.messages[2]?.targetActorId).toBeTruthy();
-    expect(state.messages[2]?.visibility).toBe("private");
-    expect(state.messages[3]?.targetActorId).toBeNull();
+    expect(state.messages[1]?.visibility).toBe("private");
+    expect(state.messages[2]?.targetActorId).toBeNull();
     const actorStages = state.world.stages.flatMap((stage) =>
       stage.actors.map((actor) => [actor.name, stage.name] as const),
     );
@@ -242,7 +241,8 @@ describe.skipIf(!testDatabaseUrl)("memory-driven NPC slice", () => {
 
     const loaded = await loadSnapshot(result.snapshot.path);
     expect(loaded.parts["memories/守烬人.json"]).toBeDefined();
-    expect(loaded.session).toHaveLength(5);
+    // 四个动作对应四条消息；建局不再写开场旁白。
+    expect(loaded.session).toHaveLength(4);
   });
   it("injects openingBriefing as the actor's first human memory message", async () => {
     const world = {
@@ -342,7 +342,8 @@ describe.skipIf(!testDatabaseUrl)("memory-driven NPC slice", () => {
 
     const state = await getGameState(handle.db, created.game.slug);
     expect(state.game.version).toBe(0);
-    expect(state.messages).toHaveLength(1);
+    // 建局不写任何开场消息，被拒绝的计划也不落地。
+    expect(state.messages).toEqual([]);
 
     const memories = await getGameMemories(handle.db, created.game.id);
     const keeperMemory = memories.find((memory) => memory.name === "守烬人");
@@ -364,9 +365,9 @@ describe.skipIf(!testDatabaseUrl)("memory-driven NPC slice", () => {
 
     const state = await getGameState(handle.db, created.game.slug);
     expect(state.game.version).toBe(1);
-    expect(state.messages.map((message) => message.kind)).toEqual(["narration", "wait"]);
-    expect(state.messages[1]?.content).toContain("守烬人留在原地");
-    expect(state.messages[1]?.visibility).toBe("stage");
+    expect(state.messages.map((message) => message.kind)).toEqual(["wait"]);
+    expect(state.messages[0]?.content).toContain("守烬人留在原地");
+    expect(state.messages[0]?.visibility).toBe("stage");
 
     const memories = await getGameMemories(handle.db, created.game.id);
     const monk = memories.find((memory) => memory.name === "提灯修士");
@@ -388,14 +389,14 @@ describe.skipIf(!testDatabaseUrl)("memory-driven NPC slice", () => {
 
     const state = await getGameState(handle.db, created.game.slug);
     expect(state.game.version).toBe(1);
-    expect(state.messages.map((message) => message.kind)).toEqual(["narration", "attack"]);
+    expect(state.messages.map((message) => message.kind)).toEqual(["attack"]);
     // 守烬人装备了裂齿短刃：6（自身 damage）+ 3（武器 damage）- 3（修士 block）= 6 点伤害。
-    expect(state.messages[1]?.content).toContain(
+    expect(state.messages[0]?.content).toContain(
       "守烬人对提灯修士使用攻击（使用裂齿短刃），造成6点伤害",
     );
-    expect(state.messages[1]?.targetActorId).toBeTruthy();
-    expect(state.messages[1]?.sourceActorId).toBeTruthy();
-    expect(state.messages[1]?.visibility).toBe("stage");
+    expect(state.messages[0]?.targetActorId).toBeTruthy();
+    expect(state.messages[0]?.sourceActorId).toBeTruthy();
+    expect(state.messages[0]?.visibility).toBe("stage");
 
     const monkState = state.world.stages
       .flatMap((stage) => stage.actors)
@@ -419,19 +420,21 @@ describe.skipIf(!testDatabaseUrl)("memory-driven NPC slice", () => {
     ).toBe(true);
   });
 
-  it("materializes scene items and starts the narration in the crypt", async () => {
+  it("materializes scene items and places the player in the coffin", async () => {
     const created = await createGame(handle.db, {
       username: DEMO_USER.username,
       name: "故事结构测试局",
       world: BELL_MONASTERY_WORLD,
     });
     const pyre = created.world.stages.find((stage) => stage.name === "场景.焚尸房");
-    const crypt = created.world.stages.find((stage) => stage.name === "场景.乱葬坑");
+    const coffin = created.world.stages.find((stage) => stage.name === "场景.棺材");
     expect(pyre?.actors).toEqual([]);
     expect(pyre?.items.map((item) => [item.name, item.kind])).toEqual([
       ["武器.松脂火把", "weapon"],
     ]);
-    expect(created.messages[0]?.stageId).toBe(crypt?.id);
+    expect(coffin?.actors.map((actor) => actor.name)).toEqual(["角色.无名者"]);
+    // 建局不写开场消息：玩家从场景 environment 与角色自己的记忆里拼出开场。
+    expect(created.messages).toEqual([]);
   });
 
   it("marks a killed actor as dead and refuses to run its NPC loop", async () => {
@@ -531,12 +534,12 @@ describe.skipIf(!testDatabaseUrl)("memory-driven NPC slice", () => {
 
     const state = await getGameState(handle.db, created.game.slug);
     expect(state.game.version).toBe(2);
-    expect(state.messages.map((message) => message.kind)).toEqual(["narration", "move", "say"]);
-    expect(state.messages[1]?.stageId).toBe(
+    expect(state.messages.map((message) => message.kind)).toEqual(["move", "say"]);
+    expect(state.messages[0]?.stageId).toBe(
       state.world.stages.find((stage) => stage.name === "断钟中殿")?.id,
     );
-    expect(state.messages[2]?.targetActorId).toBeTruthy();
-    expect(state.messages[2]?.stageId).toBe(
+    expect(state.messages[1]?.targetActorId).toBeTruthy();
+    expect(state.messages[1]?.stageId).toBe(
       state.world.stages.find((stage) => stage.name === "断钟中殿")?.id,
     );
 

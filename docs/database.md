@@ -4,114 +4,51 @@ PostgreSQL 是游戏状态的唯一真相。`agent:game` 从数据库读取状�
 
 ## 当前模型
 
-- `users`：账号身份，不进入游戏状态。
-- `games`：一局游戏，聚合根；拥有 `owner_id`、稳定 `slug`、状态、内容版本与并发版本号。
-- `game_players`：游戏中的座位/参与者；v1 一局只有一个 player。
-- `actor_controls`：玩家接管 actor 的显式关系；有记录时该 actor 不再由 NPC loop 驱动。
-- `worlds`：游戏的世界状态，`game_id` 唯一，强制一局一个 world；`content_key` 是剧本的稳定标识（来自 `World.contentKey`），知识库 collection 用它寻址——改展示名不会让知识库断链；`actions` 是 world 实体的能力清单（当前 `notify_stage` / `end_game`）。
-- `stages`：world 下的场景；`world_id` 非空，按 `ordinal` 保持稳定顺序；`key` 是内容层稳定 key（旧数据可能为空），`environment` 是当前环境快照，由 stage 小 GM 更新。
-- `stage_connections`：场景图的有向边；连接两端必须属于同一 world；演示世界使用三组双向连接，乱葬坑到墓园另有一条单向出口。
-- `actors`：场景中的角色；`stage_id` 非空，不能脱离场景存在；`is_default_player` 是默认玩家角色标记（默认 `false`），玩家接管仍由独立控制关系表达；`appearance` 是当前可见外观（含衣着、装备与伤势，text），`base_body` 是未穿装备的种族 + 裸体描述（JSONB），`stats` 是恒定属性（JSONB：`maxHp` / `strength` / `wisdom` / `agility` / `damage` / `block`，其中只有 `maxHp` / `damage` / `block` 参与结算），`hp` 是当前生命（integer），与 `stats` 分开存，没有单独的死亡状态列：**`hp === 0` 就是死亡**，判定统一走 `isAlive()`，伤害只写 `hp` 不判定死亡；`death_settled_at` 是「这次死亡的收尾跑过了吗」的处理标记（不是生命状态），`equipment` 是槽位到物品名的索引（JSONB，四个槽：`weapon` / `armor` / `accessory1` / `accessory2`，每槽至多一件），`actions` 是该角色被允许的十二个动作（JSONB 数组，必须显式写入，无默认值；例如动物不含道具操作）。公共知识库检索 `query` 是所有 actor 都能用的只读工具，不占行动，也不属于 `actions`；没有按角色的开关。
-- `stages.actions`：场景自身的能力清单，JSONB 数组；当前每个场景都声明 `submit_environment` 与 `notify_world`，决定 stage 小 GM 是否暴露这些工具。它不限制角色动作。
-- `items`：角色持有的物品；`actor_id` 非空，不能脱离角色存在；是 actor 唯一的运行时队列。物品根字段有 `key` / `name` / `description` / `kind` / `count` / `affixes`，属性在 `stats`（JSONB，六项齐全，未用到的为 0），声明式使用效果在 `effect`（JSONB，必须包含 `type`）；`affixes` 是词缀字符串数组，默认空数组。物品自身不记录穿戴状态。`items.id` 是稳定 uuid 身份；动作与装备槽用的是 `name`，因此 `(actor_id, name)` 与 `(stage_id, name)` 各建了唯一索引，保证同一持有者内名字不重名。
-- `stage_items`：暂放在场景中的物品；`stage_id` 非空，当前只作为场景内容读取，已支持拾取并转入 actor 背包。字段与 `items` 相同，但没有穿戴状态。
-- `game_messages`：公共消息流，按 `sequence` 追加；记录 `stage_id`、`source_actor_id`、`target_actor_id` 与 `visibility`，供客户端增量拉取与审计；不建立 session 表。
-- `vector_documents`：公共知识向量；`collection` 隔离世界内容，`content_hash` 保证幂等，`embedding vector(384)` 由 pgvector 提供，`embedding_model` 防止不同模型向量混搜。它不进入 actor 私有 memory，也不承载剧情秘密。
-- `agent_memories`：每个 agent 的私有上下文；`owner_type` 支持 `actor`、`stage` 与 `world`，world memory 属于全局叙事者；`context_usage_ratio` 记录最近一条 AI 消息的上下文占用比例。compact 后的 `[1]` human summary 在 metadata 中保存 `compactedMessages`，递归形成可回述的旧记忆树；`[0]` system 不参与压缩。
-- `agent_memory_messages`：agent memory 的消息序列，保存 system / human / ai / tool 与 tool_calls、元数据。
+- **身份与对局**：`users` 不进入游戏状态；`games` 是聚合根（`slug`、状态、内容版本、并发版本号）；`game_players` 是座位，v1 一局一个；`actor_controls` 表达玩家接管，不改 actor 本体，释放后同一 actor 恢复 NPC 驱动。
+- **世界与场景**：`worlds` 一局一个（`game_id` 唯一），`content_key` 锚定知识库 collection 而非展示名，`actions` 是 world 能力清单；`stages` 按 `ordinal` 保持稳定顺序，`environment` 是 stage 回合覆盖的环境快照，`actions` 声明它作为小 GM 能做什么；`stage_connections` 是同一 world 内的**有向**边，单向出口靠“没有反向边”表达，不做对称推导。`world` 是 game 的运行时子状态而非可复用模板：数据库 `worlds` 存状态，目录 `worlds/` 存导出的开发期快照。
+- **角色**：`actors` 依附场景（`stage_id` 非空），有 `is_default_player` 标记与 `actions` 能力清单；`hp` 是可变运行时状态，独立成列，**`hp === 0` 就是死亡**，没有死亡状态列，`death_settled_at` 只是“死亡收尾跑过了吗”的处理标记；`stats` 是恒定属性，`base_body` 是裸体描述，`appearance` 是他人实际所见的快照，`equipment` 是「槽位 → 物品名」索引且每槽至多一件。
+- **物品**：`items` 依附角色，`stage_items` 依附场景，两者字段相同、都不记录穿戴状态；动作与穿戴槽按 `name` 定位，因此同一持有者内名字唯一。
+- **消息与记忆**：`game_messages` 是公共事件流（`sequence` 追加，带 stage / source / target / visibility），供客户端增量拉取与审计，没有 session 表；`agent_memories` + `agent_memory_messages` 是 actor / stage / world 各自的私有上下文，压缩摘要与被压缩的旧消息都留在 memory 里形成可回述的树。两者不能合并：`mind` 只进 memory，不进公共消息。
+- **向量**：`vector_documents` 用 `collection` 隔离世界内容、`embedding_model` 隔离模型；它只装公共知识，不进入私有 memory，也不承载剧情秘密。
 
-## 属性与物品
+## 属性、物品与外观
 
-`src/game/attributes.ts` 只有一个属性结构 `Stats`：`maxHp` / `strength` / `wisdom` / `agility` / `damage` / `block`，actor 与物品共用，字段由 `STAT_KEYS` 派生，新增属性只改这一处。六项都是恒定配置，可逐字段相加；`toStats()` 把内容或旧数据归一成完整结构（缺字段补 0、多余字段丢弃），`addStats()` 是全局唯一的属性加法规则（装备加成与临时修正都走它）。
+`Stats` 只有 `maxHp` / `damage` / `block` 参与结算；`strength` / `wisdom` / `agility` 保留在结构与 schema 里但无人读取，写进内容也不影响游戏。六项都是恒定配置，可逐字段相加，`addStats()` 是唯一的加法规则（装备加成也走它）；`hp` 不是属性，扣血只写这一列，上限看 `stats.maxHp`。
 
-结算只读 `maxHp` / `damage` / `block`：`strength` / `wisdom` / `agility`（力量 / 智慧 / 敏捷）保留在结构与 schema 里，但没有任何代码读取，写进内容也不影响游戏，也不出现在 `get_self` 的展示里。
+物品没有根级 `damage` / `block`，也不记录穿戴状态；五种物品都带完整 `stats`（未用到的为 0），可穿戴性只能看 `kind`，不能看有没有 stats。减伤是目标身上**已穿戴**物品的 `block` 之和，结算时现读。物品 `effect` 是可序列化声明（数据库只存 JSON），执行路由见 → 参见：[Actor 行动与记忆](actor-actions-memory.md)。
 
-**当前生命不是属性**：`hp` 是可变运行时状态，单独存在 `actors.hp`（integer），扣血只写这一列，不再重写整块 `stats`。`stats.maxHp` 才是上限。
-
-`ItemBaseState` 根字段有 `id` / `key` / `name` / `description` / `kind` / `count` / `effect` / `affixes` / `stats`，没有根级 `damage` / `block`，也没有穿戴状态；`ItemState` 是各 `kind` 子类的运行时联合。五种物品都携带完整的 `stats`，未用到的字段为 0，因此不能再靠“有没有 stats”区分可穿戴性（用 `kind`）。钥匙属于 `accessory`，显式声明 `effect: { "type": "event" }`，属性全 0。`block` 是装备加成：目标身上（`weapon` / `armor` / `accessory1` / `accessory2`）所有物品的 `block` 之和会加进它的防御，参与伤害计算。
-
-`effect` 是物品的声明式行为：JSON 中必须包含 `type`，其余字段由对应 handler 解释。数据库只存 JSON，不存函数；`src/game/item-effects/` 用 `effect.type` 作为路由 key。当前注册了 `event` 与 `damage` 两个 handler，没有默认效果，也没有 `actions` 元数据。物品先执行默认 `effect`；如果 `affixes` 非空，再运行一次补充 affix agent。affix agent 在事务外调用 LLM 和工具，工具只收集操作，最后在短事务中落账；它的提示词（`buildAffixPrompt`）只提供事实与判定口径：持有者与物品的 `stats`、目标的种族 / `baseBody.description`（外观）/ 当前 HP 与 block；不预设效果类型，工具清单由 `buildTools()` 的结果传入，新增效果只需注册新工具。是否命中词缀、换算多少都由模型自行判断（描述性特征按语义成立，不要求字面一致），代码不做关键词匹配；普通物品没有 affix 时只执行默认 effect。
-
-`base_body` 是“捏脸完成、还没穿装备”的形态，`formatBaseBody()` 输出 `[种族] 描述`，system prompt 用 `### 基础体型` 展示它。`appearance` 是其他角色实际看到的样子，包含衣着、装备与当前伤势；内容可以显式提供，动物/怪物省略时回退到 `baseBody.description`。NPC 与 stage 的同场景观察只读 `appearance`，不会把人类看成裸体。
-
-`appearance` 由一次 agent loop 推理得到：以 actor memory 为上下文，把 base body、`equipment` 槽位解析出的穿戴物品与记忆中的血迹/灰尘/伤势融合，通过 `submit_appearance` 提交；结果写回 `actors.appearance`。`setEquipmentSlot` 是换装入口，槽位变化后立即重算。推理不修改 system prompt，基础体型始终只读 `base_body`；seed 中的 `appearance` 是预先写好的推理结果。细节见外观文档 → 参见：[外观](appearance.md)。
-
-`game_messages` 与 `agent_memories` 不能合并。前者是公共事件，后者是私有上下文；`mind` 只进 memory，不进公共消息。玩家接管只在 `actor_controls` 增加关系，不改变 actor 本体。
-
-`world` 是 game 的运行时子状态，不是可复用内容模板。数据库 `worlds` 与文件目录 `worlds/` 同名但职责不同：前者是运行时状态，后者是导出的开发期快照。
+`base_body` 是“捏脸完成、还没穿装备”的形态，`appearance` 是其他角色实际看到的样子；NPC 与 stage 的观察只读 `appearance`，seed 里的 `appearance` 是预先写好的推理结果。换装只改槽位索引，外观要显式再推一次，细节见 → 参见：[外观](appearance.md)。
 
 ## 开发数据
 
-`seeds/dark-fantasy/` 是「黑暗奇幻」战役：`campaign.ts` 是跨剧本不变的战役设定与全局规则，`bell-monastery.ts` 是剧本「枯钟修道院」，提供五个场景、三组双向连接、一条单向出口与五个角色，`bell-monastery.knowledge.ts` 是与该剧本 1:1 绑定的公共知识库，`bell-monastery.eval.ts` 是同一剧本的检索评测集（在 `seeds/eval.ts` 的 `RAG_EVAL_SETS` 里注册），`index.ts` 用 `assembleWorld()` 把两者拼成运行时的 `World`；故事内容留在内容定义层，不写进服务逻辑。奥德里克持有 `饰品.闸门钥匙`，焚尸房放置 `武器.松脂火把`（词缀按目标外观与种族自行判定“多毛类”，不写死鼠类），鼠王在地窖沉睡；这些是初始内容，不是服务逻辑中的硬编码。具体剧情、测试目的与暂缓项见临时测试剧本。
+`seeds/` 是开发期测试内容，不是框架的一部分：剧本、知识库与检索评测集同目录维护，故事文本不写进服务逻辑，结构与内容入口见 → 参见：[数据驱动目标](data-driven.md)，当前剧本的剧情与测试矩阵见 → 参见：[临时测试剧本](test-scenario.md)。
 
-`World` / `Actor` / `Stage` 是创建世界用的初始内容定义，不是测试专用，也不是数据库模型。`createGame` 读取 `World`，在一个事务中写入 `worlds`、`stages`、`stage_items`、`actors`、`items` 与 actor/stage memory；创建完成后 PostgreSQL 是唯一真相，修改内容定义不会回改已有游戏。`Actor.openingBriefing` 只用于建局注入：它在 actor memory 中写成 system prompt 之后的第一条 human message，不写入 `actors` 表。`World.contentKey` 是剧本的稳定标识，建局时写进 `worlds.content_key`，知识库 collection 用它寻址（改 `worldName` 不会断链）。`World.initialStageKey` 决定初始旁白所属场景；演示世界从乱葬坑开始。测试使用独立的小型世界，不随演示剧情变化。`pnpm db:seed` 是数据库 seeding 的固定叫法，只写 demo 用户与 `app_meta`；`pnpm db:demo` 重置后再写这些基础数据；`agent:game create` 通过 `--seed`、`--world-file` 或 `--world` 显式提供 `World`，再把它物化为具体游戏。
+`createGame` 在一个事务里把 `World` 物化成 `worlds` / `stages` / `stage_items` / `actors` / `items` 与各自的 system memory；之后 PostgreSQL 是唯一真相，改内容定义不会回改已有游戏。开场信息只存在于 stage 的 `environment` 与 actor 的 `openingBriefing`，建局不写开场消息；测试用独立的小型世界，不随演示剧本变化。
 
-`pnpm db:demo` 应用迁移、清空登记过的开发表、写入固定 demo 用户与 `app_meta`。`pnpm agent:game create --user demo --seed dark-fantasy` 创建一局游戏，同时生成 player 座位、world、stage 图、角色、场景物品、角色物品，以及 actor、stage 与 world 的 system memory；有 `openingBriefing` 的 actor 会额外写入一条开局简报 human message。
+## 回合与事务
 
-## NPC 行动
+actor、stage、world 三条链路共用同一个节奏：读状态与 memory → 事务外跑 agent loop → 用行锁与版本号在短事务里按计划顺序落账。区别只在计划形状与能力清单，规则见 → 参见：[Actor 行动与记忆](actor-actions-memory.md)、→ 参见：[Stage 小 GM](stage.md)。
 
-NPC 回合是：数据库环境 → agent loop → 动作工具暂存动作 → `submit_plan` → 短事务按顺序应用 → 公共消息与 memory 反馈。
-
-工具包含只读 `look_stage`、`get_self`、`observe_actor`，以及十二个动作工具 `say`、`whisper`、`announce`、`move`、`wait`、`attack`、`steal`、`give`、`pickup`、`use`、`equip`、`unequip`；`look_stage` 与环境提示都会列出当前场景的 `stage_items`，`get_self` 返回自己的外观、stats、状态、穿戴与物品，`observe_actor` 只返回同场景目标携带的物品；`submit_plan` 是终止工具。只读工具可多次调用；工具按模型返回的 `tool_calls` 顺序串行执行。每个动作工具只接收自己的参数；一轮最多 `MAX_ACTIONS_PER_TURN = 2` 个动作，不分类互斥，顺序按工具调用顺序保留。所有 handler 只收集计划，不写数据库；loop 结束后由服务层重新校验并在事务中按顺序更新 actor、game version、公共消息与 memory。
-
-动作是十二个平级动作 `say`、`whisper`、`announce`、`move`、`wait`、`attack`、`steal`、`give`、`pickup`、`use`、`equip`、`unequip`：说话、耳语、宣告、移动、等待、攻击、取物、给予、拾取、使用道具、穿戴与卸下；每个动作一个工具；每个成功应用的动作都会写一条公共事件，`kind` 取动作名。`attack` 与 `use` 是物品效果的 dispatcher：按 `item.effect.type` 路由到 handler。`damage` handler 执行 `max(0, 攻击方总 damage - 目标总 block)`，两侧都用 `addStats()` 把自身 stats 与物品 stats 相加；随后如果物品有词缀，补充 affix agent 在事务外运行，并通过工具收集要追加的效果，最后在短事务中落账。`attack` 的武器只来自装备：使用 `equipment.weapon` 且该物品声明 `damage` 效果；没有可用武器或武器无伤害效果时按空手处理（系统 `{ type: "damage" }`），不接受临时指定其他物品，要用背包里的其他物品请走 `use`。`event` handler 只写使用事件，后果交给 stage / world。`use` 接受全部物品（`damage` effect 同样走上面的公式）。物品不再直接结束游戏。武器通过 `stats.damage` 参与伤害；任何已穿戴物品的 `stats.block` 都加进持有者的减伤。`steal` 为 private，只有发起者与目标进入 memory；目标活着时只能拿走背包里的物品，已穿戴在身上的拿不走，目标死亡（尸体）时什么都能拿走；`give` 把自身物品交给同场景的一个角色（尸体也可以是接收方）；`pickup` 把 `stage_items` 移入 actor 背包。`use` 的通用流程只校验物品归属、目标与场景；对场景使用时可以带 `targetDetail`，它作为 actor 的行动描述写入 stage memory，不代表结果。默认玩家角色死亡会由系统触发整局结束；普通物品与 actor 仍不能直接调用 `end_game`。`say` 与 `whisper` 必须指定单个 `targetActorName`；`say` 向当前 stage 广播，`whisper` 只有发起者与目标收到 memory；`announce` 无目标，向当前 stage 广播。公共消息用 `visibility` 区分 `stage` 与 `private`；私密事件后续对客户端不可见。
-
-`agent:game npc --game <gameId|slug> --actor <actorId|actorName>` 推进一个 NPC；`--all` 跳过被玩家接管或已死亡的 actor。`agent:game take-control` / `release-control` 接管或释放一个 actor；玩家入口是十二个子命令：`player-say` / `player-whisper` / `player-announce` / `player-move` / `player-wait` / `player-attack` / `player-steal` / `player-give` / `player-pickup` / `player-use` / `player-equip` / `player-unequip`，每个子命令只接收自己的参数。`agent:game appearance --game <slug> (--actor <name> | --all)` 单独推动一次外观合并推理：换装动作只改穿戴索引，外观快照要显式再推一次。`agent:game stage --game <gameId|slug> --stage <stageId|stageName>` 推动一个 stage 回合；`--all` 按场景顺序推动全部场景；`agent:game world --game <gameId|slug>` 推动 world 回合。`agent:game status` 读取完整状态；`agent:game scene-map` 返回场景名到角色名列表的映射；`pnpm rag:*` 管理公共知识向量，细节见公共知识检索文档；`agent:game snapshot` 导出快照，包含 actor、stage 与 world 的 memory；`agent:game compact` 手动压缩 actor/stage/world memory，保留 `[0] system`，把 `[1..]` 收敛成一条 human summary。沉睡与苏醒由 actor 的 `openingBriefing` 约束，并由 LLM 在正常 plan 中判断，系统不为特定状态维护唤醒规则。
-
-## Stage 回合
-
-stage 是活着的场景实体与小 GM，拥有自己的 `agent_memories` 记录、生命周期和显式推动的仲裁回合。当前能力只有更新 `stages.environment`。
-
-stage 回合读取本场景全部事件，包括 private 沟通与移动进出；事件只进入 stage memory，不改变 actor 可见性。stage 回合通过 `submit_environment` / `notify_world` 提交有序动作列表（`StagePlan.actions`）：environment 可省略，但计划必须至少有一项。事务内校验 environment 不含角色名、更新场景、把通知写入 world memory、递增版本，写 `environment_change` 公共事件与 stage memory；不写 actor memory，actor 下一次 plan 重新读取当前 environment。它不会自动随 actor 行动运行，当前由 `agent:game stage` 显式推动。
-
-world 回合读取 world memory 中的 stage 通知；可用 `notify_stage` 把世界裁决写入指定 stage memory，或用 `end_game` 结束游戏。`end_game` 必须是本轮最后一个动作，且只有 world 工具列表提供；stage 与 actor 都没有该工具。另一种结束路径是 `is_default_player = true` 的 actor 死亡：由 `damage` 结算自动调用完成游戏的系统逻辑，不经过 actor/stage 的 `end_game`。因此当前有两条结束路径：钥匙开门等 world 裁决走 `end_game`；默认玩家角色死亡走系统终止。world 回合由 `agent:game world` 显式推动，不嵌在 stage 事务内。
-
-## 迁移与重置
-
-schema 定义在服务端代码中，SQL 迁移由 Drizzle Kit 生成并入库。迁移是唯一建表路径，不在应用启动时调用隐式同步。
-
-`pnpm db:migrate` 应用迁移；迁移前会确保 `vector` 扩展可用，空库也能直接建出向量表。`pnpm db:reset --yes` 清空显式登记的开发表（包括 `vector_documents`）；`pnpm db:check` 探测连接、pgvector 版本与向量行数。重置清单集中在 `src/db/maintenance.ts`，新增业务表必须登记。`db:reset` 与 `db:demo` 只允许本机数据库；数据库重置不会删除 `worlds/` 下的历史快照，需要时手动清理。
-
-开发期不做旧数据搬运：迁移只描述目标形状（加列、改类型），不写 backfill / 数据重写语句。字段改名或语义变更时，直接改 schema、生成迁移，然后 `db:reset --yes` + `db:demo` 用当前 seed 重刷一局；不要为一个没人保留的旧库额外维护一段一次性 UPDATE。
+不可让渡的边界：LLM 调用不进事务；工具 handler 只暂存计划、不写游戏状态；落账前由服务层重新校验整份计划，任何一条失败就整份丢弃；只读旁路（system prompt 导出、文件快照）失败只告警，不回滚业务；文件快照只能显式导出，不是状态源。行动产生的公共事件与 memory 反馈由动作自己决定可见性，不在这里按动作分叉。
 
 ## 死亡阶段
 
-死亡不是一个状态字段，而是 `hp === 0` 这个事实：攻击方只写 `hp`，不断定死亡，也不在攻击事务里做死亡收尾。
+死亡是 `hp === 0` 这个事实，不是状态字段：攻击方只写 `hp`，不断定死亡，也不在攻击事务里做收尾。
 
-死亡处理属于死者自己。`settleDeaths()` 扫描本局全部 actor，把「`hp <= 0` 且 `death_settled_at IS NULL`」的死者各处理一次，彼此并发、互不影响。它在 `applyActorPlan` 的事务与词缀补充效果之后调用，因此任何改变 `hp` 的事件都会触发；`agent:game deaths` 可以显式再推一次。
+`settleDeaths()` 扫出本局「`hp <= 0` 且 `death_settled_at` 为空」的死者各处理一次，彼此独立。每个死者固定两步：先**宣布死亡**（无 LLM）——写公共事件、场景记忆、旁观者记忆与死者自己的记忆，并在同一事务里写标记；再**尽力补一张尸体外观快照**，失败只记进结果，不回退第一步、不重试。所以死亡判定永远不会被 LLM 阻塞。
 
-每个死者的处理固定分两步：
-
-1. **宣布死亡（权威、无 LLM）**：写一条 `kind = "death"` 的公共事件、场景记忆（`# 生命事件`）、同场景其他 actor 的记忆（`# 场景动态`）与死者自己的记忆（`# 你的生命归零`），最后在同一个事务里写 `death_settled_at`。这一步完成就算处理完了。
-2. **尸体外观快照（尽力而为）**：调 LLM 用尸体模式重推外观。失败（超时、报错、模型没提交合法外观、游戏已结束）只记进结果的 `appearanceFailed`，不回退第 1 步、也不重试——尸体外观停在死亡前的样子是可以接受的。
-
-存活只有一个用途：判断**行动主体**能不能自己行动。任何 plan 在行动入口就会被拒（`actor 已死亡`），但尸体作为**目标**没有任何限制——NPC 工具的可选目标、观察文本里的「可作用对象」、以及 attack / give / use / steal 的结算都不再按存活过滤；尸体可以被攻击（伤害空转）、给予、使用、偷窃，这是给复活类玩法留的口子。
-
-因此**死亡判定永远不被 LLM 阻塞**：`hp` 在攻击事务里已落库，死亡宣布也只写库；外观失败不影响任何状态，整个死亡阶段抛错也不会把已经成功的行动反判成失败。
-
-`death_settled_at` 只是处理标记：一旦 `hp` 被抬回正数（复活），标记会被清空，下次死亡重新收尾。这条留白是给「身上带复活饰品就能自主复活」这类扩展用的。
-
-批量外观入口（`refreshAppearances` / `agent:game appearance --all`）用这个标记做幂等：活人重推、未宣布过死亡的死者交给死亡阶段、已宣布过的尸体跳过。重推尸体必须单点指定 actor——否则每跑一次批量就会把尸体外观重写一遍，同一具尸体也会被反复收费。
+存活只有一个用途：判断**行动主体**能否自主行动。尸体作为**目标**不受限制——攻击、给予、使用、偷窃都可以指向尸体，这是给复活类玩法留的口子；`hp` 被抬回正数时标记清空，下次死亡重新收尾。批量外观入口用这个标记做幂等：活人重推，未收尾的死者交给死亡阶段，已收尾的跳过。
 
 ## 持久化边界
 
-玩法层不写 SQL。`actions/`、`item-effects/`、`stage` / `world` 回合、死亡与外观这些模块只调用具名函数，表名、列名、`for update` 与「删一行插一行」这类细节集中在 `src/game/persistence/`：
+玩法层不写 SQL：动作、物品效果、stage / world 回合、死亡与外观只调用具名函数，表名列名、行锁与「删一行插一行」这类细节集中在 `persistence/`；事务边界在 `apply/`。规则是「玩法层不出现 SQL」，不是「全仓库只有一处碰数据库」——记忆维护与玩家控制也各自读写。
 
-- `actors.ts`：穿戴索引、所在场景、外观、扣血（`damageActor`）；
-- `items.ts`：场景物品转入背包、物品转移；
-- `deaths.ts`：死亡扫描、收尾标记；
-- `stages.ts` / `worlds.ts` / `games.ts`：场景环境、按局读 world、游戏行锁与置为 completed。
+**扣血必须原子**：写 HP 的函数接收 `actorId` 而不是快照，在带行锁的读里取当前值再写。默认效果与词缀会连续结算同一个目标，拿旧快照直接写会互相覆盖；这条不变式放在持久化层，而不是靠每个调用点记得重读。
 
-读分两处：解析动作用的只读查询在 `apply/queries.ts`，写入前需要重新读取的行在 `persistence/`。命名约定：`load*` 是数据库读、`list*` 是集合读、`set*` / `move*` / `mark*` 是写；`find*` 只用于对 `GameState` 的内存查找（`game/actors.ts`），两者不重名。`memory.ts`、`observations.ts`、`apply/messages.ts` 是记忆、观察与公共事件的写入原语；`service.ts` 是建局与整局读取。这些是存取层与编排层，不属于玩法规则。
+## 迁移与重置
 
-规则是「玩法层不出现 SQL」，不是「全仓库只有一个地方碰数据库」：`apply/index.ts` 负责事务边界，`compact.ts` / `control.ts` 是记忆维护与玩家控制。
+迁移是唯一建表路径，schema 在服务端代码里、SQL 由 Drizzle Kit 生成（命令见开发文档）。重置清单集中在 `src/db/maintenance.ts`，新增业务表必须登记；`db:reset` 与 `db:demo` 只允许本机数据库，也不会删除 `worlds/` 下的历史快照。
 
-**扣血必须原子**：`damageActor` 接收 `actorId` 而不是快照，在带行锁的读里取当前 `hp` 再写，返回写后的行与剩余 HP。默认效果与词缀会连续结算同一个目标，调用方拿着旧快照直接写会互相覆盖——这条不变式放在持久化层，而不是靠每个调用点记得重读。
+开发期不做旧数据搬运：迁移只描述目标形状，字段改名或语义变更直接改 schema、生成迁移，然后 `db:reset --yes` + `db:demo` 用当前 seed 重刷，不为没人保留的旧库写一次性 backfill。
 
-## 事务边界
-
-LLM 调用不放进数据库事务：先读取状态与 memory，在事务外完成 agent loop，再用行锁与版本号在短事务内应用计划。
-
-快照是提交后的只读投影，不是第二套状态源。快照失败只记录日志，不回滚业务；正式环境通过开关关闭落盘。`game_messages` 的沟通事件同时保存 stage、source、target、visibility；`say` 的 memory 文本按发起者、目标、旁观者生成；`announce` 按发起者与旁观者生成；`whisper` 只生成发起者与目标两人的版本。
-
-→ 参见：[架构与契约](architecture.md) → 参见：[开发期 Agent 工作流](debug-workflow.md) → 参见：[Actor 行动与记忆](actor-actions-memory.md) → 参见：[临时测试剧本](test-scenario.md) → 参见：[数据驱动目标](data-driven.md)
+→ 参见：[架构与契约](architecture.md) → 参见：[开发期 Agent 工作流](debug-workflow.md) → 参见：[数据驱动目标](data-driven.md)

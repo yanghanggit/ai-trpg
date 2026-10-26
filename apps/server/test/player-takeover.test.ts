@@ -89,18 +89,13 @@ describe.skipIf(!testDatabaseUrl)("player takeover", () => {
 
     const state = await getGameState(handle.db, game.game.slug);
     expect(state.game.version).toBe(3);
-    expect(state.messages.map((message) => message.kind)).toEqual([
-      "narration",
-      "say",
-      "whisper",
-      "announce",
-    ]);
+    expect(state.messages.map((message) => message.kind)).toEqual(["say", "whisper", "announce"]);
+    expect(state.messages[0]?.targetActorId).toBeTruthy();
+    expect(state.messages[0]?.visibility).toBe("stage");
     expect(state.messages[1]?.targetActorId).toBeTruthy();
-    expect(state.messages[1]?.visibility).toBe("stage");
-    expect(state.messages[2]?.targetActorId).toBeTruthy();
-    expect(state.messages[2]?.visibility).toBe("private");
-    expect(state.messages[3]?.targetActorId).toBeNull();
-    expect(state.messages[3]?.visibility).toBe("stage");
+    expect(state.messages[1]?.visibility).toBe("private");
+    expect(state.messages[2]?.targetActorId).toBeNull();
+    expect(state.messages[2]?.visibility).toBe("stage");
 
     const memories = await getGameMemories(handle.db, game.game.id);
     const keeper = memories.find((memory) => memory.name === "守烬人");
@@ -147,7 +142,7 @@ describe.skipIf(!testDatabaseUrl)("player takeover", () => {
     });
 
     const state = await getGameState(handle.db, game.game.slug);
-    expect(state.messages.map((message) => message.kind)).toEqual(["narration", "move"]);
+    expect(state.messages.map((message) => message.kind)).toEqual(["move"]);
     const keeperStage = state.world.stages.find((stage) =>
       stage.actors.some((actor) => actor.name === "守烬人"),
     );
@@ -173,7 +168,7 @@ describe.skipIf(!testDatabaseUrl)("player takeover", () => {
 
     const state = await getGameState(handle.db, game.game.slug);
     expect(state.game.version).toBe(1);
-    expect(state.messages.map((message) => message.kind)).toEqual(["narration", "attack"]);
+    expect(state.messages.map((message) => message.kind)).toEqual(["attack"]);
     const monk = state.world.stages
       .flatMap((stage) => stage.actors)
       .find((actor) => actor.name === "提灯修士");

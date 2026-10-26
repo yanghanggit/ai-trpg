@@ -26,7 +26,6 @@ import {
   createStageMemory,
   createWorldMemory,
 } from "./memory";
-import { appendStageEvent } from "./observations";
 import type {
   ActorState,
   ConnectionState,
@@ -458,37 +457,6 @@ export async function createGame(db: Database, input: CreateGameInput): Promise<
         },
         actorPrompt,
       );
-    }
-
-    if (input.world.initialNarration) {
-      const initialStageKey = input.world.initialStageKey ?? input.world.stages[0]?.key;
-      const initialStageId = initialStageKey ? stageIds.get(initialStageKey) : null;
-      if (initialStageKey && !initialStageId) {
-        throw new GameError(
-          "invalid_state",
-          `initialStageKey 引用了不存在的 stage: ${initialStageKey}`,
-        );
-      }
-      await tx.insert(gameMessages).values({
-        id: randomUUID(),
-        gameId,
-        sequence: 1,
-        kind: "narration",
-        stageId: initialStageId ?? null,
-        sourceActorId: null,
-        targetActorId: null,
-        visibility: "stage",
-        content: input.world.initialNarration,
-      });
-      if (initialStageId) {
-        await appendStageEvent(
-          tx,
-          gameId,
-          initialStageId,
-          `# 场景事件\n${input.world.initialNarration}`,
-          { eventKind: "narration" },
-        );
-      }
     }
   });
 

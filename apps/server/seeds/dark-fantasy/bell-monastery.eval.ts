@@ -50,6 +50,11 @@ export const BELL_MONASTERY_EVAL: RagEvalSet = {
     },
     { question: "修道院是用什么建的", keywords: "修道院 灰石 石墙", expect: "外围是一圈石墙" },
     { question: "墓园当年是做什么用的", keywords: "墓园 下葬", expect: "墓园是修道院主要的下葬处" },
+    {
+      question: "瘟疫期间死者用棺材下葬吗",
+      keywords: "棺材 粗麻布 木牌",
+      expect: "不给死者用棺材",
+    },
   ],
   negative: [
     { question: "修道院一共有多少修士", keywords: "修士 人数" },

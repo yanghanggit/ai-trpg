@@ -72,11 +72,7 @@ describe.skipIf(!testDatabaseUrl)("equip and unequip actions", () => {
     expect(keeper?.equipment.armor).toBe("装备.补丁斗篷");
     // 外观是独立快照：动作不会顺手改它，需要 agent:game appearance 单独推动。
     expect(keeper?.appearance).toBe(appearanceBefore);
-    expect(state.messages.map((message) => message.kind)).toEqual([
-      "narration",
-      "unequip",
-      "equip",
-    ]);
+    expect(state.messages.map((message) => message.kind)).toEqual(["unequip", "equip"]);
   });
 
   it("物品仍在背包里，只是不再计入穿戴", async () => {
@@ -165,6 +161,6 @@ describe.skipIf(!testDatabaseUrl)("equip and unequip actions", () => {
     );
     // 换装只改索引：外观快照保持原样，不触发任何推理。
     expect(keeper?.appearance).toBe(appearanceBefore);
-    expect(state.messages.map((message) => message.kind)).toEqual(["narration", "equip", "equip"]);
+    expect(state.messages.map((message) => message.kind)).toEqual(["equip", "equip"]);
   });
 });

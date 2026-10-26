@@ -26,7 +26,7 @@
 | 数据库 schema | 已隔离 | world / stage / actor / item / message / memory 等通用概念；能力用 `actions` JSONB 承载 |
 | 领域类型 | 已隔离 | `World` / `Stage` / `Actor` / `ItemDefinition` 是内容定义；`WorldState` / `StageState` / `ActorState` / `ItemState` 是运行时状态 |
 | 内容校验 | 已隔离 | `parseWorldContent` 在建局前校验外部内容；缺能力、缺 key、类型错误直接拒绝 |
-| 故事内容 | 已隔离到 seed | 场景、角色、profile、openingBriefing、连接、物品、能力、环境、初始旁白在内容文件 |
+| 故事内容 | 已隔离到 seed | 场景、角色、profile、openingBriefing、连接、物品、能力、环境在内容文件 |
 | 内容注册 | 显式 | `seeds/index.ts` 只做显式 `name → { world, knowledge }` 映射，不写默认故事 |
 | system prompt | 由内容生成 | 角色、场景与 world 的身份、设定与全局规则来自 `World` 字段；actor 的 `openingBriefing` 另以 human message 注入 memory |
 | 执行细节 | 由内容/工具承载 | environment 写法在 `submit_environment` 描述里；通知与结束规则在 stage/world 工具描述里 |
