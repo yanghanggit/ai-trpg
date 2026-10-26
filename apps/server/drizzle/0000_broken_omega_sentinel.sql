@@ -15,7 +15,9 @@ CREATE TABLE "actors" (
 	"appearance" text NOT NULL,
 	"base_body" jsonb NOT NULL,
 	"stats" jsonb NOT NULL,
-	"status" text DEFAULT 'alive' NOT NULL,
+	"hp" integer NOT NULL,
+	"death_settled_at" timestamp with time zone,
+	"is_default_player" boolean DEFAULT false NOT NULL,
 	"equipment" jsonb DEFAULT '{}'::jsonb NOT NULL,
 	"actions" jsonb DEFAULT '[]'::jsonb NOT NULL,
 	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
@@ -78,6 +80,7 @@ CREATE TABLE "games" (
 	"slug" text NOT NULL,
 	"name" text NOT NULL,
 	"status" text DEFAULT 'active' NOT NULL,
+	"outcome" text,
 	"content_version" text NOT NULL,
 	"version" integer DEFAULT 0 NOT NULL,
 	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
@@ -87,11 +90,14 @@ CREATE TABLE "games" (
 CREATE TABLE "items" (
 	"id" uuid PRIMARY KEY NOT NULL,
 	"actor_id" uuid NOT NULL,
+	"key" text,
 	"name" text NOT NULL,
 	"description" text NOT NULL,
 	"kind" text NOT NULL,
 	"count" integer DEFAULT 1 NOT NULL,
-	"stats" jsonb DEFAULT '{}'::jsonb NOT NULL,
+	"stats" jsonb NOT NULL,
+	"effect" jsonb NOT NULL,
+	"affixes" jsonb DEFAULT '[]'::jsonb NOT NULL,
 	"created_at" timestamp with time zone DEFAULT now() NOT NULL
 );
 --> statement-breakpoint
@@ -100,23 +106,28 @@ CREATE TABLE "stage_connections" (
 	"world_id" uuid NOT NULL,
 	"from_stage_id" uuid NOT NULL,
 	"to_stage_id" uuid NOT NULL,
+	"passage" text DEFAULT 'open' NOT NULL,
 	"created_at" timestamp with time zone DEFAULT now() NOT NULL
 );
 --> statement-breakpoint
 CREATE TABLE "stage_items" (
 	"id" uuid PRIMARY KEY NOT NULL,
 	"stage_id" uuid NOT NULL,
+	"key" text,
 	"name" text NOT NULL,
 	"description" text NOT NULL,
 	"kind" text NOT NULL,
 	"count" integer DEFAULT 1 NOT NULL,
-	"stats" jsonb DEFAULT '{}'::jsonb NOT NULL,
+	"stats" jsonb NOT NULL,
+	"effect" jsonb NOT NULL,
+	"affixes" jsonb DEFAULT '[]'::jsonb NOT NULL,
 	"created_at" timestamp with time zone DEFAULT now() NOT NULL
 );
 --> statement-breakpoint
 CREATE TABLE "stages" (
 	"id" uuid PRIMARY KEY NOT NULL,
 	"world_id" uuid NOT NULL,
+	"key" text,
 	"name" text NOT NULL,
 	"profile" text NOT NULL,
 	"environment" text NOT NULL,
@@ -134,12 +145,30 @@ CREATE TABLE "users" (
 	CONSTRAINT "users_username_unique" UNIQUE("username")
 );
 --> statement-breakpoint
+CREATE TABLE "vector_documents" (
+	"id" uuid PRIMARY KEY NOT NULL,
+	"collection" text NOT NULL,
+	"source" text,
+	"doc_type" text,
+	"title" text,
+	"content" text NOT NULL,
+	"content_hash" text NOT NULL,
+	"metadata" jsonb DEFAULT '{}'::jsonb NOT NULL,
+	"embedding" vector(384) NOT NULL,
+	"embedding_model" text NOT NULL,
+	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
+	"updated_at" timestamp with time zone DEFAULT now() NOT NULL
+);
+--> statement-breakpoint
 CREATE TABLE "worlds" (
 	"id" uuid PRIMARY KEY NOT NULL,
 	"game_id" uuid NOT NULL,
 	"name" text NOT NULL,
+	"content_key" text NOT NULL,
+	"profile" text NOT NULL,
 	"campaign_setting" text NOT NULL,
 	"system_rules" text NOT NULL,
+	"actions" jsonb DEFAULT '[]'::jsonb NOT NULL,
 	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
 	"updated_at" timestamp with time zone DEFAULT now() NOT NULL
 );
@@ -169,6 +198,12 @@ CREATE UNIQUE INDEX "agent_memory_messages_memory_sequence_unique" ON "agent_mem
 CREATE UNIQUE INDEX "game_messages_game_sequence_unique" ON "game_messages" USING btree ("game_id","sequence");--> statement-breakpoint
 CREATE UNIQUE INDEX "game_players_game_unique" ON "game_players" USING btree ("game_id");--> statement-breakpoint
 CREATE UNIQUE INDEX "games_owner_slug_unique" ON "games" USING btree ("owner_id","slug");--> statement-breakpoint
+CREATE UNIQUE INDEX "items_actor_name_unique" ON "items" USING btree ("actor_id","name");--> statement-breakpoint
 CREATE UNIQUE INDEX "stage_connections_world_edge_unique" ON "stage_connections" USING btree ("world_id","from_stage_id","to_stage_id");--> statement-breakpoint
+CREATE UNIQUE INDEX "stage_items_stage_name_unique" ON "stage_items" USING btree ("stage_id","name");--> statement-breakpoint
 CREATE UNIQUE INDEX "stages_world_name_unique" ON "stages" USING btree ("world_id","name");--> statement-breakpoint
+CREATE UNIQUE INDEX "vector_documents_collection_hash_unique" ON "vector_documents" USING btree ("collection","content_hash");--> statement-breakpoint
+CREATE INDEX "vector_documents_collection_idx" ON "vector_documents" USING btree ("collection");--> statement-breakpoint
+CREATE INDEX "vector_documents_collection_model_idx" ON "vector_documents" USING btree ("collection","embedding_model");--> statement-breakpoint
+CREATE INDEX "vector_documents_embedding_hnsw" ON "vector_documents" USING hnsw ("embedding" vector_cosine_ops);--> statement-breakpoint
 CREATE UNIQUE INDEX "worlds_game_unique" ON "worlds" USING btree ("game_id");

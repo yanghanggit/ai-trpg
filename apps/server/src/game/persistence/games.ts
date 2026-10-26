@@ -25,6 +25,7 @@ export async function completeGameIfActive(
   executor: Executor,
   gameId: string,
   now: Date,
+  outcome: string,
 ): Promise<boolean> {
   const [game] = await executor
     .select({ status: games.status })
@@ -39,7 +40,7 @@ export async function completeGameIfActive(
   }
   await executor
     .update(games)
-    .set({ status: "completed", updatedAt: now })
+    .set({ status: "completed", outcome, updatedAt: now })
     .where(eq(games.id, gameId));
   return true;
 }

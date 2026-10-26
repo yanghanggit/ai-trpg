@@ -24,6 +24,6 @@ system prompt 要求 agent：只使用工具返回的记忆与事件；综合不
 
 ## 测试
 
-单元测试用脚本化 fake LLM 走完整工具链，断言不改变 game version、公共消息与 memory。真实 E2E 分别覆盖默认玩家死亡结局与 world 裁决结局；进行中的游戏也可直接生成当前故事。
+单元测试用脚本化 fake LLM 走完整工具链，断言不改变 game version、公共消息与 memory。真实 E2E 覆盖 world 裁决结局，包含主角死亡后由 world 收尾这条路径；进行中的游戏也可直接生成当前故事。
 
 → 参见：[开发期 Agent 工作流](debug-workflow.md)、→ 参见：[Actor 行动与记忆](actor-actions-memory.md)

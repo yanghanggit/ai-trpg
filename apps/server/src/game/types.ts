@@ -49,6 +49,8 @@ export type World = {
   /** 稳定内容标识（剧本 slug）：知识库 collection 用它寻址，改展示名不会断链。 */
   contentKey: string;
   worldName: string;
+  /** 世界的自我设定：本剧本里它是什么、负责什么、什么算收束。 */
+  profile: string;
   campaignSetting: string;
   systemRules: string;
   stages: readonly Stage[];
@@ -256,7 +258,7 @@ export type StagePlan = {
 /** world 对 stage 的下行动作。 */
 export type WorldAction =
   | { kind: "notify_stage"; stageName: string; content: string }
-  | { kind: "end_game"; message: string };
+  | { kind: "end_game"; message: string; outcome: string };
 
 /** world 的能力清单成员；由 `WorldAction` 派生。 */
 export type WorldActionKind = WorldAction["kind"];
@@ -387,6 +389,7 @@ export type AgentMemoryState = {
 export type WorldState = {
   id: string;
   name: string;
+  profile: string;
   contentKey: string;
   campaignSetting: string;
   systemRules: string;
@@ -402,6 +405,8 @@ export type GameState = {
     name: string;
     slug: string;
     status: string;
+    /** 结束时的结局标签，由 world 自己命名；active 局为 null。 */
+    outcome: string | null;
     contentVersion: string;
     version: number;
     createdAt: string;
@@ -426,7 +431,7 @@ export type DeathPhaseFailure = {
 export type DeathPhaseResult = {
   /** 本次认领并宣布死亡的 actor。 */
   settled: string[];
-  /** 认领、宣布或结束整局失败的 actor 与原因。 */
+  /** 认领或宣布失败、需要重试的 actor 与原因。 */
   failed: DeathPhaseFailure[];
   /** 死亡已宣布、但尸体外观快照没推成的 actor；按设计可以放着不管。 */
   appearanceFailed: string[];

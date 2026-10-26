@@ -18,6 +18,7 @@ import {
   describeSelf,
   describeStats,
 } from "../src/game/plan";
+import { parseEndGame } from "../src/game/world-plan";
 
 describe("action tools", () => {
   it("每类动作都是独立工具，参数即它的全部输入", () => {
@@ -147,6 +148,21 @@ describe("action parsers", () => {
     expect(() =>
       parseUse({ itemName: "钥匙", targetActorName: "提灯修士", targetStageName: "场景.铁闸门" }),
     ).toThrow("二选一");
+  });
+});
+
+describe("world action parsers", () => {
+  it("end_game 的结局标签由 world 自己命名，只要非空且不过长", () => {
+    expect(parseEndGame({ outcome: "逃出修道院", message: "门在身后合上了。" })).toEqual({
+      kind: "end_game",
+      outcome: "逃出修道院",
+      message: "门在身后合上了。",
+    });
+    expect(() => parseEndGame({ message: "门在身后合上了。" })).toThrow(/outcome/);
+    expect(() => parseEndGame({ outcome: "", message: "门在身后合上了。" })).toThrow(/outcome/);
+    expect(() => parseEndGame({ outcome: "长".repeat(25), message: "门在身后合上了。" })).toThrow(
+      /outcome/,
+    );
   });
 });
 

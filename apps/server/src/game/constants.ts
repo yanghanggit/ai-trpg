@@ -34,6 +34,9 @@ export const DEFAULT_APPEARANCE_MAX_ROUNDS = 3;
 /** 一次外观快照的最大字符数。 */
 export const MAX_APPEARANCE_LENGTH = 300;
 
+/** 结局标签的最大字符数：world 自己命名的短标签。 */
+export const MAX_OUTCOME_LENGTH = 24;
+
 /** 沟通类动作的 mind（第一人称内心独白）建议长度上限。 */
 export const MAX_MIND_LENGTH = 60;
 
@@ -53,4 +56,5 @@ export const MEMORY_KINDS = {
   communicationObservation: "communication_observation",
   worldNotification: "world_notification",
   worldDirective: "world_directive",
+  worldEvent: "world_event",
 } as const;

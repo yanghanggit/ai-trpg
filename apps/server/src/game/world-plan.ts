@@ -1,5 +1,5 @@
 import type { ToolDefinition } from "../llm/types";
-import { MAX_WORLD_DIRECTIVE_LENGTH } from "./constants";
+import { MAX_OUTCOME_LENGTH, MAX_WORLD_DIRECTIVE_LENGTH } from "./constants";
 import { GameError } from "./errors";
 import type { WorldAction } from "./types";
 
@@ -53,28 +53,43 @@ export function buildEndGameTool(): ToolDefinition {
     function: {
       name: "end_game",
       description:
-        "结束整局游戏。只有 world 拥有此能力；必须提供世界内可见的结束文案。end_game 必须是本轮最后一个动作。",
+        "结束整局游戏。只有 world 拥有此能力；只在你的设定与全局规则里的收束条件已经由不可逆的世界级事实满足时使用，必须给出结局标签与世界内可见的结束文案。end_game 必须是本轮最后一个动作。",
       parameters: {
         type: "object",
         properties: {
+          outcome: {
+            type: "string",
+            description:
+              "用一个简短词语概括这次收束，作为结局标签；它只用于记录，不进入世界内叙事。",
+          },
           message: {
             type: "string",
-            description: "世界内可见的结束文案，说明故事如何收束",
+            description: "世界内可见的结束文案，只收束已经发生的事实，不替场景补写细节",
           },
         },
-        required: ["message"],
+        required: ["outcome", "message"],
       },
     },
   };
 }
 
-/** 解析 end_game。 */
+/** 解析 end_game；`outcome` 是 world 自己命名的短标签。 */
 export function parseEndGame(args: Record<string, unknown>): WorldAction {
   const message = typeof args.message === "string" ? args.message.trim() : "";
+  const outcome = typeof args.outcome === "string" ? args.outcome.trim() : "";
   if (message.length === 0) {
     throw new GameError("invalid_action", "end_game 需要非空 message");
   }
-  return { kind: "end_game", message };
+  if (outcome.length === 0) {
+    throw new GameError("invalid_action", "end_game 需要非空 outcome");
+  }
+  if (outcome.length > MAX_OUTCOME_LENGTH) {
+    throw new GameError(
+      "invalid_action",
+      `end_game 的 outcome 不能超过 ${MAX_OUTCOME_LENGTH} 个字符`,
+    );
+  }
+  return { kind: "end_game", message, outcome };
 }
 
 /** 构造 world 的终止工具。 */

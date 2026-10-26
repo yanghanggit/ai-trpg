@@ -73,7 +73,7 @@ compact 手动触发：`agent:game compact --game <game> --owner actor --name <a
 
 计划是有序动作列表，最多 `MAX_ACTIONS_PER_TURN = 2` 条；不做分类互斥，只限制条数。“通常一次沟通加一个其他动作”由提示词约定，超过 2 条时 handler 立即报错。两个动作按调用顺序应用，先移动后说话与先说话后移动结果不同。
 
-每个成功应用的动作产生一条公共事件，`kind` 就是动作名，可见范围由动作决定（`whisper` 与 `steal` 为 private，其余为 stage）。同场景公开动作会向其他 actor 写入可见行动观察；`wait` 不改变场景状态。`hp` 为 0 的 actor 不能进入下一次 loop；伤害只写 `hp`，不判定死亡，死亡由随后的死亡阶段统一宣布（写公共事件与记忆，不需要 LLM）并尽力补一张尸体外观快照；默认玩家死亡也由死亡阶段结束整局。死亡阶段的结果（宣布 / 外观 / 结束整局的成功与失败）随 `ApplyPlanResult.death` 返回给调用方，失败不进 actor 记忆。工具调用轨迹属于本次 loop，进入 context dump，不进入长期 memory 顶层。
+每个成功应用的动作产生一条公共事件，`kind` 就是动作名，可见范围由动作决定（`whisper` 与 `steal` 为 private，其余为 stage）。同场景公开动作会向其他 actor 写入可见行动观察；`wait` 不改变场景状态。`hp` 为 0 的 actor 不能进入下一次 loop；伤害只写 `hp`，不判定死亡，死亡由随后的死亡阶段统一宣布（写公共事件与记忆，不需要 LLM）并尽力补一张尸体外观快照；默认玩家死亡由死亡阶段通知 world，是否收尾与结局标签都由 world 回合给出。死亡阶段的结果（宣布 / 外观的成功与失败）随 `ApplyPlanResult.death` 返回给调用方，失败不进 actor 记忆。工具调用轨迹属于本次 loop，进入 context dump，不进入长期 memory 顶层。
 
 ## 沟通动作
 

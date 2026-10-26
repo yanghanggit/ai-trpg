@@ -4,17 +4,17 @@ import type { ChatCompletionService } from "../llm/protocol";
 import { runAppearanceTurn } from "./appearance";
 import { appendPublicMessage, bumpGameVersion } from "./apply/messages";
 import { MEMORY_KINDS } from "./constants";
-import { completeGame } from "./end-game";
+import { GameError } from "./errors";
 import { appendMemoryMessages, loadAgentMemory } from "./memory";
 import { appendActionObservations, appendStageEvent } from "./observations";
 import { listActorsForAppearance } from "./persistence/actors";
 import {
   claimDeath,
-  listDeadDefaultPlayers,
   listDeathsToSettle,
   listStageIdsOfGame,
   resetRevivedDeathMarkers,
 } from "./persistence/deaths";
+import { loadWorldByGame } from "./persistence/worlds";
 import type { DeathPhaseFailure, DeathPhaseResult } from "./types";
 
 export type DeathPhaseOptions = {
@@ -29,8 +29,8 @@ const running = new Map<string, Promise<DeathPhaseResult>>();
 /**
  * 死亡阶段：把「`hp` 归零但还没宣布」的死者各收尾一次。
  *
- * 由 hp 变化的调用方在事务之后触发，也可显式调用。顺序固定为 宣布 → 尸体外观 → 结束整局：
- * 外观推理只服务 active 局。
+ * 由 hp 变化的调用方在事务之后触发，也可显式调用。顺序固定为 宣布 → 尸体外观：
+ * 宣布时顺带把默认玩家的死亡通知 world，是否收尾由 world 回合决定。
  *
  * 每个死者独立结算；失败只进返回值与日志，不回滚也不否定触发它的行动，等下次调用重试。
  * 认领语义见 `claimDeath`，取舍见 docs/database.md。
@@ -101,18 +101,6 @@ async function runDeathPhase(
     );
   }
 
-  // 与宣布解耦：不靠结算方记得调用，任何写 hp 的路径都由这里收口。
-  for (const player of await listDeadDefaultPlayers(db, gameId)) {
-    try {
-      await completeGame(db, gameId, `${player.name}倒下了。故事就此结束。`, {
-        stageId: player.stageId,
-      });
-    } catch (error) {
-      result.failed.push({ actorName: player.name, reason: describeError(error) });
-      logger?.warn(`结束整局失败，下次调用会重试: ${player.name}`, error);
-    }
-  }
-
   return result;
 }
 
@@ -120,7 +108,7 @@ async function runDeathPhase(
 async function announceDeath(
   db: Database,
   gameId: string,
-  actor: { id: string; name: string; stageId: string },
+  actor: { id: string; name: string; stageId: string; isDefaultPlayer: boolean },
 ): Promise<boolean> {
   const content = `${actor.name}倒下了，不再有任何生命迹象。`;
   const now = new Date();
@@ -151,9 +139,42 @@ async function announceDeath(
         },
       ]);
     }
+    if (actor.isDefaultPlayer) {
+      await appendDefaultPlayerDeath(tx, gameId, actor);
+    }
     await bumpGameVersion(tx, gameId, now);
     return true;
   });
+}
+
+/**
+ * 主角死亡也走同一条通知通道：world 下一回合看到这条事实，自己决定怎么收尾。
+ * 框架不替它写结局，也不在这里结束整局。
+ */
+async function appendDefaultPlayerDeath(
+  executor: Parameters<typeof loadWorldByGame>[0],
+  gameId: string,
+  actor: { id: string; name: string; stageId: string },
+): Promise<void> {
+  const world = await loadWorldByGame(executor, gameId);
+  if (!world) {
+    throw new GameError("not_found", `游戏缺少 world: ${gameId}`);
+  }
+  const memory = await loadAgentMemory(executor, gameId, "world", world.id);
+  if (!memory) {
+    throw new GameError("invalid_state", `world 缺少 memory: ${world.id}`);
+  }
+  await appendMemoryMessages(executor, memory.row.id, [
+    {
+      type: "human",
+      content: `# 主角死亡\n${actor.name}倒下了，生命归零。`,
+      metadata: {
+        kind: MEMORY_KINDS.worldEvent,
+        stageId: actor.stageId,
+        actorId: actor.id,
+      },
+    },
+  ]);
 }
 
 function describeError(error: unknown): string {
@@ -165,7 +186,7 @@ export type AppearanceMaintenanceResult = {
   refreshed: string[];
   /** 本次宣布死亡的死者。 */
   settled: string[];
-  /** 死亡阶段的失败（宣布或结束整局），需要重试。 */
+  /** 宣布失败、需要重试的死者。 */
   failed: DeathPhaseFailure[];
   /** 死亡已广播、但外观快照没推成的死者。 */
   appearanceFailed: string[];

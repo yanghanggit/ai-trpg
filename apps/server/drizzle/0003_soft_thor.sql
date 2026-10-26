@@ -1,1 +1,0 @@
-ALTER TABLE "actors" DROP COLUMN "knowledge_access";

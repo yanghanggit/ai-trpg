@@ -19,7 +19,8 @@ function stripPrefix(name: string): string {
 }
 
 function storyTokens(): string[] {
-  const tokens = new Set<string>([BELL_MONASTERY_WORLD.worldName]);
+  // worldName 也带类别前缀，只拿名称部分做守卫。
+  const tokens = new Set<string>([stripPrefix(BELL_MONASTERY_WORLD.worldName)]);
   for (const stage of BELL_MONASTERY_WORLD.stages) {
     tokens.add(stripPrefix(stage.name));
     for (const item of stage.items ?? []) {

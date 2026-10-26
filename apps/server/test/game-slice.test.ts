@@ -470,7 +470,7 @@ describe.skipIf(!testDatabaseUrl)("memory-driven NPC slice", () => {
     ).rejects.toThrow("已死亡");
   });
 
-  it("ends the game when the default player actor dies", async () => {
+  it("notifies the world when the default player actor dies", async () => {
     const world = {
       ...TEST_WORLD,
       actors: TEST_WORLD.actors.map((actor) =>
@@ -499,12 +499,9 @@ describe.skipIf(!testDatabaseUrl)("memory-driven NPC slice", () => {
     expect(result.ok).toBe(true);
 
     const state = await getGameState(handle.db, created.game.slug);
-    expect(state.game.status).toBe("completed");
-    expect(
-      state.messages.some(
-        (message) => message.kind === "game_completed" && message.content.includes("故事就此结束"),
-      ),
-    ).toBe(true);
+    expect(state.game.status).toBe("active");
+    expect(state.game.outcome).toBeNull();
+    expect(state.messages.some((message) => message.kind === "game_completed")).toBe(false);
   });
 
   it("applies one talk and one move action in tool-call order", async () => {

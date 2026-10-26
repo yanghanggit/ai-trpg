@@ -206,7 +206,7 @@ describe.skipIf(!testDatabaseUrl)("stage passage", () => {
     const ending = "那个人走出了枯钟修道院，山道尽头只剩风声。";
     const world = await runWorldTurn(handle.db, created.game.slug, {
       service: new ScriptedService([
-        call("end_game", { message: ending }),
+        call("end_game", { outcome: "escaped", message: ending }),
         call("submit_world_plan", {}),
       ]),
     });

@@ -20,7 +20,7 @@
 
 ## 显式推进边界
 
-`agent:game` 能完成内容选择、建局和 actor/stage/world 推进，但不会自动编排回合：`stage` 与 `world` 必须显式执行；`create` 必须显式提供内容；建局不会自动 RAG ingest；compact 不自动触发；旧局不会自动获得新结构。只有 world 能主动 `end_game`，默认玩家角色死亡由系统自动结束。
+`agent:game` 能完成内容选择、建局和 actor/stage/world 推进，但不会自动编排回合：`stage` 与 `world` 必须显式执行；`create` 必须显式提供内容；建局不会自动 RAG ingest；compact 不自动触发；旧局不会自动获得新结构。只有 world 能主动 `end_game`；主角死亡只写一条 world 通知，收尾仍然要显式跑 `world` 回合。
 
 ## 运行时 system prompt 导出
 

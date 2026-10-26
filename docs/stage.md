@@ -85,6 +85,6 @@ actor 行动产生的场景事件也进入 stage memory；移动会分别写入�
 
 `agent:game stage --game <gameId|slug> --stage <stageId|stageName>` 推动一个 stage 回合；`--all` 按当前 stage 顺序推动全部场景。它不调用 actor loop，也不自动跟随 actor 行动。
 
-`agent:game world --game <gameId|slug>` 推动 world 回合，读取 stage 通知并执行 world 裁决；只有 world 能 `end_game`。world 的只读工具（`look_stage`）同样不限次数，写动作（`notify_stage` / `end_game`）一轮最多 `MAX_WORLD_ACTIONS_PER_TURN` 个，足够“通知两个场景并在同一轮收束”；动作上限与提交节奏同样写进任务文本。
+`agent:game world --game <gameId|slug>` 推动 world 回合，读取 stage 通知并执行 world 裁决；只有 world 能 `end_game`。world 的只读工具（`look_stage`）同样不限次数，写动作（`notify_stage` / `end_game`）一轮最多 `MAX_WORLD_ACTIONS_PER_TURN` 个，足够“通知两个场景并在同一轮收束”；动作上限与提交节奏同样写进任务文本。`end_game` 必须给出 `outcome`（world 自己命名的短标签，框架不枚举），并且只在世界设定与全局规则里的收束条件已由不可逆事实满足时使用；框架只写通用约束，具体判据属于内容。
 
 → 参见：[数据库](database.md) → 参见：[Actor 行动与记忆](actor-actions-memory.md) → 参见：[Agent 探针](probe.md) → 参见：[开发期 Agent 工作流](debug-workflow.md)

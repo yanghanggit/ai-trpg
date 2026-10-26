@@ -50,9 +50,14 @@ export async function resetRevivedDeathMarkers(
 export async function listDeathsToSettle(
   executor: Executor,
   gameId: string,
-): Promise<{ id: string; name: string; stageId: string }[]> {
+): Promise<{ id: string; name: string; stageId: string; isDefaultPlayer: boolean }[]> {
   return executor
-    .select({ id: actors.id, name: actors.name, stageId: actors.stageId })
+    .select({
+      id: actors.id,
+      name: actors.name,
+      stageId: actors.stageId,
+      isDefaultPlayer: actors.isDefaultPlayer,
+    })
     .from(actors)
     .innerJoin(stages, eq(actors.stageId, stages.id))
     .innerJoin(worlds, eq(stages.worldId, worlds.id))
@@ -72,17 +77,4 @@ export async function claimDeath(executor: Executor, actorId: string, now: Date)
     .where(and(eq(actors.id, actorId), lte(actors.hp, 0), isNull(actors.deathSettledAt)))
     .returning({ id: actors.id });
   return claimed.length > 0;
-}
-
-/** 本局里 hp 归零的默认玩家；结束整局是确定性不变量，与死亡宣布分开判。 */
-export async function listDeadDefaultPlayers(
-  executor: Executor,
-  gameId: string,
-): Promise<{ id: string; name: string; stageId: string }[]> {
-  return executor
-    .select({ id: actors.id, name: actors.name, stageId: actors.stageId })
-    .from(actors)
-    .innerJoin(stages, eq(actors.stageId, stages.id))
-    .innerJoin(worlds, eq(stages.worldId, worlds.id))
-    .where(and(eq(worlds.gameId, gameId), lte(actors.hp, 0), eq(actors.isDefaultPlayer, true)));
 }

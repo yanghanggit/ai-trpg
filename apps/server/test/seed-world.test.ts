@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { BELL_MONASTERY_KNOWLEDGE, BELL_MONASTERY_WORLD } from "../seeds/dark-fantasy";
 import { resolveAppearance } from "../src/game/body";
+import { buildWorldSystemPrompt } from "../src/game/memory";
 
 const { stages } = BELL_MONASTERY_WORLD;
 
@@ -22,7 +23,7 @@ describe("dark fantasy seed world", () => {
       "场景.铁闸门",
       "场景.山道",
     ]);
-    expect(BELL_MONASTERY_WORLD.worldName).toBe("枯钟修道院");
+    expect(BELL_MONASTERY_WORLD.worldName).toBe("世界.枯钟修道院的故事");
     // 开局完全由棺材的 environment 与角色自己的记忆表达，没有单独的开场文本。
     expect(BELL_MONASTERY_WORLD.actors.filter((actor) => actor.isDefaultPlayer)).toHaveLength(1);
     expect(BELL_MONASTERY_WORLD.actors.map((actor) => actor.name)).toEqual([
@@ -87,7 +88,7 @@ describe("dark fantasy seed world", () => {
     expect(king?.stats.block).toBeGreaterThan(king?.stats.damage ?? 0);
     expect(king?.profile).not.toContain("沉睡在地窖");
     expect(king?.openingBriefing).toContain("你正沉睡在地窖");
-    expect(king?.openingBriefing).toContain("苏醒前你的计划只能包含 wait");
+    expect(king?.openingBriefing).toContain("苏醒前你只能留在原地");
   });
 
   it("keeps human appearance clothed and lets animals fall back to base body", () => {
@@ -173,6 +174,21 @@ describe("dark fantasy seed world", () => {
     expect(BELL_MONASTERY_WORLD.actions).toEqual(["notify_stage", "end_game"]);
   });
 
+  it("gives the world its own profile and keeps ending rules generic", () => {
+    const profile = BELL_MONASTERY_WORLD.profile;
+    expect(profile).toContain("这局故事的世界是枯钟修道院");
+    // 工具名只出现在任务提示词构建里；内容不能与工具名耦合。
+    expect(profile).not.toContain("end_game");
+    expect(profile).not.toContain("notify_stage");
+    expect(BELL_MONASTERY_WORLD.systemRules).toContain("### 收束与结束");
+    // 全局规则同时进 actor / stage / world 的 system prompt，所以不能写成「你」。
+    expect(BELL_MONASTERY_WORLD.systemRules).toContain("只有世界能结束游戏");
+    expect(BELL_MONASTERY_WORLD.systemRules).not.toContain("只有你能结束游戏");
+    const prompt = buildWorldSystemPrompt(BELL_MONASTERY_WORLD);
+    expect(prompt).toContain("## 世界设定");
+    expect(prompt).toContain("主角倒下时你会收到通知");
+  });
+
   it("puts animal language rules in profiles, not in global rules", () => {
     const rules = BELL_MONASTERY_WORLD.systemRules;
     expect(rules).not.toContain("种族语言与发声");
@@ -191,6 +207,7 @@ describe("dark fantasy seed world", () => {
     expect(king?.profile).toContain("绝不说人话");
     expect(king?.profile).toContain("内心独白不受叫声限制");
     expect(king?.openingBriefing).toContain("本场景内每一个非鼠类活物都必须被你杀死");
+    expect(king?.openingBriefing).not.toContain("wait");
     expect(king?.openingBriefing).not.toContain("墓园 → 焚尸房");
   });
 

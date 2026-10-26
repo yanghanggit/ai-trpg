@@ -61,6 +61,8 @@ export const games = pgTable(
     slug: text("slug").notNull(),
     name: text("name").notNull(),
     status: text("status").notNull().default("active"),
+    /** 结束时的结局标签，由 world 自己命名；active 局为空。 */
+    outcome: text("outcome"),
     contentVersion: text("content_version").notNull(),
     version: integer("version").notNull().default(0),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
@@ -95,6 +97,7 @@ export const worlds = pgTable(
     name: text("name").notNull(),
     /** 剧本稳定标识；知识库 collection 用它寻址，不随展示名变化。 */
     contentKey: text("content_key").notNull(),
+    profile: text("profile").notNull(),
     campaignSetting: text("campaign_setting").notNull(),
     systemRules: text("system_rules").notNull(),
     actions: jsonb("actions").$type<WorldActionKind[]>().notNull().default([]),

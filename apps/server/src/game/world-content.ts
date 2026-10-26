@@ -76,6 +76,7 @@ const worldSchema = z
     contentVersion: z.string().min(1),
     contentKey: z.string().min(1),
     worldName: z.string().min(1),
+    profile: z.string().min(1),
     campaignSetting: z.string(),
     systemRules: z.string(),
     stages: z.array(stageSchema).min(1),

@@ -33,7 +33,7 @@
 
 从棺材到山道只有一条路径：棺材 → 墓园 → 铁闸门 →（开门）→ 山道。地窖与焚尸房都只能原路返回墓园；山道到达后无路可去。
 
-默认玩家角色是无名者，死亡时整局结束。奥德里克持有 `物品.闸门钥匙`（贵重物品，不在穿戴槽）；坏运气是鼠王唯一不攻击的子嗣；鼠王的 openingBriefing 声明自己在地窖沉睡：本场景出现任何说话、攻击或非等待行为即苏醒，苏醒后追杀所有非鼠类活物，无目标时自行搜索修道院；HP 120、damage 60、block 100。焚尸房的 `武器.松脂火把` 是 `damage 8`、`block 0` 的武器，词缀为“火焰顺着毛根渗进去：对多毛类生物额外造成武器伤害的一百倍，毛越厚烧得越透”；名字、描述与词缀都不提“鼠”，命中由 affix agent 依据种族与外观判断。鼠王与坏运气带“厚毛皮 / 蓬松的灰毛”，煤渣是“短毛”，因此普通角色无法击穿鼠王，火把词缀会在 LLM 结算中放大伤害。
+默认玩家角色是无名者；他死亡时死亡阶段只通知 world，收尾由 world 回合决定。奥德里克持有 `物品.闸门钥匙`（贵重物品，不在穿戴槽）；坏运气是鼠王唯一不攻击的子嗣；鼠王的 openingBriefing 声明自己在地窖沉睡：本场景出现任何说话、攻击或非等待行为即苏醒，苏醒后追杀所有非鼠类活物，无目标时自行搜索修道院；HP 120、damage 60、block 100。焚尸房的 `武器.松脂火把` 是 `damage 8`、`block 0` 的武器，词缀为“火焰顺着毛根渗进去：对多毛类生物额外造成武器伤害的一百倍，毛越厚烧得越透”；名字、描述与词缀都不提“鼠”，命中由 affix agent 依据种族与外观判断。鼠王与坏运气带“厚毛皮 / 蓬松的灰毛”，煤渣是“短毛”，因此普通角色无法击穿鼠王，火把词缀会在 LLM 结算中放大伤害。
 
 ## 能力声明
 
@@ -81,7 +81,7 @@ Boss 路线：鼠王被本场景的非 `wait` 行为惊醒后追杀所有非鼠�
 | 窃取/给予 | `steal` / 暗语触发 `give` | 窃取为 private；活人身上被穿戴的物品不可窃取，尸体不限；钥匙不在穿戴槽，活着也能偷；暗语通过 say 进入记忆，奥德里克自行选择 give |
 | 拾取 | `pickup` | 场景物品移入背包并从场景消失 |
 | 使用钥匙 | `use` + `targetDetail` | 只写场景事件，不改连通性、不通知 world；开门由铁闸门下一轮裁决 |
-| 游戏结束 | world `end_game` 或默认玩家死亡 | 都写 `game_completed`；前者由 world 主动，后者由系统确定性触发 |
+| 游戏结束 | world `end_game`（主角死亡只是通知 world） | 只有 world 收尾，写 `game_completed` 与它自己命名的 `outcome` |
 | 普通攻击 Boss | `attack` | 鼠王 block 100，空手伤害为 0；火把词缀由 LLM 额外放大 |
 | 鼠王攻击 | 苏醒后推进鼠王 | damage 60 秒杀普通角色；清场后由 LLM 自行搜索下一个场景 |
 | stage 记忆/环境 | 私密沟通、移动、stage 回合 | 起点与终点 stage 都写 memory；environment 只描述当前可见状态，不含角色名或历史 |
@@ -96,7 +96,7 @@ Boss 路线：鼠王被本场景的非 `wait` 行为惊醒后追杀所有非鼠�
 - 玩家活着时私密窃取奥德里克背包里的钥匙：受害者收到被窃记忆，旁观者没有。
 - 玩家说出暗语后，奥德里克下一轮先回应再 `give` 钥匙。
 - 玩家拾取火把、装备后攻击鼠王：fixed damage 为 0，affix LLM 依据“厚毛皮”判定命中，补充“基础 damage × 100”并击杀（实测 800）。
-- v13 实测（奥德里克由玩家接管）：对锁孔使用钥匙后，铁闸门 stage 一轮内完成 `open_passage + submit_environment`，未通知 world；山道 stage 一轮内完成 `notify_world + submit_environment`；world 一轮内 `notify_stage ×2 + end_game` 收束，`status=completed`。
+- v13 实测（奥德里克由玩家接管）：对锁孔使用钥匙后，铁闸门 stage 一轮内完成 `open_passage + submit_environment`，未通知 world；山道 stage 一轮内完成 `notify_world + submit_environment`；world 一轮内 `notify_stage ×2 + end_game` 收束，`status=completed`、`outcome=escaped`。
 - 推动奥德里克、墓园、再推动奥德里克：environment 已更新，奥德里克下一次 plan 读到新环境，stage memory 保留事件。
 - 拾取火把后推动焚尸房：environment 只描述当前空场景，不写消失过程或历史痕迹。
 - 对焚尸房与无名者发起探针：分别依据 stage / actor memory 回答，两次都不写 memory 或游戏事件。

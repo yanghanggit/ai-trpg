@@ -65,6 +65,12 @@ describe("world content validation", () => {
     ).toThrow();
   });
 
+  it("requires the world to describe itself", () => {
+    const { profile: _profile, ...withoutProfile } = TEST_WORLD;
+    expect(() => parseWorldContent(withoutProfile)).toThrow(/profile/);
+    expect(() => parseWorldContent({ ...TEST_WORLD, profile: "" })).toThrow(/profile/);
+  });
+
   it("rejects an item without a stable key", () => {
     const world = {
       ...TEST_WORLD,

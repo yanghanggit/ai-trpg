@@ -326,7 +326,7 @@ describe.skipIf(!testDatabaseUrl)("death phase", () => {
     expect(state.messages.filter((message) => message.kind === "death")).toHaveLength(1);
   });
 
-  it("默认玩家死亡由死亡阶段结束整局，不依赖伤害结算与 LLM", async () => {
+  it("默认玩家死亡只通知 world，是否收尾留给 world 回合", async () => {
     const world = {
       ...TEST_WORLD,
       actors: TEST_WORLD.actors.map((actor) =>
@@ -345,13 +345,15 @@ describe.skipIf(!testDatabaseUrl)("death phase", () => {
     expect(phase.failed).toEqual([]);
 
     const state = await getGameState(handle.db, created.game.slug);
-    expect(state.game.status).toBe("completed");
-    const completed = state.messages.filter((message) => message.kind === "game_completed");
-    expect(completed).toHaveLength(1);
-    expect(completed[0]?.content).toContain("故事就此结束");
+    expect(state.game.status).toBe("active");
+    expect(state.game.outcome).toBeNull();
+    expect(state.messages.filter((message) => message.kind === "game_completed")).toHaveLength(0);
+
+    const memory = await loadAgentMemory(handle.db, created.game.id, "world", created.world.id);
+    expect(memory?.messages.some((message) => message.content.includes("# 主角死亡"))).toBe(true);
   });
 
-  it("外观失败不阻塞默认玩家的死亡结局，失败结果交给调用方", async () => {
+  it("外观失败不阻塞主角死亡的通知，失败结果交给调用方", async () => {
     const world = {
       ...TEST_WORLD,
       actors: TEST_WORLD.actors.map((actor) =>
@@ -385,7 +387,8 @@ describe.skipIf(!testDatabaseUrl)("death phase", () => {
     expect(result.death?.appearanceFailed).toEqual(["提灯修士"]);
 
     const state = await getGameState(handle.db, created.game.slug);
-    expect(state.game.status).toBe("completed");
+    expect(state.game.status).toBe("active");
+    expect(state.game.outcome).toBeNull();
   });
 });
 

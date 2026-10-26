@@ -29,8 +29,8 @@ export async function applyDamage(context: ItemEffectContext, damage: number): P
     throw new Error("damage effect 需要角色目标");
   }
   // 默认效果与 affix 会连续结算同一个目标：扣血走带行锁的读-改-写，不拿旧快照覆盖。
-  // 这里只写 hp：「是否死亡」与「默认玩家死亡是否结束整局」都由死亡阶段按 hp 派生，
-  // 结算方不判定死亡，也就不会漏掉其它写 hp 的路径。
+  // 这里只写 hp：「是否死亡」由死亡阶段按 hp 派生，结算方不判定死亡，
+  // 也就不会漏掉其它写 hp 的路径。
   const hit = await damageActor(executor, target.id, damage, now);
   if (hit.status === "missing") {
     throw new Error(`目标不存在: ${target.name}`);

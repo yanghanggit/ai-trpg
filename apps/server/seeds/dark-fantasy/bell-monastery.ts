@@ -4,7 +4,9 @@ import type { Script } from "../assemble";
 export const BELL_MONASTERY: Script = {
   contentVersion: "dark-fantasy.v13",
   contentKey: "bell-monastery",
-  worldName: "枯钟修道院",
+  worldName: "世界.枯钟修道院的故事",
+  profile: `这局故事的世界是枯钟修道院：一座被黑疖病掏空的修道院，连同它的墓园、地窖、焚尸房、铁闸门与山道。故事之外还有更大的天地，但那不属于这一局。
+这个故事有且只有两种收尾：无名者离开了他原本被困住的地方，或者他死在这里。门被打开、钥匙换了手、尸体被发现、鼠群被清空，都只是世界级的事实，需要你裁决，但还不足以让故事结束。`,
   stages: [
     {
       key: "graveyard",
@@ -276,7 +278,7 @@ export const BELL_MONASTERY: Script = {
 **身边**: 角色.坏运气。
 **禁忌**: 绝不允许非鼠类在你的地界上走动，更不允许它们伤害坏运气。
 **最爱**: 地窖、血食。`,
-      openingBriefing: `你正沉睡在地窖：只要本场景出现任何说话、攻击或非等待行为——包括坏运气跑进来报信——你立刻苏醒；苏醒前你的计划只能包含 wait。苏醒后你是一头残暴的猎手：本场景内每一个非鼠类活物都必须被你杀死。本场景没有非鼠类活物时，你自行在修道院中搜索、追踪并杀死遇到的非鼠类活物，直到目标死亡、离开修道院，或你自己倒下。你绝不会伤害坏运气。`,
+      openingBriefing: `你正沉睡在地窖：只要本场景出现任何说话、攻击或非等待行为——包括坏运气跑进来报信——你立刻苏醒；苏醒前你只能留在原地。苏醒后你是一头残暴的猎手：本场景内每一个非鼠类活物都必须被你杀死。本场景没有非鼠类活物时，你自行在修道院中搜索、追踪并杀死遇到的非鼠类活物，直到目标死亡、离开修道院，或你自己倒下。你绝不会伤害坏运气。`,
       baseBody: {
         race: "鼠",
         description:
@@ -285,7 +287,7 @@ export const BELL_MONASTERY: Script = {
       hp: 120,
       stats: { maxHp: 120, strength: 60, wisdom: 100, agility: 8, damage: 60, block: 100 },
       items: [],
-      // 动物：沉睡时由 openingBriefing 约束只用 wait；苏醒后可以移动与攻击，不操作道具。
+      // 动物：沉睡时由 openingBriefing 约束留在原地；苏醒后可以移动与攻击，不操作道具。
       actions: ["say", "whisper", "announce", "move", "wait", "attack"],
     },
   ],

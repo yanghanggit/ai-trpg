@@ -1,5 +1,5 @@
 {
-  "id": "6fae76c4-7b60-42b4-b71f-0a7811be2bea",
+  "id": "7cc4d329-2b66-4841-af7e-095145ab5655",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "version": "7",
   "dialect": "postgresql",
@@ -142,12 +142,24 @@
           "primaryKey": false,
           "notNull": true
         },
-        "status": {
-          "name": "status",
-          "type": "text",
+        "hp": {
+          "name": "hp",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "death_settled_at": {
+          "name": "death_settled_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "is_default_player": {
+          "name": "is_default_player",
+          "type": "boolean",
           "primaryKey": false,
           "notNull": true,
-          "default": "'alive'"
+          "default": false
         },
         "equipment": {
           "name": "equipment",
@@ -716,6 +728,12 @@
           "notNull": true,
           "default": "'active'"
         },
+        "outcome": {
+          "name": "outcome",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
         "content_version": {
           "name": "content_version",
           "type": "text",
@@ -804,6 +822,12 @@
           "primaryKey": false,
           "notNull": true
         },
+        "key": {
+          "name": "key",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
         "name": {
           "name": "name",
           "type": "text",
@@ -833,8 +857,20 @@
           "name": "stats",
           "type": "jsonb",
           "primaryKey": false,
+          "notNull": true
+        },
+        "effect": {
+          "name": "effect",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "affixes": {
+          "name": "affixes",
+          "type": "jsonb",
+          "primaryKey": false,
           "notNull": true,
-          "default": "'{}'::jsonb"
+          "default": "'[]'::jsonb"
         },
         "created_at": {
           "name": "created_at",
@@ -844,7 +880,29 @@
           "default": "now()"
         }
       },
-      "indexes": {},
+      "indexes": {
+        "items_actor_name_unique": {
+          "name": "items_actor_name_unique",
+          "columns": [
+            {
+              "expression": "actor_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "name",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
       "foreignKeys": {
         "items_actor_id_actors_id_fk": {
           "name": "items_actor_id_actors_id_fk",
@@ -893,6 +951,13 @@
           "type": "uuid",
           "primaryKey": false,
           "notNull": true
+        },
+        "passage": {
+          "name": "passage",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'open'"
         },
         "created_at": {
           "name": "created_at",
@@ -994,6 +1059,12 @@
           "primaryKey": false,
           "notNull": true
         },
+        "key": {
+          "name": "key",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
         "name": {
           "name": "name",
           "type": "text",
@@ -1023,8 +1094,20 @@
           "name": "stats",
           "type": "jsonb",
           "primaryKey": false,
+          "notNull": true
+        },
+        "effect": {
+          "name": "effect",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "affixes": {
+          "name": "affixes",
+          "type": "jsonb",
+          "primaryKey": false,
           "notNull": true,
-          "default": "'{}'::jsonb"
+          "default": "'[]'::jsonb"
         },
         "created_at": {
           "name": "created_at",
@@ -1034,7 +1117,29 @@
           "default": "now()"
         }
       },
-      "indexes": {},
+      "indexes": {
+        "stage_items_stage_name_unique": {
+          "name": "stage_items_stage_name_unique",
+          "columns": [
+            {
+              "expression": "stage_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "name",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
       "foreignKeys": {
         "stage_items_stage_id_stages_id_fk": {
           "name": "stage_items_stage_id_stages_id_fk",
@@ -1071,6 +1176,12 @@
           "type": "uuid",
           "primaryKey": false,
           "notNull": true
+        },
+        "key": {
+          "name": "key",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
         },
         "name": {
           "name": "name",
@@ -1209,6 +1320,168 @@
       "checkConstraints": {},
       "isRLSEnabled": false
     },
+    "public.vector_documents": {
+      "name": "vector_documents",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "collection": {
+          "name": "collection",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "source": {
+          "name": "source",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "doc_type": {
+          "name": "doc_type",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "title": {
+          "name": "title",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "content": {
+          "name": "content",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "content_hash": {
+          "name": "content_hash",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "metadata": {
+          "name": "metadata",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'{}'::jsonb"
+        },
+        "embedding": {
+          "name": "embedding",
+          "type": "vector(384)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "embedding_model": {
+          "name": "embedding_model",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "vector_documents_collection_hash_unique": {
+          "name": "vector_documents_collection_hash_unique",
+          "columns": [
+            {
+              "expression": "collection",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "content_hash",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "vector_documents_collection_idx": {
+          "name": "vector_documents_collection_idx",
+          "columns": [
+            {
+              "expression": "collection",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "vector_documents_collection_model_idx": {
+          "name": "vector_documents_collection_model_idx",
+          "columns": [
+            {
+              "expression": "collection",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "embedding_model",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "vector_documents_embedding_hnsw": {
+          "name": "vector_documents_embedding_hnsw",
+          "columns": [
+            {
+              "expression": "embedding",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last",
+              "opclass": "vector_cosine_ops"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "hnsw",
+          "with": {}
+        }
+      },
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
     "public.worlds": {
       "name": "worlds",
       "schema": "",
@@ -1231,6 +1504,18 @@
           "primaryKey": false,
           "notNull": true
         },
+        "content_key": {
+          "name": "content_key",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "profile": {
+          "name": "profile",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
         "campaign_setting": {
           "name": "campaign_setting",
           "type": "text",
@@ -1242,6 +1527,13 @@
           "type": "text",
           "primaryKey": false,
           "notNull": true
+        },
+        "actions": {
+          "name": "actions",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'[]'::jsonb"
         },
         "created_at": {
           "name": "created_at",

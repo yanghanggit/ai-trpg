@@ -15,6 +15,7 @@ import {
   MAX_WORLD_ACTIONS_PER_TURN,
   runStageTurn,
   runWorldTurn,
+  settleDeaths,
 } from "../src/game";
 import { ChatCompletionResult, type ChatCompletionService, type ToolCall } from "../src/llm";
 import { TEST_WORLD } from "./test-world";
@@ -131,18 +132,74 @@ describe.skipIf(!testDatabaseUrl)("world agent", () => {
     const result = await runWorldTurn(handle.db, created.game.slug, {
       service: new ScriptedService([
         call("notify_stage", { stageName: "灰烬门廊", content: directive }),
-        call("end_game", { message: ending }),
+        call("end_game", { outcome: "escaped", message: ending }),
         call("submit_world_plan", {}),
       ]),
     });
 
     expect(result.ok).toBe(true);
     expect(result.state.game.status).toBe("completed");
+    expect(result.state.game.outcome).toBe("escaped");
     expect(result.state.messages.some((message) => message.kind === "game_completed")).toBe(true);
 
     const memories = await getGameMemories(handle.db, created.game.id);
     const gate = memories.find((memory) => memory.name === "灰烬门廊");
     expect(gate?.messages.some((message) => message.content.includes(directive))).toBe(true);
+  });
+
+  it("主角死亡只通知 world，收尾与结局标签由 world 给出", async () => {
+    const world = {
+      ...TEST_WORLD,
+      actors: TEST_WORLD.actors.map((actor) =>
+        actor.name === "提灯修士" ? { ...actor, isDefaultPlayer: true, hp: 0 } : actor,
+      ),
+    };
+    const created = await createGame(handle.db, {
+      username: DEMO_USER.username,
+      name: "主角陨落测试局",
+      world,
+    });
+
+    const phase = await settleDeaths(handle.db, created.game.id);
+    expect(phase.settled).toEqual(["提灯修士"]);
+
+    const afterDeath = await getGameState(handle.db, created.game.slug);
+    expect(afterDeath.game.status).toBe("active");
+    expect(afterDeath.game.outcome).toBeNull();
+
+    const ending = "灯灭了，灰烬盖住了那具身体，故事到此为止。";
+    const result = await runWorldTurn(handle.db, created.game.slug, {
+      service: new ScriptedService([
+        call("end_game", { outcome: "主角陨落", message: ending }),
+        call("submit_world_plan", {}),
+      ]),
+    });
+
+    expect(result.ok).toBe(true);
+    expect(result.state.game.status).toBe("completed");
+    expect(result.state.game.outcome).toBe("主角陨落");
+    expect(result.state.messages.some((message) => message.kind === "game_completed")).toBe(true);
+  });
+
+  it("rejects an end_game without an outcome", async () => {
+    const created = await createGame(handle.db, {
+      username: DEMO_USER.username,
+      name: "世界结局标签测试局",
+      world: TEST_WORLD,
+    });
+
+    // 模型每轮都只给 message：工具报错、计划始终为空，整局保持 active。
+    const result = await runWorldTurn(handle.db, created.game.slug, {
+      service: new ScriptedService([
+        call("end_game", { message: "门在身后合上了。" }),
+        call("submit_world_plan", {}),
+      ]),
+    });
+
+    expect(result.loopSuccess).toBe(false);
+    expect(result.ok).toBe(false);
+    expect(result.state.game.status).toBe("active");
+    expect(result.state.game.outcome).toBeNull();
   });
 
   it("fits two stage directives plus end_game in one turn", async () => {
@@ -156,7 +213,7 @@ describe.skipIf(!testDatabaseUrl)("world agent", () => {
       service: new ScriptedService([
         call("notify_stage", { stageName: "灰烬门廊", content: "门廊的灯灭了。" }),
         call("notify_stage", { stageName: "断钟中殿", content: "中殿的钟裂开了。" }),
-        call("end_game", { message: ending }),
+        call("end_game", { outcome: "escaped", message: ending }),
         call("submit_world_plan", {}),
       ]),
     });
@@ -164,6 +221,7 @@ describe.skipIf(!testDatabaseUrl)("world agent", () => {
     expect(result.ok).toBe(true);
     expect(result.plan?.actions).toHaveLength(3);
     expect(result.state.game.status).toBe("completed");
+    expect(result.state.game.outcome).toBe("escaped");
   });
 
   it("rejects an end_game that is not the last world action", async () => {
@@ -174,7 +232,7 @@ describe.skipIf(!testDatabaseUrl)("world agent", () => {
     });
     const result = await runWorldTurn(handle.db, created.game.slug, {
       service: new ScriptedService([
-        call("end_game", { message: "提前结束。" }),
+        call("end_game", { outcome: "other", message: "提前结束。" }),
         call("notify_stage", { stageName: "灰烬门廊", content: "迟到的通知。" }),
         call("submit_world_plan", {}),
       ]),
@@ -198,7 +256,7 @@ describe.skipIf(!testDatabaseUrl)("world agent", () => {
     const result = await runWorldTurn(handle.db, created.game.slug, {
       service: new ScriptedRoundsService([
         [call("notify_stage", { stageName: "灰烬门廊", content: directive })],
-        [call("end_game", { message: ending })],
+        [call("end_game", { outcome: "escaped", message: ending })],
         [],
         [],
         [],

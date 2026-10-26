@@ -1,1 +1,0 @@
-ALTER TABLE "actors" ADD COLUMN "is_default_player" boolean DEFAULT false NOT NULL;
