@@ -35,6 +35,7 @@
 | [本地开发](dev-setup.md)                 | 启动、局域网访问、环境变量、测试、排错        |
 | [LLM 基础组件](llm.md)                   | provider 分层、失败模型、agent loop、对话留痕 |
 | [数据库](database.md)                    | PostgreSQL 状态源、表与不变式、死亡、迁移     |
+| [公共知识检索](rag.md)                   | 知识边界、向量存储、query 工具与评测基线      |
 | [Actor 记忆](actor-actions-memory.md)    | actor 控制、行动事实、context dump 与接管     |
 | [外观](appearance.md)                    | base body、穿戴、外观推理与换装入口           |
 | [Stage 小 GM](stage.md)                  | 场景实体、场景记忆、环境仲裁与显式推动        |
@@ -46,4 +47,4 @@
 
 ## 当前范围
 
-工程骨架、OpenAPI 契约链、LLM 基础组件、数据库基础层、记忆驱动的 NPC 切片、玩家接管与移动、沟通、交互动作、物品转移与拾取、属性表与物品 stats、外观推理与换装入口、沉睡提示词、actor 行动与记忆原则、stage 小 GM、场景连通性、world 全局叙事者、stage → world 通知与裁决、公共知识检索、内容包注入（world + knowledge）、Agent 探针、开发期 Agent 工作流、临时测试剧本、数据驱动目标、故事总结与 `stories/` 导出。后续玩法与内容随实现补充。
+工程骨架、OpenAPI 契约链、LLM 基础组件、数据库、actor 行动与记忆、玩家接管、stage 小 GM 与场景连通性、world 全局叙事者、公共知识检索、内容包注入（world + knowledge）、Agent 探针、故事总结、开发期 Agent 工作流与临时测试剧本。后续玩法与内容随实现补充。

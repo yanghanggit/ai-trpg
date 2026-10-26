@@ -53,9 +53,9 @@ Vite 会打印 Local 与 Network 两个地址；局域网访问使用 Network（
 - `pnpm db:migrate` / `db:check` / `db:seed` / `db:reset` / `db:demo`：迁移、探测、demo 数据、定点清空、演示初始化；`db:reset` 需要 `--yes`。
 - 开发期想彻底重来（数据结构还能随便改）：`DROP SCHEMA drizzle CASCADE; DROP SCHEMA public CASCADE; CREATE SCHEMA public;` 之后重跑 `db:migrate` + `db:demo` + `rag ingest`。**`drizzle` schema 里是迁移记录**，只丢 `public` 会让 `migrate` 以为旧迁移已应用，随后在“表不存在”上失败。
 - `pnpm rag ingest --seed <name>` / `rag search --seed <name> --query <text>` / `rag check --seed <name>` / `rag delete --collection <name> --yes`：公共知识向量入库、检索、计数与清理。`pnpm rag:smoke` 在测试库跑真实模型的端到端检索；`pnpm rag:eval` 用固定查询集跑 recall@k / MRR，`--reindex` 先重建 collection。首次运行会下载 Transformers.js 模型到 `apps/server/.cache/transformers/`。
-- `pnpm agent:game create --user demo --seed dark-fantasy`、`status`、`npc`、`snapshot`：从数据库创建并推进 NPC 回合；每个 NPC 带物品与状态容器；`npc` 使用 DeepSeek，需要 `DEEPSEEK_API_KEY`。建局后可以在仓库根目录的 `prompts/<时间戳>_<世界名>/` 查看本局实际使用的 system prompt（gitignore 忽略）。
+- `pnpm agent:game`：建局、推进 actor / stage / world、探针、故事与快照。建局与 `npc` 需要 `DEEPSEEK_API_KEY`；建局后可在根目录 `prompts/<时间戳>_<世界名>/` 查看本局 system prompt（gitignore）。命令分组与边界见 → 参见：[开发期 Agent 工作流](debug-workflow.md)。
 - `pnpm clean:dev`：清理开发期临时目录（`prompts` / `worlds` / `stories` / `logs` / `apps/server/logs` / `screenshots` / `apps/server/.cache`）。默认只预览，加 `--yes` 才真的删；`--only <名字,...>` 限定目录，`--list` 列出可选目录；目录本身与 `.gitkeep` 保留。清掉 `cache` 后下次 RAG 会重新下载模型。
-- `pnpm agent:game take-control` / `release-control`，以及 `player-say` / `player-whisper` / `player-announce` / `player-move` / `player-wait` / `player-attack` / `player-steal` / `player-give` / `player-pickup` / `player-use`：玩家接管 actor 后直接提交单个动作。
+- `pnpm agent:game take-control` / `release-control` 与 `player-*`：玩家接管 actor 后直接提交单个动作，分组见 → 参见：[开发期 Agent 工作流](debug-workflow.md)。
 
 → 参见：[开发期 Agent 工作流](debug-workflow.md) → 参见：[数据库](database.md)
 

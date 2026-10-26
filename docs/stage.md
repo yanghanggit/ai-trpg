@@ -63,7 +63,7 @@ stage 回合与 actor 回合平行，但不共享 actor plan：
 
 额度只约束**会写库的动作**：只读工具（`look_stage` / `observe_actor`）可以多次调用、不占额度。额度会写进 stage 的任务文本，模型不必靠试错发现上限。
 
-工具只读部分包括 `look_stage` 与 `observe_actor`，且只允许查看本场景。工具 handler 不写数据库；LLM 调用在事务外完成。
+工具 handler 不写数据库；LLM 调用在事务外完成。
 
 `notify_world` 写入的是 **stage 报告**，不是世界事实，也不是系统指令。它进入 world memory，由 world 回合裁决。stage 不应直接结束游戏，也不应直接修改其他场景。
 
