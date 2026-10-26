@@ -79,6 +79,7 @@ describe("world content validation", () => {
                   name: "灰烬碎片",
                   description: "一撮混着石粉的冷灰。",
                   kind: "material" as const,
+                  source: "角色.守烬人",
                   effect: { type: "none" },
                 },
               ],
@@ -92,6 +93,10 @@ describe("world content validation", () => {
         .flatMap((actor) => actor.items)
         .some((item) => item.kind === "material" && item.name === "灰烬碎片"),
     ).toBe(true);
+    expect(
+      parsed.actors.flatMap((actor) => actor.items).find((item) => item.name === "灰烬碎片")
+        ?.source,
+    ).toBe("角色.守烬人");
     expect(() =>
       parseWorldContent({
         ...world,
@@ -101,6 +106,22 @@ describe("world content validation", () => {
         })),
       }),
     ).toThrow();
+    // source 只属于材料；别的物品声明它会被拒绝，而不是被静默忽略。
+    expect(() =>
+      parseWorldContent({
+        ...world,
+        actors: world.actors.map((actor) =>
+          actor.name === "守烬人"
+            ? {
+                ...actor,
+                items: actor.items.map((item) =>
+                  item.kind === "weapon" ? { ...item, source: "角色.守烬人" } : item,
+                ),
+              }
+            : actor,
+        ),
+      }),
+    ).toThrow(/source/);
   });
 
   it("requires the world to describe itself", () => {

@@ -43,6 +43,7 @@ export async function moveStageItemToActor(
     name: stageItem.name,
     description: stageItem.description,
     kind: stageItem.kind,
+    source: stageItem.source,
     count: stageItem.count,
     stats: stageItem.stats,
     effect: stageItem.effect,
@@ -71,6 +72,7 @@ export type MaterialDrop = { name: string; description: string; count: number };
 export async function addActorMaterials(
   executor: Executor,
   actorId: string,
+  source: string,
   materials: readonly MaterialDrop[],
 ): Promise<{ written: string[]; skipped: string[] }> {
   const written: string[] = [];
@@ -114,6 +116,7 @@ export async function addActorMaterials(
       name: material.name,
       description: material.description,
       kind: "material",
+      source,
       count: material.count,
       stats: toStats({}),
       effect: MATERIAL_EFFECT,

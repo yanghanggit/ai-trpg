@@ -135,6 +135,8 @@ export type ItemDefinition = {
   effect: ItemEffect;
   /** 词缀；可省略，创建时归一化为空数组。 */
   affixes?: readonly string[];
+  /** 材料来源；只有 `material` 可以声明，其它大类声明会被内容校验拒绝。 */
+  source?: string;
 };
 
 /** `createGame` 的输入；`world` 只在创建时读取，之后以数据库状态为准。 */
@@ -310,7 +312,11 @@ export type ConsumableState = ItemBaseState & { kind: "consumable" };
 export type ValuableState = ItemBaseState & { kind: "valuable" };
 
 /** 材料：尸体留下的物理素材；不可穿戴、没有效果，只能搬运与堆叠。 */
-export type MaterialState = ItemBaseState & { kind: "material" };
+export type MaterialState = ItemBaseState & {
+  kind: "material";
+  /** 源于哪个角色；只有死亡掉落会填，内容声明的材料可以为 null。 */
+  source: string | null;
+};
 
 export type ItemState =
   | WeaponState

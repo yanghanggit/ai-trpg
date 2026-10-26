@@ -218,5 +218,27 @@ describe("read-only descriptions", () => {
     expect(describeSelf(actor)).toContain("裂齿短刃");
     expect(describeObservedActor(actor)).toContain("裂齿短刃");
     expect(describeObservedActor(actor)).not.toContain("HP：");
+
+    // 材料多带一个来源；其它大类不展示这个字段。
+    const bag = {
+      ...actor,
+      items: [
+        ...actor.items,
+        {
+          id: "item-2",
+          key: "material:灰烬骨片",
+          name: "灰烬骨片",
+          description: "碎得只剩边角。",
+          kind: "material" as const,
+          source: "提灯修士",
+          count: 2,
+          stats: { maxHp: 0, strength: 0, wisdom: 0, agility: 0, damage: 0, block: 0 },
+          effect: { type: "none" },
+          affixes: [],
+        },
+      ],
+    };
+    expect(describeItems(bag)).toContain("灰烬骨片（material，count 2，源自 提灯修士）");
+    expect(describeItems(bag)).not.toContain("裂齿短刃（weapon，count 1，源自");
   });
 });

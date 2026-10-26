@@ -207,7 +207,7 @@ export async function runDropTurn(
     if (game.status !== "active") {
       throw new GameError("invalid_state", `游戏已结束，不能掉落材料: ${game.status}`);
     }
-    ({ written } = await addActorMaterials(tx, actor.id, dropped));
+    ({ written } = await addActorMaterials(tx, actor.id, actor.name, dropped));
     if (written.length > 0) {
       const list = dropped
         .filter((material) => written.includes(material.name))

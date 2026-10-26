@@ -17,6 +17,7 @@ export function toItemState(row: {
   name: string;
   description: string;
   kind: ItemKind;
+  source?: string | null;
   count: number;
   stats: Stats;
   effect: ItemEffect;
@@ -44,7 +45,7 @@ export function toItemState(row: {
     case "valuable":
       return { ...base, kind: "valuable" };
     case "material":
-      return { ...base, kind: "material" };
+      return { ...base, kind: "material", source: row.source ?? null };
     default: {
       const exhaustive: never = row.kind;
       throw new Error(`未知物品类型: ${String(exhaustive)}`);

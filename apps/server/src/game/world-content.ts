@@ -33,16 +33,23 @@ const statsSchema = z.object({
 
 const itemEffectSchema = z.object({ type: z.string().min(1) }).passthrough();
 
-const itemSchema = z.object({
-  key: z.string().min(1),
-  name: z.string().min(1),
-  description: z.string().min(1),
-  kind: itemKindSchema,
-  count: z.number().int().positive().optional(),
-  stats: statsSchema.optional(),
-  effect: itemEffectSchema,
-  affixes: z.array(z.string()).optional(),
-});
+const itemSchema = z
+  .object({
+    key: z.string().min(1),
+    name: z.string().min(1),
+    description: z.string().min(1),
+    kind: itemKindSchema,
+    count: z.number().int().positive().optional(),
+    stats: statsSchema.optional(),
+    effect: itemEffectSchema,
+    affixes: z.array(z.string()).optional(),
+    source: z.string().min(1).optional(),
+  })
+  .superRefine((item, ctx) => {
+    if (item.source !== undefined && item.kind !== "material") {
+      ctx.addIssue({ code: "custom", message: "只有 material 可以声明 source", path: ["source"] });
+    }
+  });
 
 /** 槽位键固定为 weapon / armor / accessory；写错会直接报错，不静默丢弃。 */
 const equipmentSchema = z.strictObject({

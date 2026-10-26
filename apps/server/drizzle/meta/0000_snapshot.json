@@ -1,5 +1,5 @@
 {
-  "id": "7cc4d329-2b66-4841-af7e-095145ab5655",
+  "id": "a8dc0dd8-61af-43df-a289-4f4fb5a544a2",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "version": "7",
   "dialect": "postgresql",
@@ -846,6 +846,12 @@
           "primaryKey": false,
           "notNull": true
         },
+        "source": {
+          "name": "source",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
         "count": {
           "name": "count",
           "type": "integer",
@@ -1082,6 +1088,12 @@
           "type": "text",
           "primaryKey": false,
           "notNull": true
+        },
+        "source": {
+          "name": "source",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
         },
         "count": {
           "name": "count",

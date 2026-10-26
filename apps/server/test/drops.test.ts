@@ -128,6 +128,7 @@ describe.skipIf(!testDatabaseUrl)("death drops", () => {
     const corpse = gate?.actors.find((actor) => actor.name === "提灯修士");
     const material = corpse?.items.find((item) => item.name === "浸血的灰袍碎片");
     expect(material?.kind).toBe("material");
+    expect(material?.kind === "material" ? material.source : null).toBe("提灯修士");
     expect(material?.count).toBe(2);
     expect(material?.stats.damage).toBe(0);
     expect(material?.effect).toEqual({ type: "none" });
@@ -145,9 +146,10 @@ describe.skipIf(!testDatabaseUrl)("death drops", () => {
     const keeper = afterSteal.world.stages
       .flatMap((stage) => stage.actors)
       .find((actor) => actor.name === "守烬人");
-    expect(
-      keeper?.items.some((item) => item.name === "浸血的灰袍碎片" && item.kind === "material"),
-    ).toBe(true);
+    const carried = keeper?.items.find((item) => item.name === "浸血的灰袍碎片");
+    expect(carried?.kind).toBe("material");
+    // 换手不改来源：材料始终记着它源于哪具尸体。
+    expect(carried?.kind === "material" ? carried.source : null).toBe("提灯修士");
 
     await expect(
       playerUse(handle.db, created.game.slug, "守烬人", {

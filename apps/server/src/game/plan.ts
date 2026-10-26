@@ -4,7 +4,7 @@ import { adjacentStageNames, findStageByName } from "./actors";
 import { isAlive } from "./apply/queries";
 import { MAX_WORLD_NOTIFICATION_LENGTH } from "./constants";
 import { GameError } from "./errors";
-import type { ActorState, GameState, StageAction } from "./types";
+import type { ActorState, GameState, ItemState, StageAction } from "./types";
 import { EQUIPMENT_SLOT_LABELS, EQUIPMENT_SLOTS } from "./types";
 
 export function buildLookTool(state: GameState): ToolDefinition {
@@ -275,6 +275,11 @@ block：${actor.stats.block}
 状态：${isAlive(actor) ? "存活" : "已死亡"}`;
 }
 
+/** 材料的来源只对 material 有意义；其它大类不展示多余的字段。 */
+function itemSourceNote(item: ItemState): string {
+  return item.kind === "material" && item.source ? `，源自 ${item.source}` : "";
+}
+
 export function describeItems(actor: Pick<ActorState, "items" | "equipment">): string {
   if (actor.items.length === 0) {
     return "物品：无";
@@ -283,7 +288,7 @@ export function describeItems(actor: Pick<ActorState, "items" | "equipment">): s
     const { damage, block } = item.stats;
     const stats = damage > 0 || block > 0 ? `（damage ${damage}，block ${block}）` : "";
     const worn = Object.values(actor.equipment).includes(item.name) ? "，已穿戴" : "";
-    return `- ${item.name}（${item.kind}，count ${item.count}${worn}）：${item.description}${stats}`;
+    return `- ${item.name}（${item.kind}，count ${item.count}${itemSourceNote(item)}${worn}）：${item.description}${stats}`;
   });
   return `物品：
 ${lines.join("\n")}`;
@@ -324,7 +329,9 @@ export function lookStage(state: GameState, stageName: string): string {
   const items =
     stage.items.length === 0
       ? "无"
-      : stage.items.map((item) => `${item.name}（${item.kind}）：${item.description}`).join("；");
+      : stage.items
+          .map((item) => `${item.name}（${item.kind}${itemSourceNote(item)}）：${item.description}`)
+          .join("；");
   return `场景：${stage.name}
 ${stage.environment}
 角色：${actors}

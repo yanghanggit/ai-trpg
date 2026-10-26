@@ -186,6 +186,8 @@ export const items = pgTable(
     name: text("name").notNull(),
     description: text("description").notNull(),
     kind: text("kind").$type<ItemKind>().notNull(),
+    /** 材料来源（哪个角色留下的）；只有 material 会写，其它大类保持 null。 */
+    source: text("source"),
     count: integer("count").notNull().default(1),
     stats: jsonb("stats").$type<Stats>().notNull(),
     effect: jsonb("effect").$type<ItemEffect>().notNull(),
@@ -207,6 +209,8 @@ export const stageItems = pgTable(
     name: text("name").notNull(),
     description: text("description").notNull(),
     kind: text("kind").$type<ItemKind>().notNull(),
+    /** 材料来源（哪个角色留下的）；只有 material 会写，其它大类保持 null。 */
+    source: text("source"),
     count: integer("count").notNull().default(1),
     stats: jsonb("stats").$type<Stats>().notNull(),
     effect: jsonb("effect").$type<ItemEffect>().notNull(),

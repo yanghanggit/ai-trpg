@@ -97,7 +97,7 @@ Boss 路线：鼠王被本场景的非 `wait` 行为惊醒后追杀所有非鼠�
 - 玩家活着时私密窃取奥德里克背包里的钥匙：受害者收到被窃记忆，旁观者没有。
 - 玩家说出暗语后，奥德里克下一轮先回应再 `give` 钥匙。
 - 玩家拾取火把、装备后攻击鼠王：fixed damage 为 0，affix LLM 依据“厚毛皮”判定命中，补充“基础 damage × 100”并击杀（实测 800）。
-- 掉落实测：玩家接管无名者，在墓园一拳打死坏运气，死亡阶段三步走完，`dropped` 给出 `带血的灰鼠毛 ×2` 与 `鼠尾白毛簇 ×1`，两件都挂在坏运气的尸体背包里、场景物品没有增加；`player-steal` 从尸体取走一件后进背包（`kind=material`），`use` 报「没有可以直接使用的效果」；`appearance --actor 角色.坏运气` 重推尸体外观后掉落不重复。
+- 掉落实测：玩家接管无名者，在墓园一拳打死坏运气，死亡阶段三步走完，`dropped` 给出 `带血的灰鼠毛 ×2` 与 `鼠尾白毛簇 ×1`，两件都挂在坏运气的尸体背包里、场景物品没有增加；`player-steal` 从尸体取走一件后进背包（`kind=material`，`source` 仍是 `角色.坏运气`），`use` 报「没有可以直接使用的效果」；`appearance --actor 角色.坏运气` 重推尸体外观后掉落不重复。
 - v13 实测（奥德里克由玩家接管）：对锁孔使用钥匙后，铁闸门 stage 一轮内完成 `open_passage + submit_environment`，未通知 world；山道 stage 一轮内完成 `notify_world + submit_environment`；world 一轮内 `notify_stage ×2 + end_game` 收束，`status=completed`、`outcome=escaped`。
 - 推动奥德里克、墓园、再推动奥德里克：environment 已更新，奥德里克下一次 plan 读到新环境，stage memory 保留事件。
 - 拾取火把后推动焚尸房：environment 只描述当前空场景，不写消失过程或历史痕迹。
