@@ -27,25 +27,25 @@
 
 ## 索引
 
-| 文档                                     | 内容                                          |
-| ---------------------------------------- | --------------------------------------------- |
-| [架构与契约](architecture.md)            | 包职责、契约链、请求生命周期、端口与环境      |
-| [开发规范](conventions.md)               | 目录依赖、文件命名、API 字段、数据库与测试    |
-| [本地开发](dev-setup.md)                 | 启动、局域网访问、环境变量、测试、排错        |
-| [LLM 基础组件](llm.md)                   | provider 分层、失败模型、agent loop、对话留痕 |
-| [数据库](database.md)                    | PostgreSQL 状态源、表与不变式、死亡、迁移     |
-| [公共知识检索](rag.md)                   | 知识边界、向量存储、query 工具与评测基线      |
-| [Actor 记忆](actor-actions-memory.md)    | actor 控制、行动事实、context dump 与接管     |
-| [外观](appearance.md)                    | base body、穿戴、外观推理与换装入口           |
-| [物品](items.md)                         | 大类语义、可见性通道、转移与偷取条件          |
-| [Stage 小 GM](stage.md)                  | 场景实体、场景记忆、环境仲裁与显式推动        |
-| [Agent 探针](probe.md)                   | 只读上下文探针、无副作用问答与目标边界        |
-| [故事整理 Agent](story-agent.md)         | 任意时刻的只读故事总结与上下文串联验证        |
-| [开发期 Agent 工作流](debug-workflow.md) | 快照驱动推进、HTTP 走查、两套入口的共同边界   |
-| [临时测试剧本](test-scenario.md)         | 枯钟修道院的剧情、测试矩阵、已验流程与暂缓项  |
-| [游戏故事设定](story-setting.md)         | 海门的世界、血族统治、城下古墓与闯入的外乡人  |
-| [数据驱动目标](data-driven.md)           | 框架与内容隔离、当前缺口、未来内容层目标      |
+| 文档                                           | 内容                                          |
+| ---------------------------------------------- | --------------------------------------------- |
+| [架构与契约](architecture.md)                  | 包职责、契约链、请求生命周期、端口与环境      |
+| [开发规范](conventions.md)                     | 目录依赖、文件命名、API 字段、数据库与测试    |
+| [本地开发](dev-setup.md)                       | 启动、局域网访问、环境变量、测试、排错        |
+| [LLM 基础组件](llm.md)                         | provider 分层、失败模型、agent loop、对话留痕 |
+| [数据库](database.md)                          | PostgreSQL 状态源、表与不变式、死亡、迁移     |
+| [公共知识检索](rag.md)                         | 知识边界、向量存储、query 工具与评测基线      |
+| [Actor 记忆](actor-actions-memory.md)          | actor 控制、行动事实、context dump 与接管     |
+| [外观](appearance.md)                          | base body、穿戴、外观推理与换装入口           |
+| [物品](items.md)                               | 大类语义、可见性通道、转移与偷取条件          |
+| [Stage 小 GM](stage.md)                        | 场景实体、场景记忆、环境仲裁与显式推动        |
+| [Agent 探针](probe.md)                         | 只读上下文探针、无副作用问答与目标边界        |
+| [故事整理 Agent](story-agent.md)               | 任意时刻的只读故事总结与上下文串联验证        |
+| [开发期 Agent 工作流](debug-workflow.md)       | 快照驱动推进、HTTP 走查、两套入口的共同边界   |
+| [临时测试剧本](test-scenario.md)               | 枯钟修道院的剧情、测试矩阵、已验流程与暂缓项  |
+| [游戏故事设定（草案）](story-setting-draft.md) | 海门的世界、血族统治、城下古墓与闯入的外乡人  |
+| [数据驱动目标](data-driven.md)                 | 框架与内容隔离、当前缺口、未来内容层目标      |
 
 ## 当前范围
 
-工程骨架、OpenAPI 契约链、LLM 基础组件、数据库、actor 行动与记忆、玩家接管、stage 小 GM 与场景连通性、world 全局叙事者、公共知识检索、内容包注入（world + knowledge）、Agent 探针、故事整理 Agent、开发期 Agent 工作流与临时测试剧本。后续玩法与内容随实现补充；`story-setting.md` 记录的是尚未实现的海门剧本设定，与当前测试剧本并列存放。
+工程骨架、OpenAPI 契约链、LLM 基础组件、数据库、actor 行动与记忆、玩家接管、stage 小 GM 与场景连通性、world 全局叙事者、公共知识检索、内容包注入（world + knowledge）、Agent 探针、故事整理 Agent、开发期 Agent 工作流与临时测试剧本。后续玩法与内容随实现补充；`story-setting-draft.md` 记录的是尚未实现的海门剧本设定，与当前测试剧本并列存放。
