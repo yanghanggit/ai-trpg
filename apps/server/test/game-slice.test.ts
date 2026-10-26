@@ -429,7 +429,7 @@ describe.skipIf(!testDatabaseUrl)("memory-driven NPC slice", () => {
     const crypt = created.world.stages.find((stage) => stage.name === "场景.乱葬坑");
     expect(pyre?.actors).toEqual([]);
     expect(pyre?.items.map((item) => [item.name, item.kind])).toEqual([
-      ["武器.焚鼠火把", "weapon"],
+      ["武器.松脂火把", "weapon"],
     ]);
     expect(created.messages[0]?.stageId).toBe(crypt?.id);
   });

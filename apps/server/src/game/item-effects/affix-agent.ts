@@ -6,7 +6,7 @@ import { agentLoop } from "../../llm/agent-loop";
 import type { ChatCompletionService } from "../../llm/protocol";
 import type { ToolDefinition } from "../../llm/types";
 import type { Executor } from "../apply/types";
-import { addStats } from "../attributes";
+import { STAT_KEYS, type Stats } from "../attributes";
 import { GameError } from "../errors";
 import { getGameState } from "../service";
 import { applyDamage } from "./damage";
@@ -18,53 +18,69 @@ type AffixOperation = {
   reason: string;
 };
 
-function buildObservation(input: {
+/** 属性渲染成 `damage 8、block 2`；未用到的字段不出现，全 0 写“无”。 */
+function statsText(stats: Stats): string {
+  const parts = STAT_KEYS.filter((key) => stats[key] !== 0).map((key) => `${key} ${stats[key]}`);
+  return parts.length > 0 ? parts.join("、") : "无";
+}
+
+/**
+ * 词缀任务的提示词。
+ *
+ * 词缀是自然语言规则，可由 agent-loop 做任意事；伤害只是当前已注册的其中一种效果。
+ * 所以这里只给事实（持有者、物品、目标）与判定口径，不预设效果类型，也不写死工具名：
+ * 工具清单由 `buildTools()` 结果传入，新增工具时提示词自动跟着变。
+ */
+function buildAffixPrompt(input: {
   actorName: string;
+  actorStats: Stats;
   itemName: string;
   itemDescription: string;
-  itemDamage: number;
+  itemStats: Stats;
   affixes: readonly string[];
   defaultFeedback: string;
-  actorDamage: number;
+  toolNames: readonly string[];
+  terminalToolName: string;
   targetName?: string;
   targetRace?: string;
+  targetAppearance?: string;
   targetHp?: string;
   targetBlock?: number;
   stageName: string;
 }): string {
-  return `# 物品词缀补充效果
+  const targetFacts = [
+    input.targetRace ? `种族：${input.targetRace}` : "",
+    input.targetAppearance ? `外观：${input.targetAppearance}` : "",
+    input.targetBlock !== undefined ? `block：${input.targetBlock}` : "",
+    input.targetHp ? `HP：${input.targetHp}` : "",
+  ].filter((line) => line.length > 0);
 
-默认效果已经执行。你需要根据词缀，决定是否以及如何追加效果。
+  return `# 词缀任务
 
-## 默认效果结果
+默认效果已结算（见下），但它不代表词缀已经生效。词缀是否生效、生效到什么程度，由你判定并用工具落账。
+
+## 默认效果
 ${input.defaultFeedback}
 
-## 场景
-${input.stageName}
-
-## 持有者
-${input.actorName}
-damage：${input.actorDamage}
-
-## 物品
-${input.itemName}
-基础 damage：${input.itemDamage}
+## 结算对象
+场景：${input.stageName}
+持有者：${input.actorName}（${statsText(input.actorStats)}）
+物品：${input.itemName}（${statsText(input.itemStats)}）
 ${input.itemDescription}
-
 词缀：
 ${input.affixes.map((affix) => `- ${affix}`).join("\n")}
-
-## 目标
-${input.targetName ?? "无角色目标"}
-${input.targetRace ? `种族：${input.targetRace}` : ""}
-${input.targetBlock !== undefined ? `block：${input.targetBlock}` : ""}
-${input.targetHp ? `HP：${input.targetHp}` : ""}
+目标：${input.targetName ?? "无角色目标"}
+${targetFacts.join("\n")}
 
 ## 规则
 
-- 默认效果已经执行，上面的“默认效果结果”只是它造成的结果。
-- 词缀中的 damage 指物品的“基础 damage”，不是默认效果造成的伤害。
-- 只有需要追加效果时才调用工具。可以调用 damage_target 追加伤害，可以多次调用；完成后调用 submit_affix。`;
+1. 词缀是一句自然语言规则，不是关键词匹配：先读它指定的对象、条件、效果与比例，再用目标的名字、种族、外观与当前状态判定条件是否成立。描述性特征按语义判定，同义或上下位表述都算成立，字面不同不构成排除。
+2. 先判定后执行：条件成立才执行词缀描述的效果；条件不成立、或当前工具无法表达该效果时，什么都不做，只结束任务；也不要顺手附加词缀以外的后果。
+3. 词缀引用的数值取物品自身的字段（见上）；比例按词缀写的方式换算，与默认效果造成的结果无关。词缀对程度留有余地（如“越……越……”）时，可依据特征强弱小幅增减并说明依据。
+4. 每次工具调用都要写清依据，可多次调用；最后用 ${input.terminalToolName} 结束，即使什么都没做。
+
+## 工具
+${input.toolNames.join("、")}（终止：${input.terminalToolName}）`;
 }
 
 function buildTools(targetNames: readonly string[]): {
@@ -76,7 +92,8 @@ function buildTools(targetNames: readonly string[]): {
       type: "function",
       function: {
         name: "damage_target",
-        description: "对场景中的一个角色追加伤害；amount 是本次补充伤害，不是最终总伤害。",
+        description:
+          "对场景中的一个角色追加词缀伤害；amount 是你按词缀换算出的本次补充伤害，不是最终总伤害。",
         parameters: {
           type: "object",
           properties: {
@@ -92,7 +109,7 @@ function buildTools(targetNames: readonly string[]): {
             },
             reason: {
               type: "string",
-              description: "触发该补充效果的理由",
+              description: "判定依据：目标身上支撑本次追加的特征",
             },
           },
           required: ["targetActorName", "amount"],
@@ -103,7 +120,7 @@ function buildTools(targetNames: readonly string[]): {
       type: "function",
       function: {
         name: "submit_affix",
-        description: "提交本轮词缀补充效果并结束。",
+        description: "结束本轮词缀任务；没有可执行的效果也必须调用。",
         parameters: { type: "object", properties: {}, required: [] },
       },
     },
@@ -146,16 +163,24 @@ export async function runAffixEffect(
   let submitted = false;
   const loop = await agentLoop({
     name: `${item.name}词缀`,
-    inputMessage: buildObservation({
+    inputMessage: buildAffixPrompt({
       actorName: actor.name,
+      actorStats: actor.stats,
       itemName: item.name,
       itemDescription: item.description,
-      itemDamage: item.stats.damage,
+      itemStats: item.stats,
       affixes: item.affixes,
       defaultFeedback: request.defaultFeedback,
-      actorDamage: addStats(actor.stats, item.stats).damage,
+      toolNames: [tools.damage.function.name, tools.submit.function.name],
+      terminalToolName: tools.submit.function.name,
       stageName: stage.name,
-      ...(target ? { targetName: target.name, targetRace: target.baseBody.race } : {}),
+      ...(target
+        ? {
+            targetName: target.name,
+            targetRace: target.baseBody.race,
+            targetAppearance: target.baseBody.description,
+          }
+        : {}),
       ...(target ? { targetBlock: target.stats.block } : {}),
       ...(target ? { targetHp: `${target.hp}/${target.stats.maxHp}` } : {}),
     }),

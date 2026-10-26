@@ -112,7 +112,12 @@ const AFFIX_WORLD = {
           ...actor,
           items: actor.items.map((item) =>
             item.name === "裂齿短刃"
-              ? { ...item, affixes: ["对鼠类额外造成武器伤害的一百倍"] }
+              ? {
+                  ...item,
+                  affixes: [
+                    "火焰顺着毛根渗进去：对多毛类生物额外造成武器伤害的一百倍，毛越厚烧得越透",
+                  ],
+                }
               : item,
           ),
         }
@@ -311,8 +316,9 @@ describe.skipIf(!testDatabaseUrl)("items and interactions", () => {
     );
     expect(attacked.ok).toBe(true);
     expect(service.calls).toBe(1);
-    expect(service.input).toContain("对鼠类额外造成武器伤害的一百倍");
+    expect(service.input).toContain("对多毛类生物额外造成武器伤害的一百倍");
     expect(service.input).toContain("种族：人类");
+    expect(service.input).toContain("外观：中等身量，右手虎口有一圈烫疤，指节被灯烟熏黄。");
 
     const state = await getGameState(handle.db, created.game.slug);
     const monk = state.world.stages

@@ -2,7 +2,7 @@ import type { Script } from "../assemble";
 
 /** 剧本「枯钟修道院」：黑暗奇幻战役下的第一个故事切片。 */
 export const BELL_MONASTERY: Script = {
-  contentVersion: "dark-fantasy.v11",
+  contentVersion: "dark-fantasy.v12",
   worldName: "枯钟修道院",
   initialNarration:
     "你在一层石灰与裹尸布之间醒来。坑壁很高，尸体一层压着一层，最近的一具脸上还盖着写了一半的祷文。钟楼没有响，远处有人在钉木板。一只老鼠从你手边跑过，嘴里叼着半枚生锈的钥匙。",
@@ -39,20 +39,21 @@ export const BELL_MONASTERY: Script = {
       key: "crematorium",
       name: "场景.焚尸房",
       profile: `修道院小屋后的焚尸房。黑疖病最盛时，这里日夜不停地烧；炉膛冷下来之后，墙上还留着人形的油印。
-屋角靠着一支浸透松脂的火把——对鼠群来说，那是唯一能烧穿毛皮的东西。`,
+屋角靠着一支浸透松脂的火把——对毛皮厚实的活物来说，那是少数能顺着毛根烧进去的东西。`,
       actions: ["submit_environment", "notify_world"],
       environment:
-        "焚尸房的墙壁被烟熏成黑色，铁钩上挂着焦黑的布片；炉膛早已冷了，炉门半敞，内壁结着厚厚的灰白余烬。墙角靠着一支浸透松脂的火把，尖端缠着干枯的鼠尾。",
+        "焚尸房的墙壁被烟熏成黑色，铁钩上挂着焦黑的布片；炉膛早已冷了，炉门半敞，内壁结着厚厚的灰白余烬。墙角靠着一支浸透松脂的火把，火头缠着一团干枯的毛。",
       items: [
         {
           key: "crematorium-torch",
-          name: "武器.焚鼠火把",
-          description: "一支浸透松脂的火把，尖端缠着干枯的鼠尾；点燃后火焰会沿着油脂爬满整支木柄。",
+          name: "武器.松脂火把",
+          description:
+            "一支浸透松脂的火把，火头缠着一团干枯的毛；点燃后火焰会沿着油脂爬满整支木柄，被火苗舔到的毛皮会把油脂一路吸到毛根。",
           kind: "weapon" as const,
           count: 1,
           stats: { damage: 8, block: 0 },
           effect: { type: "damage" },
-          affixes: ["对鼠类额外造成武器伤害的一百倍"],
+          affixes: ["火焰顺着毛根渗进去：对多毛类生物额外造成武器伤害的一百倍，毛越厚烧得越透"],
         },
       ],
     },
@@ -182,7 +183,8 @@ export const BELL_MONASTERY: Script = {
       openingBriefing: `你在墓园里，先躲开活物的视线。一旦觉得危险，就钻回地窖，叫醒父王（角色.鼠王），让他来处理。`,
       baseBody: {
         race: "鼠",
-        description: "只有巴掌大，灰尾巴末端有一撮白毛，右前爪缺了一趾；眼睛始终盯着活物的手。",
+        description:
+          "只有巴掌大，浑身蓬松的灰毛，尾巴末端有一撮白毛，右前爪缺了一趾；眼睛始终盯着活物的手。",
       },
       hp: 4,
       stats: { maxHp: 4, strength: 1, wisdom: 0, agility: 10, damage: 1, block: 0 },
@@ -265,7 +267,7 @@ export const BELL_MONASTERY: Script = {
       baseBody: {
         race: "鼠",
         description:
-          "灰黑的毛皮结着骨渣与旧血，尾巴比人的手臂还粗，左眼蒙着一层白翳；即便闭着眼，胡须也会随脚步声抽动。",
+          "灰黑的毛皮厚得能攥出一把，毛根里结着骨渣与旧血，尾巴比人的手臂还粗，左眼蒙着一层白翳；即便闭着眼，胡须也会随脚步声抽动。",
       },
       hp: 120,
       stats: { maxHp: 120, strength: 60, wisdom: 100, agility: 8, damage: 60, block: 100 },

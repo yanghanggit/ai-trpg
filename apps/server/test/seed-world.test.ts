@@ -42,13 +42,13 @@ describe("dark fantasy seed world", () => {
     expect(BELL_MONASTERY_WORLD.actors.filter((actor) => actor.stageKey === "cellar")).toHaveLength(
       1,
     );
-    expect(stage("crematorium").items?.map((item) => item.name)).toEqual(["武器.焚鼠火把"]);
+    expect(stage("crematorium").items?.map((item) => item.name)).toEqual(["武器.松脂火把"]);
     expect(stage("crematorium").items?.[0]).toMatchObject({
       key: "crematorium-torch",
       kind: "weapon",
       count: 1,
       stats: { damage: 8, block: 0 },
-      affixes: ["对鼠类额外造成武器伤害的一百倍"],
+      affixes: ["火焰顺着毛根渗进去：对多毛类生物额外造成武器伤害的一百倍，毛越厚烧得越透"],
     });
     expect(stage("gate").items ?? []).toEqual([]);
   });

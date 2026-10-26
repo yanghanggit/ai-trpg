@@ -10,6 +10,9 @@
  */
 const STAT_KEYS = ["maxHp", "strength", "wisdom", "agility", "damage", "block"] as const;
 
+/** 属性的展示顺序；渲染 prompt 等只读用途直接复用，避免再抄一份字段列表。 */
+export { STAT_KEYS };
+
 type StatKey = (typeof STAT_KEYS)[number];
 export type Stats = Record<StatKey, number>;
 
