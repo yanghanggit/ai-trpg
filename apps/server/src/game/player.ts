@@ -1,18 +1,42 @@
 import type { Database } from "../db/pool";
 import { createTurnTrace, traceEvent } from "../debug/trace";
 import { findActor } from "./actors";
+import { handleOf } from "./addressing";
 import { type ApplyActorPlanOptions, applyActorPlan } from "./apply";
 import { isPlayerControlled } from "./control";
 import { GameError } from "./errors";
+import { parseIdentityName } from "./plan";
 import { getGameState } from "./service";
-import type { ActorAction, ActorPlan, ActorTurnResult, EquipmentSlot } from "./types";
+import type {
+  ActorAction,
+  ActorPlan,
+  ActorState,
+  ActorTurnResult,
+  EquipmentSlot,
+  GameState,
+} from "./types";
+
+/** 客户端可以用 id、规范名或 `@N` 指代目标；与玩家入口的寻址约定一致。 */
+function findActorByRef(state: GameState, ref: string): ActorState {
+  if (!ref.startsWith("@")) {
+    return findActor(state, ref);
+  }
+  const seq = Number(ref.slice(1));
+  const actor = state.world.stages
+    .flatMap((stage) => stage.actors)
+    .find((candidate) => candidate.presentation.seq === seq);
+  if (!actor) {
+    throw new GameError("not_found", `没有这个指代: ${ref}`);
+  }
+  return actor;
+}
 
 /** 玩家直接提交计划；只允许玩家接管的 actor。 */
-async function applyPlayerAction(
+async function applyPlayerPlan(
   db: Database,
   gameRef: string,
   actorRef: string,
-  action: ActorAction,
+  plan: ActorPlan,
   options: ApplyActorPlanOptions = {},
 ): Promise<ActorTurnResult> {
   const state = await getGameState(db, gameRef);
@@ -22,14 +46,13 @@ async function applyPlayerAction(
     throw new GameError("invalid_action", `actor 未被玩家接管: ${actor.name}`);
   }
 
-  const plan: ActorPlan = { actions: [action] };
   const stage = state.world.stages.find((candidate) =>
     candidate.actors.some((entry) => entry.id === actor.id),
   );
   const trace = createTurnTrace({ game: state.game, turnKind: "player" });
   await traceEvent(trace, {
     event: "turn_start",
-    label: action.kind,
+    label: plan.actions[0]?.kind ?? "identity_update",
     actorId: actor.id,
     actorName: actor.name,
     ...(stage ? { stageId: stage.id, stageName: stage.name } : {}),
@@ -50,7 +73,19 @@ async function applyPlayerAction(
     loopSuccess: true,
     state: await getGameState(db, state.game.id),
     ...(result.death ? { death: result.death } : {}),
+    ...(result.identityWarnings ? { identityWarnings: result.identityWarnings } : {}),
   };
+}
+
+/** 单个动作的便捷入口，内部仍走同一份计划。 */
+async function applyPlayerAction(
+  db: Database,
+  gameRef: string,
+  actorRef: string,
+  action: ActorAction,
+  options: ApplyActorPlanOptions = {},
+): Promise<ActorTurnResult> {
+  return applyPlayerPlan(db, gameRef, actorRef, { actions: [action] }, options);
 }
 
 /**
@@ -248,6 +283,31 @@ export async function playerUnequip(
 ): Promise<ActorTurnResult> {
   const action: ActorAction = { kind: "unequip", slot: input.slot };
   return applyPlayerAction(db, gameRef, actorRef, action);
+}
+
+/** 玩家替自己控制的角色记下一个称呼；与模型侧的认知更新走同一份计划。 */
+export type PlayerRememberInput = {
+  /** 目标引用：id、规范名或 `@N`。 */
+  targetActorRef: string;
+  /** 角色相信对方叫什么。 */
+  name: string;
+};
+
+export async function playerRememberIdentity(
+  db: Database,
+  gameRef: string,
+  actorRef: string,
+  input: PlayerRememberInput,
+): Promise<ActorTurnResult> {
+  const state = await getGameState(db, gameRef);
+  const target = findActorByRef(state, input.targetActorRef);
+  const plan: ActorPlan = {
+    actions: [],
+    identities: [
+      { handle: handleOf(target.presentation.seq), name: parseIdentityName(input.name) },
+    ],
+  };
+  return applyPlayerPlan(db, gameRef, actorRef, plan);
 }
 
 export async function playerUse(

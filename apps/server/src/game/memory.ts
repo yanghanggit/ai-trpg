@@ -332,6 +332,60 @@ export async function appendMemoryMessages(
   return rows.length;
 }
 
+function toMemoryMessageState(
+  row: typeof agentMemoryMessages.$inferSelect,
+): AgentMemoryMessageState {
+  return {
+    sequence: row.sequence,
+    type: row.type as AgentMemoryMessageState["type"],
+    content: row.content,
+    ...(row.toolCallId !== null ? { toolCallId: row.toolCallId } : {}),
+    ...(row.toolCalls !== null ? { toolCalls: row.toolCalls } : {}),
+    ...(row.metadata !== null ? { metadata: row.metadata } : {}),
+    createdAt: row.createdAt.toISOString(),
+  };
+}
+
+/**
+ * 单个 owner 的记忆投影。
+ *
+ * 与 `loadAgentMemory` 的区别是带序号与时间：它面向“给人看的日志”，不面向下一轮 prompt。
+ */
+export async function getMemoryState(
+  db: Database,
+  gameId: string,
+  ownerType: MemoryOwnerType,
+  ownerId: string,
+): Promise<AgentMemoryState | undefined> {
+  const [memory] = await db
+    .select()
+    .from(agentMemories)
+    .where(
+      and(
+        eq(agentMemories.gameId, gameId),
+        eq(agentMemories.ownerType, ownerType),
+        eq(agentMemories.ownerId, ownerId),
+      ),
+    )
+    .limit(1);
+  if (!memory) {
+    return undefined;
+  }
+  const rows = await db
+    .select()
+    .from(agentMemoryMessages)
+    .where(eq(agentMemoryMessages.memoryId, memory.id))
+    .orderBy(asc(agentMemoryMessages.sequence));
+  return {
+    id: memory.id,
+    ownerType: memory.ownerType,
+    ownerId: memory.ownerId,
+    name: memory.name,
+    contextUsageRatio: memory.contextUsageRatio,
+    messages: rows.map(toMemoryMessageState),
+  };
+}
+
 export async function getGameMemories(db: Database, gameId: string): Promise<AgentMemoryState[]> {
   const memories = await db
     .select()
@@ -346,15 +400,7 @@ export async function getGameMemories(db: Database, gameId: string): Promise<Age
       .from(agentMemoryMessages)
       .where(eq(agentMemoryMessages.memoryId, memory.id))
       .orderBy(asc(agentMemoryMessages.sequence));
-    const messages: AgentMemoryMessageState[] = rows.map((row) => ({
-      sequence: row.sequence,
-      type: row.type as AgentMemoryMessageState["type"],
-      content: row.content,
-      ...(row.toolCallId !== null ? { toolCallId: row.toolCallId } : {}),
-      ...(row.toolCalls !== null ? { toolCalls: row.toolCalls } : {}),
-      ...(row.metadata !== null ? { metadata: row.metadata } : {}),
-      createdAt: row.createdAt.toISOString(),
-    }));
+    const messages = rows.map(toMemoryMessageState);
     states.push({
       id: memory.id,
       ownerType: memory.ownerType,

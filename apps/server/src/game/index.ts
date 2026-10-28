@@ -18,4 +18,5 @@ export * from "./snapshot";
 export * from "./stage";
 export * from "./story";
 export * from "./types";
+export * from "./view";
 export * from "./world";

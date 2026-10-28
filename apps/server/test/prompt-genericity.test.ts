@@ -2,6 +2,7 @@ import { readdirSync, readFileSync, statSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import { BELL_MONASTERY_WORLD } from "../seeds/dark-fantasy";
+import { plainEntityName } from "../src/game/entity-name";
 
 /**
  * 框架层（内容定义之外）只能写通用规则：故事专名与具体机关样例一旦写进
@@ -17,23 +18,19 @@ const CONCRETE_MECHANISM_SAMPLES = ["锁孔", "门闩", "铭文", "炉膛", "表
 /** 题材化的伤害类型与身体材料：换一个剧本就不再成立，prompt 里只能写语义。 */
 const GENRE_SAMPLES = ["灼烧", "冻伤", "腐蚀", "焦黑", "毛皮", "鳞片", "獠牙", "骨骸"];
 
-function stripPrefix(name: string): string {
-  return name.replace(/^[^.]+\./, "");
-}
-
 function storyTokens(): string[] {
   // worldName 也带类别前缀，只拿名称部分做守卫。
-  const tokens = new Set<string>([stripPrefix(BELL_MONASTERY_WORLD.worldName)]);
+  const tokens = new Set<string>([plainEntityName(BELL_MONASTERY_WORLD.worldName)]);
   for (const stage of BELL_MONASTERY_WORLD.stages) {
-    tokens.add(stripPrefix(stage.name));
+    tokens.add(plainEntityName(stage.name));
     for (const item of stage.items ?? []) {
-      tokens.add(stripPrefix(item.name));
+      tokens.add(plainEntityName(item.name));
     }
   }
   for (const actor of BELL_MONASTERY_WORLD.actors) {
-    tokens.add(stripPrefix(actor.name));
+    tokens.add(plainEntityName(actor.name));
     for (const item of actor.items) {
-      tokens.add(stripPrefix(item.name));
+      tokens.add(plainEntityName(item.name));
     }
   }
   return [...tokens].filter((token) => token.length > 1);

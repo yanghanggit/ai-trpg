@@ -3,6 +3,7 @@ import { agentLoop } from "../llm/agent-loop";
 import type { ChatCompletionService } from "../llm/protocol";
 import type { ToolDefinition } from "../llm/types";
 import { findActorWithStage, findStage } from "./actors";
+import { ENTITY_PREFIX } from "./entity-name";
 import { GameError } from "./errors";
 import { getGameMemories } from "./memory";
 import { getGameState } from "./service";
@@ -205,20 +206,25 @@ function buildStoryInput(state: GameState, memories: readonly AgentMemoryState[]
 不要跳过任何实体，不要把单个角色的误解当作客观事实，不要编造未出现的事件。`;
 }
 
+/** 规范名示例由系统词汇拼出，避免在提示词里再手写一套前缀。 */
+const RESERVED_NAME_EXAMPLES = [ENTITY_PREFIX.actor, ENTITY_PREFIX.stage, ENTITY_PREFIX.world]
+  .map((prefix) => `${prefix}.xxx`)
+  .join("、");
+
 const STORY_SYSTEM_PROMPT = `你是本局游戏的叙事整理者，不是世界内角色，也不属于任何一个 actor / stage / world。
 
 你的任务是把本局所有实体的私有记忆与事件流整理成一段完整、连贯的故事。游戏可能仍在进行，也可能已经结束；只写已经发生的内容，不要虚构尚未发生的结局。故事应有清楚的开头、发展、冲突与当前阶段的收束，能解释关键角色为什么行动。
 
 你必须遵守：
 - 只使用工具返回的记忆和事件；
-- 综合不同实体的视角，区分客观事件、角色认知与误解；
+- 综合不同实体的视角，区分客观事件、角色认知与误解：同一实体在不同记忆里的称呼、身份与意图可能不同，那是各自的认知，不是矛盾；不要把某个角色的错误称呼当成事实，也不要让叙述替角色知道它没被告知的名字；
 - 保留关键因果、关系、物品、地点和结局；
 - 不编造未出现的事实，不补充未经记忆支持的心理活动；
 - 最终通过 submit_story 提交一段故事，而不是提交提纲。
 
 最终故事必须是故事内叙事，不是开发报告：
 - 禁止出现“场景”“世界”“系统”“裁决”“报告”“工具”“记忆”“memory”“stage”“actor”“测试目标”等元语言；
-- 禁止使用“角色.xxx”“场景.xxx”“世界.xxx”这类规范名；叙述时使用自然称呼或去掉类型前缀；
+- 禁止使用“${RESERVED_NAME_EXAMPLES}”这类规范名；叙述时使用自然称呼或去掉类型前缀；
 - 把场景/世界的通知与裁决改写成故事世界中实际发生的事件，不要解释“谁向谁报告、谁如何裁决”；
 - 不解释机制、不逐条复述事件，只写读者能读到的一段连贯故事。`;
 

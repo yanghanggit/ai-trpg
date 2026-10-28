@@ -343,5 +343,6 @@ export async function runNpcTurn(
     loopSuccess: loop.success,
     state: await getGameState(db, state.game.id),
     ...(applied.death ? { death: applied.death } : {}),
+    ...(applied.identityWarnings ? { identityWarnings: applied.identityWarnings } : {}),
   };
 }

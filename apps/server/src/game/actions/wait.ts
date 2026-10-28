@@ -1,8 +1,10 @@
 import type { TraceContext } from "../../debug/trace";
 import type { ToolDefinition } from "../../llm/types";
+import { mentionOf } from "../addressing";
 import { appendPublicMessage, bumpGameVersion } from "../apply/messages";
 import type { ActorWithStageRow, Executor, ResolvedWait } from "../apply/types";
-import { appendActionObservations, appendStageMemory } from "../observations";
+import { renderAction } from "../observation-text";
+import { appendCustomStageObservation, appendStageMemory } from "../observations";
 import type { WaitAction } from "../types";
 
 export function buildWaitTool(): ToolDefinition {
@@ -44,12 +46,16 @@ export async function applyWait(
     visibility: "stage",
     content,
   });
-  await appendActionObservations(
+  await appendCustomStageObservation(
     executor,
     gameId,
     resolved.stage.id,
     actorRow.actor.id,
-    `# 场景动态\n${content}`,
+    (_observer, address) =>
+      renderAction(
+        `# 场景动态\n${mentionOf(address(actorRow.actor.id))}留在原地，继续观察四周。`,
+        resolved.stage.id,
+      ),
     trace,
   );
   await appendStageMemory(

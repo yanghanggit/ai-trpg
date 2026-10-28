@@ -90,6 +90,18 @@ export async function findActorViewByHandleInWorld(
   return row;
 }
 
+/** 本 world 内全部 actor 的 id 与规范名；用于检测称呼撞上别人的本名。 */
+export async function listActorNamesInWorld(
+  executor: Executor,
+  worldId: string,
+): Promise<{ id: string; name: string; stageId: string }[]> {
+  return executor
+    .select({ id: actors.id, name: actors.name, stageId: actors.stageId })
+    .from(actors)
+    .innerJoin(stages, eq(actors.stageId, stages.id))
+    .where(eq(stages.worldId, worldId));
+}
+
 /** 观察者已知道的名字：形象 id → 称呼。 */
 export async function knowledgeNamesFor(
   executor: Executor,

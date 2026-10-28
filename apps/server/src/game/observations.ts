@@ -22,10 +22,8 @@ import {
   type DamageObservation,
   type ItemObservation,
   type ObservationView,
-  renderAction,
   renderCommunication,
   renderDamage,
-  renderEnvironment,
   renderItemEvent,
   type StageRef,
 } from "./observation-text";
@@ -117,46 +115,24 @@ async function writeObservations(
   });
 }
 
-/** 向场景内其他 actor 写入环境变化观察。 */
-export async function appendEnvironmentObservations(
+/**
+ * 由调用方提供逐观察者渲染函数的一次场景广播。
+ *
+ * 需要把当事人写进句子（离开、穿上、倒下）时用它：文案必须按观察者重新取指代，
+ * 不能拿拼好真名的字符串广播。
+ */
+export async function appendCustomStageObservation(
   executor: Executor,
   gameId: string,
   stageId: string,
-  actorId: string,
-  content: string,
+  sourceActorId: string,
+  render: (observer: ActorRow, address: AddressLookup) => ObservationView,
   trace?: TraceContext,
 ): Promise<void> {
   await writeObservations(
     executor,
     gameId,
-    {
-      stageId,
-      excludeActorId: actorId,
-      audience: STAGE_WIDE,
-      render: () => renderEnvironment(content, stageId),
-    },
-    trace,
-  );
-}
-
-/** 向场景内其他 actor 写入可见行动观察。 */
-export async function appendActionObservations(
-  executor: Executor,
-  gameId: string,
-  stageId: string,
-  actorId: string,
-  content: string,
-  trace?: TraceContext,
-): Promise<void> {
-  await writeObservations(
-    executor,
-    gameId,
-    {
-      stageId,
-      excludeActorId: actorId,
-      audience: STAGE_WIDE,
-      render: () => renderAction(content, stageId),
-    },
+    { stageId, excludeActorId: sourceActorId, audience: STAGE_WIDE, render },
     trace,
   );
 }

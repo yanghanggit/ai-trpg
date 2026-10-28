@@ -10,6 +10,7 @@ import {
   createGame,
   getGameState,
   playerMove,
+  playerRememberIdentity,
   playerSay,
   runNpcTurn,
   takeActorControl,
@@ -40,12 +41,15 @@ function toolCall(name: string, args: Record<string, unknown>) {
 /** 只做一件事：把某个指代记成名字，然后提交。 */
 class RememberService implements ChatCompletionService {
   calls = 0;
-  constructor(private readonly handle: string) {}
+  constructor(
+    private readonly handle: string,
+    private readonly name = "无名者",
+  ) {}
 
   async complete(request: Parameters<ChatCompletionService["complete"]>[0]) {
     this.calls += 1;
     const toolCalls = [
-      toolCall("remember_identity", { handle: this.handle, name: "无名者" }),
+      toolCall("remember_identity", { handle: this.handle, name: this.name }),
       toolCall("submit_plan", {}),
     ];
     return new ChatCompletionResult({
@@ -171,6 +175,73 @@ describe.skipIf(!testDatabaseUrl)("names and addresses", () => {
       throw new Error("缺少墓园");
     }
     expect(buildActorObservation(after, { actor: odricNow, stage })).toContain("无名者");
+  });
+
+  it("warns without blocking when the target is unseen or the name collides", async () => {
+    const created = await createGame(handle.db, {
+      username: DEMO_USER.username,
+      name: "认知告警测试局",
+      world: BELL_MONASTERY_WORLD,
+    });
+    const state = await getGameState(handle.db, created.game.slug);
+    const ratKing = state.world.stages
+      .flatMap((stage) => stage.actors)
+      .find((candidate) => candidate.name === "角色.鼠王");
+    if (!ratKing) {
+      throw new Error("缺少鼠王");
+    }
+
+    // 鼠王在地窖，奥德里克在墓园：没看见就记名字；而且这个称呼撞上煤渣的本名。
+    const service = new RememberService(handleOf(ratKing.presentation.seq), "煤渣");
+    const turn = await runNpcTurn(handle.db, created.game.slug, "角色.奥德里克", { service });
+    expect(turn.ok).toBe(true);
+    const warnings = turn.identityWarnings ?? [];
+    expect(warnings.map((warning) => warning.code)).toEqual(
+      expect.arrayContaining(["unseen_handle", "name_collision"]),
+    );
+    // 告警不阻断：信念照常写入。
+    const after = await getGameState(handle.db, created.game.slug);
+    const odric = after.world.stages
+      .flatMap((stage) => stage.actors)
+      .find((candidate) => candidate.name === "角色.奥德里克");
+    expect(
+      after.knowledge.find(
+        (row) =>
+          row.observerActorId === odric?.id && row.presentationId === ratKing.presentation.id,
+      )?.name,
+    ).toBe("煤渣");
+  });
+
+  it("lets a player record a name for the actor they control", async () => {
+    const created = await createGame(handle.db, {
+      username: DEMO_USER.username,
+      name: "玩家记名字测试局",
+      world: BELL_MONASTERY_WORLD,
+    });
+    await takeActorControl(handle.db, created.game.slug, "角色.无名者");
+    await playerMove(handle.db, created.game.slug, "角色.无名者", {
+      targetStageName: "场景.墓园",
+    });
+
+    const turn = await playerRememberIdentity(handle.db, created.game.slug, "角色.无名者", {
+      targetActorRef: "角色.奥德里克",
+      name: "守墓人",
+    });
+    expect(turn.ok).toBe(true);
+
+    const after = await getGameState(handle.db, created.game.slug);
+    const nameless = after.world.stages
+      .flatMap((stage) => stage.actors)
+      .find((candidate) => candidate.name === "角色.无名者");
+    const odric = after.world.stages
+      .flatMap((stage) => stage.actors)
+      .find((candidate) => candidate.name === "角色.奥德里克");
+    expect(
+      after.knowledge.find(
+        (row) =>
+          row.observerActorId === nameless?.id && row.presentationId === odric?.presentation.id,
+      ),
+    ).toMatchObject({ name: "守墓人", source: "self" });
   });
 
   it("stops recognizing a known person after a presentation change, and restores on switch back", async () => {

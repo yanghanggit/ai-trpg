@@ -2,13 +2,19 @@ import type { Database } from "../db/pool";
 import { type TraceContext, traceEvent } from "../debug/trace";
 import type { ChatCompletionService } from "../llm/protocol";
 import type { Logger } from "../logging";
+import { mentionOf } from "./addressing";
 import { runAppearanceTurn } from "./appearance";
 import { appendPublicMessage, bumpGameVersion } from "./apply/messages";
 import { MEMORY_KINDS } from "./constants";
 import { runDropTurn } from "./drops";
 import { GameError } from "./errors";
 import { appendMemoryMessages, loadAgentMemory } from "./memory";
-import { appendActionObservations, appendSelfObservation, appendStageMemory } from "./observations";
+import { renderAction } from "./observation-text";
+import {
+  appendCustomStageObservation,
+  appendSelfObservation,
+  appendStageMemory,
+} from "./observations";
 import { listActorsForAppearance } from "./persistence/actors";
 import {
   claimDeath,
@@ -213,12 +219,16 @@ async function announceDeath(
       { eventKind: "death", targetActorId: actor.id },
       trace,
     );
-    await appendActionObservations(
+    await appendCustomStageObservation(
       tx,
       gameId,
       actor.stageId,
       actor.id,
-      `# 场景动态\n${content}`,
+      (_observer, address) =>
+        renderAction(
+          `# 场景动态\n${mentionOf(address(actor.id))}倒下了，不再有任何生命迹象。`,
+          actor.stageId,
+        ),
       trace,
     );
     // 死者自己也留一条：复活类扩展需要知道「我死过」。

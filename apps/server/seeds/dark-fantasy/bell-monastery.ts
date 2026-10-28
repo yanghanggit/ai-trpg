@@ -127,7 +127,7 @@ export const BELL_MONASTERY: Script = {
       items: [
         {
           key: "gate-key",
-          name: "物品.闸门钥匙",
+          name: "贵重物.闸门钥匙",
           description: "一把铸铁的闸门钥匙，柄上刻着修道院的钟形纹；齿纹被磨得很亮。",
           kind: "valuable" as const,
           count: 1,

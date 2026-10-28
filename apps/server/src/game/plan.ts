@@ -373,15 +373,9 @@ export function buildRememberIdentityTool(handles: readonly string[]): ToolDefin
   };
 }
 
-export function parseRememberIdentity(args: Record<string, unknown>): {
-  handle: string;
-  name: string;
-} {
-  const handle = typeof args.handle === "string" ? args.handle.trim() : "";
-  const name = typeof args.name === "string" ? args.name.trim() : "";
-  if (!/^@\d+$/.test(handle)) {
-    throw new GameError("invalid_action", "handle 必须是系统指代，例如 @3");
-  }
+/** 称呼本身不依赖寻址方式；模型与玩家入口共用同一套长度与格式校验。 */
+export function parseIdentityName(raw: unknown): string {
+  const name = typeof raw === "string" ? raw.trim() : "";
   if (name.length === 0) {
     throw new GameError("invalid_action", "name 不能为空");
   }
@@ -391,7 +385,18 @@ export function parseRememberIdentity(args: Record<string, unknown>): {
   if (/@\d+/.test(name)) {
     throw new GameError("invalid_action", "name 不能包含系统指代");
   }
-  return { handle, name };
+  return name;
+}
+
+export function parseRememberIdentity(args: Record<string, unknown>): {
+  handle: string;
+  name: string;
+} {
+  const handle = typeof args.handle === "string" ? args.handle.trim() : "";
+  if (!/^@\d+$/.test(handle)) {
+    throw new GameError("invalid_action", "handle 必须是系统指代，例如 @3");
+  }
+  return { handle, name: parseIdentityName(args.name) };
 }
 
 /** actor 视角的场景视图：只允许本场景，名单走观察者相对的指代。 */

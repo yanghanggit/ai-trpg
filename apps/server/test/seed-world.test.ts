@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { BELL_MONASTERY_KNOWLEDGE, BELL_MONASTERY_WORLD } from "../seeds/dark-fantasy";
 import { resolveAppearance } from "../src/game/body";
+import { isCanonicalName } from "../src/game/entity-name";
 import { buildWorldSystemPrompt } from "../src/game/memory";
 
 const { stages } = BELL_MONASTERY_WORLD;
@@ -65,7 +66,7 @@ describe("dark fantasy seed world", () => {
     const keeper = BELL_MONASTERY_WORLD.actors.find((actor) => actor.name === "角色.奥德里克");
     const king = BELL_MONASTERY_WORLD.actors.find((actor) => actor.name === "角色.鼠王");
     expect(keeper?.items.map((item) => item.name)).toEqual(
-      expect.arrayContaining(["物品.闸门钥匙", "武器.掘墓人的铁锹", "装备.补丁斗篷"]),
+      expect.arrayContaining(["贵重物.闸门钥匙", "武器.掘墓人的铁锹", "装备.补丁斗篷"]),
     );
     expect(keeper?.equipment).toEqual({
       weapon: "武器.掘墓人的铁锹",
@@ -77,7 +78,7 @@ describe("dark fantasy seed world", () => {
       stats: { block: 1 },
     });
     // 钥匙是剧情道具（valuable），不在穿戴槽里，所以活着时也能被窃取。
-    expect(keeper?.items.find((item) => item.name === "物品.闸门钥匙")).toMatchObject({
+    expect(keeper?.items.find((item) => item.name === "贵重物.闸门钥匙")).toMatchObject({
       key: "gate-key",
       kind: "valuable",
     });
@@ -212,6 +213,22 @@ describe("dark fantasy seed world", () => {
     expect(king?.openingBriefing).toContain("本场景内每一个非鼠类活物都必须被你杀死");
     expect(king?.openingBriefing).not.toContain("wait");
     expect(king?.openingBriefing).not.toContain("墓园 → 焚尸房");
+  });
+
+  it("uses canonical names for every entity", () => {
+    expect(isCanonicalName(BELL_MONASTERY_WORLD.worldName, "world")).toBe(true);
+    for (const stage of BELL_MONASTERY_WORLD.stages) {
+      expect(isCanonicalName(stage.name, "stage")).toBe(true);
+      for (const item of stage.items ?? []) {
+        expect(isCanonicalName(item.name, item.kind)).toBe(true);
+      }
+    }
+    for (const actor of BELL_MONASTERY_WORLD.actors) {
+      expect(isCanonicalName(actor.name, "actor")).toBe(true);
+      for (const item of actor.items) {
+        expect(isCanonicalName(item.name, item.kind)).toBe(true);
+      }
+    }
   });
 
   it("declares starting knowledge with actor keys, not display names", () => {

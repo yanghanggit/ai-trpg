@@ -533,6 +533,15 @@ export type GameState = {
   knowledge: NameKnowledgeState[];
 };
 
+/** 认知更新的告警：不阻断行动，只进轨迹与日志。 */
+export type IdentityWarning = {
+  code: "unseen_handle" | "name_collision";
+  handle: string;
+  name: string;
+  subjectActorId: string;
+  detail: string;
+};
+
 /** 一条名字信念：观察者相信某个形象叫什么。 */
 export type NameKnowledgeState = {
   observerActorId: string;
@@ -571,6 +580,8 @@ export type ActorTurnResult = {
   plan: ActorPlan | null;
   loopSuccess: boolean;
   state: GameState;
+  /** 认知更新的可疑之处；不阻断行动，供轨迹与测试观察。 */
+  identityWarnings?: IdentityWarning[];
   /** 本次行动之后死亡阶段的结果；失败不回滚这次行动，但要让上层看得见。 */
   death?: DeathPhaseResult;
 };

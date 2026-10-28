@@ -1,10 +1,12 @@
 import type { TraceContext } from "../../debug/trace";
 import type { ToolDefinition } from "../../llm/types";
+import { mentionOf, plainEntityName } from "../addressing";
 import { appendPublicMessage, bumpGameVersion } from "../apply/messages";
 import type { ActorWithStageRow, Executor, ResolvedUnequip } from "../apply/types";
 import { GameError } from "../errors";
 import { unequipSlot } from "../items";
-import { appendActionObservations, appendStageMemory } from "../observations";
+import { renderAction } from "../observation-text";
+import { appendCustomStageObservation, appendStageMemory } from "../observations";
 import { setActorEquipment } from "../persistence/actors";
 import {
   EQUIPMENT_SLOT_LABELS,
@@ -78,12 +80,16 @@ export async function applyUnequip(
     visibility: "stage",
     content,
   });
-  await appendActionObservations(
+  await appendCustomStageObservation(
     executor,
     gameId,
     resolved.stage.id,
     actor.id,
-    `# 场景动态\n${content}`,
+    (_observer, address) =>
+      renderAction(
+        `# 场景动态\n${mentionOf(address(actor.id))}卸下了${plainEntityName(resolved.itemName)}（${label}）。`,
+        resolved.stage.id,
+      ),
     trace,
   );
   await appendStageMemory(

@@ -24,6 +24,41 @@ describe("world content validation", () => {
     expect(keeper?.profile).toBe(TEST_WORLD.actors[0]?.profile);
   });
 
+  it("rejects a prefix that does not match the entity type", () => {
+    const world = {
+      ...TEST_WORLD,
+      stages: TEST_WORLD.stages.map((stage, index) =>
+        index === 0 ? { ...stage, name: "角色.灰烬门廊" } : stage,
+      ),
+    };
+    expect(() => parseWorldContent(world)).toThrow(/场景\./);
+  });
+
+  it("rejects an item prefix that does not match its kind", () => {
+    const world = {
+      ...TEST_WORLD,
+      actors: TEST_WORLD.actors.map((actor) =>
+        actor.name === "守烬人"
+          ? {
+              ...actor,
+              items: actor.items.map((item) => ({ ...item, name: "装备.裂齿短刃" })),
+            }
+          : actor,
+      ),
+    };
+    expect(() => parseWorldContent(world)).toThrow(/武器\./);
+  });
+
+  it("rejects a name with an unknown category prefix", () => {
+    const world = {
+      ...TEST_WORLD,
+      actors: TEST_WORLD.actors.map((actor, index) =>
+        index === 0 ? { ...actor, name: "道具.守烬人" } : actor,
+      ),
+    };
+    expect(() => parseWorldContent(world)).toThrow(/角色\./);
+  });
+
   it("requires every stage to expose environment updates", () => {
     const world = {
       ...TEST_WORLD,

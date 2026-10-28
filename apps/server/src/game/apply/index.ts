@@ -16,16 +16,16 @@ import { applyUnequip } from "../actions/unequip";
 import { applyUse } from "../actions/use";
 import { applyWait } from "../actions/wait";
 import { applyWhisper } from "../actions/whisper";
-import { type AddressLookup, refOf } from "../addressing";
+import { type AddressLookup, plainEntityName, refOf } from "../addressing";
 import { MAX_ACTIONS_PER_TURN, MEMORY_KINDS } from "../constants";
 import { settleDeaths } from "../death";
 import { GameError } from "../errors";
 import { runAffixEffect } from "../item-effects/affix-agent";
 import type { AffixRequest } from "../item-effects/types";
 import { appendMemoryMessages, loadAgentMemory } from "../memory";
-import { upsertKnowledge } from "../persistence/knowledge";
-import type { ActorPlan, DeathPhaseResult } from "../types";
-import { isAlive } from "./queries";
+import { listKnowledgeForObserver, upsertKnowledge } from "../persistence/knowledge";
+import type { ActorPlan, DeathPhaseResult, IdentityWarning } from "../types";
+import { isAlive, listActorNamesInWorld } from "./queries";
 
 export * from "./queries";
 
@@ -116,6 +116,8 @@ export type ApplyPlanResult = {
   death?: DeathPhaseResult;
   /** 死亡阶段整体没能跑起来的原因（例如数据库错误）；行动本身仍然成功。 */
   deathError?: string;
+  /** 认知更新的可疑之处；不阻断行动。 */
+  identityWarnings?: IdentityWarning[];
 };
 
 export type ApplyActorPlanOptions = {
@@ -249,6 +251,51 @@ export async function applyActorPlan(
     }
 
     // 认知更新：只写自己的记忆，不产生公共事件；与动作同事务，失败整份丢弃。
+    const identityWarnings: IdentityWarning[] = [];
+    if (resolved.identities.length > 0) {
+      const existing = await listKnowledgeForObserver(tx, gameId, actorRow.actor.id);
+      const worldActors = await listActorNamesInWorld(tx, world.id);
+      const beliefOwners = new Map(existing.map((row) => [row.name, row.presentationId]));
+      for (const identity of resolved.identities) {
+        if (identity.stageId !== actorRow.stage.id) {
+          identityWarnings.push({
+            code: "unseen_handle",
+            handle: identity.handle,
+            name: identity.name,
+            subjectActorId: identity.actorId,
+            detail: "记名字时，对方不在你所在的场景",
+          });
+        }
+        const owner = beliefOwners.get(identity.name);
+        if (owner !== undefined && owner !== identity.presentationId) {
+          identityWarnings.push({
+            code: "name_collision",
+            handle: identity.handle,
+            name: identity.name,
+            subjectActorId: identity.actorId,
+            detail: "你已经用同样的称呼记过另一个形象",
+          });
+        }
+        const clashesWithTrueName = worldActors.some(
+          (candidate) =>
+            candidate.id !== identity.actorId && plainEntityName(candidate.name) === identity.name,
+        );
+        if (clashesWithTrueName) {
+          identityWarnings.push({
+            code: "name_collision",
+            handle: identity.handle,
+            name: identity.name,
+            subjectActorId: identity.actorId,
+            detail: "这个称呼与另一个角色的本名相同",
+          });
+        }
+        beliefOwners.set(identity.name, identity.presentationId);
+      }
+      for (const warning of identityWarnings) {
+        options.logger?.warn("名字认知警告", warning);
+      }
+    }
+
     for (const identity of resolved.identities) {
       await upsertKnowledge(
         tx,
@@ -271,7 +318,12 @@ export async function applyActorPlan(
       ]);
     }
 
-    return { ok: true, affixRequests, applied };
+    return {
+      ok: true,
+      affixRequests,
+      applied,
+      ...(identityWarnings.length > 0 ? { identityWarnings } : {}),
+    };
   });
 
   await traceEvent(options.trace, { event: "plan", actions: plan?.actions ?? [] });
@@ -285,6 +337,9 @@ export async function applyActorPlan(
   }
   for (const applied of result.applied ?? []) {
     await traceEvent(options.trace, applied);
+  }
+  for (const warning of result.identityWarnings ?? []) {
+    await traceEvent(options.trace, { event: "identity_warning", ...warning });
   }
 
   if (result.affixRequests && result.affixRequests.length > 0) {

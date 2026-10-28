@@ -1,4 +1,7 @@
+import { plainEntityName } from "./entity-name";
 import type { ActorState, GameState, StageState } from "./types";
+
+export { plainEntityName };
 
 /**
  * 观察者相对的指代（address）。
@@ -39,12 +42,6 @@ export function handleOf(presentationSeq: number): string {
 
 /** 句柄的形状；台词里出现它说明模型把系统指代当成了称呼。 */
 export const HANDLE_PATTERN = /@\d+/;
-
-/** 去掉 `类别.` 前缀：实体的类型前缀只用于路由，不是世界内可见信息。 */
-export function plainEntityName(name: string): string {
-  const dot = name.indexOf(".");
-  return dot > 0 && dot < name.length - 1 ? name.slice(dot + 1) : name;
-}
 
 /**
  * 物品/实体名匹配：全名与去掉类型前缀的写法都接受。

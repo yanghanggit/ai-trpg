@@ -94,7 +94,7 @@ describe.skipIf(!testDatabaseUrl)("equip and unequip actions", () => {
     const created = await createKeeperGame("槽位大类测试局");
     await expect(
       playerEquip(handle.db, created.game.slug, "角色.奥德里克", {
-        itemName: "物品.闸门钥匙",
+        itemName: "贵重物.闸门钥匙",
         slot: "armor",
       }),
     ).rejects.toThrow("不能放进护甲槽");

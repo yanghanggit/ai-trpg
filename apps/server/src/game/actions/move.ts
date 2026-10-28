@@ -1,14 +1,12 @@
 import type { TraceContext } from "../../debug/trace";
 import type { ToolDefinition } from "../../llm/types";
+import { mentionOf } from "../addressing";
 import { appendPublicMessage, bumpGameVersion } from "../apply/messages";
 import { resolveAdjacentStage } from "../apply/queries";
 import type { ActorWithStageRow, Executor, ResolvedMove, WorldRow } from "../apply/types";
 import { GameError } from "../errors";
-import {
-  appendActionObservations,
-  appendEnvironmentObservations,
-  appendStageMemory,
-} from "../observations";
+import { renderAction, renderEnvironment } from "../observation-text";
+import { appendCustomStageObservation, appendStageMemory } from "../observations";
 import { moveActorToStage } from "../persistence/actors";
 import type { MoveAction } from "../types";
 
@@ -61,6 +59,19 @@ export async function applyMove(
   trace?: TraceContext,
 ): Promise<string> {
   const target = resolved.targetStage;
+  // 离开观察要在移动前写：此时移动者仍在本场景，观察者才能拿到他的指代。
+  await appendCustomStageObservation(
+    executor,
+    gameId,
+    resolved.stage.id,
+    actorRow.actor.id,
+    (_observer, address) =>
+      renderAction(
+        `# 场景动态\n${mentionOf(address(actorRow.actor.id))}离开了${resolved.stage.name}。`,
+        resolved.stage.id,
+      ),
+    trace,
+  );
   await moveActorToStage(executor, actorRow.actor.id, target.id, now);
   await bumpGameVersion(executor, gameId, now);
   await appendPublicMessage(executor, gameId, actorRow.actor.id, {
@@ -74,20 +85,16 @@ export async function applyMove(
   const enterText = `${actorRow.actor.name}进入了${target.name}。`;
 
   // 此时移动者已在目标场景，所以不会被自己收到。
-  await appendActionObservations(
-    executor,
-    gameId,
-    resolved.stage.id,
-    actorRow.actor.id,
-    `# 场景动态\n${leaveText}`,
-    trace,
-  );
-  await appendEnvironmentObservations(
+  await appendCustomStageObservation(
     executor,
     gameId,
     target.id,
     actorRow.actor.id,
-    `# 环境变化\n${enterText}`,
+    (_observer, address) =>
+      renderEnvironment(
+        `# 环境变化\n${mentionOf(address(actorRow.actor.id))}进入了${target.name}。`,
+        target.id,
+      ),
     trace,
   );
   await appendStageMemory(
