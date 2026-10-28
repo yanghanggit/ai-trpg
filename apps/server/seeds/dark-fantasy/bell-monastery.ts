@@ -2,7 +2,7 @@ import type { Script } from "../assemble";
 
 /** 剧本「枯钟修道院」：黑暗奇幻战役下的第一个故事切片。 */
 export const BELL_MONASTERY: Script = {
-  contentVersion: "dark-fantasy.v14",
+  contentVersion: "dark-fantasy.v15",
   contentKey: "bell-monastery",
   worldName: "世界.枯钟修道院的故事",
   profile: `这局故事的世界是枯钟修道院：一座被黑疖病掏空的修道院，连同它的墓园、地窖、焚尸房、铁闸门与山道。故事之外还有更大的天地，但那不属于这一局。
@@ -36,7 +36,7 @@ export const BELL_MONASTERY: Script = {
 鼠王盘踞在最深处，它是这场瘟疫里活得最久、吃得最饱的东西。`,
       actions: ["submit_environment"],
       environment:
-        "地窖顶很低，酒桶被啃出大洞，干涸的酒渍发黑；梁上垂着破绳，墙角堆着咬碎的骨头与发霉的粮袋。尽头的鼠王窝由骨渣、破布和啃断的钥匙串堆成。",
+        "地窖顶很低，酒桶被啃出大洞，干涸的酒渍发黑；梁上垂着破绳，墙角堆着咬碎的骨头与发霉的粮袋。尽头的鼠窝由骨渣、破布和啃断的钥匙串堆成。",
     },
     {
       key: "crematorium",

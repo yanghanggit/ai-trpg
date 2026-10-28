@@ -6,6 +6,7 @@ import type { ActorWithStageRow, Executor, ResolvedAnnounce } from "../apply/typ
 import { MAX_MIND_LENGTH } from "../constants";
 import { GameError } from "../errors";
 import { appendCommunicationObservations, appendStageMemory } from "../observations";
+import { hasCanonicalEntityName } from "../text-guard";
 import type { AnnounceAction } from "../types";
 
 export function buildAnnounceTool(): ToolDefinition {
@@ -40,6 +41,9 @@ export function parseAnnounce(args: Record<string, unknown>): AnnounceAction {
   }
   if (HANDLE_PATTERN.test(message)) {
     throw new GameError("invalid_action", "message 里不能出现系统指代（@数字）");
+  }
+  if (hasCanonicalEntityName(message)) {
+    throw new GameError("invalid_action", "message 里不能出现类别.名称形式的规范名");
   }
   return { kind: "announce", mind, message };
 }

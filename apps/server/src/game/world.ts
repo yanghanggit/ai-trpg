@@ -4,7 +4,7 @@ import { createTurnTrace, type TraceContext, traceEvent } from "../debug/trace";
 import { agentLoop } from "../llm/agent-loop";
 import type { ChatCompletionService } from "../llm/protocol";
 import { bumpGameVersion } from "./apply/messages";
-import { isAlive } from "./apply/queries";
+import { isAlive, listActorNamesInWorld } from "./apply/queries";
 import { DEFAULT_WORLD_MAX_ROUNDS, MAX_WORLD_ACTIONS_PER_TURN, MEMORY_KINDS } from "./constants";
 import { completeGame } from "./end-game";
 import { GameError } from "./errors";
@@ -14,6 +14,7 @@ import { listStagesOfWorld } from "./persistence/stages";
 import { loadWorldByGame } from "./persistence/worlds";
 import { buildLookTool, lookStage } from "./plan";
 import { getGameState } from "./service";
+import { findTextLeaks } from "./text-guard";
 import type { GameState, WorldAction, WorldPlan, WorldTurnResult } from "./types";
 import { appendStageDirective } from "./world-events";
 import {
@@ -98,6 +99,7 @@ export async function applyWorldPlan(
     }
     const actions = plan?.actions ?? [];
     const worldActions = world.actions;
+    const actorNames = (await listActorNamesInWorld(tx, world.id)).map((actor) => actor.name);
 
     const reject = async (content: string): Promise<false> => {
       await appendMemoryMessages(tx, memory.row.id, [
@@ -131,6 +133,19 @@ export async function applyWorldPlan(
       }
       if (action.kind === "notify_stage" && !worldActions.includes("notify_stage")) {
         return reject("world 没有 notify_stage 能力。");
+      }
+    }
+
+    // world 可以知道名字，但不能把名字下推给场景或玩家。
+    for (const action of actions) {
+      const text = action.kind === "notify_stage" ? action.content : action.message;
+      const leaks = findTextLeaks(text, actorNames);
+      if (leaks.length > 0) {
+        return reject(
+          `${action.kind} 被拒绝：不能包含角色名、系统指代或规范名（${leaks
+            .map((leak) => leak.token)
+            .join("、")}）。`,
+        );
       }
     }
 

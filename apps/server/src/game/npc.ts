@@ -270,11 +270,11 @@ export async function runNpcTurn(
       },
       [selfTool.function.name]: () => describeSelf(current.actor),
       [observeTool.function.name]: (args) => {
-        const targetActorHandle =
-          typeof args.targetActorHandle === "string" ? args.targetActorHandle.trim() : "";
-        const target = otherActors.find((actor) => address(actor.id).token === targetActorHandle);
+        const targetActorRef =
+          typeof args.targetActorRef === "string" ? args.targetActorRef.trim() : "";
+        const target = otherActors.find((actor) => address(actor.id).token === targetActorRef);
         if (!target) {
-          return `错误：当前场景内找不到指代 ${targetActorHandle}`;
+          return `错误：当前场景内找不到指代 ${targetActorRef}`;
         }
         return describeObservedActor(target, address);
       },

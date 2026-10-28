@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { ACTION_KINDS } from "./actions";
 import { ENTITY_PREFIX, type EntityKind, splitEntityName } from "./entity-name";
+import { findTextLeaks } from "./text-guard";
 import type { StageActionKind, World, WorldActionKind } from "./types";
 
 /** 十二个动作直接复用运行时清单，避免新增动作时漏改。 */
@@ -124,11 +125,22 @@ const worldSchema = z
     // 类型前缀是系统词汇：一旦写了前缀，就必须与这个位置的代码类型一致。
     // 不带前缀的写法只允许作为测试夹具或过渡内容的逃生口，正式 seed 由 seed 守卫拒绝。
     checkEntityName(value.worldName, "world", ["worldName"], ctx);
+    const actorNames = value.actors.map((actor) => actor.name);
     value.stages.forEach((stage, index) => {
       checkEntityName(stage.name, "stage", ["stages", index, "name"], ctx);
       stage.items?.forEach((item, itemIndex) => {
         checkEntityName(item.name, item.kind, ["stages", index, "items", itemIndex, "name"], ctx);
       });
+      const leaks = findTextLeaks(stage.environment, actorNames);
+      if (leaks.length > 0) {
+        ctx.addIssue({
+          code: "custom",
+          message: `environment 不能包含角色名、系统指代或规范名: ${leaks
+            .map((leak) => leak.token)
+            .join("、")}`,
+          path: ["stages", index, "environment"],
+        });
+      }
       if (!stage.actions.includes("submit_environment")) {
         ctx.addIssue({
           code: "custom",

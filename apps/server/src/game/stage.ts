@@ -5,8 +5,7 @@ import { agentLoop } from "../llm/agent-loop";
 import type { ChatCompletionService } from "../llm/protocol";
 import { adjacentStageNames, findStage, sealedStageNames } from "./actors";
 import { appendPublicMessage, bumpGameVersion } from "./apply/messages";
-import { isAlive } from "./apply/queries";
-import type { ActorRow } from "./apply/types";
+import { isAlive, listActorNamesInWorld } from "./apply/queries";
 import {
   DEFAULT_STAGE_MAX_ROUNDS,
   MAX_STAGE_NOTIFICATIONS_PER_TURN,
@@ -15,7 +14,6 @@ import {
 import { GameError } from "./errors";
 import { appendMemoryMessages, loadAgentMemory } from "./memory";
 import { appendStageMemory } from "./observations";
-import { listStageActors } from "./persistence/actors";
 import { isPassageSealed, openPassage } from "./persistence/edges";
 import { lockGameRow } from "./persistence/games";
 import { listStagesOfWorld, loadStageInWorld, setStageEnvironment } from "./persistence/stages";
@@ -33,6 +31,7 @@ import {
   parseWorldNotification,
 } from "./plan";
 import { getGameState } from "./service";
+import { findTextLeaks } from "./text-guard";
 import type { GameState, StageAction, StagePlan, StageState, StageTurnResult } from "./types";
 import { appendWorldNotification } from "./world-events";
 
@@ -104,14 +103,13 @@ ${sealedLines}
 ${taskLines.join("\n")}`;
 }
 
-function assertEnvironmentHasNoActorNames(
-  environment: string,
-  stageActors: readonly Pick<ActorRow, "name">[],
-): void {
-  for (const actor of stageActors) {
-    if (environment.includes(actor.name)) {
-      throw new GameError("invalid_action", `environment 不能包含角色名: ${actor.name}`);
-    }
+function assertEnvironmentHasNoLeaks(environment: string, actorNames: readonly string[]): void {
+  const leaks = findTextLeaks(environment, actorNames);
+  if (leaks.length > 0) {
+    throw new GameError(
+      "invalid_action",
+      `environment 不能包含角色名、系统指代或规范名: ${leaks.map((leak) => leak.token).join("、")}`,
+    );
   }
 }
 
@@ -145,7 +143,7 @@ export async function applyStagePlan(
     if (!memory) {
       throw new GameError("invalid_state", `stage 缺少 memory: ${stage.id}`);
     }
-    const stageActors = await listStageActors(tx, stage.id);
+    const actorNames = (await listActorNamesInWorld(tx, world.id)).map((actor) => actor.name);
     const stageActions = stage.actions;
 
     const reject = async (content: string, kind: string): Promise<false> => {
@@ -214,7 +212,7 @@ export async function applyStagePlan(
     }
     for (const environment of environments) {
       try {
-        assertEnvironmentHasNoActorNames(environment, stageActors);
+        assertEnvironmentHasNoLeaks(environment, actorNames);
       } catch (error) {
         if (!(error instanceof GameError)) {
           throw error;
@@ -360,11 +358,11 @@ export async function runStageTurn(
         return lookStage(state, stageName);
       },
       [observeTool.function.name]: (args) => {
-        const targetActorHandle =
-          typeof args.targetActorHandle === "string" ? args.targetActorHandle.trim() : "";
-        const target = stage.actors.find((actor) => actor.name === targetActorHandle);
+        const targetActorRef =
+          typeof args.targetActorRef === "string" ? args.targetActorRef.trim() : "";
+        const target = stage.actors.find((actor) => actor.name === targetActorRef);
         if (!target) {
-          return `错误：当前场景内找不到角色 ${targetActorHandle}`;
+          return `错误：当前场景内找不到角色 ${targetActorRef}`;
         }
         return describeObservedActor(target);
       },

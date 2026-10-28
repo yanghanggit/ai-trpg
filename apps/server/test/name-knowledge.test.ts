@@ -15,6 +15,7 @@ import {
   runNpcTurn,
   takeActorControl,
 } from "../src/game";
+import { parseAnnounce } from "../src/game/actions/announce";
 import { parseSay } from "../src/game/actions/say";
 import { parseWhisper } from "../src/game/actions/whisper";
 import { handleOf } from "../src/game/addressing";
@@ -327,6 +328,18 @@ describe.skipIf(!testDatabaseUrl)("names and addresses", () => {
     const targets = after.messages.filter((message) => message.kind === "say");
     expect(targets).toHaveLength(3);
     expect(targets.every((message) => message.targetActorId === monk.id)).toBe(true);
+  });
+
+  it("rejects canonical entity names in speech", () => {
+    expect(() =>
+      parseSay({ mind: "试探", targetActorHandle: "@3", message: "你是角色.守烬人？" }),
+    ).toThrow(/规范名/);
+    expect(() =>
+      parseWhisper({ mind: "试探", targetActorHandle: "@3", message: "场景.灰烬门廊见。" }),
+    ).toThrow(/规范名/);
+    expect(() => parseAnnounce({ mind: "宣布", message: "武器.裂齿短刃在我手里。" })).toThrow(
+      /规范名/,
+    );
   });
 
   it("keeps speech free of system handles and rejects handle-shaped names", () => {

@@ -59,6 +59,26 @@ describe("world content validation", () => {
     expect(() => parseWorldContent(world)).toThrow(/角色\./);
   });
 
+  it("rejects an environment that names an actor", () => {
+    const world = {
+      ...TEST_WORLD,
+      stages: TEST_WORLD.stages.map((stage, index) =>
+        index === 0 ? { ...stage, environment: "守烬人站在灰烬里。" } : stage,
+      ),
+    };
+    expect(() => parseWorldContent(world)).toThrow(/environment 不能包含/);
+  });
+
+  it("rejects an environment with a system handle", () => {
+    const world = {
+      ...TEST_WORLD,
+      stages: TEST_WORLD.stages.map((stage, index) =>
+        index === 0 ? { ...stage, environment: "@12 站在灰烬里。" } : stage,
+      ),
+    };
+    expect(() => parseWorldContent(world)).toThrow(/系统指代/);
+  });
+
   it("requires every stage to expose environment updates", () => {
     const world = {
       ...TEST_WORLD,

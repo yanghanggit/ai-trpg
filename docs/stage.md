@@ -20,7 +20,7 @@ stage 与 actor 共用 `agent_memories` 表，以 `owner_type=stage` 标识。�
 
 - 必须是客观的当前快照：不写历史、因果与变化过程，也不写暗示过去的空位、印子或碎屑；
 - 必须与当前场景物品一致：还在场景中的物品保留描述，不在场景中的直接省略，也不解释原因；
-- 不含角色名称、行动或状态——历史在 stage memory 与 `game_messages` 里。
+- 不含角色名称、行动或状态——历史在 stage memory 与 `game_messages` 里。写入时会拒绝角色本名、`@N` 指代与类别前缀；actor 读取时还会按自己的称呼与外观再渲染一次。
 
 environment 是拉取模型：stage 更新后不推送，actor 下一次 plan 与 `look_stage` 都读当时的 `stages.environment`。
 

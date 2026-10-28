@@ -5,6 +5,7 @@ import { type AddressLookup, addressLookupFor, plainEntityName, refOf } from "./
 import { isAlive } from "./apply/queries";
 import { MAX_IDENTITY_NAME_LENGTH, MAX_WORLD_NOTIFICATION_LENGTH } from "./constants";
 import { GameError } from "./errors";
+import { renderEnvironmentForActor } from "./text-guard";
 import type { ActorState, GameState, ItemState, StageAction } from "./types";
 import { EQUIPMENT_SLOT_LABELS, EQUIPMENT_SLOTS } from "./types";
 
@@ -67,9 +68,7 @@ export function buildSelfInfoTool(): ToolDefinition {
 }
 
 /** 只返回对方携带的物品，不暴露 stats 或状态。 */
-export function buildObserveActorTool(
-  availableTargetActorHandles: readonly string[],
-): ToolDefinition {
+export function buildObserveActorTool(availableTargetActorRefs: readonly string[]): ToolDefinition {
   return {
     type: "function",
     function: {
@@ -79,13 +78,13 @@ export function buildObserveActorTool(
       parameters: {
         type: "object",
         properties: {
-          targetActorHandle: {
+          targetActorRef: {
             type: "string",
-            enum: availableTargetActorHandles,
-            description: "要感知的同场景角色的指代（@数字）",
+            enum: availableTargetActorRefs,
+            description: "要感知的同场景角色：actor 使用系统指代（@数字），stage 使用规范名",
           },
         },
-        required: ["targetActorHandle"],
+        required: ["targetActorRef"],
       },
     },
   };
@@ -413,6 +412,16 @@ export function describeStageForActor(
     return "错误：你只能看见自己所在的场景";
   }
   const address = addressLookupFor(state, current.actor, stage);
+  const otherActorNames = state.world.stages
+    .flatMap((candidate) => candidate.actors)
+    .filter((actor) => !stage.actors.some((present) => present.id === actor.id))
+    .map((actor) => actor.name);
+  const environment = renderEnvironmentForActor(
+    stage.environment,
+    stage.actors,
+    address,
+    otherActorNames,
+  );
   const moves = adjacentStageNames(state, stage.id);
   const actors =
     stage.actors.length === 0
@@ -430,7 +439,7 @@ export function describeStageForActor(
           )
           .join("；");
   return `场景：${stage.name}
-${stage.environment}
+${environment}
 角色：${actors}
 物品：${items}
 可去：${moves.length === 0 ? "无" : moves.join("、")}`;

@@ -7,6 +7,7 @@ import type { ActorWithStageRow, Executor, ResolvedSay } from "../apply/types";
 import { MAX_MIND_LENGTH } from "../constants";
 import { GameError } from "../errors";
 import { appendCommunicationObservations, appendStageMemory } from "../observations";
+import { hasCanonicalEntityName } from "../text-guard";
 import type { SayAction } from "../types";
 
 export function buildSayTool(targets: readonly string[]): ToolDefinition {
@@ -49,6 +50,9 @@ export function parseSay(args: Record<string, unknown>): SayAction {
   }
   if (HANDLE_PATTERN.test(message)) {
     throw new GameError("invalid_action", "message 里不能出现系统指代（@数字）");
+  }
+  if (hasCanonicalEntityName(message)) {
+    throw new GameError("invalid_action", "message 里不能出现类别.名称形式的规范名");
   }
   if (targetActorHandle.length === 0) {
     throw new GameError("invalid_action", "say 需要非空 targetActorHandle");

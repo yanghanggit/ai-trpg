@@ -3,6 +3,7 @@ import { BELL_MONASTERY_KNOWLEDGE, BELL_MONASTERY_WORLD } from "../seeds/dark-fa
 import { resolveAppearance } from "../src/game/body";
 import { isCanonicalName } from "../src/game/entity-name";
 import { buildWorldSystemPrompt } from "../src/game/memory";
+import { parseWorldContent } from "../src/game/world-content";
 
 const { stages } = BELL_MONASTERY_WORLD;
 
@@ -213,6 +214,10 @@ describe("dark fantasy seed world", () => {
     expect(king?.openingBriefing).toContain("本场景内每一个非鼠类活物都必须被你杀死");
     expect(king?.openingBriefing).not.toContain("wait");
     expect(king?.openingBriefing).not.toContain("墓园 → 焚尸房");
+  });
+
+  it("passes content validation", () => {
+    expect(() => parseWorldContent(BELL_MONASTERY_WORLD)).not.toThrow();
   });
 
   it("uses canonical names for every entity", () => {
