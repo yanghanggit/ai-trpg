@@ -10,7 +10,7 @@ import {
 import type { ActorWithStageRow, Executor, ResolvedSteal } from "../apply/types";
 import { GameError } from "../errors";
 import { withoutEquippedItem } from "../items";
-import { appendItemObservations, appendStageEvent } from "../observations";
+import { appendItemObservations, appendStageMemory } from "../observations";
 import { setActorEquipment } from "../persistence/actors";
 import { transferItemToActor } from "../persistence/items";
 import type { StealAction } from "../types";
@@ -96,11 +96,13 @@ export async function applySteal(
     visibility: "private",
     content,
   });
-  await appendItemObservations(executor, gameId, resolved.stage, thief, "steal", item.name, {
+  await appendItemObservations(executor, gameId, resolved.stage, {
+    actor: thief,
+    itemName: item.name,
+    event: "steal",
     target,
-    broadcast: "private",
   });
-  await appendStageEvent(executor, gameId, resolved.stage.id, `# 场景事件\n${content}`, {
+  await appendStageMemory(executor, gameId, resolved.stage.id, `# 场景事件\n${content}`, {
     eventKind: "steal",
     targetActorId: target.id,
   });

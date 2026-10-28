@@ -9,7 +9,7 @@ import {
 import type { ActorWithStageRow, Executor, ResolvedGive } from "../apply/types";
 import { GameError } from "../errors";
 import { withoutEquippedItem } from "../items";
-import { appendItemObservations, appendStageEvent } from "../observations";
+import { appendItemObservations, appendStageMemory } from "../observations";
 import { setActorEquipment } from "../persistence/actors";
 import { transferItemToActor } from "../persistence/items";
 import type { GiveAction } from "../types";
@@ -92,11 +92,13 @@ export async function applyGive(
     visibility: "stage",
     content,
   });
-  await appendItemObservations(executor, gameId, resolved.stage, giver, "give", item.name, {
+  await appendItemObservations(executor, gameId, resolved.stage, {
+    actor: giver,
+    itemName: item.name,
+    event: "give",
     target,
-    broadcast: "stage",
   });
-  await appendStageEvent(executor, gameId, resolved.stage.id, `# 场景事件\n${content}`, {
+  await appendStageMemory(executor, gameId, resolved.stage.id, `# 场景事件\n${content}`, {
     eventKind: "give",
     targetActorId: target.id,
   });

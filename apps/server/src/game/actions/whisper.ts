@@ -4,7 +4,7 @@ import { findActorInStage } from "../apply/queries";
 import type { ActorWithStageRow, Executor, ResolvedWhisper } from "../apply/types";
 import { MAX_MIND_LENGTH } from "../constants";
 import { GameError } from "../errors";
-import { appendCommunicationObservations, appendStageEvent } from "../observations";
+import { appendCommunicationObservations, appendStageMemory } from "../observations";
 import type { WhisperAction } from "../types";
 
 export function buildWhisperTool(targets: readonly string[]): ToolDefinition {
@@ -80,16 +80,13 @@ export async function applyWhisper(
     visibility: "private",
     content: `${source.name}对${target.name}耳语：${resolved.action.message}`,
   });
-  await appendCommunicationObservations(
-    executor,
-    gameId,
-    resolved.stage,
+  await appendCommunicationObservations(executor, gameId, resolved.stage, {
     source,
-    "whisper",
+    message: resolved.action.message,
+    kind: "whisper",
     target,
-    resolved.action.message,
-  );
-  await appendStageEvent(
+  });
+  await appendStageMemory(
     executor,
     gameId,
     resolved.stage.id,

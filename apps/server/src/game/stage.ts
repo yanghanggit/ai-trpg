@@ -14,7 +14,7 @@ import {
 } from "./constants";
 import { GameError } from "./errors";
 import { appendMemoryMessages, loadAgentMemory } from "./memory";
-import { appendStageEvent } from "./observations";
+import { appendStageMemory } from "./observations";
 import { listStageActors } from "./persistence/actors";
 import { isPassageSealed, openPassage } from "./persistence/edges";
 import { lockGameRow } from "./persistence/games";
@@ -237,7 +237,7 @@ export async function applyStagePlan(
           visibility: "stage",
           content,
         });
-        await appendStageEvent(tx, gameId, stage.id, `# 场景事件\n${content}`, {
+        await appendStageMemory(tx, gameId, stage.id, `# 场景事件\n${content}`, {
           eventKind: "environment_change",
         });
         continue;
@@ -262,7 +262,7 @@ export async function applyStagePlan(
           visibility: "stage",
           content,
         });
-        await appendStageEvent(tx, gameId, stage.id, `# 场景事件\n${content}`, {
+        await appendStageMemory(tx, gameId, stage.id, `# 场景事件\n${content}`, {
           eventKind: "passage_change",
           targetStageId: target.id,
         });
@@ -270,7 +270,7 @@ export async function applyStagePlan(
       }
 
       await appendWorldNotification(tx, gameId, world.id, stage, action.notification);
-      await appendStageEvent(
+      await appendStageMemory(
         tx,
         gameId,
         stage.id,

@@ -3,7 +3,7 @@ import { appendPublicMessage, bumpGameVersion } from "../apply/messages";
 import { assertItemNameFree, resolveStageItem } from "../apply/queries";
 import type { ActorWithStageRow, Executor, ResolvedPickup } from "../apply/types";
 import { GameError } from "../errors";
-import { appendItemObservations, appendStageEvent } from "../observations";
+import { appendItemObservations, appendStageMemory } from "../observations";
 import { moveStageItemToActor } from "../persistence/items";
 import type { PickupAction } from "../types";
 
@@ -63,10 +63,12 @@ export async function applyPickup(
     visibility: "stage",
     content,
   });
-  await appendItemObservations(executor, gameId, resolved.stage, actor, "pickup", stageItem.name, {
-    broadcast: "stage",
+  await appendItemObservations(executor, gameId, resolved.stage, {
+    actor,
+    itemName: stageItem.name,
+    event: "pickup",
   });
-  await appendStageEvent(executor, gameId, resolved.stage.id, `# 场景事件\n${content}`, {
+  await appendStageMemory(executor, gameId, resolved.stage.id, `# 场景事件\n${content}`, {
     eventKind: "pickup",
   });
   return `# 行动结果\n你拾取了${stageItem.name}。`;

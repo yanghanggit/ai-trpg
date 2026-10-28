@@ -6,7 +6,7 @@ import { GameError } from "../errors";
 import {
   appendActionObservations,
   appendEnvironmentObservations,
-  appendStageEvent,
+  appendStageMemory,
 } from "../observations";
 import { moveActorToStage } from "../persistence/actors";
 import type { MoveAction } from "../types";
@@ -86,10 +86,10 @@ export async function applyMove(
     actorRow.actor.id,
     `# 环境变化\n${enterText}`,
   );
-  await appendStageEvent(executor, gameId, resolved.stage.id, `# 场景事件\n${leaveText}`, {
+  await appendStageMemory(executor, gameId, resolved.stage.id, `# 场景事件\n${leaveText}`, {
     eventKind: "move_leave",
   });
-  await appendStageEvent(executor, gameId, target.id, `# 场景事件\n${enterText}`, {
+  await appendStageMemory(executor, gameId, target.id, `# 场景事件\n${enterText}`, {
     eventKind: "move_enter",
   });
   return `# 行动结果\n你从${resolved.stage.name}抵达了${target.name}。`;

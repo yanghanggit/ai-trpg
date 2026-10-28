@@ -73,3 +73,6 @@ export const MEMORY_KINDS = {
   worldDirective: "world_directive",
   worldEvent: "world_event",
 } as const;
+
+/** 记忆类别；与 `MEMORY_KINDS` 同源，新增 kind 时自动扩展。 */
+export type MemoryKind = (typeof MEMORY_KINDS)[keyof typeof MEMORY_KINDS];

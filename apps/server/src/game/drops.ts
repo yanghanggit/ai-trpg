@@ -14,7 +14,7 @@ import {
   MAX_MATERIAL_NAME_LENGTH,
 } from "./constants";
 import { GameError } from "./errors";
-import { appendStageEvent } from "./observations";
+import { appendStageMemory } from "./observations";
 import { lockGameRow } from "./persistence/games";
 import { addActorMaterials, type MaterialDrop } from "./persistence/items";
 import { getGameState } from "./service";
@@ -213,7 +213,7 @@ export async function runDropTurn(
         .filter((material) => written.includes(material.name))
         .map((material) => `${material.name} ×${material.count}`)
         .join("、");
-      await appendStageEvent(
+      await appendStageMemory(
         tx,
         state.game.id,
         stage.id,

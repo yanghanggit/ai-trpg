@@ -392,7 +392,7 @@ describe.skipIf(!testDatabaseUrl)("memory-driven NPC slice", () => {
     expect(state.messages.map((message) => message.kind)).toEqual(["attack"]);
     // 守烬人装备了裂齿短刃：6（自身 damage）+ 3（武器 damage）- 3（修士 block）= 6 点伤害。
     expect(state.messages[0]?.content).toContain(
-      "守烬人对提灯修士使用攻击（使用裂齿短刃），造成6点伤害",
+      "守烬人对提灯修士攻击（使用裂齿短刃），造成6点伤害",
     );
     expect(state.messages[0]?.targetActorId).toBeTruthy();
     expect(state.messages[0]?.sourceActorId).toBeTruthy();
@@ -408,14 +408,12 @@ describe.skipIf(!testDatabaseUrl)("memory-driven NPC slice", () => {
     const monk = memories.find((memory) => memory.name === "提灯修士");
     expect(
       keeper?.messages.some((message) =>
-        message.content.includes("你使用攻击（使用裂齿短刃）对提灯修士，造成6点伤害"),
+        message.content.includes("你对提灯修士攻击（使用裂齿短刃），造成6点伤害"),
       ),
     ).toBe(true);
     expect(
       monk?.messages.some((message) =>
-        message.content.includes(
-          "守烬人对你使用攻击（使用裂齿短刃），造成6点伤害；你剩余 HP 4/10。",
-        ),
+        message.content.includes("守烬人对你攻击（使用裂齿短刃），造成6点伤害；你剩余 HP 4/10。"),
       ),
     ).toBe(true);
   });
@@ -638,10 +636,10 @@ describe.skipIf(!testDatabaseUrl)("memory-driven NPC slice", () => {
       ),
     ).toBe(true);
     expect(
-      observer?.messages.some((message) => message.content.includes("守烬人对提灯修士使用攻击")),
+      observer?.messages.some((message) => message.content.includes("守烬人对提灯修士攻击")),
     ).toBe(true);
     expect(
-      scribe?.messages.some((message) => message.content.includes("守烬人对提灯修士使用攻击")),
+      scribe?.messages.some((message) => message.content.includes("守烬人对提灯修士攻击")),
     ).toBe(false);
   });
 });

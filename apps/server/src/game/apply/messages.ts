@@ -38,7 +38,3 @@ export async function appendPublicMessage(
     content: message.content,
   });
 }
-
-export function itemListText(items: readonly { name: string }[]): string {
-  return items.length > 0 ? `（使用${items.map((item) => item.name).join("、")}）` : "";
-}

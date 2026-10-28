@@ -1,7 +1,8 @@
-import { appendPublicMessage, bumpGameVersion, itemListText } from "../apply/messages";
+import { appendPublicMessage, bumpGameVersion } from "../apply/messages";
 import { resolveEquippedStats } from "../apply/queries";
 import { addStats } from "../attributes";
-import { appendAttackObservations, appendStageEvent } from "../observations";
+import { damageActionText } from "../observation-text";
+import { appendDamageObservations, appendStageMemory } from "../observations";
 import { damageActor } from "../persistence/actors";
 import type { ItemEffectContext, ItemEffectHandler } from "./types";
 
@@ -42,13 +43,12 @@ export async function applyDamage(context: ItemEffectContext, damage: number): P
   const remainingHp = hit.remainingHp;
   await bumpGameVersion(executor, gameId, now);
 
-  const itemText = item ? itemListText([item]) : "";
   const outcome =
     remainingHp <= 0
       ? `；${target.name}倒下了。`
       : `；${target.name}剩余 HP ${remainingHp}/${current.stats.maxHp}。`;
-  const actionText =
-    actionKind === "attack" ? `使用攻击${itemText}` : `使用${item?.name ?? "空手"}`;
+  // 句式由动作锁定：公共消息、舞台记忆、观察与反馈用的是同一个动作短语。
+  const actionText = damageActionText(actionKind, item?.name);
   const content = `${actorRow.actor.name}对${target.name}${actionText}，造成${damage}点伤害${outcome}`;
   await appendPublicMessage(executor, gameId, actorRow.actor.id, {
     kind: actionKind,
@@ -57,27 +57,21 @@ export async function applyDamage(context: ItemEffectContext, damage: number): P
     visibility: "stage",
     content,
   });
-  await appendAttackObservations(
-    executor,
-    gameId,
-    stage,
-    { id: actorRow.actor.id, name: actorRow.actor.name },
-    { id: target.id, name: target.name, maxHp: current.stats.maxHp },
-    "stage",
-    item ? [item] : [],
+  await appendDamageObservations(executor, gameId, stage, {
+    action: actionKind,
+    attacker: { id: actorRow.actor.id, name: actorRow.actor.name },
+    target: { id: target.id, name: target.name, maxHp: current.stats.maxHp },
+    ...(item ? { itemName: item.name } : {}),
     damage,
     remainingHp,
-  );
-  await appendStageEvent(executor, gameId, stage.id, `# 场景事件\n${content}`, {
+  });
+  await appendStageMemory(executor, gameId, stage.id, `# 场景事件\n${content}`, {
     eventKind: actionKind,
     targetActorId: target.id,
   });
   // 出手者只知道这一下打得多重、对方有没有倒下；对方剩余生命只写进公共消息（上帝视角）
   // 与受害者自己，不进出手者的记忆。
-  const feedback =
-    actionKind === "attack"
-      ? `你使用攻击${itemText}对${target.name}，造成${damage}点伤害`
-      : `你对${target.name}使用${item?.name ?? "空手"}，造成${damage}点伤害`;
+  const feedback = `你对${target.name}${actionText}，造成${damage}点伤害`;
   return `# 行动结果\n${feedback}${remainingHp <= 0 ? `；${target.name}倒下了` : ""}。`;
 }
 

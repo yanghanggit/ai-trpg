@@ -1,31 +1,72 @@
-import type { ChatMessage } from "../llm/types";
+/**
+ * 观察写入层：把已经发生的事实，按观察者视角写进各自的 agent memory。
+ *
+ * 同一件事有三份投影，互不替代：`game_messages` 是上帝视角的公共事件流
+ * （`apply/messages.ts`），发起者的认知走行动反馈（`apply/index.ts`），这里写的是旁观者
+ * 与当事人的主观记忆。由此有三条不变量：
+ * - 发起者从不给自己写观察，同一事实在记忆里只有一条；
+ * - 观察者集合是事实发生后该场景的 actor 行（含尸体），所以 `move` 的移动者收不到自己的
+ *   离开/进入观察；
+ * - 文案与 metadata 全部由 `observation-text.ts` 构造，这里只决定「写给谁」。
+ */
+
 import type { ActorRow, Executor } from "./apply/types";
 import { MEMORY_KINDS } from "./constants";
 import { appendMemoryMessages, loadAgentMemory } from "./memory";
+import {
+  type Audience,
+  type CommunicationObservation,
+  type DamageObservation,
+  type ItemObservation,
+  type ObservationView,
+  renderAction,
+  renderCommunication,
+  renderDamage,
+  renderEnvironment,
+  renderItemEvent,
+  type StageRef,
+} from "./observation-text";
 import { listStageActors } from "./persistence/actors";
-import type { MessageVisibility, StageState } from "./types";
+import type { ObservationMetadata, StageEventMetadata } from "./types";
 
-type ObservationBuilder = (observer: ActorRow) => ChatMessage;
-type TalkKind = "say" | "whisper" | "announce";
+/** 场景广播：场景内除发起者外的所有 actor。 */
+const STAGE_WIDE: Audience = { type: "stage" };
 
-async function appendStageObservations(
+type ObservationSpec = {
+  stageId: string;
+  /** 事实的发起者；他自己的认知走行动反馈，这里不再重复写。 */
+  excludeActorId: string;
+  audience: Audience;
+  render: (observer: ActorRow) => ObservationView;
+};
+
+function sees(observer: ActorRow, audience: Audience): boolean {
+  return audience.type === "stage" || observer.id === audience.actorId;
+}
+
+/**
+ * 向场景内的 actor 逐一写入观察。
+ *
+ * 这里是尽力而为：场景里缺 memory 的 actor 跳过，不让一条记忆缺失回滚整次行动。
+ * stage / world 自己是单 owner 不变量，缺 memory 直接抛（见 `appendStageMemory`）。
+ */
+async function writeObservations(
   executor: Executor,
   gameId: string,
-  stageId: string,
-  excludedActorId: string,
-  include: (observer: ActorRow) => boolean,
-  build: ObservationBuilder,
+  spec: ObservationSpec,
 ): Promise<void> {
-  const observerRows = await listStageActors(executor, stageId);
+  const observerRows = await listStageActors(executor, spec.stageId);
   for (const observer of observerRows) {
-    if (observer.id === excludedActorId || !include(observer)) {
+    if (observer.id === spec.excludeActorId || !sees(observer, spec.audience)) {
       continue;
     }
     const memory = await loadAgentMemory(executor, gameId, "actor", observer.id);
     if (!memory) {
       continue;
     }
-    await appendMemoryMessages(executor, memory.row.id, [build(observer)]);
+    await appendMemoryMessages(executor, memory.row.id, [
+      { type: "human", ...spec.render(observer) },
+    ]);
   }
 }
 
@@ -37,18 +78,12 @@ export async function appendEnvironmentObservations(
   actorId: string,
   content: string,
 ): Promise<void> {
-  await appendStageObservations(
-    executor,
-    gameId,
+  await writeObservations(executor, gameId, {
     stageId,
-    actorId,
-    () => true,
-    () => ({
-      type: "human",
-      content,
-      metadata: { kind: MEMORY_KINDS.environmentObservation, stageId },
-    }),
-  );
+    excludeActorId: actorId,
+    audience: STAGE_WIDE,
+    render: () => renderEnvironment(content, stageId),
+  });
 }
 
 /** 向场景内其他 actor 写入可见行动观察。 */
@@ -59,145 +94,109 @@ export async function appendActionObservations(
   actorId: string,
   content: string,
 ): Promise<void> {
-  await appendStageObservations(
-    executor,
-    gameId,
+  await writeObservations(executor, gameId, {
     stageId,
-    actorId,
-    () => true,
-    () => ({
-      type: "human",
-      content,
-      metadata: { kind: MEMORY_KINDS.actionObservation, stageId },
-    }),
-  );
+    excludeActorId: actorId,
+    audience: STAGE_WIDE,
+    render: () => renderAction(content, stageId),
+  });
 }
 
-/** 写入伤害结果：发起者由行动结果反馈，目标与同场景旁观者分别得到不同视角。 */
-export async function appendAttackObservations(
+/** 写入伤害结果：发起者由行动结果反馈，目标与旁观者分别得到不同视角。 */
+export async function appendDamageObservations(
   executor: Executor,
   gameId: string,
-  stage: Pick<StageState, "id" | "name">,
-  attacker: { id: string; name: string },
-  target: { id: string; name: string; maxHp: number },
-  broadcast: MessageVisibility,
-  items: readonly { name: string }[],
-  damage: number,
-  remainingHp: number,
+  stage: StageRef,
+  observation: DamageObservation & {
+    /** 谁收到伤害观察；省略时整个场景。 */
+    audience?: Audience;
+  },
 ): Promise<void> {
-  const itemText = items.length > 0 ? `（使用${items.map((item) => item.name).join("、")}）` : "";
-  await appendStageObservations(
-    executor,
-    gameId,
-    stage.id,
-    attacker.id,
-    (observer) => broadcast === "stage" || observer.id === target.id,
-    (observer) => {
-      if (observer.id === target.id) {
-        return {
-          type: "human",
-          content: `# 你被攻击\n${attacker.name}对你使用攻击${itemText}，造成${damage}点伤害；${
-            remainingHp <= 0 ? "你倒下了" : `你剩余 HP ${remainingHp}/${target.maxHp}`
-          }。`,
-          metadata: {
-            kind: MEMORY_KINDS.actionObservation,
-            stageId: stage.id,
-            attackerActorId: attacker.id,
-          },
-        };
-      }
-      // 旁观者视角：知道这一下造成多少伤害、对方有没有倒下，但不知道对方剩多少生命。
-      return {
-        type: "human",
-        content: `# 战斗\n${attacker.name}对${target.name}使用攻击${itemText}，造成${damage}点伤害${
-          remainingHp <= 0 ? `；${target.name}倒下了` : ""
-        }。`,
-        metadata: {
-          kind: MEMORY_KINDS.actionObservation,
-          stageId: stage.id,
-          attackerActorId: attacker.id,
-          targetActorId: target.id,
-        },
-      };
-    },
-  );
+  const { audience = STAGE_WIDE, ...facts } = observation;
+  await writeObservations(executor, gameId, {
+    stageId: stage.id,
+    excludeActorId: facts.attacker.id,
+    audience,
+    render: (observer) => renderDamage(stage, facts, observer.id),
+  });
 }
 
-export type ItemEvent = "steal" | "give" | "pickup" | "use";
-
-/** 写入物品转移/拾取/使用事件的视角化记忆；私密事件只写目标。 */
+/**
+ * 写入物品转移/拾取/使用事件的视角化记忆。
+ *
+ * `steal` 是私密事件，只有目标收到观察；其余按场景广播。
+ */
 export async function appendItemObservations(
   executor: Executor,
   gameId: string,
-  stage: Pick<StageState, "id" | "name">,
-  actor: { id: string; name: string },
-  event: ItemEvent,
-  itemName: string,
-  options: {
-    target?: { id: string; name: string };
-    targetStageName?: string;
-    targetDetail?: string;
-    broadcast: "stage" | "private";
-  },
+  stage: StageRef,
+  observation: ItemObservation,
 ): Promise<void> {
-  const { target, targetStageName, targetDetail, broadcast } = options;
-  await appendStageObservations(
-    executor,
-    gameId,
-    stage.id,
-    actor.id,
-    (observer) => broadcast === "stage" || observer.id === target?.id,
-    (observer) => {
-      if (target && observer.id === target.id) {
-        const content =
-          event === "steal"
-            ? `# 你被窃取\n${actor.name}从你身上取走了${itemName}。`
-            : event === "give"
-              ? `# 你收到物品\n${actor.name}把${itemName}交给了你。`
-              : `# 你被使用道具\n${actor.name}对你使用了${itemName}。`;
-        return {
-          type: "human",
-          content,
-          metadata: {
-            kind: MEMORY_KINDS.actionObservation,
-            stageId: stage.id,
-            itemName,
-          },
-        };
-      }
-      const content =
-        event === "steal"
-          ? `# 场景动态\n${actor.name}从${target?.name ?? "某人"}身上取走了${itemName}。`
-          : event === "give"
-            ? `# 场景动态\n${actor.name}把${itemName}交给了${target?.name ?? "某人"}。`
-            : event === "pickup"
-              ? `# 场景动态\n${actor.name}拾取了${itemName}。`
-              : target
-                ? `# 场景动态\n${actor.name}对${target.name}使用了${itemName}。`
-                : `# 场景动态\n${actor.name}在${stage.name}${targetDetail ? `的${targetDetail}` : ""}使用了${itemName}。`;
-      return {
-        type: "human",
-        content,
-        metadata: {
-          kind: MEMORY_KINDS.actionObservation,
-          stageId: stage.id,
-          itemName,
-          ...(target ? { targetActorId: target.id } : {}),
-          ...(targetStageName ? { targetStageName } : {}),
-          ...(targetDetail ? { targetDetail } : {}),
-        },
-      };
-    },
-  );
+  await writeObservations(executor, gameId, {
+    stageId: stage.id,
+    excludeActorId: observation.actor.id,
+    audience:
+      observation.event === "steal" ? { type: "only", actorId: observation.target.id } : STAGE_WIDE,
+    render: (observer) => renderItemEvent(stage, observation, observer.id),
+  });
 }
 
-/** 向 stage 自己的 memory 写入它看到的本场景事件。 */
-export async function appendStageEvent(
+/** 按沟通方式向目标与旁观者写入听觉观察：耳语只有对方能听见。 */
+export async function appendCommunicationObservations(
+  executor: Executor,
+  gameId: string,
+  stage: StageRef,
+  observation: CommunicationObservation,
+): Promise<void> {
+  await writeObservations(executor, gameId, {
+    stageId: stage.id,
+    excludeActorId: observation.source.id,
+    audience:
+      observation.kind === "whisper"
+        ? { type: "only", actorId: observation.target.id }
+        : STAGE_WIDE,
+    render: (observer) => renderCommunication(stage, observation, observer.id),
+  });
+}
+
+/**
+ * 只写给当事人自己的观察：死亡这类「旁观者知道结果、细节只属于自己」的事实。
+ *
+ * 与场景广播一样是尽力而为，缺 memory 时跳过。
+ */
+export async function appendSelfObservation(
+  executor: Executor,
+  gameId: string,
+  stageId: string,
+  actorId: string,
+  content: string,
+  metadata: Omit<ObservationMetadata, "kind" | "stageId"> = {},
+): Promise<void> {
+  const memory = await loadAgentMemory(executor, gameId, "actor", actorId);
+  if (!memory) {
+    return;
+  }
+  await appendMemoryMessages(executor, memory.row.id, [
+    {
+      type: "human",
+      content,
+      metadata: { kind: MEMORY_KINDS.actionObservation, stageId, ...metadata },
+    },
+  ]);
+}
+
+/**
+ * 向 stage 自己的 memory 写入它看到的本场景事件。
+ *
+ * 与 actor 观察相反，stage 是单 owner 不变量：缺 memory 直接抛，不做尽力而为。
+ * 它只需要 stageId：场景名不会出现在自己发给自己的事件里。
+ */
+export async function appendStageMemory(
   executor: Executor,
   gameId: string,
   stageId: string,
   content: string,
-  metadata: Record<string, unknown> = {},
+  metadata: StageEventMetadata,
 ): Promise<void> {
   const memory = await loadAgentMemory(executor, gameId, "stage", stageId);
   if (!memory) {
@@ -214,52 +213,4 @@ export async function appendStageEvent(
       },
     },
   ]);
-}
-
-/** 按沟通方式向目标与旁观者写入听觉观察。 */
-export async function appendCommunicationObservations(
-  executor: Executor,
-  gameId: string,
-  stage: Pick<StageState, "id" | "name">,
-  source: { id: string; name: string },
-  kind: TalkKind,
-  target: { id: string; name: string } | undefined,
-  message: string,
-): Promise<void> {
-  if ((kind === "say" || kind === "whisper") && !target) {
-    throw new Error(`${kind} 缺少目标 actor`);
-  }
-
-  await appendStageObservations(
-    executor,
-    gameId,
-    stage.id,
-    source.id,
-    (observer) => kind !== "whisper" || observer.id === target?.id,
-    (observer) => {
-      let content: string;
-      if (kind === "whisper") {
-        content = `# 你听见\n${source.name}对你耳语（场景：${stage.name}）：${message}`;
-      } else if (kind === "say") {
-        content =
-          observer.id === target?.id
-            ? `# 你听见\n${source.name}对你说（场景：${stage.name}）：${message}`
-            : `# 你听见\n${source.name}对${target?.name}说（场景：${stage.name}）：${message}`;
-      } else {
-        content = `# 你听见\n${source.name}公开说（场景：${stage.name}）：${message}`;
-      }
-
-      return {
-        type: "human",
-        content,
-        metadata: {
-          kind: MEMORY_KINDS.communicationObservation,
-          visibility: kind === "whisper" ? "private" : "stage",
-          stageId: stage.id,
-          sourceActorId: source.id,
-          ...(target ? { targetActorId: target.id } : {}),
-        },
-      };
-    },
-  );
 }

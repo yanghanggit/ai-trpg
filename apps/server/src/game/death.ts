@@ -7,7 +7,7 @@ import { MEMORY_KINDS } from "./constants";
 import { runDropTurn } from "./drops";
 import { GameError } from "./errors";
 import { appendMemoryMessages, loadAgentMemory } from "./memory";
-import { appendActionObservations, appendStageEvent } from "./observations";
+import { appendActionObservations, appendSelfObservation, appendStageMemory } from "./observations";
 import { listActorsForAppearance } from "./persistence/actors";
 import {
   claimDeath,
@@ -149,22 +149,19 @@ async function announceDeath(
       visibility: "stage",
       content,
     });
-    await appendStageEvent(tx, gameId, actor.stageId, `# 生命事件\n${actor.name}的生命归零。`, {
+    await appendStageMemory(tx, gameId, actor.stageId, `# 生命事件\n${actor.name}的生命归零。`, {
       eventKind: "death",
       targetActorId: actor.id,
     });
     await appendActionObservations(tx, gameId, actor.stageId, actor.id, `# 场景动态\n${content}`);
     // 死者自己也留一条：复活类扩展需要知道「我死过」。
-    const memory = await loadAgentMemory(tx, gameId, "actor", actor.id);
-    if (memory) {
-      await appendMemoryMessages(tx, memory.row.id, [
-        {
-          type: "human",
-          content: "# 你的生命归零\n你已经死亡。",
-          metadata: { kind: MEMORY_KINDS.actionObservation, stageId: actor.stageId },
-        },
-      ]);
-    }
+    await appendSelfObservation(
+      tx,
+      gameId,
+      actor.stageId,
+      actor.id,
+      "# 你的生命归零\n你已经死亡。",
+    );
     if (actor.isDefaultPlayer) {
       await appendDefaultPlayerDeath(tx, gameId, actor);
     }

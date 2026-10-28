@@ -1,4 +1,5 @@
 import type { Stats } from "./attributes";
+import type { MemoryKind } from "./constants";
 
 /** 公共消息的可见范围：场景公开或仅当事人可见。 */
 export type MessageVisibility = "stage" | "private";
@@ -244,6 +245,15 @@ export type ActorAction =
 
 export type ActionKind = ActorAction["kind"];
 
+/**
+ * 三个沟通动作；观察与提示词按这组区分「对谁说话、谁能听见」。
+ * 从 `ActorAction` 派生，新增沟通动作时不会和动作清单脱钩。
+ */
+export type CommunicationKind = Extract<ActionKind, "say" | "whisper" | "announce">;
+
+/** 会改变物品归属或使用状态的四个动作；物品观察按这组分叉文本。 */
+export type ItemEventKind = Extract<ActionKind, "steal" | "give" | "pickup" | "use">;
+
 /** stage 的一次仲裁动作；与 actor / world 的计划同构，都是有序动作列表。 */
 export type StageAction =
   | { kind: "submit_environment"; environment: string }
@@ -390,6 +400,33 @@ export type AgentMemoryMessageState = {
   toolCalls?: unknown;
   metadata?: unknown;
   createdAt: string;
+};
+
+/**
+ * 观察类记忆消息的 metadata。
+ *
+ * 观察回答「谁看到了什么」，因此只带当事人与场景标识，不带规则数值：
+ * 剩余生命这类数值只写进公共消息、舞台记忆与当事人自己的观察文本。
+ */
+export type ObservationMetadata = {
+  /** 记忆类别，取 `MEMORY_KINDS` 里的观察类值。 */
+  kind: MemoryKind;
+  /** 原始事件的可见范围；沟通观察会写，供快照阅读。 */
+  visibility?: MessageVisibility;
+  stageId?: string;
+  actorId?: string;
+  sourceActorId?: string;
+  attackerActorId?: string;
+  targetActorId?: string;
+  itemName?: string;
+  targetStageId?: string;
+  targetStageName?: string;
+  targetDetail?: string;
+};
+
+/** stage 自己记忆里的场景事件：`kind` 与 `stageId` 由写入方固定，调用方只说明事件类别。 */
+export type StageEventMetadata = Omit<ObservationMetadata, "kind" | "visibility" | "stageId"> & {
+  eventKind: string;
 };
 
 export type AgentMemoryState = {

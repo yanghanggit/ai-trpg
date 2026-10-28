@@ -3,7 +3,7 @@ import { appendPublicMessage, bumpGameVersion } from "../apply/messages";
 import type { ActorWithStageRow, Executor, ResolvedUnequip } from "../apply/types";
 import { GameError } from "../errors";
 import { unequipSlot } from "../items";
-import { appendActionObservations, appendStageEvent } from "../observations";
+import { appendActionObservations, appendStageMemory } from "../observations";
 import { setActorEquipment } from "../persistence/actors";
 import {
   EQUIPMENT_SLOT_LABELS,
@@ -83,7 +83,7 @@ export async function applyUnequip(
     actor.id,
     `# 场景动态\n${content}`,
   );
-  await appendStageEvent(executor, gameId, resolved.stage.id, `# 场景事件\n${content}`, {
+  await appendStageMemory(executor, gameId, resolved.stage.id, `# 场景事件\n${content}`, {
     eventKind: "unequip",
   });
   return `# 行动结果\n你卸下了${resolved.itemName}（${label}）。`;

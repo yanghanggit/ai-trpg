@@ -3,7 +3,7 @@ import { appendPublicMessage, bumpGameVersion } from "../apply/messages";
 import type { ActorWithStageRow, Executor, ResolvedAnnounce } from "../apply/types";
 import { MAX_MIND_LENGTH } from "../constants";
 import { GameError } from "../errors";
-import { appendCommunicationObservations, appendStageEvent } from "../observations";
+import { appendCommunicationObservations, appendStageMemory } from "../observations";
 import type { AnnounceAction } from "../types";
 
 export function buildAnnounceTool(): ToolDefinition {
@@ -54,16 +54,12 @@ export async function applyAnnounce(
     visibility: "stage",
     content: `${source.name}公开说：${resolved.action.message}`,
   });
-  await appendCommunicationObservations(
-    executor,
-    gameId,
-    resolved.stage,
+  await appendCommunicationObservations(executor, gameId, resolved.stage, {
     source,
-    "announce",
-    undefined,
-    resolved.action.message,
-  );
-  await appendStageEvent(
+    message: resolved.action.message,
+    kind: "announce",
+  });
+  await appendStageMemory(
     executor,
     gameId,
     resolved.stage.id,

@@ -4,7 +4,7 @@ import { resolveActorItem } from "../apply/queries";
 import type { ActorWithStageRow, Executor, ResolvedEquip } from "../apply/types";
 import { GameError } from "../errors";
 import { equipSlot } from "../items";
-import { appendActionObservations, appendStageEvent } from "../observations";
+import { appendActionObservations, appendStageMemory } from "../observations";
 import { setActorEquipment } from "../persistence/actors";
 import {
   EQUIPMENT_SLOT_LABELS,
@@ -98,7 +98,7 @@ export async function applyEquip(
     actor.id,
     `# 场景动态\n${content}`,
   );
-  await appendStageEvent(executor, gameId, resolved.stage.id, `# 场景事件\n${content}`, {
+  await appendStageMemory(executor, gameId, resolved.stage.id, `# 场景事件\n${content}`, {
     eventKind: "equip",
   });
   return `# 行动结果\n你穿上了${item.name}（${label}）。`;

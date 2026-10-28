@@ -4,7 +4,7 @@ import { findActorInStage } from "../apply/queries";
 import type { ActorWithStageRow, Executor, ResolvedSay } from "../apply/types";
 import { MAX_MIND_LENGTH } from "../constants";
 import { GameError } from "../errors";
-import { appendCommunicationObservations, appendStageEvent } from "../observations";
+import { appendCommunicationObservations, appendStageMemory } from "../observations";
 import type { SayAction } from "../types";
 
 export function buildSayTool(targets: readonly string[]): ToolDefinition {
@@ -81,16 +81,13 @@ export async function applySay(
     visibility: "stage",
     content: `${source.name}对${target.name}说：${resolved.action.message}`,
   });
-  await appendCommunicationObservations(
-    executor,
-    gameId,
-    resolved.stage,
+  await appendCommunicationObservations(executor, gameId, resolved.stage, {
     source,
-    "say",
+    message: resolved.action.message,
+    kind: "say",
     target,
-    resolved.action.message,
-  );
-  await appendStageEvent(
+  });
+  await appendStageMemory(
     executor,
     gameId,
     resolved.stage.id,

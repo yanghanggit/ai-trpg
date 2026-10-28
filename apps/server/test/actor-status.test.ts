@@ -786,7 +786,7 @@ describe.skipIf(!testDatabaseUrl)("corpses can be operated on", () => {
 
     // 同场景旁观者：知道这一下打得多重、对方有没有倒下，但不知道对方还剩多少生命。
     const observer = await read(scribe.id);
-    expect(observer).toContain("守烬人对提灯修士使用攻击");
+    expect(observer).toContain("守烬人对提灯修士攻击");
     expect(observer).toContain("造成6点伤害");
     expect(observer).not.toContain("剩余 HP");
     expect(observer).not.toContain("倒下");

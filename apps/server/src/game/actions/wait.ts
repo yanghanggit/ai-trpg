@@ -1,7 +1,7 @@
 import type { ToolDefinition } from "../../llm/types";
 import { appendPublicMessage, bumpGameVersion } from "../apply/messages";
 import type { ActorWithStageRow, Executor, ResolvedWait } from "../apply/types";
-import { appendActionObservations, appendStageEvent } from "../observations";
+import { appendActionObservations, appendStageMemory } from "../observations";
 import type { WaitAction } from "../types";
 
 export function buildWaitTool(): ToolDefinition {
@@ -49,7 +49,7 @@ export async function applyWait(
     actorRow.actor.id,
     `# 场景动态\n${content}`,
   );
-  await appendStageEvent(executor, gameId, resolved.stage.id, `# 场景事件\n${content}`, {
+  await appendStageMemory(executor, gameId, resolved.stage.id, `# 场景事件\n${content}`, {
     eventKind: "wait",
   });
   return "# 行动结果\n你留在原地，继续观察四周。";
