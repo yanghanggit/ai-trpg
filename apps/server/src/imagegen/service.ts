@@ -6,6 +6,7 @@
  * 这里不碰数据库、不接游戏业务，也不提供 HTTP 路由。
  */
 
+import { type Logger, silentLogger } from "../logging";
 import {
   defaultImagesDir,
   downloadImage,
@@ -20,7 +21,6 @@ import {
   type ImageBatchResult,
 } from "./batch";
 import { ImageGenError } from "./errors";
-import { type ImageLogger, silentLogger } from "./logger";
 import {
   type FetchLike,
   type ImageGenerationRequest,
@@ -47,7 +47,7 @@ export type ImageGenerationServiceOptions = {
   store?: ImageAssetStore;
   /** 测试注入点；只影响产物下载。 */
   fetch?: FetchLike;
-  logger?: ImageLogger;
+  logger?: Logger;
   maxDownloadBytes?: number;
   downloadTimeoutMs?: number;
 };
@@ -80,7 +80,7 @@ export class ImageGenerationService {
   readonly store: ImageAssetStore;
 
   private readonly fetchImpl: FetchLike | undefined;
-  private readonly logger: ImageLogger;
+  private readonly logger: Logger;
   private readonly maxDownloadBytes: number | undefined;
   private readonly downloadTimeoutMs: number | undefined;
 

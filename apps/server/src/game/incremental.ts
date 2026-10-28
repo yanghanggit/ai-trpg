@@ -1,5 +1,5 @@
 import { type TraceContext, traceEvent } from "../debug/trace";
-import type { LlmLogger } from "../llm/logger";
+import type { Logger } from "../logging";
 
 /**
  * 计算端提交之后的增量阶段：推理/泛化端的所有追加都从这里进入。
@@ -16,7 +16,7 @@ export type IncrementalPhaseOutcome =
 export type IncrementalPhaseOptions = {
   name: string;
   trace?: TraceContext;
-  logger?: LlmLogger;
+  logger?: Logger;
 };
 
 export type IncrementalPhaseStatus = "ok" | "skipped" | "failed";

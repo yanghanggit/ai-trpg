@@ -7,7 +7,6 @@
  */
 
 import { ChatError, type ErrorKind } from "../llm/errors";
-import { type LlmLogger, silentLogger } from "../llm/logger";
 import {
   type AIMessage,
   type ChatCompletionRequest,
@@ -17,6 +16,7 @@ import {
   type ToolCall,
   type Usage,
 } from "../llm/types";
+import { type Logger, silentLogger } from "../logging";
 
 export const DEEPSEEK_API_BASE_URL = "https://api.deepseek.com";
 export const DEEPSEEK_MODEL_FLASH = "deepseek-flash";
@@ -42,7 +42,7 @@ export type DeepSeekClientOptions = {
   defaultModel?: string;
   /** 测试注入点；默认使用 Node 22 的全局 fetch。 */
   fetch?: FetchLike;
-  logger?: LlmLogger;
+  logger?: Logger;
 };
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -152,7 +152,7 @@ export class DeepSeekClient {
   private readonly baseUrl: string;
   private readonly defaultModel: string;
   private readonly fetchImpl: FetchLike;
-  private readonly logger: LlmLogger;
+  private readonly logger: Logger;
 
   constructor(options: DeepSeekClientOptions = {}) {
     this.apiKey = options.apiKey;

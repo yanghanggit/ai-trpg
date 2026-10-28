@@ -68,7 +68,7 @@ import {
 import type { ActorTurnResult, EquipmentSlot, World } from "../src/game/types";
 import { EQUIPMENT_SLOTS } from "../src/game/types";
 import { parseWorldContent } from "../src/game/world-content";
-import { loggerFromPino } from "../src/llm/logger";
+import { loggerFromPino } from "../src/logging";
 
 type Output = Record<string, unknown>;
 

@@ -19,12 +19,11 @@ import {
   ImageGenError,
   type ImageGenerationRequest,
   ImageGenerationService,
-  type ImageLogger,
   type ImageMeta,
   imageGenerationRequestSchema,
   normalizeImageFormat,
-  silentLogger,
 } from "../src/imagegen";
+import { type Logger, silentLogger } from "../src/logging";
 import { findRepoRoot } from "../src/paths";
 
 loadEnvFile({ path: ROOT_ENV_FILE, quiet: true });
@@ -70,7 +69,7 @@ type CliValues = {
 };
 
 /** CLI 日志一律走 stderr，避免污染 --json 的 stdout。 */
-const cliLogger: ImageLogger = {
+const cliLogger: Logger = {
   debug: (message, ...args) => {
     if (process.env.LOG_LEVEL === "debug" || process.env.LOG_LEVEL === "trace") {
       console.error(message, ...args);

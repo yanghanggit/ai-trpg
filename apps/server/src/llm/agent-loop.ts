@@ -6,7 +6,7 @@
  */
 
 import { type TraceContext, traceEvent } from "../debug/trace";
-import { type LlmLogger, silentLogger } from "./logger";
+import { type Logger, silentLogger } from "../logging";
 import type { ChatCompletionService } from "./protocol";
 import {
   ChatCompletionRequest,
@@ -47,7 +47,7 @@ export type AgentLoopOptions = {
   terminalTools?: readonly ToolDefinition[];
   inputMetadata?: Readonly<MessageMetadata>;
   loopId?: string;
-  logger?: LlmLogger;
+  logger?: Logger;
   /** 回合轨迹；有值则每次 LLM 调用落一条 llm_call / llm_result。 */
   trace?: TraceContext;
 };

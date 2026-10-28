@@ -1,7 +1,7 @@
 import type { Database } from "../db/pool";
 import { type TraceContext, traceEvent } from "../debug/trace";
-import type { LlmLogger } from "../llm/logger";
 import type { ChatCompletionService } from "../llm/protocol";
+import type { Logger } from "../logging";
 import { runAppearanceTurn } from "./appearance";
 import { appendPublicMessage, bumpGameVersion } from "./apply/messages";
 import { MEMORY_KINDS } from "./constants";
@@ -22,7 +22,7 @@ import type { DeathPhaseFailure, DeathPhaseResult } from "./types";
 export type DeathPhaseOptions = {
   /** 只有尸体外观快照需要 LLM；不传就跳过外观。 */
   service?: ChatCompletionService;
-  logger?: LlmLogger;
+  logger?: Logger;
   /** 触发这次死亡阶段的回合轨迹；子阶段结果写进该回合。 */
   trace?: TraceContext;
 };

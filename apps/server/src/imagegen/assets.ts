@@ -12,9 +12,9 @@ import { randomUUID } from "node:crypto";
 import { mkdir, readdir, readFile, rename, rm, writeFile } from "node:fs/promises";
 import { extname, join, resolve } from "node:path";
 import { z } from "zod";
+import { type Logger, silentLogger } from "../logging";
 import { findRepoRoot } from "../paths";
 import { ImageGenError } from "./errors";
-import { type ImageLogger, silentLogger } from "./logger";
 import {
   type FetchLike,
   type ImageOutputFormat,
@@ -261,9 +261,9 @@ export type SavedImageAsset = {
 /** 本地图片资产库；目录可注入，默认仓库根 `images/`。 */
 export class ImageAssetStore {
   readonly dir: string;
-  private readonly logger: ImageLogger;
+  private readonly logger: Logger;
 
-  constructor(options: { dir?: string; logger?: ImageLogger } = {}) {
+  constructor(options: { dir?: string; logger?: Logger } = {}) {
     this.dir = resolve(options.dir ?? defaultImagesDir());
     this.logger = options.logger ?? silentLogger;
   }

@@ -2,8 +2,8 @@ import { and, eq } from "drizzle-orm";
 import type { Database } from "../../db/pool";
 import { actors, games, stages, worlds } from "../../db/schema";
 import { type TraceContext, traceEvent } from "../../debug/trace";
-import type { LlmLogger } from "../../llm/logger";
 import type { ChatCompletionService } from "../../llm/protocol";
+import type { Logger } from "../../logging";
 import { applyAnnounce } from "../actions/announce";
 import { applyAttack } from "../actions/attack";
 import { applyEquip } from "../actions/equip";
@@ -116,7 +116,7 @@ export type ApplyActorPlanOptions = {
   /** 死亡阶段的外观快照需要 LLM；不传则跳过（下次 hp 变化或显式调用再补）。 */
   appearanceService?: ChatCompletionService;
   /** 死亡阶段的失败只进日志与返回值，不抛给调用方。 */
-  logger?: LlmLogger;
+  logger?: Logger;
   /** 回合轨迹；有值时记录计划、拒绝、落账与子阶段结果。 */
   trace?: TraceContext;
 };

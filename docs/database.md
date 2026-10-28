@@ -62,3 +62,7 @@ actor、stage、world 三条链路共用同一个节奏：读状态与 memory �
 开发期不做旧数据搬运：迁移只描述目标形状，字段改名或语义变更直接改 schema、生成迁移，然后用当前 seed 重置重刷。
 
 → 参见：[开发期 Agent 工作流](debug-workflow.md)
+
+后台作业队列是基础设施状态，不属于游戏聚合。
+
+→ 参见：[后台作业队列](background-jobs.md)

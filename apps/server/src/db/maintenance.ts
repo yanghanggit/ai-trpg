@@ -8,6 +8,7 @@ import { appMeta, users } from "./schema";
  * 避免 reset 漏表或误删迁移表 / 扩展。
  */
 export const DOMAIN_TABLES = [
+  "jobs",
   "agent_memory_messages",
   "agent_memories",
   "game_messages",

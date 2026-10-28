@@ -5,15 +5,15 @@
  * 结果自带 `error`，调用方不需要再拿 client 对象去对账。
  */
 
+import { type Logger, silentLogger } from "../logging";
 import { ChatError } from "./errors";
-import { type LlmLogger, silentLogger } from "./logger";
 import type { ChatCompletionService } from "./protocol";
 import { type ChatCompletionRequest, ChatCompletionResult } from "./types";
 
 export type BatchCompleteOptions = {
   /** 同时在飞的请求数上限，默认 2。 */
   maxConcurrency?: number;
-  logger?: LlmLogger;
+  logger?: Logger;
 };
 
 /** 结果与入参等长同序；意外异常也收敛成 `error`，不只覆盖预期内失败。 */

@@ -47,6 +47,7 @@
 | [开发规范](conventions.md)               | 目录依赖、文件命名、API 字段、数据库与测试    |
 | [LLM 基础组件](llm.md)                   | provider 分层、失败模型、agent loop 与重试    |
 | [图像生成基建](image-generation.md)      | 图像 provider 分层、资产边界与失败模型        |
+| [后台作业队列](background-jobs.md)       | 队列选型、worker 租约、串行键与接入边界       |
 | [数据库](database.md)                    | PostgreSQL 状态源、表与不变式、死亡、迁移     |
 | [公共知识检索](rag.md)                   | 知识边界、向量存储、query 工具与评测基线      |
 | [Actor 记忆](actor-actions-memory.md)    | actor 控制、行动事实、过程轨迹与接管          |

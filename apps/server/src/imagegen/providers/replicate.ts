@@ -12,9 +12,9 @@
 import { readFile } from "node:fs/promises";
 import { extname, isAbsolute, resolve } from "node:path";
 import { setTimeout as delay } from "node:timers/promises";
+import { type Logger, silentLogger } from "../../logging";
 import { findRepoRoot } from "../../paths";
 import { ImageGenError } from "../errors";
-import { type ImageLogger, silentLogger } from "../logger";
 import {
   type FetchLike,
   type ImageGenerationRequest,
@@ -562,7 +562,7 @@ export type ReplicateProviderOptions = {
   timeoutMs?: number;
   pollIntervalMs?: number;
   fetch?: FetchLike;
-  logger?: ImageLogger;
+  logger?: Logger;
 };
 
 export class ReplicateProvider implements ImageProvider {
@@ -575,7 +575,7 @@ export class ReplicateProvider implements ImageProvider {
   private readonly timeoutMs: number;
   private readonly pollIntervalMs: number;
   private readonly fetchImpl: FetchLike;
-  private readonly logger: ImageLogger;
+  private readonly logger: Logger;
 
   constructor(options: ReplicateProviderOptions = {}) {
     this.apiToken = options.apiToken;

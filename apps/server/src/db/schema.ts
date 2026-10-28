@@ -1,3 +1,4 @@
+import { sql } from "drizzle-orm";
 import {
   boolean,
   index,
@@ -23,6 +24,7 @@ import type {
   StageActionKind,
   WorldActionKind,
 } from "../game/types";
+import type { JobStatus } from "../jobs/types";
 import { EMBEDDING_DIMENSIONS } from "../rag/constants";
 import type { RagMetadata } from "../rag/types";
 
@@ -338,6 +340,46 @@ export const agentMemoryMessages = pgTable(
   ],
 );
 
+/**
+ * 持久作业队列。一行作业同时承载 payload、状态、最后一次错误与结果，
+ * 不再像旧系统那样额外维护 task_errors 表。
+ *
+ * `serialization_key` 的 partial unique index 保证同一 queue + key 最多一个
+ * pending / running 作业；终态行不占用键，因此可以继续入队。
+ */
+export const jobs = pgTable(
+  "jobs",
+  {
+    id: uuid("id").primaryKey(),
+    kind: text("kind").notNull(),
+    queue: text("queue").notNull().default("default"),
+    payload: jsonb("payload").$type<JsonValue>().notNull(),
+    status: text("status").$type<JobStatus>().notNull().default("pending"),
+    serializationKey: text("serialization_key"),
+    attempts: integer("attempts").notNull().default(0),
+    maxAttempts: integer("max_attempts").notNull().default(1),
+    error: text("error"),
+    result: jsonb("result").$type<JsonValue>(),
+    runAt: timestamp("run_at", { withTimezone: true }).notNull().defaultNow(),
+    lockedBy: text("locked_by"),
+    lockedAt: timestamp("locked_at", { withTimezone: true }),
+    startedAt: timestamp("started_at", { withTimezone: true }),
+    finishedAt: timestamp("finished_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    index("jobs_claim_idx").on(table.queue, table.status, table.runAt, table.createdAt),
+    index("jobs_status_created_idx").on(table.status, table.createdAt),
+    index("jobs_kind_idx").on(table.kind),
+    uniqueIndex("jobs_active_serialization_unique")
+      .on(table.queue, table.serializationKey)
+      .where(
+        sql`${table.serializationKey} is not null and ${table.status} in ('pending', 'running')`,
+      ),
+  ],
+);
+
 export const schema = {
   appMeta,
   users,
@@ -354,4 +396,5 @@ export const schema = {
   actorControls,
   agentMemories,
   agentMemoryMessages,
+  jobs,
 };

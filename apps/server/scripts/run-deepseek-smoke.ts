@@ -24,7 +24,7 @@ import {
   getBufferString,
   type ToolDefinition,
 } from "../src/llm";
-import { consoleLogger } from "../src/llm/logger";
+import { consoleLogger } from "../src/logging";
 
 loadEnvFile({ path: ROOT_ENV_FILE, quiet: true });
 

@@ -2,9 +2,9 @@ import { randomUUID } from "node:crypto";
 import type { Database } from "../../db/pool";
 import type { TraceContext } from "../../debug/trace";
 import { agentLoop } from "../../llm/agent-loop";
-import type { LlmLogger } from "../../llm/logger";
 import type { ChatCompletionService } from "../../llm/protocol";
 import type { ToolDefinition } from "../../llm/types";
+import type { Logger } from "../../logging";
 import { isAlive } from "../apply/queries";
 import type { Executor } from "../apply/types";
 import { STAT_KEYS, type Stats } from "../attributes";
@@ -444,7 +444,7 @@ export async function runAffixEffect(
   request: AffixRequest,
   service: ChatCompletionService | undefined,
   trace?: TraceContext,
-  logger?: LlmLogger,
+  logger?: Logger,
 ): Promise<void> {
   await runIncrementalPhase(
     { name: "affix", ...(trace ? { trace } : {}), ...(logger ? { logger } : {}) },

@@ -39,13 +39,6 @@ export {
 } from "./batch";
 export { ImageGenError, type ImageGenErrorKind, type ImageGenErrorOptions } from "./errors";
 export {
-  consoleLogger,
-  type ImageLogger,
-  loggerFromPino,
-  type PinoLikeLogger,
-  silentLogger,
-} from "./logger";
-export {
   createImageProvider,
   DEFAULT_IMAGE_MODEL,
   DEFAULT_IMAGE_PROVIDER,

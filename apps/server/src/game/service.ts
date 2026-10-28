@@ -14,7 +14,7 @@ import {
   worlds,
 } from "../db/schema";
 import { dumpSystemPrompts } from "../debug/prompt-dump";
-import type { LlmLogger } from "../llm/logger";
+import type { Logger } from "../logging";
 import { toStats } from "./attributes";
 import { resolveAppearance } from "./body";
 import { assertEdgeShape } from "./edges";
@@ -262,7 +262,7 @@ export async function getGameState(db: Database, ref: string): Promise<GameState
 export async function createGame(
   db: Database,
   input: CreateGameInput,
-  options: { logger?: LlmLogger } = {},
+  options: { logger?: Logger } = {},
 ): Promise<GameState> {
   input = { ...input, world: parseWorldContent(input.world) };
   const gameId = randomUUID();

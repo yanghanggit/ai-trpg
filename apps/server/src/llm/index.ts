@@ -17,7 +17,6 @@ export {
 } from "./agent-loop";
 export { type BatchCompleteOptions, batchComplete } from "./batch";
 export { ChatError, type ChatErrorOptions, type ErrorKind } from "./errors";
-export { consoleLogger, type LlmLogger, silentLogger } from "./logger";
 export { type BufferStringOptions, getBufferString } from "./messages";
 export type { ChatCompletionService } from "./protocol";
 export {

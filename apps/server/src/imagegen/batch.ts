@@ -5,8 +5,7 @@
  * 意外异常也收敛到结果对象里，调用方不需要自己兜异常。
  */
 
-import type { ImageLogger } from "./logger";
-import { silentLogger } from "./logger";
+import { type Logger, silentLogger } from "../logging";
 import type { ImageGenerationService } from "./service";
 import type { ImageGenerationRequest } from "./types";
 
@@ -27,7 +26,7 @@ export type ImageBatchResult = ImageBatchSuccess | ImageBatchFailure;
 export type BatchGenerateImagesOptions = {
   /** 同时在飞的请求数上限，默认 2。 */
   maxConcurrency?: number;
-  logger?: ImageLogger;
+  logger?: Logger;
 };
 
 export async function batchGenerateImages(
