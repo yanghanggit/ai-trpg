@@ -3,6 +3,7 @@ import { and, eq, inArray } from "drizzle-orm";
 import { items, stageItems } from "../../db/schema";
 import type { Executor, ItemRow, StageItemRow } from "../apply/types";
 import { toStats } from "../attributes";
+import { allocateEntitySeq } from "./entity-seq";
 
 /** 掉落只产 `material`：惰性效果、无属性，数量可堆叠。 */
 const MATERIAL_EFFECT = { type: "none" } as const;
@@ -38,6 +39,8 @@ export async function moveStageItemToActor(
   await executor.delete(stageItems).where(eq(stageItems.id, stageItem.id));
   await executor.insert(items).values({
     id: randomUUID(),
+    // 换归属不是新建实体：保留原序号，避免拾取后物品在列表里跳到末尾。
+    seq: stageItem.seq,
     actorId,
     key: stageItem.key,
     name: stageItem.name,
@@ -71,6 +74,7 @@ export type MaterialDrop = { name: string; description: string; count: number };
  */
 export async function addActorMaterials(
   executor: Executor,
+  gameId: string,
   actorId: string,
   source: string,
   materials: readonly MaterialDrop[],
@@ -111,6 +115,7 @@ export async function addActorMaterials(
     }
     await executor.insert(items).values({
       id: randomUUID(),
+      seq: await allocateEntitySeq(executor, gameId),
       actorId,
       key: `material:${material.name}`,
       name: material.name,

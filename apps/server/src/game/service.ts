@@ -28,6 +28,7 @@ import {
   createStageMemory,
   createWorldMemory,
 } from "./memory";
+import { allocateEntitySeq } from "./persistence/entity-seq";
 import type {
   ActorState,
   ConnectionState,
@@ -126,7 +127,7 @@ export async function getGameState(db: Database, ref: string): Promise<GameState
           .select()
           .from(actors)
           .where(inArray(actors.stageId, stageIds))
-          .orderBy(asc(actors.createdAt), asc(actors.name));
+          .orderBy(asc(actors.seq));
   const actorIds = actorRows.map((actor) => actor.id);
 
   const itemRows =
@@ -136,7 +137,7 @@ export async function getGameState(db: Database, ref: string): Promise<GameState
           .select()
           .from(items)
           .where(inArray(items.actorId, actorIds))
-          .orderBy(asc(items.createdAt), asc(items.name));
+          .orderBy(asc(items.seq));
 
   const stageItemRows =
     stageIds.length === 0
@@ -145,7 +146,7 @@ export async function getGameState(db: Database, ref: string): Promise<GameState
           .select()
           .from(stageItems)
           .where(inArray(stageItems.stageId, stageIds))
-          .orderBy(asc(stageItems.createdAt), asc(stageItems.name));
+          .orderBy(asc(stageItems.seq));
 
   const itemsByStage = new Map<string, ItemState[]>();
   for (const item of stageItemRows) {
@@ -172,6 +173,7 @@ export async function getGameState(db: Database, ref: string): Promise<GameState
     const list = actorsByStage.get(actor.stageId) ?? [];
     list.push({
       id: actor.id,
+      seq: actor.seq,
       name: actor.name,
       profile: actor.profile,
       appearance: actor.appearance,
@@ -188,6 +190,7 @@ export async function getGameState(db: Database, ref: string): Promise<GameState
 
   const stageState: StageState[] = stageRows.map((stage) => ({
     id: stage.id,
+    seq: stage.seq,
     key: stage.key ?? stage.name,
     name: stage.name,
     profile: stage.profile,
@@ -241,6 +244,7 @@ export async function getGameState(db: Database, ref: string): Promise<GameState
     player,
     world: {
       id: worldRow.id,
+      seq: worldRow.seq,
       name: worldRow.name,
       contentKey: worldRow.contentKey,
       profile: worldRow.profile,
@@ -303,6 +307,7 @@ export async function createGame(
 
     await tx.insert(worlds).values({
       id: worldId,
+      seq: await allocateEntitySeq(tx, gameId),
       gameId,
       name: input.world.worldName,
       contentKey: input.world.contentKey,
@@ -332,6 +337,7 @@ export async function createGame(
       stageIds.set(stage.key, stageId);
       await tx.insert(stages).values({
         id: stageId,
+        seq: await allocateEntitySeq(tx, gameId),
         worldId,
         key: stage.key,
         name: stage.name,
@@ -360,6 +366,7 @@ export async function createGame(
       for (const item of stage.items ?? []) {
         await tx.insert(stageItems).values({
           id: randomUUID(),
+          seq: await allocateEntitySeq(tx, gameId),
           stageId,
           key: item.key,
           name: item.name,
@@ -421,6 +428,7 @@ export async function createGame(
       const hp = actor.hp ?? stats.maxHp;
       await tx.insert(actors).values({
         id: actorId,
+        seq: await allocateEntitySeq(tx, gameId),
         stageId: actorStageId,
         name: actor.name,
         profile: actor.profile,
@@ -436,6 +444,7 @@ export async function createGame(
       for (const item of actor.items) {
         await tx.insert(items).values({
           id: randomUUID(),
+          seq: await allocateEntitySeq(tx, gameId),
           actorId,
           key: item.key,
           name: item.name,

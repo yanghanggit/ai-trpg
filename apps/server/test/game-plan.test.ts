@@ -71,6 +71,7 @@ describe("use candidates", () => {
   const item = (name: string, kind: "weapon" | "valuable" | "material", effect: string) =>
     toItemState({
       id: name,
+      seq: 1,
       name,
       description: `${name} 的描述`,
       kind,
@@ -196,6 +197,7 @@ describe("read-only descriptions", () => {
   it("renders own stats and items", () => {
     const actor = {
       id: "actor-1",
+      seq: 1,
       name: "守烬人",
       profile: "拾荒者",
       appearance: "披着旧斗篷。",
@@ -218,6 +220,7 @@ describe("read-only descriptions", () => {
       items: [
         {
           id: "item-1",
+          seq: 2,
           key: "cracked-blade",
           name: "裂齿短刃",
           description: "刃口崩了三处。",
@@ -252,6 +255,7 @@ describe("read-only descriptions", () => {
         ...actor.items,
         {
           id: "item-2",
+          seq: 3,
           key: "material:灰烬骨片",
           name: "灰烬骨片",
           description: "碎得只剩边角。",

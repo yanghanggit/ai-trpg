@@ -66,6 +66,8 @@ export const games = pgTable(
     outcome: text("outcome"),
     contentVersion: text("content_version").notNull(),
     version: integer("version").notNull().default(0),
+    /** 本局实体序号的当前值；world / stage / actor / item 共用。 */
+    entitySeq: integer("entity_seq").notNull().default(0),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
   },
@@ -92,6 +94,8 @@ export const worlds = pgTable(
   "worlds",
   {
     id: uuid("id").primaryKey(),
+    /** 本局内唯一的排序号；身份仍用 id。 */
+    seq: integer("seq").notNull().default(0),
     gameId: uuid("game_id")
       .notNull()
       .references(() => games.id, { onDelete: "cascade" }),
@@ -112,6 +116,8 @@ export const stages = pgTable(
   "stages",
   {
     id: uuid("id").primaryKey(),
+    /** 本局内唯一的排序号；身份仍用 id。 */
+    seq: integer("seq").notNull().default(0),
     worldId: uuid("world_id")
       .notNull()
       .references(() => worlds.id, { onDelete: "cascade" }),
@@ -155,6 +161,8 @@ export const stageConnections = pgTable(
 
 export const actors = pgTable("actors", {
   id: uuid("id").primaryKey(),
+  /** 本局内唯一的排序号；身份仍用 id。 */
+  seq: integer("seq").notNull().default(0),
   stageId: uuid("stage_id")
     .notNull()
     .references(() => stages.id, { onDelete: "cascade" }),
@@ -180,6 +188,8 @@ export const items = pgTable(
   "items",
   {
     id: uuid("id").primaryKey(),
+    /** 本局内唯一的排序号；身份仍用 id。 */
+    seq: integer("seq").notNull().default(0),
     actorId: uuid("actor_id")
       .notNull()
       .references(() => actors.id, { onDelete: "cascade" }),
@@ -203,6 +213,8 @@ export const stageItems = pgTable(
   "stage_items",
   {
     id: uuid("id").primaryKey(),
+    /** 本局内唯一的排序号；身份仍用 id。 */
+    seq: integer("seq").notNull().default(0),
     stageId: uuid("stage_id")
       .notNull()
       .references(() => stages.id, { onDelete: "cascade" }),

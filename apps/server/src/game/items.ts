@@ -14,6 +14,7 @@ import { EQUIPMENT_SLOT_KINDS, EQUIPMENT_SLOT_LABELS, EQUIPMENT_SLOTS } from "./
 
 export function toItemState(row: {
   id: string;
+  seq: number;
   key?: string | null;
   name: string;
   description: string;
@@ -26,6 +27,7 @@ export function toItemState(row: {
 }): ItemState {
   const base = {
     id: row.id,
+    seq: row.seq,
     key: row.key ?? row.name,
     name: row.name,
     description: row.description,

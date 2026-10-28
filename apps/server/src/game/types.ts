@@ -295,6 +295,8 @@ export type WorldPlan = {
 /** 所有物品状态的公共根字段：身份、分类、数量与属性。 */
 export type ItemBaseState = {
   id: string;
+  /** 本局内唯一的排序号；身份仍用 id。 */
+  seq: number;
   /** 世界内稳定 key；旧数据缺失时由 toItemState 回退到 name。 */
   key: string;
   name: string;
@@ -344,6 +346,8 @@ export type ItemState =
 
 export type ActorState = {
   id: string;
+  /** 本局内唯一的排序号；身份仍用 id。 */
+  seq: number;
   name: string;
   profile: string;
   appearance: string;
@@ -360,6 +364,8 @@ export type ActorState = {
 
 export type StageState = {
   id: string;
+  /** 本局内唯一的排序号；身份仍用 id。 */
+  seq: number;
   /** 世界内稳定 key；旧数据缺失时回退到 name。 */
   key: string;
   name: string;
@@ -447,6 +453,8 @@ export type AgentMemoryState = {
 /** 运行时 world 状态；由 worlds/stages/stage_connections 表水合得到。 */
 export type WorldState = {
   id: string;
+  /** 本局内唯一的排序号；身份仍用 id。 */
+  seq: number;
   name: string;
   profile: string;
   contentKey: string;

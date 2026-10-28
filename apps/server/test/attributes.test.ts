@@ -5,6 +5,7 @@ import { equippedSlotOf, toItemState } from "../src/game/items";
 
 const ROW = {
   id: "item-1",
+  seq: 1,
   name: "测试物品",
   description: "测试描述",
   count: 1,
