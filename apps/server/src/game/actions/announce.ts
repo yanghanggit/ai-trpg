@@ -1,6 +1,6 @@
 import type { TraceContext } from "../../debug/trace";
 import type { ToolDefinition } from "../../llm/types";
-import { HANDLE_PATTERN } from "../addressing";
+import { HANDLE_PATTERN, plainEntityName } from "../addressing";
 import { appendPublicMessage, bumpGameVersion } from "../apply/messages";
 import type { ActorWithStageRow, Executor, ResolvedAnnounce } from "../apply/types";
 import { MAX_MIND_LENGTH } from "../constants";
@@ -83,5 +83,5 @@ export async function applyAnnounce(
     { eventKind: "announce" },
     trace,
   );
-  return `# 行动结果\n你（场景：${resolved.stage.name}）公开说：${resolved.action.message}`;
+  return `# 行动结果\n你（场景：${plainEntityName(resolved.stage.name)}）公开说：${resolved.action.message}`;
 }

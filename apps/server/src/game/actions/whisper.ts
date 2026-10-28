@@ -1,6 +1,6 @@
 import type { TraceContext } from "../../debug/trace";
 import type { ToolDefinition } from "../../llm/types";
-import { type AddressLookup, actionRef, HANDLE_PATTERN } from "../addressing";
+import { type AddressLookup, actionRef, HANDLE_PATTERN, plainEntityName } from "../addressing";
 import { appendPublicMessage, bumpGameVersion } from "../apply/messages";
 import { findActorInStage } from "../apply/queries";
 import type { ActorWithStageRow, Executor, ResolvedWhisper } from "../apply/types";
@@ -111,5 +111,5 @@ export async function applyWhisper(
     { eventKind: "whisper" },
     trace,
   );
-  return `# 行动结果\n你对${actionRef(address(target.id))}耳语（场景：${resolved.stage.name}）：${resolved.action.message}`;
+  return `# 行动结果\n你对${actionRef(address(target.id))}耳语（场景：${plainEntityName(resolved.stage.name)}）：${resolved.action.message}`;
 }

@@ -292,7 +292,10 @@ export async function resolveAdjacentStage(
     )
     .limit(1);
   if (!connection) {
-    throw new GameError("invalid_action", `没有从 ${stage.name} 到 ${target.name} 的通道`);
+    throw new GameError(
+      "invalid_action",
+      `没有从 ${plainEntityName(stage.name)} 到 ${plainEntityName(target.name)} 的通道`,
+    );
   }
   return target;
 }

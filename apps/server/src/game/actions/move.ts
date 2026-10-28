@@ -1,6 +1,6 @@
 import type { TraceContext } from "../../debug/trace";
 import type { ToolDefinition } from "../../llm/types";
-import { mentionOf } from "../addressing";
+import { mentionOf, plainEntityName } from "../addressing";
 import { appendPublicMessage, bumpGameVersion } from "../apply/messages";
 import { resolveAdjacentStage } from "../apply/queries";
 import type { ActorWithStageRow, Executor, ResolvedMove, WorldRow } from "../apply/types";
@@ -67,7 +67,7 @@ export async function applyMove(
     actorRow.actor.id,
     (_observer, address) =>
       renderAction(
-        `# 场景动态\n${mentionOf(address(actorRow.actor.id))}离开了${resolved.stage.name}。`,
+        `# 场景动态\n${mentionOf(address(actorRow.actor.id))}离开了${plainEntityName(resolved.stage.name)}。`,
         resolved.stage.id,
       ),
     trace,
@@ -92,7 +92,7 @@ export async function applyMove(
     actorRow.actor.id,
     (_observer, address) =>
       renderEnvironment(
-        `# 环境变化\n${mentionOf(address(actorRow.actor.id))}进入了${target.name}。`,
+        `# 环境变化\n${mentionOf(address(actorRow.actor.id))}进入了${plainEntityName(target.name)}。`,
         target.id,
       ),
     trace,
@@ -117,5 +117,5 @@ export async function applyMove(
     },
     trace,
   );
-  return `# 行动结果\n你从${resolved.stage.name}抵达了${target.name}。`;
+  return `# 行动结果\n你从${plainEntityName(resolved.stage.name)}抵达了${plainEntityName(target.name)}。`;
 }

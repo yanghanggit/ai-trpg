@@ -65,6 +65,8 @@ describe.skipIf(!testDatabaseUrl)("actor view", () => {
     const log = view.log.map((entry) => entry.content).join("\n");
     expect(log).toContain("裹尸布");
     expect(log).not.toContain("无名者");
+    // 行动反馈与观察也走世界面：场景名不带类型前缀。
+    expect(log).not.toContain("场景.");
     expect(view.knowledge).toHaveLength(1);
   });
 
