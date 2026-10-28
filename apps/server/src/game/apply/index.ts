@@ -123,6 +123,9 @@ export type ApplyActorPlanOptions = {
 
 /**
  * 默认效果在事务内提交；词缀 agent 在事务外补结算。LLM 不进入数据库事务。
+ *
+ * 推理端只做增量：词缀阶段的任何失败（含未配置 service）都只丢增量，不回滚默认效果，
+ * 也不阻断随后的死亡阶段。
  */
 export async function applyActorPlan(
   db: Database,
@@ -217,9 +220,6 @@ export async function applyActorPlan(
       applied.push({ event: "applied", actionKind: action.kind, feedback });
       const affixRequest = affixRequestFor(action, actorRow.actor.id, feedback);
       if (affixRequest) {
-        if (!options.service) {
-          throw new GameError("invalid_state", `物品词缀需要 LLM service: ${action.kind}`);
-        }
         affixRequests.push(affixRequest);
       }
       await appendMemoryMessages(tx, memory.row.id, [
@@ -247,9 +247,10 @@ export async function applyActorPlan(
     await traceEvent(options.trace, applied);
   }
 
-  if (result.affixRequests && result.affixRequests.length > 0 && options.service) {
+  if (result.affixRequests && result.affixRequests.length > 0) {
+    // 每个物品各自结算：一个失败只丢自己的增量，不影响其余，也不影响已提交的默认效果。
     for (const request of result.affixRequests) {
-      await runAffixEffect(db, gameId, request, options.service, options.trace);
+      await runAffixEffect(db, gameId, request, options.service, options.trace, options.logger);
     }
   }
   // 死亡阶段在事务外跑：它要调 LLM，失败也不能回滚这次行动。

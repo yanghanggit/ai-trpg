@@ -87,7 +87,13 @@ describe("trace", () => {
     });
     await traceEvent(first, { event: "plan", actions: [{ kind: "say" }] });
     await traceEvent(first, { event: "rejected", code: "action_rejected", reason: "目标不在场" });
-    await traceEvent(first, { event: "phase", name: "death", status: "failed", actorName: "煤渣" });
+    await traceEvent(first, {
+      event: "phase",
+      name: "death",
+      status: "failed",
+      actorName: "煤渣",
+      detail: { reason: "事务冲突" },
+    });
     await traceEvent(first, { event: "turn_end", ok: false, loopSuccess: true });
 
     const second = createTurnTrace({
@@ -140,6 +146,8 @@ describe("trace", () => {
     expect(rendered).toContain("## 计划");
     expect(rendered).toContain("## 被拒");
     expect(rendered).toContain("## 子阶段");
+    expect(rendered).toContain("death: failed (煤渣)");
+    expect(rendered).toContain("reason: 事务冲突");
     expect(rendered).toContain("## 结束");
 
     const stats = await traceStats({ gameSlug: GAME.slug });

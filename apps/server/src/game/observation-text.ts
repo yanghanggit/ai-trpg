@@ -64,6 +64,8 @@ export type DamageObservation = {
   target: ActorRef & { maxHp: number };
   /** 本次动作用到的物品名；空手攻击时省略。 */
   itemName?: string;
+  /** 词缀追加的伤害；默认效果省略。 */
+  via?: "affix";
   damage: number;
   remainingHp: number;
 };
@@ -100,8 +102,9 @@ export function renderDamage(
   observation: DamageObservation,
   observerId: string,
 ): ObservationView {
-  const { action, attacker, target, itemName, damage, remainingHp } = observation;
+  const { action, attacker, target, itemName, damage, remainingHp, via } = observation;
   const actionText = damageActionText(action, itemName);
+  const damageText = via === "affix" ? `词缀追加${damage}点伤害` : `造成${damage}点伤害`;
   const heading =
     action === "attack"
       ? { target: "# 你被攻击", bystander: "# 战斗" }
@@ -109,7 +112,7 @@ export function renderDamage(
 
   if (observerId === target.id) {
     return {
-      content: `${heading.target}\n${attacker.name}对你${actionText}，造成${damage}点伤害；${
+      content: `${heading.target}\n${attacker.name}对你${actionText}，${damageText}；${
         remainingHp <= 0 ? "你倒下了" : `你剩余 HP ${remainingHp}/${target.maxHp}`
       }。`,
       metadata: {
@@ -121,7 +124,7 @@ export function renderDamage(
   }
 
   return {
-    content: `${heading.bystander}\n${attacker.name}对${target.name}${actionText}，造成${damage}点伤害${
+    content: `${heading.bystander}\n${attacker.name}对${target.name}${actionText}，${damageText}${
       remainingHp <= 0 ? `；${target.name}倒下了` : ""
     }。`,
     metadata: {

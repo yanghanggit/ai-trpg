@@ -15,6 +15,8 @@ export type ItemEffectContext = {
   target?: ActorRow;
   targetStage?: StageRow;
   targetDetail?: string;
+  /** 伤害来源：默认效果省略；词缀追加写 `affix`。 */
+  via?: "affix";
   now: Date;
   /** 所属回合的轨迹；观察与子阶段结果写进该回合。 */
   trace?: TraceContext;

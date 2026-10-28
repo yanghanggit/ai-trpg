@@ -20,7 +20,7 @@ import {
   playerUse,
   takeActorControl,
 } from "../src/game";
-import { ChatCompletionResult, type ChatCompletionService } from "../src/llm";
+import { ChatCompletionResult, type ChatCompletionService, ChatError } from "../src/llm";
 
 class AffixDamageService implements ChatCompletionService {
   calls = 0;
@@ -54,6 +54,26 @@ class AffixDamageService implements ChatCompletionService {
       finishReason: "tool_calls",
       toolCalls,
     });
+  }
+}
+
+/** 每次请求都返回 provider 错误：模拟网络失败 / 超时。 */
+class ErrorCompletionService implements ChatCompletionService {
+  calls = 0;
+
+  async complete(request: Parameters<ChatCompletionService["complete"]>[0]) {
+    this.calls += 1;
+    return new ChatCompletionResult({
+      request,
+      error: new ChatError(request.label, "模拟网络失败", { kind: "connection" }),
+    });
+  }
+}
+
+/** 直接抛异常：模拟缺少 API key 之类的配置/意外错误。 */
+class ThrowingService implements ChatCompletionService {
+  async complete(): Promise<ChatCompletionResult> {
+    throw new Error("模拟缺少 API key");
   }
 }
 
@@ -123,6 +143,14 @@ const AFFIX_WORLD = {
           ),
         }
       : actor,
+  ),
+};
+
+/** 基础伤害就能打死目标：词缀判定仍会发生，但落账必须是 no-op。 */
+const AFFIX_DEADLY_WORLD = {
+  ...AFFIX_WORLD,
+  actors: AFFIX_WORLD.actors.map((actor) =>
+    actor.name === "提灯修士" ? { ...actor, hp: 5 } : actor,
   ),
 };
 
@@ -350,7 +378,128 @@ describe.skipIf(!testDatabaseUrl)("items and interactions", () => {
       .slice(-2)
       .map((message) => message.content);
     expect(recent[0]).toContain("造成6点伤害");
-    expect(recent[1]).toContain("造成42点伤害");
+    // 增量单独成句，不冒充实算端的伤害。
+    expect(recent[1]).toContain("词缀追加42点伤害");
+
+    // 出手者的长期记忆里也要看得到这条增量。
+    const memories = await getGameMemories(handle.db, created.game.id);
+    const keeper = state.world.stages
+      .flatMap((stage) => stage.actors)
+      .find((actor) => actor.name === "守烬人");
+    const keeperMemory = memories.find(
+      (memory) => memory.ownerType === "actor" && memory.ownerId === keeper?.id,
+    );
+    expect(
+      keeperMemory?.messages.some((message) => message.content.includes("词缀追加42点伤害")),
+    ).toBe(true);
+  });
+
+  it("treats the affix as a no-op when the computed damage already killed the target", async () => {
+    const created = await createGame(handle.db, {
+      username: DEMO_USER.username,
+      name: "词缀致死测试局",
+      world: AFFIX_DEADLY_WORLD,
+    });
+    await takeActorControl(handle.db, created.game.slug, "守烬人");
+
+    const service = new AffixDamageService();
+    const attacked = await playerAttack(
+      handle.db,
+      created.game.slug,
+      "守烬人",
+      { targetActorName: "提灯修士" },
+      { service },
+    );
+    expect(attacked.ok).toBe(true);
+    // 判定照常发生（LLM 仍可能改打别人），只是目标已经倒下，落账跳过。
+    expect(service.calls).toBe(1);
+
+    const state = await getGameState(handle.db, created.game.slug);
+    const attackMessages = state.messages
+      .filter((message) => message.kind === "attack")
+      .map((message) => message.content);
+    expect(attackMessages).toHaveLength(1);
+    expect(attackMessages[0]).toContain("造成6点伤害");
+    expect(attackMessages.some((content) => content.includes("词缀追加"))).toBe(false);
+  });
+
+  it("keeps the computed damage when the affix LLM request fails", async () => {
+    const created = await createGame(handle.db, {
+      username: DEMO_USER.username,
+      name: "词缀请求失败测试局",
+      world: AFFIX_WORLD,
+    });
+    await takeActorControl(handle.db, created.game.slug, "守烬人");
+
+    const service = new ErrorCompletionService();
+    const attacked = await playerAttack(
+      handle.db,
+      created.game.slug,
+      "守烬人",
+      { targetActorName: "提灯修士" },
+      { service },
+    );
+    expect(attacked.ok).toBe(true);
+    // 两轮都失败后放弃增量，不重试到回合外。
+    expect(service.calls).toBe(2);
+
+    const state = await getGameState(handle.db, created.game.slug);
+    const monk = state.world.stages
+      .flatMap((stage) => stage.actors)
+      .find((actor) => actor.name === "提灯修士");
+    // 只结算计算端的 6 点，词缀的 42 点没有发生。
+    expect(monk?.hp).toBe(4);
+    const attackMessages = state.messages
+      .filter((message) => message.kind === "attack")
+      .map((message) => message.content);
+    expect(attackMessages.at(-1)).toContain("造成6点伤害");
+    expect(attackMessages.some((content) => content.includes("造成42点伤害"))).toBe(false);
+  });
+
+  it("keeps the computed damage when the affix service throws", async () => {
+    const created = await createGame(handle.db, {
+      username: DEMO_USER.username,
+      name: "词缀抛异常测试局",
+      world: AFFIX_WORLD,
+    });
+    await takeActorControl(handle.db, created.game.slug, "守烬人");
+
+    // 词缀阶段抛异常不能冒泡成行动失败。
+    const attacked = await playerAttack(
+      handle.db,
+      created.game.slug,
+      "守烬人",
+      { targetActorName: "提灯修士" },
+      { service: new ThrowingService() },
+    );
+    expect(attacked.ok).toBe(true);
+
+    const state = await getGameState(handle.db, created.game.slug);
+    const monk = state.world.stages
+      .flatMap((stage) => stage.actors)
+      .find((actor) => actor.name === "提灯修士");
+    expect(monk?.hp).toBe(4);
+  });
+
+  it("keeps the computed damage when no LLM service is configured", async () => {
+    const created = await createGame(handle.db, {
+      username: DEMO_USER.username,
+      name: "词缀缺 service 测试局",
+      world: AFFIX_WORLD,
+    });
+    await takeActorControl(handle.db, created.game.slug, "守烬人");
+
+    // 未配置推理端：跳过增量，而不是拒绝整个行动。
+    const attacked = await playerAttack(handle.db, created.game.slug, "守烬人", {
+      targetActorName: "提灯修士",
+    });
+    expect(attacked.ok).toBe(true);
+
+    const state = await getGameState(handle.db, created.game.slug);
+    const monk = state.world.stages
+      .flatMap((stage) => stage.actors)
+      .find((actor) => actor.name === "提灯修士");
+    expect(monk?.hp).toBe(4);
   });
 
   it("adds equipped weapon damage and lets the target's equipped block reduce it", async () => {

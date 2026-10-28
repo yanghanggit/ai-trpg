@@ -1,12 +1,17 @@
 import { randomUUID } from "node:crypto";
 import type { Database } from "../../db/pool";
-import { type TraceContext, traceEvent } from "../../debug/trace";
+import type { TraceContext } from "../../debug/trace";
 import { agentLoop } from "../../llm/agent-loop";
+import type { LlmLogger } from "../../llm/logger";
 import type { ChatCompletionService } from "../../llm/protocol";
 import type { ToolDefinition } from "../../llm/types";
+import { isAlive } from "../apply/queries";
 import type { Executor } from "../apply/types";
 import { STAT_KEYS, type Stats } from "../attributes";
+import { MEMORY_KINDS } from "../constants";
 import { GameError } from "../errors";
+import { runIncrementalPhase } from "../incremental";
+import { appendMemoryMessages, loadAgentMemory } from "../memory";
 import { loadActorByNameInStage, loadActorWithStage } from "../persistence/actors";
 import { lockGameRow } from "../persistence/games";
 import { loadActorItem } from "../persistence/items";
@@ -130,17 +135,32 @@ function buildTools(targetNames: readonly string[]): {
   };
 }
 
-/** 执行一个物品的补充 affix agent；默认效果已提交后调用。 */
-export async function runAffixEffect(
+/** 一次词缀判定的结果；只有 `applied` 才需要落账。 */
+type AffixEvaluation =
+  | { kind: "applied"; operations: AffixOperation[] }
+  | { kind: "noop"; reason: string }
+  | { kind: "failed"; reason: string; detail?: Record<string, unknown> };
+
+type EvaluatedAffix = {
+  actorName?: string;
+  itemName?: string;
+  evaluation: AffixEvaluation;
+};
+
+/** 读状态、跑 LLM、得出「要不要落账」；不写库。 */
+async function evaluateAffix(
   db: Database,
   gameId: string,
   request: AffixRequest,
-  service: ChatCompletionService,
+  service: ChatCompletionService | undefined,
   trace?: TraceContext,
-): Promise<void> {
+): Promise<EvaluatedAffix> {
+  if (!service) {
+    return { evaluation: { kind: "noop", reason: "未配置 LLM service" } };
+  }
   const state = await getGameState(db, gameId);
   if (state.game.status !== "active") {
-    return;
+    return { evaluation: { kind: "noop", reason: "游戏已结束" } };
   }
   const actor = state.world.stages
     .flatMap((stage) => stage.actors)
@@ -149,8 +169,15 @@ export async function runAffixEffect(
     candidate.actors.some((entry) => entry.id === request.actorId),
   );
   const item = actor?.items.find((candidate) => candidate.id === request.itemId);
-  if (!actor || !stage || !item || item.affixes.length === 0) {
-    return;
+  if (!actor || !stage || !item) {
+    return { evaluation: { kind: "noop", reason: "物品或持有者已不存在" } };
+  }
+  if (item.affixes.length === 0) {
+    return {
+      actorName: actor.name,
+      itemName: item.name,
+      evaluation: { kind: "noop", reason: "物品没有词缀" },
+    };
   }
   const target = request.targetActorId
     ? state.world.stages
@@ -159,7 +186,11 @@ export async function runAffixEffect(
     : undefined;
   const targetNames = stage.actors.map((candidate) => candidate.name);
   if (targetNames.length === 0) {
-    return;
+    return {
+      actorName: actor.name,
+      itemName: item.name,
+      evaluation: { kind: "noop", reason: "场景里没有可结算的角色" },
+    };
   }
 
   const tools = buildTools(targetNames);
@@ -220,58 +251,158 @@ export async function runAffixEffect(
     ...(trace ? { trace } : {}),
   });
 
-  await traceEvent(trace, {
-    event: "phase",
-    name: "affix",
-    status: !loop.success ? "failed" : operations.length === 0 ? "skipped" : "ok",
-    actorName: actor.name,
-    detail: { itemName: item.name, operations },
-  });
-
-  if (!loop.success || operations.length === 0) {
-    return;
+  if (!loop.success) {
+    const failure = loop.rounds
+      .flatMap((round) => (round.completion.error ? [round.completion.error] : []))
+      .at(-1);
+    return {
+      actorName: actor.name,
+      itemName: item.name,
+      evaluation: {
+        kind: "failed",
+        reason: failure?.message ?? "词缀判定未完成",
+        ...(failure ? { detail: { kind: failure.kind } } : {}),
+      },
+    };
   }
-  // 落账是独立的一次短事务：词缀的 LLM 调用在事务外，重新读取参与结算的行，
-  // 并用游戏行锁把同一局的写入串行化。
-  await db.transaction(async (tx) => {
+  if (operations.length === 0) {
+    return {
+      actorName: actor.name,
+      itemName: item.name,
+      evaluation: { kind: "noop", reason: "判定为不生效" },
+    };
+  }
+  return {
+    actorName: actor.name,
+    itemName: item.name,
+    evaluation: { kind: "applied", operations },
+  };
+}
+
+/**
+ * 落账判定结果，返回真正生效的条数。
+ *
+ * 约束：追加伤害必须对当事人可见，因此反馈同时写进出手者记忆。
+ */
+async function settleAffix(
+  db: Database,
+  gameId: string,
+  request: AffixRequest,
+  operations: readonly AffixOperation[],
+  trace?: TraceContext,
+): Promise<number> {
+  return db.transaction(async (tx) => {
     const game = await lockGameRow(tx, gameId);
     if (game?.status !== "active") {
-      return;
+      return 0;
     }
     const world = await loadWorldByGame(tx, gameId);
     if (!world) {
-      return;
+      return 0;
     }
     const actorRow = await loadActorWithStage(tx, request.actorId, world.id);
     const itemRow = await loadActorItem(tx, request.actorId, request.itemId);
     if (!actorRow || !itemRow) {
-      return;
+      return 0;
     }
     const now = new Date();
+    const feedbacks: string[] = [];
     for (const operation of operations) {
       const targetRow = await loadActorByNameInStage(
         tx,
         actorRow.stage.id,
         operation.targetActorName,
       );
-      if (!targetRow) {
+      if (!targetRow || !isAlive(targetRow)) {
         continue;
       }
-      await applyDamage(
-        {
-          executor: tx as Executor,
-          gameId,
-          actorRow,
-          stage: actorRow.stage,
-          actionKind: request.actionKind,
-          effect: itemRow.effect,
-          item: itemRow,
-          target: targetRow,
-          now,
-          ...(trace ? { trace } : {}),
-        },
-        operation.amount,
+      feedbacks.push(
+        await applyDamage(
+          {
+            executor: tx as Executor,
+            gameId,
+            actorRow,
+            stage: actorRow.stage,
+            actionKind: request.actionKind,
+            effect: itemRow.effect,
+            item: itemRow,
+            target: targetRow,
+            now,
+            via: "affix",
+            ...(trace ? { trace } : {}),
+          },
+          operation.amount,
+        ),
       );
     }
+    if (feedbacks.length > 0) {
+      const memory = await loadAgentMemory(tx, gameId, "actor", request.actorId);
+      if (memory) {
+        await appendMemoryMessages(
+          tx,
+          memory.row.id,
+          feedbacks.map((content) => ({
+            type: "human" as const,
+            content,
+            metadata: { kind: MEMORY_KINDS.actionFeedback },
+          })),
+        );
+      }
+    }
+    return feedbacks.length;
   });
+}
+
+/**
+ * 执行一个物品的补充 affix agent；默认效果已提交后调用。
+ *
+ * 约束：任何失败都只等于「这次没有补伤害」，不外抛，也不影响已提交的默认效果。
+ */
+export async function runAffixEffect(
+  db: Database,
+  gameId: string,
+  request: AffixRequest,
+  service: ChatCompletionService | undefined,
+  trace?: TraceContext,
+  logger?: LlmLogger,
+): Promise<void> {
+  await runIncrementalPhase(
+    { name: "affix", ...(trace ? { trace } : {}), ...(logger ? { logger } : {}) },
+    async () => {
+      const { actorName, itemName, evaluation } = await evaluateAffix(
+        db,
+        gameId,
+        request,
+        service,
+        trace,
+      );
+      const head = actorName === undefined ? {} : { actorName };
+      const subject = itemName === undefined ? {} : { itemName };
+      if (evaluation.kind === "failed") {
+        return {
+          kind: "failed",
+          reason: evaluation.reason,
+          ...head,
+          detail: { ...subject, ...(evaluation.detail ?? {}) },
+        };
+      }
+      if (evaluation.kind === "noop") {
+        return { kind: "noop", reason: evaluation.reason, ...head, detail: subject };
+      }
+      const applied = await settleAffix(db, gameId, request, evaluation.operations, trace);
+      if (applied === 0) {
+        return {
+          kind: "noop",
+          reason: "落账时目标已倒下或已离开场景",
+          ...head,
+          detail: { ...subject, operations: evaluation.operations.length },
+        };
+      }
+      return {
+        kind: "applied",
+        ...head,
+        detail: { ...subject, operations: evaluation.operations.length, applied },
+      };
+    },
+  );
 }

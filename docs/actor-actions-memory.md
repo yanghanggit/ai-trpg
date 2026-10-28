@@ -80,7 +80,7 @@ compact 只能手动触发：在事务外调用 LLM，在完整 turn 边界落�
 
 `attack` 与 `use` 只是 dispatcher：选择物品、校验目标、调用 `item.effect`，具体效果由 `effect.type` 路由到的 handler 承担，每个动作最多引用一件物品。
 
-- `damage`：固定公式 `max(0, 攻击方总 damage - 目标总 block)`，两侧都用 `addStats()`，目标装备在结算时现读；有 `affixes` 时默认效果跑完再补一次事务外 LLM 效果。
+- `damage`：固定公式 `max(0, 攻击方总 damage - 目标总 block)`，两侧都用 `addStats()`，目标装备在结算时现读；有 `affixes` 时默认效果跑完再补一次事务外 LLM 效果；补结算失败只丢增量，不回滚默认效果。追加伤害单独成句（词缀追加），并写进出手者记忆，不与默认效果混在一起。
 - `event`：只写「使用了某物」的事件，后果交给 stage / world。
 
 物品必须显式声明 effect，没有默认效果；空手攻击用系统 `damage`，`attack` 的武器固定来自 `equipment.weapon` 且必须声明 `damage`，否则按空手结算。新增 `heal`、`open` 等效果只注册新 handler，不在 `attack` / `use` 里写分支。

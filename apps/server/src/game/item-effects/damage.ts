@@ -25,7 +25,7 @@ export async function calculateFixedDamage(context: ItemEffectContext): Promise<
 
 /** 把已经算好的伤害写入数据库、消息与观察。 */
 export async function applyDamage(context: ItemEffectContext, damage: number): Promise<string> {
-  const { executor, gameId, actorRow, stage, item, target, actionKind, now, trace } = context;
+  const { executor, gameId, actorRow, stage, item, target, actionKind, now, trace, via } = context;
   if (!target) {
     throw new Error("damage effect 需要角色目标");
   }
@@ -49,7 +49,8 @@ export async function applyDamage(context: ItemEffectContext, damage: number): P
       : `；${target.name}剩余 HP ${remainingHp}/${current.stats.maxHp}。`;
   // 句式由动作锁定：公共消息、舞台记忆、观察与反馈用的是同一个动作短语。
   const actionText = damageActionText(actionKind, item?.name);
-  const content = `${actorRow.actor.name}对${target.name}${actionText}，造成${damage}点伤害${outcome}`;
+  const damageText = via === "affix" ? `词缀追加${damage}点伤害` : `造成${damage}点伤害`;
+  const content = `${actorRow.actor.name}对${target.name}${actionText}，${damageText}${outcome}`;
   await appendPublicMessage(executor, gameId, actorRow.actor.id, {
     kind: actionKind,
     stageId: stage.id,
@@ -68,6 +69,7 @@ export async function applyDamage(context: ItemEffectContext, damage: number): P
       ...(item ? { itemName: item.name } : {}),
       damage,
       remainingHp,
+      ...(via ? { via } : {}),
     },
     trace,
   );
@@ -81,7 +83,7 @@ export async function applyDamage(context: ItemEffectContext, damage: number): P
   );
   // 出手者只知道这一下打得多重、对方有没有倒下；对方剩余生命只写进公共消息（上帝视角）
   // 与受害者自己，不进出手者的记忆。
-  const feedback = `你对${target.name}${actionText}，造成${damage}点伤害`;
+  const feedback = `你对${target.name}${actionText}，${damageText}`;
   return `# 行动结果\n${feedback}${remainingHp <= 0 ? `；${target.name}倒下了` : ""}。`;
 }
 

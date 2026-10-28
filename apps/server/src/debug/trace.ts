@@ -627,7 +627,7 @@ export function renderTurnText(events: readonly TraceLine[]): string {
         out.push(
           "",
           "## 子阶段",
-          `${line.name}: ${line.status}${line.actorName ? ` (${line.actorName})` : ""}`,
+          `${line.name}: ${line.status}${line.actorName ? ` (${line.actorName})` : ""}${phaseDetailText(line.detail)}`,
         );
         break;
       case "turn_end":
@@ -640,6 +640,31 @@ export function renderTurnText(events: readonly TraceLine[]): string {
     }
   }
   return `${out.join("\n")}\n`;
+}
+
+/** 子阶段 detail 展开；人读视图里要能看出落账了几条、为什么没落。 */
+function phaseDetailText(detail: unknown): string {
+  if (detail === undefined || detail === null) {
+    return "";
+  }
+  if (typeof detail !== "object") {
+    return `\n  ${String(detail)}`;
+  }
+  const entries = Object.entries(detail as Record<string, unknown>);
+  if (entries.length === 0) {
+    return "";
+  }
+  return `\n${entries.map(([key, value]) => `  ${key}: ${describeDetailValue(value)}`).join("\n")}`;
+}
+
+function describeDetailValue(value: unknown): string {
+  if (value === null || value === undefined) {
+    return "-";
+  }
+  if (typeof value === "string" || typeof value === "number" || typeof value === "boolean") {
+    return String(value);
+  }
+  return JSON.stringify(value);
 }
 
 function settingsText(settings: {
