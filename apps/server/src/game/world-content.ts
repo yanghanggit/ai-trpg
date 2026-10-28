@@ -33,6 +33,11 @@ const statsSchema = z.object({
 
 const itemEffectSchema = z.object({ type: z.string().min(1) }).passthrough();
 
+const affixSchema = z.object({
+  name: z.string().min(1),
+  content: z.string().min(1),
+});
+
 const itemSchema = z
   .object({
     key: z.string().min(1),
@@ -42,7 +47,7 @@ const itemSchema = z
     count: z.number().int().positive().optional(),
     stats: statsSchema.optional(),
     effect: itemEffectSchema,
-    affixes: z.array(z.string()).optional(),
+    affixes: z.array(affixSchema).optional(),
     source: z.string().min(1).optional(),
   })
   .superRefine((item, ctx) => {

@@ -2,6 +2,7 @@ import { type Stats, toStats } from "./attributes";
 import { GameError } from "./errors";
 import type {
   ActorState,
+  Affix,
   EquipmentSlot,
   EquipmentSlots,
   ItemEffect,
@@ -21,7 +22,7 @@ export function toItemState(row: {
   count: number;
   stats: Stats;
   effect: ItemEffect;
-  affixes?: readonly string[];
+  affixes?: readonly Affix[];
 }): ItemState {
   const base = {
     id: row.id,

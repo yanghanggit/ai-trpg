@@ -56,7 +56,12 @@ export const BELL_MONASTERY: Script = {
           count: 1,
           stats: { damage: 8, block: 0 },
           effect: { type: "damage" },
-          affixes: ["火焰顺着毛根渗进去：对多毛类生物额外造成武器伤害的一百倍，毛越厚烧得越透"],
+          affixes: [
+            {
+              name: "松脂渗毛",
+              content: "火焰顺着毛根渗进去：对多毛类生物额外造成武器伤害的一百倍，毛越厚烧得越透",
+            },
+          ],
         },
       ],
     },

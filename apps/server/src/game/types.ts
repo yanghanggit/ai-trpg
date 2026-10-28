@@ -122,6 +122,12 @@ export type Actor = {
   actions: readonly ActionKind[];
 };
 
+/** 词缀：短名字 + 一句自然语言规则；展示与提示词统一为 `[名字]内容`。 */
+export type Affix = {
+  name: string;
+  content: string;
+};
+
 /** Actor 的初始物品定义；创建后物化为 `items` 或 `stage_items` 行。 */
 export type ItemDefinition = {
   /** 世界内稳定 key；行为与内容判定用它，不用展示名。 */
@@ -135,7 +141,7 @@ export type ItemDefinition = {
   /** 物品效果；必须显式声明，type 路由到 handler。 */
   effect: ItemEffect;
   /** 词缀；可省略，创建时归一化为空数组。 */
-  affixes?: readonly string[];
+  affixes?: readonly Affix[];
   /** 材料来源；只有 `material` 可以声明，其它大类声明会被内容校验拒绝。 */
   source?: string;
 };
@@ -298,7 +304,7 @@ export type ItemBaseState = {
   /** 物品效果；由内容显式声明，运行时按 type 路由。 */
   effect: ItemEffect;
   /** 词缀；非空时 damage 路由到 LLM 结算 handler。 */
-  affixes: readonly string[];
+  affixes: readonly Affix[];
   /** 归一化后的完整属性；五种物品都携带，未用到的字段为 0。 */
   stats: Stats;
 };

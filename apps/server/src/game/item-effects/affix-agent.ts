@@ -17,6 +17,7 @@ import { lockGameRow } from "../persistence/games";
 import { loadActorItem } from "../persistence/items";
 import { loadWorldByGame } from "../persistence/worlds";
 import { getGameState } from "../service";
+import type { Affix } from "../types";
 import { applyDamage } from "./damage";
 import type { AffixRequest } from "./types";
 
@@ -45,7 +46,7 @@ function buildAffixPrompt(input: {
   itemName: string;
   itemDescription: string;
   itemStats: Stats;
-  affixes: readonly string[];
+  affixes: readonly Affix[];
   defaultFeedback: string;
   toolNames: readonly string[];
   terminalToolName: string;
@@ -76,7 +77,7 @@ ${input.defaultFeedback}
 物品：${input.itemName}（${statsText(input.itemStats)}）
 ${input.itemDescription}
 词缀：
-${input.affixes.map((affix) => `- ${affix}`).join("\n")}
+${input.affixes.map((affix) => `- [${affix.name}]${affix.content}`).join("\n")}
 目标：${input.targetName ?? "无角色目标"}
 ${targetFacts.join("\n")}
 
