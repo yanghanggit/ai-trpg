@@ -38,7 +38,7 @@ describe.skipIf(!testDatabaseUrl)("move writes memory on both sides", () => {
     await takeActorControl(handle.db, created.game.slug, "守烬人");
 
     const result = await playerMove(handle.db, created.game.slug, "守烬人", {
-      targetStageName: "断钟中殿",
+      targetStageRef: "断钟中殿",
     });
     expect(result.ok).toBe(true);
 

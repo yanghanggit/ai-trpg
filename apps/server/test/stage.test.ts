@@ -134,7 +134,7 @@ describe.skipIf(!testDatabaseUrl)("stage mini-GM", () => {
       targetActorRef: "提灯修士",
       message: "别回头。",
     });
-    await playerMove(handle.db, slug, "守烬人", { targetStageName: "断钟中殿" });
+    await playerMove(handle.db, slug, "守烬人", { targetStageRef: "断钟中殿" });
     await releaseActorControl(handle.db, slug, "守烬人");
 
     const memories = await getGameMemories(handle.db, created.game.id);

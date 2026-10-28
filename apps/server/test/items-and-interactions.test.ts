@@ -809,7 +809,7 @@ describe.skipIf(!testDatabaseUrl)("items and interactions", () => {
     });
     await takeActorControl(handle.db, created.game.slug, "守烬人");
     await playerMove(handle.db, created.game.slug, "守烬人", {
-      targetStageName: SEALED_STAGE_NAME,
+      targetStageRef: SEALED_STAGE_NAME,
     });
 
     const used = await playerUse(handle.db, created.game.slug, "守烬人", {

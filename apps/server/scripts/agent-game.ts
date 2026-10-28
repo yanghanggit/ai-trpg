@@ -170,7 +170,7 @@ function usage(): void {
       "agent-game player-say --game <gameId|slug> --actor <actorId|actorName> --target <actorName> --message <text> [--reason <text>]",
       "agent-game player-whisper --game <gameId|slug> --actor <actorId|actorName> --target <actorName> --message <text> [--reason <text>]",
       "agent-game player-announce --game <gameId|slug> --actor <actorId|actorName> --message <text> [--reason <text>]",
-      "agent-game player-move --game <gameId|slug> --actor <actorId|actorName> --to <stageName>",
+      "agent-game player-move --game <gameId|slug> --actor <actorId|actorName> --to <stageId|stageName>",
       "agent-game player-wait --game <gameId|slug> --actor <actorId|actorName>",
       "agent-game player-attack --game <gameId|slug> --actor <actorId|actorName> --target <actorName>（武器由装备决定）",
       "agent-game player-steal --game <gameId|slug> --actor <actorId|actorName> --target <actorName> --item <itemName>",
@@ -438,10 +438,10 @@ async function main(): Promise<void> {
   if (command === "player-move") {
     const { game, actor } = requireActorArgs(values, command);
     if (typeof values.to !== "string" || values.to.trim().length === 0) {
-      throw new Error("player-move 需要 --to <stageName>");
+      throw new Error("player-move 需要 --to <stageId|stageName>");
     }
     const result = await withDatabase((db) =>
-      playerMove(db, game, actor, { targetStageName: values.to as string }),
+      playerMove(db, game, actor, { targetStageRef: values.to as string }),
     );
     emitTurn(command, result);
     return;

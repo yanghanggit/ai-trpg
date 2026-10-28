@@ -107,7 +107,7 @@ describe.skipIf(!testDatabaseUrl)("names and addresses", () => {
     });
     await takeActorControl(handle.db, created.game.slug, "角色.无名者");
     await playerMove(handle.db, created.game.slug, "角色.无名者", {
-      targetStageName: "场景.墓园",
+      targetStageRef: "场景.墓园",
     });
 
     const { state, actor } = await actorByName(created.game.slug, handle, "角色.奥德里克");
@@ -142,7 +142,7 @@ describe.skipIf(!testDatabaseUrl)("names and addresses", () => {
     });
     await takeActorControl(handle.db, created.game.slug, "角色.无名者");
     await playerMove(handle.db, created.game.slug, "角色.无名者", {
-      targetStageName: "场景.墓园",
+      targetStageRef: "场景.墓园",
     });
     const { actor } = await actorByName(created.game.slug, handle, "角色.无名者");
 
@@ -221,7 +221,7 @@ describe.skipIf(!testDatabaseUrl)("names and addresses", () => {
     });
     await takeActorControl(handle.db, created.game.slug, "角色.无名者");
     await playerMove(handle.db, created.game.slug, "角色.无名者", {
-      targetStageName: "场景.墓园",
+      targetStageRef: "场景.墓园",
     });
 
     const turn = await playerRememberIdentity(handle.db, created.game.slug, "角色.无名者", {

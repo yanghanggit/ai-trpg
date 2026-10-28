@@ -118,18 +118,18 @@ describe.skipIf(!testDatabaseUrl)("stage passage", () => {
     expect(adjacentStageNames(state, stageIdOf(state, PATH))).toEqual([]);
 
     await takeActorControl(handle.db, created.game.slug, "角色.无名者");
-    await playerMove(handle.db, created.game.slug, "角色.无名者", { targetStageName: "场景.墓园" });
-    await playerMove(handle.db, created.game.slug, "角色.无名者", { targetStageName: GATE });
+    await playerMove(handle.db, created.game.slug, "角色.无名者", { targetStageRef: "场景.墓园" });
+    await playerMove(handle.db, created.game.slug, "角色.无名者", { targetStageRef: GATE });
     await expect(
-      playerMove(handle.db, created.game.slug, "角色.无名者", { targetStageName: PATH }),
+      playerMove(handle.db, created.game.slug, "角色.无名者", { targetStageRef: PATH }),
     ).rejects.toThrow(/通道/);
   });
 
   it("opens the passage from the gate stage without notifying the world", async () => {
     const created = await createBellGame("开门测试局");
     await takeActorControl(handle.db, created.game.slug, "角色.无名者");
-    await playerMove(handle.db, created.game.slug, "角色.无名者", { targetStageName: "场景.墓园" });
-    await playerMove(handle.db, created.game.slug, "角色.无名者", { targetStageName: GATE });
+    await playerMove(handle.db, created.game.slug, "角色.无名者", { targetStageRef: "场景.墓园" });
+    await playerMove(handle.db, created.game.slug, "角色.无名者", { targetStageRef: GATE });
 
     const result = await runStageTurn(handle.db, created.game.slug, GATE, {
       service: new ScriptedService([
@@ -159,9 +159,9 @@ describe.skipIf(!testDatabaseUrl)("stage passage", () => {
     ).toBe(false);
 
     // 单向：走出去之后回不来。
-    await playerMove(handle.db, created.game.slug, "角色.无名者", { targetStageName: PATH });
+    await playerMove(handle.db, created.game.slug, "角色.无名者", { targetStageRef: PATH });
     await expect(
-      playerMove(handle.db, created.game.slug, "角色.无名者", { targetStageName: GATE }),
+      playerMove(handle.db, created.game.slug, "角色.无名者", { targetStageRef: GATE }),
     ).rejects.toThrow(/通道/);
     const moved = await getGameState(handle.db, created.game.slug);
     expect(moved.world.stages.find((stage) => stage.name === PATH)?.actors).toHaveLength(1);
@@ -170,15 +170,15 @@ describe.skipIf(!testDatabaseUrl)("stage passage", () => {
   it("lets only the mountain path report to the world, and ends the game there", async () => {
     const created = await createBellGame("逃出测试局");
     await takeActorControl(handle.db, created.game.slug, "角色.无名者");
-    await playerMove(handle.db, created.game.slug, "角色.无名者", { targetStageName: "场景.墓园" });
-    await playerMove(handle.db, created.game.slug, "角色.无名者", { targetStageName: GATE });
+    await playerMove(handle.db, created.game.slug, "角色.无名者", { targetStageRef: "场景.墓园" });
+    await playerMove(handle.db, created.game.slug, "角色.无名者", { targetStageRef: GATE });
     await runStageTurn(handle.db, created.game.slug, GATE, {
       service: new ScriptedService([
         call("open_passage", { targetStageName: PATH }),
         call("submit_environment", {}),
       ]),
     });
-    await playerMove(handle.db, created.game.slug, "角色.无名者", { targetStageName: PATH });
+    await playerMove(handle.db, created.game.slug, "角色.无名者", { targetStageRef: PATH });
 
     // 铁闸门已不再拥有 notify_world，工具清单里没有它。
     const gateTools = new ToolCaptureService();

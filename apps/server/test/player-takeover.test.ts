@@ -133,7 +133,7 @@ describe.skipIf(!testDatabaseUrl)("player takeover", () => {
     await takeActorControl(handle.db, game.game.slug, "守烬人");
 
     const moved = await playerMove(handle.db, game.game.slug, "守烬人", {
-      targetStageName: "断钟中殿",
+      targetStageRef: "断钟中殿",
     });
     expect(moved.ok).toBe(true);
     expect(moved.plan?.actions[0]).toMatchObject({

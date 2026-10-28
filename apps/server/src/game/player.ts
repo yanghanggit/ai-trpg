@@ -109,7 +109,8 @@ export type PlayerAnnounceInput = {
 };
 
 export type PlayerMoveInput = {
-  targetStageName: string;
+  /** 场景 id 或规范名；裸名不由服务端解析。 */
+  targetStageRef: string;
 };
 
 export type PlayerAttackInput = {
@@ -200,7 +201,7 @@ export async function playerMove(
   actorRef: string,
   input: PlayerMoveInput,
 ): Promise<ActorTurnResult> {
-  const action: ActorAction = { kind: "move", targetStageName: input.targetStageName };
+  const action: ActorAction = { kind: "move", targetStageName: input.targetStageRef };
   return applyPlayerAction(db, gameRef, actorRef, action);
 }
 

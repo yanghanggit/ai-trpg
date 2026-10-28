@@ -263,15 +263,21 @@ export async function resolveAdjacentStage(
   executor: Executor,
   world: WorldRow,
   stage: StageRow,
-  targetStageName: string,
+  targetStageRef: string,
 ): Promise<StageRow> {
+  const ref = targetStageRef.trim();
   const [target] = await executor
     .select()
     .from(stages)
-    .where(and(eq(stages.worldId, world.id), eq(stages.name, targetStageName)))
+    .where(
+      and(
+        eq(stages.worldId, world.id),
+        UUID_PATTERN.test(ref) ? eq(stages.id, ref) : eq(stages.name, ref),
+      ),
+    )
     .limit(1);
   if (!target) {
-    throw new GameError("invalid_action", `目标场景不存在: ${targetStageName}`);
+    throw new GameError("invalid_action", `目标场景不存在（需要 id 或规范名）: ${ref}`);
   }
   const [connection] = await executor
     .select()

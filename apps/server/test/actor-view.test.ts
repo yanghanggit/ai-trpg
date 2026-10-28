@@ -35,7 +35,7 @@ describe.skipIf(!testDatabaseUrl)("actor view", () => {
     });
     await takeActorControl(handle.db, created.game.slug, "角色.无名者");
     await playerMove(handle.db, created.game.slug, "角色.无名者", {
-      targetStageName: "场景.墓园",
+      targetStageRef: "场景.墓园",
     });
 
     // 煤渣认识奥德里克，但没见过无名者的名字。
@@ -68,6 +68,32 @@ describe.skipIf(!testDatabaseUrl)("actor view", () => {
     expect(view.knowledge).toHaveLength(1);
   });
 
+  it("moves by the stageId from the viewer projection and rejects bare names", async () => {
+    const created = await createGame(handle.db, {
+      username: DEMO_USER.username,
+      name: "观看者移动测试局",
+      world: BELL_MONASTERY_WORLD,
+    });
+    await takeActorControl(handle.db, created.game.slug, "角色.无名者");
+
+    const before = await getActorView(handle.db, created.game.slug, "角色.无名者");
+    const exit = before.scene?.exits.find((candidate) => candidate.name === "墓园");
+    expect(exit?.stageId).toBeTruthy();
+
+    const moved = await playerMove(handle.db, created.game.slug, "角色.无名者", {
+      targetStageRef: exit?.stageId as string,
+    });
+    expect(moved.ok).toBe(true);
+
+    const after = await getActorView(handle.db, created.game.slug, "角色.无名者");
+    expect(after.scene?.name).toBe("墓园");
+
+    // 视图里给的是去掉前缀的名字；它只用于显示，不能直接当移动目标。
+    await expect(
+      playerMove(handle.db, created.game.slug, "角色.无名者", { targetStageRef: "焚尸房" }),
+    ).rejects.toThrow(/id 或规范名/);
+  });
+
   it("keeps scene items free of type prefixes", async () => {
     const created = await createGame(handle.db, {
       username: DEMO_USER.username,
@@ -76,10 +102,10 @@ describe.skipIf(!testDatabaseUrl)("actor view", () => {
     });
     await takeActorControl(handle.db, created.game.slug, "角色.无名者");
     await playerMove(handle.db, created.game.slug, "角色.无名者", {
-      targetStageName: "场景.墓园",
+      targetStageRef: "场景.墓园",
     });
     await playerMove(handle.db, created.game.slug, "角色.无名者", {
-      targetStageName: "场景.焚尸房",
+      targetStageRef: "场景.焚尸房",
     });
 
     const view = await getActorView(handle.db, created.game.slug, "角色.无名者");
