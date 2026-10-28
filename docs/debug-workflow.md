@@ -4,19 +4,7 @@
 
 ## 数据库驱动
 
-以下命令均以 `--game <id|slug>` 定位对局，建局类用 `--user`；涉及 actor 的命令再加 `--actor <id|name>`。
-
-建局与读取：`create --user demo --seed <name>` 从内容注册表物化 game、座位、world、场景图、角色与各自 memory；`--content-file <path>` 从外部内容包建局，`--world-file <path>` 只提供 world；`status --game <id|slug>` 读取完整状态，`scene-map` 读取场景角色分布且不调用 LLM。
-
-知识：`rag ingest (--seed <name> | --file <pack>)`、`rag search`、`rag check`、`rag delete --collection <name> --yes`；`rag:smoke` 走真实模型，`rag:eval` 跑检索质量评测。
-
-推进：`npc --game <id|slug> --actor <name>` 推进一个 NPC，`--all` 按当前顺序推进全部未接管 NPC；`stage --stage <name>` / `--all` 推进 stage 小 GM；`world` 推进 world 回合。stage 可更新 environment 或 `notify_world`，world 可 `notify_stage` 或 `end_game`。
-
-观测：`probe --actor|--stage --message <text>` 发起只读 memory 探针；`snapshot` 导出只读快照；`story` 生成故事；`compact --owner actor|stage|world|all` 手动压缩 memory，`--min-ratio <0..1>` 低于阈值时跳过。
-
-玩家接管：`take-control` / `release-control`；`player-say|whisper|announce|move|wait|attack|steal|give|pickup|use|equip|unequip` 以被接管 actor 身份直接提交单个动作，不调用 LLM；`player-use --detail <text>` 描述场景中被作用的部位。`appearance --actor <name>` 强制重推外观，`--all` 幂等批量维护；`deaths` 只跑死亡阶段。
-
-→ 参见：[Actor 行动与记忆](actor-actions-memory.md)、→ 参见：[Stage 小 GM](stage.md)
+子命令与参数以 `pnpm agent:game --help` 为准，这里不复制菜单。要记住的是它的形状：建局必须显式给内容来源，推进必须逐个实体指定，读操作（`status`、`scene-map`、`snapshot`、`probe`、`story`）都不调用 LLM，也不改状态；玩家接管后可用 `player-*` 以该 actor 身份直接提交单个动作，绕过计划与模型。
 
 ## 显式推进边界
 
