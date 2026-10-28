@@ -6,8 +6,10 @@ PostgreSQL 是游戏状态的唯一真相。`agent:game` 从数据库读取状�
 
 - **身份与对局**：`users` 不进入游戏状态；`games` 是聚合根，带状态、world 自己命名的 `outcome`、内容版本与并发版本号；`game_players` 是座位，v1 一局一个；`actor_controls` 表达玩家接管，不改 actor 本体，释放后同一 actor 恢复 NPC 驱动。
 - **世界与场景**：`worlds` 一局一个，`content_key` 锚定知识库 collection 而非展示名，`profile` 是世界的自我设定（它是什么、什么算收束）；`stages` 按 `ordinal` 保持稳定顺序，`environment` 是 stage 回合覆盖的环境快照；`stage_connections` 是同一 world 内的**有向**边，单向靠「没有反向边」表达，运行时只能把已声明的边从封闭打开，不能新建边。world 是 game 的运行时子状态而非可复用模板：数据库存状态，目录 `worlds/` 存开发期导出的快照。
-- **角色**：`actors` 依附场景，带 `is_default_player`；`hp` 是可变运行时状态、独立成列，**`hp === 0` 就是死亡**，没有死亡状态列，`death_settled_at` 只是「死亡收尾跑过了吗」的处理标记；`stats` 恒定，`base_body` 是裸体描述，`appearance` 是他人实际所见的快照，`equipment` 是「槽位 → 物品名」索引且每槽至多一件。
+- **角色**：`actors` 依附场景，带 `is_default_player` 与内容层稳定 `key`；`hp` 是可变运行时状态、独立成列，**`hp === 0` 就是死亡**，没有死亡状态列，`death_settled_at` 只是「死亡收尾跑过了吗」的处理标记；`stats` 恒定，`base_body` 是裸体描述，`equipment` 是「槽位 → 物品名」索引且每槽至多一件。
+- **形象**：`actor_presentations` 是「别人此刻看到的样子」的唯一存储位置。每个 actor 同时只有一条 `ended_at is null` 的形象；`appearance` 与稳定的识别特征 `anchor` 都在形象上，换装只改当前形象，伪装 / 变身会开一条新形象并封上旧的。actor 不再持有 `appearance`。
 - **物品**：`items` 依附角色，`stage_items` 依附场景，两者字段相同、都不记录穿戴状态；按 `name` 定位，因此同一持有者内名字唯一。`kind` 是自由文本，新增大类不需要迁移。
+- **名字信念**：`name_knowledge` 以「观察者 × 形象」为键，存观察者相信的称呼（可为假名、误称）。它不存真名映射，也不做名字抽取；写入只有内容层的开局声明与角色自己的回合。
 - **消息与记忆**：`game_messages` 是公共事件流（`sequence` 追加、带可见性），供客户端增量拉取与审计，没有 session 表；`agent_memories` + `agent_memory_messages` 是 actor / stage / world 各自的私有上下文，压缩摘要与被压缩的旧消息都留在 memory 里形成可回述的树。两者不能合并：`mind` 只进 memory。
 - **向量**：`vector_documents` 用 `collection` 隔离世界内容、`embedding_model` 隔离模型；只装公共知识，不进私有 memory，也不承载剧情秘密。
 
@@ -15,7 +17,9 @@ PostgreSQL 是游戏状态的唯一真相。`agent:game` 从数据库读取状�
 
 `Stats` 只有 `maxHp` / `damage` / `block` 参与结算，其余三项保留在结构里但无人读取；六项都恒定可加，`addStats()` 是唯一加法规则。`hp` 不是属性，扣血只写这一列，上限看 `stats.maxHp`。
 
-物品没有根级 `damage` / `block`，可穿戴性只能看 `kind`。`base_body` 是「捏脸完成、还没穿装备」的形态，`appearance` 是其他角色实际看到的样子；观察只读 `appearance`，换装只改槽位索引、外观要显式再推一次。
+物品没有根级 `damage` / `block`，可穿戴性只能看 `kind`。`base_body` 是「捏脸完成、还没穿装备」的形态，`appearance` 是其他角色实际看到的样子，存在当前形象上；观察只读当前形象的 `appearance`，换装只改槽位索引、外观要显式再推一次。
+
+→ 参见：[术语表](glossary.md)
 
 → 参见：[物品](items.md) → 参见：[外观](appearance.md)
 

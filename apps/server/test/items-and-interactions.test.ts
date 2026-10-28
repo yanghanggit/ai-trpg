@@ -42,7 +42,7 @@ class AffixDamageService implements ChatCompletionService {
         function: {
           name: "damage_target",
           arguments: JSON.stringify({
-            targetActorName: "提灯修士",
+            targetActorHandle: "提灯修士",
             amount: 42,
             reason: "测试用词缀伤害",
           }),
@@ -56,7 +56,7 @@ class AffixDamageService implements ChatCompletionService {
         function: {
           name: "record_effect",
           arguments: JSON.stringify({
-            targetActorName: "提灯修士",
+            targetActorHandle: "提灯修士",
             experience: TORCH_EXPERIENCE,
             witnessText: TORCH_WITNESS,
           }),
@@ -87,7 +87,7 @@ class AffixEffectService implements ChatCompletionService {
       {
         name: "record_effect",
         args: {
-          targetActorName: "提灯修士",
+          targetActorHandle: "提灯修士",
           experience: TORCH_EXPERIENCE,
           witnessText: TORCH_WITNESS,
         },
@@ -102,7 +102,7 @@ class OverLimitEffectService implements ChatCompletionService {
   async complete(request: Parameters<ChatCompletionService["complete"]>[0]) {
     const record = (text: string) => ({
       name: "record_effect",
-      args: { targetActorName: "提灯修士", experience: text, witnessText: text },
+      args: { targetActorHandle: "提灯修士", experience: text, witnessText: text },
     });
     return toolCallResult(request, [
       record("火焰卷上你的一号毛根。"),
@@ -276,6 +276,7 @@ const SEALED_WORLD: World = {
     { from: "gate", to: "sealed-gate" },
     { from: "sealed-gate", to: "gate" },
   ],
+  knownIdentities: [],
   actors: [
     {
       ...KEEPER_ACTOR,
@@ -316,7 +317,7 @@ describe.skipIf(!testDatabaseUrl)("items and interactions", () => {
     await takeActorControl(handle.db, created.game.slug, "守烬人");
 
     const stolen = await playerSteal(handle.db, created.game.slug, "守烬人", {
-      targetActorName: "提灯修士",
+      targetActorRef: "提灯修士",
       itemName: "铅封提灯",
     });
     expect(stolen.ok).toBe(true);
@@ -352,7 +353,7 @@ describe.skipIf(!testDatabaseUrl)("items and interactions", () => {
 
     await expect(
       playerSteal(handle.db, created.game.slug, "守烬人", {
-        targetActorName: "提灯修士",
+        targetActorRef: "提灯修士",
         itemName: "铅封提灯",
       }),
     ).rejects.toThrow("拿不走已装备的物品");
@@ -367,7 +368,7 @@ describe.skipIf(!testDatabaseUrl)("items and interactions", () => {
     await takeActorControl(handle.db, created.game.slug, "守烬人");
 
     const stolen = await playerSteal(handle.db, created.game.slug, "守烬人", {
-      targetActorName: "提灯修士",
+      targetActorRef: "提灯修士",
       itemName: "铅封提灯",
     });
     expect(stolen.ok).toBe(true);
@@ -390,7 +391,7 @@ describe.skipIf(!testDatabaseUrl)("items and interactions", () => {
 
     await expect(
       playerSteal(handle.db, created.game.slug, "提灯修士", {
-        targetActorName: "守烬人",
+        targetActorRef: "守烬人",
         itemName: "裂齿短刃",
       }),
     ).rejects.toThrow("不能使用动作: steal");
@@ -408,7 +409,7 @@ describe.skipIf(!testDatabaseUrl)("items and interactions", () => {
     await expect(
       playerUse(handle.db, created.game.slug, "守烬人", {
         itemName: "裂齿短刃",
-        targetActorName: "提灯修士",
+        targetActorRef: "提灯修士",
       }),
     ).rejects.toThrow("正装备在武器槽，先卸下再使用");
   });
@@ -424,7 +425,7 @@ describe.skipIf(!testDatabaseUrl)("items and interactions", () => {
 
     const used = await playerUse(handle.db, created.game.slug, "守烬人", {
       itemName: "裂齿短刃",
-      targetActorName: "提灯修士",
+      targetActorRef: "提灯修士",
     });
     expect(used.ok).toBe(true);
 
@@ -450,7 +451,7 @@ describe.skipIf(!testDatabaseUrl)("items and interactions", () => {
       handle.db,
       created.game.slug,
       "守烬人",
-      { targetActorName: "提灯修士" },
+      { targetActorRef: "提灯修士" },
       { service },
     );
     expect(attacked.ok).toBe(true);
@@ -499,7 +500,7 @@ describe.skipIf(!testDatabaseUrl)("items and interactions", () => {
       handle.db,
       created.game.slug,
       "守烬人",
-      { targetActorName: "提灯修士" },
+      { targetActorRef: "提灯修士" },
       { service: new AffixEffectService() },
     );
     expect(attacked.ok).toBe(true);
@@ -540,7 +541,7 @@ describe.skipIf(!testDatabaseUrl)("items and interactions", () => {
       handle.db,
       created.game.slug,
       "守烬人",
-      { targetActorName: "提灯修士" },
+      { targetActorRef: "提灯修士" },
       { service: new OverLimitEffectService() },
     );
     expect(attacked.ok).toBe(true);
@@ -572,7 +573,7 @@ describe.skipIf(!testDatabaseUrl)("items and interactions", () => {
       handle.db,
       created.game.slug,
       "守烬人",
-      { targetActorName: "提灯修士" },
+      { targetActorRef: "提灯修士" },
       {
         service: new AffixDamageService(),
         appearanceService: deathService,
@@ -602,7 +603,7 @@ describe.skipIf(!testDatabaseUrl)("items and interactions", () => {
       handle.db,
       created.game.slug,
       "守烬人",
-      { targetActorName: "提灯修士" },
+      { targetActorRef: "提灯修士" },
       { service },
     );
     expect(attacked.ok).toBe(true);
@@ -631,7 +632,7 @@ describe.skipIf(!testDatabaseUrl)("items and interactions", () => {
       handle.db,
       created.game.slug,
       "守烬人",
-      { targetActorName: "提灯修士" },
+      { targetActorRef: "提灯修士" },
       { service },
     );
     expect(attacked.ok).toBe(true);
@@ -664,7 +665,7 @@ describe.skipIf(!testDatabaseUrl)("items and interactions", () => {
       handle.db,
       created.game.slug,
       "守烬人",
-      { targetActorName: "提灯修士" },
+      { targetActorRef: "提灯修士" },
       { service: new ThrowingService() },
     );
     expect(attacked.ok).toBe(true);
@@ -686,7 +687,7 @@ describe.skipIf(!testDatabaseUrl)("items and interactions", () => {
 
     // 未配置推理端：跳过增量，而不是拒绝整个行动。
     const attacked = await playerAttack(handle.db, created.game.slug, "守烬人", {
-      targetActorName: "提灯修士",
+      targetActorRef: "提灯修士",
     });
     expect(attacked.ok).toBe(true);
 
@@ -706,7 +707,7 @@ describe.skipIf(!testDatabaseUrl)("items and interactions", () => {
     await takeActorControl(handle.db, created.game.slug, "守烬人");
 
     const attacked = await playerAttack(handle.db, created.game.slug, "守烬人", {
-      targetActorName: "提灯修士",
+      targetActorRef: "提灯修士",
     });
     expect(attacked.ok).toBe(true);
 
@@ -734,7 +735,7 @@ describe.skipIf(!testDatabaseUrl)("items and interactions", () => {
     await takeActorControl(handle.db, created.game.slug, "守烬人");
 
     const attacked = await playerAttack(handle.db, created.game.slug, "守烬人", {
-      targetActorName: "提灯修士",
+      targetActorRef: "提灯修士",
     });
     expect(attacked.ok).toBe(true);
 
@@ -756,7 +757,7 @@ describe.skipIf(!testDatabaseUrl)("items and interactions", () => {
     await takeActorControl(handle.db, created.game.slug, "守烬人");
 
     const given = await playerGive(handle.db, created.game.slug, "守烬人", {
-      targetActorName: "提灯修士",
+      targetActorRef: "提灯修士",
       itemName: "裂齿短刃",
     });
     expect(given.ok).toBe(true);

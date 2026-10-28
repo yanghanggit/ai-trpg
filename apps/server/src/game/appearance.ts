@@ -4,6 +4,7 @@ import { agentLoop } from "../llm/agent-loop";
 import type { ChatCompletionService } from "../llm/protocol";
 import type { ToolDefinition } from "../llm/types";
 import { findActor } from "./actors";
+import { entityNameMatches } from "./addressing";
 import { bumpGameVersion } from "./apply/messages";
 import { isAlive } from "./apply/queries";
 import { formatBaseBody } from "./body";
@@ -174,7 +175,7 @@ export async function runAppearanceTurn(
     if (game.status !== "active") {
       throw new GameError("invalid_state", `游戏已结束，不能更新外观: ${game.status}`);
     }
-    await setActorAppearance(tx, actor.id, appearance, now);
+    await setActorAppearance(tx, actor.id, appearance);
     await bumpGameVersion(tx, state.game.id, now);
   });
 
@@ -204,7 +205,7 @@ export async function setEquipmentSlot(
 
   let equipment = actor.equipment;
   if (itemName !== null) {
-    const item = actor.items.find((candidate) => candidate.name === itemName);
+    const item = actor.items.find((candidate) => entityNameMatches(candidate.name, itemName));
     if (!item) {
       throw new GameError("not_found", `actor 没有物品: ${itemName}`);
     }

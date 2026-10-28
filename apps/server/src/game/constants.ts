@@ -1,6 +1,12 @@
 /** 一轮最多提交的动作条数；具体“做什么组合”交给提示词约定，不做分类校验。 */
 export const MAX_ACTIONS_PER_TURN = 2;
 
+/** 一轮最多记住几个名字；认知更新不占行动名额，但要有上限。 */
+export const MAX_IDENTITIES_PER_TURN = 3;
+
+/** 角色能记住的称呼长度上限。 */
+export const MAX_IDENTITY_NAME_LENGTH = 24;
+
 /** 一轮 stage 最多向 world 发出的通知条数。 */
 export const MAX_STAGE_NOTIFICATIONS_PER_TURN = 2;
 
@@ -70,6 +76,7 @@ export const MEMORY_KINDS = {
   worldSystemPrompt: "world_system_prompt",
   stageObservation: "stage_observation",
   actionFeedback: "action_feedback",
+  identityUpdate: "identity_update",
   actionRejected: "action_rejected",
   planFailed: "plan_failed",
   environmentObservation: "environment_observation",

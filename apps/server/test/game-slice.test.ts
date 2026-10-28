@@ -26,8 +26,8 @@ import { ChatCompletionResult, type ChatCompletionService, type ToolCall } from 
 const testDatabaseUrl = process.env.TEST_DATABASE_URL?.trim();
 
 /** 攻击动作：十二个平级动作之一。 */
-function attackAction(targetActorName: string): ActorAction {
-  return { kind: "attack", targetActorName };
+function attackAction(targetActorHandle: string): ActorAction {
+  return { kind: "attack", targetActorHandle };
 }
 
 /** 只记录本次请求暴露了哪些工具，然后提交一个 wait。 */
@@ -127,7 +127,7 @@ describe.skipIf(!testDatabaseUrl)("memory-driven NPC slice", () => {
           {
             kind: "say",
             mind: "先试探他。",
-            targetActorName: "提灯修士",
+            targetActorHandle: "提灯修士",
             message: "你听见钟声了吗？",
           },
         ],
@@ -137,7 +137,7 @@ describe.skipIf(!testDatabaseUrl)("memory-driven NPC slice", () => {
           {
             kind: "whisper",
             mind: "不要让它继续响。",
-            targetActorName: "守烬人",
+            targetActorHandle: "守烬人",
             message: "别回应它。",
           },
         ],
@@ -408,7 +408,7 @@ describe.skipIf(!testDatabaseUrl)("memory-driven NPC slice", () => {
     const monk = memories.find((memory) => memory.name === "提灯修士");
     expect(
       keeper?.messages.some((message) =>
-        message.content.includes("你对提灯修士攻击（使用裂齿短刃），造成6点伤害"),
+        message.content.includes("提灯修士攻击（使用裂齿短刃），造成6点伤害"),
       ),
     ).toBe(true);
     expect(
@@ -516,7 +516,7 @@ describe.skipIf(!testDatabaseUrl)("memory-driven NPC slice", () => {
           {
             kind: "say",
             mind: "到了中殿再问抄经人。",
-            targetActorName: "缄默抄经人",
+            targetActorHandle: "缄默抄经人",
             message: "你看见钟摆了吗？",
           },
         ],
@@ -550,6 +550,7 @@ describe.skipIf(!testDatabaseUrl)("memory-driven NPC slice", () => {
       actors: [
         ...TEST_WORLD.actors,
         {
+          key: "bystander-b",
           stageKey: "gate",
           name: "旁听者",
           profile: "一个缩在门廊阴影里的无关者。",
@@ -560,6 +561,14 @@ describe.skipIf(!testDatabaseUrl)("memory-driven NPC slice", () => {
           items: [],
           actions: ["say", "whisper", "move", "wait"] as const,
         },
+      ],
+      knownIdentities: [
+        ...(TEST_WORLD.knownIdentities ?? []),
+        { observer: "bystander-b", subject: "lantern-monk", name: "提灯修士" },
+        { observer: "bystander-b", subject: "ember-keeper", name: "守烬人" },
+        { observer: "ember-keeper", subject: "bystander-b", name: "旁听者" },
+        { observer: "lantern-monk", subject: "bystander-b", name: "旁听者" },
+        { observer: "silent-scribe", subject: "bystander-b", name: "旁听者" },
       ],
     };
     const game = await createGame(handle.db, {
@@ -582,7 +591,7 @@ describe.skipIf(!testDatabaseUrl)("memory-driven NPC slice", () => {
           {
             kind: "say",
             mind: "这句给目标，但旁人也会听见。",
-            targetActorName: "提灯修士",
+            targetActorHandle: "提灯修士",
             message: "只对你说。",
           },
         ],
@@ -592,7 +601,7 @@ describe.skipIf(!testDatabaseUrl)("memory-driven NPC slice", () => {
           {
             kind: "whisper",
             mind: "这句只给他听。",
-            targetActorName: "提灯修士",
+            targetActorHandle: "提灯修士",
             message: "别回头。",
           },
         ],

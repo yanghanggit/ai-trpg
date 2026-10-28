@@ -43,6 +43,7 @@ function entityRows(state: GameState): { key: string; seq: number }[] {
     }
     for (const actor of stage.actors) {
       rows.push({ key: `actor:${actor.name}`, seq: actor.seq });
+      rows.push({ key: `presentation:${actor.name}`, seq: actor.presentation.seq });
       for (const item of actor.items) {
         rows.push({ key: `item:${item.name}`, seq: item.seq });
       }
@@ -69,7 +70,7 @@ describe.skipIf(!testDatabaseUrl)("entity seq", () => {
     await handle.pool.end();
   });
 
-  it("assigns a dense, unique sequence across world, stages, actors and items", async () => {
+  it("assigns a dense, unique sequence across world, stages, actors, presentations and items", async () => {
     const created = await createGame(handle.db, {
       username: DEMO_USER.username,
       name: "序号测试局",

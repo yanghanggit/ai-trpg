@@ -1,5 +1,6 @@
 import type { TraceContext } from "../../debug/trace";
 import type { ToolDefinition } from "../../llm/types";
+import { type AddressLookup, plainEntityName } from "../addressing";
 import { findActorInStage, resolveActorItem } from "../apply/queries";
 import type { ActorWithStageRow, Executor, ResolvedUse } from "../apply/types";
 import { MAX_TARGET_DETAIL_LENGTH } from "../constants";
@@ -25,12 +26,12 @@ export function usableItemNames(items: readonly ItemState[], equipment: Equipmen
         hasItemEffectHandler(item.effect.type) &&
         equippedSlotOf(equipment, item.name) === undefined,
     )
-    .map((item) => item.name);
+    .map((item) => plainEntityName(item.name));
 }
 
 export function buildUseTool(
   availableItemNames: readonly string[],
-  targetActorNames: readonly string[],
+  targetActorHandles: readonly string[],
   currentStageName: string,
 ): ToolDefinition {
   return {
@@ -38,7 +39,7 @@ export function buildUseTool(
     function: {
       name: "use",
       description:
-        "把一次使用道具加入计划：使用一件背在身上、没穿戴的物品，作用于一个角色或当前场景。物品只声明 effect；use 只负责选择物品与目标并分派。targetActorName 与 targetStageName 二选一。正装备在槽里的物品不能使用：武器用 attack 出手，其余先 unequip。",
+        "把一次使用道具加入计划：使用一件背在身上、没穿戴的物品，作用于一个角色或当前场景。物品只声明 effect；use 只负责选择物品与目标并分派。targetActorHandle 与 targetStageName 二选一。正装备在槽里的物品不能使用：武器用 attack 出手，其余先 unequip。",
       parameters: {
         type: "object",
         properties: {
@@ -47,10 +48,10 @@ export function buildUseTool(
             description: "要使用的自己持有的物品名",
             ...(availableItemNames.length > 0 ? { enum: [...availableItemNames] } : {}),
           },
-          targetActorName: {
+          targetActorHandle: {
             type: "string",
-            description: "道具作用的对象角色；可以是自己，也可以是尸体",
-            ...(targetActorNames.length > 0 ? { enum: [...targetActorNames] } : {}),
+            description: "道具作用的对象角色的指代（@数字）；可以是自己，也可以是尸体",
+            ...(targetActorHandles.length > 0 ? { enum: [...targetActorHandles] } : {}),
           },
           targetStageName: {
             type: "string",
@@ -71,16 +72,16 @@ export function buildUseTool(
 
 export function parseUse(args: Record<string, unknown>): UseAction {
   const itemName = typeof args.itemName === "string" ? args.itemName.trim() : "";
-  const targetActorName =
-    typeof args.targetActorName === "string" ? args.targetActorName.trim() : "";
+  const targetActorHandle =
+    typeof args.targetActorHandle === "string" ? args.targetActorHandle.trim() : "";
   const targetStageName =
     typeof args.targetStageName === "string" ? args.targetStageName.trim() : "";
   const targetDetail = typeof args.targetDetail === "string" ? args.targetDetail.trim() : "";
   if (itemName.length === 0) {
     throw new GameError("invalid_action", "use 需要非空 itemName");
   }
-  if ((targetActorName.length === 0) === (targetStageName.length === 0)) {
-    throw new GameError("invalid_action", "use 需要 targetActorName 或 targetStageName 二选一");
+  if ((targetActorHandle.length === 0) === (targetStageName.length === 0)) {
+    throw new GameError("invalid_action", "use 需要 targetActorHandle 或 targetStageName 二选一");
   }
   if (targetDetail.length > MAX_TARGET_DETAIL_LENGTH) {
     throw new GameError(
@@ -94,7 +95,7 @@ export function parseUse(args: Record<string, unknown>): UseAction {
   return {
     kind: "use",
     itemName,
-    ...(targetActorName.length > 0 ? { targetActorName } : {}),
+    ...(targetActorHandle.length > 0 ? { targetActorHandle } : {}),
     ...(targetStageName.length > 0 ? { targetStageName } : {}),
     ...(targetDetail.length > 0 ? { targetDetail } : {}),
   };
@@ -135,12 +136,12 @@ export async function resolveUse(
     }
     targetStage = stage;
   } else {
-    const targetActorName = action.targetActorName;
-    if (!targetActorName) {
+    const targetActorHandle = action.targetActorHandle;
+    if (!targetActorHandle) {
       throw new GameError("invalid_action", "use 缺少目标");
     }
     // 目标不要求存活：对尸体使用道具同样合法（例如未来的复活类玩法）。
-    target = await findActorInStage(executor, stage.id, targetActorName);
+    target = await findActorInStage(executor, stage.id, targetActorHandle);
   }
 
   return {
@@ -159,6 +160,7 @@ export async function applyUse(
   actorRow: ActorWithStageRow,
   resolved: ResolvedUse,
   now: Date,
+  address: AddressLookup,
   trace?: TraceContext,
 ): Promise<string> {
   const targetDetail = resolved.targetStage ? resolved.action.targetDetail?.trim() : undefined;
@@ -170,6 +172,7 @@ export async function applyUse(
     actionKind: "use",
     effect: resolved.transferItem.effect,
     item: resolved.transferItem,
+    address,
     ...(resolved.target ? { target: resolved.target } : {}),
     ...(resolved.targetStage ? { targetStage: resolved.targetStage } : {}),
     ...(targetDetail ? { targetDetail } : {}),

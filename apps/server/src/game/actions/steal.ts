@@ -1,5 +1,6 @@
 import type { TraceContext } from "../../debug/trace";
 import type { ToolDefinition } from "../../llm/types";
+import { type AddressLookup, actionRef, plainEntityName } from "../addressing";
 import { appendPublicMessage, bumpGameVersion } from "../apply/messages";
 import {
   assertItemNameFree,
@@ -16,7 +17,7 @@ import { setActorEquipment } from "../persistence/actors";
 import { transferItemToActor } from "../persistence/items";
 import type { StealAction } from "../types";
 
-export function buildStealTool(targetActorNames: readonly string[]): ToolDefinition {
+export function buildStealTool(targetActorHandles: readonly string[]): ToolDefinition {
   return {
     type: "function",
     function: {
@@ -26,27 +27,27 @@ export function buildStealTool(targetActorNames: readonly string[]): ToolDefinit
       parameters: {
         type: "object",
         properties: {
-          targetActorName: {
+          targetActorHandle: {
             type: "string",
-            description: "被取走物品的同场景角色",
-            ...(targetActorNames.length > 0 ? { enum: [...targetActorNames] } : {}),
+            description: "被取走物品的同场景角色的指代（@数字）",
+            ...(targetActorHandles.length > 0 ? { enum: [...targetActorHandles] } : {}),
           },
           itemName: { type: "string", description: "要取走的物品名" },
         },
-        required: ["targetActorName", "itemName"],
+        required: ["targetActorHandle", "itemName"],
       },
     },
   };
 }
 
 export function parseSteal(args: Record<string, unknown>): StealAction {
-  const targetActorName =
-    typeof args.targetActorName === "string" ? args.targetActorName.trim() : "";
+  const targetActorHandle =
+    typeof args.targetActorHandle === "string" ? args.targetActorHandle.trim() : "";
   const itemName = typeof args.itemName === "string" ? args.itemName.trim() : "";
-  if (targetActorName.length === 0 || itemName.length === 0) {
-    throw new GameError("invalid_action", "steal 需要非空 targetActorName 与 itemName");
+  if (targetActorHandle.length === 0 || itemName.length === 0) {
+    throw new GameError("invalid_action", "steal 需要非空 targetActorHandle 与 itemName");
   }
-  return { kind: "steal", targetActorName, itemName };
+  return { kind: "steal", targetActorHandle, itemName };
 }
 
 /** 尸体上什么都能拿，所以只有活着目标要挡已穿戴的物品。 */
@@ -56,7 +57,7 @@ export async function resolveSteal(
   actorId: string,
   action: StealAction,
 ): Promise<ResolvedSteal> {
-  const target = await findActorInStage(executor, stage.id, action.targetActorName);
+  const target = await findActorInStage(executor, stage.id, action.targetActorHandle);
   assertNotSelf(target, actorId);
   const transferItem = await resolveActorItem(executor, target.id, action.itemName);
   if (isAlive(target) && Object.values(target.equipment).includes(transferItem.name)) {
@@ -74,6 +75,7 @@ export async function applySteal(
   actorRow: ActorWithStageRow,
   resolved: ResolvedSteal,
   now: Date,
+  address: AddressLookup,
   trace?: TraceContext,
 ): Promise<string> {
   const thief = { id: actorRow.actor.id, name: actorRow.actor.name };
@@ -121,5 +123,5 @@ export async function applySteal(
     },
     trace,
   );
-  return `# 行动结果\n你从${target.name}身上取走了${item.name}。`;
+  return `# 行动结果\n你从${actionRef(address(target.id))}身上取走了${plainEntityName(item.name)}。`;
 }

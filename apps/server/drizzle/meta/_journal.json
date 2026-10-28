@@ -23,6 +23,20 @@
       "when": 1793169905035,
       "tag": "0002_flat_black_crow",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1793172636809,
+      "tag": "0003_silly_shadow_king",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1793172917168,
+      "tag": "0004_futuristic_jasper_sitwell",
+      "breakpoints": true
     }
   ]
 }

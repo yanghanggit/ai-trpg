@@ -179,16 +179,14 @@ describe("dark fantasy seed world", () => {
     expect(BELL_MONASTERY_WORLD.actions).toEqual(["notify_stage", "end_game"]);
   });
 
-  it("gives the world its own profile and keeps ending rules generic", () => {
+  it("gives the world its own profile and leaves ending rules to it", () => {
     const profile = BELL_MONASTERY_WORLD.profile;
     expect(profile).toContain("这局故事的世界是枯钟修道院");
     // 工具名只出现在任务提示词构建里；内容不能与工具名耦合。
     expect(profile).not.toContain("end_game");
     expect(profile).not.toContain("notify_stage");
-    expect(BELL_MONASTERY_WORLD.systemRules).toContain("### 收束与结束");
-    // 全局规则同时进 actor / stage / world 的 system prompt，所以不能写成「你」。
-    expect(BELL_MONASTERY_WORLD.systemRules).toContain("只有世界能结束游戏");
-    expect(BELL_MONASTERY_WORLD.systemRules).not.toContain("只有你能结束游戏");
+    // 收束条件属于世界设定；全局规则只定边界，不重复具体玩法。
+    expect(profile).toContain("有且只有两种收尾");
     const prompt = buildWorldSystemPrompt(BELL_MONASTERY_WORLD);
     expect(prompt).toContain("## 世界设定");
     expect(prompt).toContain("主角倒下时你会收到通知");
@@ -214,6 +212,20 @@ describe("dark fantasy seed world", () => {
     expect(king?.openingBriefing).toContain("本场景内每一个非鼠类活物都必须被你杀死");
     expect(king?.openingBriefing).not.toContain("wait");
     expect(king?.openingBriefing).not.toContain("墓园 → 焚尸房");
+  });
+
+  it("declares starting knowledge with actor keys, not display names", () => {
+    const keys = new Set(BELL_MONASTERY_WORLD.actors.map((actor) => actor.key));
+    const edges = BELL_MONASTERY_WORLD.knownIdentities ?? [];
+    expect(edges).toHaveLength(5);
+    for (const edge of edges) {
+      expect(keys.has(edge.observer)).toBe(true);
+      expect(keys.has(edge.subject)).toBe(true);
+      expect(edge.observer).not.toBe(edge.subject);
+      // 内容层不允许用展示名当引用。
+      expect(edge.observer).not.toContain(".");
+      expect(edge.subject).not.toContain(".");
+    }
   });
 
   it("keeps the public knowledge base free of actor secrets", () => {

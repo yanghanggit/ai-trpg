@@ -360,11 +360,11 @@ export async function runStageTurn(
         return lookStage(state, stageName);
       },
       [observeTool.function.name]: (args) => {
-        const targetActorName =
-          typeof args.targetActorName === "string" ? args.targetActorName.trim() : "";
-        const target = stage.actors.find((actor) => actor.name === targetActorName);
+        const targetActorHandle =
+          typeof args.targetActorHandle === "string" ? args.targetActorHandle.trim() : "";
+        const target = stage.actors.find((actor) => actor.name === targetActorHandle);
         if (!target) {
-          return `错误：当前场景内找不到角色 ${targetActorName}`;
+          return `错误：当前场景内找不到角色 ${targetActorHandle}`;
         }
         return describeObservedActor(target);
       },

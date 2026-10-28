@@ -5,7 +5,7 @@ import { agentLoop } from "../../llm/agent-loop";
 import type { ChatCompletionService } from "../../llm/protocol";
 import type { ToolDefinition } from "../../llm/types";
 import type { Logger } from "../../logging";
-import { isAlive } from "../apply/queries";
+import { isAlive, stageAddressLookup } from "../apply/queries";
 import type { Executor } from "../apply/types";
 import { STAT_KEYS, type Stats } from "../attributes";
 import { MAX_AFFIX_EFFECT_LENGTH, MAX_AFFIX_EFFECTS, MEMORY_KINDS } from "../constants";
@@ -23,8 +23,8 @@ import { applyDamage } from "./damage";
 import type { AffixRequest } from "./types";
 
 type AffixOperation =
-  | { kind: "damage"; targetActorName: string; amount: number; reason: string }
-  | { kind: "effect"; targetActorName: string; experience: string; witnessText: string };
+  | { kind: "damage"; targetActorHandle: string; amount: number; reason: string }
+  | { kind: "effect"; targetActorHandle: string; experience: string; witnessText: string };
 
 /** 属性渲染成 `damage 8、block 2`；未用到的字段不出现，全 0 写“无”。 */
 function statsText(stats: Stats): string {
@@ -85,7 +85,8 @@ ${targetFacts.join("\n")}
 2. 条件成立才执行；不成立或工具表达不了该效果时，只结束任务，不附加词缀以外的后果。
 3. 数值取物品自身的字段换算，与默认效果无关；程度留有余地时按特征强弱小幅增减。
 4. 数值后果用 damage_target，可见后果用 record_effect；只写本条词缀造成的感官变化，不写数值、机制或心理。
-5. 最后用 ${input.terminalToolName} 结束，即使什么都没做。`;
+5. 写出的可见文本里不要出现角色真名；用“目标”“那条狗”这类外观与身份指代。
+6. 最后用 ${input.terminalToolName} 结束，即使什么都没做。`;
 }
 
 function buildTools(targetNames: readonly string[]): {
@@ -103,7 +104,7 @@ function buildTools(targetNames: readonly string[]): {
         parameters: {
           type: "object",
           properties: {
-            targetActorName: {
+            targetActorHandle: {
               type: "string",
               enum: [...targetNames],
               description: "追加伤害的目标角色",
@@ -118,7 +119,7 @@ function buildTools(targetNames: readonly string[]): {
               description: "判定依据：目标身上支撑本次追加的特征",
             },
           },
-          required: ["targetActorName", "amount"],
+          required: ["targetActorHandle", "amount"],
         },
       },
     },
@@ -130,7 +131,7 @@ function buildTools(targetNames: readonly string[]): {
         parameters: {
           type: "object",
           properties: {
-            targetActorName: {
+            targetActorHandle: {
               type: "string",
               enum: [...targetNames],
               description: "产生可见后果的目标角色",
@@ -144,7 +145,7 @@ function buildTools(targetNames: readonly string[]): {
               description: "第三人称，写场景与他人可见的事实",
             },
           },
-          required: ["targetActorName", "experience", "witnessText"],
+          required: ["targetActorHandle", "experience", "witnessText"],
         },
       },
     },
@@ -234,7 +235,7 @@ async function evaluateAffix(
       stageName: stage.name,
       ...(target
         ? {
-            targetName: target.name,
+            targetName: request.targetLabel ?? target.name,
             targetRace: target.baseBody.race,
             targetAppearance: target.baseBody.description,
           }
@@ -249,29 +250,29 @@ async function evaluateAffix(
         if (submitted) {
           throw new GameError("invalid_action", "计划已提交");
         }
-        const targetActorName =
-          typeof args.targetActorName === "string" ? args.targetActorName.trim() : "";
+        const targetActorHandle =
+          typeof args.targetActorHandle === "string" ? args.targetActorHandle.trim() : "";
         const amount = Number(args.amount);
-        if (!targetNames.includes(targetActorName) || !Number.isInteger(amount) || amount <= 0) {
+        if (!targetNames.includes(targetActorHandle) || !Number.isInteger(amount) || amount <= 0) {
           throw new GameError("invalid_action", "damage_target 参数无效");
         }
         operations.push({
           kind: "damage",
-          targetActorName,
+          targetActorHandle,
           amount,
           reason: typeof args.reason === "string" ? args.reason : "",
         });
-        return `已记录对 ${targetActorName} 的 ${amount} 点补充伤害`;
+        return `已记录对 ${targetActorHandle} 的 ${amount} 点补充伤害`;
       },
       [tools.record.function.name]: (args) => {
         if (submitted) {
           throw new GameError("invalid_action", "计划已提交");
         }
-        const targetActorName =
-          typeof args.targetActorName === "string" ? args.targetActorName.trim() : "";
+        const targetActorHandle =
+          typeof args.targetActorHandle === "string" ? args.targetActorHandle.trim() : "";
         const experience = typeof args.experience === "string" ? args.experience.trim() : "";
         const witnessText = typeof args.witnessText === "string" ? args.witnessText.trim() : "";
-        if (!targetNames.includes(targetActorName) || !experience || !witnessText) {
+        if (!targetNames.includes(targetActorHandle) || !experience || !witnessText) {
           throw new GameError("invalid_action", "record_effect 参数无效");
         }
         if (
@@ -288,8 +289,8 @@ async function evaluateAffix(
         ) {
           throw new GameError("invalid_action", `最多记录 ${MAX_AFFIX_EFFECTS} 条词缀后果`);
         }
-        operations.push({ kind: "effect", targetActorName, experience, witnessText });
-        return `已记录对 ${targetActorName} 的可见后果`;
+        operations.push({ kind: "effect", targetActorHandle, experience, witnessText });
+        return `已记录对 ${targetActorHandle} 的可见后果`;
       },
       [tools.submit.function.name]: () => {
         submitted = true;
@@ -365,7 +366,7 @@ async function settleAffix(
       const targetRow = await loadActorByNameInStage(
         tx,
         actorRow.stage.id,
-        operation.targetActorName,
+        operation.targetActorHandle,
       );
       if (!targetRow) {
         continue;
@@ -402,6 +403,7 @@ async function settleAffix(
             gameId,
             actorRow,
             stage: actorRow.stage,
+            address: await stageAddressLookup(tx, gameId, request.actorId, actorRow.stage.id),
             actionKind: request.actionKind,
             effect: itemRow.effect,
             item: itemRow,

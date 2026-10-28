@@ -32,9 +32,19 @@ export const TEST_WORLD: World = {
     { from: "gate", to: "nave" },
     { from: "nave", to: "gate" },
   ],
+  // 测试世界里三个人一开始就同处门廊并互相认识；名字门槛由专门用例覆盖。
+  knownIdentities: [
+    { observer: "ember-keeper", subject: "lantern-monk", name: "提灯修士" },
+    { observer: "ember-keeper", subject: "silent-scribe", name: "缄默抄经人" },
+    { observer: "lantern-monk", subject: "ember-keeper", name: "守烬人" },
+    { observer: "lantern-monk", subject: "silent-scribe", name: "缄默抄经人" },
+    { observer: "silent-scribe", subject: "ember-keeper", name: "守烬人" },
+    { observer: "silent-scribe", subject: "lantern-monk", name: "提灯修士" },
+  ],
   actors: [
     {
       stageKey: "gate",
+      key: "ember-keeper",
       name: "守烬人",
       profile: "一个把自己裹在旧羊毛斗篷里的拾荒者。",
       appearance: "斗篷边缘被烧焦，脸上覆着一层洗不净的灰。",
@@ -71,6 +81,7 @@ export const TEST_WORLD: World = {
     },
     {
       stageKey: "gate",
+      key: "lantern-monk",
       name: "提灯修士",
       profile: "一个不肯摘下兜帽的修士。",
       appearance: "灰袍下摆浸着泥水，右手始终握着灯柄。",
@@ -104,6 +115,7 @@ export const TEST_WORLD: World = {
     },
     {
       stageKey: "nave",
+      key: "silent-scribe",
       name: "缄默抄经人",
       profile: "一个在断钟旁抄写无字经文的老人。",
       appearance: "指节沾满黑蜡，膝上摊着一卷空白经页。",

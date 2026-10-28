@@ -1,5 +1,6 @@
 import type { TraceContext } from "../../debug/trace";
 import type { ToolDefinition } from "../../llm/types";
+import { type AddressLookup, actionRef, HANDLE_PATTERN } from "../addressing";
 import { appendPublicMessage, bumpGameVersion } from "../apply/messages";
 import { findActorInStage } from "../apply/queries";
 import type { ActorWithStageRow, Executor, ResolvedWhisper } from "../apply/types";
@@ -21,14 +22,14 @@ export function buildWhisperTool(targets: readonly string[]): ToolDefinition {
             type: "string",
             description: `第一人称内心独白，说明为什么这样说，控制在 ${MAX_MIND_LENGTH} 字以内`,
           },
-          targetActorName: {
+          targetActorHandle: {
             type: "string",
-            description: "当前场景内唯一的耳语对象",
+            description: "当前场景内唯一的耳语对象：用 @数字 指代",
             ...(targets.length > 0 ? { enum: [...targets] } : {}),
           },
           message: { type: "string", description: "你要说出的内容" },
         },
-        required: ["mind", "targetActorName", "message"],
+        required: ["mind", "targetActorHandle", "message"],
       },
     },
   };
@@ -37,18 +38,21 @@ export function buildWhisperTool(targets: readonly string[]): ToolDefinition {
 export function parseWhisper(args: Record<string, unknown>): WhisperAction {
   const mind = typeof args.mind === "string" ? args.mind.trim() : "";
   const message = typeof args.message === "string" ? args.message : "";
-  const targetActorName =
-    typeof args.targetActorName === "string" ? args.targetActorName.trim() : "";
+  const targetActorHandle =
+    typeof args.targetActorHandle === "string" ? args.targetActorHandle.trim() : "";
   if (mind.length === 0) {
     throw new GameError("invalid_action", "whisper 需要非空 mind");
   }
   if (message.trim().length === 0) {
     throw new GameError("invalid_action", "whisper 需要非空 message");
   }
-  if (targetActorName.length === 0) {
-    throw new GameError("invalid_action", "whisper 需要非空 targetActorName");
+  if (HANDLE_PATTERN.test(message)) {
+    throw new GameError("invalid_action", "message 里不能出现系统指代（@数字）");
   }
-  return { kind: "whisper", mind, targetActorName, message };
+  if (targetActorHandle.length === 0) {
+    throw new GameError("invalid_action", "whisper 需要非空 targetActorHandle");
+  }
+  return { kind: "whisper", mind, targetActorHandle, message };
 }
 
 export async function resolveWhisper(
@@ -57,7 +61,7 @@ export async function resolveWhisper(
   actorId: string,
   action: WhisperAction,
 ): Promise<ResolvedWhisper> {
-  const target = await findActorInStage(executor, stage.id, action.targetActorName);
+  const target = await findActorInStage(executor, stage.id, action.targetActorHandle);
   if (target.id === actorId) {
     throw new GameError("invalid_action", "whisper 的目标不能是自己");
   }
@@ -70,6 +74,7 @@ export async function applyWhisper(
   actorRow: ActorWithStageRow,
   resolved: ResolvedWhisper,
   now: Date,
+  address: AddressLookup,
   trace?: TraceContext,
 ): Promise<string> {
   const source = { id: actorRow.actor.id, name: actorRow.actor.name };
@@ -102,5 +107,5 @@ export async function applyWhisper(
     { eventKind: "whisper" },
     trace,
   );
-  return `# 行动结果\n你对${target.name}耳语（场景：${resolved.stage.name}）：${resolved.action.message}`;
+  return `# 行动结果\n你对${actionRef(address(target.id))}耳语（场景：${resolved.stage.name}）：${resolved.action.message}`;
 }

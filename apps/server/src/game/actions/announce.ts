@@ -1,5 +1,6 @@
 import type { TraceContext } from "../../debug/trace";
 import type { ToolDefinition } from "../../llm/types";
+import { HANDLE_PATTERN } from "../addressing";
 import { appendPublicMessage, bumpGameVersion } from "../apply/messages";
 import type { ActorWithStageRow, Executor, ResolvedAnnounce } from "../apply/types";
 import { MAX_MIND_LENGTH } from "../constants";
@@ -36,6 +37,9 @@ export function parseAnnounce(args: Record<string, unknown>): AnnounceAction {
   }
   if (message.trim().length === 0) {
     throw new GameError("invalid_action", "announce 需要非空 message");
+  }
+  if (HANDLE_PATTERN.test(message)) {
+    throw new GameError("invalid_action", "message 里不能出现系统指代（@数字）");
   }
   return { kind: "announce", mind, message };
 }

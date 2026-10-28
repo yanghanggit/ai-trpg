@@ -66,7 +66,7 @@ describe.skipIf(!testDatabaseUrl)("player takeover", () => {
     ).rejects.toThrow("已被玩家接管");
 
     const said = await playerSay(handle.db, game.game.slug, "守烬人", {
-      targetActorName: "提灯修士",
+      targetActorRef: "提灯修士",
       message: "公开对你说。",
       reason: "先确认他是否听见钟声。",
     });
@@ -77,7 +77,7 @@ describe.skipIf(!testDatabaseUrl)("player takeover", () => {
     });
 
     const whispered = await playerWhisper(handle.db, game.game.slug, "守烬人", {
-      targetActorName: "提灯修士",
+      targetActorRef: "提灯修士",
       message: "这是一句秘密。",
     });
     expect(whispered.ok).toBe(true);
@@ -102,7 +102,7 @@ describe.skipIf(!testDatabaseUrl)("player takeover", () => {
     const monk = memories.find((memory) => memory.name === "提灯修士");
     const scribe = memories.find((memory) => memory.name === "缄默抄经人");
 
-    expect(keeper?.messages.some((message) => message.content.includes("你对提灯修士说"))).toBe(
+    expect(keeper?.messages.some((message) => /你对@\d+ 提灯修士说/.test(message.content))).toBe(
       true,
     );
     expect(monk?.messages.some((message) => message.content.includes("守烬人对你说"))).toBe(true);
@@ -158,12 +158,12 @@ describe.skipIf(!testDatabaseUrl)("player takeover", () => {
     await takeActorControl(handle.db, game.game.slug, "守烬人");
 
     const attacked = await playerAttack(handle.db, game.game.slug, "守烬人", {
-      targetActorName: "提灯修士",
+      targetActorRef: "提灯修士",
     });
     expect(attacked.ok).toBe(true);
     expect(attacked.plan?.actions[0]).toMatchObject({
       kind: "attack",
-      targetActorName: "提灯修士",
+      targetActorHandle: "提灯修士",
     });
 
     const state = await getGameState(handle.db, game.game.slug);

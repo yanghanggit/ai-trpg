@@ -29,6 +29,8 @@ import {
   createWorldMemory,
 } from "./memory";
 import { allocateEntitySeq } from "./persistence/entity-seq";
+import { listKnowledge, upsertKnowledge } from "./persistence/knowledge";
+import { insertPresentation, listCurrentPresentations } from "./persistence/presentations";
 import type {
   ActorState,
   ConnectionState,
@@ -37,6 +39,7 @@ import type {
   ItemState,
   MessageState,
   MessageVisibility,
+  NameKnowledgeState,
   PlayerState,
   StageState,
 } from "./types";
@@ -139,6 +142,11 @@ export async function getGameState(db: Database, ref: string): Promise<GameState
           .where(inArray(items.actorId, actorIds))
           .orderBy(asc(items.seq));
 
+  // 每个 actor 当前只有一条形象；运行时快照把展示值拍平到 appearance，
+  // 这里只把句柄与识别需要的字段带出来。
+  const presentationRows = await listCurrentPresentations(db, actorIds);
+  const presentationByActor = new Map(presentationRows.map((row) => [row.actorId, row]));
+
   const stageItemRows =
     stageIds.length === 0
       ? []
@@ -170,13 +178,24 @@ export async function getGameState(db: Database, ref: string): Promise<GameState
 
   const actorsByStage = new Map<string, ActorState[]>();
   for (const actor of actorRows) {
+    const presentation = presentationByActor.get(actor.id);
+    if (!presentation) {
+      throw new GameError("invalid_state", `actor 缺少形象: ${actor.name}`);
+    }
     const list = actorsByStage.get(actor.stageId) ?? [];
     list.push({
       id: actor.id,
       seq: actor.seq,
+      key: actor.key,
       name: actor.name,
       profile: actor.profile,
-      appearance: actor.appearance,
+      appearance: presentation.appearance,
+      presentation: {
+        id: presentation.id,
+        seq: presentation.seq,
+        anchor: presentation.anchor,
+        isDefault: presentation.isDefault,
+      },
       baseBody: actor.baseBody,
       stats: actor.stats,
       hp: actor.hp,
@@ -215,6 +234,15 @@ export async function getGameState(db: Database, ref: string): Promise<GameState
     displayName: playerRow.displayName,
     role: playerRow.role,
   };
+
+  const knowledgeRows = await listKnowledge(db, game.id);
+  const knowledge: NameKnowledgeState[] = knowledgeRows.map((row) => ({
+    observerActorId: row.observerActorId,
+    presentationId: row.presentationId,
+    name: row.name,
+    source: row.source,
+    learnedStageId: row.learnedStageId,
+  }));
 
   const messages: MessageState[] = messageRows.map((message) => ({
     id: message.id,
@@ -255,6 +283,7 @@ export async function getGameState(db: Database, ref: string): Promise<GameState
       connections,
     },
     messages,
+    knowledge,
   };
 }
 
@@ -397,6 +426,15 @@ export async function createGame(
       itemKeys.add(item.key);
     }
 
+    // actor key 是内容层引用角色的唯一方式，必须全局唯一。
+    const actorKeys = new Set<string>();
+    for (const actor of input.world.actors) {
+      if (actorKeys.has(actor.key)) {
+        throw new GameError("invalid_state", `重复的 actor key: ${actor.key}`);
+      }
+      actorKeys.add(actor.key);
+    }
+
     for (const connection of input.world.connections) {
       const fromStageId = stageIds.get(connection.from);
       const toStageId = stageIds.get(connection.to);
@@ -416,6 +454,7 @@ export async function createGame(
       });
     }
 
+    const actorRefs = new Map<string, { actorId: string; presentationId: string }>();
     for (const actor of input.world.actors) {
       const actorStageId = stageIds.get(actor.stageKey);
       if (!actorStageId) {
@@ -430,9 +469,9 @@ export async function createGame(
         id: actorId,
         seq: await allocateEntitySeq(tx, gameId),
         stageId: actorStageId,
+        key: actor.key,
         name: actor.name,
         profile: actor.profile,
-        appearance: resolveAppearance(actor),
         baseBody: actor.baseBody,
         stats,
         hp,
@@ -440,6 +479,18 @@ export async function createGame(
         equipment: actor.equipment ?? {},
         actions: [...actor.actions],
       });
+
+      // 开局只有一个默认形象：本相。伪装 / 变身之后才会插入新形象。
+      const presentationId = randomUUID();
+      await insertPresentation(tx, {
+        id: presentationId,
+        seq: await allocateEntitySeq(tx, gameId),
+        actorId,
+        anchor: actor.baseBody.description,
+        appearance: resolveAppearance(actor),
+        isDefault: true,
+      });
+      actorRefs.set(actor.key, { actorId, presentationId });
 
       for (const item of actor.items) {
         await tx.insert(items).values({
@@ -479,6 +530,42 @@ export async function createGame(
           baseBody: actor.baseBody,
         },
         actorPrompt,
+      );
+    }
+
+    // 开局既知的名字：观察者与对象都用内容 key 引用，落库时变成 actor / 形象 id。
+    for (const identity of input.world.knownIdentities ?? []) {
+      const observer = actorRefs.get(identity.observer);
+      const subject = actorRefs.get(identity.subject);
+      if (!observer) {
+        throw new GameError(
+          "invalid_state",
+          `knownIdentities 引用了不存在的观察者: ${identity.observer}`,
+        );
+      }
+      if (!subject) {
+        throw new GameError(
+          "invalid_state",
+          `knownIdentities 引用了不存在的对象: ${identity.subject}`,
+        );
+      }
+      if (observer.actorId === subject.actorId) {
+        throw new GameError(
+          "invalid_state",
+          `knownIdentities 不能把自己记作他人: ${identity.observer}`,
+        );
+      }
+      await upsertKnowledge(
+        tx,
+        {
+          gameId,
+          observerActorId: observer.actorId,
+          presentationId: subject.presentationId,
+          name: identity.name,
+          source: "content",
+          learnedStageId: null,
+        },
+        new Date(),
       );
     }
   });

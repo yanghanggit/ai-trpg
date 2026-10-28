@@ -14,7 +14,7 @@
 
 ## 隔离边界
 
-- **数据库 schema**：只放 world / stage / actor / item / message / memory 等通用概念，能力用 `actions` JSONB 承载。
+- **数据库 schema**：只放 world / stage / actor / presentation / item / message / memory 等通用概念，能力用 `actions` JSONB 承载。
 - **内容校验**：`parseContentPack` 校验内容包，`parseWorldContent` 校验世界内容，缺能力、缺 key、类型错误直接拒绝；所有场景必须声明 `submit_environment`。
 - **prompt 里没有故事样例，也没有工具名**：身份、设定与全局规则来自 `World` 字段，但不写工具名——工具会改名，内容不该跟着改；写法细则在工具描述里。守卫见「检查方法」。
 - **结束条件**：只有 world 能 `end_game`，`outcome` 由它自己命名，框架不枚举；主角死亡也只是一条通知 world 的事实。收束判据属于内容：通用判断规则在 `systemRules`，本剧本对世界与收束的理解在 world 的 `profile`。
@@ -25,7 +25,7 @@
 
 `item.effect` 是声明式可序列化效果，`attack` / `use` 只按 `type` 分派；stage 报告是报告、不是世界事实；world 不直接替 stage 写 environment，只下发 directive。
 
-→ 参见：[Actor 行动与记忆](actor-actions-memory.md)、→ 参见：[Stage 小 GM](stage.md)
+→ 参见：[Actor 行动与记忆](actor-actions-memory.md)、→ 参见：[Stage 小 GM](stage.md)、[Seed 内容编写原则](seed-authoring.md)
 
 ## 内容入口
 

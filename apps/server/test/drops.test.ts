@@ -109,12 +109,12 @@ describe.skipIf(!testDatabaseUrl)("death drops", () => {
       { name: "浸血的灰袍碎片", description: "边角焦黑，布料里混着石粉。", count: 2 },
     ]);
     // 修士 HP 10、一刀 3：第一刀不死，第二刀才触发死亡阶段。
-    await playerAttack(handle.db, created.game.slug, "守烬人", { targetActorName: "提灯修士" });
+    await playerAttack(handle.db, created.game.slug, "守烬人", { targetActorRef: "提灯修士" });
     const hit = await playerAttack(
       handle.db,
       created.game.slug,
       "守烬人",
-      { targetActorName: "提灯修士" },
+      { targetActorRef: "提灯修士" },
       { appearanceService: service },
     );
     expect(hit.death?.settled).toEqual(["提灯修士"]);
@@ -138,7 +138,7 @@ describe.skipIf(!testDatabaseUrl)("death drops", () => {
     expect(memory?.messages.some((message) => message.content.includes("# 尸体遗留"))).toBe(true);
 
     const stolen = await playerSteal(handle.db, created.game.slug, "守烬人", {
-      targetActorName: "提灯修士",
+      targetActorRef: "提灯修士",
       itemName: "浸血的灰袍碎片",
     });
     expect(stolen.ok).toBe(true);
@@ -213,12 +213,12 @@ describe.skipIf(!testDatabaseUrl)("death drops", () => {
       { name: "骨片", description: "重复。" },
     ]);
     // 修士 HP 10、一刀 3：第一刀不死，第二刀才触发死亡阶段。
-    await playerAttack(handle.db, created.game.slug, "守烬人", { targetActorName: "提灯修士" });
+    await playerAttack(handle.db, created.game.slug, "守烬人", { targetActorRef: "提灯修士" });
     const hit = await playerAttack(
       handle.db,
       created.game.slug,
       "守烬人",
-      { targetActorName: "提灯修士" },
+      { targetActorRef: "提灯修士" },
       { appearanceService: service },
     );
     expect(hit.death?.settled).toEqual(["提灯修士"]);

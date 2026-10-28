@@ -53,10 +53,18 @@ async function applyPlayerAction(
   };
 }
 
+/**
+ * 玩家入口的通用引用。接受三种写法：
+ * - `actor.id`：稳定身份，客户端首选；
+ * - 规范名（如 `角色.某甲`）：给人工操作与 CLI 用；
+ * - 系统指代（如 `@3`）：复用 agent 视角时用。
+ *
+ * 玩家入口是 god view，与模型工具不同：模型只能看到 `@` 指代。
+ */
 /** 玩家提交的说话动作；`reason` 对应工具里的 mind，省略时用固定文案。 */
 export type PlayerTalkInput = {
   message: string;
-  targetActorName: string;
+  targetActorRef: string;
   reason?: string;
 };
 
@@ -70,16 +78,16 @@ export type PlayerMoveInput = {
 };
 
 export type PlayerAttackInput = {
-  targetActorName: string;
+  targetActorRef: string;
 };
 
 export type PlayerStealInput = {
-  targetActorName: string;
+  targetActorRef: string;
   itemName: string;
 };
 
 export type PlayerGiveInput = {
-  targetActorName: string;
+  targetActorRef: string;
   itemName: string;
 };
 
@@ -98,7 +106,7 @@ export type PlayerUnequipInput = {
 
 export type PlayerUseInput = {
   itemName: string;
-  targetActorName?: string;
+  targetActorRef?: string;
   targetStageName?: string;
   targetDetail?: string;
 };
@@ -116,7 +124,7 @@ export async function playerSay(
   const action: ActorAction = {
     kind: "say",
     mind: playerMind(input.reason),
-    targetActorName: input.targetActorName,
+    targetActorHandle: input.targetActorRef,
     message: input.message,
   };
   return applyPlayerAction(db, gameRef, actorRef, action);
@@ -131,7 +139,7 @@ export async function playerWhisper(
   const action: ActorAction = {
     kind: "whisper",
     mind: playerMind(input.reason),
-    targetActorName: input.targetActorName,
+    targetActorHandle: input.targetActorRef,
     message: input.message,
   };
   return applyPlayerAction(db, gameRef, actorRef, action);
@@ -179,7 +187,7 @@ export async function playerAttack(
 ): Promise<ActorTurnResult> {
   const action: ActorAction = {
     kind: "attack",
-    targetActorName: input.targetActorName,
+    targetActorHandle: input.targetActorRef,
   };
   return applyPlayerAction(db, gameRef, actorRef, action, options);
 }
@@ -192,7 +200,7 @@ export async function playerSteal(
 ): Promise<ActorTurnResult> {
   const action: ActorAction = {
     kind: "steal",
-    targetActorName: input.targetActorName,
+    targetActorHandle: input.targetActorRef,
     itemName: input.itemName,
   };
   return applyPlayerAction(db, gameRef, actorRef, action);
@@ -206,7 +214,7 @@ export async function playerGive(
 ): Promise<ActorTurnResult> {
   const action: ActorAction = {
     kind: "give",
-    targetActorName: input.targetActorName,
+    targetActorHandle: input.targetActorRef,
     itemName: input.itemName,
   };
   return applyPlayerAction(db, gameRef, actorRef, action);
@@ -252,7 +260,7 @@ export async function playerUse(
   const action: ActorAction = {
     kind: "use",
     itemName: input.itemName,
-    ...(input.targetActorName !== undefined ? { targetActorName: input.targetActorName } : {}),
+    ...(input.targetActorRef !== undefined ? { targetActorHandle: input.targetActorRef } : {}),
     ...(input.targetStageName !== undefined ? { targetStageName: input.targetStageName } : {}),
     ...(input.targetDetail !== undefined ? { targetDetail: input.targetDetail } : {}),
   };

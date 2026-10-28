@@ -48,6 +48,7 @@
 | [LLM 基础组件](llm.md)                   | provider 分层、失败模型、agent loop 与重试    |
 | [图像生成基建](image-generation.md)      | 图像 provider 分层、资产边界与失败模型        |
 | [后台作业队列](background-jobs.md)       | 队列选型、worker 租约、串行键与接入边界       |
+| [术语表](glossary.md)                    | 规范名、本名、称呼、指代、形象与控制面/世界面 |
 | [数据库](database.md)                    | PostgreSQL 状态源、表与不变式、死亡、迁移     |
 | [公共知识检索](rag.md)                   | 知识边界、向量存储、query 工具与评测基线      |
 | [Actor 记忆](actor-actions-memory.md)    | actor 控制、行动事实、过程轨迹与接管          |
@@ -59,3 +60,4 @@
 | [故事整理 Agent](story-agent.md)         | 任意时刻的只读故事总结与上下文串联验证        |
 | [开发期 Agent 工作流](debug-workflow.md) | 快照驱动推进、过程轨迹、HTTP 走查与共同边界   |
 | [数据驱动目标](data-driven.md)           | 框架与内容隔离、当前缺口、未来内容层目标      |
+| [Seed 内容编写原则](seed-authoring.md)   | 内容归属判断、分层写作、保密与验收            |

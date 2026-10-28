@@ -97,7 +97,7 @@ describe.skipIf(!testDatabaseUrl)("actor status", () => {
     await takeActorControl(handle.db, created.game.slug, "守烬人");
 
     const stolen = await playerSteal(handle.db, created.game.slug, "守烬人", {
-      targetActorName: "提灯修士",
+      targetActorRef: "提灯修士",
       itemName: "铅封提灯",
     });
     expect(stolen.ok).toBe(true);
@@ -129,7 +129,7 @@ describe.skipIf(!testDatabaseUrl)("actor status", () => {
     // 尸体仍可被攻击，只是伤害结算空转；行动主体才必须活着。
     await takeActorControl(handle.db, created.game.slug, "守烬人");
     const swing = await playerAttack(handle.db, created.game.slug, "守烬人", {
-      targetActorName: "提灯修士",
+      targetActorRef: "提灯修士",
     });
     expect(swing.ok).toBe(true);
 
@@ -219,7 +219,7 @@ describe.skipIf(!testDatabaseUrl)("death phase", () => {
       handle.db,
       created.game.slug,
       "守烬人",
-      { targetActorName: "提灯修士" },
+      { targetActorRef: "提灯修士" },
       { appearanceService: service },
     );
     expect(attacked.ok).toBe(true);
@@ -237,7 +237,7 @@ describe.skipIf(!testDatabaseUrl)("death phase", () => {
       handle.db,
       created.game.slug,
       "守烬人",
-      { targetActorName: "提灯修士" },
+      { targetActorRef: "提灯修士" },
       { appearanceService: service },
     );
     expect(killed.ok).toBe(true);
@@ -394,7 +394,7 @@ describe.skipIf(!testDatabaseUrl)("death phase", () => {
       handle.db,
       created.game.slug,
       "守烬人",
-      { targetActorName: "提灯修士" },
+      { targetActorRef: "提灯修士" },
       { appearanceService: new FailingAppearanceService() },
     );
     expect(result.ok).toBe(true);
@@ -504,7 +504,7 @@ describe.skipIf(!testDatabaseUrl)("death phase does not block death", () => {
         handle.db,
         created.game.slug,
         "守烬人",
-        { targetActorName: "提灯修士" },
+        { targetActorRef: "提灯修士" },
         { appearanceService: failing },
       );
     await kill();
@@ -575,7 +575,7 @@ describe.skipIf(!testDatabaseUrl)("death phase does not block death", () => {
         handle.db,
         created.game.slug,
         "守烬人",
-        { targetActorName: "提灯修士" },
+        { targetActorRef: "提灯修士" },
         { appearanceService: service },
       );
     await strike();
@@ -663,7 +663,7 @@ describe.skipIf(!testDatabaseUrl)("corpses can be operated on", () => {
         handle.db,
         created.game.slug,
         "守烬人",
-        { targetActorName: "提灯修士" },
+        { targetActorRef: "提灯修士" },
         service ? { appearanceService: service } : {},
       );
     await strike();
@@ -684,7 +684,7 @@ describe.skipIf(!testDatabaseUrl)("corpses can be operated on", () => {
     expect(before?.hp).toBe(0);
 
     const again = await playerAttack(handle.db, created.game.slug, "守烬人", {
-      targetActorName: "提灯修士",
+      targetActorRef: "提灯修士",
     });
     expect(again.ok).toBe(true);
 
@@ -700,7 +700,7 @@ describe.skipIf(!testDatabaseUrl)("corpses can be operated on", () => {
   it("物品可以交给尸体（为复活类玩法留口）", async () => {
     const created = await killMonk("给予尸体测试局");
     const given = await playerGive(handle.db, created.game.slug, "守烬人", {
-      targetActorName: "提灯修士",
+      targetActorRef: "提灯修士",
       itemName: "裂齿短刃",
     });
     expect(given.ok).toBe(true);
@@ -723,8 +723,9 @@ describe.skipIf(!testDatabaseUrl)("corpses can be operated on", () => {
       const tool = capture.tools.find((tool) => tool.function.name === toolName);
       const enumValues = (tool?.function.parameters as { properties?: Record<string, unknown> })
         ?.properties;
-      const targetName = enumValues?.targetActorName as { enum?: string[] } | undefined;
-      expect(targetName?.enum).toContain("提灯修士");
+      const targetName = enumValues?.targetActorHandle as { enum?: string[] } | undefined;
+      expect(targetName?.enum?.length).toBeGreaterThan(0);
+      expect(targetName?.enum?.every((handle) => /^@\d+$/.test(handle))).toBe(true);
     }
     // 观察文本只有一个「可作用对象」，且包含尸体。
     expect(capture.input).toContain("## 可作用对象");
@@ -739,6 +740,7 @@ describe.skipIf(!testDatabaseUrl)("corpses can be operated on", () => {
       actors: [
         ...TEST_WORLD.actors,
         {
+          key: "bystander-a",
           stageKey: "gate",
           name: "旁听者",
           profile: "一个缩在门廊阴影里的无关者。",
@@ -750,6 +752,14 @@ describe.skipIf(!testDatabaseUrl)("corpses can be operated on", () => {
           actions: ["say", "whisper", "move", "wait"] as const,
         },
       ],
+      knownIdentities: [
+        ...(TEST_WORLD.knownIdentities ?? []),
+        { observer: "bystander-a", subject: "lantern-monk", name: "提灯修士" },
+        { observer: "bystander-a", subject: "ember-keeper", name: "守烬人" },
+        { observer: "ember-keeper", subject: "bystander-a", name: "旁听者" },
+        { observer: "lantern-monk", subject: "bystander-a", name: "旁听者" },
+        { observer: "silent-scribe", subject: "bystander-a", name: "旁听者" },
+      ],
     };
     const created = await createGame(handle.db, {
       username: DEMO_USER.username,
@@ -758,7 +768,7 @@ describe.skipIf(!testDatabaseUrl)("corpses can be operated on", () => {
     });
     await takeActorControl(handle.db, created.game.slug, "守烬人");
     await playerAttack(handle.db, created.game.slug, "守烬人", {
-      targetActorName: "提灯修士",
+      targetActorRef: "提灯修士",
     });
 
     const state = await getGameState(handle.db, created.game.slug);
@@ -802,7 +812,7 @@ describe.skipIf(!testDatabaseUrl)("corpses can be operated on", () => {
     // 玩家入口：没接管也不行，接管了也不行——行动入口统一拒绝。
     await expect(
       playerGive(handle.db, created.game.slug, "提灯修士", {
-        targetActorName: "守烬人",
+        targetActorRef: "守烬人",
         itemName: "铅封提灯",
       }),
     ).rejects.toThrow("未被玩家接管");

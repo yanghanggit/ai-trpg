@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import type { AddressLookup } from "../src/game/addressing";
 import { MEMORY_KINDS } from "../src/game/constants";
 import {
   type CommunicationObservation,
@@ -6,16 +7,49 @@ import {
   damageActionText,
   type ItemObservation,
   renderAction,
-  renderCommunication,
-  renderDamage,
+  renderCommunication as renderCommunicationRaw,
+  renderDamage as renderDamageRaw,
   renderEnvironment,
-  renderItemEvent,
+  renderItemEvent as renderItemEventRaw,
 } from "../src/game/observation-text";
 
 const STAGE = { id: "stage-1", name: "灰烬门廊" };
 const ACTOR = { id: "actor-1", name: "守烬人" };
 const OTHER = { id: "actor-2", name: "提灯修士" };
 const TARGET = { ...OTHER, maxHp: 12 };
+
+/** 测试里假定观察者知道双方名字；未知名字的分支由 observation-text 的专门用例覆盖。 */
+const ADDRESS: AddressLookup = (actorId) => {
+  if (actorId === ACTOR.id) {
+    return { token: "@1", label: "守烬人", mention: "守烬人", knownName: "守烬人" };
+  }
+  if (actorId === OTHER.id) {
+    return { token: "@2", label: "提灯修士", mention: "提灯修士", knownName: "提灯修士" };
+  }
+  return { token: "", label: "一个看不清的身影", mention: "一个看不清的身影", knownName: null };
+};
+
+const renderDamage = (
+  ...args: [
+    Parameters<typeof renderDamageRaw>[0],
+    Parameters<typeof renderDamageRaw>[1],
+    Parameters<typeof renderDamageRaw>[2],
+  ]
+) => renderDamageRaw(args[0], args[1], args[2], ADDRESS);
+const renderItemEvent = (
+  ...args: [
+    Parameters<typeof renderItemEventRaw>[0],
+    Parameters<typeof renderItemEventRaw>[1],
+    Parameters<typeof renderItemEventRaw>[2],
+  ]
+) => renderItemEventRaw(args[0], args[1], args[2], ADDRESS);
+const renderCommunication = (
+  ...args: [
+    Parameters<typeof renderCommunicationRaw>[0],
+    Parameters<typeof renderCommunicationRaw>[1],
+    Parameters<typeof renderCommunicationRaw>[2],
+  ]
+) => renderCommunicationRaw(args[0], args[1], args[2], ADDRESS);
 
 const damage = (overrides: Partial<DamageObservation> = {}): DamageObservation => ({
   action: "attack",

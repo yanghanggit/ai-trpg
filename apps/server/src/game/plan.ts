@@ -1,8 +1,9 @@
 import type { ToolDefinition } from "../llm/types";
 import type { RagSearchResult } from "../rag";
-import { adjacentStageNames, findStageByName } from "./actors";
+import { type ActorWithStage, adjacentStageNames, findStageByName } from "./actors";
+import { type AddressLookup, addressLookupFor, plainEntityName, refOf } from "./addressing";
 import { isAlive } from "./apply/queries";
-import { MAX_WORLD_NOTIFICATION_LENGTH } from "./constants";
+import { MAX_IDENTITY_NAME_LENGTH, MAX_WORLD_NOTIFICATION_LENGTH } from "./constants";
 import { GameError } from "./errors";
 import type { ActorState, GameState, ItemState, StageAction } from "./types";
 import { EQUIPMENT_SLOT_LABELS, EQUIPMENT_SLOTS } from "./types";
@@ -67,7 +68,7 @@ export function buildSelfInfoTool(): ToolDefinition {
 
 /** 只返回对方携带的物品，不暴露 stats 或状态。 */
 export function buildObserveActorTool(
-  availableTargetActorNames: readonly string[],
+  availableTargetActorHandles: readonly string[],
 ): ToolDefinition {
   return {
     type: "function",
@@ -78,13 +79,13 @@ export function buildObserveActorTool(
       parameters: {
         type: "object",
         properties: {
-          targetActorName: {
+          targetActorHandle: {
             type: "string",
-            enum: availableTargetActorNames,
-            description: "要感知的同场景角色名",
+            enum: availableTargetActorHandles,
+            description: "要感知的同场景角色的指代（@数字）",
           },
         },
-        required: ["targetActorName"],
+        required: ["targetActorHandle"],
       },
     },
   };
@@ -141,7 +142,7 @@ export function buildSubmitPlanTool(): ToolDefinition {
     type: "function",
     function: {
       name: "submit_plan",
-      description: "提交本轮已暂存的行动计划；调用后本轮规划结束。",
+      description: "提交本轮已暂存的行动与认知更新；调用后本轮规划结束。",
       parameters: {
         type: "object",
         properties: {},
@@ -288,7 +289,7 @@ export function describeItems(actor: Pick<ActorState, "items" | "equipment">): s
     const { damage, block } = item.stats;
     const stats = damage > 0 || block > 0 ? `（damage ${damage}，block ${block}）` : "";
     const worn = Object.values(actor.equipment).includes(item.name) ? "，已穿戴" : "";
-    return `- ${item.name}（${item.kind}，count ${item.count}${itemSourceNote(item)}${worn}）：${item.description}${stats}`;
+    return `- ${plainEntityName(item.name)}（${item.kind}，count ${item.count}${itemSourceNote(item)}${worn}）：${item.description}${stats}`;
   });
   return `物品：
 ${lines.join("\n")}`;
@@ -297,7 +298,7 @@ ${lines.join("\n")}`;
 export function describeEquipment(actor: Pick<ActorState, "equipment">): string {
   const lines = EQUIPMENT_SLOTS.flatMap((slot) => {
     const itemName = actor.equipment[slot];
-    return itemName ? [`- ${EQUIPMENT_SLOT_LABELS[slot]}：${itemName}`] : [];
+    return itemName ? [`- ${EQUIPMENT_SLOT_LABELS[slot]}：${plainEntityName(itemName)}`] : [];
   });
   return lines.length === 0 ? "穿戴：无" : `穿戴：\n${lines.join("\n")}`;
 }
@@ -309,9 +310,125 @@ ${describeEquipment(actor)}
 ${describeItems(actor)}`;
 }
 
-export function describeObservedActor(actor: ActorState): string {
-  return `${actor.name}携带：
+/** 不传 address 时使用 god-view 真名（stage / world 与测试）；actor 路径必须传。 */
+export function describeObservedActor(actor: ActorState, address?: AddressLookup): string {
+  const ref = address ? refOf(address(actor.id)) : actor.name;
+  return `${ref}携带：
 ${describeItems(actor)}`;
+}
+
+/** actor 只能看自己所在的场景：跨场景点名等于开后门。 */
+export function buildActorLookTool(stageName: string): ToolDefinition {
+  return {
+    type: "function",
+    function: {
+      name: "look_stage",
+      description: "重新查看你所在场景的环境、在场角色与可去方向。只读，可多次调用。",
+      parameters: {
+        type: "object",
+        properties: {
+          stageName: {
+            type: "string",
+            enum: [stageName],
+            description: "你所在的场景名",
+          },
+        },
+        required: ["stageName"],
+      },
+    },
+  };
+}
+
+/**
+ * 记录一个名字信念。
+ *
+ * 引擎不做名字抽取：只有角色自己判断「我已经从世界内信息得知他叫什么」之后才调用。
+ * 它只改自己的记忆，不产生世界事件，也不占行动名额。
+ */
+export function buildRememberIdentityTool(handles: readonly string[]): ToolDefinition {
+  return {
+    type: "function",
+    function: {
+      name: "remember_identity",
+      description: `把「某个指代」记成你相信的名字或称呼。
+
+只在你已经从世界内信息得知时使用：对方自报、别人介绍、或者你从可见的记载里读到。不要用它猜名字，也不要把 @ 开头的系统指代当成名字。
+记错、被骗、改口都可以重记，后一次覆盖前一次。它只改变你自己的记忆，不产生世界事件，也不占行动名额。`,
+      parameters: {
+        type: "object",
+        properties: {
+          handle: {
+            type: "string",
+            description: "你看到的系统指代，例如 @3",
+            ...(handles.length > 0 ? { enum: [...handles] } : {}),
+          },
+          name: {
+            type: "string",
+            description: `你相信对方叫什么；控制在 ${MAX_IDENTITY_NAME_LENGTH} 字以内`,
+          },
+        },
+        required: ["handle", "name"],
+      },
+    },
+  };
+}
+
+export function parseRememberIdentity(args: Record<string, unknown>): {
+  handle: string;
+  name: string;
+} {
+  const handle = typeof args.handle === "string" ? args.handle.trim() : "";
+  const name = typeof args.name === "string" ? args.name.trim() : "";
+  if (!/^@\d+$/.test(handle)) {
+    throw new GameError("invalid_action", "handle 必须是系统指代，例如 @3");
+  }
+  if (name.length === 0) {
+    throw new GameError("invalid_action", "name 不能为空");
+  }
+  if (name.length > MAX_IDENTITY_NAME_LENGTH) {
+    throw new GameError("invalid_action", `name 不能超过 ${MAX_IDENTITY_NAME_LENGTH} 个字符`);
+  }
+  if (/@\d+/.test(name)) {
+    throw new GameError("invalid_action", "name 不能包含系统指代");
+  }
+  return { handle, name };
+}
+
+/** actor 视角的场景视图：只允许本场景，名单走观察者相对的指代。 */
+export function describeStageForActor(
+  state: GameState,
+  stageName: string,
+  current: ActorWithStage,
+): string {
+  const stage = findStageByName(state, stageName);
+  if (!stage) {
+    return `错误：场景不存在 ${stageName}`;
+  }
+  if (stage.id !== current.stage.id) {
+    return "错误：你只能看见自己所在的场景";
+  }
+  const address = addressLookupFor(state, current.actor, stage);
+  const moves = adjacentStageNames(state, stage.id);
+  const actors =
+    stage.actors.length === 0
+      ? "无"
+      : stage.actors
+          .map((actor) => `${refOf(address(actor.id))}${isAlive(actor) ? "" : "（已死亡）"}`)
+          .join("、");
+  const items =
+    stage.items.length === 0
+      ? "无"
+      : stage.items
+          .map(
+            (item) =>
+              `${plainEntityName(item.name)}（${item.kind}${itemSourceNote(item)}）：${item.description}`,
+          )
+          .join("；");
+  return `场景：${stage.name}
+${stage.environment}
+角色：${actors}
+物品：${items}
+可去：${moves.length === 0 ? "无" : moves.join("、")}`;
 }
 
 export function lookStage(state: GameState, stageName: string): string {

@@ -1,24 +1,184 @@
-import { and, eq } from "drizzle-orm";
-import { actors, items, stageConnections, stageItems, stages } from "../../db/schema";
+import { and, eq, isNull } from "drizzle-orm";
+import {
+  actorPresentations,
+  actors,
+  items,
+  nameKnowledge,
+  stageConnections,
+  stageItems,
+  stages,
+  worlds,
+} from "../../db/schema";
+import { type AddressLookup, entityNameMatches, handleOf, makeAddressLookup } from "../addressing";
 import { addStats, type Stats } from "../attributes";
 import { GameError } from "../errors";
 import { EQUIPMENT_SLOTS } from "../types";
 import type { ActorRow, Executor, ItemRow, StageItemRow, StageRow, WorldRow } from "./types";
 
-/** 在当前场景内按名字找唯一角色；不判断存活与自我，由调用方决定。 */
+const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+export type PresentationRow = typeof actorPresentations.$inferSelect;
+export type ActorViewRow = { actor: ActorRow; presentation: PresentationRow };
+
+/** 当前形象的读取条件：同一 actor 至多一条未结束的形象。 */
+function currentPresentation(actorIdColumn: typeof actors.id) {
+  return and(eq(actorPresentations.actorId, actorIdColumn), isNull(actorPresentations.endedAt));
+}
+
+/** 本场景全部角色及其当前形象。 */
+export async function listStageActorViews(
+  executor: Executor,
+  stageId: string,
+): Promise<ActorViewRow[]> {
+  return executor
+    .select({ actor: actors, presentation: actorPresentations })
+    .from(actors)
+    .innerJoin(actorPresentations, currentPresentation(actors.id))
+    .where(eq(actors.stageId, stageId))
+    .orderBy(actors.seq);
+}
+
+/** 按句柄（`@<形象序号>`）在本场景内定位角色。 */
+export async function findActorViewByHandleInStage(
+  executor: Executor,
+  stageId: string,
+  handle: string,
+): Promise<ActorViewRow | undefined> {
+  const seq = Number(handle.slice(1));
+  if (!Number.isInteger(seq) || seq <= 0) {
+    return undefined;
+  }
+  const [row] = await executor
+    .select({ actor: actors, presentation: actorPresentations })
+    .from(actorPresentations)
+    .innerJoin(actors, eq(actorPresentations.actorId, actors.id))
+    .where(
+      and(
+        eq(actors.stageId, stageId),
+        eq(actorPresentations.seq, seq),
+        isNull(actorPresentations.endedAt),
+      ),
+    )
+    .limit(2);
+  return row;
+}
+
+/** 按句柄在本 world 内定位角色；名字信念可以在人物离场后补记。 */
+export async function findActorViewByHandleInWorld(
+  executor: Executor,
+  worldId: string,
+  handle: string,
+): Promise<ActorViewRow | undefined> {
+  const seq = Number(handle.slice(1));
+  if (!Number.isInteger(seq) || seq <= 0) {
+    return undefined;
+  }
+  const [row] = await executor
+    .select({ actor: actors, presentation: actorPresentations })
+    .from(actorPresentations)
+    .innerJoin(actors, eq(actorPresentations.actorId, actors.id))
+    .innerJoin(stages, eq(actors.stageId, stages.id))
+    .innerJoin(worlds, eq(stages.worldId, worlds.id))
+    .where(
+      and(
+        eq(worlds.id, worldId),
+        eq(actorPresentations.seq, seq),
+        isNull(actorPresentations.endedAt),
+      ),
+    )
+    .limit(2);
+  return row;
+}
+
+/** 观察者已知道的名字：形象 id → 称呼。 */
+export async function knowledgeNamesFor(
+  executor: Executor,
+  gameId: string,
+  observerActorId: string,
+): Promise<Map<string, string>> {
+  const rows = await executor
+    .select()
+    .from(nameKnowledge)
+    .where(
+      and(eq(nameKnowledge.gameId, gameId), eq(nameKnowledge.observerActorId, observerActorId)),
+    );
+  return new Map(rows.map((row) => [row.presentationId, row.name]));
+}
+
+/**
+ * 某个观察者在当前场景里的指代表。
+ *
+ * 自己固定解析为「你自己」：自己的名字属于自知，不查名字表。
+ */
+export async function stageAddressLookup(
+  executor: Executor,
+  gameId: string,
+  observerId: string,
+  stageId: string,
+): Promise<AddressLookup> {
+  const views = await listStageActorViews(executor, stageId);
+  const knownNames = await knowledgeNamesFor(executor, gameId, observerId);
+  const base = makeAddressLookup(
+    knownNames,
+    new Map(
+      views.map(({ actor, presentation }) => [
+        actor.id,
+        {
+          actorId: actor.id,
+          presentationId: presentation.id,
+          presentationSeq: presentation.seq,
+          appearance: presentation.appearance,
+        },
+      ]),
+    ),
+  );
+  const self = views.find((view) => view.actor.id === observerId);
+  return (actorId) => {
+    if (self && actorId === observerId) {
+      return {
+        token: handleOf(self.presentation.seq),
+        label: "你自己",
+        mention: "你",
+        knownName: self.actor.name,
+      };
+    }
+    return base(actorId);
+  };
+}
+
+/**
+ * 在当前场景内定位角色。
+ *
+ * 模型给的永远是句柄（`@3`）；god-view 入口（玩家接管、CLI、测试）可以继续用真名。
+ * 不接受简称，也不做模糊匹配。
+ */
 export async function findActorInStage(
   executor: Executor,
   stageId: string,
-  name: string,
+  ref: string,
 ): Promise<ActorRow> {
-  const matches = await executor
-    .select()
-    .from(actors)
-    .where(and(eq(actors.stageId, stageId), eq(actors.name, name)))
-    .limit(2);
+  if (ref.startsWith("@")) {
+    const view = await findActorViewByHandleInStage(executor, stageId, ref);
+    if (!view) {
+      throw new GameError("invalid_action", `场景内没有这个指代: ${ref}`);
+    }
+    return view.actor;
+  }
+  // god-view 入口可以直接用 actor id：客户端拿到的稳定身份就是它。
+  const matches = UUID_PATTERN.test(ref)
+    ? await executor
+        .select()
+        .from(actors)
+        .where(and(eq(actors.stageId, stageId), eq(actors.id, ref)))
+        .limit(2)
+    : await executor
+        .select()
+        .from(actors)
+        .where(and(eq(actors.stageId, stageId), eq(actors.name, ref)))
+        .limit(2);
   const [target] = matches;
   if (matches.length !== 1 || !target) {
-    throw new GameError("invalid_action", `当前场景内找不到唯一角色: ${name}`);
+    throw new GameError("invalid_action", `当前场景内找不到唯一角色: ${ref}`);
   }
   return target;
 }
@@ -62,11 +222,8 @@ export async function resolveActorItem(
   actorId: string,
   itemName: string,
 ): Promise<ItemRow> {
-  const matches = await executor
-    .select()
-    .from(items)
-    .where(and(eq(items.actorId, actorId), eq(items.name, itemName)))
-    .limit(2);
+  const rows = await executor.select().from(items).where(eq(items.actorId, actorId));
+  const matches = rows.filter((row) => entityNameMatches(row.name, itemName));
   const [item] = matches;
   if (matches.length !== 1 || !item) {
     throw new GameError("invalid_action", `actor 没有唯一物品: ${itemName}`);
@@ -79,11 +236,8 @@ export async function resolveStageItem(
   stageId: string,
   itemName: string,
 ): Promise<StageItemRow> {
-  const matches = await executor
-    .select()
-    .from(stageItems)
-    .where(and(eq(stageItems.stageId, stageId), eq(stageItems.name, itemName)))
-    .limit(2);
+  const rows = await executor.select().from(stageItems).where(eq(stageItems.stageId, stageId));
+  const matches = rows.filter((row) => entityNameMatches(row.name, itemName));
   const [item] = matches;
   if (matches.length !== 1 || !item) {
     throw new GameError("invalid_action", `场景内没有唯一物品: ${itemName}`);

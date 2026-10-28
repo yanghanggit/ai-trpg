@@ -16,17 +16,20 @@ import { applyUnequip } from "../actions/unequip";
 import { applyUse } from "../actions/use";
 import { applyWait } from "../actions/wait";
 import { applyWhisper } from "../actions/whisper";
+import { type AddressLookup, refOf } from "../addressing";
 import { MAX_ACTIONS_PER_TURN, MEMORY_KINDS } from "../constants";
 import { settleDeaths } from "../death";
 import { GameError } from "../errors";
 import { runAffixEffect } from "../item-effects/affix-agent";
 import type { AffixRequest } from "../item-effects/types";
 import { appendMemoryMessages, loadAgentMemory } from "../memory";
+import { upsertKnowledge } from "../persistence/knowledge";
 import type { ActorPlan, DeathPhaseResult } from "../types";
 import { isAlive } from "./queries";
 
 export * from "./queries";
 
+import { stageAddressLookup } from "./queries";
 import { resolvePlan } from "./resolve";
 import type { ActorWithStageRow, Executor, ResolvedAction } from "./types";
 
@@ -37,13 +40,14 @@ async function applyResolvedAction(
   actorRow: ActorWithStageRow,
   resolved: ResolvedAction,
   now: Date,
+  address: AddressLookup,
   trace?: TraceContext,
 ): Promise<string> {
   switch (resolved.kind) {
     case "say":
-      return applySay(executor, gameId, actorRow, resolved, now, trace);
+      return applySay(executor, gameId, actorRow, resolved, now, address, trace);
     case "whisper":
-      return applyWhisper(executor, gameId, actorRow, resolved, now, trace);
+      return applyWhisper(executor, gameId, actorRow, resolved, now, address, trace);
     case "announce":
       return applyAnnounce(executor, gameId, actorRow, resolved, now, trace);
     case "move":
@@ -51,15 +55,15 @@ async function applyResolvedAction(
     case "wait":
       return applyWait(executor, gameId, actorRow, resolved, now, trace);
     case "attack":
-      return applyAttack(executor, gameId, actorRow, resolved, now, trace);
+      return applyAttack(executor, gameId, actorRow, resolved, now, address, trace);
     case "steal":
-      return applySteal(executor, gameId, actorRow, resolved, now, trace);
+      return applySteal(executor, gameId, actorRow, resolved, now, address, trace);
     case "give":
-      return applyGive(executor, gameId, actorRow, resolved, now, trace);
+      return applyGive(executor, gameId, actorRow, resolved, now, address, trace);
     case "pickup":
       return applyPickup(executor, gameId, actorRow, resolved, now, trace);
     case "use":
-      return applyUse(executor, gameId, actorRow, resolved, now, trace);
+      return applyUse(executor, gameId, actorRow, resolved, now, address, trace);
     case "equip":
       return applyEquip(executor, gameId, actorRow, resolved, now, trace);
     case "unequip":
@@ -71,6 +75,7 @@ function affixRequestFor(
   resolved: ResolvedAction,
   actorId: string,
   defaultFeedback: string,
+  address: AddressLookup,
 ): AffixRequest | null {
   if (resolved.kind === "attack" && resolved.item && resolved.item.affixes.length > 0) {
     return {
@@ -78,6 +83,7 @@ function affixRequestFor(
       itemId: resolved.item.id,
       actionKind: "attack",
       targetActorId: resolved.target.id,
+      targetLabel: refOf(address(resolved.target.id)),
       defaultFeedback,
     };
   }
@@ -86,7 +92,9 @@ function affixRequestFor(
       actorId,
       itemId: resolved.transferItem.id,
       actionKind: "use",
-      ...(resolved.target ? { targetActorId: resolved.target.id } : {}),
+      ...(resolved.target
+        ? { targetActorId: resolved.target.id, targetLabel: refOf(address(resolved.target.id)) }
+        : {}),
       ...(resolved.targetStage ? { targetStageId: resolved.targetStage.id } : {}),
       ...(resolved.action.targetDetail ? { targetDetail: resolved.action.targetDetail } : {}),
       defaultFeedback,
@@ -165,7 +173,7 @@ export async function applyActorPlan(
       throw new GameError("invalid_state", `actor 缺少 memory: ${actorId}`);
     }
 
-    if (!plan || plan.actions.length === 0) {
+    if (!plan || (plan.actions.length === 0 && (plan.identities?.length ?? 0) === 0)) {
       await appendMemoryMessages(tx, memory.row.id, [
         {
           type: "human",
@@ -192,7 +200,7 @@ export async function applyActorPlan(
       return { ok: false, rejection, rejectionCode: MEMORY_KINDS.actionRejected };
     }
 
-    let resolved: ResolvedAction[];
+    let resolved: Awaited<ReturnType<typeof resolvePlan>>;
     try {
       resolved = await resolvePlan(tx, world, actorRow, plan);
     } catch (error) {
@@ -214,11 +222,20 @@ export async function applyActorPlan(
     }
 
     const now = new Date();
+    const address = await stageAddressLookup(tx, gameId, actorRow.actor.id, actorRow.stage.id);
     const applied: { event: "applied"; actionKind: string; feedback: string }[] = [];
-    for (const action of resolved) {
-      const feedback = await applyResolvedAction(tx, gameId, actorRow, action, now, options.trace);
+    for (const action of resolved.actions) {
+      const feedback = await applyResolvedAction(
+        tx,
+        gameId,
+        actorRow,
+        action,
+        now,
+        address,
+        options.trace,
+      );
       applied.push({ event: "applied", actionKind: action.kind, feedback });
-      const affixRequest = affixRequestFor(action, actorRow.actor.id, feedback);
+      const affixRequest = affixRequestFor(action, actorRow.actor.id, feedback, address);
       if (affixRequest) {
         affixRequests.push(affixRequest);
       }
@@ -227,6 +244,29 @@ export async function applyActorPlan(
           type: "human",
           content: feedback,
           metadata: { kind: MEMORY_KINDS.actionFeedback },
+        },
+      ]);
+    }
+
+    // 认知更新：只写自己的记忆，不产生公共事件；与动作同事务，失败整份丢弃。
+    for (const identity of resolved.identities) {
+      await upsertKnowledge(
+        tx,
+        {
+          gameId,
+          observerActorId: actorRow.actor.id,
+          presentationId: identity.presentationId,
+          name: identity.name,
+          source: "self",
+          learnedStageId: actorRow.stage.id,
+        },
+        now,
+      );
+      await appendMemoryMessages(tx, memory.row.id, [
+        {
+          type: "human",
+          content: `# 认知\n你把 ${identity.handle} 记作「${identity.name}」。`,
+          metadata: { kind: MEMORY_KINDS.identityUpdate },
         },
       ]);
     }

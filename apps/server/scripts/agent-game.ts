@@ -409,12 +409,12 @@ async function main(): Promise<void> {
       command === "player-say"
         ? playerSay(db, game, actor, {
             message,
-            targetActorName: target,
+            targetActorRef: target,
             ...(reason !== undefined ? { reason } : {}),
           })
         : playerWhisper(db, game, actor, {
             message,
-            targetActorName: target,
+            targetActorRef: target,
             ...(reason !== undefined ? { reason } : {}),
           }),
     );
@@ -464,7 +464,7 @@ async function main(): Promise<void> {
         db,
         game,
         actor,
-        { targetActorName: values.target as string },
+        { targetActorRef: values.target as string },
         { service: DEEPSEEK_SERVICE, appearanceService: DEEPSEEK_SERVICE },
       ),
     );
@@ -476,8 +476,8 @@ async function main(): Promise<void> {
     const { game, actor, target, item } = requireTargetItemArgs(values, command);
     const result = await withDatabase((db) =>
       command === "player-steal"
-        ? playerSteal(db, game, actor, { targetActorName: target, itemName: item })
-        : playerGive(db, game, actor, { targetActorName: target, itemName: item }),
+        ? playerSteal(db, game, actor, { targetActorRef: target, itemName: item })
+        : playerGive(db, game, actor, { targetActorRef: target, itemName: item }),
     );
     emitTurn(command, result);
     return;
@@ -500,10 +500,10 @@ async function main(): Promise<void> {
     if (typeof values.item !== "string" || values.item.trim().length === 0) {
       throw new Error("player-use 需要 --item <itemName>");
     }
-    const targetActorName = typeof values.target === "string" ? values.target : undefined;
+    const targetActorRef = typeof values.target === "string" ? values.target : undefined;
     const targetStageName = typeof values.stage === "string" ? values.stage : undefined;
     const targetDetail = typeof values.detail === "string" ? values.detail : undefined;
-    if ((targetActorName === undefined) === (targetStageName === undefined)) {
+    if ((targetActorRef === undefined) === (targetStageName === undefined)) {
       throw new Error("player-use 需要 --target 或 --stage 二选一");
     }
     if (targetDetail !== undefined && targetStageName === undefined) {
@@ -516,7 +516,7 @@ async function main(): Promise<void> {
         actor,
         {
           itemName: values.item as string,
-          ...(targetActorName !== undefined ? { targetActorName } : {}),
+          ...(targetActorRef !== undefined ? { targetActorRef } : {}),
           ...(targetStageName !== undefined ? { targetStageName } : {}),
           ...(targetDetail !== undefined ? { targetDetail } : {}),
         },

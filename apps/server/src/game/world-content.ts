@@ -73,6 +73,7 @@ const stageSchema = z.object({
 });
 
 const actorSchema = z.object({
+  key: z.string().min(1),
   stageKey: z.string().min(1),
   name: z.string().min(1),
   profile: z.string(),
@@ -107,6 +108,15 @@ const worldSchema = z
       }),
     ),
     actors: z.array(actorSchema),
+    knownIdentities: z
+      .array(
+        z.object({
+          observer: z.string().min(1),
+          subject: z.string().min(1),
+          name: z.string().min(1),
+        }),
+      )
+      .optional(),
     actions: z.array(worldActionSchema),
   })
   .superRefine((value, ctx) => {

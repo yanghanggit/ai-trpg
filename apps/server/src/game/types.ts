@@ -63,8 +63,21 @@ export type World = {
   stages: readonly Stage[];
   connections: readonly Connection[];
   actors: readonly Actor[];
+  /** 开局既知的名字：观察者与对象都用 `Actor.key` 引用，不用展示名。 */
+  knownIdentities?: readonly KnownIdentity[];
   /** 世界实体可用的动作；必须显式列出。 */
   actions: readonly WorldActionKind[];
+};
+
+/**
+ * 开局时就已建立的名字信念。
+ *
+ * `name` 是观察者使用的称呼，不要求等于对象的展示名（可以只是“父王”这种身份）。
+ */
+export type KnownIdentity = {
+  observer: string;
+  subject: string;
+  name: string;
 };
 
 /** World 内的初始场景定义；`key` 仅在创建时用于连接与 actor 归属。 */
@@ -95,6 +108,11 @@ export type Connection = {
  * `baseBody` 是未穿装备的形态，之后与装备融合成 appearance。
  */
 export type Actor = {
+  /**
+   * 内容层稳定标识：连接、开场知识等引用角色时用它，不用展示名。
+   * 与 `Stage.key` / `ItemDefinition.key` 同义。
+   */
+  key: string;
   stageKey: string;
   name: string;
   profile: string;
@@ -157,7 +175,7 @@ export type CreateGameInput = {
 export type SayAction = {
   kind: "say";
   mind: string;
-  targetActorName: string;
+  targetActorHandle: string;
   message: string;
 };
 
@@ -165,7 +183,7 @@ export type SayAction = {
 export type WhisperAction = {
   kind: "whisper";
   mind: string;
-  targetActorName: string;
+  targetActorHandle: string;
   message: string;
 };
 
@@ -187,19 +205,19 @@ export type WaitAction = {
 /** 攻击同场景的一个角色；固定使用已装备的武器，没有可用武器时空手。 */
 export type AttackAction = {
   kind: "attack";
-  targetActorName: string;
+  targetActorHandle: string;
 };
 
 export type StealAction = {
   kind: "steal";
-  targetActorName: string;
+  targetActorHandle: string;
   itemName: string;
 };
 
 /** 把自己持有的一件物品交给同场景的一个角色；尸体也可以是接收方。 */
 export type GiveAction = {
   kind: "give";
-  targetActorName: string;
+  targetActorHandle: string;
   itemName: string;
 };
 
@@ -217,7 +235,7 @@ export type PickupAction = {
 export type UseAction = {
   kind: "use";
   itemName: string;
-  targetActorName?: string;
+  targetActorHandle?: string;
   targetStageName?: string;
   /** 对场景中具体位置/部位的描述；只是行动描述，不是结果。 */
   targetDetail?: string;
@@ -269,9 +287,17 @@ export type StageAction =
 /** 场景作为小 GM 能执行的动作；能力清单成员，由 `StageAction` 派生。 */
 export type StageActionKind = StageAction["kind"];
 
+/** 把某个系统指代记成自己相信的名字；只改自己的记忆。 */
+export type IdentityBinding = {
+  handle: string;
+  name: string;
+};
+
 /** 一轮计划：按提交顺序执行的动作列表；条数上限由 `MAX_ACTIONS_PER_TURN` 约束。 */
 export type ActorPlan = {
   actions: ActorAction[];
+  /** 认知更新：与动作同事务落账，但不产生世界事件、不占行动名额。 */
+  identities?: IdentityBinding[];
 };
 
 /** stage 小 GM 的一轮仲裁计划：按提交顺序更新 environment 或向 world 发通知。 */
@@ -344,13 +370,34 @@ export type ItemState =
   | ValuableState
   | MaterialState;
 
+/**
+ * actor 当前可被看见的形象。
+ *
+ * 状态快照里只保留寻址与识别需要的字段：展示值由 `ActorState.appearance` 携带，
+ * 避免同一个字符串在快照里存两份。
+ */
+export type PresentationState = {
+  id: string;
+  /** 本局内唯一的排序号；观察者句柄由它派生（`@<seq>`）。 */
+  seq: number;
+  /** 稳定的识别特征；换装不改写它。 */
+  anchor: string;
+  /** 是否为该 actor 的本相；伪装 / 变身产生的形象为 false。 */
+  isDefault: boolean;
+};
+
 export type ActorState = {
   id: string;
   /** 本局内唯一的排序号；身份仍用 id。 */
   seq: number;
+  /** 内容层稳定 key。 */
+  key: string;
   name: string;
   profile: string;
+  /** 当前形象的展示值（换装后由外观推理重写）。 */
   appearance: string;
+  /** 当前正在使用的形象；观察者句柄与名字信念都以它为单位。 */
+  presentation: PresentationState;
   baseBody: BaseBody;
   stats: Stats;
   /** 当前生命；扣血只写这个字段，不再重写整块属性。`hp === 0` 即死亡。 */
@@ -482,6 +529,17 @@ export type GameState = {
   player: PlayerState;
   world: WorldState;
   messages: MessageState[];
+  /** 本局全部名字信念（god view）；渲染层按观察者过滤后才进提示词。 */
+  knowledge: NameKnowledgeState[];
+};
+
+/** 一条名字信念：观察者相信某个形象叫什么。 */
+export type NameKnowledgeState = {
+  observerActorId: string;
+  presentationId: string;
+  name: string;
+  source: string;
+  learnedStageId: string | null;
 };
 
 /** 死亡阶段里一个没做成的收尾动作；失败不改变 hp，也不撤销已宣布的死亡。 */

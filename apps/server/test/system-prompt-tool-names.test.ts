@@ -64,9 +64,8 @@ describe("prompt material stays free of tool names", () => {
     expect(hits).toEqual([]);
   });
 
-  it("keeps the ending rules role-neutral and free of tool names", () => {
+  it("keeps global rules free of tool names", () => {
     const rules = BELL_MONASTERY_WORLD.systemRules;
-    expect(rules).toContain("只有世界能结束游戏");
     expect(rules).not.toContain("end_game");
     expect(rules).not.toContain("notify_stage");
   });

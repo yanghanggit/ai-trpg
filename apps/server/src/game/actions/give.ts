@@ -1,5 +1,6 @@
 import type { TraceContext } from "../../debug/trace";
 import type { ToolDefinition } from "../../llm/types";
+import { type AddressLookup, actionRef, plainEntityName } from "../addressing";
 import { appendPublicMessage, bumpGameVersion } from "../apply/messages";
 import {
   assertItemNameFree,
@@ -15,7 +16,7 @@ import { setActorEquipment } from "../persistence/actors";
 import { transferItemToActor } from "../persistence/items";
 import type { GiveAction } from "../types";
 
-export function buildGiveTool(targetActorNames: readonly string[]): ToolDefinition {
+export function buildGiveTool(targetActorHandles: readonly string[]): ToolDefinition {
   return {
     type: "function",
     function: {
@@ -25,30 +26,30 @@ export function buildGiveTool(targetActorNames: readonly string[]): ToolDefiniti
       parameters: {
         type: "object",
         properties: {
-          targetActorName: {
+          targetActorHandle: {
             type: "string",
-            description: "接收物品的同场景角色；尸体也可以",
-            ...(targetActorNames.length > 0 ? { enum: [...targetActorNames] } : {}),
+            description: "接收物品的同场景角色的指代（@数字）；尸体也可以",
+            ...(targetActorHandles.length > 0 ? { enum: [...targetActorHandles] } : {}),
           },
           itemName: {
             type: "string",
             description: "要交出的自己持有的物品名",
           },
         },
-        required: ["targetActorName", "itemName"],
+        required: ["targetActorHandle", "itemName"],
       },
     },
   };
 }
 
 export function parseGive(args: Record<string, unknown>): GiveAction {
-  const targetActorName =
-    typeof args.targetActorName === "string" ? args.targetActorName.trim() : "";
+  const targetActorHandle =
+    typeof args.targetActorHandle === "string" ? args.targetActorHandle.trim() : "";
   const itemName = typeof args.itemName === "string" ? args.itemName.trim() : "";
-  if (targetActorName.length === 0 || itemName.length === 0) {
-    throw new GameError("invalid_action", "give 需要非空 targetActorName 与 itemName");
+  if (targetActorHandle.length === 0 || itemName.length === 0) {
+    throw new GameError("invalid_action", "give 需要非空 targetActorHandle 与 itemName");
   }
-  return { kind: "give", targetActorName, itemName };
+  return { kind: "give", targetActorHandle, itemName };
 }
 
 /** 校验 give：目标不是自己，自己确实持有该物品；尸体也可以是接收方。 */
@@ -58,7 +59,7 @@ export async function resolveGive(
   actorId: string,
   action: GiveAction,
 ): Promise<ResolvedGive> {
-  const target = await findActorInStage(executor, stage.id, action.targetActorName);
+  const target = await findActorInStage(executor, stage.id, action.targetActorHandle);
   assertNotSelf(target, actorId);
   const transferItem = await resolveActorItem(executor, actorId, action.itemName);
   return { kind: "give", action, stage, target, transferItem };
@@ -70,6 +71,7 @@ export async function applyGive(
   actorRow: ActorWithStageRow,
   resolved: ResolvedGive,
   now: Date,
+  address: AddressLookup,
   trace?: TraceContext,
 ): Promise<string> {
   const giver = { id: actorRow.actor.id, name: actorRow.actor.name };
@@ -117,5 +119,5 @@ export async function applyGive(
     },
     trace,
   );
-  return `# 行动结果\n你把${item.name}交给了${target.name}。`;
+  return `# 行动结果\n你把${plainEntityName(item.name)}交给了${actionRef(address(target.id))}。`;
 }

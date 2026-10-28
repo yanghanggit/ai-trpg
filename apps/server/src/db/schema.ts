@@ -168,9 +168,10 @@ export const actors = pgTable("actors", {
   stageId: uuid("stage_id")
     .notNull()
     .references(() => stages.id, { onDelete: "cascade" }),
+  /** 内容层稳定 key；连接、知识等需要引用角色时用它，不再用展示名。 */
+  key: text("key").notNull(),
   name: text("name").notNull(),
   profile: text("profile").notNull(),
-  appearance: text("appearance").notNull(),
   baseBody: jsonb("base_body").$type<BaseBody>().notNull(),
   stats: jsonb("stats").$type<Stats>().notNull(),
   /** 当前生命；与 stats 分开存，扣血只写这一列。`hp === 0` 即死亡，没有单独的死亡状态。 */
@@ -184,6 +185,78 @@ export const actors = pgTable("actors", {
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
 });
+
+/**
+ * 一个 actor 可被看见的「形象」（presentation）。
+ *
+ * `appearance` 属于形象而不是躯壳：换装只改当前形象，身份不变；伪装 / 变身会开一条
+ * 新的形象并把旧的 `ended_at` 封上，所以认识旧形象的人看到新形象时认不出他。
+ * 同一 actor 同时最多一条 `ended_at is null` 的形象。
+ */
+export const actorPresentations = pgTable(
+  "actor_presentations",
+  {
+    id: uuid("id").primaryKey(),
+    /** 本局内唯一的排序号；观察者句柄由它派生。 */
+    seq: integer("seq").notNull().default(0),
+    actorId: uuid("actor_id")
+      .notNull()
+      .references(() => actors.id, { onDelete: "cascade" }),
+    /** 稳定的识别特征（断眉、缺耳、跛足）；换装不会改写它。 */
+    anchor: text("anchor").notNull(),
+    /** 此刻别人看到的样子。 */
+    appearance: text("appearance").notNull(),
+    /** 是否为该 actor 的本相；伪装 / 变身产生的形象为 false。 */
+    isDefault: boolean("is_default").notNull().default(true),
+    /** 形象退场时间；null 表示当前正在使用。 */
+    endedAt: timestamp("ended_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    index("actor_presentations_actor_idx").on(table.actorId),
+    uniqueIndex("actor_presentations_current_unique")
+      .on(table.actorId)
+      .where(sql`${table.endedAt} is null`),
+  ],
+);
+
+/**
+ * 名字信念：观察者相信某个形象叫什么。
+ *
+ * 键是「观察者 × 形象」而不是「观察者 × actor」：伪装 / 变身会换形象，认识旧形象的人
+ * 不会自动认出新形象。`name` 是信念而不是真名（可以是假名、误认），引擎不校验。
+ */
+export const nameKnowledge = pgTable(
+  "name_knowledge",
+  {
+    id: uuid("id").primaryKey(),
+    gameId: uuid("game_id")
+      .notNull()
+      .references(() => games.id, { onDelete: "cascade" }),
+    observerActorId: uuid("observer_actor_id")
+      .notNull()
+      .references(() => actors.id, { onDelete: "cascade" }),
+    presentationId: uuid("presentation_id")
+      .notNull()
+      .references(() => actorPresentations.id, { onDelete: "cascade" }),
+    name: text("name").notNull(),
+    /** `content`：开局既知；`self`：角色自己在回合里记下的。 */
+    source: text("source").notNull().default("self"),
+    /** 在哪里得知的；只用于审计。 */
+    learnedStageId: uuid("learned_stage_id").references(() => stages.id, {
+      onDelete: "set null",
+    }),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    uniqueIndex("name_knowledge_observer_presentation_unique").on(
+      table.observerActorId,
+      table.presentationId,
+    ),
+    index("name_knowledge_game_observer_idx").on(table.gameId, table.observerActorId),
+  ],
+);
 
 /** `id` 是稳定身份，`name` 是动作与槽位使用的可读句柄，因此同一 actor 内唯一。 */
 export const items = pgTable(
@@ -389,6 +462,8 @@ export const schema = {
   stages,
   stageConnections,
   actors,
+  actorPresentations,
+  nameKnowledge,
   items,
   stageItems,
   gameMessages,

@@ -1,5 +1,6 @@
 import type { TraceContext } from "../../debug/trace";
 import type { ChatCompletionService } from "../../llm";
+import type { AddressLookup } from "../addressing";
 import type { ActorRow, ActorWithStageRow, Executor, ItemRow, StageRow } from "../apply/types";
 import type { ItemEffect } from "../types";
 
@@ -14,6 +15,8 @@ export type ItemEffectContext = {
   item?: ItemRow;
   target?: ActorRow;
   targetStage?: StageRow;
+  /** 出手者视角的指代；行动反馈必须经过它，不能直接写真名。 */
+  address?: AddressLookup;
   targetDetail?: string;
   /** 伤害来源：默认效果省略；词缀追加写 `affix`。 */
   via?: "affix";
@@ -30,6 +33,8 @@ export type AffixRequest = {
   itemId: string;
   actionKind: "attack" | "use";
   targetActorId?: string;
+  /** 出手者视角的指代；给补充结算用，避免真名进入生成文本。 */
+  targetLabel?: string;
   targetStageId?: string;
   targetDetail?: string;
   defaultFeedback: string;

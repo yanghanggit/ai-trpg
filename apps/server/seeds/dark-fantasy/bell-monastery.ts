@@ -2,7 +2,7 @@ import type { Script } from "../assemble";
 
 /** 剧本「枯钟修道院」：黑暗奇幻战役下的第一个故事切片。 */
 export const BELL_MONASTERY: Script = {
-  contentVersion: "dark-fantasy.v13",
+  contentVersion: "dark-fantasy.v14",
   contentKey: "bell-monastery",
   worldName: "世界.枯钟修道院的故事",
   profile: `这局故事的世界是枯钟修道院：一座被黑疖病掏空的修道院，连同它的墓园、地窖、焚尸房、铁闸门与山道。故事之外还有更大的天地，但那不属于这一局。
@@ -99,6 +99,7 @@ export const BELL_MONASTERY: Script = {
   actors: [
     {
       stageKey: "graveyard",
+      key: "odric",
       name: "角色.奥德里克",
       appearance:
         "旧呢斗篷上沾着石灰与新土，下摆结着一片洗不掉的暗褐血渍；背后斜靠一把磨亮的铁锹。",
@@ -168,6 +169,7 @@ export const BELL_MONASTERY: Script = {
     },
     {
       stageKey: "graveyard",
+      key: "cinder",
       name: "角色.煤渣",
       profile: `**历史**: 你从焚尸房的灰堆里被奥德里克捡回来，因此得名煤渣。你在墓园里长大，认得每一块墓碑的气味。
 **性格**: 对陌生人低吼，对奥德里克绝对服从；受了伤也不退。
@@ -191,16 +193,17 @@ export const BELL_MONASTERY: Script = {
     },
     {
       stageKey: "graveyard",
+      key: "bad-luck",
       name: "角色.坏运气",
       profile: `**历史**: 你是鼠王的幼崽，在酒窖出生。修士们烧鼠窝那晚，你从火里钻了出来，奥德里克从此叫你“坏运气”——你到哪儿，哪儿就死人。
 **性格**: 胆小、机警，对血与冲突极敏感；你不会战斗。
 **说话习惯/口音**: 对同族鼠类必须用清晰、完整的语言说短句，不要用叫声代替句子，急了会重复同一个词；对非同族只会“吱吱、丝丝”、磨牙或尖叫，不说人话。你可以在心里正常思考，内心独白不受叫声限制。
 **语言**: 对非同族绝不能说出人类语言；只能用叫声、动作和眼神表达意思。心里的话不能说出口。
 **手段/路数**: 躲藏、钻鼠洞；你从不正面冲突。
-**身边**: 父王（角色.鼠王）。
+**身边**: 父王。
 **禁忌**: 不靠近正在流血或打斗的活物；也不碰不属于你的东西——除了那块霉面包。
 **最爱**: 那块发霉的面包。`,
-      openingBriefing: `你在墓园里，先躲开活物的视线。一旦觉得危险，就钻回地窖，叫醒父王（角色.鼠王），让他来处理。`,
+      openingBriefing: `你在墓园里，先躲开活物的视线。一旦觉得危险，就钻回地窖，叫醒父王，让他来处理。`,
       baseBody: {
         race: "鼠",
         description:
@@ -214,6 +217,7 @@ export const BELL_MONASTERY: Script = {
     },
     {
       stageKey: "coffin",
+      key: "nameless",
       name: "角色.无名者",
       appearance:
         "身上裹着半幅发黄的裹尸布，布角拖过石灰；皮肤灰白，指甲缝里塞着干涸的黑蜡与棺木屑；衣领下露出半截被鼠牙啃过的锁链，走路时关节会发出干涩的响声。",
@@ -274,13 +278,14 @@ export const BELL_MONASTERY: Script = {
     },
     {
       stageKey: "cellar",
+      key: "rat-king",
       name: "角色.鼠王",
       profile: `**历史**: 你是酒窖鼠群的王。黑疖病最盛时，你靠啃食尸体活了下来；如今盘踞在地窖，坏运气是你唯一不伤的子嗣。
 **性格**: 残暴、傲慢、护崽；对一切非鼠类都怀有饥饿的敌意。
 **说话习惯/口音**: 对同族鼠类必须用清晰、完整的语言说话，低沉、命令式，句子短，常以“我的地界”自称；对非同族只会发出低沉的鼠叫、磨牙与尖叫，绝不说人话。你可以在心里正常思考，内心独白不受叫声限制。
 **语言**: 对非同族绝不能说出人类语言；只能用鼠叫、磨牙、尖叫和威吓动作表达意思。心里的话不能说出口。
 **手段/路数**: 咬碎、扑杀；正面碾压，不屑躲藏。皮糙肉厚，普通刀剑伤不了你，只有火能烧穿你的毛皮。
-**身边**: 角色.坏运气。
+**身边**: 坏运气。
 **禁忌**: 绝不允许非鼠类在你的地界上走动，更不允许它们伤害坏运气。
 **最爱**: 地窖、血食。`,
       openingBriefing: `你正沉睡在地窖：只要本场景出现任何说话、攻击或非等待行为——包括坏运气跑进来报信——你立刻苏醒；苏醒前你只能留在原地。苏醒后你是一头残暴的猎手：本场景内每一个非鼠类活物都必须被你杀死。本场景没有非鼠类活物时，你自行在修道院中搜索、追踪并杀死遇到的非鼠类活物，直到目标死亡、离开修道院，或你自己倒下。你绝不会伤害坏运气。`,
@@ -295,6 +300,14 @@ export const BELL_MONASTERY: Script = {
       // 动物：沉睡时由 openingBriefing 约束留在原地；苏醒后可以移动与攻击，不操作道具。
       actions: ["say", "whisper", "announce", "move", "wait", "attack"],
     },
+  ],
+  // 开局既知：只声明世界内已经成立的关系，其余姓名要靠自我介绍 / 互动。
+  knownIdentities: [
+    { observer: "odric", subject: "cinder", name: "煤渣" },
+    { observer: "odric", subject: "bad-luck", name: "坏运气" },
+    { observer: "cinder", subject: "odric", name: "奥德里克" },
+    { observer: "bad-luck", subject: "rat-king", name: "父王" },
+    { observer: "rat-king", subject: "bad-luck", name: "坏运气" },
   ],
   actions: ["notify_stage", "end_game"],
 };

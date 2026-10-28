@@ -1,12 +1,13 @@
 import type { TraceContext } from "../../debug/trace";
 import type { ToolDefinition } from "../../llm/types";
+import type { AddressLookup } from "../addressing";
 import { assertNotSelf, findActorInStage, resolveEquippedItems } from "../apply/queries";
 import type { ActorWithStageRow, Executor, ResolvedAttack } from "../apply/types";
 import { GameError } from "../errors";
 import { applyItemEffect, UNARMED_EFFECT } from "../item-effects";
 import type { AttackAction } from "../types";
 
-export function buildAttackTool(targetActorNames: readonly string[]): ToolDefinition {
+export function buildAttackTool(targetActorHandles: readonly string[]): ToolDefinition {
   return {
     type: "function",
     function: {
@@ -16,25 +17,25 @@ export function buildAttackTool(targetActorNames: readonly string[]): ToolDefini
       parameters: {
         type: "object",
         properties: {
-          targetActorName: {
+          targetActorHandle: {
             type: "string",
-            description: "要攻击的同场景角色；尸体也可以（伤害结算会空转）",
-            ...(targetActorNames.length > 0 ? { enum: [...targetActorNames] } : {}),
+            description: "要攻击的同场景角色的指代（@数字）；尸体也可以（伤害结算会空转）",
+            ...(targetActorHandles.length > 0 ? { enum: [...targetActorHandles] } : {}),
           },
         },
-        required: ["targetActorName"],
+        required: ["targetActorHandle"],
       },
     },
   };
 }
 
 export function parseAttack(args: Record<string, unknown>): AttackAction {
-  const targetActorName =
-    typeof args.targetActorName === "string" ? args.targetActorName.trim() : "";
-  if (targetActorName.length === 0) {
-    throw new GameError("invalid_action", "attack 需要非空 targetActorName");
+  const targetActorHandle =
+    typeof args.targetActorHandle === "string" ? args.targetActorHandle.trim() : "";
+  if (targetActorHandle.length === 0) {
+    throw new GameError("invalid_action", "attack 需要非空 targetActorHandle");
   }
-  return { kind: "attack", targetActorName };
+  return { kind: "attack", targetActorHandle };
 }
 
 /**
@@ -47,7 +48,7 @@ export async function resolveAttack(
   actorRow: ActorWithStageRow,
   action: AttackAction,
 ): Promise<ResolvedAttack> {
-  const target = await findActorInStage(executor, stage.id, action.targetActorName);
+  const target = await findActorInStage(executor, stage.id, action.targetActorHandle);
   assertNotSelf(target, actorRow.actor.id);
   // 武器只来自 weapon 槽，且必须声明 damage 效果；其余情况按空手。
   const weaponName = actorRow.actor.equipment.weapon;
@@ -67,6 +68,7 @@ export async function applyAttack(
   actorRow: ActorWithStageRow,
   resolved: ResolvedAttack,
   now: Date,
+  address: AddressLookup,
   trace?: TraceContext,
 ): Promise<string> {
   return applyItemEffect({
@@ -78,6 +80,7 @@ export async function applyAttack(
     effect: resolved.item?.effect ?? UNARMED_EFFECT,
     ...(resolved.item ? { item: resolved.item } : {}),
     target: resolved.target,
+    address,
     now,
     ...(trace ? { trace } : {}),
   });

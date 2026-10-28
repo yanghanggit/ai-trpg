@@ -1,5 +1,6 @@
 import type { TraceContext } from "../../debug/trace";
 import type { ToolDefinition } from "../../llm/types";
+import { type AddressLookup, actionRef, HANDLE_PATTERN } from "../addressing";
 import { appendPublicMessage, bumpGameVersion } from "../apply/messages";
 import { findActorInStage } from "../apply/queries";
 import type { ActorWithStageRow, Executor, ResolvedSay } from "../apply/types";
@@ -22,14 +23,14 @@ export function buildSayTool(targets: readonly string[]): ToolDefinition {
             type: "string",
             description: `第一人称内心独白，说明为什么这样说，控制在 ${MAX_MIND_LENGTH} 字以内`,
           },
-          targetActorName: {
+          targetActorHandle: {
             type: "string",
-            description: "当前场景内唯一的说话对象",
+            description: "当前场景内唯一的说话对象：用同场景角色列表里的 @数字 指代",
             ...(targets.length > 0 ? { enum: [...targets] } : {}),
           },
           message: { type: "string", description: "你要说出的内容" },
         },
-        required: ["mind", "targetActorName", "message"],
+        required: ["mind", "targetActorHandle", "message"],
       },
     },
   };
@@ -38,18 +39,21 @@ export function buildSayTool(targets: readonly string[]): ToolDefinition {
 export function parseSay(args: Record<string, unknown>): SayAction {
   const mind = typeof args.mind === "string" ? args.mind.trim() : "";
   const message = typeof args.message === "string" ? args.message : "";
-  const targetActorName =
-    typeof args.targetActorName === "string" ? args.targetActorName.trim() : "";
+  const targetActorHandle =
+    typeof args.targetActorHandle === "string" ? args.targetActorHandle.trim() : "";
   if (mind.length === 0) {
     throw new GameError("invalid_action", "say 需要非空 mind");
   }
   if (message.trim().length === 0) {
     throw new GameError("invalid_action", "say 需要非空 message");
   }
-  if (targetActorName.length === 0) {
-    throw new GameError("invalid_action", "say 需要非空 targetActorName");
+  if (HANDLE_PATTERN.test(message)) {
+    throw new GameError("invalid_action", "message 里不能出现系统指代（@数字）");
   }
-  return { kind: "say", mind, targetActorName, message };
+  if (targetActorHandle.length === 0) {
+    throw new GameError("invalid_action", "say 需要非空 targetActorHandle");
+  }
+  return { kind: "say", mind, targetActorHandle, message };
 }
 
 export async function resolveSay(
@@ -58,7 +62,7 @@ export async function resolveSay(
   actorId: string,
   action: SayAction,
 ): Promise<ResolvedSay> {
-  const target = await findActorInStage(executor, stage.id, action.targetActorName);
+  const target = await findActorInStage(executor, stage.id, action.targetActorHandle);
   if (target.id === actorId) {
     throw new GameError("invalid_action", "say 的目标不能是自己");
   }
@@ -71,6 +75,7 @@ export async function applySay(
   actorRow: ActorWithStageRow,
   resolved: ResolvedSay,
   now: Date,
+  address: AddressLookup,
   trace?: TraceContext,
 ): Promise<string> {
   const source = { id: actorRow.actor.id, name: actorRow.actor.name };
@@ -103,5 +108,5 @@ export async function applySay(
     { eventKind: "say" },
     trace,
   );
-  return `# 行动结果\n你对${target.name}说（场景：${resolved.stage.name}）：${resolved.action.message}`;
+  return `# 行动结果\n你对${actionRef(address(target.id))}说（场景：${resolved.stage.name}）：${resolved.action.message}`;
 }

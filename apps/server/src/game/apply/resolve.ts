@@ -10,9 +10,19 @@ import { resolveUnequip } from "../actions/unequip";
 import { resolveUse } from "../actions/use";
 import { resolveWait } from "../actions/wait";
 import { resolveWhisper } from "../actions/whisper";
+import { MAX_IDENTITIES_PER_TURN } from "../constants";
 import { GameError } from "../errors";
 import type { ActorPlan } from "../types";
-import type { ActorWithStageRow, Executor, ResolvedAction, StageRow, WorldRow } from "./types";
+import { findActorViewByHandleInWorld } from "./queries";
+import type {
+  ActorWithStageRow,
+  Executor,
+  ResolvedAction,
+  ResolvedIdentity,
+  ResolvedPlan,
+  StageRow,
+  WorldRow,
+} from "./types";
 
 /**
  * 顺序校验计划里的动作，并模拟移动后的场景，不写数据库。
@@ -24,7 +34,7 @@ export async function resolvePlan(
   world: WorldRow,
   actorRow: ActorWithStageRow,
   plan: ActorPlan,
-): Promise<ResolvedAction[]> {
+): Promise<ResolvedPlan> {
   let stage: StageRow = actorRow.stage;
   const resolved: ResolvedAction[] = [];
 
@@ -75,5 +85,27 @@ export async function resolvePlan(
     }
   }
 
-  return resolved;
+  const bindings = plan.identities ?? [];
+  if (bindings.length > MAX_IDENTITIES_PER_TURN) {
+    throw new GameError(
+      "invalid_action",
+      `本轮最多记 ${MAX_IDENTITIES_PER_TURN} 个名字，实际提交 ${bindings.length} 个`,
+    );
+  }
+  const identities: ResolvedIdentity[] = [];
+  for (const binding of bindings) {
+    const view = await findActorViewByHandleInWorld(executor, world.id, binding.handle);
+    if (!view) {
+      throw new GameError("invalid_action", `世界内没有这个指代: ${binding.handle}`);
+    }
+    identities.push({
+      handle: binding.handle,
+      name: binding.name,
+      actorId: view.actor.id,
+      presentationId: view.presentation.id,
+      stageId: view.actor.stageId,
+    });
+  }
+
+  return { actions: resolved, identities };
 }

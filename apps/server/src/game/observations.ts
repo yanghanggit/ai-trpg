@@ -11,6 +11,8 @@
  */
 
 import { type TraceContext, traceEvent } from "../debug/trace";
+import { type AddressLookup, type AddressSubject, handleOf, makeAddressLookup } from "./addressing";
+import { listStageActorViews } from "./apply/queries";
 import type { ActorRow, Executor } from "./apply/types";
 import { MEMORY_KINDS } from "./constants";
 import { appendMemoryMessages, loadAgentMemory } from "./memory";
@@ -27,7 +29,7 @@ import {
   renderItemEvent,
   type StageRef,
 } from "./observation-text";
-import { listStageActors } from "./persistence/actors";
+import { listKnowledge } from "./persistence/knowledge";
 import type { ObservationMetadata, StageEventMetadata } from "./types";
 
 /** 场景广播：场景内除发起者外的所有 actor。 */
@@ -38,7 +40,7 @@ type ObservationSpec = {
   /** 事实的发起者；他自己的认知走行动反馈，这里不再重复写。 */
   excludeActorId: string;
   audience: Audience;
-  render: (observer: ActorRow) => ObservationView;
+  render: (observer: ActorRow, address: AddressLookup) => ObservationView;
 };
 
 function sees(observer: ActorRow, audience: Audience): boolean {
@@ -57,10 +59,23 @@ async function writeObservations(
   spec: ObservationSpec,
   trace?: TraceContext,
 ): Promise<void> {
-  const observerRows = await listStageActors(executor, spec.stageId);
+  const views = await listStageActorViews(executor, spec.stageId);
+  const knowledgeRows = await listKnowledge(executor, gameId);
+  // 主体表：场景内每个角色当前的可见外观；名字信念按观察者各自过滤。
+  const subjects = new Map<string, AddressSubject>(
+    views.map(({ actor, presentation }) => [
+      actor.id,
+      {
+        actorId: actor.id,
+        presentationId: presentation.id,
+        presentationSeq: presentation.seq,
+        appearance: presentation.appearance,
+      },
+    ]),
+  );
   const recipients: { actorId: string; actorName: string; content: string }[] = [];
   let kind = "unknown";
-  for (const observer of observerRows) {
+  for (const { actor: observer, presentation } of views) {
     if (observer.id === spec.excludeActorId || !sees(observer, spec.audience)) {
       continue;
     }
@@ -68,14 +83,29 @@ async function writeObservations(
     if (!memory) {
       continue;
     }
-    const view = spec.render(observer);
+    const knownNames = new Map(
+      knowledgeRows
+        .filter((row) => row.observerActorId === observer.id)
+        .map((row) => [row.presentationId, row.name]),
+    );
+    const base = makeAddressLookup(knownNames, subjects);
+    const address: AddressLookup = (actorId) =>
+      actorId === observer.id
+        ? {
+            token: handleOf(presentation.seq),
+            label: "你自己",
+            mention: "你",
+            knownName: observer.name,
+          }
+        : base(actorId);
+    const view = spec.render(observer, address);
     kind = String(view.metadata.kind);
     recipients.push({ actorId: observer.id, actorName: observer.name, content: view.content });
     await appendMemoryMessages(executor, memory.row.id, [{ type: "human", ...view }]);
   }
 
   // 收件人为空也记一条：谁都没看到，本身就是一次可归因的事实。
-  const source = observerRows.find((row) => row.id === spec.excludeActorId);
+  const source = views.find((view) => view.actor.id === spec.excludeActorId)?.actor;
   await traceEvent(trace, {
     event: "observed",
     via: "stage-actors",
@@ -150,7 +180,7 @@ export async function appendDamageObservations(
       stageId: stage.id,
       excludeActorId: facts.attacker.id,
       audience,
-      render: (observer) => renderDamage(stage, facts, observer.id),
+      render: (observer, address) => renderDamage(stage, facts, observer.id, address),
     },
     trace,
   );
@@ -178,7 +208,7 @@ export async function appendItemObservations(
         observation.event === "steal"
           ? { type: "only", actorId: observation.target.id }
           : STAGE_WIDE,
-      render: (observer) => renderItemEvent(stage, observation, observer.id),
+      render: (observer, address) => renderItemEvent(stage, observation, observer.id, address),
     },
     trace,
   );
@@ -202,7 +232,7 @@ export async function appendCommunicationObservations(
         observation.kind === "whisper"
           ? { type: "only", actorId: observation.target.id }
           : STAGE_WIDE,
-      render: (observer) => renderCommunication(stage, observation, observer.id),
+      render: (observer, address) => renderCommunication(stage, observation, observer.id, address),
     },
     trace,
   );

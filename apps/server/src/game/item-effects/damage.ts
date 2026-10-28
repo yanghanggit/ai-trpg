@@ -1,3 +1,4 @@
+import { type AddressLookup, actionRef } from "../addressing";
 import { appendPublicMessage, bumpGameVersion } from "../apply/messages";
 import { resolveEquippedStats } from "../apply/queries";
 import { addStats } from "../attributes";
@@ -37,16 +38,18 @@ export async function applyDamage(context: ItemEffectContext, damage: number): P
     throw new Error(`目标不存在: ${target.name}`);
   }
   const current = hit.row;
+  const ref = (address: AddressLookup | undefined) =>
+    address ? actionRef(address(target.id)) : target.name;
   if (hit.status === "already-dead") {
-    return `# 行动结果\n${target.name}已经倒下。`;
+    return `# 行动结果\n${ref(context.address)}已经倒下。`;
   }
   const remainingHp = hit.remainingHp;
   await bumpGameVersion(executor, gameId, now);
 
   const outcome =
     remainingHp <= 0
-      ? `；${target.name}倒下了。`
-      : `；${target.name}剩余 HP ${remainingHp}/${current.stats.maxHp}。`;
+      ? `；${ref(context.address)}倒下了。`
+      : `；${ref(context.address)}剩余 HP ${remainingHp}/${current.stats.maxHp}。`;
   // 句式由动作锁定：公共消息、舞台记忆、观察与反馈用的是同一个动作短语。
   const actionText = damageActionText(actionKind, item?.name);
   const damageText = via === "affix" ? `词缀追加${damage}点伤害` : `造成${damage}点伤害`;
@@ -83,8 +86,8 @@ export async function applyDamage(context: ItemEffectContext, damage: number): P
   );
   // 出手者只知道这一下打得多重、对方有没有倒下；对方剩余生命只写进公共消息（上帝视角）
   // 与受害者自己，不进出手者的记忆。
-  const feedback = `你对${target.name}${actionText}，${damageText}`;
-  return `# 行动结果\n${feedback}${remainingHp <= 0 ? `；${target.name}倒下了` : ""}。`;
+  const feedback = `你对${ref(context.address)}${actionText}，${damageText}`;
+  return `# 行动结果\n${feedback}${remainingHp <= 0 ? `；${ref(context.address)}倒下了` : ""}。`;
 }
 
 /** 固定伤害 handler。 */

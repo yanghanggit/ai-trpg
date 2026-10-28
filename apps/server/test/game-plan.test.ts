@@ -30,20 +30,20 @@ describe("action tools", () => {
     expect(buildSayTool(targets).function.name).toBe("say");
     expect(buildSayTool(targets).function.parameters.required).toEqual([
       "mind",
-      "targetActorName",
+      "targetActorHandle",
       "message",
     ]);
     expect(buildWhisperTool(targets).function.name).toBe("whisper");
     expect(buildAnnounceTool().function.parameters.required).toEqual(["mind", "message"]);
     expect(buildMoveTool(stages).function.parameters.required).toEqual(["targetStageName"]);
     expect(buildWaitTool().function.parameters.required).toEqual([]);
-    expect(buildAttackTool(targets).function.parameters.required).toEqual(["targetActorName"]);
+    expect(buildAttackTool(targets).function.parameters.required).toEqual(["targetActorHandle"]);
     expect(buildStealTool(targets).function.parameters.required).toEqual([
-      "targetActorName",
+      "targetActorHandle",
       "itemName",
     ]);
     expect(buildGiveTool(targets).function.parameters.required).toEqual([
-      "targetActorName",
+      "targetActorHandle",
       "itemName",
     ]);
     expect(buildPickupTool().function.parameters.required).toEqual(["itemName"]);
@@ -55,11 +55,11 @@ describe("action tools", () => {
 
     // 每个工具的参数就是它自己的输入，没有中间层字段。
     const attackProps = Object.keys(buildAttackTool(targets).function.parameters.properties ?? {});
-    expect(attackProps).toEqual(["targetActorName"]);
+    expect(attackProps).toEqual(["targetActorHandle"]);
     const useProps = Object.keys(
       buildUseTool(items, targets, "灰烬门廊").function.parameters.properties ?? {},
     );
-    expect(useProps).toEqual(["itemName", "targetActorName", "targetStageName", "targetDetail"]);
+    expect(useProps).toEqual(["itemName", "targetActorHandle", "targetStageName", "targetDetail"]);
     expect(Object.keys(buildEquipTool(items).function.parameters.properties ?? {})).toEqual([
       "itemName",
       "slot",
@@ -95,14 +95,16 @@ describe("use candidates", () => {
 
 describe("action parsers", () => {
   it("只检查形状，产出平铺动作", () => {
-    expect(parseSay({ mind: "问一句。", targetActorName: "提灯修士", message: "钟声？" })).toEqual({
+    expect(
+      parseSay({ mind: "问一句。", targetActorHandle: "提灯修士", message: "钟声？" }),
+    ).toEqual({
       kind: "say",
       mind: "问一句。",
-      targetActorName: "提灯修士",
+      targetActorHandle: "提灯修士",
       message: "钟声？",
     });
     expect(
-      parseWhisper({ mind: "低声。", targetActorName: "提灯修士", message: "别回头。" }),
+      parseWhisper({ mind: "低声。", targetActorHandle: "提灯修士", message: "别回头。" }),
     ).toMatchObject({ kind: "whisper" });
     expect(parseAnnounce({ mind: "让所有人听见。", message: "灰里有人。" })).toEqual({
       kind: "announce",
@@ -115,9 +117,9 @@ describe("action parsers", () => {
     });
     expect(parseWait()).toEqual({ kind: "wait" });
     // attack 不再接收物品名：武器由装备决定。
-    expect(parseAttack({ targetActorName: " 提灯修士 ", itemName: "裂齿短刃" })).toEqual({
+    expect(parseAttack({ targetActorHandle: " 提灯修士 ", itemName: "裂齿短刃" })).toEqual({
       kind: "attack",
-      targetActorName: "提灯修士",
+      targetActorHandle: "提灯修士",
     });
     expect(parseEquip({ itemName: " 裂齿短刃 ", slot: " weapon " })).toEqual({
       kind: "equip",
@@ -126,14 +128,14 @@ describe("action parsers", () => {
     });
     expect(parseUnequip({ slot: "armor" })).toEqual({ kind: "unequip", slot: "armor" });
     expect(() => parseUnequip({ slot: "head" })).toThrow("未知的装备槽位");
-    expect(parseSteal({ targetActorName: "提灯修士", itemName: "铅封提灯" })).toEqual({
+    expect(parseSteal({ targetActorHandle: "提灯修士", itemName: "铅封提灯" })).toEqual({
       kind: "steal",
-      targetActorName: "提灯修士",
+      targetActorHandle: "提灯修士",
       itemName: "铅封提灯",
     });
-    expect(parseGive({ targetActorName: "提灯修士", itemName: "裂齿短刃" })).toEqual({
+    expect(parseGive({ targetActorHandle: "提灯修士", itemName: "裂齿短刃" })).toEqual({
       kind: "give",
-      targetActorName: "提灯修士",
+      targetActorHandle: "提灯修士",
       itemName: "裂齿短刃",
     });
     expect(parsePickup({ itemName: "武器.测试火把" })).toEqual({
@@ -155,25 +157,25 @@ describe("action parsers", () => {
   });
 
   it("拒绝缺参数或参数冲突的调用", () => {
-    expect(() => parseSay({ mind: "", targetActorName: "提灯修士", message: "喂" })).toThrow(
+    expect(() => parseSay({ mind: "", targetActorHandle: "提灯修士", message: "喂" })).toThrow(
       "mind",
     );
-    expect(() => parseSay({ mind: "说。", targetActorName: " ", message: "喂" })).toThrow(
-      "targetActorName",
+    expect(() => parseSay({ mind: "说。", targetActorHandle: " ", message: "喂" })).toThrow(
+      "targetActorHandle",
     );
-    expect(() => parseSay({ mind: "说。", targetActorName: "提灯修士", message: "  " })).toThrow(
+    expect(() => parseSay({ mind: "说。", targetActorHandle: "提灯修士", message: "  " })).toThrow(
       "message",
     );
     expect(() => parseMove({ targetStageName: "" })).toThrow("targetStageName");
     expect(() =>
-      parseUse({ itemName: "钥匙", targetActorName: "守烬人", targetDetail: "锁孔" }),
+      parseUse({ itemName: "钥匙", targetActorHandle: "守烬人", targetDetail: "锁孔" }),
     ).toThrow("targetDetail");
-    expect(() => parseAttack({ targetActorName: "  " })).toThrow("targetActorName");
-    expect(() => parseSteal({ targetActorName: "提灯修士" })).toThrow("itemName");
+    expect(() => parseAttack({ targetActorHandle: "  " })).toThrow("targetActorHandle");
+    expect(() => parseSteal({ targetActorHandle: "提灯修士" })).toThrow("itemName");
     expect(() => parsePickup({})).toThrow("itemName");
-    expect(() => parseUse({ itemName: "钥匙" })).toThrow("targetActorName 或 targetStageName");
+    expect(() => parseUse({ itemName: "钥匙" })).toThrow("targetActorHandle 或 targetStageName");
     expect(() =>
-      parseUse({ itemName: "钥匙", targetActorName: "提灯修士", targetStageName: "场景.铁闸门" }),
+      parseUse({ itemName: "钥匙", targetActorHandle: "提灯修士", targetStageName: "场景.铁闸门" }),
     ).toThrow("二选一");
   });
 });
@@ -198,9 +200,16 @@ describe("read-only descriptions", () => {
     const actor = {
       id: "actor-1",
       seq: 1,
+      key: "ember-keeper",
       name: "守烬人",
       profile: "拾荒者",
       appearance: "披着旧斗篷。",
+      presentation: {
+        id: "presentation-1",
+        seq: 2,
+        anchor: "瘦削，手腕有旧绳痕。",
+        isDefault: true,
+      },
       baseBody: { race: "人类", description: "瘦削，手腕有旧绳痕。" },
       hp: 12,
       stats: { maxHp: 12, strength: 3, wisdom: 2, agility: 4, damage: 3, block: 2 },

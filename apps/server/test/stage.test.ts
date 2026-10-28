@@ -131,7 +131,7 @@ describe.skipIf(!testDatabaseUrl)("stage mini-GM", () => {
     const slug = created.game.slug;
     await takeActorControl(handle.db, slug, "守烬人");
     await playerWhisper(handle.db, slug, "守烬人", {
-      targetActorName: "提灯修士",
+      targetActorRef: "提灯修士",
       message: "别回头。",
     });
     await playerMove(handle.db, slug, "守烬人", { targetStageName: "断钟中殿" });

@@ -31,23 +31,26 @@ import {
   findActorWithStage,
   otherActorsInStage,
 } from "./actors";
+import { addressLookupFor, plainEntityName, refOf } from "./addressing";
 import { applyActorPlan } from "./apply";
 import { isAlive } from "./apply/queries";
-import { DEFAULT_NPC_MAX_ROUNDS, MAX_ACTIONS_PER_TURN } from "./constants";
+import { DEFAULT_NPC_MAX_ROUNDS, MAX_ACTIONS_PER_TURN, MAX_IDENTITIES_PER_TURN } from "./constants";
 import { isPlayerControlled } from "./control";
 import { GameError } from "./errors";
 import { isWearable } from "./items";
 import { loadAgentMemory } from "./memory";
 import {
+  buildActorLookTool,
   buildKnowledgeTool,
-  buildLookTool,
   buildObserveActorTool,
+  buildRememberIdentityTool,
   buildSelfInfoTool,
   buildSubmitPlanTool,
   describeKnowledgeResults,
   describeObservedActor,
   describeSelf,
-  lookStage,
+  describeStageForActor,
+  parseRememberIdentity,
 } from "./plan";
 import { getGameState } from "./service";
 import type { ActionKind, ActorAction, ActorPlan, ActorTurnResult, GameState } from "./types";
@@ -67,25 +70,29 @@ export type NpcTurnOptions = {
 export function buildActorObservation(state: GameState, current: ActorWithStage): string {
   const moves = adjacentStageNames(state, current.stage.id);
   const others = otherActorsInStage(current.stage, current.actor.id);
-  const targets = others.map((actor) => actor.name);
+  const address = addressLookupFor(state, current.actor, current.stage);
+  const selfHandle = address(current.actor.id).token;
+  const targets = others.map((actor) => address(actor.id).token);
   const allowed = allowedActionKinds(current.actor.actions);
   const actionList = allowed.map((kind) => `${kind}（${ACTION_SUMMARIES[kind]}）`).join("、");
   const actorLines =
     others.length === 0
       ? "无"
       : others
-          .map((actor) => `${actor.name}：${actor.appearance}${isAlive(actor) ? "" : "（已死亡）"}`)
+          .map((actor) => `${refOf(address(actor.id))}${isAlive(actor) ? "" : "（已死亡）"}`)
           .join("\n");
   const itemLines =
     current.stage.items.length === 0
       ? "无"
       : current.stage.items
-          .map((item) => `${item.name}（${item.kind}）：${item.description}`)
+          .map((item) => `${plainEntityName(item.name)}（${item.kind}）：${item.description}`)
           .join("\n");
   const targetLines = targets.length === 0 ? "无" : targets.join("、");
   const moveLines = moves.length === 0 ? "无" : moves.join("、");
   const knowledgeHint =
     "当问题涉及任何进入该世界的人都可能观察、询问或从公开记载中得知的固定事实，而当前场景与记忆无法直接确认时，必须先调用 query 检索，再回答或行动；不要用常识补全，也不要把检索结果当成亲眼所见。query 只读、不占行动，不提供角色秘密或当前状态。";
+  const identityHint =
+    "`@数字` 是系统指代，不是称呼：可以用它指定行动对象，但绝不能说出口，也不能从它推断姓名。名字只有在世界内被告知后才算知道；若本轮对话让你得知了某人叫什么，用 remember_identity 记下（不占行动名额）。";
 
   return `# 当前环境
 
@@ -94,7 +101,7 @@ ${current.stage.name}
 ${current.stage.environment}
 
 ## 你的状态
-${current.actor.name} | HP ${current.actor.hp}/${current.actor.stats.maxHp}
+${current.actor.name}（你的指代：${selfHandle}）| HP ${current.actor.hp}/${current.actor.stats.maxHp}
 
 ## 同场景角色
 ${actorLines}
@@ -110,7 +117,7 @@ ${moveLines}
 
 # 本轮任务
 
-根据当前环境与自己的记忆决定行动。使用 get_self 查看自己的完整信息，使用 observe_actor 查看同场景目标携带的物品；需要多项信息时，可以一次返回多个只读工具调用，也可以分多轮调用。${knowledgeHint}你能使用的行动工具：${actionList}。本轮最多 ${MAX_ACTIONS_PER_TURN} 个行动；通常一次沟通加一个其他行动，不要重复同一动作。先加入的行动先执行。最后调用 submit_plan 提交。look_stage、get_self、observe_actor、query 不占计划。`;
+根据当前环境与自己的记忆决定行动。使用 get_self 查看自己的完整信息，使用 observe_actor 查看同场景目标携带的物品；需要多项信息时，可以一次返回多个只读工具调用，也可以分多轮调用。${knowledgeHint}${identityHint}你能使用的行动工具：${actionList}。本轮最多 ${MAX_ACTIONS_PER_TURN} 个行动；通常一次沟通加一个其他行动，不要重复同一动作。先加入的行动先执行。最后调用 submit_plan 提交。look_stage、get_self、observe_actor、query、remember_identity 不占计划。look_stage 只能看本场景。`;
 }
 
 /** 把动作加入本轮计划；条数上限在这里就告诉模型，避免提交后才被拒绝。 */
@@ -158,12 +165,15 @@ export async function runNpcTurn(
 
   const stageNames = adjacentStageNames(state, current.stage.id);
   const otherActors = otherActorsInStage(current.stage, current.actor.id);
+  const address = addressLookupFor(state, current.actor, current.stage);
   // 目标不区分存活：唯一的存活要求是行动者自己，由行动入口统一把关。
-  const targets = otherActors.map((actor) => actor.name);
-  const selfAndTargets = [current.actor.name, ...targets];
+  const targets = otherActors.map((actor) => address(actor.id).token);
+  const selfAndTargets = [address(current.actor.id).token, ...targets];
   // 材料之类的惰性物品没有可用效果，穿戴中的物品也不能当道具，两者都不列进 use 的候选。
   const availableUseItemNames = usableItemNames(current.actor.items, current.actor.equipment);
-  const wearableItemNames = current.actor.items.filter(isWearable).map((item) => item.name);
+  const wearableItemNames = current.actor.items
+    .filter(isWearable)
+    .map((item) => plainEntityName(item.name));
   const occupiedSlots = EQUIPMENT_SLOTS.filter(
     (slot) => current.actor.equipment[slot] !== undefined,
   );
@@ -172,9 +182,10 @@ export async function runNpcTurn(
   const knowledgeTool = buildKnowledgeTool();
   const knowledgeProvider = options.knowledgeProvider ?? new TransformersEmbeddingProvider();
 
-  const lookTool = buildLookTool(state);
+  const lookTool = buildActorLookTool(current.stage.name);
   const selfTool = buildSelfInfoTool();
   const observeTool = buildObserveActorTool(targets);
+  const rememberTool = buildRememberIdentityTool(targets);
   const submitTool = buildSubmitPlanTool();
 
   /** 十二个动作的工具与参数解析器；按 kind 平铺，按权限过滤后使用。 */
@@ -209,6 +220,7 @@ export async function runNpcTurn(
 
   const allowed = allowedActionKinds(current.actor.actions);
   const actions: ActorAction[] = [];
+  const identities: { handle: string; name: string }[] = [];
   let submitted: ActorPlan | null = null;
 
   const ensureOpen = () => {
@@ -229,6 +241,15 @@ export async function runNpcTurn(
       ]),
     );
 
+  const addIdentity = (args: Record<string, unknown>) => {
+    ensureOpen();
+    if (identities.length >= MAX_IDENTITIES_PER_TURN) {
+      throw new GameError("invalid_action", `本轮最多记 ${MAX_IDENTITIES_PER_TURN} 个名字`);
+    }
+    identities.push(parseRememberIdentity(args));
+    return "名字已加入计划";
+  };
+
   const loop = await agentLoop({
     name: current.actor.name,
     inputMessage: buildActorObservation(state, current),
@@ -238,23 +259,24 @@ export async function runNpcTurn(
       selfTool,
       observeTool,
       knowledgeTool,
+      rememberTool,
       ...allowed.map((kind) => actionTools[kind]),
       submitTool,
     ],
     handlers: {
       [lookTool.function.name]: (args) => {
         const stageName = typeof args.stageName === "string" ? args.stageName : "";
-        return lookStage(state, stageName);
+        return describeStageForActor(state, stageName, current);
       },
       [selfTool.function.name]: () => describeSelf(current.actor),
       [observeTool.function.name]: (args) => {
-        const targetActorName =
-          typeof args.targetActorName === "string" ? args.targetActorName.trim() : "";
-        const target = otherActors.find((actor) => actor.name === targetActorName);
+        const targetActorHandle =
+          typeof args.targetActorHandle === "string" ? args.targetActorHandle.trim() : "";
+        const target = otherActors.find((actor) => address(actor.id).token === targetActorHandle);
         if (!target) {
-          return `错误：当前场景内找不到角色 ${targetActorName}`;
+          return `错误：当前场景内找不到指代 ${targetActorHandle}`;
         }
-        return describeObservedActor(target);
+        return describeObservedActor(target, address);
       },
       [knowledgeTool.function.name]: async (args: Record<string, unknown>) => {
         const keywords = typeof args.keywords === "string" ? args.keywords.trim() : "";
@@ -275,11 +297,15 @@ export async function runNpcTurn(
         return describeKnowledgeResults(keywords, results);
       },
       ...actionHandlers,
+      [rememberTool.function.name]: (args) => addIdentity(args),
       [submitTool.function.name]: () => {
-        if (actions.length === 0) {
+        if (actions.length === 0 && identities.length === 0) {
           throw new GameError("invalid_action", "计划中没有行动");
         }
-        submitted = { actions: actions.map((action) => ({ ...action })) };
+        submitted = {
+          actions: actions.map((action) => ({ ...action })),
+          ...(identities.length > 0 ? { identities: identities.map((item) => ({ ...item })) } : {}),
+        };
         return "计划已提交";
       },
     },
