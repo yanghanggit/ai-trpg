@@ -40,15 +40,16 @@ describe.skipIf(!testDatabaseUrl)("actor view", () => {
 
     // 煤渣认识奥德里克，但没见过无名者的名字。
     const view = await getActorView(handle.db, created.game.slug, "角色.煤渣");
-    expect(view.viewer.name).toBe("角色.煤渣");
-    expect(view.scene?.name).toBe("场景.墓园");
+    expect(view.viewer.name).toBe("煤渣");
+    expect(view.scene?.name).toBe("墓园");
     expect(view.scene?.exits.map((exit) => exit.name).sort()).toEqual(
-      ["场景.地窖", "场景.焚尸房", "场景.铁闸门"].sort(),
+      ["地窖", "焚尸房", "铁闸门"].sort(),
     );
 
     const self = view.scene?.actors.find((actor) => actor.self);
     expect(self?.actorId).toBe(view.viewer.actorId);
     expect(self?.label).toBe("你自己");
+    expect(self?.knownName).toBe("煤渣");
 
     const odric = view.scene?.actors.find((actor) => actor.knownName === "奥德里克");
     expect(odric?.label).toContain("奥德里克");
@@ -82,7 +83,7 @@ describe.skipIf(!testDatabaseUrl)("actor view", () => {
     });
 
     const view = await getActorView(handle.db, created.game.slug, "角色.无名者");
-    expect(view.scene?.name).toBe("场景.焚尸房");
+    expect(view.scene?.name).toBe("焚尸房");
     // 内容里是 `武器.松脂火把`，角色看到的是去掉类型前缀的写法。
     expect(view.scene?.items.map((item) => item.name)).toEqual(["松脂火把"]);
   });

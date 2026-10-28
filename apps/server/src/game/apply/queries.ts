@@ -11,6 +11,7 @@ import {
 } from "../../db/schema";
 import { type AddressLookup, entityNameMatches, handleOf, makeAddressLookup } from "../addressing";
 import { addStats, type Stats } from "../attributes";
+import { plainEntityName } from "../entity-name";
 import { GameError } from "../errors";
 import { EQUIPMENT_SLOTS } from "../types";
 import type { ActorRow, Executor, ItemRow, StageItemRow, StageRow, WorldRow } from "./types";
@@ -151,7 +152,7 @@ export async function stageAddressLookup(
         token: handleOf(self.presentation.seq),
         label: "你自己",
         mention: "你",
-        knownName: self.actor.name,
+        knownName: plainEntityName(self.actor.name),
       };
     }
     return base(actorId);

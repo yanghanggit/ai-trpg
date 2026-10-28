@@ -15,6 +15,7 @@ import { type AddressLookup, type AddressSubject, handleOf, makeAddressLookup } 
 import { listStageActorViews } from "./apply/queries";
 import type { ActorRow, Executor } from "./apply/types";
 import { MEMORY_KINDS } from "./constants";
+import { plainEntityName } from "./entity-name";
 import { appendMemoryMessages, loadAgentMemory } from "./memory";
 import {
   type Audience,
@@ -93,7 +94,7 @@ async function writeObservations(
             token: handleOf(presentation.seq),
             label: "你自己",
             mention: "你",
-            knownName: observer.name,
+            knownName: plainEntityName(observer.name),
           }
         : base(actorId);
     const view = spec.render(observer, address);

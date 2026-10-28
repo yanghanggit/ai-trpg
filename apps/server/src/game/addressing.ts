@@ -142,7 +142,7 @@ export function addressLookupFor(
         token: handleOf(observer.presentation.seq),
         label: "你自己",
         mention: "你",
-        knownName: observer.name,
+        knownName: plainEntityName(observer.name),
       };
     }
     return lookup(actorId);

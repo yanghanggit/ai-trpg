@@ -136,12 +136,12 @@ export async function getActorView(
     viewer: {
       actorId: actor.id,
       presentationId: actor.presentation.id,
-      name: actor.name,
+      name: plainEntityName(actor.name),
       appearance: actor.appearance,
     },
     scene: {
       id: stage.id,
-      name: stage.name,
+      name: plainEntityName(stage.name),
       environment: stage.environment,
       items: stage.items.map((item) => ({
         name: plainEntityName(item.name),
@@ -151,7 +151,7 @@ export async function getActorView(
       actors,
       exits: adjacentStages(state, stage.id).map((exit) => ({
         stageId: exit.id,
-        name: exit.name,
+        name: plainEntityName(exit.name),
       })),
     },
     knowledge: state.knowledge.filter((row) => row.observerActorId === actor.id),
