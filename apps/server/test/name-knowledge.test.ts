@@ -19,7 +19,7 @@ import { parseAnnounce } from "../src/game/actions/announce";
 import { parseSay } from "../src/game/actions/say";
 import { parseWhisper } from "../src/game/actions/whisper";
 import { handleOf } from "../src/game/addressing";
-import { buildActorObservation } from "../src/game/npc";
+import { buildActorTurnInput } from "../src/game/npc";
 import { allocateEntitySeq } from "../src/game/persistence/entity-seq";
 import {
   insertPresentation,
@@ -118,7 +118,7 @@ describe.skipIf(!testDatabaseUrl)("names and addresses", () => {
     if (!stage) {
       throw new Error("缺少墓园");
     }
-    const observation = buildActorObservation(state, { actor, stage });
+    const observation = buildActorTurnInput(state, { actor, stage });
 
     // 已知的照常出现；没互相介绍过的只以外观出现。
     expect(observation).toContain("煤渣");
@@ -176,7 +176,7 @@ describe.skipIf(!testDatabaseUrl)("names and addresses", () => {
     if (!odricNow || !stage) {
       throw new Error("缺少墓园");
     }
-    expect(buildActorObservation(after, { actor: odricNow, stage })).toContain("无名者");
+    expect(buildActorTurnInput(after, { actor: odricNow, stage })).toContain("无名者");
   });
 
   it("warns without blocking when the target is unseen or the name collides", async () => {
@@ -279,7 +279,7 @@ describe.skipIf(!testDatabaseUrl)("names and addresses", () => {
     if (!cinder || !stage) {
       throw new Error("缺少煤渣");
     }
-    const maskedView = buildActorObservation(masked, { actor: cinder, stage });
+    const maskedView = buildActorTurnInput(masked, { actor: cinder, stage });
     expect(maskedView).not.toContain("奥德里克");
     expect(maskedView).toContain("一个蒙面人");
 
@@ -296,7 +296,7 @@ describe.skipIf(!testDatabaseUrl)("names and addresses", () => {
     if (!cinderBack || !stageBack) {
       throw new Error("缺少煤渣");
     }
-    expect(buildActorObservation(restored, { actor: cinderBack, stage: stageBack })).toContain(
+    expect(buildActorTurnInput(restored, { actor: cinderBack, stage: stageBack })).toContain(
       "奥德里克",
     );
   });

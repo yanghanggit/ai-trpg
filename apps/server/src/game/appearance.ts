@@ -76,7 +76,7 @@ export function parseAppearance(args: Record<string, unknown>): string {
   return appearance;
 }
 
-export function buildAppearanceObservation(actor: ActorState, dead = false): string {
+export function buildAppearanceTurnInput(actor: ActorState, dead = false): string {
   const worn = equippedItems(actor);
   const wornLines =
     worn.length === 0
@@ -140,7 +140,7 @@ export async function runAppearanceTurn(
   const dead = !isAlive(actor);
   const loop = await agentLoop({
     name: actor.name,
-    inputMessage: buildAppearanceObservation(actor, dead),
+    inputMessage: buildAppearanceTurnInput(actor, dead),
     messages: memory.messages,
     mutateMessages: false,
     tools: [tool],

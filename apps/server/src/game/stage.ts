@@ -42,7 +42,7 @@ export type StageTurnOptions = {
 };
 
 /** 构造 stage 小 GM 本轮的当前场景观察；仲裁与探针共用。 */
-export function buildStageObservation(state: GameState, stage: StageState): string {
+export function buildStageTurnInput(state: GameState, stage: StageState): string {
   const moves = adjacentStageNames(state, stage.id);
   const sealed = sealedStageNames(state, stage.id);
   const canSubmit = stage.actions.includes("submit_environment");
@@ -343,7 +343,7 @@ export async function runStageTurn(
 
   const loop = await agentLoop({
     name: stage.name,
-    inputMessage: buildStageObservation(state, stage),
+    inputMessage: buildStageTurnInput(state, stage),
     messages: memory.messages,
     tools: [
       lookTool,

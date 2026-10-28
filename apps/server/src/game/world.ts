@@ -32,7 +32,7 @@ export type WorldTurnOptions = {
 };
 
 /** 构造 world 本轮的全局观察；stage report 在 world memory 中。 */
-export function buildWorldObservation(state: GameState): string {
+export function buildWorldTurnInput(state: GameState): string {
   const stageLines = state.world.stages
     .map((stage) => {
       const actors =
@@ -248,7 +248,7 @@ export async function runWorldTurn(
 
   const loop = await agentLoop({
     name: state.world.name,
-    inputMessage: buildWorldObservation(state),
+    inputMessage: buildWorldTurnInput(state),
     messages: memory.messages,
     tools: [lookTool, ...(canNotify ? [notifyTool] : []), ...(canEnd ? [endTool] : []), submitTool],
     handlers: {

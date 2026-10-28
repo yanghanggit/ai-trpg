@@ -123,7 +123,7 @@ export function parseDrops(args: Record<string, unknown>): MaterialDrop[] {
 }
 
 /** 掉落只看得到尸体本身与所在场景；不注入死者记忆，掉落必须是外部可观察的事实。 */
-export function buildDropObservation(actor: ActorState, stage: StageState): string {
+export function buildDropTurnInput(actor: ActorState, stage: StageState): string {
   return `# 尸体掉落
 
 ${actor.name}刚刚死亡。
@@ -174,7 +174,7 @@ export async function runDropTurn(
   const submitted: { materials: MaterialDrop[] | null } = { materials: null };
   const loop = await agentLoop({
     name: actor.name,
-    inputMessage: buildDropObservation(actor, stage),
+    inputMessage: buildDropTurnInput(actor, stage),
     messages: [],
     mutateMessages: false,
     tools: [tool],

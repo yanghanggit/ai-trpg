@@ -12,7 +12,7 @@ import {
   playerTeleport,
   takeActorControl,
 } from "../src/game";
-import { buildActorObservation } from "../src/game/npc";
+import { buildActorTurnInput } from "../src/game/npc";
 import { teleportTargetsFor } from "../src/game/teleport";
 import type { World } from "../src/game/types";
 import { TEST_WORLD } from "./test-world";
@@ -106,7 +106,7 @@ describe.skipIf(!testDatabaseUrl)("teleport", () => {
       throw new Error("缺少测试数据");
     }
     expect(teleportTargetsFor(before, keeper, nave)).toEqual([gate]);
-    expect(buildActorObservation(before, { actor: keeper, stage: nave })).toContain(
+    expect(buildActorTurnInput(before, { actor: keeper, stage: nave })).toContain(
       "可传送至（已去过且未禁传）",
     );
 
