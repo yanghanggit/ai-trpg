@@ -14,6 +14,7 @@
     "test:watch": "vitest",
     "smoke:deepseek": "tsx scripts/run-deepseek-smoke.ts",
     "smoke:deepseek:full": "tsx scripts/run-deepseek-smoke.ts --full",
+    "image": "tsx scripts/image.ts",
     "agent:game": "tsx scripts/agent-game.ts",
     "agent:api": "tsx scripts/agent-api.ts",
     "audit:prompts": "tsx scripts/audit-prompts.ts",

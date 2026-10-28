@@ -1,7 +1,7 @@
 /**
- * 清理开发期临时产物：prompts / worlds / stories / logs / screenshots。
+ * 清理开发期临时产物：prompts / worlds / stories / logs / screenshots / images。
  *
- * 这些目录只存调试输出（system prompt 导出、世界快照、故事总结、LLM 留痕、截图），
+ * 这些目录只存调试输出（system prompt 导出、世界快照、故事总结、LLM 留痕、截图、生成图片），
  * 都被 gitignore 忽略，随时可以重新生成。脚本默认只预览，加 --yes 才真的删；
  * 目录本身与 .gitkeep 占位保留。
  *
@@ -33,6 +33,7 @@ const TARGETS: readonly Target[] = [
     description: "从 apps/server 启动时写的 LLM 留痕",
   },
   { name: "screenshots", path: "screenshots", description: "Playwright 截图" },
+  { name: "images", path: "images", description: "生成的图片资产" },
   {
     name: "cache",
     path: "apps/server/.cache",

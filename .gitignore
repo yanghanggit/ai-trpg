@@ -35,6 +35,10 @@ screenshots/*
 **/stories/*
 !**/stories/.gitkeep
 
+# 生成的图片资产（保留目录占位）
+**/images/*
+!**/images/.gitkeep
+
 # 日志
 *.log
 npm-debug.log*

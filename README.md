@@ -63,12 +63,15 @@ pnpm dev
 | `pnpm screenshot`     | 截图前端页面（需先启动 dev，依赖本机 Chrome）                 |
 | `pnpm clean:dev`      | 清理开发期临时目录，默认只预览，加 `--yes` 才删               |
 | `pnpm smoke:deepseek` | 真实调用 DeepSeek 的冒烟测试（需要 key，可能产生费用）        |
+| `pnpm image`          | 图像生成基建 CLI；生成、编辑、批量与资产列表                  |
 | `pnpm agent:game`     | 数据库驱动的 agent CLI；建局、推进、探针、故事与快照          |
 | `pnpm agent:api`      | 对运行中的服务端做 HTTP API 走查                              |
 
 ## 工具
 
 **Agent CLI**：`agent:game` 直连 PostgreSQL、`agent:api` 一次调用发一次 HTTP 请求；子命令以 `--help` 为准，边界见 `docs/debug-workflow.md`。
+
+**图像生成**：`pnpm image` 是独立 CLI，不启动服务端或数据库；设计与边界见 `docs/image-generation.md`，子命令以 `--help` 为准。
 
 **截图**：`pnpm screenshot` 默认输出 `screenshots/index-1280x900.png`，可用 `--size`、`--base`、`--click` 覆盖；脚本走 CDP 并等待 React 挂载，找不到 Chrome 时用 `CHROME_PATH` 指定。
 

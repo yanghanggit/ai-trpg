@@ -1,16 +1,2 @@
-import { existsSync } from "node:fs";
-import { dirname, join, resolve } from "node:path";
-
-export function findRepoRoot(start = process.cwd()): string {
-  let current = resolve(start);
-  while (true) {
-    if (existsSync(join(current, "pnpm-workspace.yaml"))) {
-      return current;
-    }
-    const parent = dirname(current);
-    if (parent === current) {
-      return resolve(start);
-    }
-    current = parent;
-  }
-}
+/** 兼容旧引用：仓库根定位已下沉到 `src/paths.ts`，调试模块继续从这里导入。 */
+export { findRepoRoot } from "../paths";
