@@ -74,6 +74,7 @@ actor1 告诉 actor2 一个地方，只算 belief/hearsay，不算 access；acto
 - **事实与机制**：stage / world 知道钥匙与锁孔吻合、通道是唯一出口，但没有结构阻止它们把未发现的事实写成可见线索；目前靠提示词与内容分层。
 - **隐藏通道与秘密地点**：开放通道对所有在场 actor 可见，没有 per-actor 的通道可见性。
 - **地点知识**：没有 `stage_knowledge`；传闻只存在记忆里。
+- **传送历史**：`stage_visits` 只记录去过哪些场景，服务 `teleport` 与地图；不参与普通移动权限。
 - **stage / world 的客户端投影**：目前只有 actor 的观看者投影；stage / world 仍是上帝视角文本。
 
 → 参见：[术语表](glossary.md)、[Actor 记忆与行动](actor-actions-memory.md)、[Stage 小 GM](stage.md)、[物品](items.md)、[Seed 内容编写原则](seed-authoring.md)

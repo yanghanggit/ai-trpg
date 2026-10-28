@@ -10,6 +10,7 @@ import type {
   PickupAction,
   SayAction,
   StealAction,
+  TeleportAction,
   UnequipAction,
   UseAction,
   WaitAction,
@@ -70,6 +71,13 @@ export type ResolvedAnnounce = {
 export type ResolvedMove = {
   kind: "move";
   action: MoveAction;
+  stage: StageRow;
+  targetStage: StageRow;
+};
+
+export type ResolvedTeleport = {
+  kind: "teleport";
+  action: TeleportAction;
   stage: StageRow;
   targetStage: StageRow;
 };
@@ -139,6 +147,7 @@ export type ResolvedAction =
   | ResolvedWhisper
   | ResolvedAnnounce
   | ResolvedMove
+  | ResolvedTeleport
   | ResolvedWait
   | ResolvedAttack
   | ResolvedSteal

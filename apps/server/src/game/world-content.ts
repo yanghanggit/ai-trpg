@@ -72,6 +72,7 @@ const stageSchema = z.object({
   environment: z.string(),
   items: z.array(itemSchema).optional(),
   actions: z.array(stageActionSchema),
+  teleportBlocked: z.boolean().optional(),
 });
 
 const actorSchema = z.object({

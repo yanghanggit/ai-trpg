@@ -12,6 +12,7 @@ import { applyMove } from "../actions/move";
 import { applyPickup } from "../actions/pickup";
 import { applySay } from "../actions/say";
 import { applySteal } from "../actions/steal";
+import { applyTeleport } from "../actions/teleport";
 import { applyUnequip } from "../actions/unequip";
 import { applyUse } from "../actions/use";
 import { applyWait } from "../actions/wait";
@@ -53,6 +54,8 @@ async function applyResolvedAction(
       return applyAnnounce(executor, gameId, actorRow, resolved, now, trace);
     case "move":
       return applyMove(executor, gameId, actorRow, resolved, now, trace);
+    case "teleport":
+      return applyTeleport(executor, gameId, actorRow, resolved, now, trace);
     case "wait":
       return applyWait(executor, gameId, actorRow, resolved, now, trace);
     case "attack":

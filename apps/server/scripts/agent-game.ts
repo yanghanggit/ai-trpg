@@ -49,6 +49,7 @@ import {
   playerPickup,
   playerSay,
   playerSteal,
+  playerTeleport,
   playerUnequip,
   playerUse,
   playerWait,
@@ -171,6 +172,7 @@ function usage(): void {
       "agent-game player-whisper --game <gameId|slug> --actor <actorId|actorName> --target <actorName> --message <text> [--reason <text>]",
       "agent-game player-announce --game <gameId|slug> --actor <actorId|actorName> --message <text> [--reason <text>]",
       "agent-game player-move --game <gameId|slug> --actor <actorId|actorName> --to <stageId|stageName>",
+      "agent-game player-teleport --game <gameId|slug> --actor <actorId|actorName> --to <stageId|stageName>",
       "agent-game player-wait --game <gameId|slug> --actor <actorId|actorName>",
       "agent-game player-attack --game <gameId|slug> --actor <actorId|actorName> --target <actorName>（武器由装备决定）",
       "agent-game player-steal --game <gameId|slug> --actor <actorId|actorName> --target <actorName> --item <itemName>",
@@ -442,6 +444,18 @@ async function main(): Promise<void> {
     }
     const result = await withDatabase((db) =>
       playerMove(db, game, actor, { targetStageRef: values.to as string }),
+    );
+    emitTurn(command, result);
+    return;
+  }
+
+  if (command === "player-teleport") {
+    const { game, actor } = requireActorArgs(values, command);
+    if (typeof values.to !== "string" || values.to.trim().length === 0) {
+      throw new Error("player-teleport 需要 --to <stageId|stageName>");
+    }
+    const result = await withDatabase((db) =>
+      playerTeleport(db, game, actor, { targetStageRef: values.to as string }),
     );
     emitTurn(command, result);
     return;

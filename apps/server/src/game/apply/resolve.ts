@@ -6,6 +6,7 @@ import { resolveMove } from "../actions/move";
 import { resolvePickup } from "../actions/pickup";
 import { resolveSay } from "../actions/say";
 import { resolveSteal } from "../actions/steal";
+import { resolveTeleport } from "../actions/teleport";
 import { resolveUnequip } from "../actions/unequip";
 import { resolveUse } from "../actions/use";
 import { resolveWait } from "../actions/wait";
@@ -54,6 +55,12 @@ export async function resolvePlan(
         const move = await resolveMove(executor, world, stage, action);
         resolved.push(move);
         stage = move.targetStage;
+        break;
+      }
+      case "teleport": {
+        const teleport = await resolveTeleport(executor, world, stage, actorRow.actor.id, action);
+        resolved.push(teleport);
+        stage = teleport.targetStage;
         break;
       }
       case "wait":

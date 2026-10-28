@@ -8,6 +8,7 @@ import { GameError } from "../errors";
 import { renderAction, renderEnvironment } from "../observation-text";
 import { appendCustomStageObservation, appendStageMemory } from "../observations";
 import { moveActorToStage } from "../persistence/actors";
+import { recordStageVisit } from "../persistence/visits";
 import type { MoveAction } from "../types";
 
 export function buildMoveTool(stageNames: readonly string[]): ToolDefinition {
@@ -73,6 +74,7 @@ export async function applyMove(
     trace,
   );
   await moveActorToStage(executor, actorRow.actor.id, target.id, now);
+  await recordStageVisit(executor, gameId, actorRow.actor.id, target.id, now);
   await bumpGameVersion(executor, gameId, now);
   await appendPublicMessage(executor, gameId, actorRow.actor.id, {
     kind: "move",

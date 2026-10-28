@@ -5,6 +5,7 @@ import { type AddressLookup, addressLookupFor, plainEntityName, refOf } from "./
 import { isAlive } from "./apply/queries";
 import { MAX_IDENTITY_NAME_LENGTH, MAX_WORLD_NOTIFICATION_LENGTH } from "./constants";
 import { GameError } from "./errors";
+import { teleportTargetsFor } from "./teleport";
 import { renderEnvironmentForActor } from "./text-guard";
 import type { ActorState, GameState, ItemState, StageAction } from "./types";
 import { EQUIPMENT_SLOT_LABELS, EQUIPMENT_SLOTS } from "./types";
@@ -423,6 +424,10 @@ export function describeStageForActor(
     otherActorNames,
   );
   const moves = adjacentStageNames(state, stage.id);
+  const canTeleport = current.actor.actions.includes("teleport");
+  const teleportLines = teleportTargetsFor(state, current.actor, stage)
+    .map((candidate) => candidate.name)
+    .join("、");
   const actors =
     stage.actors.length === 0
       ? "无"
@@ -442,7 +447,12 @@ export function describeStageForActor(
 ${environment}
 角色：${actors}
 物品：${items}
-可去：${moves.length === 0 ? "无" : moves.join("、")}`;
+可去：${moves.length === 0 ? "无" : moves.join("、")}${
+    canTeleport
+      ? `
+可传送：${teleportLines.length === 0 ? "无" : teleportLines}`
+      : ""
+  }`;
 }
 
 export function lookStage(state: GameState, stageName: string): string {

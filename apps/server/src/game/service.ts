@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import { asc, eq, inArray } from "drizzle-orm";
+import { and, asc, eq, inArray } from "drizzle-orm";
 import type { Database } from "../db/pool";
 import {
   actors,
@@ -10,6 +10,7 @@ import {
   stageConnections,
   stageItems,
   stages,
+  stageVisits,
   users,
   worlds,
 } from "../db/schema";
@@ -42,6 +43,7 @@ import type {
   NameKnowledgeState,
   PlayerState,
   StageState,
+  StageVisitState,
 } from "./types";
 import { parseWorldContent } from "./world-content";
 
@@ -133,6 +135,22 @@ export async function getGameState(db: Database, ref: string): Promise<GameState
           .orderBy(asc(actors.seq));
   const actorIds = actorRows.map((actor) => actor.id);
 
+  const visitRows =
+    actorIds.length === 0
+      ? []
+      : await db
+          .select()
+          .from(stageVisits)
+          .where(and(eq(stageVisits.gameId, game.id), inArray(stageVisits.actorId, actorIds)))
+          .orderBy(asc(stageVisits.firstVisitedAt));
+
+  const visits: StageVisitState[] = visitRows.map((visit) => ({
+    actorId: visit.actorId,
+    stageId: visit.stageId,
+    firstVisitedAt: visit.firstVisitedAt.toISOString(),
+    lastVisitedAt: visit.lastVisitedAt.toISOString(),
+  }));
+
   const itemRows =
     actorIds.length === 0
       ? []
@@ -215,6 +233,7 @@ export async function getGameState(db: Database, ref: string): Promise<GameState
     profile: stage.profile,
     environment: stage.environment,
     ordinal: stage.ordinal,
+    teleportBlocked: stage.teleportBlocked,
     actors: actorsByStage.get(stage.id) ?? [],
     items: itemsByStage.get(stage.id) ?? [],
     actions: stage.actions,
@@ -284,6 +303,7 @@ export async function getGameState(db: Database, ref: string): Promise<GameState
     },
     messages,
     knowledge,
+    visits,
   };
 }
 
@@ -373,6 +393,7 @@ export async function createGame(
         profile: stage.profile,
         environment: stage.environment,
         actions: [...stage.actions],
+        teleportBlocked: stage.teleportBlocked ?? false,
         ordinal,
       });
 
@@ -531,6 +552,12 @@ export async function createGame(
         },
         actorPrompt,
       );
+      await tx.insert(stageVisits).values({
+        id: randomUUID(),
+        gameId,
+        actorId,
+        stageId: actorStageId,
+      });
     }
 
     // 开局既知的名字：观察者与对象都用内容 key 引用，落库时变成 actor / 形象 id。

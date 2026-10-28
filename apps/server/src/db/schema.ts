@@ -131,6 +131,8 @@ export const stages = pgTable(
     profile: text("profile").notNull(),
     environment: text("environment").notNull(),
     actions: jsonb("actions").$type<StageActionKind[]>().notNull().default([]),
+    /** 禁止 teleport 进出；普通 move 不受影响。 */
+    teleportBlocked: boolean("teleport_blocked").notNull().default(false),
     ordinal: integer("ordinal").notNull().default(0),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },
@@ -187,6 +189,29 @@ export const actors = pgTable("actors", {
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
 });
+
+/** actor 去过哪些场景；用于 teleport 目标与地图，不参与普通 move 权限。 */
+export const stageVisits = pgTable(
+  "stage_visits",
+  {
+    id: uuid("id").primaryKey(),
+    gameId: uuid("game_id")
+      .notNull()
+      .references(() => games.id, { onDelete: "cascade" }),
+    actorId: uuid("actor_id")
+      .notNull()
+      .references(() => actors.id, { onDelete: "cascade" }),
+    stageId: uuid("stage_id")
+      .notNull()
+      .references(() => stages.id, { onDelete: "cascade" }),
+    firstVisitedAt: timestamp("first_visited_at", { withTimezone: true }).notNull().defaultNow(),
+    lastVisitedAt: timestamp("last_visited_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    uniqueIndex("stage_visits_actor_stage_unique").on(table.actorId, table.stageId),
+    index("stage_visits_game_actor_idx").on(table.gameId, table.actorId),
+  ],
+);
 
 /**
  * 一个 actor 可被看见的「形象」（presentation）。
@@ -500,6 +525,7 @@ export const schema = {
   stages,
   stageConnections,
   actors,
+  stageVisits,
   actorPresentations,
   nameKnowledge,
   items,

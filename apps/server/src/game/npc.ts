@@ -21,6 +21,7 @@ import { buildMoveTool, parseMove } from "./actions/move";
 import { buildPickupTool, parsePickup } from "./actions/pickup";
 import { buildSayTool, parseSay } from "./actions/say";
 import { buildStealTool, parseSteal } from "./actions/steal";
+import { buildTeleportTool, parseTeleport } from "./actions/teleport";
 import { buildUnequipTool, parseUnequip } from "./actions/unequip";
 import { buildUseTool, parseUse, usableItemNames } from "./actions/use";
 import { buildWaitTool, parseWait } from "./actions/wait";
@@ -53,6 +54,7 @@ import {
   parseRememberIdentity,
 } from "./plan";
 import { getGameState } from "./service";
+import { teleportTargetsFor } from "./teleport";
 import type { ActionKind, ActorAction, ActorPlan, ActorTurnResult, GameState } from "./types";
 import { EQUIPMENT_SLOTS } from "./types";
 
@@ -89,6 +91,10 @@ export function buildActorObservation(state: GameState, current: ActorWithStage)
           .join("\n");
   const targetLines = targets.length === 0 ? "无" : targets.join("、");
   const moveLines = moves.length === 0 ? "无" : moves.join("、");
+  const canTeleport = current.actor.actions.includes("teleport");
+  const teleportTargets = teleportTargetsFor(state, current.actor, current.stage);
+  const teleportLines =
+    teleportTargets.length === 0 ? "无" : teleportTargets.map((stage) => stage.name).join("、");
   const knowledgeHint =
     "当问题涉及任何进入该世界的人都可能观察、询问或从公开记载中得知的固定事实，而当前场景与记忆无法直接确认时，必须先调用 query 检索，再回答或行动；不要用常识补全，也不要把检索结果当成亲眼所见。query 只读、不占行动，不提供角色秘密或当前状态。";
   const identityHint =
@@ -114,6 +120,13 @@ ${targetLines}
 
 ## 可移动至
 ${moveLines}
+${
+  canTeleport
+    ? `
+## 可传送至（已去过且未禁传）
+${teleportLines}`
+    : ""
+}
 
 # 本轮任务
 
@@ -182,6 +195,9 @@ export async function runNpcTurn(
   const knowledgeTool = buildKnowledgeTool();
   const knowledgeProvider = options.knowledgeProvider ?? new TransformersEmbeddingProvider();
 
+  const teleportTargets = teleportTargetsFor(state, current.actor, current.stage).map(
+    (stage) => stage.name,
+  );
   const lookTool = buildActorLookTool(current.stage.name);
   const selfTool = buildSelfInfoTool();
   const observeTool = buildObserveActorTool(targets);
@@ -194,6 +210,7 @@ export async function runNpcTurn(
     whisper: buildWhisperTool(targets),
     announce: buildAnnounceTool(),
     move: buildMoveTool(stageNames),
+    teleport: buildTeleportTool(teleportTargets),
     wait: buildWaitTool(),
     attack: buildAttackTool(targets),
     steal: buildStealTool(targets),
@@ -208,6 +225,7 @@ export async function runNpcTurn(
     whisper: parseWhisper,
     announce: parseAnnounce,
     move: parseMove,
+    teleport: parseTeleport,
     wait: () => parseWait(),
     attack: parseAttack,
     steal: parseSteal,

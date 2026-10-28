@@ -152,6 +152,11 @@ export type PlayerMoveInput = {
   targetStageRef: string;
 };
 
+export type PlayerTeleportInput = {
+  /** 目标场景 id 或规范名；必须是 actor 去过的场景。 */
+  targetStageRef: string;
+};
+
 export type PlayerAttackInput = {
   targetActorRef: string;
 };
@@ -244,6 +249,16 @@ export async function playerMove(
   input: PlayerMoveInput,
 ): Promise<ActorTurnResult> {
   const action: ActorAction = { kind: "move", targetStageName: input.targetStageRef };
+  return applyPlayerAction(db, gameRef, actorRef, action);
+}
+
+export async function playerTeleport(
+  db: Database,
+  gameRef: string,
+  actorRef: string,
+  input: PlayerTeleportInput,
+): Promise<ActorTurnResult> {
+  const action: ActorAction = { kind: "teleport", targetStageName: input.targetStageRef };
   return applyPlayerAction(db, gameRef, actorRef, action);
 }
 

@@ -90,6 +90,8 @@ export type Stage = {
   items?: readonly ItemDefinition[];
   /** 场景自身的能力清单；必须显式列出。 */
   actions: readonly StageActionKind[];
+  /** 是否禁止 teleport 进出；普通 move 不受影响。 */
+  teleportBlocked?: boolean;
 };
 
 /** 场景边的通行状态；sealed 表示两侧在剧情上相连，但当前不能通过。 */
@@ -212,6 +214,12 @@ export type MoveAction = {
   targetStageName: string;
 };
 
+/** 传送到一个去过、且未被 teleport_blocked 的场景；一次一跳，不沿路径移动。 */
+export type TeleportAction = {
+  kind: "teleport";
+  targetStageName: string;
+};
+
 export type WaitAction = {
   kind: "wait";
 };
@@ -272,6 +280,7 @@ export type ActorAction =
   | WhisperAction
   | AnnounceAction
   | MoveAction
+  | TeleportAction
   | WaitAction
   | AttackAction
   | StealAction
@@ -433,6 +442,7 @@ export type StageState = {
   profile: string;
   environment: string;
   ordinal: number;
+  teleportBlocked: boolean;
   actors: ActorState[];
   items: ItemState[];
   actions: readonly StageActionKind[];
@@ -526,6 +536,14 @@ export type WorldState = {
   connections: ConnectionState[];
 };
 
+/** actor 去过哪些场景；只用于传送与地图，不参与普通移动权限。 */
+export type StageVisitState = {
+  actorId: string;
+  stageId: string;
+  firstVisitedAt: string;
+  lastVisitedAt: string;
+};
+
 export type GameState = {
   game: {
     id: string;
@@ -545,6 +563,8 @@ export type GameState = {
   messages: MessageState[];
   /** 本局全部名字信念（god view）；渲染层按观察者过滤后才进提示词。 */
   knowledge: NameKnowledgeState[];
+  /** 访问历史；只用于传送与地图，不参与普通移动权限。 */
+  visits: StageVisitState[];
 };
 
 /** 认知更新的告警：不阻断行动，只进轨迹与日志。 */

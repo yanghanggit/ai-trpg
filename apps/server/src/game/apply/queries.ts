@@ -300,6 +300,26 @@ export async function resolveAdjacentStage(
   return target;
 }
 
+/** 在世界内按 id 或规范名找场景；用于 teleport 这类非邻接目标。 */
+export async function findStageInWorld(
+  executor: Executor,
+  worldId: string,
+  ref: string,
+): Promise<StageRow | undefined> {
+  const value = ref.trim();
+  const [row] = await executor
+    .select()
+    .from(stages)
+    .where(
+      and(
+        eq(stages.worldId, worldId),
+        UUID_PATTERN.test(value) ? eq(stages.id, value) : eq(stages.name, value),
+      ),
+    )
+    .limit(1);
+  return row;
+}
+
 /** 物品转移后同一 actor 不能出现重名物品。 */
 export async function assertItemNameFree(
   executor: Executor,

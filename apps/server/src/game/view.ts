@@ -4,6 +4,7 @@ import { addressLookupFor, plainEntityName } from "./addressing";
 import { MEMORY_KINDS } from "./constants";
 import { getMemoryState } from "./memory";
 import { getGameState } from "./service";
+import { teleportTargetsFor } from "./teleport";
 import type { NameKnowledgeState } from "./types";
 
 /**
@@ -62,6 +63,10 @@ export type ActorView = {
   knowledge: NameKnowledgeState[];
   /** 这个角色实际感知到的记忆，按发生顺序。 */
   log: ViewerLogEntry[];
+  /** 去过的场景（地图/记忆用）；不表示现在可传送。 */
+  visitedStages: { stageId: string; name: string }[];
+  /** 当前可传送目标；只有去过且未被 teleport_blocked 的场景。 */
+  teleportTargets: { stageId: string; name: string }[];
 };
 
 /** 属于“感知日志”的记忆类别；system prompt、开局简报与工具轨迹不在此列。 */
@@ -106,6 +111,18 @@ export async function getActorView(
       alive: candidate.hp > 0,
     };
   });
+
+  const stageById = new Map(state.world.stages.map((candidate) => [candidate.id, candidate]));
+  const visitedStages = state.visits
+    .filter((visit) => visit.actorId === actor.id)
+    .flatMap((visit) => {
+      const visited = stageById.get(visit.stageId);
+      return visited ? [{ stageId: visited.id, name: plainEntityName(visited.name) }] : [];
+    });
+  const teleportTargets = teleportTargetsFor(state, actor, stage).map((target) => ({
+    stageId: target.id,
+    name: plainEntityName(target.name),
+  }));
 
   const log: ViewerLogEntry[] = (memory?.messages ?? []).flatMap((message) => {
     if (message.type !== "human") {
@@ -156,5 +173,7 @@ export async function getActorView(
     },
     knowledge: state.knowledge.filter((row) => row.observerActorId === actor.id),
     log,
+    visitedStages,
+    teleportTargets,
   };
 }
