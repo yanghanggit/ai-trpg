@@ -16,6 +16,7 @@
     "smoke:deepseek:full": "tsx scripts/run-deepseek-smoke.ts --full",
     "agent:game": "tsx scripts/agent-game.ts",
     "agent:api": "tsx scripts/agent-api.ts",
+    "audit:prompts": "tsx scripts/audit-prompts.ts",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "tsx scripts/db-migrate.ts",
     "db:check": "tsx scripts/db-check.ts",

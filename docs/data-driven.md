@@ -39,6 +39,8 @@
 
 两条约束由测试守：`apps/server/test/prompt-genericity.test.ts` 取出当前 seed 的角色、场景、物品专名去扫描框架层源码，并拒绝具体机构部件与题材化样例词；`apps/server/test/system-prompt-tool-names.test.ts` 生成两份世界的全部 system prompt，拒绝其中的小写 snake_case 词（工具名都是这种形状），内容里合法的领域词走白名单、不放宽规则。
 
+测试只能守住已知词表，未知题材的判断交给开发期的语义审查工具：它只读框架源码里的字面文本（运行时插值折叠成占位符），让内部审查 agent 判断同一段话换到别的题材是否仍成立；结论按内容缓存，也可以只看改动过的文件。它不进入测试套件——测试保持确定性、离线与零成本。
+
 手工复核时，把当前 seed 的专名拼成正则传给 `grep -rn` 扫 `apps/server/src` 与 `apps/server/scripts`，再确认 `seeds/dark-fantasy` 与 `BELL_MONASTERY_WORLD` 没有出现在框架层；两者都应为空。`DEMO_USER` 只允许存在于通用 demo fixture 与 maintenance。
 
 ## 目标模型

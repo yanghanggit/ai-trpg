@@ -26,6 +26,7 @@
     "smoke:deepseek:full": "pnpm --filter @ai-trpg/server smoke:deepseek:full",
     "agent:game": "pnpm --filter @ai-trpg/server exec tsx scripts/agent-game.ts",
     "agent:api": "pnpm --filter @ai-trpg/server exec tsx scripts/agent-api.ts",
+    "audit:prompts": "pnpm --filter @ai-trpg/server audit:prompts",
     "verify": "pnpm install && pnpm gen:api && pnpm typecheck && pnpm lint && pnpm test:run && pnpm build",
     "pipeline": "pnpm verify && pnpm dev",
     "check:ports": "node scripts/check-ports.mjs",
