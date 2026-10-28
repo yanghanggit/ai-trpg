@@ -7,6 +7,12 @@ export const MAX_STAGE_NOTIFICATIONS_PER_TURN = 2;
 /** 一轮 world 最多执行的下行/结束动作条数；只读工具不计入。 */
 export const MAX_WORLD_ACTIONS_PER_TURN = 3;
 
+/** 词缀 agent 一次执行最多记录几条可见后果。 */
+export const MAX_AFFIX_EFFECTS = 2;
+
+/** 词缀后果文案上限；目标体验与旁人可见两段各自受限。 */
+export const MAX_AFFIX_EFFECT_LENGTH = 160;
+
 /** 使用道具时，对场景具体部位描述的最大长度。 */
 export const MAX_TARGET_DETAIL_LENGTH = 120;
 

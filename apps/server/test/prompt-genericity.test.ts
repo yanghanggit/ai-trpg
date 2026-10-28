@@ -14,6 +14,9 @@ const FRAMEWORK_ROOTS = ["src", "scripts"];
 /** 只在框架层不该出现的“具体机构部件”样例词；通用表达请用语义描述。 */
 const CONCRETE_MECHANISM_SAMPLES = ["锁孔", "门闩", "铭文", "炉膛", "表面纹样"];
 
+/** 题材化的伤害类型与身体材料：换一个剧本就不再成立，prompt 里只能写语义。 */
+const GENRE_SAMPLES = ["灼烧", "冻伤", "腐蚀", "焦黑", "毛皮", "鳞片", "獠牙", "骨骸"];
+
 function stripPrefix(name: string): string {
   return name.replace(/^[^.]+\./, "");
 }
@@ -70,6 +73,13 @@ describe("framework prompts stay content-agnostic", () => {
       CONCRETE_MECHANISM_SAMPLES.filter((sample) => body.includes(sample)).map(
         (sample) => `${path}: ${sample}`,
       ),
+    );
+    expect(hits).toEqual([]);
+  });
+
+  it("does not bake a genre's damage types or body materials into prompts", () => {
+    const hits = files.flatMap(({ path, body }) =>
+      GENRE_SAMPLES.filter((sample) => body.includes(sample)).map((sample) => `${path}: ${sample}`),
     );
     expect(hits).toEqual([]);
   });

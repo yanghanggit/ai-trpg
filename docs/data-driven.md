@@ -37,7 +37,7 @@
 
 ## 检查方法
 
-两条约束由测试守：`apps/server/test/prompt-genericity.test.ts` 取出当前 seed 的角色、场景、物品专名去扫描框架层源码，并拒绝具体机构部件样例词；`apps/server/test/system-prompt-tool-names.test.ts` 生成两份世界的全部 system prompt，拒绝其中的小写 snake_case 词（工具名都是这种形状），内容里合法的领域词走白名单、不放宽规则。
+两条约束由测试守：`apps/server/test/prompt-genericity.test.ts` 取出当前 seed 的角色、场景、物品专名去扫描框架层源码，并拒绝具体机构部件与题材化样例词；`apps/server/test/system-prompt-tool-names.test.ts` 生成两份世界的全部 system prompt，拒绝其中的小写 snake_case 词（工具名都是这种形状），内容里合法的领域词走白名单、不放宽规则。
 
 手工复核时，把当前 seed 的专名拼成正则传给 `grep -rn` 扫 `apps/server/src` 与 `apps/server/scripts`，再确认 `seeds/dark-fantasy` 与 `BELL_MONASTERY_WORLD` 没有出现在框架层；两者都应为空。`DEMO_USER` 只允许存在于通用 demo fixture 与 maintenance。
 

@@ -20,16 +20,22 @@ import {
   playerUse,
   takeActorControl,
 } from "../src/game";
-import { ChatCompletionResult, type ChatCompletionService, ChatError } from "../src/llm";
+import {
+  ChatCompletionResult,
+  type ChatCompletionService,
+  ChatError,
+  type ToolCall,
+} from "../src/llm";
 
 class AffixDamageService implements ChatCompletionService {
   calls = 0;
   input = "";
+  recordEffect = true;
 
   async complete(request: Parameters<ChatCompletionService["complete"]>[0]) {
     this.calls += 1;
     this.input = request.inputMessage;
-    const toolCalls = [
+    const toolCalls: ToolCall[] = [
       {
         id: randomUUID(),
         type: "function" as const,
@@ -42,12 +48,26 @@ class AffixDamageService implements ChatCompletionService {
           }),
         },
       },
-      {
+    ];
+    if (this.recordEffect) {
+      toolCalls.push({
         id: randomUUID(),
         type: "function" as const,
-        function: { name: "submit_affix", arguments: "{}" },
-      },
-    ];
+        function: {
+          name: "record_effect",
+          arguments: JSON.stringify({
+            targetActorName: "提灯修士",
+            experience: TORCH_EXPERIENCE,
+            witnessText: TORCH_WITNESS,
+          }),
+        },
+      });
+    }
+    toolCalls.push({
+      id: randomUUID(),
+      type: "function" as const,
+      function: { name: "submit_affix", arguments: "{}" },
+    });
     return new ChatCompletionResult({
       request,
       aiMessage: { type: "ai", content: "", toolCalls },
@@ -55,6 +75,74 @@ class AffixDamageService implements ChatCompletionService {
       toolCalls,
     });
   }
+}
+
+const TORCH_EXPERIENCE = "火焰卷上你的毛根，皮肉在油脂里噼啪作响，焦糊味钻进鼻腔。";
+const TORCH_WITNESS = "提灯修士的毛皮被火燎得卷曲发黑，空气里浮着焦毛味。";
+
+/** 只记录可见后果，不追加伤害：验证故事效果能独立于数值发生。 */
+class AffixEffectService implements ChatCompletionService {
+  async complete(request: Parameters<ChatCompletionService["complete"]>[0]) {
+    return toolCallResult(request, [
+      {
+        name: "record_effect",
+        args: {
+          targetActorName: "提灯修士",
+          experience: TORCH_EXPERIENCE,
+          witnessText: TORCH_WITNESS,
+        },
+      },
+      { name: "submit_affix", args: {} },
+    ]);
+  }
+}
+
+/** 一次吐出三条后果：验证上限只落两条。 */
+class OverLimitEffectService implements ChatCompletionService {
+  async complete(request: Parameters<ChatCompletionService["complete"]>[0]) {
+    const record = (text: string) => ({
+      name: "record_effect",
+      args: { targetActorName: "提灯修士", experience: text, witnessText: text },
+    });
+    return toolCallResult(request, [
+      record("火焰卷上你的一号毛根。"),
+      record("火焰卷上你的二号毛根。"),
+      record("火焰卷上你的三号毛根。"),
+      { name: "submit_affix", args: {} },
+    ]);
+  }
+}
+
+/** 会读记忆的外观/掉落 service：把收到的上下文留下来供断言。 */
+class CapturingDeathService implements ChatCompletionService {
+  seen = "";
+
+  async complete(request: Parameters<ChatCompletionService["complete"]>[0]) {
+    this.seen += `${request.messages.map((message) => message.content).join("\n")}\n`;
+    const tool = request.tools[0]?.function.name;
+    return toolCallResult(request, [
+      tool === "drop_materials"
+        ? { name: "drop_materials", args: { items: [] } }
+        : { name: "submit_appearance", args: { appearance: "被火燎过的尸体，毛皮焦黑卷曲。" } },
+    ]);
+  }
+}
+
+function toolCallResult(
+  request: Parameters<ChatCompletionService["complete"]>[0],
+  calls: { name: string; args: Record<string, unknown> }[],
+) {
+  const toolCalls: ToolCall[] = calls.map((call) => ({
+    id: randomUUID(),
+    type: "function",
+    function: { name: call.name, arguments: JSON.stringify(call.args) },
+  }));
+  return new ChatCompletionResult({
+    request,
+    aiMessage: { type: "ai", content: "", toolCalls },
+    finishReason: "tool_calls",
+    toolCalls,
+  });
 }
 
 /** 每次请求都返回 provider 错误：模拟网络失败 / 超时。 */
@@ -397,6 +485,108 @@ describe.skipIf(!testDatabaseUrl)("items and interactions", () => {
     expect(
       keeperMemory?.messages.some((message) => message.content.includes("词缀追加42点伤害")),
     ).toBe(true);
+  });
+
+  it("writes the affix's visible consequence into the target and the stage memory", async () => {
+    const created = await createGame(handle.db, {
+      username: DEMO_USER.username,
+      name: "词缀后果记忆测试局",
+      world: AFFIX_WORLD,
+    });
+    await takeActorControl(handle.db, created.game.slug, "守烬人");
+
+    const attacked = await playerAttack(
+      handle.db,
+      created.game.slug,
+      "守烬人",
+      { targetActorName: "提灯修士" },
+      { service: new AffixEffectService() },
+    );
+    expect(attacked.ok).toBe(true);
+
+    const state = await getGameState(handle.db, created.game.slug);
+    const monk = state.world.stages
+      .flatMap((stage) => stage.actors)
+      .find((actor) => actor.name === "提灯修士");
+    const stage = state.world.stages.find((candidate) =>
+      candidate.actors.some((actor) => actor.id === monk?.id),
+    );
+    const memories = await getGameMemories(handle.db, created.game.id);
+    const monkMemory = memories.find(
+      (memory) => memory.ownerType === "actor" && memory.ownerId === monk?.id,
+    );
+    const stageMemory = memories.find(
+      (memory) => memory.ownerType === "stage" && memory.ownerId === stage?.id,
+    );
+
+    // 第二人称写进目标记忆，第三人称写进舞台记忆。
+    expect(monkMemory?.messages.some((message) => message.content === TORCH_EXPERIENCE)).toBe(true);
+    expect(stageMemory?.messages.some((message) => message.content.includes(TORCH_WITNESS))).toBe(
+      true,
+    );
+    // 只有后果、没有追加伤害：计算端的 6 点照常成立。
+    expect(monk?.hp).toBe(4);
+  });
+
+  it("caps recorded affix consequences at two per execution", async () => {
+    const created = await createGame(handle.db, {
+      username: DEMO_USER.username,
+      name: "词缀后果上限测试局",
+      world: AFFIX_WORLD,
+    });
+    await takeActorControl(handle.db, created.game.slug, "守烬人");
+
+    const attacked = await playerAttack(
+      handle.db,
+      created.game.slug,
+      "守烬人",
+      { targetActorName: "提灯修士" },
+      { service: new OverLimitEffectService() },
+    );
+    expect(attacked.ok).toBe(true);
+
+    const state = await getGameState(handle.db, created.game.slug);
+    const monk = state.world.stages
+      .flatMap((stage) => stage.actors)
+      .find((actor) => actor.name === "提灯修士");
+    const memories = await getGameMemories(handle.db, created.game.id);
+    const monkMemory = memories.find(
+      (memory) => memory.ownerType === "actor" && memory.ownerId === monk?.id,
+    );
+    const recorded = monkMemory?.messages.filter((message) =>
+      message.content.includes("火焰卷上你的"),
+    );
+    expect(recorded).toHaveLength(2);
+  });
+
+  it("lets the death appearance read the affix consequence from memory", async () => {
+    const created = await createGame(handle.db, {
+      username: DEMO_USER.username,
+      name: "词缀后果外观测试局",
+      world: AFFIX_WORLD,
+    });
+    await takeActorControl(handle.db, created.game.slug, "守烬人");
+
+    const deathService = new CapturingDeathService();
+    const attacked = await playerAttack(
+      handle.db,
+      created.game.slug,
+      "守烬人",
+      { targetActorName: "提灯修士" },
+      {
+        service: new AffixDamageService(),
+        appearanceService: deathService,
+      },
+    );
+    expect(attacked.ok).toBe(true);
+
+    // 外观阶段拿到的是目标的长期记忆，里面必须能看到词缀后果。
+    expect(deathService.seen).toContain("火焰卷上你的毛根");
+    const state = await getGameState(handle.db, created.game.slug);
+    const monk = state.world.stages
+      .flatMap((stage) => stage.actors)
+      .find((actor) => actor.name === "提灯修士");
+    expect(monk?.appearance).toBe("被火燎过的尸体，毛皮焦黑卷曲。");
   });
 
   it("treats the affix as a no-op when the computed damage already killed the target", async () => {

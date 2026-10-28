@@ -8,10 +8,11 @@ import type { ToolDefinition } from "../../llm/types";
 import { isAlive } from "../apply/queries";
 import type { Executor } from "../apply/types";
 import { STAT_KEYS, type Stats } from "../attributes";
-import { MEMORY_KINDS } from "../constants";
+import { MAX_AFFIX_EFFECT_LENGTH, MAX_AFFIX_EFFECTS, MEMORY_KINDS } from "../constants";
 import { GameError } from "../errors";
 import { runIncrementalPhase } from "../incremental";
 import { appendMemoryMessages, loadAgentMemory } from "../memory";
+import { appendSelfObservation, appendStageMemory } from "../observations";
 import { loadActorByNameInStage, loadActorWithStage } from "../persistence/actors";
 import { lockGameRow } from "../persistence/games";
 import { loadActorItem } from "../persistence/items";
@@ -21,11 +22,9 @@ import type { Affix } from "../types";
 import { applyDamage } from "./damage";
 import type { AffixRequest } from "./types";
 
-type AffixOperation = {
-  targetActorName: string;
-  amount: number;
-  reason: string;
-};
+type AffixOperation =
+  | { kind: "damage"; targetActorName: string; amount: number; reason: string }
+  | { kind: "effect"; targetActorName: string; experience: string; witnessText: string };
 
 /** 属性渲染成 `damage 8、block 2`；未用到的字段不出现，全 0 写“无”。 */
 function statsText(stats: Stats): string {
@@ -38,7 +37,7 @@ function statsText(stats: Stats): string {
  *
  * 词缀是自然语言规则，可由 agent-loop 做任意事；伤害只是当前已注册的其中一种效果。
  * 所以这里只给事实（持有者、物品、目标）与判定口径，不预设效果类型，也不写死工具名：
- * 工具清单由 `buildTools()` 结果传入，新增工具时提示词自动跟着变。
+ * 字段级细则（人称、条数上限）留在工具描述里，这里只写判定与结算规则。
  */
 function buildAffixPrompt(input: {
   actorName: string;
@@ -48,7 +47,6 @@ function buildAffixPrompt(input: {
   itemStats: Stats;
   affixes: readonly Affix[];
   defaultFeedback: string;
-  toolNames: readonly string[];
   terminalToolName: string;
   targetName?: string;
   targetRace?: string;
@@ -66,7 +64,7 @@ function buildAffixPrompt(input: {
 
   return `# 词缀任务
 
-默认效果已结算（见下），但它不代表词缀已经生效。词缀是否生效、生效到什么程度，由你判定并用工具落账。
+默认效果已结算（见下），不代表词缀生效；词缀是否生效由你判定并用工具落账。
 
 ## 默认效果
 ${input.defaultFeedback}
@@ -83,17 +81,16 @@ ${targetFacts.join("\n")}
 
 ## 规则
 
-1. 词缀是一句自然语言规则，不是关键词匹配：先读它指定的对象、条件、效果与比例，再用目标的名字、种族、外观与当前状态判定条件是否成立。描述性特征按语义判定，同义或上下位表述都算成立，字面不同不构成排除。
-2. 先判定后执行：条件成立才执行词缀描述的效果；条件不成立、或当前工具无法表达该效果时，什么都不做，只结束任务；也不要顺手附加词缀以外的后果。
-3. 词缀引用的数值取物品自身的字段（见上）；比例按词缀写的方式换算，与默认效果造成的结果无关。词缀对程度留有余地（如“越……越……”）时，可依据特征强弱小幅增减并说明依据。
-4. 每次工具调用都要写清依据，可多次调用；最后用 ${input.terminalToolName} 结束，即使什么都没做。
-
-## 工具
-${input.toolNames.join("、")}（终止：${input.terminalToolName}）`;
+1. 按语义读词缀的对象、条件、效果与比例，用目标的名字、种族、外观与当前状态判定；同义或上下位表述都算成立，不按字面排除。
+2. 条件成立才执行；不成立或工具表达不了该效果时，只结束任务，不附加词缀以外的后果。
+3. 数值取物品自身的字段换算，与默认效果无关；程度留有余地时按特征强弱小幅增减。
+4. 数值后果用 damage_target，可见后果用 record_effect；只写本条词缀造成的感官变化，不写数值、机制或心理。
+5. 最后用 ${input.terminalToolName} 结束，即使什么都没做。`;
 }
 
 function buildTools(targetNames: readonly string[]): {
   damage: ToolDefinition;
+  record: ToolDefinition;
   submit: ToolDefinition;
 } {
   return {
@@ -122,6 +119,32 @@ function buildTools(targetNames: readonly string[]): {
             },
           },
           required: ["targetActorName", "amount"],
+        },
+      },
+    },
+    record: {
+      type: "function",
+      function: {
+        name: "record_effect",
+        description: `把这条词缀造成的可见后果写进目标记忆与场景记忆；不扣血、不改数值，最多 ${MAX_AFFIX_EFFECTS} 条。experience 用第二人称写目标亲身经历，witnessText 用第三人称写旁人可见的事实。`,
+        parameters: {
+          type: "object",
+          properties: {
+            targetActorName: {
+              type: "string",
+              enum: [...targetNames],
+              description: "产生可见后果的目标角色",
+            },
+            experience: {
+              type: "string",
+              description: "第二人称，写目标的亲身体验与感受",
+            },
+            witnessText: {
+              type: "string",
+              description: "第三人称，写场景与他人可见的事实",
+            },
+          },
+          required: ["targetActorName", "experience", "witnessText"],
         },
       },
     },
@@ -207,7 +230,6 @@ async function evaluateAffix(
       itemStats: item.stats,
       affixes: item.affixes,
       defaultFeedback: request.defaultFeedback,
-      toolNames: [tools.damage.function.name, tools.submit.function.name],
       terminalToolName: tools.submit.function.name,
       stageName: stage.name,
       ...(target
@@ -221,7 +243,7 @@ async function evaluateAffix(
       ...(target ? { targetHp: `${target.hp}/${target.stats.maxHp}` } : {}),
     }),
     messages: [],
-    tools: [tools.damage, tools.submit],
+    tools: [tools.damage, tools.record, tools.submit],
     handlers: {
       [tools.damage.function.name]: (args) => {
         if (submitted) {
@@ -234,11 +256,40 @@ async function evaluateAffix(
           throw new GameError("invalid_action", "damage_target 参数无效");
         }
         operations.push({
+          kind: "damage",
           targetActorName,
           amount,
           reason: typeof args.reason === "string" ? args.reason : "",
         });
         return `已记录对 ${targetActorName} 的 ${amount} 点补充伤害`;
+      },
+      [tools.record.function.name]: (args) => {
+        if (submitted) {
+          throw new GameError("invalid_action", "计划已提交");
+        }
+        const targetActorName =
+          typeof args.targetActorName === "string" ? args.targetActorName.trim() : "";
+        const experience = typeof args.experience === "string" ? args.experience.trim() : "";
+        const witnessText = typeof args.witnessText === "string" ? args.witnessText.trim() : "";
+        if (!targetNames.includes(targetActorName) || !experience || !witnessText) {
+          throw new GameError("invalid_action", "record_effect 参数无效");
+        }
+        if (
+          experience.length > MAX_AFFIX_EFFECT_LENGTH ||
+          witnessText.length > MAX_AFFIX_EFFECT_LENGTH
+        ) {
+          throw new GameError(
+            "invalid_action",
+            `词缀后果不能超过 ${MAX_AFFIX_EFFECT_LENGTH} 个字符`,
+          );
+        }
+        if (
+          operations.filter((operation) => operation.kind === "effect").length >= MAX_AFFIX_EFFECTS
+        ) {
+          throw new GameError("invalid_action", `最多记录 ${MAX_AFFIX_EFFECTS} 条词缀后果`);
+        }
+        operations.push({ kind: "effect", targetActorName, experience, witnessText });
+        return `已记录对 ${targetActorName} 的可见后果`;
       },
       [tools.submit.function.name]: () => {
         submitted = true;
@@ -291,30 +342,57 @@ async function settleAffix(
   request: AffixRequest,
   operations: readonly AffixOperation[],
   trace?: TraceContext,
-): Promise<number> {
+): Promise<{ damage: number; effects: number }> {
   return db.transaction(async (tx) => {
     const game = await lockGameRow(tx, gameId);
     if (game?.status !== "active") {
-      return 0;
+      return { damage: 0, effects: 0 };
     }
     const world = await loadWorldByGame(tx, gameId);
     if (!world) {
-      return 0;
+      return { damage: 0, effects: 0 };
     }
     const actorRow = await loadActorWithStage(tx, request.actorId, world.id);
     const itemRow = await loadActorItem(tx, request.actorId, request.itemId);
     if (!actorRow || !itemRow) {
-      return 0;
+      return { damage: 0, effects: 0 };
     }
     const now = new Date();
     const feedbacks: string[] = [];
+    let damage = 0;
+    let effects = 0;
     for (const operation of operations) {
       const targetRow = await loadActorByNameInStage(
         tx,
         actorRow.stage.id,
         operation.targetActorName,
       );
-      if (!targetRow || !isAlive(targetRow)) {
+      if (!targetRow) {
+        continue;
+      }
+      if (operation.kind === "effect") {
+        // 目标可能已经被默认效果打死：尸体照样会变，记忆必须写。
+        await appendSelfObservation(
+          tx,
+          gameId,
+          actorRow.stage.id,
+          targetRow.id,
+          operation.experience,
+          { itemName: itemRow.name, targetActorId: targetRow.id },
+          trace,
+        );
+        await appendStageMemory(
+          tx,
+          gameId,
+          actorRow.stage.id,
+          `# 场景事件\n${operation.witnessText}`,
+          { eventKind: request.actionKind, targetActorId: targetRow.id },
+          trace,
+        );
+        effects += 1;
+        continue;
+      }
+      if (!isAlive(targetRow)) {
         continue;
       }
       feedbacks.push(
@@ -335,6 +413,7 @@ async function settleAffix(
           operation.amount,
         ),
       );
+      damage += 1;
     }
     if (feedbacks.length > 0) {
       const memory = await loadAgentMemory(tx, gameId, "actor", request.actorId);
@@ -350,7 +429,7 @@ async function settleAffix(
         );
       }
     }
-    return feedbacks.length;
+    return { damage, effects };
   });
 }
 
@@ -391,7 +470,7 @@ export async function runAffixEffect(
         return { kind: "noop", reason: evaluation.reason, ...head, detail: subject };
       }
       const applied = await settleAffix(db, gameId, request, evaluation.operations, trace);
-      if (applied === 0) {
+      if (applied.damage === 0 && applied.effects === 0) {
         return {
           kind: "noop",
           reason: "落账时目标已倒下或已离开场景",
@@ -399,11 +478,7 @@ export async function runAffixEffect(
           detail: { ...subject, operations: evaluation.operations.length },
         };
       }
-      return {
-        kind: "applied",
-        ...head,
-        detail: { ...subject, operations: evaluation.operations.length, applied },
-      };
+      return { kind: "applied", ...head, detail: { ...subject, ...applied } };
     },
   );
 }
