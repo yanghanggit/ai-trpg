@@ -1,3 +1,4 @@
+import type { TraceContext } from "../../debug/trace";
 import type { ToolDefinition } from "../../llm/types";
 import { appendPublicMessage, bumpGameVersion } from "../apply/messages";
 import {
@@ -69,6 +70,7 @@ export async function applyGive(
   actorRow: ActorWithStageRow,
   resolved: ResolvedGive,
   now: Date,
+  trace?: TraceContext,
 ): Promise<string> {
   const giver = { id: actorRow.actor.id, name: actorRow.actor.name };
   const target = { id: resolved.target.id, name: resolved.target.name };
@@ -92,15 +94,28 @@ export async function applyGive(
     visibility: "stage",
     content,
   });
-  await appendItemObservations(executor, gameId, resolved.stage, {
-    actor: giver,
-    itemName: item.name,
-    event: "give",
-    target,
-  });
-  await appendStageMemory(executor, gameId, resolved.stage.id, `# 场景事件\n${content}`, {
-    eventKind: "give",
-    targetActorId: target.id,
-  });
+  await appendItemObservations(
+    executor,
+    gameId,
+    resolved.stage,
+    {
+      actor: giver,
+      itemName: item.name,
+      event: "give",
+      target,
+    },
+    trace,
+  );
+  await appendStageMemory(
+    executor,
+    gameId,
+    resolved.stage.id,
+    `# 场景事件\n${content}`,
+    {
+      eventKind: "give",
+      targetActorId: target.id,
+    },
+    trace,
+  );
   return `# 行动结果\n你把${item.name}交给了${target.name}。`;
 }

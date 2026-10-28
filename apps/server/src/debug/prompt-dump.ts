@@ -8,6 +8,7 @@
 import { existsSync } from "node:fs";
 import { mkdir, writeFile } from "node:fs/promises";
 import { join } from "node:path";
+import type { LlmLogger } from "../llm/logger";
 import { findRepoRoot } from "./paths";
 
 /** 覆盖导出根目录；也用于在测试环境强制开启导出。 */
@@ -86,7 +87,7 @@ function uniqueContainer(root: string, base: string): string {
 /** 写入失败只告警，不影响建局主流程。 */
 export async function dumpSystemPrompts(
   input: PromptDumpInput,
-  options: { root?: string; now?: Date } = {},
+  options: { root?: string; now?: Date; logger?: LlmLogger } = {},
 ): Promise<string | null> {
   if (!shouldDump()) {
     return null;
@@ -127,7 +128,7 @@ export async function dumpSystemPrompts(
     }
     return dir;
   } catch (error) {
-    console.warn(`[prompt-dump] 导出 system prompt 失败: ${String(error)}`);
+    options.logger?.warn("导出 system prompt 失败", error);
     return null;
   }
 }

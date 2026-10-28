@@ -1,3 +1,4 @@
+import type { TraceContext } from "../../debug/trace";
 import type { ToolDefinition } from "../../llm/types";
 import { assertNotSelf, findActorInStage, resolveEquippedItems } from "../apply/queries";
 import type { ActorWithStageRow, Executor, ResolvedAttack } from "../apply/types";
@@ -66,6 +67,7 @@ export async function applyAttack(
   actorRow: ActorWithStageRow,
   resolved: ResolvedAttack,
   now: Date,
+  trace?: TraceContext,
 ): Promise<string> {
   return applyItemEffect({
     executor,
@@ -77,5 +79,6 @@ export async function applyAttack(
     ...(resolved.item ? { item: resolved.item } : {}),
     target: resolved.target,
     now,
+    ...(trace ? { trace } : {}),
   });
 }

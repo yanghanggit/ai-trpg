@@ -5,7 +5,7 @@
  *   pnpm smoke:deepseek            # 基础用例
  *   pnpm smoke:deepseek:full       # 额外跑多工具调用与模型矩阵
  *
- * 只读取仓库根目录 `.env`；默认不写 `logs/llm/`，加 `--dump` 且 `LLM_DUMP_ENABLED=true` 时才写。
+ * 只读取仓库根目录 `.env`；请求与响应由过程轨迹负责，脚本本身不落盘。
  */
 
 import assert from "node:assert/strict";
@@ -29,7 +29,6 @@ import { consoleLogger } from "../src/llm/logger";
 loadEnvFile({ path: ROOT_ENV_FILE, quiet: true });
 
 const FULL = process.argv.includes("--full");
-const DUMP = process.argv.includes("--dump");
 const SYSTEM: ChatMessage = {
   type: "system",
   content: "你是一个有帮助的助手，请用中文回答。",
@@ -91,7 +90,6 @@ function request(
     label,
     inputMessage,
     messages: [SYSTEM],
-    dump: DUMP,
     ...extra,
   });
 }
@@ -217,7 +215,6 @@ async function testToolFullRound(client: DeepSeekClient): Promise<void> {
       messages: history,
       tools: [WEATHER_TOOL],
       toolChoice: "none",
-      dump: DUMP,
     }),
   );
   assert.ok(second.ok, second.error?.message);
@@ -236,7 +233,6 @@ async function testAgentLoop(client: DeepSeekClient): Promise<void> {
     tools: [WEATHER_TOOL],
     handlers: { get_current_weather: getCurrentWeather },
     thinking: true,
-    dump: DUMP,
     service: client,
   });
 
@@ -294,9 +290,6 @@ async function main(): Promise<void> {
   }
 
   const client = new DeepSeekClient({ logger: consoleLogger });
-  if (DUMP) {
-    console.log("transcript dump enabled: logs/llm/ (text + jsonl)");
-  }
   testGetBufferString();
   await testListModels(client);
   await testGetBalance(client);

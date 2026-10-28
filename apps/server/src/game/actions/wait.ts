@@ -1,3 +1,4 @@
+import type { TraceContext } from "../../debug/trace";
 import type { ToolDefinition } from "../../llm/types";
 import { appendPublicMessage, bumpGameVersion } from "../apply/messages";
 import type { ActorWithStageRow, Executor, ResolvedWait } from "../apply/types";
@@ -33,6 +34,7 @@ export async function applyWait(
   actorRow: ActorWithStageRow,
   resolved: ResolvedWait,
   now: Date,
+  trace?: TraceContext,
 ): Promise<string> {
   const content = `${actorRow.actor.name}留在原地，继续观察四周。`;
   await bumpGameVersion(executor, gameId, now);
@@ -48,9 +50,17 @@ export async function applyWait(
     resolved.stage.id,
     actorRow.actor.id,
     `# 场景动态\n${content}`,
+    trace,
   );
-  await appendStageMemory(executor, gameId, resolved.stage.id, `# 场景事件\n${content}`, {
-    eventKind: "wait",
-  });
+  await appendStageMemory(
+    executor,
+    gameId,
+    resolved.stage.id,
+    `# 场景事件\n${content}`,
+    {
+      eventKind: "wait",
+    },
+    trace,
+  );
   return "# 行动结果\n你留在原地，继续观察四周。";
 }

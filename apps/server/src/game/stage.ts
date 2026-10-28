@@ -1,8 +1,8 @@
 import { randomUUID } from "node:crypto";
 import type { Database } from "../db/pool";
+import { createTurnTrace, type TraceContext, traceEvent } from "../debug/trace";
 import { agentLoop } from "../llm/agent-loop";
 import type { ChatCompletionService } from "../llm/protocol";
-import type { ChatMessage } from "../llm/types";
 import { adjacentStageNames, findStage, sealedStageNames } from "./actors";
 import { appendPublicMessage, bumpGameVersion } from "./apply/messages";
 import { isAlive } from "./apply/queries";
@@ -121,9 +121,10 @@ export async function applyStagePlan(
   gameId: string,
   stageId: string,
   plan: StagePlan | null,
-  newMessages: readonly ChatMessage[],
   loopSuccess: boolean,
+  trace?: TraceContext,
 ): Promise<boolean> {
+  await traceEvent(trace, { event: "plan", actions: plan?.actions ?? [] });
   return db.transaction(async (tx) => {
     const game = await lockGameRow(tx, gameId);
     if (!game) {
@@ -149,13 +150,13 @@ export async function applyStagePlan(
 
     const reject = async (content: string, kind: string): Promise<false> => {
       await appendMemoryMessages(tx, memory.row.id, [
-        ...newMessages,
         {
           type: "human",
           content: `# 仲裁结果\n${content}`,
           metadata: { kind, loopSuccess },
         },
       ]);
+      await traceEvent(trace, { event: "rejected", code: kind, reason: content });
       return false;
     };
 
@@ -222,10 +223,6 @@ export async function applyStagePlan(
       }
     }
 
-    if (newMessages.length > 0) {
-      await appendMemoryMessages(tx, memory.row.id, [...newMessages]);
-    }
-
     const now = new Date();
     for (const action of plan.actions) {
       if (action.kind === "submit_environment") {
@@ -237,9 +234,15 @@ export async function applyStagePlan(
           visibility: "stage",
           content,
         });
-        await appendStageMemory(tx, gameId, stage.id, `# 场景事件\n${content}`, {
-          eventKind: "environment_change",
-        });
+        await appendStageMemory(
+          tx,
+          gameId,
+          stage.id,
+          `# 场景事件\n${content}`,
+          { eventKind: "environment_change" },
+          trace,
+        );
+        await traceEvent(trace, { event: "applied", actionKind: action.kind, feedback: content });
         continue;
       }
 
@@ -262,21 +265,32 @@ export async function applyStagePlan(
           visibility: "stage",
           content,
         });
-        await appendStageMemory(tx, gameId, stage.id, `# 场景事件\n${content}`, {
-          eventKind: "passage_change",
-          targetStageId: target.id,
-        });
+        await appendStageMemory(
+          tx,
+          gameId,
+          stage.id,
+          `# 场景事件\n${content}`,
+          { eventKind: "passage_change", targetStageId: target.id },
+          trace,
+        );
+        await traceEvent(trace, { event: "applied", actionKind: action.kind, feedback: content });
         continue;
       }
 
-      await appendWorldNotification(tx, gameId, world.id, stage, action.notification);
+      await appendWorldNotification(tx, gameId, world.id, stage, action.notification, trace);
       await appendStageMemory(
         tx,
         gameId,
         stage.id,
         `# 场景事件\n${stage.name}向世界发出通知：${action.notification}`,
         { eventKind: "world_notification" },
+        trace,
       );
+      await traceEvent(trace, {
+        event: "applied",
+        actionKind: action.kind,
+        feedback: action.notification,
+      });
     }
 
     await bumpGameVersion(tx, gameId, now);
@@ -300,6 +314,15 @@ export async function runStageTurn(
   if (!memory) {
     throw new GameError("invalid_state", `stage 缺少 memory: ${stage.name}`);
   }
+
+  const trace = createTurnTrace({ game: state.game, turnKind: "stage" });
+  await traceEvent(trace, {
+    event: "turn_start",
+    label: stage.name,
+    stageId: stage.id,
+    stageName: stage.name,
+    contentVersion: state.game.contentVersion,
+  });
 
   const lookTool = buildStageLookTool(stage.name);
   const observeTool = buildObserveActorTool(stage.actors.map((actor) => actor.name));
@@ -403,17 +426,11 @@ export async function runStageTurn(
     maxRounds: options.maxRounds ?? DEFAULT_STAGE_MAX_ROUNDS,
     loopId: randomUUID(),
     ...(options.logger ? { logger: options.logger } : {}),
+    ...(trace ? { trace } : {}),
   });
 
-  const newMessages = loop.messages.slice(loop.startIndex, loop.endIndex);
-  const ok = await applyStagePlan(
-    db,
-    state.game.id,
-    stage.id,
-    submitted,
-    newMessages,
-    loop.success,
-  );
+  const ok = await applyStagePlan(db, state.game.id, stage.id, submitted, loop.success, trace);
+  await traceEvent(trace, { event: "turn_end", ok, loopSuccess: loop.success });
 
   return {
     ok,

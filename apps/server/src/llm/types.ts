@@ -104,8 +104,6 @@ export type ChatCompletionRequestInit = {
   tools?: readonly ToolDefinition[];
   toolChoice?: ToolChoice;
   reasoningEffort?: ReasoningEffort;
-  /** 是否允许把本次请求 / 响应落盘到 `logs/llm/`，默认 true。 */
-  dump?: boolean;
 };
 
 /** 不可变值对象；构造时显式校验，失败抛 TypeError / RangeError。 */
@@ -121,7 +119,6 @@ export class ChatCompletionRequest {
   readonly tools: readonly ToolDefinition[];
   readonly toolChoice: ToolChoice | undefined;
   readonly reasoningEffort: ReasoningEffort | undefined;
-  readonly dump: boolean;
 
   constructor(init: ChatCompletionRequestInit) {
     if (init.label.length === 0) {
@@ -158,7 +155,6 @@ export class ChatCompletionRequest {
     this.tools = tools;
     this.toolChoice = init.toolChoice;
     this.reasoningEffort = init.reasoningEffort;
-    this.dump = init.dump ?? true;
 
     Object.freeze(this);
   }

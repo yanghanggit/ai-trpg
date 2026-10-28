@@ -212,7 +212,8 @@ describe.skipIf(!testDatabaseUrl)("memory-driven NPC slice", () => {
         message.content.includes("守烬人对你说（场景：灰烬门廊）：你听见钟声了吗？"),
       ),
     ).toBe(true);
-    expect(keeper?.messages.some((message) => message.type === "tool")).toBe(true);
+    // 过程轨迹不进长期记忆：loop 的 tool 调用与任务提示词只留在轨迹里。
+    expect(keeper?.messages.some((message) => message.type === "tool")).toBe(false);
     expect(
       keeper?.messages.some((message) => message.content.includes("提灯修士进入了断钟中殿")),
     ).toBe(true);
@@ -334,7 +335,6 @@ describe.skipIf(!testDatabaseUrl)("memory-driven NPC slice", () => {
       {
         actions: [{ kind: "wait" }, { kind: "wait" }, { kind: "wait" }],
       },
-      [],
       true,
     );
     expect(result.ok).toBe(false);

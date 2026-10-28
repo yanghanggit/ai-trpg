@@ -25,7 +25,7 @@ export async function calculateFixedDamage(context: ItemEffectContext): Promise<
 
 /** 把已经算好的伤害写入数据库、消息与观察。 */
 export async function applyDamage(context: ItemEffectContext, damage: number): Promise<string> {
-  const { executor, gameId, actorRow, stage, item, target, actionKind, now } = context;
+  const { executor, gameId, actorRow, stage, item, target, actionKind, now, trace } = context;
   if (!target) {
     throw new Error("damage effect 需要角色目标");
   }
@@ -57,18 +57,28 @@ export async function applyDamage(context: ItemEffectContext, damage: number): P
     visibility: "stage",
     content,
   });
-  await appendDamageObservations(executor, gameId, stage, {
-    action: actionKind,
-    attacker: { id: actorRow.actor.id, name: actorRow.actor.name },
-    target: { id: target.id, name: target.name, maxHp: current.stats.maxHp },
-    ...(item ? { itemName: item.name } : {}),
-    damage,
-    remainingHp,
-  });
-  await appendStageMemory(executor, gameId, stage.id, `# 场景事件\n${content}`, {
-    eventKind: actionKind,
-    targetActorId: target.id,
-  });
+  await appendDamageObservations(
+    executor,
+    gameId,
+    stage,
+    {
+      action: actionKind,
+      attacker: { id: actorRow.actor.id, name: actorRow.actor.name },
+      target: { id: target.id, name: target.name, maxHp: current.stats.maxHp },
+      ...(item ? { itemName: item.name } : {}),
+      damage,
+      remainingHp,
+    },
+    trace,
+  );
+  await appendStageMemory(
+    executor,
+    gameId,
+    stage.id,
+    `# 场景事件\n${content}`,
+    { eventKind: actionKind, targetActorId: target.id },
+    trace,
+  );
   // 出手者只知道这一下打得多重、对方有没有倒下；对方剩余生命只写进公共消息（上帝视角）
   // 与受害者自己，不进出手者的记忆。
   const feedback = `你对${target.name}${actionText}，造成${damage}点伤害`;

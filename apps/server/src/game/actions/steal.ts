@@ -1,3 +1,4 @@
+import type { TraceContext } from "../../debug/trace";
 import type { ToolDefinition } from "../../llm/types";
 import { appendPublicMessage, bumpGameVersion } from "../apply/messages";
 import {
@@ -73,6 +74,7 @@ export async function applySteal(
   actorRow: ActorWithStageRow,
   resolved: ResolvedSteal,
   now: Date,
+  trace?: TraceContext,
 ): Promise<string> {
   const thief = { id: actorRow.actor.id, name: actorRow.actor.name };
   const target = { id: resolved.target.id, name: resolved.target.name };
@@ -96,15 +98,28 @@ export async function applySteal(
     visibility: "private",
     content,
   });
-  await appendItemObservations(executor, gameId, resolved.stage, {
-    actor: thief,
-    itemName: item.name,
-    event: "steal",
-    target,
-  });
-  await appendStageMemory(executor, gameId, resolved.stage.id, `# 场景事件\n${content}`, {
-    eventKind: "steal",
-    targetActorId: target.id,
-  });
+  await appendItemObservations(
+    executor,
+    gameId,
+    resolved.stage,
+    {
+      actor: thief,
+      itemName: item.name,
+      event: "steal",
+      target,
+    },
+    trace,
+  );
+  await appendStageMemory(
+    executor,
+    gameId,
+    resolved.stage.id,
+    `# 场景事件\n${content}`,
+    {
+      eventKind: "steal",
+      targetActorId: target.id,
+    },
+    trace,
+  );
   return `# 行动结果\n你从${target.name}身上取走了${item.name}。`;
 }

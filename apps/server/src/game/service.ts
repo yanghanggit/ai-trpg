@@ -14,6 +14,7 @@ import {
   worlds,
 } from "../db/schema";
 import { dumpSystemPrompts } from "../debug/prompt-dump";
+import type { LlmLogger } from "../llm/logger";
 import { toStats } from "./attributes";
 import { resolveAppearance } from "./body";
 import { assertEdgeShape } from "./edges";
@@ -254,7 +255,11 @@ export async function getGameState(db: Database, ref: string): Promise<GameState
 }
 
 /** 创建一局游戏及初始 world、stage、actor、item 与 memory。 */
-export async function createGame(db: Database, input: CreateGameInput): Promise<GameState> {
+export async function createGame(
+  db: Database,
+  input: CreateGameInput,
+  options: { logger?: LlmLogger } = {},
+): Promise<GameState> {
   input = { ...input, world: parseWorldContent(input.world) };
   const gameId = randomUUID();
   const gameName = input.name?.trim() || input.world.worldName;
@@ -479,6 +484,7 @@ export async function createGame(db: Database, input: CreateGameInput): Promise<
     stagePrompts,
     actorPrompts,
     worldAgentPrompt: worldPrompt,
+    ...(options.logger ? { logger: options.logger } : {}),
   });
 
   return getGameState(db, gameId);

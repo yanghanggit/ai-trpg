@@ -14,7 +14,7 @@ world 目前没有自己的 memory 与 system prompt，因此暂不作为探针�
 
 ## 无副作用
 
-探针使用 memory 副本，不追加真实 memory，不写 `game_messages`，不递增 game version，不调用 apply 层，不修改 environment、物品、位置或 HP。LLM 通讯留痕只进开发期日志，不属于游戏 memory。
+探针使用 memory 副本，不追加真实 memory，不写 `game_messages`，不递增 game version，不调用 apply 层，不修改 environment、物品、位置或 HP。探针的 LLM 通讯只进过程轨迹，不属于游戏 memory。
 
 ## CLI
 

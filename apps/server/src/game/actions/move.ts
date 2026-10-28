@@ -1,3 +1,4 @@
+import type { TraceContext } from "../../debug/trace";
 import type { ToolDefinition } from "../../llm/types";
 import { appendPublicMessage, bumpGameVersion } from "../apply/messages";
 import { resolveAdjacentStage } from "../apply/queries";
@@ -57,6 +58,7 @@ export async function applyMove(
   actorRow: ActorWithStageRow,
   resolved: ResolvedMove,
   now: Date,
+  trace?: TraceContext,
 ): Promise<string> {
   const target = resolved.targetStage;
   await moveActorToStage(executor, actorRow.actor.id, target.id, now);
@@ -78,6 +80,7 @@ export async function applyMove(
     resolved.stage.id,
     actorRow.actor.id,
     `# 场景动态\n${leaveText}`,
+    trace,
   );
   await appendEnvironmentObservations(
     executor,
@@ -85,12 +88,27 @@ export async function applyMove(
     target.id,
     actorRow.actor.id,
     `# 环境变化\n${enterText}`,
+    trace,
   );
-  await appendStageMemory(executor, gameId, resolved.stage.id, `# 场景事件\n${leaveText}`, {
-    eventKind: "move_leave",
-  });
-  await appendStageMemory(executor, gameId, target.id, `# 场景事件\n${enterText}`, {
-    eventKind: "move_enter",
-  });
+  await appendStageMemory(
+    executor,
+    gameId,
+    resolved.stage.id,
+    `# 场景事件\n${leaveText}`,
+    {
+      eventKind: "move_leave",
+    },
+    trace,
+  );
+  await appendStageMemory(
+    executor,
+    gameId,
+    target.id,
+    `# 场景事件\n${enterText}`,
+    {
+      eventKind: "move_enter",
+    },
+    trace,
+  );
   return `# 行动结果\n你从${resolved.stage.name}抵达了${target.name}。`;
 }

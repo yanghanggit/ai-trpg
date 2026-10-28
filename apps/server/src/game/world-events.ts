@@ -1,3 +1,4 @@
+import { type TraceContext, traceEvent } from "../debug/trace";
 import type { Executor } from "./apply/types";
 import { MEMORY_KINDS } from "./constants";
 import { appendMemoryMessages, loadAgentMemory } from "./memory";
@@ -9,6 +10,7 @@ export async function appendWorldNotification(
   worldId: string,
   stage: { id: string; name: string },
   content: string,
+  trace?: TraceContext,
 ): Promise<void> {
   const memory = await loadAgentMemory(executor, gameId, "world", worldId);
   if (!memory) {
@@ -25,6 +27,13 @@ export async function appendWorldNotification(
       },
     },
   ]);
+  await traceEvent(trace, {
+    event: "observed",
+    via: "world-memory",
+    kind: MEMORY_KINDS.worldNotification,
+    stageId: stage.id,
+    content: `# 来自场景的通知\n场景：${stage.name}\n${content}`,
+  });
 }
 
 /** 把 world 的裁决写入指定 stage memory，供 stage 下一轮读取。 */
@@ -34,6 +43,7 @@ export async function appendStageDirective(
   stageId: string,
   worldId: string,
   content: string,
+  trace?: TraceContext,
 ): Promise<void> {
   const memory = await loadAgentMemory(executor, gameId, "stage", stageId);
   if (!memory) {
@@ -49,4 +59,11 @@ export async function appendStageDirective(
       },
     },
   ]);
+  await traceEvent(trace, {
+    event: "observed",
+    via: "stage-memory",
+    kind: MEMORY_KINDS.worldDirective,
+    stageId,
+    content: `# 世界裁决\n${content}`,
+  });
 }

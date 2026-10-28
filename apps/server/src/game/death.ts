@@ -1,4 +1,5 @@
 import type { Database } from "../db/pool";
+import { type TraceContext, traceEvent } from "../debug/trace";
 import type { LlmLogger } from "../llm/logger";
 import type { ChatCompletionService } from "../llm/protocol";
 import { runAppearanceTurn } from "./appearance";
@@ -22,6 +23,8 @@ export type DeathPhaseOptions = {
   /** 只有尸体外观快照需要 LLM；不传就跳过外观。 */
   service?: ChatCompletionService;
   logger?: LlmLogger;
+  /** 触发这次死亡阶段的回合轨迹；子阶段结果写进该回合。 */
+  trace?: TraceContext;
 };
 
 /** 同一局的并发调用合流到同一次扫描。 */
@@ -65,7 +68,7 @@ async function runDeathPhase(
     dropped: [],
     dropFailed: [],
   };
-  const { service, logger } = options;
+  const { service, logger, trace } = options;
 
   const stageIds = await listStageIdsOfGame(db, gameId);
   if (stageIds.length === 0) {
@@ -80,14 +83,27 @@ async function runDeathPhase(
   await Promise.all(
     dying.map(async (actor) => {
       try {
-        if (await announceDeath(db, gameId, actor)) {
+        if (await announceDeath(db, gameId, actor, trace)) {
           result.settled.push(actor.name);
           settled.push(actor);
+          await traceEvent(trace, {
+            event: "phase",
+            name: "death",
+            status: "ok",
+            actorName: actor.name,
+          });
         }
       } catch (error) {
         // 事务回滚会连认领一起回滚，所以失败仍然可以重试。
         result.failed.push({ actorName: actor.name, reason: describeError(error) });
         logger?.warn(`死亡宣布失败，下次调用会重试: ${actor.name}`, error);
+        await traceEvent(trace, {
+          event: "phase",
+          name: "death",
+          status: "failed",
+          actorName: actor.name,
+          detail: { reason: describeError(error) },
+        });
       }
     }),
   );
@@ -97,13 +113,29 @@ async function runDeathPhase(
     await Promise.all(
       settled.map(async (actor) => {
         try {
-          const appearance = await runAppearanceTurn(db, gameId, actor.id, { service });
+          const appearance = await runAppearanceTurn(db, gameId, actor.id, {
+            service,
+            ...(trace ? { trace } : {}),
+          });
           if (!appearance.ok) {
             result.appearanceFailed.push(actor.name);
           }
+          await traceEvent(trace, {
+            event: "phase",
+            name: "appearance",
+            status: appearance.ok ? "ok" : "failed",
+            actorName: actor.name,
+          });
         } catch (error) {
           result.appearanceFailed.push(actor.name);
           logger?.warn(`尸体外观快照失败: ${actor.name}`, error);
+          await traceEvent(trace, {
+            event: "phase",
+            name: "appearance",
+            status: "failed",
+            actorName: actor.name,
+            detail: { reason: describeError(error) },
+          });
         }
       }),
     );
@@ -111,17 +143,40 @@ async function runDeathPhase(
     await Promise.all(
       settled.map(async (actor) => {
         try {
-          const drop = await runDropTurn(db, gameId, actor.id, { service });
+          const drop = await runDropTurn(db, gameId, actor.id, {
+            service,
+            ...(trace ? { trace } : {}),
+          });
           if (!drop.ok) {
             result.dropFailed.push(actor.name);
+            await traceEvent(trace, {
+              event: "phase",
+              name: "drop",
+              status: "failed",
+              actorName: actor.name,
+            });
             return;
           }
           if (drop.dropped.length > 0) {
             result.dropped.push({ actorName: actor.name, items: drop.dropped });
           }
+          await traceEvent(trace, {
+            event: "phase",
+            name: "drop",
+            status: "ok",
+            actorName: actor.name,
+            detail: { items: drop.dropped },
+          });
         } catch (error) {
           result.dropFailed.push(actor.name);
           logger?.warn(`尸体掉落失败: ${actor.name}`, error);
+          await traceEvent(trace, {
+            event: "phase",
+            name: "drop",
+            status: "failed",
+            actorName: actor.name,
+            detail: { reason: describeError(error) },
+          });
         }
       }),
     );
@@ -135,6 +190,7 @@ async function announceDeath(
   db: Database,
   gameId: string,
   actor: { id: string; name: string; stageId: string; isDefaultPlayer: boolean },
+  trace?: TraceContext,
 ): Promise<boolean> {
   const content = `${actor.name}倒下了，不再有任何生命迹象。`;
   const now = new Date();
@@ -149,11 +205,22 @@ async function announceDeath(
       visibility: "stage",
       content,
     });
-    await appendStageMemory(tx, gameId, actor.stageId, `# 生命事件\n${actor.name}的生命归零。`, {
-      eventKind: "death",
-      targetActorId: actor.id,
-    });
-    await appendActionObservations(tx, gameId, actor.stageId, actor.id, `# 场景动态\n${content}`);
+    await appendStageMemory(
+      tx,
+      gameId,
+      actor.stageId,
+      `# 生命事件\n${actor.name}的生命归零。`,
+      { eventKind: "death", targetActorId: actor.id },
+      trace,
+    );
+    await appendActionObservations(
+      tx,
+      gameId,
+      actor.stageId,
+      actor.id,
+      `# 场景动态\n${content}`,
+      trace,
+    );
     // 死者自己也留一条：复活类扩展需要知道「我死过」。
     await appendSelfObservation(
       tx,
@@ -161,6 +228,8 @@ async function announceDeath(
       actor.stageId,
       actor.id,
       "# 你的生命归零\n你已经死亡。",
+      {},
+      trace,
     );
     if (actor.isDefaultPlayer) {
       await appendDefaultPlayerDeath(tx, gameId, actor);

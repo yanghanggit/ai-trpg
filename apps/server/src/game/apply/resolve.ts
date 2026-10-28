@@ -68,7 +68,7 @@ export async function resolvePlan(
         resolved.push(resolveUnequip(actorRow, action));
         break;
       case "use":
-        resolved.push(await resolveUse(executor, stage, actorRow.actor.id, action));
+        resolved.push(await resolveUse(executor, stage, actorRow, action));
         break;
       default:
         throw new GameError("invalid_action", `未知动作: ${String(action)}`);

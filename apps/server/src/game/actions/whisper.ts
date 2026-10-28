@@ -1,3 +1,4 @@
+import type { TraceContext } from "../../debug/trace";
 import type { ToolDefinition } from "../../llm/types";
 import { appendPublicMessage, bumpGameVersion } from "../apply/messages";
 import { findActorInStage } from "../apply/queries";
@@ -69,6 +70,7 @@ export async function applyWhisper(
   actorRow: ActorWithStageRow,
   resolved: ResolvedWhisper,
   now: Date,
+  trace?: TraceContext,
 ): Promise<string> {
   const source = { id: actorRow.actor.id, name: actorRow.actor.name };
   const target = { id: resolved.target.id, name: resolved.target.name };
@@ -80,18 +82,25 @@ export async function applyWhisper(
     visibility: "private",
     content: `${source.name}对${target.name}耳语：${resolved.action.message}`,
   });
-  await appendCommunicationObservations(executor, gameId, resolved.stage, {
-    source,
-    message: resolved.action.message,
-    kind: "whisper",
-    target,
-  });
+  await appendCommunicationObservations(
+    executor,
+    gameId,
+    resolved.stage,
+    {
+      source,
+      message: resolved.action.message,
+      kind: "whisper",
+      target,
+    },
+    trace,
+  );
   await appendStageMemory(
     executor,
     gameId,
     resolved.stage.id,
     `# 场景事件\n${source.name}对${target.name}耳语。`,
     { eventKind: "whisper" },
+    trace,
   );
   return `# 行动结果\n你对${target.name}耳语（场景：${resolved.stage.name}）：${resolved.action.message}`;
 }

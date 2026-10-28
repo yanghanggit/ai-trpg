@@ -1,8 +1,8 @@
 import { randomUUID } from "node:crypto";
 import type { Database } from "../db/pool";
+import { createTurnTrace, type TraceContext, traceEvent } from "../debug/trace";
 import { agentLoop } from "../llm/agent-loop";
 import type { ChatCompletionService } from "../llm/protocol";
-import type { ChatMessage } from "../llm/types";
 import { bumpGameVersion } from "./apply/messages";
 import { isAlive } from "./apply/queries";
 import { DEFAULT_WORLD_MAX_ROUNDS, MAX_WORLD_ACTIONS_PER_TURN, MEMORY_KINDS } from "./constants";
@@ -76,9 +76,10 @@ export async function applyWorldPlan(
   db: Database,
   gameId: string,
   plan: WorldPlan | null,
-  newMessages: readonly ChatMessage[],
   loopSuccess: boolean,
+  trace?: TraceContext,
 ): Promise<boolean> {
+  await traceEvent(trace, { event: "plan", actions: plan?.actions ?? [] });
   return db.transaction(async (tx) => {
     const game = await lockGameRow(tx, gameId);
     if (!game) {
@@ -100,13 +101,17 @@ export async function applyWorldPlan(
 
     const reject = async (content: string): Promise<false> => {
       await appendMemoryMessages(tx, memory.row.id, [
-        ...newMessages,
         {
           type: "human",
           content: `# 世界裁决\n${content}`,
           metadata: { kind: MEMORY_KINDS.actionRejected, loopSuccess },
         },
       ]);
+      await traceEvent(trace, {
+        event: "rejected",
+        code: MEMORY_KINDS.actionRejected,
+        reason: content,
+      });
       return false;
     };
 
@@ -137,10 +142,6 @@ export async function applyWorldPlan(
       }
     }
 
-    if (newMessages.length > 0) {
-      await appendMemoryMessages(tx, memory.row.id, [...newMessages]);
-    }
-
     const now = new Date();
     let completed = false;
     for (const action of actions) {
@@ -149,7 +150,12 @@ export async function applyWorldPlan(
         if (!stage) {
           throw new GameError("invalid_state", `world 找不到目标场景: ${action.stageName}`);
         }
-        await appendStageDirective(tx, gameId, stage.id, world.id, action.content);
+        await appendStageDirective(tx, gameId, stage.id, world.id, action.content, trace);
+        await traceEvent(trace, {
+          event: "applied",
+          actionKind: action.kind,
+          detail: { stageName: action.stageName },
+        });
         continue;
       }
 
@@ -161,6 +167,11 @@ export async function applyWorldPlan(
           metadata: { kind: MEMORY_KINDS.worldDirective },
         },
       ]);
+      await traceEvent(trace, {
+        event: "applied",
+        actionKind: action.kind,
+        detail: { outcome: action.outcome },
+      });
       completed = true;
     }
 
@@ -183,6 +194,13 @@ export async function runWorldTurn(
   if (!memory) {
     throw new GameError("invalid_state", `world 缺少 memory: ${state.world.name}`);
   }
+
+  const trace = createTurnTrace({ game: state.game, turnKind: "world" });
+  await traceEvent(trace, {
+    event: "turn_start",
+    label: state.world.name,
+    contentVersion: state.game.contentVersion,
+  });
 
   const lookTool = buildLookTool(state);
   const notifyTool = buildNotifyStageTool(state.world.stages.map((stage) => stage.name));
@@ -249,10 +267,11 @@ export async function runWorldTurn(
     maxRounds: options.maxRounds ?? DEFAULT_WORLD_MAX_ROUNDS,
     loopId: randomUUID(),
     ...(options.logger ? { logger: options.logger } : {}),
+    ...(trace ? { trace } : {}),
   });
 
-  const newMessages = loop.messages.slice(loop.startIndex, loop.endIndex);
-  const ok = await applyWorldPlan(db, state.game.id, plan, newMessages, loop.success);
+  const ok = await applyWorldPlan(db, state.game.id, plan, loop.success, trace);
+  await traceEvent(trace, { event: "turn_end", ok, loopSuccess: loop.success });
 
   return {
     ok,

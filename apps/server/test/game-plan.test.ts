@@ -8,9 +8,10 @@ import { buildPickupTool, parsePickup } from "../src/game/actions/pickup";
 import { buildSayTool, parseSay } from "../src/game/actions/say";
 import { buildStealTool, parseSteal } from "../src/game/actions/steal";
 import { buildUnequipTool, parseUnequip } from "../src/game/actions/unequip";
-import { buildUseTool, parseUse } from "../src/game/actions/use";
+import { buildUseTool, parseUse, usableItemNames } from "../src/game/actions/use";
 import { buildWaitTool, parseWait } from "../src/game/actions/wait";
 import { buildWhisperTool, parseWhisper } from "../src/game/actions/whisper";
+import { toItemState } from "../src/game/items";
 import {
   describeEquipment,
   describeItems,
@@ -63,6 +64,31 @@ describe("action tools", () => {
       "itemName",
       "slot",
     ]);
+  });
+});
+
+describe("use candidates", () => {
+  const item = (name: string, kind: "weapon" | "valuable" | "material", effect: string) =>
+    toItemState({
+      id: name,
+      name,
+      description: `${name} 的描述`,
+      kind,
+      count: 1,
+      stats: { maxHp: 0, strength: 0, wisdom: 0, agility: 0, damage: 0, block: 0 },
+      effect: { type: effect },
+    });
+
+  it("排除穿戴中的物品与没有可执行效果的物品", () => {
+    const candidates = usableItemNames(
+      [
+        item("裂齿短刃", "weapon", "damage"),
+        item("闸门钥匙", "valuable", "event"),
+        item("碎骨", "material", "none"),
+      ],
+      { weapon: "裂齿短刃" },
+    );
+    expect(candidates).toEqual(["闸门钥匙"]);
   });
 });
 

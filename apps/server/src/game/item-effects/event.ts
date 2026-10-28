@@ -4,7 +4,7 @@ import type { ItemEffectHandler } from "./types";
 
 /** 事件效果：只记录“谁在何处对谁使用了什么”，后果交给 stage/world。 */
 export const applyEventEffect: ItemEffectHandler = async (context) => {
-  const { executor, gameId, actorRow, stage, item, target, targetStage, targetDetail, now } =
+  const { executor, gameId, actorRow, stage, item, target, targetStage, targetDetail, now, trace } =
     context;
   if (!item) {
     throw new Error("event effect 需要物品");
@@ -24,19 +24,32 @@ export const applyEventEffect: ItemEffectHandler = async (context) => {
     visibility: "stage",
     content,
   });
-  await appendItemObservations(executor, gameId, stage, {
-    actor,
-    itemName: item.name,
-    event: "use",
-    ...(target ? { target: { id: target.id, name: target.name } } : {}),
-    ...(targetStage ? { targetStageName: targetStage.name } : {}),
-    ...(targetDetail ? { targetDetail } : {}),
-  });
-  await appendStageMemory(executor, gameId, stage.id, `# 场景事件\n${content}`, {
-    eventKind: "use",
-    ...(target ? { targetActorId: target.id } : {}),
-    ...(targetStage ? { targetStageId: targetStage.id } : {}),
-  });
+  await appendItemObservations(
+    executor,
+    gameId,
+    stage,
+    {
+      actor,
+      itemName: item.name,
+      event: "use",
+      ...(target ? { target: { id: target.id, name: target.name } } : {}),
+      ...(targetStage ? { targetStageName: targetStage.name } : {}),
+      ...(targetDetail ? { targetDetail } : {}),
+    },
+    trace,
+  );
+  await appendStageMemory(
+    executor,
+    gameId,
+    stage.id,
+    `# 场景事件\n${content}`,
+    {
+      eventKind: "use",
+      ...(target ? { targetActorId: target.id } : {}),
+      ...(targetStage ? { targetStageId: targetStage.id } : {}),
+    },
+    trace,
+  );
 
   return targetStage
     ? `# 行动结果\n你在${targetLabel}${stageDetailText}使用了${item.name}。`

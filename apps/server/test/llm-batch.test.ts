@@ -9,7 +9,6 @@ function request(label: string): ChatCompletionRequest {
     label,
     inputMessage: "ping",
     messages: [{ type: "system", content: "sys" }],
-    dump: false,
   });
 }
 

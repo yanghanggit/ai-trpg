@@ -228,7 +228,6 @@ describe.skipIf(!testDatabaseUrl)("stage passage", () => {
       state.game.id,
       graveyard.id,
       { actions: [{ kind: "open_passage", targetStageName: PATH }] },
-      [],
       true,
     );
     expect(rejectedByAbility).toBe(false);
@@ -249,7 +248,6 @@ describe.skipIf(!testDatabaseUrl)("stage passage", () => {
       state.game.id,
       gate.id,
       { actions: [{ kind: "open_passage", targetStageName: "场景.地窖" }] },
-      [],
       true,
     );
     expect(rejectedByEdge).toBe(false);

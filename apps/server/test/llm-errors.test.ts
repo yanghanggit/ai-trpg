@@ -61,7 +61,6 @@ describe("ChatCompletionRequest", () => {
     expect(request.thinking).toBe(false);
     expect(request.tools).toEqual([]);
     expect(request.toolChoice).toBeUndefined();
-    expect(request.dump).toBe(true);
     expect(Object.isFrozen(request)).toBe(true);
   });
 

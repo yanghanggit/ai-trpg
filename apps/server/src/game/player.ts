@@ -1,4 +1,5 @@
 import type { Database } from "../db/pool";
+import { createTurnTrace, traceEvent } from "../debug/trace";
 import { findActor } from "./actors";
 import { type ApplyActorPlanOptions, applyActorPlan } from "./apply";
 import { isPlayerControlled } from "./control";
@@ -22,7 +23,23 @@ async function applyPlayerAction(
   }
 
   const plan: ActorPlan = { actions: [action] };
-  const result = await applyActorPlan(db, state.game.id, actor.id, plan, [], true, options);
+  const stage = state.world.stages.find((candidate) =>
+    candidate.actors.some((entry) => entry.id === actor.id),
+  );
+  const trace = createTurnTrace({ game: state.game, turnKind: "player" });
+  await traceEvent(trace, {
+    event: "turn_start",
+    label: action.kind,
+    actorId: actor.id,
+    actorName: actor.name,
+    ...(stage ? { stageId: stage.id, stageName: stage.name } : {}),
+    contentVersion: state.game.contentVersion,
+  });
+  const result = await applyActorPlan(db, state.game.id, actor.id, plan, true, {
+    ...options,
+    ...(trace ? { trace } : {}),
+  });
+  await traceEvent(trace, { event: "turn_end", ok: result.ok, loopSuccess: true });
   if (!result.ok) {
     throw new GameError("invalid_action", result.rejection ?? "玩家行动被拒绝");
   }

@@ -1,3 +1,4 @@
+import type { TraceContext } from "../../debug/trace";
 import type { ChatCompletionService } from "../../llm";
 import type { ActorRow, ActorWithStageRow, Executor, ItemRow, StageRow } from "../apply/types";
 import type { ItemEffect } from "../types";
@@ -15,6 +16,8 @@ export type ItemEffectContext = {
   targetStage?: StageRow;
   targetDetail?: string;
   now: Date;
+  /** 所属回合的轨迹；观察与子阶段结果写进该回合。 */
+  trace?: TraceContext;
 };
 
 export type ItemEffectHandler = (context: ItemEffectContext) => Promise<string>;

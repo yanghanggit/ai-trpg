@@ -1,3 +1,4 @@
+import type { TraceContext } from "../../debug/trace";
 import type { ToolDefinition } from "../../llm/types";
 import { appendPublicMessage, bumpGameVersion } from "../apply/messages";
 import type { ActorWithStageRow, Executor, ResolvedAnnounce } from "../apply/types";
@@ -45,6 +46,7 @@ export async function applyAnnounce(
   actorRow: ActorWithStageRow,
   resolved: ResolvedAnnounce,
   now: Date,
+  trace?: TraceContext,
 ): Promise<string> {
   const source = { id: actorRow.actor.id, name: actorRow.actor.name };
   await bumpGameVersion(executor, gameId, now);
@@ -54,17 +56,24 @@ export async function applyAnnounce(
     visibility: "stage",
     content: `${source.name}公开说：${resolved.action.message}`,
   });
-  await appendCommunicationObservations(executor, gameId, resolved.stage, {
-    source,
-    message: resolved.action.message,
-    kind: "announce",
-  });
+  await appendCommunicationObservations(
+    executor,
+    gameId,
+    resolved.stage,
+    {
+      source,
+      message: resolved.action.message,
+      kind: "announce",
+    },
+    trace,
+  );
   await appendStageMemory(
     executor,
     gameId,
     resolved.stage.id,
     `# 场景事件\n${source.name}公开说：${resolved.action.message}`,
     { eventKind: "announce" },
+    trace,
   );
   return `# 行动结果\n你（场景：${resolved.stage.name}）公开说：${resolved.action.message}`;
 }

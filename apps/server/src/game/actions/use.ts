@@ -1,10 +1,32 @@
+import type { TraceContext } from "../../debug/trace";
 import type { ToolDefinition } from "../../llm/types";
 import { findActorInStage, resolveActorItem } from "../apply/queries";
 import type { ActorWithStageRow, Executor, ResolvedUse } from "../apply/types";
 import { MAX_TARGET_DETAIL_LENGTH } from "../constants";
 import { GameError } from "../errors";
-import { applyItemEffect } from "../item-effects";
-import type { UseAction } from "../types";
+import { applyItemEffect, hasItemEffectHandler } from "../item-effects";
+import { equippedSlotOf } from "../items";
+import {
+  EQUIPMENT_SLOT_LABELS,
+  type EquipmentSlots,
+  type ItemState,
+  type UseAction,
+} from "../types";
+
+/**
+ * `use` 的候选物品：有可执行效果，且此刻没被穿戴。
+ *
+ * 与 `resolveUse` 的拒绝条件同源：候选里没有的物品，即使被模型点名也会在解析阶段失败。
+ */
+export function usableItemNames(items: readonly ItemState[], equipment: EquipmentSlots): string[] {
+  return items
+    .filter(
+      (item) =>
+        hasItemEffectHandler(item.effect.type) &&
+        equippedSlotOf(equipment, item.name) === undefined,
+    )
+    .map((item) => item.name);
+}
 
 export function buildUseTool(
   availableItemNames: readonly string[],
@@ -16,7 +38,7 @@ export function buildUseTool(
     function: {
       name: "use",
       description:
-        "把一次使用道具加入计划：使用自己持有的一件物品，作用于一个角色或当前场景。物品只声明 effect；use 只负责选择物品与目标并分派。targetActorName 与 targetStageName 二选一。",
+        "把一次使用道具加入计划：使用一件背在身上、没穿戴的物品，作用于一个角色或当前场景。物品只声明 effect；use 只负责选择物品与目标并分派。targetActorName 与 targetStageName 二选一。正装备在槽里的物品不能使用：武器用 attack 出手，其余先 unequip。",
       parameters: {
         type: "object",
         properties: {
@@ -81,10 +103,18 @@ export function parseUse(args: Record<string, unknown>): UseAction {
 export async function resolveUse(
   executor: Executor,
   stage: ResolvedUse["stage"],
-  actorId: string,
+  actorRow: ActorWithStageRow,
   action: UseAction,
 ): Promise<ResolvedUse> {
-  const transferItem = await resolveActorItem(executor, actorId, action.itemName);
+  const transferItem = await resolveActorItem(executor, actorRow.actor.id, action.itemName);
+  // 动作由物品状态唯一决定：装备中的物品归 attack 或被动装备，不能当道具使用。
+  const slot = equippedSlotOf(actorRow.actor.equipment, transferItem.name);
+  if (slot) {
+    throw new GameError(
+      "invalid_action",
+      `${transferItem.name}正装备在${EQUIPMENT_SLOT_LABELS[slot]}槽，先卸下再使用`,
+    );
+  }
   const targetDetail = action.targetDetail?.trim();
   if (targetDetail && targetDetail.length > MAX_TARGET_DETAIL_LENGTH) {
     throw new GameError(
@@ -129,6 +159,7 @@ export async function applyUse(
   actorRow: ActorWithStageRow,
   resolved: ResolvedUse,
   now: Date,
+  trace?: TraceContext,
 ): Promise<string> {
   const targetDetail = resolved.targetStage ? resolved.action.targetDetail?.trim() : undefined;
   return applyItemEffect({
@@ -143,5 +174,6 @@ export async function applyUse(
     ...(resolved.targetStage ? { targetStage: resolved.targetStage } : {}),
     ...(targetDetail ? { targetDetail } : {}),
     now,
+    ...(trace ? { trace } : {}),
   });
 }

@@ -107,6 +107,14 @@ export function unequipSlot(equipment: EquipmentSlots, slot: EquipmentSlot): Equ
   return next;
 }
 
+/** 物品当前占据的槽位；没被穿戴时返回 undefined。槽里只存名字，所以按名字查。 */
+export function equippedSlotOf(
+  equipment: EquipmentSlots,
+  itemName: string,
+): EquipmentSlot | undefined {
+  return EQUIPMENT_SLOTS.find((slot) => equipment[slot] === itemName);
+}
+
 export function withoutEquippedItem(equipment: EquipmentSlots, itemName: string): EquipmentSlots {
   const next = { ...equipment };
   for (const slot of EQUIPMENT_SLOTS) {

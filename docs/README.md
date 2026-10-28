@@ -45,14 +45,14 @@
 | ---------------------------------------- | --------------------------------------------- |
 | [架构与契约](architecture.md)            | 包职责、契约链、请求生命周期、端口与环境      |
 | [开发规范](conventions.md)               | 目录依赖、文件命名、API 字段、数据库与测试    |
-| [LLM 基础组件](llm.md)                   | provider 分层、失败模型、agent loop、对话留痕 |
+| [LLM 基础组件](llm.md)                   | provider 分层、失败模型、agent loop 与重试    |
 | [数据库](database.md)                    | PostgreSQL 状态源、表与不变式、死亡、迁移     |
 | [公共知识检索](rag.md)                   | 知识边界、向量存储、query 工具与评测基线      |
-| [Actor 记忆](actor-actions-memory.md)    | actor 控制、行动事实、context dump 与接管     |
+| [Actor 记忆](actor-actions-memory.md)    | actor 控制、行动事实、过程轨迹与接管          |
 | [外观](appearance.md)                    | base body、穿戴、外观推理与换装入口           |
 | [物品](items.md)                         | 大类语义、可见性通道、转移与偷取条件          |
 | [Stage 小 GM](stage.md)                  | 场景实体、场景记忆、环境仲裁与显式推动        |
 | [Agent 探针](probe.md)                   | 只读上下文探针、无副作用问答与目标边界        |
 | [故事整理 Agent](story-agent.md)         | 任意时刻的只读故事总结与上下文串联验证        |
-| [开发期 Agent 工作流](debug-workflow.md) | 快照驱动推进、HTTP 走查、两套入口的共同边界   |
+| [开发期 Agent 工作流](debug-workflow.md) | 快照驱动推进、过程轨迹、HTTP 走查与共同边界   |
 | [数据驱动目标](data-driven.md)           | 框架与内容隔离、当前缺口、未来内容层目标      |

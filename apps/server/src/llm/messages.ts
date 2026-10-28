@@ -1,4 +1,4 @@
-/** 消息序列的纯函数工具（调试、日志、transcript 共用）。 */
+/** 消息序列的纯函数工具（调试、渲染、记忆压缩共用）。 */
 
 import type { ChatMessage, ToolCall } from "./types";
 

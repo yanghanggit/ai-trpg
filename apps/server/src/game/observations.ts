@@ -10,6 +10,7 @@
  * - 文案与 metadata 全部由 `observation-text.ts` 构造，这里只决定「写给谁」。
  */
 
+import { type TraceContext, traceEvent } from "../debug/trace";
 import type { ActorRow, Executor } from "./apply/types";
 import { MEMORY_KINDS } from "./constants";
 import { appendMemoryMessages, loadAgentMemory } from "./memory";
@@ -54,8 +55,11 @@ async function writeObservations(
   executor: Executor,
   gameId: string,
   spec: ObservationSpec,
+  trace?: TraceContext,
 ): Promise<void> {
   const observerRows = await listStageActors(executor, spec.stageId);
+  const recipients: { actorId: string; actorName: string; content: string }[] = [];
+  let kind = "unknown";
   for (const observer of observerRows) {
     if (observer.id === spec.excludeActorId || !sees(observer, spec.audience)) {
       continue;
@@ -64,10 +68,23 @@ async function writeObservations(
     if (!memory) {
       continue;
     }
-    await appendMemoryMessages(executor, memory.row.id, [
-      { type: "human", ...spec.render(observer) },
-    ]);
+    const view = spec.render(observer);
+    kind = String(view.metadata.kind);
+    recipients.push({ actorId: observer.id, actorName: observer.name, content: view.content });
+    await appendMemoryMessages(executor, memory.row.id, [{ type: "human", ...view }]);
   }
+
+  // 收件人为空也记一条：谁都没看到，本身就是一次可归因的事实。
+  const source = observerRows.find((row) => row.id === spec.excludeActorId);
+  await traceEvent(trace, {
+    event: "observed",
+    via: "stage-actors",
+    kind,
+    stageId: spec.stageId,
+    sourceActorId: spec.excludeActorId,
+    ...(source ? { sourceActorName: source.name } : {}),
+    recipients,
+  });
 }
 
 /** 向场景内其他 actor 写入环境变化观察。 */
@@ -77,13 +94,19 @@ export async function appendEnvironmentObservations(
   stageId: string,
   actorId: string,
   content: string,
+  trace?: TraceContext,
 ): Promise<void> {
-  await writeObservations(executor, gameId, {
-    stageId,
-    excludeActorId: actorId,
-    audience: STAGE_WIDE,
-    render: () => renderEnvironment(content, stageId),
-  });
+  await writeObservations(
+    executor,
+    gameId,
+    {
+      stageId,
+      excludeActorId: actorId,
+      audience: STAGE_WIDE,
+      render: () => renderEnvironment(content, stageId),
+    },
+    trace,
+  );
 }
 
 /** 向场景内其他 actor 写入可见行动观察。 */
@@ -93,13 +116,19 @@ export async function appendActionObservations(
   stageId: string,
   actorId: string,
   content: string,
+  trace?: TraceContext,
 ): Promise<void> {
-  await writeObservations(executor, gameId, {
-    stageId,
-    excludeActorId: actorId,
-    audience: STAGE_WIDE,
-    render: () => renderAction(content, stageId),
-  });
+  await writeObservations(
+    executor,
+    gameId,
+    {
+      stageId,
+      excludeActorId: actorId,
+      audience: STAGE_WIDE,
+      render: () => renderAction(content, stageId),
+    },
+    trace,
+  );
 }
 
 /** 写入伤害结果：发起者由行动结果反馈，目标与旁观者分别得到不同视角。 */
@@ -111,14 +140,20 @@ export async function appendDamageObservations(
     /** 谁收到伤害观察；省略时整个场景。 */
     audience?: Audience;
   },
+  trace?: TraceContext,
 ): Promise<void> {
   const { audience = STAGE_WIDE, ...facts } = observation;
-  await writeObservations(executor, gameId, {
-    stageId: stage.id,
-    excludeActorId: facts.attacker.id,
-    audience,
-    render: (observer) => renderDamage(stage, facts, observer.id),
-  });
+  await writeObservations(
+    executor,
+    gameId,
+    {
+      stageId: stage.id,
+      excludeActorId: facts.attacker.id,
+      audience,
+      render: (observer) => renderDamage(stage, facts, observer.id),
+    },
+    trace,
+  );
 }
 
 /**
@@ -131,14 +166,22 @@ export async function appendItemObservations(
   gameId: string,
   stage: StageRef,
   observation: ItemObservation,
+  trace?: TraceContext,
 ): Promise<void> {
-  await writeObservations(executor, gameId, {
-    stageId: stage.id,
-    excludeActorId: observation.actor.id,
-    audience:
-      observation.event === "steal" ? { type: "only", actorId: observation.target.id } : STAGE_WIDE,
-    render: (observer) => renderItemEvent(stage, observation, observer.id),
-  });
+  await writeObservations(
+    executor,
+    gameId,
+    {
+      stageId: stage.id,
+      excludeActorId: observation.actor.id,
+      audience:
+        observation.event === "steal"
+          ? { type: "only", actorId: observation.target.id }
+          : STAGE_WIDE,
+      render: (observer) => renderItemEvent(stage, observation, observer.id),
+    },
+    trace,
+  );
 }
 
 /** 按沟通方式向目标与旁观者写入听觉观察：耳语只有对方能听见。 */
@@ -147,16 +190,22 @@ export async function appendCommunicationObservations(
   gameId: string,
   stage: StageRef,
   observation: CommunicationObservation,
+  trace?: TraceContext,
 ): Promise<void> {
-  await writeObservations(executor, gameId, {
-    stageId: stage.id,
-    excludeActorId: observation.source.id,
-    audience:
-      observation.kind === "whisper"
-        ? { type: "only", actorId: observation.target.id }
-        : STAGE_WIDE,
-    render: (observer) => renderCommunication(stage, observation, observer.id),
-  });
+  await writeObservations(
+    executor,
+    gameId,
+    {
+      stageId: stage.id,
+      excludeActorId: observation.source.id,
+      audience:
+        observation.kind === "whisper"
+          ? { type: "only", actorId: observation.target.id }
+          : STAGE_WIDE,
+      render: (observer) => renderCommunication(stage, observation, observer.id),
+    },
+    trace,
+  );
 }
 
 /**
@@ -171,6 +220,7 @@ export async function appendSelfObservation(
   actorId: string,
   content: string,
   metadata: Omit<ObservationMetadata, "kind" | "stageId"> = {},
+  trace?: TraceContext,
 ): Promise<void> {
   const memory = await loadAgentMemory(executor, gameId, "actor", actorId);
   if (!memory) {
@@ -183,6 +233,13 @@ export async function appendSelfObservation(
       metadata: { kind: MEMORY_KINDS.actionObservation, stageId, ...metadata },
     },
   ]);
+  await traceEvent(trace, {
+    event: "observed",
+    via: "self",
+    kind: MEMORY_KINDS.actionObservation,
+    stageId,
+    recipients: [{ actorId, actorName: memory.row.name, content }],
+  });
 }
 
 /**
@@ -197,6 +254,7 @@ export async function appendStageMemory(
   stageId: string,
   content: string,
   metadata: StageEventMetadata,
+  trace?: TraceContext,
 ): Promise<void> {
   const memory = await loadAgentMemory(executor, gameId, "stage", stageId);
   if (!memory) {
@@ -213,4 +271,11 @@ export async function appendStageMemory(
       },
     },
   ]);
+  await traceEvent(trace, {
+    event: "observed",
+    via: "stage-memory",
+    kind: MEMORY_KINDS.stageObservation,
+    stageId,
+    content,
+  });
 }

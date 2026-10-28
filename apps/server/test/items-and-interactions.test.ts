@@ -16,6 +16,7 @@ import {
   playerMove,
   playerPickup,
   playerSteal,
+  playerUnequip,
   playerUse,
   takeActorControl,
 } from "../src/game";
@@ -275,13 +276,31 @@ describe.skipIf(!testDatabaseUrl)("items and interactions", () => {
     ).rejects.toThrow("不能使用动作: steal");
   });
 
-  it("routes a weapon effect through use as well", async () => {
+  it("拒绝使用正被穿戴的物品", async () => {
     const created = await createGame(handle.db, {
       username: DEMO_USER.username,
-      name: "使用武器效果测试局",
+      name: "使用穿戴中物品测试局",
       world: WEAPON_WORLD,
     });
     await takeActorControl(handle.db, created.game.slug, "守烬人");
+
+    // 裂齿短刃在武器槽里：它归 attack 或被动装备，不能当道具使用。
+    await expect(
+      playerUse(handle.db, created.game.slug, "守烬人", {
+        itemName: "裂齿短刃",
+        targetActorName: "提灯修士",
+      }),
+    ).rejects.toThrow("正装备在武器槽，先卸下再使用");
+  });
+
+  it("卸下武器后可以把它当道具使用", async () => {
+    const created = await createGame(handle.db, {
+      username: DEMO_USER.username,
+      name: "使用卸下武器测试局",
+      world: WEAPON_WORLD,
+    });
+    await takeActorControl(handle.db, created.game.slug, "守烬人");
+    await playerUnequip(handle.db, created.game.slug, "守烬人", { slot: "weapon" });
 
     const used = await playerUse(handle.db, created.game.slug, "守烬人", {
       itemName: "裂齿短刃",
@@ -293,7 +312,7 @@ describe.skipIf(!testDatabaseUrl)("items and interactions", () => {
     const monk = state.world.stages
       .flatMap((stage) => stage.actors)
       .find((actor) => actor.name === "提灯修士");
-    // use 也走同一个伤害公式：6 + 3 - 3（防御）- 2（提灯 block）= 4。
+    // 同一个伤害公式：6 + 3 - 3（防御）- 2（提灯 block）= 4。
     expect(monk?.hp).toBe(6);
     expect(state.messages.at(-1)?.kind).toBe("use");
   });

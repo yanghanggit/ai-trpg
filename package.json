@@ -24,7 +24,6 @@
     "clean:dev": "tsx scripts/clean-dev.ts",
     "smoke:deepseek": "pnpm --filter @ai-trpg/server smoke:deepseek",
     "smoke:deepseek:full": "pnpm --filter @ai-trpg/server smoke:deepseek:full",
-    "smoke:deepseek:dump": "pnpm --filter @ai-trpg/server smoke:deepseek:dump",
     "agent:game": "pnpm --filter @ai-trpg/server exec tsx scripts/agent-game.ts",
     "agent:api": "pnpm --filter @ai-trpg/server exec tsx scripts/agent-api.ts",
     "verify": "pnpm install && pnpm gen:api && pnpm typecheck && pnpm lint && pnpm test:run && pnpm build",

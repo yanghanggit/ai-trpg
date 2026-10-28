@@ -1,3 +1,4 @@
+import type { TraceContext } from "../../debug/trace";
 import type { ToolDefinition } from "../../llm/types";
 import { appendPublicMessage, bumpGameVersion } from "../apply/messages";
 import { resolveActorItem } from "../apply/queries";
@@ -76,6 +77,7 @@ export async function applyEquip(
   actorRow: ActorWithStageRow,
   resolved: ResolvedEquip,
   now: Date,
+  trace?: TraceContext,
 ): Promise<string> {
   const actor = { id: actorRow.actor.id, name: actorRow.actor.name };
   const item = resolved.item;
@@ -97,9 +99,17 @@ export async function applyEquip(
     resolved.stage.id,
     actor.id,
     `# 场景动态\n${content}`,
+    trace,
   );
-  await appendStageMemory(executor, gameId, resolved.stage.id, `# 场景事件\n${content}`, {
-    eventKind: "equip",
-  });
+  await appendStageMemory(
+    executor,
+    gameId,
+    resolved.stage.id,
+    `# 场景事件\n${content}`,
+    {
+      eventKind: "equip",
+    },
+    trace,
+  );
   return `# 行动结果\n你穿上了${item.name}（${label}）。`;
 }

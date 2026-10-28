@@ -31,7 +31,6 @@ function makeClient(
   const calls: FetchCall[] = [];
   const client = new DeepSeekClient({
     apiKey: "test-key",
-    dumpEnabled: false,
     ...options,
     fetch: async (url, init) => {
       calls.push({ url, init });
@@ -46,7 +45,6 @@ function makeRequest(overrides: Partial<ChatCompletionRequestInit> = {}): ChatCo
     label: "test",
     inputMessage: "ping",
     messages: [{ type: "system", content: "sys" }],
-    dump: false,
     ...overrides,
   });
 }

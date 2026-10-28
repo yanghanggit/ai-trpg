@@ -1,3 +1,4 @@
+import type { TraceContext } from "../../debug/trace";
 import type { ToolDefinition } from "../../llm/types";
 import { appendPublicMessage, bumpGameVersion } from "../apply/messages";
 import { assertItemNameFree, resolveStageItem } from "../apply/queries";
@@ -48,6 +49,7 @@ export async function applyPickup(
   actorRow: ActorWithStageRow,
   resolved: ResolvedPickup,
   now: Date,
+  trace?: TraceContext,
 ): Promise<string> {
   const actor = { id: actorRow.actor.id, name: actorRow.actor.name };
   const stageItem = resolved.stageItem;
@@ -63,13 +65,26 @@ export async function applyPickup(
     visibility: "stage",
     content,
   });
-  await appendItemObservations(executor, gameId, resolved.stage, {
-    actor,
-    itemName: stageItem.name,
-    event: "pickup",
-  });
-  await appendStageMemory(executor, gameId, resolved.stage.id, `# 场景事件\n${content}`, {
-    eventKind: "pickup",
-  });
+  await appendItemObservations(
+    executor,
+    gameId,
+    resolved.stage,
+    {
+      actor,
+      itemName: stageItem.name,
+      event: "pickup",
+    },
+    trace,
+  );
+  await appendStageMemory(
+    executor,
+    gameId,
+    resolved.stage.id,
+    `# 场景事件\n${content}`,
+    {
+      eventKind: "pickup",
+    },
+    trace,
+  );
   return `# 行动结果\n你拾取了${stageItem.name}。`;
 }

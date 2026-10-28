@@ -1,9 +1,9 @@
 import { and, eq } from "drizzle-orm";
 import type { Database } from "../../db/pool";
 import { actors, games, stages, worlds } from "../../db/schema";
+import { type TraceContext, traceEvent } from "../../debug/trace";
 import type { LlmLogger } from "../../llm/logger";
 import type { ChatCompletionService } from "../../llm/protocol";
-import type { ChatMessage } from "../../llm/types";
 import { applyAnnounce } from "../actions/announce";
 import { applyAttack } from "../actions/attack";
 import { applyEquip } from "../actions/equip";
@@ -37,32 +37,33 @@ async function applyResolvedAction(
   actorRow: ActorWithStageRow,
   resolved: ResolvedAction,
   now: Date,
+  trace?: TraceContext,
 ): Promise<string> {
   switch (resolved.kind) {
     case "say":
-      return applySay(executor, gameId, actorRow, resolved, now);
+      return applySay(executor, gameId, actorRow, resolved, now, trace);
     case "whisper":
-      return applyWhisper(executor, gameId, actorRow, resolved, now);
+      return applyWhisper(executor, gameId, actorRow, resolved, now, trace);
     case "announce":
-      return applyAnnounce(executor, gameId, actorRow, resolved, now);
+      return applyAnnounce(executor, gameId, actorRow, resolved, now, trace);
     case "move":
-      return applyMove(executor, gameId, actorRow, resolved, now);
+      return applyMove(executor, gameId, actorRow, resolved, now, trace);
     case "wait":
-      return applyWait(executor, gameId, actorRow, resolved, now);
+      return applyWait(executor, gameId, actorRow, resolved, now, trace);
     case "attack":
-      return applyAttack(executor, gameId, actorRow, resolved, now);
+      return applyAttack(executor, gameId, actorRow, resolved, now, trace);
     case "steal":
-      return applySteal(executor, gameId, actorRow, resolved, now);
+      return applySteal(executor, gameId, actorRow, resolved, now, trace);
     case "give":
-      return applyGive(executor, gameId, actorRow, resolved, now);
+      return applyGive(executor, gameId, actorRow, resolved, now, trace);
     case "pickup":
-      return applyPickup(executor, gameId, actorRow, resolved, now);
+      return applyPickup(executor, gameId, actorRow, resolved, now, trace);
     case "use":
-      return applyUse(executor, gameId, actorRow, resolved, now);
+      return applyUse(executor, gameId, actorRow, resolved, now, trace);
     case "equip":
-      return applyEquip(executor, gameId, actorRow, resolved, now);
+      return applyEquip(executor, gameId, actorRow, resolved, now, trace);
     case "unequip":
-      return applyUnequip(executor, gameId, actorRow, resolved, now);
+      return applyUnequip(executor, gameId, actorRow, resolved, now, trace);
   }
 }
 
@@ -98,7 +99,11 @@ function affixRequestFor(
 export type ApplyPlanResult = {
   ok: boolean;
   rejection?: string;
+  /** 拒绝类别，与写入 memory 的 kind 一致；轨迹按它聚合。 */
+  rejectionCode?: string;
   affixRequests?: AffixRequest[];
+  /** 实际落账的动作事件（事务提交后才写轨迹）。 */
+  applied?: { event: "applied"; actionKind: string; feedback: string }[];
   /** 死亡阶段的结果（含失败与重试信息）；失败不回滚这次行动。 */
   death?: DeathPhaseResult;
   /** 死亡阶段整体没能跑起来的原因（例如数据库错误）；行动本身仍然成功。 */
@@ -112,6 +117,8 @@ export type ApplyActorPlanOptions = {
   appearanceService?: ChatCompletionService;
   /** 死亡阶段的失败只进日志与返回值，不抛给调用方。 */
   logger?: LlmLogger;
+  /** 回合轨迹；有值时记录计划、拒绝、落账与子阶段结果。 */
+  trace?: TraceContext;
 };
 
 /**
@@ -122,7 +129,6 @@ export async function applyActorPlan(
   gameId: string,
   actorId: string,
   plan: ActorPlan | null,
-  newMessages: readonly ChatMessage[],
   loopSuccess: boolean,
   options: ApplyActorPlanOptions = {},
 ): Promise<ApplyPlanResult> {
@@ -158,27 +164,29 @@ export async function applyActorPlan(
 
     if (!plan || plan.actions.length === 0) {
       await appendMemoryMessages(tx, memory.row.id, [
-        ...newMessages,
         {
           type: "human",
           content: "# 行动结果\n本轮没有提交有效行动计划，状态未改变。",
           metadata: { kind: MEMORY_KINDS.planFailed, loopSuccess },
         },
       ]);
-      return { ok: false, rejection: "本轮没有提交有效行动计划" };
+      return {
+        ok: false,
+        rejection: "本轮没有提交有效行动计划",
+        rejectionCode: MEMORY_KINDS.planFailed,
+      };
     }
 
     if (plan.actions.length > MAX_ACTIONS_PER_TURN) {
       const rejection = `本轮最多 ${MAX_ACTIONS_PER_TURN} 个行动，实际提交 ${plan.actions.length} 个`;
       await appendMemoryMessages(tx, memory.row.id, [
-        ...newMessages,
         {
           type: "human",
           content: `# 行动结果\n行动被拒绝：${rejection}。`,
           metadata: { kind: MEMORY_KINDS.actionRejected },
         },
       ]);
-      return { ok: false, rejection };
+      return { ok: false, rejection, rejectionCode: MEMORY_KINDS.actionRejected };
     }
 
     let resolved: ResolvedAction[];
@@ -189,23 +197,24 @@ export async function applyActorPlan(
         throw error;
       }
       await appendMemoryMessages(tx, memory.row.id, [
-        ...newMessages,
         {
           type: "human",
           content: `# 行动结果\n行动被拒绝：${error.message}`,
           metadata: { kind: MEMORY_KINDS.actionRejected },
         },
       ]);
-      return { ok: false, rejection: error.message };
-    }
-
-    if (newMessages.length > 0) {
-      await appendMemoryMessages(tx, memory.row.id, [...newMessages]);
+      return {
+        ok: false,
+        rejection: error.message,
+        rejectionCode: MEMORY_KINDS.actionRejected,
+      };
     }
 
     const now = new Date();
+    const applied: { event: "applied"; actionKind: string; feedback: string }[] = [];
     for (const action of resolved) {
-      const feedback = await applyResolvedAction(tx, gameId, actorRow, action, now);
+      const feedback = await applyResolvedAction(tx, gameId, actorRow, action, now, options.trace);
+      applied.push({ event: "applied", actionKind: action.kind, feedback });
       const affixRequest = affixRequestFor(action, actorRow.actor.id, feedback);
       if (affixRequest) {
         if (!options.service) {
@@ -222,23 +231,33 @@ export async function applyActorPlan(
       ]);
     }
 
-    return { ok: true, affixRequests };
+    return { ok: true, affixRequests, applied };
   });
 
-  if (result.ok && result.affixRequests && result.affixRequests.length > 0 && options.service) {
-    for (const request of result.affixRequests) {
-      await runAffixEffect(db, gameId, request, options.service);
-    }
+  await traceEvent(options.trace, { event: "plan", actions: plan?.actions ?? [] });
+  if (!result.ok) {
+    await traceEvent(options.trace, {
+      event: "rejected",
+      code: result.rejectionCode ?? "rejected",
+      reason: result.rejection ?? "未知原因",
+    });
+    return result;
+  }
+  for (const applied of result.applied ?? []) {
+    await traceEvent(options.trace, applied);
   }
 
-  if (!result.ok) {
-    return result;
+  if (result.affixRequests && result.affixRequests.length > 0 && options.service) {
+    for (const request of result.affixRequests) {
+      await runAffixEffect(db, gameId, request, options.service, options.trace);
+    }
   }
   // 死亡阶段在事务外跑：它要调 LLM，失败也不能回滚这次行动。
   try {
     result.death = await settleDeaths(db, gameId, {
       ...(options.appearanceService ? { service: options.appearanceService } : {}),
       ...(options.logger ? { logger: options.logger } : {}),
+      ...(options.trace ? { trace: options.trace } : {}),
     });
   } catch (error) {
     // 标记没写成：下一次 hp 变化或 `agent:game deaths` 会再来。

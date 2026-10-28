@@ -8,7 +8,6 @@
 
 import { ChatError, type ErrorKind } from "../llm/errors";
 import { type LlmLogger, silentLogger } from "../llm/logger";
-import { saveTranscript, type TranscriptFormat } from "../llm/transcript";
 import {
   type AIMessage,
   type ChatCompletionRequest,
@@ -44,11 +43,6 @@ export type DeepSeekClientOptions = {
   /** 测试注入点；默认使用 Node 22 的全局 fetch。 */
   fetch?: FetchLike;
   logger?: LlmLogger;
-  dumpDir?: string;
-  /** 显式覆盖 transcript 的进程级开关；主要供测试使用。 */
-  dumpEnabled?: boolean;
-  /** transcript 格式，默认 both（text + jsonl）。 */
-  dumpFormat?: TranscriptFormat;
 };
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -159,9 +153,6 @@ export class DeepSeekClient {
   private readonly defaultModel: string;
   private readonly fetchImpl: FetchLike;
   private readonly logger: LlmLogger;
-  private readonly dumpDir: string | undefined;
-  private readonly dumpEnabled: boolean | undefined;
-  private readonly dumpFormat: TranscriptFormat | undefined;
 
   constructor(options: DeepSeekClientOptions = {}) {
     this.apiKey = options.apiKey;
@@ -169,9 +160,6 @@ export class DeepSeekClient {
     this.defaultModel = options.defaultModel ?? DEEPSEEK_MODEL_FLASH;
     this.fetchImpl = options.fetch ?? ((input, init) => fetch(input, init));
     this.logger = options.logger ?? silentLogger;
-    this.dumpDir = options.dumpDir;
-    this.dumpEnabled = options.dumpEnabled;
-    this.dumpFormat = options.dumpFormat;
   }
 
   /** 每次请求从环境变量读取 key，便于测试 / 轮换；缺失时抛配置错误。 */
@@ -277,12 +265,6 @@ export class DeepSeekClient {
       if (result.reasoningContent.length > 0) {
         this.logger.debug(`${request.label} reasoning content:\n${result.reasoningContent}`);
       }
-      await saveTranscript(request, result, {
-        dir: this.dumpDir,
-        enabled: this.dumpEnabled,
-        format: this.dumpFormat,
-        logger: this.logger,
-      });
     }
 
     return result;

@@ -5,6 +5,7 @@
  * 或达到最大轮次。循环只依赖 `ChatCompletionService`，provider 由调用方注入。
  */
 
+import { type TraceContext, traceEvent } from "../debug/trace";
 import { type LlmLogger, silentLogger } from "./logger";
 import type { ChatCompletionService } from "./protocol";
 import {
@@ -21,6 +22,12 @@ import {
 /** loop 边界标记：起点 HumanMessage 带 loopId，本次 loop 最后一条消息带 loopIdEnd。 */
 export const LOOP_ID_ATTR = "loopId";
 export const LOOP_END_ATTR = "loopIdEnd";
+
+/** 上下文占用比例由 provider 写在 AI 消息的 metadata 上；没有就记 null。 */
+function contextUsageRatioOf(completion: ChatCompletionResult): number | null {
+  const ratio = completion.aiMessage?.metadata?.contextUsageRatio;
+  return typeof ratio === "number" ? ratio : null;
+}
 
 export type ToolHandler = (args: Record<string, unknown>) => unknown | Promise<unknown>;
 
@@ -40,9 +47,9 @@ export type AgentLoopOptions = {
   terminalTools?: readonly ToolDefinition[];
   inputMetadata?: Readonly<MessageMetadata>;
   loopId?: string;
-  /** 传给每轮 ChatCompletionRequest；默认由请求层决定（true）。 */
-  dump?: boolean;
   logger?: LlmLogger;
+  /** 回合轨迹；有值则每次 LLM 调用落一条 llm_call / llm_result。 */
+  trace?: TraceContext;
 };
 
 export type AgentLoopRound = {
@@ -175,8 +182,8 @@ export async function agentLoop(options: AgentLoopOptions): Promise<AgentLoopRes
     terminalTools = [],
     inputMetadata,
     loopId,
-    dump,
     logger = silentLogger,
+    trace,
   } = options;
 
   if (!Number.isInteger(maxRounds) || maxRounds < 1) {
@@ -204,10 +211,51 @@ export async function agentLoop(options: AgentLoopOptions): Promise<AgentLoopRes
         tools,
         toolChoice: nudgeCount > 0 ? "required" : toolChoice,
         thinking,
-        dump,
+      });
+
+      await traceEvent(trace, {
+        event: "llm_call",
+        round,
+        ...(loopId === undefined ? {} : { loopId }),
+        label: name,
+        settings: {
+          model: request.model ?? null,
+          thinking: request.thinking,
+          toolChoice: request.toolChoice ?? "auto",
+          reasoningEffort: request.reasoningEffort ?? null,
+          temperature: request.temperature ?? null,
+          maxTokens: request.maxTokens ?? null,
+        },
+        tools: request.tools,
+        inputMessage: currentPrompt,
+        messages: history,
       });
 
       const completion = await service.complete(request);
+
+      await traceEvent(trace, {
+        event: "llm_result",
+        round,
+        ...(loopId === undefined ? {} : { loopId }),
+        label: name,
+        finishReason: completion.finishReason,
+        content: completion.content,
+        contextUsageRatio: contextUsageRatioOf(completion),
+        elapsedMs: completion.elapsedMs,
+        usage: completion.usage,
+        ...(completion.error
+          ? {
+              error: {
+                kind: completion.error.kind,
+                message: completion.error.message,
+                retryable: completion.error.retryable,
+              },
+            }
+          : {
+              reasoningContent: completion.reasoningContent,
+              toolCalls: completion.toolCalls,
+            }),
+      });
 
       if (completion.error) {
         logger.error(

@@ -24,6 +24,8 @@ export type DropTurnOptions = {
   service: ChatCompletionService;
   maxRounds?: number;
   logger?: Parameters<typeof agentLoop>[0]["logger"];
+  /** 所属回合的轨迹；有值则把这次推理并入该回合。 */
+  trace?: Parameters<typeof agentLoop>[0]["trace"];
 };
 
 export type DropTurnResult = {
@@ -190,6 +192,7 @@ export async function runDropTurn(
     maxRounds: options.maxRounds ?? DEFAULT_DROP_MAX_ROUNDS,
     loopId: randomUUID(),
     ...(options.logger ? { logger: options.logger } : {}),
+    ...(options.trace ? { trace: options.trace } : {}),
   });
 
   if (!loop.success || submitted.materials === null) {
@@ -219,6 +222,7 @@ export async function runDropTurn(
         stage.id,
         `# 尸体遗留\n${actor.name}的尸体上多了：${list}。`,
         { eventKind: "drop", targetActorId: actor.id },
+        options.trace,
       );
     }
     await bumpGameVersion(tx, state.game.id, now);

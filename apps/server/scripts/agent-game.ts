@@ -5,8 +5,10 @@
  * 文件命令继续提供独立快照的创建、查看、校验与查找。
  */
 
-import { readFile } from "node:fs/promises";
+import { mkdir, readFile, writeFile } from "node:fs/promises";
+import { dirname, resolve } from "node:path";
 import { parseArgs } from "node:util";
+import pino from "pino";
 import { getContentPack } from "../seeds";
 import { readContentPackFile } from "../src/content-pack";
 import { openDatabase } from "../src/db/connect";
@@ -21,6 +23,15 @@ import {
   saveSnapshot,
 } from "../src/debug/snapshot";
 import { dumpStory } from "../src/debug/story-dump";
+import {
+  gcTrace,
+  listTurns,
+  readTurn,
+  renderTurnText,
+  tailEvents,
+  traceSchema,
+  traceStats,
+} from "../src/debug/trace";
 import { DEEPSEEK_SERVICE } from "../src/deepseek";
 import {
   type CompactMemoryResult,
@@ -57,7 +68,7 @@ import {
 import type { ActorTurnResult, EquipmentSlot, World } from "../src/game/types";
 import { EQUIPMENT_SLOTS } from "../src/game/types";
 import { parseWorldContent } from "../src/game/world-content";
-import { consoleLogger } from "../src/llm/logger";
+import { loggerFromPino } from "../src/llm/logger";
 
 type Output = Record<string, unknown>;
 
@@ -85,7 +96,26 @@ const options = {
   reason: { type: "string" },
   owner: { type: "string" },
   "min-ratio": { type: "string" },
+  turn: { type: "string" },
+  limit: { type: "string" },
+  since: { type: "string" },
+  before: { type: "string" },
+  out: { type: "string" },
+  latest: { type: "boolean" },
+  delete: { type: "boolean" },
+  "dry-run": { type: "boolean" },
 } as const;
+
+/** CLI 的进程日志：pino + pretty，写 stderr，stdout 保持只出 JSON。 */
+const cliLogger = loggerFromPino(
+  pino({
+    level: process.env.LOG_LEVEL ?? "info",
+    transport: {
+      target: "pino-pretty",
+      options: { destination: 2, translateTime: "SYS:standard", ignore: "pid,hostname" },
+    },
+  }),
+);
 
 /** 行动回合的输出；死亡阶段的结果（失败与重试信息）一并交给上层。 */
 function emitTurn(command: string, result: ActorTurnResult): void {
@@ -157,6 +187,13 @@ function usage(): void {
       "agent-game compact --game <gameId|slug> --owner world [--min-ratio <0..1>]",
       "agent-game compact --game <gameId|slug> --owner all [--min-ratio <0..1>]",
       "agent-game story --game <gameId|slug>",
+      "agent-game trace list [--game <gameId|slug>] [--since <YYYYMMDD>] [--limit <n>]",
+      "agent-game trace show --turn <turnId> [--game <gameId|slug>]",
+      "agent-game trace tail [--game <gameId|slug>] [--limit <events>]",
+      "agent-game trace stats [--game <gameId|slug>] [--since <YYYYMMDD>]",
+      "agent-game trace schema（事件目录与轨迹根目录）",
+      "agent-game trace gc --before <YYYYMMDD> [--game <gameId|slug>] [--delete] [--dry-run]（默认压缩归档为 .jsonl.gz）",
+      "agent-game trace render (--turn <turnId> | --latest) [--game <gameId|slug>] [--out <path>]（人读视图，可落盘）",
     ],
   });
 }
@@ -310,12 +347,16 @@ async function main(): Promise<void> {
     const username = values.user;
     const world = await loadCreateWorld(values);
     const state = await withDatabase((db) =>
-      createGame(db, {
-        username,
-        ...(typeof values.name === "string" ? { name: values.name } : {}),
-        ...(typeof values.slug === "string" ? { slug: values.slug } : {}),
-        world,
-      }),
+      createGame(
+        db,
+        {
+          username,
+          ...(typeof values.name === "string" ? { name: values.name } : {}),
+          ...(typeof values.slug === "string" ? { slug: values.slug } : {}),
+          world,
+        },
+        { logger: cliLogger },
+      ),
     );
     emit({ ok: true, action: "create", state });
     return;
@@ -578,7 +619,7 @@ async function main(): Promise<void> {
           await runNpcTurn(db, gameRef, actorId, {
             service: DEEPSEEK_SERVICE,
             appearanceService: DEEPSEEK_SERVICE,
-            logger: consoleLogger,
+            logger: cliLogger,
           }),
         );
       }
@@ -676,6 +717,121 @@ async function main(): Promise<void> {
     );
     emit({ ok: true, action: "probe", ...result });
     return;
+  }
+
+  if (command === "trace") {
+    const sub = parsed.positionals[1] ?? "list";
+    const gameSlug = typeof values.game === "string" ? values.game : undefined;
+    const since = typeof values.since === "string" ? values.since : undefined;
+    const limit =
+      typeof values.limit === "string" && values.limit.trim().length > 0
+        ? Number(values.limit)
+        : undefined;
+    if (limit !== undefined && (!Number.isInteger(limit) || limit <= 0)) {
+      throw new Error("--limit 必须是正整数");
+    }
+
+    if (sub === "list") {
+      const turns = await listTurns({
+        ...(gameSlug ? { gameSlug } : {}),
+        ...(since ? { since } : {}),
+        ...(limit ? { limit } : {}),
+      });
+      emit({ ok: true, action: "trace", sub, turns });
+      return;
+    }
+
+    if (sub === "show") {
+      if (typeof values.turn !== "string" || values.turn.trim().length === 0) {
+        throw new Error("trace show 需要 --turn <turnId>");
+      }
+      const events = await readTurn(values.turn, gameSlug ? { gameSlug } : {});
+      emit({ ok: events.length > 0, action: "trace", sub, turnId: values.turn, events });
+      return;
+    }
+
+    if (sub === "tail") {
+      const events = await tailEvents({
+        ...(gameSlug ? { gameSlug } : {}),
+        ...(since ? { since } : {}),
+        limit: limit ?? 40,
+      });
+      emit({ ok: true, action: "trace", sub, events });
+      return;
+    }
+
+    if (sub === "stats") {
+      const stats = await traceStats({
+        ...(gameSlug ? { gameSlug } : {}),
+        ...(since ? { since } : {}),
+      });
+      emit({ ok: true, action: "trace", sub, stats });
+      return;
+    }
+
+    if (sub === "render") {
+      let turnId = typeof values.turn === "string" ? values.turn.trim() : "";
+      if (turnId.length === 0) {
+        if (values.latest !== true) {
+          throw new Error("trace render 需要 --turn <turnId> 或 --latest");
+        }
+        const turns = await listTurns({ ...(gameSlug ? { gameSlug } : {}), limit: 1 });
+        const last = turns.at(-1);
+        if (!last) {
+          throw new Error("没有可渲染的回合");
+        }
+        turnId = last.turnId;
+      }
+      const events = await readTurn(turnId, gameSlug ? { gameSlug } : {});
+      if (events.length === 0) {
+        throw new Error(`找不到回合: ${turnId}`);
+      }
+      const text = renderTurnText(events);
+      const out = typeof values.out === "string" ? values.out.trim() : "";
+      const target = out.length > 0 ? resolve(out) : undefined;
+      if (target) {
+        await mkdir(dirname(target), { recursive: true });
+        await writeFile(target, text, "utf8");
+      }
+      emit({
+        ok: true,
+        action: "trace",
+        sub,
+        turnId,
+        ...(target ? { path: target } : {}),
+        text,
+      });
+      return;
+    }
+
+    if (sub === "gc") {
+      const before = typeof values.before === "string" ? values.before.trim() : "";
+      if (!/^\d{8}$/.test(before)) {
+        throw new Error("trace gc 需要 --before <YYYYMMDD>");
+      }
+      const result = await gcTrace({
+        before,
+        ...(gameSlug ? { gameSlug } : {}),
+        ...(values.delete === true ? { delete: true } : {}),
+        ...(values["dry-run"] === true ? { dryRun: true } : {}),
+      });
+      emit({
+        ok: true,
+        action: "trace",
+        sub,
+        before,
+        dryRun: values["dry-run"] === true,
+        ...result,
+      });
+      return;
+    }
+
+    if (sub === "schema") {
+      emit({ ok: true, action: "trace", sub, schema: traceSchema() });
+      return;
+    }
+
+    throw new Error(`未知 trace 子命令: ${sub}`);
   }
 
   if (command === "story") {

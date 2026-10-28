@@ -1,5 +1,6 @@
 import { randomUUID } from "node:crypto";
 import type { Database } from "../db/pool";
+import { createTurnTrace, traceEvent } from "../debug/trace";
 import { agentLoop } from "../llm/agent-loop";
 import type { ChatCompletionService } from "../llm/protocol";
 import type { ToolDefinition } from "../llm/types";
@@ -21,7 +22,7 @@ import { buildPickupTool, parsePickup } from "./actions/pickup";
 import { buildSayTool, parseSay } from "./actions/say";
 import { buildStealTool, parseSteal } from "./actions/steal";
 import { buildUnequipTool, parseUnequip } from "./actions/unequip";
-import { buildUseTool, parseUse } from "./actions/use";
+import { buildUseTool, parseUse, usableItemNames } from "./actions/use";
 import { buildWaitTool, parseWait } from "./actions/wait";
 import { buildWhisperTool, parseWhisper } from "./actions/whisper";
 import {
@@ -35,7 +36,6 @@ import { isAlive } from "./apply/queries";
 import { DEFAULT_NPC_MAX_ROUNDS, MAX_ACTIONS_PER_TURN } from "./constants";
 import { isPlayerControlled } from "./control";
 import { GameError } from "./errors";
-import { hasItemEffectHandler } from "./item-effects";
 import { isWearable } from "./items";
 import { loadAgentMemory } from "./memory";
 import {
@@ -145,15 +145,24 @@ export async function runNpcTurn(
     throw new GameError("invalid_state", `actor 缺少 memory: ${current.actor.name}`);
   }
 
+  const trace = createTurnTrace({ game: state.game, turnKind: "actor" });
+  await traceEvent(trace, {
+    event: "turn_start",
+    label: current.actor.name,
+    actorId: current.actor.id,
+    actorName: current.actor.name,
+    stageId: current.stage.id,
+    stageName: current.stage.name,
+    contentVersion: state.game.contentVersion,
+  });
+
   const stageNames = adjacentStageNames(state, current.stage.id);
   const otherActors = otherActorsInStage(current.stage, current.actor.id);
   // 目标不区分存活：唯一的存活要求是行动者自己，由行动入口统一把关。
   const targets = otherActors.map((actor) => actor.name);
   const selfAndTargets = [current.actor.name, ...targets];
-  // 材料之类的惰性物品没有可用效果，不列进 use 的候选，免得模型拿它当道具。
-  const availableUseItemNames = current.actor.items
-    .filter((item) => hasItemEffectHandler(item.effect.type))
-    .map((item) => item.name);
+  // 材料之类的惰性物品没有可用效果，穿戴中的物品也不能当道具，两者都不列进 use 的候选。
+  const availableUseItemNames = usableItemNames(current.actor.items, current.actor.equipment);
   const wearableItemNames = current.actor.items.filter(isWearable).map((item) => item.name);
   const occupiedSlots = EQUIPMENT_SLOTS.filter(
     (slot) => current.actor.equipment[slot] !== undefined,
@@ -279,22 +288,28 @@ export async function runNpcTurn(
     maxRounds: options.maxRounds ?? DEFAULT_NPC_MAX_ROUNDS,
     loopId: randomUUID(),
     ...(options.logger ? { logger: options.logger } : {}),
+    ...(trace ? { trace } : {}),
   });
 
-  const newMessages = loop.messages.slice(loop.startIndex, loop.endIndex);
   const applied = await applyActorPlan(
     db,
     state.game.id,
     current.actor.id,
     submitted,
-    newMessages,
     loop.success,
     {
       service: options.service,
       ...(options.appearanceService ? { appearanceService: options.appearanceService } : {}),
       ...(options.logger ? { logger: options.logger } : {}),
+      ...(trace ? { trace } : {}),
     },
   );
+  await traceEvent(trace, {
+    event: "turn_end",
+    ok: applied.ok,
+    loopSuccess: loop.success,
+    ...(applied.death ? { detail: applied.death } : {}),
+  });
 
   return {
     ok: applied.ok,

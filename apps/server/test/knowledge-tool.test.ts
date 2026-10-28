@@ -21,9 +21,12 @@ function vector(): number[] {
 
 class KnowledgeService implements ChatCompletionService {
   private round = 0;
+  /** 每次请求的完整消息，用来验证工具结果确实回到了 loop。 */
+  readonly requests: { messages: readonly { type: string; content: string }[] }[] = [];
 
   async complete(request: Parameters<ChatCompletionService["complete"]>[0]) {
     this.round += 1;
+    this.requests.push({ messages: request.messages });
     const toolCalls: ToolCall[] =
       this.round === 1
         ? [
@@ -91,19 +94,23 @@ describe.skipIf(!testDatabaseUrl)("knowledge retrieval tool", () => {
       },
     ]);
 
+    const service = new KnowledgeService();
     const result = await runNpcTurn(handle.db, created.game.slug, "角色.奥德里克", {
-      service: new KnowledgeService(),
+      service,
       knowledgeProvider: provider,
     });
     expect(result.ok).toBe(true);
 
-    const memory = (await getGameMemories(handle.db, created.game.id)).find(
-      (item) => item.name === "角色.奥德里克",
-    );
-    const toolMessage = memory?.messages.find(
+    // 检索结果作为 tool 消息回到第二轮请求；它不再写进长期记忆。
+    const secondRound = service.requests[1]?.messages ?? [];
+    const toolMessage = secondRound.find(
       (message) => message.type === "tool" && message.content.includes("公共知识检索"),
     );
     expect(toolMessage?.content).toContain("石灰");
+    const memory = (await getGameMemories(handle.db, created.game.id)).find(
+      (item) => item.name === "角色.奥德里克",
+    );
+    expect(memory?.messages.some((message) => message.type === "tool")).toBe(false);
     // 这里借用了 seed 的真实 collection；测完清空，避免向测试库留下 orphan 文档。
     await deleteCollection(handle.db, collection);
   });

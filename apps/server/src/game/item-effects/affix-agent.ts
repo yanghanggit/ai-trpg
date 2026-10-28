@@ -1,5 +1,6 @@
 import { randomUUID } from "node:crypto";
 import type { Database } from "../../db/pool";
+import { type TraceContext, traceEvent } from "../../debug/trace";
 import { agentLoop } from "../../llm/agent-loop";
 import type { ChatCompletionService } from "../../llm/protocol";
 import type { ToolDefinition } from "../../llm/types";
@@ -135,6 +136,7 @@ export async function runAffixEffect(
   gameId: string,
   request: AffixRequest,
   service: ChatCompletionService,
+  trace?: TraceContext,
 ): Promise<void> {
   const state = await getGameState(db, gameId);
   if (state.game.status !== "active") {
@@ -215,6 +217,15 @@ export async function runAffixEffect(
     service,
     maxRounds: 2,
     loopId: randomUUID(),
+    ...(trace ? { trace } : {}),
+  });
+
+  await traceEvent(trace, {
+    event: "phase",
+    name: "affix",
+    status: !loop.success ? "failed" : operations.length === 0 ? "skipped" : "ok",
+    actorName: actor.name,
+    detail: { itemName: item.name, operations },
   });
 
   if (!loop.success || operations.length === 0) {
@@ -257,6 +268,7 @@ export async function runAffixEffect(
           item: itemRow,
           target: targetRow,
           now,
+          ...(trace ? { trace } : {}),
         },
         operation.amount,
       );

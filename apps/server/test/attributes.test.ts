@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { addStats, EMPTY_STATS, toStats } from "../src/game/attributes";
 import { formatBaseBody, resolveAppearance } from "../src/game/body";
-import { toItemState } from "../src/game/items";
+import { equippedSlotOf, toItemState } from "../src/game/items";
 
 const ROW = {
   id: "item-1",
@@ -67,6 +67,14 @@ describe("item state", () => {
     const key = toItemState({ ...ROW, kind: "accessory", stats: toStats(undefined) });
     expect(key.stats).toEqual(EMPTY_STATS);
     expect("equipped" in key).toBe(false);
+  });
+});
+
+describe("equipment index", () => {
+  it("按物品名定位槽位，没穿戴时没有槽位", () => {
+    expect(equippedSlotOf({ weapon: "裂齿短刃", armor: "旧斗篷" }, "裂齿短刃")).toBe("weapon");
+    expect(equippedSlotOf({ weapon: "裂齿短刃" }, "旧斗篷")).toBeUndefined();
+    expect(equippedSlotOf({}, "裂齿短刃")).toBeUndefined();
   });
 });
 

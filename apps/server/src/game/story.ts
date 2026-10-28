@@ -1,3 +1,4 @@
+import { createTurnTrace, traceEvent } from "../debug/trace";
 import { agentLoop } from "../llm/agent-loop";
 import type { ChatCompletionService } from "../llm/protocol";
 import type { ToolDefinition } from "../llm/types";
@@ -232,6 +233,13 @@ export async function runStory(
   let eventsRead = false;
   let story: string | null = null;
 
+  const trace = createTurnTrace({ game: state.game, turnKind: "story" });
+  await traceEvent(trace, {
+    event: "turn_start",
+    label: "story",
+    contentVersion: state.game.contentVersion,
+  });
+
   const listTool = buildListMemoriesTool();
   const readTool = buildReadMemoryTool();
   const eventsTool = buildReadEventsTool();
@@ -246,6 +254,7 @@ export async function runStory(
     maxRounds: options.maxRounds ?? DEFAULT_STORY_MAX_ROUNDS,
     service: options.service,
     ...(options.logger ? { logger: options.logger } : {}),
+    ...(trace ? { trace } : {}),
     handlers: {
       [listTool.function.name]: () =>
         memories
@@ -309,6 +318,8 @@ export async function runStory(
   if (!loop.success || !story) {
     throw new GameError("invalid_state", "story agent 未能提交故事");
   }
+
+  await traceEvent(trace, { event: "turn_end", ok: story !== null, loopSuccess: loop.success });
 
   return {
     gameId: state.game.id,

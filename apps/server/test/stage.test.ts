@@ -188,6 +188,8 @@ describe.skipIf(!testDatabaseUrl)("stage mini-GM", () => {
     const keeper = memories.find((memory) => memory.name === "守烬人");
     expect(gate?.messages.some((message) => message.content.includes(environment))).toBe(true);
     expect(keeper?.messages.some((message) => message.content.includes(environment))).toBe(false);
+    // 过程轨迹不写进长期记忆：stage 记忆里只有 system、场景事件与仲裁结论，没有 loop 的 tool 轨迹。
+    expect(gate?.messages.some((message) => message.type === "tool")).toBe(false);
 
     const capturing = new CapturingWaitService();
     await runNpcTurn(handle.db, slug, "提灯修士", { service: capturing });
@@ -254,7 +256,6 @@ describe.skipIf(!testDatabaseUrl)("stage mini-GM", () => {
           { kind: "submit_environment", environment: "风又起了。" },
         ],
       },
-      [],
       true,
     );
     expect(ok).toBe(false);

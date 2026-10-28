@@ -25,6 +25,8 @@ export type AppearanceTurnOptions = {
   service: ChatCompletionService;
   maxRounds?: number;
   logger?: Parameters<typeof agentLoop>[0]["logger"];
+  /** 所属回合的轨迹；有值则把这次推理并入该回合。 */
+  trace?: Parameters<typeof agentLoop>[0]["trace"];
   /** 死亡阶段的外观更新：写尸体而不是活人。 */
   dead?: boolean;
 };
@@ -155,6 +157,7 @@ export async function runAppearanceTurn(
     maxRounds: options.maxRounds ?? DEFAULT_APPEARANCE_MAX_ROUNDS,
     loopId: randomUUID(),
     ...(options.logger ? { logger: options.logger } : {}),
+    ...(options.trace ? { trace: options.trace } : {}),
   });
 
   if (!loop.success || submitted === null) {

@@ -1,3 +1,4 @@
+import type { TraceContext } from "../../debug/trace";
 import type { ToolDefinition } from "../../llm/types";
 import { appendPublicMessage, bumpGameVersion } from "../apply/messages";
 import type { ActorWithStageRow, Executor, ResolvedUnequip } from "../apply/types";
@@ -62,6 +63,7 @@ export async function applyUnequip(
   actorRow: ActorWithStageRow,
   resolved: ResolvedUnequip,
   now: Date,
+  trace?: TraceContext,
 ): Promise<string> {
   const actor = { id: actorRow.actor.id, name: actorRow.actor.name };
   const equipment = unequipSlot(actorRow.actor.equipment, resolved.action.slot);
@@ -82,9 +84,17 @@ export async function applyUnequip(
     resolved.stage.id,
     actor.id,
     `# 场景动态\n${content}`,
+    trace,
   );
-  await appendStageMemory(executor, gameId, resolved.stage.id, `# 场景事件\n${content}`, {
-    eventKind: "unequip",
-  });
+  await appendStageMemory(
+    executor,
+    gameId,
+    resolved.stage.id,
+    `# 场景事件\n${content}`,
+    {
+      eventKind: "unequip",
+    },
+    trace,
+  );
   return `# 行动结果\n你卸下了${resolved.itemName}（${label}）。`;
 }
