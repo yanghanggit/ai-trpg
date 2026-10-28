@@ -117,6 +117,17 @@ export type TraceEvent =
     }
   | { event: "rejected"; code: string; reason: string }
   | {
+      event: "dialogue_audit";
+      allowed: boolean;
+      reason: string;
+      categories: readonly string[];
+      failureKind?: string;
+      auditId?: string;
+      latencyMs: number;
+      model: string;
+      contentHash: string;
+    }
+  | {
       event: "observed";
       /** 观察去向：场景内广播 / stage 自己的记忆 / 只给当事人自己。 */
       via: "stage-actors" | "stage-memory" | "world-memory" | "self";

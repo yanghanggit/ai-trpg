@@ -14,6 +14,7 @@ export const DOMAIN_TABLES = [
   "game_messages",
   "vector_documents",
   "actor_controls",
+  "dialogue_blocks",
   "name_knowledge",
   "items",
   "stage_items",

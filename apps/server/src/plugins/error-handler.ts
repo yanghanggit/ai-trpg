@@ -3,6 +3,7 @@ import {
   hasZodFastifySchemaValidationErrors,
   isResponseSerializationError,
 } from "fastify-type-provider-zod";
+import { DialogueBlockedError } from "../game/errors";
 
 /** 统一错误响应形状：`{ error, message, details? }`，不让异常以 Fastify 默认格式漏出去。 */
 export function registerErrorHandler(app: FastifyInstance): void {
@@ -12,6 +13,18 @@ export function registerErrorHandler(app: FastifyInstance): void {
         error: "invalid_request",
         message: "请求参数校验失败",
         details: error.validation,
+      });
+    }
+
+    if (error instanceof DialogueBlockedError) {
+      return reply.code(error.httpStatus).send({
+        error: "dialogue_blocked",
+        message: error.reason,
+        details: {
+          categories: error.categories,
+          failureKind: error.failureKind,
+          auditId: error.auditId,
+        },
       });
     }
 

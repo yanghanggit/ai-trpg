@@ -19,6 +19,7 @@ import {
   takeActorControl,
 } from "../src/game";
 import { ChatCompletionResult, type ChatCompletionService, type ToolCall } from "../src/llm";
+import { allowAllDialogue } from "./test-dialogue-judge";
 import { TEST_WORLD } from "./test-world";
 
 const testDatabaseUrl = process.env.TEST_DATABASE_URL?.trim();
@@ -130,10 +131,16 @@ describe.skipIf(!testDatabaseUrl)("stage mini-GM", () => {
     });
     const slug = created.game.slug;
     await takeActorControl(handle.db, slug, "守烬人");
-    await playerWhisper(handle.db, slug, "守烬人", {
-      targetActorRef: "提灯修士",
-      message: "别回头。",
-    });
+    await playerWhisper(
+      handle.db,
+      slug,
+      "守烬人",
+      {
+        targetActorRef: "提灯修士",
+        message: "别回头。",
+      },
+      { judge: allowAllDialogue },
+    );
     await playerMove(handle.db, slug, "守烬人", { targetStageRef: "断钟中殿" });
     await releaseActorControl(handle.db, slug, "守烬人");
 

@@ -193,6 +193,20 @@ export type AnnounceAction = {
   message: string;
 };
 
+/** 玩家对话审核只覆盖三类说话动作。 */
+export type DialogueActionKind = "say" | "whisper" | "announce";
+
+/** 审核拒绝的类别；允许时为空。 */
+export type DialogueCategory = "immersion_break" | "out_of_world" | "prohibited" | "other";
+
+/** 审核失败的技术原因；内容违规不属于 failure。 */
+export type DialogueFailureKind =
+  | "timeout"
+  | "connection"
+  | "api"
+  | "invalid_verdict"
+  | "judge_error";
+
 export type MoveAction = {
   kind: "move";
   targetStageName: string;

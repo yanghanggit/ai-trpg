@@ -19,6 +19,7 @@ import { applyWhisper } from "../actions/whisper";
 import { type AddressLookup, plainEntityName, refOf } from "../addressing";
 import { MAX_ACTIONS_PER_TURN, MEMORY_KINDS } from "../constants";
 import { settleDeaths } from "../death";
+import type { DialogueJudge } from "../dialogue-audit";
 import { GameError } from "../errors";
 import { runAffixEffect } from "../item-effects/affix-agent";
 import type { AffixRequest } from "../item-effects/types";
@@ -121,6 +122,8 @@ export type ApplyPlanResult = {
 };
 
 export type ApplyActorPlanOptions = {
+  /** 玩家对话审核器；默认使用 DeepSeek flash，测试可注入。 */
+  judge?: DialogueJudge;
   /** 词缀补充效果需要 LLM agent。 */
   service?: ChatCompletionService;
   /** 死亡阶段的外观快照需要 LLM；不传则跳过（下次 hp 变化或显式调用再补）。 */

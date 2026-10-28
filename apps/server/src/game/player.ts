@@ -4,7 +4,8 @@ import { findActor } from "./actors";
 import { handleOf } from "./addressing";
 import { type ApplyActorPlanOptions, applyActorPlan } from "./apply";
 import { isPlayerControlled } from "./control";
-import { GameError } from "./errors";
+import { auditPlayerDialogue, dialogueContextFor, isDialogueAction } from "./dialogue-audit";
+import { DialogueBlockedError, GameError } from "./errors";
 import { parseIdentityName } from "./plan";
 import { getGameState } from "./service";
 import type {
@@ -58,6 +59,38 @@ async function applyPlayerPlan(
     ...(stage ? { stageId: stage.id, stageName: stage.name } : {}),
     contentVersion: state.game.contentVersion,
   });
+  const dialogue = plan.actions.find(isDialogueAction);
+  if (dialogue) {
+    const target =
+      dialogue.kind === "announce" ? null : findActorByRef(state, dialogue.targetActorHandle);
+    const audit = await auditPlayerDialogue(
+      db,
+      dialogueContextFor(state, actor, stage?.name ?? "", dialogue, target?.id ?? null),
+      options.judge,
+    );
+    await traceEvent(trace, {
+      event: "dialogue_audit",
+      allowed: audit.allowed,
+      reason: audit.reason,
+      categories: audit.categories,
+      ...(audit.failureKind ? { failureKind: audit.failureKind } : {}),
+      ...(audit.auditId ? { auditId: audit.auditId } : {}),
+      latencyMs: audit.latencyMs,
+      model: audit.model,
+      contentHash: audit.contentHash,
+    });
+    if (!audit.allowed) {
+      await traceEvent(trace, { event: "turn_end", ok: false, loopSuccess: true });
+      throw new DialogueBlockedError({
+        httpStatus: audit.failureKind ? 503 : 422,
+        reason: audit.reason,
+        categories: audit.categories,
+        ...(audit.failureKind ? { failureKind: audit.failureKind } : {}),
+        auditId: audit.auditId ?? "",
+      });
+    }
+  }
+
   const result = await applyActorPlan(db, state.game.id, actor.id, plan, true, {
     ...options,
     ...(trace ? { trace } : {}),
@@ -96,13 +129,19 @@ async function applyPlayerAction(
  *
  * 玩家入口是 god view，与模型工具不同：模型只能看到 `@` 指代。
  */
-/** 玩家提交的说话动作；`reason` 对应工具里的 mind，省略时用固定文案。 */
+/**
+ * 说话动作的服务层输入。
+ *
+ * `reason`（对应 agent 的 mind）只给开发期 agent / CLI 接管使用；
+ * 正式 web 客户端的 DTO 不暴露该字段，路由调用时直接省略。
+ */
 export type PlayerTalkInput = {
   message: string;
   targetActorRef: string;
   reason?: string;
 };
 
+/** 同 `PlayerTalkInput`：`reason` 只属于 agent / CLI 接管，不属于 web 客户端。 */
 export type PlayerAnnounceInput = {
   message: string;
   reason?: string;
@@ -156,6 +195,7 @@ export async function playerSay(
   gameRef: string,
   actorRef: string,
   input: PlayerTalkInput,
+  options: ApplyActorPlanOptions = {},
 ): Promise<ActorTurnResult> {
   const action: ActorAction = {
     kind: "say",
@@ -163,7 +203,7 @@ export async function playerSay(
     targetActorHandle: input.targetActorRef,
     message: input.message,
   };
-  return applyPlayerAction(db, gameRef, actorRef, action);
+  return applyPlayerAction(db, gameRef, actorRef, action, options);
 }
 
 export async function playerWhisper(
@@ -171,6 +211,7 @@ export async function playerWhisper(
   gameRef: string,
   actorRef: string,
   input: PlayerTalkInput,
+  options: ApplyActorPlanOptions = {},
 ): Promise<ActorTurnResult> {
   const action: ActorAction = {
     kind: "whisper",
@@ -178,7 +219,7 @@ export async function playerWhisper(
     targetActorHandle: input.targetActorRef,
     message: input.message,
   };
-  return applyPlayerAction(db, gameRef, actorRef, action);
+  return applyPlayerAction(db, gameRef, actorRef, action, options);
 }
 
 export async function playerAnnounce(
@@ -186,13 +227,14 @@ export async function playerAnnounce(
   gameRef: string,
   actorRef: string,
   input: PlayerAnnounceInput,
+  options: ApplyActorPlanOptions = {},
 ): Promise<ActorTurnResult> {
   const action: ActorAction = {
     kind: "announce",
     mind: playerMind(input.reason),
     message: input.message,
   };
-  return applyPlayerAction(db, gameRef, actorRef, action);
+  return applyPlayerAction(db, gameRef, actorRef, action, options);
 }
 
 export async function playerMove(

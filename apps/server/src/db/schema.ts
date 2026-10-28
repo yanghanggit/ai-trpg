@@ -17,6 +17,8 @@ import type {
   ActionKind,
   Affix,
   BaseBody,
+  DialogueActionKind,
+  DialogueCategory,
   EquipmentSlots,
   ItemEffect,
   ItemKind,
@@ -370,6 +372,42 @@ export const actorControls = pgTable("actor_controls", {
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
 });
 
+/**
+ * 玩家对话黑名单/审计记录。
+ *
+ * 只记录被拒绝的玩家对话（内容违规或审核不可用），允许的对话不落库。
+ * `content` 保留原文，供人工复核；`failure_kind` 区分内容违规与审核失败。
+ */
+export const dialogueBlocks = pgTable(
+  "dialogue_blocks",
+  {
+    id: uuid("id").primaryKey(),
+    gameId: uuid("game_id")
+      .notNull()
+      .references(() => games.id, { onDelete: "cascade" }),
+    actorId: uuid("actor_id")
+      .notNull()
+      .references(() => actors.id, { onDelete: "cascade" }),
+    playerId: uuid("player_id")
+      .notNull()
+      .references(() => gamePlayers.id, { onDelete: "cascade" }),
+    actionKind: text("action_kind").$type<DialogueActionKind>().notNull(),
+    targetActorId: uuid("target_actor_id").references(() => actors.id, { onDelete: "set null" }),
+    content: text("content").notNull(),
+    contentHash: text("content_hash").notNull(),
+    categories: jsonb("categories").$type<DialogueCategory[]>().notNull().default([]),
+    reason: text("reason").notNull(),
+    failureKind: text("failure_kind"),
+    model: text("model"),
+    latencyMs: integer("latency_ms").notNull().default(0),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    index("dialogue_blocks_game_created_idx").on(table.gameId, table.createdAt),
+    index("dialogue_blocks_game_hash_idx").on(table.gameId, table.contentHash),
+  ],
+);
+
 export const agentMemories = pgTable(
   "agent_memories",
   {
@@ -469,6 +507,7 @@ export const schema = {
   gameMessages,
   vectorDocuments,
   actorControls,
+  dialogueBlocks,
   agentMemories,
   agentMemoryMessages,
   jobs,

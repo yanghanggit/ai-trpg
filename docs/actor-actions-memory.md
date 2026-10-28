@@ -37,6 +37,7 @@ NPC 路径是环境观察 → agent loop → 计划与工具调用 → 提交计
 - **可见边界**：`look_stage` 只允许本场景。`game_messages`、stage / world 的观察与报告仍是上帝视角（客户端就是上帝），但 stage / world 写出的 environment、世界裁决与结局文案会经过统一守卫，禁止角色本名、`@N` 与类别前缀；actor 读取 environment 时还会再按观察者渲染一次。
 - **观看者投影**：客户端要按角色视角展示时，读该 actor 的记忆与场景指代（`getActorView`），不要重新渲染公共事件流——事件文本在写入时就已经带规范名。玩家接管期间也能替角色记录称呼（`playerRememberIdentity`），否则交回 NPC 后它会“不知道自己听过名字”。投影里的自己的名字、场景名与出口都已去掉类型前缀，客户端可直接显示。
 - **可选告警**：记名字时若对方不在场（`unseen_handle`），或这个称呼撞上同一观察者的旧信念、别人的本名（`name_collision`），只写轨迹与日志，不阻断行动。
+- **玩家对话审核**：玩家接管的 `say` / `whisper` / `announce` 在写库前经过无状态审核；拒绝或审核不可用都会挡住动作，详见[玩家对话审核](dialogue-audit.md)。
 
 → 参见：[术语表](glossary.md)、[外观](appearance.md)、[数据库](database.md)
 

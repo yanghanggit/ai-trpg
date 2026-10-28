@@ -1,5 +1,6 @@
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { DEMO_USER } from "../src/db/demo-fixture";
+import { allowAllDialogue } from "./test-dialogue-judge";
 import { TEST_WORLD } from "./test-world";
 import "../src/db/env";
 import { type DatabaseHandle, openDatabase } from "../src/db/connect";
@@ -65,26 +66,44 @@ describe.skipIf(!testDatabaseUrl)("player takeover", () => {
       }),
     ).rejects.toThrow("已被玩家接管");
 
-    const said = await playerSay(handle.db, game.game.slug, "守烬人", {
-      targetActorRef: "提灯修士",
-      message: "公开对你说。",
-      reason: "先确认他是否听见钟声。",
-    });
+    const said = await playerSay(
+      handle.db,
+      game.game.slug,
+      "守烬人",
+      {
+        targetActorRef: "提灯修士",
+        message: "公开对你说。",
+        reason: "先确认他是否听见钟声。",
+      },
+      { judge: allowAllDialogue },
+    );
     expect(said.ok).toBe(true);
     expect(said.plan?.actions[0]).toMatchObject({
       kind: "say",
       mind: "先确认他是否听见钟声。",
     });
 
-    const whispered = await playerWhisper(handle.db, game.game.slug, "守烬人", {
-      targetActorRef: "提灯修士",
-      message: "这是一句秘密。",
-    });
+    const whispered = await playerWhisper(
+      handle.db,
+      game.game.slug,
+      "守烬人",
+      {
+        targetActorRef: "提灯修士",
+        message: "这是一句秘密。",
+      },
+      { judge: allowAllDialogue },
+    );
     expect(whispered.ok).toBe(true);
 
-    const announced = await playerAnnounce(handle.db, game.game.slug, "守烬人", {
-      message: "所有人都听着。",
-    });
+    const announced = await playerAnnounce(
+      handle.db,
+      game.game.slug,
+      "守烬人",
+      {
+        message: "所有人都听着。",
+      },
+      { judge: allowAllDialogue },
+    );
     expect(announced.ok).toBe(true);
 
     const state = await getGameState(handle.db, game.game.slug);

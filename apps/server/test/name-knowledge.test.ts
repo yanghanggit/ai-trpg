@@ -27,6 +27,7 @@ import {
 } from "../src/game/persistence/presentations";
 import { parseRememberIdentity } from "../src/game/plan";
 import { ChatCompletionResult, type ChatCompletionService } from "../src/llm";
+import { allowAllDialogue } from "./test-dialogue-judge";
 import { TEST_WORLD } from "./test-world";
 
 const testDatabaseUrl = process.env.TEST_DATABASE_URL?.trim();
@@ -317,10 +318,16 @@ describe.skipIf(!testDatabaseUrl)("names and addresses", () => {
 
     // 三种寻址方式都成立：稳定 id、规范名、系统指代。
     for (const ref of [monk.id, monk.name, handleOf(monk.presentation.seq)]) {
-      const said = await playerSay(handle.db, created.game.slug, "守烬人", {
-        targetActorRef: ref,
-        message: "测试寻址。",
-      });
+      const said = await playerSay(
+        handle.db,
+        created.game.slug,
+        "守烬人",
+        {
+          targetActorRef: ref,
+          message: "测试寻址。",
+        },
+        { judge: allowAllDialogue },
+      );
       expect(said.ok).toBe(true);
     }
     // 幂等：三条消息都进了公共事件流，客户端可以按 id 反查实体。
