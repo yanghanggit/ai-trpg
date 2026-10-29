@@ -34,6 +34,7 @@ import {
 } from "../src/debug/trace";
 import { DEEPSEEK_SERVICE } from "../src/deepseek";
 import {
+  auditGameNameLeaks,
   type CompactMemoryResult,
   compactAllMemories,
   compactMemory,
@@ -58,6 +59,7 @@ import {
   playerWhisper,
   refreshAppearances,
   releaseActorControl,
+  renderNameLeakReport,
   runAppearanceTurn,
   runNpcTurn,
   runProbe,
@@ -108,6 +110,10 @@ const options = {
   latest: { type: "boolean" },
   delete: { type: "boolean" },
   "dry-run": { type: "boolean" },
+  scope: { type: "string" },
+  allow: { type: "string" },
+  "include-system": { type: "boolean" },
+  text: { type: "boolean" },
 } as const;
 
 /** CLI 的进程日志：pino + pretty，写 stderr，stdout 保持只出 JSON。 */
@@ -188,6 +194,7 @@ function usage(): void {
       "agent-game player-remember-identity --game <gameId|slug> --actor <actorId|actorName> --target <actorName> --as <name>（只改自己的记忆，不占行动）",
       "agent-game appearance --game <gameId|slug> (--actor <actorId|actorName> | --all)",
       "agent-game deaths --game <gameId|slug>（对每个 hp 归零且未收尾的 actor 跑一次死亡阶段）",
+      "agent-game name-leaks --game <gameId|slug> [--scope ever|current] [--include-system] [--allow <name1,name2>] [--since <ISO>] [--text]（只读扫描 actor 记忆中的真名泄漏）",
       "agent-game snapshot --game <gameId|slug> [--root <dir>]",
       "agent-game compact --game <gameId|slug> --owner actor --name <actorId|actorName> [--min-ratio <0..1>]",
       "agent-game compact --game <gameId|slug> --owner stage --name <stageId|stageName> [--min-ratio <0..1>]",
@@ -650,6 +657,39 @@ async function main(): Promise<void> {
     });
     // 外观失败按设计可以不管，所以 ok 只看死亡是否宣布成功。
     emit({ ok: true, action: command, ...result });
+    return;
+  }
+
+  if (command === "name-leaks") {
+    if (typeof values.game !== "string") {
+      throw new Error("name-leaks 需要 --game");
+    }
+    const scopeValue = typeof values.scope === "string" ? values.scope : "ever";
+    if (!["ever", "current", "currentPresentation"].includes(scopeValue)) {
+      throw new Error("--scope 只接受 ever 或 current");
+    }
+    const allowRaw = typeof values.allow === "string" ? values.allow : "";
+    const allowNames = allowRaw
+      .split(/[,，\s]+/)
+      .map((name) => name.trim())
+      .filter(Boolean);
+    const since = typeof values.since === "string" ? new Date(values.since) : undefined;
+    if (since !== undefined && Number.isNaN(since.getTime())) {
+      throw new Error("--since 需要合法的日期或时间");
+    }
+    const report = await withDatabase((db) =>
+      auditGameNameLeaks(db, values.game as string, {
+        beliefScope: scopeValue === "ever" ? "ever" : "currentPresentation",
+        ...(values["include-system"] === true ? { skipKinds: [] } : {}),
+        ...(allowNames.length > 0 ? { allowNames } : {}),
+        ...(since === undefined ? {} : { since }),
+      }),
+    );
+    if (values.text === true) {
+      process.stdout.write(renderNameLeakReport(report));
+      return;
+    }
+    emit({ ok: true, action: "name-leaks", report });
     return;
   }
 

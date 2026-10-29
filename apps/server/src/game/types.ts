@@ -527,6 +527,10 @@ export type ObservationMetadata = {
   kind: MemoryKind;
   /** 原始事件的可见范围；沟通观察会写，供快照阅读。 */
   visibility?: MessageVisibility;
+  /** 沟通观察的具体事件类型：say / whisper / announce。 */
+  communicationKind?: CommunicationKind;
+  /** 沟通观察里真正说出口的台词；供审计定位，渲染时仍以 content 为准。 */
+  dialogue?: string;
   stageId?: string;
   actorId?: string;
   sourceActorId?: string;

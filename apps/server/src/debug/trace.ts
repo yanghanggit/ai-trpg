@@ -121,6 +121,34 @@ export type TraceEvent =
     }
   | { event: "rejected"; code: string; reason: string }
   | {
+      event: "name_leak";
+      observerActorId: string;
+      observerName: string;
+      matchedName: string;
+      subjectActorIds: readonly string[];
+      severity: "high" | "medium" | "low";
+      form: "reference" | "bare";
+      ambiguous: boolean;
+      communicationKind: "say" | "whisper" | "announce" | null;
+      inDialogue: boolean;
+      messageSequence: number;
+      messageType: "system" | "human" | "ai" | "tool";
+      messageKind: string | null;
+      part: "content" | "tool_calls";
+      excerpt: string;
+    }
+  | {
+      event: "name_audit_alert";
+      code: "missing_dialogue_structure" | "unexpected_dialogue_structure";
+      observerActorId: string;
+      observerName: string;
+      messageSequence: number;
+      messageType: "system" | "human" | "ai" | "tool";
+      messageKind: string | null;
+      missing: readonly string[];
+      detail: string;
+    }
+  | {
       event: "dialogue_audit";
       allowed: boolean;
       reason: string;
@@ -631,6 +659,23 @@ export function renderTurnText(events: readonly TraceLine[]): string {
       case "rejected":
         out.push("", "## 被拒", `${line.code}: ${line.reason}`);
         break;
+      case "name_leak":
+        out.push(
+          "",
+          "## 名字泄漏",
+          `[${line.severity}] ${line.observerName} · #${line.messageSequence} ${line.messageKind ?? line.messageType}${line.part === "tool_calls" ? "（toolCalls）" : ""}${line.communicationKind ? ` · ${line.communicationKind}` : ""}${line.inDialogue ? " · 台词内" : ""}`,
+          `真名「${line.matchedName}」${line.form === "reference" ? "（@引用）" : ""}${line.ambiguous ? "（疑似同名信念）" : ""}`,
+          line.excerpt,
+        );
+        break;
+      case "name_audit_alert":
+        out.push(
+          "",
+          "## 名字审计结构告警",
+          `[${line.code}] ${line.observerName} · #${line.messageSequence} ${line.messageKind ?? line.messageType}`,
+          `${line.detail}${line.missing.length > 0 ? `（缺少：${line.missing.join("、")}）` : ""}`,
+        );
+        break;
       case "observed": {
         const header = [
           line.via,
@@ -723,6 +768,8 @@ export function traceSchema(): { version: number; dir: string; events: Record<st
       plan: "模型提交的计划动作列表",
       applied: "实际落账的动作与反馈",
       rejected: "计划被拒：code 可聚合，reason 为可读原因",
+      name_leak: "actor 记忆中出现未获知的真名：观察者、真名、严重度、台词事件与上下文",
+      name_audit_alert: "名字审计的结构告警：沟通观察缺少台词定位信息，或非沟通观察误带台词字段",
       observed: "观察写入：去向、发起者、每个收件人实际看到的正文",
       phase: "子阶段结果：death / drop / affix / appearance",
     },

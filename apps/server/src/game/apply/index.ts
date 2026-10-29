@@ -27,15 +27,31 @@ import { GameError } from "../errors";
 import { runAffixEffect } from "../item-effects/affix-agent";
 import type { AffixRequest } from "../item-effects/types";
 import { appendMemoryMessages, loadAgentMemory } from "../memory";
+import { auditTurnNameLeaks, nameAuditEnabled, nameAuditSince } from "../name-audit";
 import { listKnowledgeForObserver, upsertKnowledge } from "../persistence/knowledge";
 import { sanitizeActorFacingText } from "../text-guard";
-import type { ActorPlan, DeathPhaseResult, IdentityWarning } from "../types";
+import type { ActorPlan, CommunicationKind, DeathPhaseResult, IdentityWarning } from "../types";
 import { isAlive, listActorNamesInWorld, listStageActorRefs, stageAddressLookup } from "./queries";
 
 export * from "./queries";
 
 import { resolvePlan } from "./resolve";
 import type { ActorWithStageRow, Executor, ResolvedAction } from "./types";
+
+/** 台词动作的行动反馈也带结构化台词信息；其他动作没有台词。 */
+function dialogueFeedbackMetadata(action: ResolvedAction): {
+  communicationKind?: CommunicationKind;
+  dialogue?: string;
+} {
+  switch (action.kind) {
+    case "say":
+    case "whisper":
+    case "announce":
+      return { communicationKind: action.kind, dialogue: action.action.message };
+    default:
+      return {};
+  }
+}
 
 /** 扁平 dispatch，没有分类层。 */
 async function applyResolvedAction(
@@ -135,6 +151,8 @@ export type ApplyActorPlanOptions = {
   logger?: Logger;
   /** 回合轨迹；有值时记录计划、拒绝、落账与子阶段结果。 */
   trace?: TraceContext;
+  /** 回合结束后审计新增的 actor 记忆；默认读 TRPG_AUDIT_NAMES。 */
+  auditNameLeaks?: boolean;
 };
 
 /**
@@ -152,6 +170,16 @@ export async function applyActorPlan(
   options: ApplyActorPlanOptions = {},
 ): Promise<ApplyPlanResult> {
   const affixRequests: AffixRequest[] = [];
+  const nameAuditStartedAt = nameAuditSince();
+  const auditNames = async (): Promise<void> => {
+    if (!(options.auditNameLeaks ?? nameAuditEnabled())) {
+      return;
+    }
+    await auditTurnNameLeaks(db, gameId, nameAuditStartedAt, {
+      ...(options.logger ? { logger: options.logger } : {}),
+      ...(options.trace ? { trace: options.trace } : {}),
+    });
+  };
   const result: ApplyPlanResult = await db.transaction(async (tx) => {
     const [game] = await tx.select().from(games).where(eq(games.id, gameId)).limit(1).for("update");
     if (!game) {
@@ -269,7 +297,10 @@ export async function applyActorPlan(
           content: sanitizeActorFacingText(feedback, stageActorRefs, address, [], {
             resolveHandles: false,
           }),
-          metadata: { kind: MEMORY_KINDS.actionFeedback },
+          metadata: {
+            kind: MEMORY_KINDS.actionFeedback,
+            ...dialogueFeedbackMetadata(action),
+          },
         },
       ]);
     }
@@ -356,6 +387,7 @@ export async function applyActorPlan(
       code: result.rejectionCode ?? "rejected",
       reason: result.rejection ?? "未知原因",
     });
+    await auditNames();
     return result;
   }
   for (const applied of result.applied ?? []) {
@@ -407,5 +439,6 @@ export async function applyActorPlan(
     result.deathError = error instanceof Error ? error.message : String(error);
     options.logger?.warn("死亡阶段失败，下次调用会重试", error);
   }
+  await auditNames();
   return result;
 }

@@ -81,6 +81,8 @@ export type NpcTurnOptions = {
   logger?: Parameters<typeof agentLoop>[0]["logger"];
   /** 真实 RAG provider；所有 actor 都能用 query 检索，测试可注入假 provider。 */
   knowledgeProvider?: EmbeddingProvider;
+  /** 覆盖 TRPG_AUDIT_NAMES；测试用来打开回合级名字审计。 */
+  auditNameLeaks?: boolean;
 };
 
 /**
@@ -419,6 +421,7 @@ export async function runNpcTurn(
       ...(options.appearanceService ? { appearanceService: options.appearanceService } : {}),
       ...(options.logger ? { logger: options.logger } : {}),
       ...(trace ? { trace } : {}),
+      ...(options.auditNameLeaks === undefined ? {} : { auditNameLeaks: options.auditNameLeaks }),
     },
   );
   await traceEvent(trace, {

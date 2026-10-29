@@ -293,6 +293,8 @@ export function renderCommunication(
       metadata: {
         kind: MEMORY_KINDS.communicationObservation,
         visibility: "private",
+        communicationKind: "whisper",
+        dialogue: message,
         stageId: stage.id,
         sourceActorId: source.id,
         targetActorId: observation.target.id,
@@ -316,6 +318,8 @@ export function renderCommunication(
     metadata: {
       kind: MEMORY_KINDS.communicationObservation,
       visibility: "stage",
+      communicationKind: observation.kind,
+      dialogue: message,
       stageId: stage.id,
       sourceActorId: source.id,
       ...(observation.kind === "announce" ? {} : { targetActorId: observation.target.id }),

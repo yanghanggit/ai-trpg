@@ -10,6 +10,7 @@ export * from "./drops";
 export * from "./end-game";
 export * from "./errors";
 export * from "./memory";
+export * from "./name-audit";
 export * from "./npc";
 export * from "./player";
 export * from "./probe";
