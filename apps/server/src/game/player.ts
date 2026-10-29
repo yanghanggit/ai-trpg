@@ -369,19 +369,19 @@ export async function playerUnequip(
   return applyPlayerAction(db, gameRef, actorRef, action, options);
 }
 
-/** 玩家替自己控制的角色记下一个称呼；与模型侧的认知更新走同一份计划。 */
-export type PlayerRememberInput = {
+/** 玩家替自己控制的角色记下一次识别；与模型侧的认知更新走同一份计划。 */
+export type PlayerRecognizeInput = {
   /** 目标引用：id、名字、`@名字` 或 `#编号`。 */
   targetActorRef: string;
   /** 角色相信对方叫什么。 */
   name: string;
 };
 
-export async function playerRememberIdentity(
+export async function playerRecognizeIdentity(
   db: Database,
   gameRef: string,
   actorRef: string,
-  input: PlayerRememberInput,
+  input: PlayerRecognizeInput,
 ): Promise<ActorTurnResult> {
   const state = await getGameState(db, gameRef);
   const target = findActorByRef(state, input.targetActorRef);

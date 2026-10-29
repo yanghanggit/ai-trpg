@@ -114,6 +114,10 @@ export async function resolvePlan(
     if (!view) {
       throw new GameError("invalid_action", `世界内没有这个编号: ${binding.handle}`);
     }
+    // 只有「认识」这一种状态：必须是真名，别名一律拒绝，且报错不回显真名。
+    if (binding.name !== view.actor.name) {
+      throw new GameError("invalid_action", `无法确认 ${binding.handle} 的身份`);
+    }
     identities.push({
       handle: binding.handle,
       name: binding.name,

@@ -24,6 +24,14 @@ describe("world content validation", () => {
     expect(keeper?.profile).toBe(TEST_WORLD.actors[0]?.profile);
   });
 
+  it("rejects a known identity that still declares a name", () => {
+    const world = {
+      ...TEST_WORLD,
+      knownIdentities: [{ observer: "ember-keeper", subject: "lantern-monk", name: "提灯修士" }],
+    };
+    expect(() => parseWorldContent(world)).toThrow(/不再接受 name/);
+  });
+
   it("rejects names with system markers", () => {
     for (const name of ["@守烬人", "#守烬人", "守烬 人", "角色.守烬人"]) {
       const world = {

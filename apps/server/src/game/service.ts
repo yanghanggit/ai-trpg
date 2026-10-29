@@ -30,8 +30,8 @@ import {
   createWorldMemory,
 } from "./memory";
 import { allocateEntitySeq } from "./persistence/entity-seq";
-import { listKnowledge, upsertKnowledge } from "./persistence/knowledge";
 import { insertPresentation, listCurrentPresentations } from "./persistence/presentations";
+import { listRecognitions, upsertRecognition } from "./persistence/recognitions";
 import type {
   ActorState,
   ConnectionState,
@@ -40,8 +40,8 @@ import type {
   ItemState,
   MessageState,
   MessageVisibility,
-  NameKnowledgeState,
   PlayerState,
+  RecognitionState,
   StageState,
   StageVisitState,
 } from "./types";
@@ -255,11 +255,10 @@ export async function getGameState(db: Database, ref: string): Promise<GameState
     role: playerRow.role,
   };
 
-  const knowledgeRows = await listKnowledge(db, game.id);
-  const knowledge: NameKnowledgeState[] = knowledgeRows.map((row) => ({
+  const recognitionRows = await listRecognitions(db, game.id);
+  const recognitions: RecognitionState[] = recognitionRows.map((row) => ({
     observerActorId: row.observerActorId,
     presentationId: row.presentationId,
-    name: row.name,
     source: row.source,
     learnedStageId: row.learnedStageId,
   }));
@@ -303,7 +302,7 @@ export async function getGameState(db: Database, ref: string): Promise<GameState
       connections,
     },
     messages,
-    knowledge,
+    recognitions,
     visits,
   };
 }
@@ -564,7 +563,7 @@ export async function createGame(
       });
     }
 
-    // 开局既知的名字：观察者与对象都用内容 key 引用，落库时变成 actor / 形象 id。
+    // 开局既知的识别关系：观察者与对象都用内容 key 引用，落库时变成 actor / 形象 id。
     for (const identity of input.world.knownIdentities ?? []) {
       const observer = actorRefs.get(identity.observer);
       const subject = actorRefs.get(identity.subject);
@@ -586,13 +585,12 @@ export async function createGame(
           `knownIdentities 不能把自己记作他人: ${identity.observer}`,
         );
       }
-      await upsertKnowledge(
+      await upsertRecognition(
         tx,
         {
           gameId,
           observerActorId: observer.actorId,
           presentationId: subject.presentationId,
-          name: identity.name,
           source: "content",
           learnedStageId: null,
         },

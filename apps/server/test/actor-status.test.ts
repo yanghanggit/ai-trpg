@@ -754,11 +754,11 @@ describe.skipIf(!testDatabaseUrl)("corpses can be operated on", () => {
       ],
       knownIdentities: [
         ...(TEST_WORLD.knownIdentities ?? []),
-        { observer: "bystander-a", subject: "lantern-monk", name: "提灯修士" },
-        { observer: "bystander-a", subject: "ember-keeper", name: "守烬人" },
-        { observer: "ember-keeper", subject: "bystander-a", name: "旁听者" },
-        { observer: "lantern-monk", subject: "bystander-a", name: "旁听者" },
-        { observer: "silent-scribe", subject: "bystander-a", name: "旁听者" },
+        { observer: "bystander-a", subject: "lantern-monk" },
+        { observer: "bystander-a", subject: "ember-keeper" },
+        { observer: "ember-keeper", subject: "bystander-a" },
+        { observer: "lantern-monk", subject: "bystander-a" },
+        { observer: "silent-scribe", subject: "bystander-a" },
       ],
     };
     const created = await createGame(handle.db, {

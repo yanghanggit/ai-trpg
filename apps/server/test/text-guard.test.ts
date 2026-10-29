@@ -43,7 +43,7 @@ describe("world text guard", () => {
           label: "煤渣（灰毛犬）",
           mention: "@煤渣",
           appearance: "灰毛犬",
-          knownName: "煤渣",
+          known: true,
           isSelf: false,
         }
       : {
@@ -51,7 +51,7 @@ describe("world text guard", () => {
           label: "外观：灰毛犬",
           mention: "#9",
           appearance: "灰毛犬",
-          knownName: null,
+          known: false,
           isSelf: false,
         };
 
@@ -69,7 +69,7 @@ describe("world text guard", () => {
   it("resolves a known actor's leftover handle to its name", () => {
     const actor = { id: "a", name: "煤渣", presentation: { seq: 9 } };
     const rendered = sanitizeActorFacingText("煤渣守在#9 身旁。", [actor], ADDRESS(true));
-    // 名字与旧句柄都换成观察者视角的称呼。
+    // 名字与旧句柄都换成观察者视角的引用。
     expect(rendered).toBe("@煤渣守在@煤渣 身旁。");
   });
 

@@ -4,7 +4,7 @@ import { actorPresentations } from "../../db/schema";
 import { getGameMemories } from "../memory";
 import type { NameAuditActor, NameAuditInput } from "../name-audit";
 import { getGameState } from "../service";
-import { listKnowledge } from "./knowledge";
+import { listRecognitions } from "./recognitions";
 
 /** 从数据库装载名字审计输入；只读。 */
 export async function loadNameAuditInput(db: Database, gameId: string): Promise<NameAuditInput> {
@@ -32,10 +32,9 @@ export async function loadNameAuditInput(db: Database, gameId: string): Promise<
       actorId: actor.id,
     });
   }
-  const knowledge = (await listKnowledge(db, resolvedGameId)).map((row) => ({
+  const recognitions = (await listRecognitions(db, resolvedGameId)).map((row) => ({
     observerActorId: row.observerActorId,
     presentationId: row.presentationId,
-    name: row.name,
   }));
   const memories = (await getGameMemories(db, resolvedGameId)).filter(
     (memory) => memory.ownerType === "actor",
@@ -43,7 +42,7 @@ export async function loadNameAuditInput(db: Database, gameId: string): Promise<
   return {
     actors,
     presentations: [...presentations.values()],
-    knowledge,
+    recognitions,
     memories,
   };
 }

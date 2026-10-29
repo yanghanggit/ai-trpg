@@ -113,7 +113,7 @@ export type TraceEvent =
   | { event: "applied"; actionKind: string; feedback?: string; detail?: unknown }
   | {
       event: "identity_warning";
-      code: "unseen_handle" | "name_collision";
+      code: "unseen_handle";
       handle: string;
       name: string;
       subjectActorId: string;
@@ -128,7 +128,6 @@ export type TraceEvent =
       subjectActorIds: readonly string[];
       severity: "high" | "medium" | "low";
       form: "reference" | "bare";
-      ambiguous: boolean;
       communicationKind: "say" | "whisper" | "announce" | null;
       inDialogue: boolean;
       messageSequence: number;
@@ -664,7 +663,7 @@ export function renderTurnText(events: readonly TraceLine[]): string {
           "",
           "## 名字泄漏",
           `[${line.severity}] ${line.observerName} · #${line.messageSequence} ${line.messageKind ?? line.messageType}${line.part === "tool_calls" ? "（toolCalls）" : ""}${line.communicationKind ? ` · ${line.communicationKind}` : ""}${line.inDialogue ? " · 台词内" : ""}`,
-          `真名「${line.matchedName}」${line.form === "reference" ? "（@引用）" : ""}${line.ambiguous ? "（疑似同名信念）" : ""}`,
+          `真名「${line.matchedName}」${line.form === "reference" ? "（@引用）" : ""}`,
           line.excerpt,
         );
         break;

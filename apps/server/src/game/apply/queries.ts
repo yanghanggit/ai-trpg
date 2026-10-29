@@ -1,9 +1,9 @@
 import { and, eq, isNull } from "drizzle-orm";
 import {
   actorPresentations,
+  actorRecognitions,
   actors,
   items,
-  nameKnowledge,
   stageConnections,
   stageItems,
   stages,
@@ -63,7 +63,7 @@ export async function findActorViewByHandleInStage(
   return row;
 }
 
-/** 按句柄在本 world 内定位角色；名字信念可以在人物离场后补记。 */
+/** 按句柄在本 world 内定位角色；识别可以在人物离场后补记。 */
 export async function findActorViewByHandleInWorld(
   executor: Executor,
   worldId: string,
@@ -90,7 +90,7 @@ export async function findActorViewByHandleInWorld(
   return row;
 }
 
-/** 本 world 内全部 actor 的 id 与名字；用于检测称呼撞上别人的本名。 */
+/** 本 world 内全部 actor 的 id 与名字；用于 god-view 查询与提示词。 */
 export async function listActorNamesInWorld(
   executor: Executor,
   worldId: string,
@@ -102,19 +102,22 @@ export async function listActorNamesInWorld(
     .where(eq(stages.worldId, worldId));
 }
 
-/** 观察者已知道的名字：形象 id → 称呼。 */
-export async function knowledgeNamesFor(
+/** 观察者认得的形象：认得即知道真名。 */
+export async function recognizedPresentationsFor(
   executor: Executor,
   gameId: string,
   observerActorId: string,
-): Promise<Map<string, string>> {
+): Promise<Set<string>> {
   const rows = await executor
     .select()
-    .from(nameKnowledge)
+    .from(actorRecognitions)
     .where(
-      and(eq(nameKnowledge.gameId, gameId), eq(nameKnowledge.observerActorId, observerActorId)),
+      and(
+        eq(actorRecognitions.gameId, gameId),
+        eq(actorRecognitions.observerActorId, observerActorId),
+      ),
     );
-  return new Map(rows.map((row) => [row.presentationId, row.name]));
+  return new Set(rows.map((row) => row.presentationId));
 }
 
 /**
@@ -129,14 +132,15 @@ export async function stageAddressLookup(
   stageId: string,
 ): Promise<AddressLookup> {
   const views = await listStageActorViews(executor, stageId);
-  const knownNames = await knowledgeNamesFor(executor, gameId, observerId);
+  const recognized = await recognizedPresentationsFor(executor, gameId, observerId);
   const base = makeAddressLookup(
-    knownNames,
+    recognized,
     new Map(
       views.map(({ actor, presentation }) => [
         actor.id,
         {
           actorId: actor.id,
+          name: actor.name,
           presentationId: presentation.id,
           presentationSeq: presentation.seq,
           appearance: presentation.appearance,
@@ -152,7 +156,7 @@ export async function stageAddressLookup(
         label: "你自己",
         mention: "你",
         appearance: self.presentation.appearance,
-        knownName: self.actor.name,
+        known: true,
         isSelf: true,
       };
     }
@@ -175,8 +179,9 @@ export async function listStageActorRefs(
 /**
  * 在当前场景内定位角色。
  *
- * 三种写法：`#12`（你还不知道名字）、`@名字`（观察者引用）、纯名字 / id（god-view 入口）。
- * 不接受简称，也不做模糊匹配。
+ * 接受 `#12`、`@真名`、纯真名或 id；后三者都按真名 / id 解析，不做观察者识别校验。
+ * 感知边界在渲染与写入时执行：名单只会给当前观察者 token，辨认真名也必须是真名；
+ * 解析层信任调用方，god-view 入口可以直接用真名或 id。不接受简称，也不做模糊匹配。
  */
 export async function findActorInStage(
   executor: Executor,

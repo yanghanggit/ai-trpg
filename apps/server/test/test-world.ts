@@ -35,12 +35,12 @@ export const TEST_WORLD: World = {
   ],
   // 测试世界里三个人一开始就同处门廊并互相认识；名字门槛由专门用例覆盖。
   knownIdentities: [
-    { observer: "ember-keeper", subject: "lantern-monk", name: "提灯修士" },
-    { observer: "ember-keeper", subject: "silent-scribe", name: "缄默抄经人" },
-    { observer: "lantern-monk", subject: "ember-keeper", name: "守烬人" },
-    { observer: "lantern-monk", subject: "silent-scribe", name: "缄默抄经人" },
-    { observer: "silent-scribe", subject: "ember-keeper", name: "守烬人" },
-    { observer: "silent-scribe", subject: "lantern-monk", name: "提灯修士" },
+    { observer: "ember-keeper", subject: "lantern-monk" },
+    { observer: "ember-keeper", subject: "silent-scribe" },
+    { observer: "lantern-monk", subject: "ember-keeper" },
+    { observer: "lantern-monk", subject: "silent-scribe" },
+    { observer: "silent-scribe", subject: "ember-keeper" },
+    { observer: "silent-scribe", subject: "lantern-monk" },
   ],
   actors: [
     {

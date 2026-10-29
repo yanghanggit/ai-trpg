@@ -28,7 +28,7 @@ import {
   renderItemEvent,
   type StageRef,
 } from "./observation-text";
-import { listKnowledge } from "./persistence/knowledge";
+import { listRecognitions } from "./persistence/recognitions";
 import { assertWorldFaceText } from "./text-guard";
 import type { ObservationMetadata, StageEventMetadata } from "./types";
 
@@ -61,13 +61,14 @@ async function writeObservations(
   trace?: TraceContext,
 ): Promise<void> {
   const views = await listStageActorViews(executor, spec.stageId);
-  const knowledgeRows = await listKnowledge(executor, gameId);
-  // 主体表：场景内每个角色当前的可见外观；名字信念按观察者各自过滤。
+  const recognitionRows = await listRecognitions(executor, gameId);
+  // 主体表：场景内每个角色当前的可见外观；认识与否按观察者各自过滤。
   const subjects = new Map<string, AddressSubject>(
     views.map(({ actor, presentation }) => [
       actor.id,
       {
         actorId: actor.id,
+        name: actor.name,
         presentationId: presentation.id,
         presentationSeq: presentation.seq,
         appearance: presentation.appearance,
@@ -84,12 +85,12 @@ async function writeObservations(
     if (!memory) {
       continue;
     }
-    const knownNames = new Map(
-      knowledgeRows
+    const recognized = new Set(
+      recognitionRows
         .filter((row) => row.observerActorId === observer.id)
-        .map((row) => [row.presentationId, row.name]),
+        .map((row) => row.presentationId),
     );
-    const base = makeAddressLookup(knownNames, subjects);
+    const base = makeAddressLookup(recognized, subjects);
     const address: AddressLookup = (actorId) =>
       actorId === observer.id
         ? {
@@ -97,7 +98,7 @@ async function writeObservations(
             label: "你自己",
             mention: "你",
             appearance: presentation.appearance,
-            knownName: observer.name,
+            known: true,
             isSelf: true,
           }
         : base(actorId);

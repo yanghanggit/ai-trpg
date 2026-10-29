@@ -8,8 +8,8 @@ import type { AgentMemoryMessageState, AgentMemoryState, CommunicationKind } fro
 /**
  * actor 记忆的名字泄漏审计。
  *
- * 只读：不写游戏状态，不调用 LLM。真名来自 `actors.name`，观察者的信念来自
- * `name_knowledge`（观察者 × 形象），记忆来自 actor 的 `agent_memory_messages`。
+ * 只读：不写游戏状态，不调用 LLM。真名来自 `actors.name`，观察者的识别关系来自
+ * `actor_recognitions`（观察者 × 形象），记忆来自 actor 的 `agent_memory_messages`。
  * stage / world 自己的记忆是上帝视角，允许写名字，不在扫描范围。
  *
  * 默认跳过 system prompt：campaignSetting / profile 是内容层设定，可能刻意使用
@@ -41,17 +41,16 @@ export type NameAuditPresentation = {
   actorId: string;
 };
 
-export type NameAuditKnowledge = {
+export type NameAuditRecognition = {
   observerActorId: string;
   presentationId: string;
-  name: string;
 };
 
 export type NameAuditInput = {
   actors: readonly NameAuditActor[];
-  /** 包含已退场的形象；`ever` 模式靠它把旧信念归回 actor。 */
+  /** 包含已退场的形象；`ever` 模式靠它把旧识别关系归回 actor。 */
   presentations: readonly NameAuditPresentation[];
-  knowledge: readonly NameAuditKnowledge[];
+  recognitions: readonly NameAuditRecognition[];
   /** 只消费 `ownerType === "actor"` 的记忆。 */
   memories: readonly AgentMemoryState[];
 };
@@ -63,10 +62,10 @@ export type NameLeakPart = "content" | "tool_calls";
 
 export type NameLeakOptions = {
   /**
-   * `ever`（默认）：观察者曾经知道这个名字就不报，历史记忆不会被误伤。
+   * `ever`（默认）：观察者曾经认得这个 actor 就不报，历史记忆不会被误伤。
    * `currentPresentation`：只认当前形象，适合检查伪装 / 变身后的识别泄漏。
    */
-  beliefScope?: NameLeakScope;
+  recognitionScope?: NameLeakScope;
   /** 跳过的记忆类别；默认跳过 actor system prompt。 */
   skipKinds?: readonly string[];
   /** 只扫这些记忆类别；设置后优先于 `skipKinds`。 */
@@ -88,12 +87,8 @@ export type NameLeak = {
   matchedName: string;
   /** 真名对应的 actor；同名角色会有多个。 */
   subjectActorIds: string[];
-  /** 观察者对第一个未识别主体的当前信念；null 表示没记录过。 */
-  belief: string | null;
   severity: NameLeakSeverity;
   form: NameLeakForm;
-  /** 命中的名字同时是观察者给别人的称呼；可能是合理的同名碰撞。 */
-  ambiguous: boolean;
   /** 沟通观察的事件类型；只有 say / whisper / announce 才有。 */
   communicationKind: CommunicationKind | null;
   /** 命中位置是否落在该沟通观察结构化的 dialogue 字段内。 */
@@ -129,7 +124,7 @@ export type NameLeakReport = {
   checked: {
     actors: number;
     messages: number;
-    knowledgeRows: number;
+    recognitionRows: number;
   };
 };
 
@@ -197,31 +192,23 @@ function excerptOf(text: string, index: number, length: number, radius: number):
 
 type SubjectGroup = {
   name: string;
-  /** 观察者不知道真名的主体；同名角色可能多个。 */
+  /** 观察者不认识的主体；同名角色可能多个。 */
   unknown: NameAuditActor[];
-  belief: string | null;
-  ambiguous: boolean;
 };
 
 function subjectGroups(input: {
   actors: readonly NameAuditActor[];
   observerId: string;
-  beliefs: readonly NameAuditKnowledge[];
-  beliefScope: NameLeakScope;
+  recognitions: readonly NameAuditRecognition[];
+  recognitionScope: NameLeakScope;
   presentationActor: ReadonlyMap<string, string>;
   allowNames: ReadonlySet<string>;
 }): SubjectGroup[] {
-  const beliefByPresentation = new Map<string, string>();
-  for (const row of input.beliefs) {
-    beliefByPresentation.set(row.presentationId, row.name);
-  }
   const known = (subject: NameAuditActor): boolean =>
-    input.beliefs.some(
-      (row) =>
-        row.name === subject.name &&
-        (input.beliefScope === "currentPresentation"
-          ? row.presentationId === subject.currentPresentationId
-          : input.presentationActor.get(row.presentationId) === subject.id),
+    input.recognitions.some((row) =>
+      input.recognitionScope === "currentPresentation"
+        ? row.presentationId === subject.currentPresentationId
+        : input.presentationActor.get(row.presentationId) === subject.id,
     );
 
   const byName = new Map<string, NameAuditActor[]>();
@@ -243,11 +230,6 @@ function subjectGroups(input: {
       return {
         name,
         unknown,
-        belief: unknown[0]
-          ? (beliefByPresentation.get(unknown[0].currentPresentationId) ?? null)
-          : null,
-        // 观察者用这个名字称呼别人：可能只是同名碰撞，报告里单独标记。
-        ambiguous: input.beliefs.some((row) => row.name === name),
       };
     })
     .sort((a, b) => b.name.length - a.name.length);
@@ -268,12 +250,12 @@ function mark(mask: Uint8Array, start: number, length: number): void {
   }
 }
 
-/** 纯函数：给定 actor、信念与记忆，找出所有真名越界与结构告警。 */
+/** 纯函数：给定 actor、识别关系与记忆，找出所有真名越界与结构告警。 */
 export function findNameAudit(
   input: NameAuditInput,
   options: NameLeakOptions = {},
 ): NameAuditResult {
-  const beliefScope = options.beliefScope ?? "ever";
+  const recognitionScope = options.recognitionScope ?? "ever";
   const skipKinds = options.skipKinds ?? DEFAULT_SKIP_KINDS;
   const onlyKinds = options.onlyKinds;
   const allowNames = new Set(options.allowNames ?? []);
@@ -284,11 +266,11 @@ export function findNameAudit(
   const presentationActor = new Map(
     input.presentations.map((presentation) => [presentation.id, presentation.actorId]),
   );
-  const knowledgeByObserver = new Map<string, NameAuditKnowledge[]>();
-  for (const row of input.knowledge) {
-    const rows = knowledgeByObserver.get(row.observerActorId) ?? [];
+  const recognitionsByObserver = new Map<string, NameAuditRecognition[]>();
+  for (const row of input.recognitions) {
+    const rows = recognitionsByObserver.get(row.observerActorId) ?? [];
     rows.push(row);
-    knowledgeByObserver.set(row.observerActorId, rows);
+    recognitionsByObserver.set(row.observerActorId, rows);
   }
   const memoryByOwner = new Map<string, AgentMemoryState>();
   for (const memory of input.memories) {
@@ -310,8 +292,8 @@ export function findNameAudit(
     const groups = subjectGroups({
       actors: input.actors,
       observerId: observer.id,
-      beliefs: knowledgeByObserver.get(observer.id) ?? [],
-      beliefScope,
+      recognitions: recognitionsByObserver.get(observer.id) ?? [],
+      recognitionScope,
       presentationActor,
       allowNames,
     });
@@ -447,10 +429,8 @@ export function findNameAudit(
                   observerName: observer.name,
                   matchedName: group.name,
                   subjectActorIds: group.unknown.map((subject) => subject.id),
-                  belief: group.belief,
                   severity,
                   form: index > 0 && text[index - 1] === "@" ? "reference" : "bare",
-                  ambiguous: group.ambiguous,
                   communicationKind,
                   inDialogue:
                     dialogue !== null &&
@@ -524,7 +504,7 @@ export async function auditGameNameLeaks(
     checked: {
       actors: input.actors.length,
       messages: countMessagesSince(input.memories, options.since),
-      knowledgeRows: input.knowledge.length,
+      recognitionRows: input.recognitions.length,
     },
   };
 }
@@ -562,7 +542,7 @@ export async function auditTurnNameLeaks(
 export function renderNameLeakReport(report: NameLeakReport): string {
   const lines = [
     `# 名字审计 · ${report.gameId}`,
-    `检查 ${report.checked.actors} 个 actor / ${report.checked.messages} 条消息 / ${report.checked.knowledgeRows} 条名字信念`,
+    `检查 ${report.checked.actors} 个 actor / ${report.checked.messages} 条消息 / ${report.checked.recognitionRows} 条识别关系`,
   ];
   if (report.leaks.length === 0 && report.alerts.length === 0) {
     lines.push("", "未发现真名泄漏或结构告警。");
@@ -574,7 +554,7 @@ export function renderNameLeakReport(report: NameLeakReport): string {
       lines.push(
         "",
         `[${leak.severity}] ${leak.observerName} · #${leak.messageSequence} ${leak.messageKind ?? leak.messageType}${leak.part === "tool_calls" ? "（toolCalls）" : ""}${leak.communicationKind ? ` · ${leak.communicationKind}` : ""}${leak.inDialogue ? " · 台词内" : ""}`,
-        `真名「${leak.matchedName}」${leak.form === "reference" ? "（@引用）" : ""}${leak.ambiguous ? "（疑似同名信念）" : ""}`,
+        `真名「${leak.matchedName}」${leak.form === "reference" ? "（@引用）" : ""}`,
         `  ${leak.excerpt}`,
       );
     }

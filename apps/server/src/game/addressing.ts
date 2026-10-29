@@ -3,17 +3,19 @@ import type { ActorState, GameState, StageState } from "./types";
 /**
  * 观察者相对的引用（address）。
  *
- * 名字是知识、不是地址：同一个 actor 在不同观察者眼里有不同的称呼，没被告知姓名时只剩
- * 外观。引用只有两种写法：
+ * 名字是真名，只有一种；知道与不知道是二元的：
  *
- * - `@名字`：你知道他是谁；
- * - `#12`：你还不知道他叫什么，只能靠外观辨认。
+ * - `@真名`：你认得这具形象，知道他是谁；
+ * - `#12`：你还不认得他，只能靠编号与外观辨认。
+ *
+ * 没有“知道一个别名”的中间态。称号、关系称谓（父王、守钟的）属于设定与台词，
+ * 不是地址，也不进入名单与工具参数。
  *
  * 两者都是系统标记，不得出现在台词里。
  */
 
 export type Address = {
-  /** 引用写法：`@名字` 或 `#12`；找不到主体时为空串。 */
+  /** 引用写法：`@真名` 或 `#12`；找不到主体时为空串。 */
   token: string;
   /** 名单写法：`名字（外观）` / `外观：…`。 */
   label: string;
@@ -21,8 +23,8 @@ export type Address = {
   mention: string;
   /** 当前形象的外观；句子不内联它，需要时由 `appearanceLine` 单独成行。 */
   appearance: string;
-  /** 观察者相信的名字；未知为 null。 */
-  knownName: string | null;
+  /** 是否认得这具形象；认得即知道真名。 */
+  known: boolean;
   /** 是否为观察者自己。 */
   isSelf: boolean;
 };
@@ -30,9 +32,11 @@ export type Address = {
 /** 按 actorId 取该观察者视角下的引用。 */
 export type AddressLookup = (actorId: string) => Address;
 
-/** 构建引用所需的最小主体数据：身份、当前形象与可见外观。 */
+/** 构建引用所需的最小主体数据：身份、真名、当前形象与可见外观。 */
 export type AddressSubject = {
   actorId: string;
+  /** 真名；认得这具形象时，引用只能用它。 */
+  name: string;
   presentationId: string;
   presentationSeq: number;
   appearance: string;
@@ -46,7 +50,7 @@ export function handleOf(presentationSeq: number): string {
   return `#${presentationSeq}`;
 }
 
-/** 匿名编号的形状；台词里出现它说明模型把引用当成了称呼。 */
+/** 匿名编号的形状；台词里出现它说明模型把引用当成了名字。 */
 export const HANDLE_PATTERN = /#\d+/;
 
 /** 名字引用的形状：`@名字`，在空白与标点处截断。 */
@@ -57,12 +61,16 @@ export function stripNameRef(ref: string): string {
   return ref.startsWith("@") ? ref.slice(1) : ref;
 }
 
-/** 名单里的引用：`@某甲（外观）` / `#12 外观：…`。 */
+/**
+ * 名单与工具结果的展示写法：`@真名（外观）` / `#12 外观：…`。
+ *
+ * 只用于阅读，不是 token：可直接提交的地址永远是 `address.token`。
+ */
 export function refOf(address: Address): string {
   if (address.token.length === 0) {
     return address.label;
   }
-  return address.knownName === null ? `${address.token} ${address.label}` : `@${address.label}`;
+  return address.known ? `@${address.label}` : `${address.token} ${address.label}`;
 }
 
 /** 句子里的引用。 */
@@ -72,7 +80,7 @@ export function mentionOf(address: Address): string {
 
 /** 未知名字时补充的外观行：`#12 外观：…`；已知名字返回 null。 */
 export function appearanceLine(address: Address): string | null {
-  if (address.knownName !== null || address.appearance.length === 0) {
+  if (address.known || address.appearance.length === 0) {
     return null;
   }
   return `${address.token} 外观：${address.appearance}`;
@@ -84,12 +92,12 @@ export function actionRef(address: Address): string {
 }
 
 /**
- * 用「观察者已知的名字」+「主体当前形象」拼出引用。
+ * 用「是否认得这具形象」+「主体真名」拼出引用。
  *
- * 名字只按形象 id 查：换了形象就等于换了对象，旧名字不会自动跟过去。
+ * 认得就一定是真名，不认得就一定是编号；调用方没有机会塞进第三种叫法。
  */
 export function makeAddressLookup(
-  knownNames: ReadonlyMap<string, string>,
+  recognized: ReadonlySet<string>,
   subjects: ReadonlyMap<string, AddressSubject>,
 ): AddressLookup {
   return (actorId) => {
@@ -100,21 +108,18 @@ export function makeAddressLookup(
         label: UNKNOWN_LABEL,
         mention: UNKNOWN_LABEL,
         appearance: "",
-        knownName: null,
+        known: false,
         isSelf: false,
       };
     }
-    const knownName = knownNames.get(subject.presentationId) ?? null;
-    const token = knownName === null ? handleOf(subject.presentationSeq) : `@${knownName}`;
+    const known = recognized.has(subject.presentationId);
+    const token = known ? `@${subject.name}` : handleOf(subject.presentationSeq);
     return {
       token,
-      label:
-        knownName === null
-          ? `外观：${subject.appearance}`
-          : `${knownName}（${subject.appearance}）`,
+      label: known ? `${subject.name}（${subject.appearance}）` : `外观：${subject.appearance}`,
       mention: token,
       appearance: subject.appearance,
-      knownName,
+      known,
       isSelf: false,
     };
   };
@@ -127,6 +132,7 @@ export function subjectsOf(stage: StageState): Map<string, AddressSubject> {
       actor.id,
       {
         actorId: actor.id,
+        name: actor.name,
         presentationId: actor.presentation.id,
         presentationSeq: actor.presentation.seq,
         appearance: actor.appearance,
@@ -135,27 +141,31 @@ export function subjectsOf(stage: StageState): Map<string, AddressSubject> {
   );
 }
 
-function knownNamesOf(state: GameState, observerActorId: string): Map<string, string> {
-  const names = new Map<string, string>();
-  for (const row of state.knowledge) {
+/** 观察者认得哪些形象；认识与否只按形象 id 判断，不存称呼。 */
+function recognizedPresentationsOf(state: GameState, observerActorId: string): Set<string> {
+  const recognized = new Set<string>();
+  for (const row of state.recognitions) {
     if (row.observerActorId === observerActorId) {
-      names.set(row.presentationId, row.name);
+      recognized.add(row.presentationId);
     }
   }
-  return names;
+  return recognized;
 }
 
 /**
  * actor 视角的引用表：主体取本场景的全部角色。
  *
- * 自己的引用固定为「你」，名字是自己的知识，不占用名字表。
+ * 自己的引用固定为「你」，名字是自己的真名，不占用识别表。
  */
 export function addressLookupFor(
   state: GameState,
   observer: ActorState,
   stage: StageState,
 ): AddressLookup {
-  const lookup = makeAddressLookup(knownNamesOf(state, observer.id), subjectsOf(stage));
+  const lookup = makeAddressLookup(
+    recognizedPresentationsOf(state, observer.id),
+    subjectsOf(stage),
+  );
   return (actorId) => {
     if (actorId === observer.id) {
       return {
@@ -163,7 +173,7 @@ export function addressLookupFor(
         label: "你自己",
         mention: "你",
         appearance: observer.appearance,
-        knownName: observer.name,
+        known: true,
         isSelf: true,
       };
     }

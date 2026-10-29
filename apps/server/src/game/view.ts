@@ -5,7 +5,7 @@ import { MEMORY_KINDS } from "./constants";
 import { getMemoryState } from "./memory";
 import { getGameState } from "./service";
 import { teleportTargetsFor } from "./teleport";
-import type { NameKnowledgeState } from "./types";
+import type { RecognitionState } from "./types";
 
 /**
  * 客户端用的「世界面」投影。
@@ -20,9 +20,10 @@ export type ViewerAddress = {
   presentationId: string;
   /** 引用，例如 `#3`；客户端可以直接拿它提交行动。 */
   token: string;
-  /** 观察者视角下的称呼：`名字（此刻的样子）` 或只有外观。 */
+  /** 观察者视角下的名单写法：`真名（此刻的样子）` 或只有外观。 */
   label: string;
-  knownName: string | null;
+  /** 是否认得这具形象；认得即知道真名。 */
+  known: boolean;
   self: boolean;
   alive: boolean;
 };
@@ -54,13 +55,13 @@ export type ActorView = {
   viewer: {
     actorId: string;
     presentationId: string;
-    /** 自己的本名；自知不查称呼表。 */
+    /** 自己的本名；自知不查识别表。 */
     name: string;
     appearance: string;
   };
   scene: ViewerScene | null;
-  /** 这个观察者已经知道的名字；其它观察者的信念不出现。 */
-  knowledge: NameKnowledgeState[];
+  /** 这个观察者认得的形象；其它观察者的识别关系不出现。 */
+  recognitions: RecognitionState[];
   /** 这个角色实际感知到的记忆，按发生顺序。 */
   log: ViewerLogEntry[];
   /** 去过的场景（地图/记忆用）；不表示现在可传送。 */
@@ -106,7 +107,7 @@ export async function getActorView(
       presentationId: candidate.presentation.id,
       token: entry.token,
       label: entry.label,
-      knownName: entry.knownName,
+      known: entry.known,
       self: candidate.id === actor.id,
       alive: candidate.hp > 0,
     };
@@ -171,7 +172,7 @@ export async function getActorView(
         name: exit.name,
       })),
     },
-    knowledge: state.knowledge.filter((row) => row.observerActorId === actor.id),
+    recognitions: state.recognitions.filter((row) => row.observerActorId === actor.id),
     log,
     visitedStages,
     teleportTargets,

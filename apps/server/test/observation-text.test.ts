@@ -26,7 +26,7 @@ const ADDRESS: AddressLookup = (actorId) => {
       label: "守烬人（披着旧斗篷。）",
       mention: "@守烬人",
       appearance: "披着旧斗篷。",
-      knownName: "@守烬人",
+      known: true,
       isSelf: false,
     };
   }
@@ -36,7 +36,7 @@ const ADDRESS: AddressLookup = (actorId) => {
       label: "提灯修士（灰袍下摆浸着泥水。）",
       mention: "@提灯修士",
       appearance: "灰袍下摆浸着泥水。",
-      knownName: "@提灯修士",
+      known: true,
       isSelf: false,
     };
   }
@@ -45,7 +45,7 @@ const ADDRESS: AddressLookup = (actorId) => {
     label: "某个不在场者",
     mention: "某个不在场者",
     appearance: "",
-    knownName: null,
+    known: false,
     isSelf: false,
   };
 };
@@ -98,7 +98,7 @@ const UNKNOWN_ATTACKER: AddressLookup = (actorId) =>
         label: "外观：披着旧斗篷。",
         mention: "#1",
         appearance: "披着旧斗篷。",
-        knownName: null,
+        known: false,
         isSelf: false,
       }
     : {
@@ -106,12 +106,12 @@ const UNKNOWN_ATTACKER: AddressLookup = (actorId) =>
         label: "提灯修士（灰袍下摆浸着泥水。）",
         mention: "@提灯修士",
         appearance: "灰袍下摆浸着泥水。",
-        knownName: "@提灯修士",
+        known: true,
         isSelf: false,
       };
 
 describe("damage observations", () => {
-  it("未知名字时不把外观当称呼，外观另起一行", () => {
+  it("未知名字时不把外观当名字，外观另起一行", () => {
     const content = renderDamageRaw(STAGE, damage(), "actor-3", UNKNOWN_ATTACKER).content;
     expect(content).toBe("# 战斗\n#1对@提灯修士挥击，造成3点伤害。\n\n#1 外观：披着旧斗篷。");
     expect(content.split("\n")[1]).not.toContain("披着旧斗篷");

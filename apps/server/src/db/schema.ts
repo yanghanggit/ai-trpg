@@ -250,13 +250,13 @@ export const actorPresentations = pgTable(
 );
 
 /**
- * 名字信念：观察者相信某个形象叫什么。
+ * 识别关系：观察者是否认得某个形象。
  *
  * 键是「观察者 × 形象」而不是「观察者 × actor」：伪装 / 变身会换形象，认识旧形象的人
- * 不会自动认出新形象。`name` 是信念而不是真名（可以是假名、误认），引擎不校验。
+ * 不会自动认出新形象。认得即知道对象的真名，不存称呼。
  */
-export const nameKnowledge = pgTable(
-  "name_knowledge",
+export const actorRecognitions = pgTable(
+  "actor_recognitions",
   {
     id: uuid("id").primaryKey(),
     gameId: uuid("game_id")
@@ -268,7 +268,6 @@ export const nameKnowledge = pgTable(
     presentationId: uuid("presentation_id")
       .notNull()
       .references(() => actorPresentations.id, { onDelete: "cascade" }),
-    name: text("name").notNull(),
     /** `content`：开局既知；`self`：角色自己在回合里记下的。 */
     source: text("source").notNull().default("self"),
     /** 在哪里得知的；只用于审计。 */
@@ -279,11 +278,11 @@ export const nameKnowledge = pgTable(
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (table) => [
-    uniqueIndex("name_knowledge_observer_presentation_unique").on(
+    uniqueIndex("actor_recognitions_observer_presentation_unique").on(
       table.observerActorId,
       table.presentationId,
     ),
-    index("name_knowledge_game_observer_idx").on(table.gameId, table.observerActorId),
+    index("actor_recognitions_game_observer_idx").on(table.gameId, table.observerActorId),
   ],
 );
 
@@ -533,7 +532,7 @@ export const schema = {
   actors,
   stageVisits,
   actorPresentations,
-  nameKnowledge,
+  actorRecognitions,
   items,
   stageItems,
   gameMessages,

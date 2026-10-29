@@ -48,7 +48,7 @@ import {
   playerGive,
   playerMove,
   playerPickup,
-  playerRememberIdentity,
+  playerRecognizeIdentity,
   playerSay,
   playerSteal,
   playerStrike,
@@ -191,7 +191,7 @@ function usage(): void {
       "agent-game player-use --game <gameId|slug> --actor <actorId|actorName> --item <itemName> (--target <actorName> | --stage <stageName>) [--anchor <label>]",
       "agent-game player-equip --game <gameId|slug> --actor <actorId|actorName> --slot <slot> --item <itemName>",
       "agent-game player-unequip --game <gameId|slug> --actor <actorId|actorName> --slot <slot>",
-      "agent-game player-remember-identity --game <gameId|slug> --actor <actorId|actorName> --target <actorName> --as <name>（只改自己的记忆，不占行动）",
+      "agent-game player-recognize-identity --game <gameId|slug> --actor <actorId|actorName> --target <actorName> --as <name>（只改自己的记忆，不占行动）",
       "agent-game appearance --game <gameId|slug> (--actor <actorId|actorName> | --all)",
       "agent-game deaths --game <gameId|slug>（对每个 hp 归零且未收尾的 actor 跑一次死亡阶段）",
       "agent-game name-leaks --game <gameId|slug> [--scope ever|current] [--include-system] [--allow <name1,name2>] [--since <ISO>] [--text]（只读扫描 actor 记忆中的真名泄漏）",
@@ -609,15 +609,15 @@ async function main(): Promise<void> {
     return;
   }
 
-  if (command === "player-remember-identity") {
+  if (command === "player-recognize-identity") {
     const { game, actor } = requireActorArgs(values, command);
     const target = typeof values.target === "string" ? values.target.trim() : "";
     const name = typeof values.as === "string" ? values.as.trim() : "";
     if (target.length === 0 || name.length === 0) {
-      throw new Error("player-remember-identity 需要 --target <actorName> 与 --as <name>");
+      throw new Error("player-recognize-identity 需要 --target <actorName> 与 --as <name>");
     }
     const result = await withDatabase((db) =>
-      playerRememberIdentity(db, game, actor, { targetActorRef: target, name }),
+      playerRecognizeIdentity(db, game, actor, { targetActorRef: target, name }),
     );
     emitTurn(command, result);
     return;
@@ -679,7 +679,7 @@ async function main(): Promise<void> {
     }
     const report = await withDatabase((db) =>
       auditGameNameLeaks(db, values.game as string, {
-        beliefScope: scopeValue === "ever" ? "ever" : "currentPresentation",
+        recognitionScope: scopeValue === "ever" ? "ever" : "currentPresentation",
         ...(values["include-system"] === true ? { skipKinds: [] } : {}),
         ...(allowNames.length > 0 ? { allowNames } : {}),
         ...(since === undefined ? {} : { since }),

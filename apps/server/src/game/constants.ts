@@ -6,7 +6,7 @@
  */
 export const MAX_ACTIONS_PER_TURN = 1;
 
-/** 角色能记住的称呼长度上限。 */
+/** 角色能记住的真名长度上限。 */
 export const MAX_IDENTITY_NAME_LENGTH = 24;
 
 /** 一轮 stage 最多向 world 发出的通知条数。 */

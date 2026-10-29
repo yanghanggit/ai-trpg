@@ -63,7 +63,7 @@ const SUBJECT = { id: "b", name: "奥德里克", currentPresentationId: "pb" };
 
 function baseInput(
   messages: AgentMemoryMessageState[],
-  knowledge: NameAuditInput["knowledge"] = [],
+  recognitions: NameAuditInput["recognitions"] = [],
 ): NameAuditInput {
   return {
     actors: [OBSERVER, SUBJECT],
@@ -71,7 +71,7 @@ function baseInput(
       { id: "pa", actorId: "a" },
       { id: "pb", actorId: "b" },
     ],
-    knowledge,
+    recognitions,
     memories: [memory("a", "煤渣", messages)],
   };
 }
@@ -106,7 +106,7 @@ describe("name audit", () => {
     const leaks = findNameLeaks(
       baseInput(
         [message("你看见奥德里克站在门口。")],
-        [{ observerActorId: "a", presentationId: "pb", name: "奥德里克" }],
+        [{ observerActorId: "a", presentationId: "pb" }],
       ),
     );
     expect(leaks).toEqual([]);
@@ -151,39 +151,29 @@ describe("name audit", () => {
         { id: "pb-old", actorId: "b" },
         { id: "pb-new", actorId: "b" },
       ],
-      knowledge: [{ observerActorId: "a", presentationId: "pb-old", name: "奥德里克" }],
+      recognitions: [{ observerActorId: "a", presentationId: "pb-old" }],
       memories: [memory("a", "煤渣", [message("你想起奥德里克。")])],
     };
     expect(findNameLeaks(input)).toEqual([]);
-    expect(findNameLeaks(input, { beliefScope: "currentPresentation" })[0]).toMatchObject({
+    expect(findNameLeaks(input, { recognitionScope: "currentPresentation" })[0]).toMatchObject({
       matchedName: "奥德里克",
     });
   });
 
-  it("marks a name that is also the observer's belief for someone else", () => {
+  it("does not report a name the observer already recognizes", () => {
     const input: NameAuditInput = {
       actors: [
         { id: "a", name: "甲", currentPresentationId: "pa" },
         { id: "b", name: "乙", currentPresentationId: "pb" },
-        { id: "c", name: "丙", currentPresentationId: "pc" },
       ],
       presentations: [
         { id: "pa", actorId: "a" },
         { id: "pb", actorId: "b" },
-        { id: "pc", actorId: "c" },
       ],
-      // 甲把乙称作「丙」，而「丙」正好是第三个 actor 的真名。
-      knowledge: [{ observerActorId: "a", presentationId: "pb", name: "丙" }],
-      memories: [memory("a", "甲", [message("丙走了过来。")])],
+      recognitions: [{ observerActorId: "a", presentationId: "pb" }],
+      memories: [memory("a", "甲", [message("乙走了过来。")])],
     };
-    const leaks = findNameLeaks(input);
-    expect(leaks).toHaveLength(1);
-    expect(leaks[0]).toMatchObject({
-      matchedName: "丙",
-      subjectActorIds: ["c"],
-      belief: null,
-      ambiguous: true,
-    });
+    expect(findNameLeaks(input)).toEqual([]);
   });
 
   it("scans toolCalls and marks them medium severity", () => {
@@ -344,7 +334,7 @@ describe("name audit", () => {
       gameId: "demo",
       leaks,
       alerts: [],
-      checked: { actors: 2, messages: 1, knowledgeRows: 0 },
+      checked: { actors: 2, messages: 1, recognitionRows: 0 },
     });
     expect(text).toContain("名字审计");
     expect(text).toContain("奥德里克");
@@ -452,13 +442,10 @@ describe.skipIf(!testDatabaseUrl)("name audit (database)", () => {
   it("includes content-layer settings when skipKinds is empty", async () => {
     const created = await createMonasteryGame("名字审计内容层测试局");
     const report = await auditGameNameLeaks(handle.db, created.game.slug, { skipKinds: [] });
-    // 坏运气的 profile 写「鼠王」，但它的信念是「父王」；这是内容层的已知错配。
+    // 坏运气认得鼠王，因此 profile 里出现「鼠王」不算越界。
     expect(
-      report.leaks.some(
-        (leak) =>
-          leak.observerName === "坏运气" && leak.matchedName === "鼠王" && leak.severity === "low",
-      ),
-    ).toBe(true);
+      report.leaks.some((leak) => leak.observerName === "坏运气" && leak.matchedName === "鼠王"),
+    ).toBe(false);
     expect(
       report.leaks.some(
         (leak) => leak.observerName === "坏运气" && leak.matchedName === "奥德里克",

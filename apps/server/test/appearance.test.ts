@@ -7,7 +7,7 @@ import "../src/db/env";
 import { type DatabaseHandle, openDatabase } from "../src/db/connect";
 import { resetDomainData, seedDemoData } from "../src/db/maintenance";
 import { runMigrations } from "../src/db/migrate";
-import { nameKnowledge } from "../src/db/schema";
+import { actorRecognitions } from "../src/db/schema";
 import {
   createGame,
   getGameMemories,
@@ -167,12 +167,12 @@ describe.skipIf(!testDatabaseUrl)("appearance fusion", () => {
 
     // 煤渣没被介绍过奥德里克：广播只能出现编号与新外观，不能漏出真名。
     await handle.db
-      .delete(nameKnowledge)
+      .delete(actorRecognitions)
       .where(
         and(
-          eq(nameKnowledge.gameId, created.game.id),
-          eq(nameKnowledge.observerActorId, cinder.id),
-          eq(nameKnowledge.presentationId, odric.presentation.id),
+          eq(actorRecognitions.gameId, created.game.id),
+          eq(actorRecognitions.observerActorId, cinder.id),
+          eq(actorRecognitions.presentationId, odric.presentation.id),
         ),
       );
 

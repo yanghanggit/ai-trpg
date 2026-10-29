@@ -49,7 +49,7 @@ import {
   buildActorLookTool,
   buildKnowledgeTool,
   buildObserveActorTool,
-  buildRememberIdentityTool,
+  buildRecognizeIdentityTool,
   buildSelfInfoTool,
   buildSubmitPlanTool,
   describeEquipmentBrief,
@@ -58,7 +58,7 @@ import {
   describeSelf,
   describeStageAnchors,
   describeStageForActor,
-  parseRememberIdentity,
+  parseRecognizeIdentity,
   renderStageEnvironmentForActor,
 } from "./plan";
 import { getGameState } from "./service";
@@ -112,7 +112,7 @@ export function buildActorTurnInput(state: GameState, current: ActorWithStage): 
     "get_self",
     ...(canObserve ? ["observe_actor"] : []),
     "query",
-    "remember_identity",
+    "recognize_identity",
   ].join("、")} 不占计划。look_stage 只能看本场景。`;
   const actorLines =
     others.length === 0
@@ -141,13 +141,13 @@ export function buildActorTurnInput(state: GameState, current: ActorWithStage): 
       : teleportTargets.map((stage) => `@${stage.name}`).join("、");
   const knowledgeHint =
     "当问题涉及任何进入该世界的人都可能观察、询问或从公开记载中得知的固定事实，而当前场景与记忆无法直接确认时，必须先调用 query 检索，再回答或行动；不要用常识补全，也不要把检索结果当成亲眼所见。query 只读、不占行动，不提供角色秘密或当前状态。";
-  // 只有名单里还有 `#编号` 时才提醒记名字：此时 remember_identity 才有对象可记。
+  // 只有名单里还有 `#编号` 时才提醒记名字：此时 recognize_identity 才有对象可记。
   const unknownTargets = targets.filter((token) => token.startsWith("#"));
   const identityHint =
-    "`@名字` 与 `#编号` 都可作为行动对象，但都不能说出口，也不能从 `#编号` 推断姓名。名字只有在世界内被告知后才算知道。use 的 targetAnchor 只能从当前场景的「可交互锚点」里选，不能自己写位置描述。" +
+    "`@真名` 与 `#编号` 都可作为行动对象，但都不能说出口，也不能从 `#编号` 推断姓名。真名只有在世界内被告知后才算知道；称号与亲属称谓不是引用。use 的 targetAnchor 只能从当前场景的「可交互锚点」里选，不能自己写位置描述。" +
     (unknownTargets.length === 0
       ? ""
-      : "名单里还有 `#编号`：如果你已经从对话或记载中知道其中某人的名字，用 remember_identity 记下（不占行动名额）。");
+      : "名单里还有 `#编号`：如果你已经从对话或记载中得知其中某人的真名，用 recognize_identity 记下（必须写对真名，不占行动名额）。");
 
   return `# 当前环境
 
@@ -257,8 +257,10 @@ export async function runNpcTurn(
   const observeTool = canObserveActorItems(current.actor)
     ? buildObserveActorTool(targets)
     : undefined;
-  // 只能给「还不知道名字」的角色记称呼：已经知道的引用不需要再记。
-  const rememberTool = buildRememberIdentityTool(targets.filter((token) => token.startsWith("#")));
+  // 只能给「还不认得」的角色记识别：已经认得的引用不需要再记。
+  const recognizeTool = buildRecognizeIdentityTool(
+    targets.filter((token) => token.startsWith("#")),
+  );
   const submitTool = buildSubmitPlanTool();
 
   /** 十二个动作的工具与参数解析器；按 kind 平铺，按权限过滤后使用。 */
@@ -325,12 +327,12 @@ export async function runNpcTurn(
 
   const addIdentity = (args: Record<string, unknown>) => {
     ensureOpen();
-    const binding = parseRememberIdentity(args);
+    const binding = parseRecognizeIdentity(args);
     // 同一个编号重复记时后一次覆盖前一次：既不重复写记忆，也不用额外条数上限。
     const known = identities.find((existing) => existing.handle === binding.handle);
     if (known) {
       known.name = binding.name;
-      return `${binding.handle} 的称呼已更新`;
+      return `${binding.handle} 的识别已更新`;
     }
     identities.push(binding);
     return "名字已加入计划";
@@ -345,7 +347,7 @@ export async function runNpcTurn(
       selfTool,
       ...(observeTool ? [observeTool] : []),
       knowledgeTool,
-      rememberTool,
+      recognizeTool,
       ...allowed.map((kind) => actionTools[kind]),
       submitTool,
     ],
@@ -389,7 +391,7 @@ export async function runNpcTurn(
         return describeKnowledgeResults(keywords, results);
       },
       ...actionHandlers,
-      [rememberTool.function.name]: (args) => addIdentity(args),
+      [recognizeTool.function.name]: (args) => addIdentity(args),
       [submitTool.function.name]: () => {
         if (actions.length === 0 && identities.length === 0) {
           throw new GameError("invalid_action", "计划中没有行动");

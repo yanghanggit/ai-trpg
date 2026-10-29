@@ -17,6 +17,33 @@ const stageActionSchema = z.enum([
   "open_passage",
 ] satisfies readonly StageActionKind[]);
 const worldActionSchema = z.enum(["notify_stage", "end_game"] satisfies readonly WorldActionKind[]);
+/**
+ * 识别关系只声明「谁认得谁」；旧内容里的 `name` 必须显式删掉，
+ * 不能静默降级成“认得”，否则别名会被当成真名知识。
+ */
+const knownIdentitySchema = z
+  .object({
+    observer: z.string().min(1),
+    subject: z.string().min(1),
+  })
+  .passthrough()
+  .superRefine((value, ctx) => {
+    for (const key of Object.keys(value)) {
+      if (key === "observer" || key === "subject") {
+        continue;
+      }
+      ctx.addIssue({
+        code: "custom",
+        message:
+          key === "name"
+            ? "knownIdentities 不再接受 name：只写 observer 与 subject，认得即知道真名"
+            : `knownIdentities 不接受字段: ${key}`,
+        path: [key],
+      });
+    }
+  })
+  .transform(({ observer, subject }) => ({ observer, subject }));
+
 const itemKindSchema = z.enum([
   "weapon",
   "equipment",
@@ -138,15 +165,7 @@ const worldSchema = z
       }),
     ),
     actors: z.array(actorSchema),
-    knownIdentities: z
-      .array(
-        z.object({
-          observer: z.string().min(1),
-          subject: z.string().min(1),
-          name: z.string().min(1),
-        }),
-      )
-      .optional(),
+    knownIdentities: z.array(knownIdentitySchema).optional(),
     actions: z.array(worldActionSchema),
   })
   .superRefine((value, ctx) => {

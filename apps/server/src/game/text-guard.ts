@@ -146,7 +146,7 @@ export function sanitizeActorFacingText(
 
   // 本场角色怎么出现在句子里的：`@名字`，或 `#12` + 独立的外观行。
   const shown = (entry: (typeof entries)[number]): string => {
-    if (entry.resolved.knownName !== null) {
+    if (entry.resolved.known) {
       return entry.resolved.mention;
     }
     const line = appearanceLine(entry.resolved);

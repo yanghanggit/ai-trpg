@@ -28,10 +28,10 @@ import { runAffixEffect } from "../item-effects/affix-agent";
 import type { AffixRequest } from "../item-effects/types";
 import { appendMemoryMessages, loadAgentMemory } from "../memory";
 import { auditTurnNameLeaks, nameAuditEnabled, nameAuditSince } from "../name-audit";
-import { listKnowledgeForObserver, upsertKnowledge } from "../persistence/knowledge";
+import { upsertRecognition } from "../persistence/recognitions";
 import { sanitizeActorFacingText } from "../text-guard";
 import type { ActorPlan, CommunicationKind, DeathPhaseResult, IdentityWarning } from "../types";
-import { isAlive, listActorNamesInWorld, listStageActorRefs, stageAddressLookup } from "./queries";
+import { isAlive, listStageActorRefs, stageAddressLookup } from "./queries";
 
 export * from "./queries";
 
@@ -306,58 +306,26 @@ export async function applyActorPlan(
     }
 
     // 认知更新：只写自己的记忆，不产生公共事件；与动作同事务，失败整份丢弃。
-    const identityWarnings: IdentityWarning[] = [];
-    if (resolved.identities.length > 0) {
-      const existing = await listKnowledgeForObserver(tx, gameId, actorRow.actor.id);
-      const worldActors = await listActorNamesInWorld(tx, world.id);
-      const beliefOwners = new Map(existing.map((row) => [row.name, row.presentationId]));
-      for (const identity of resolved.identities) {
-        if (identity.stageId !== actorRow.stage.id) {
-          identityWarnings.push({
-            code: "unseen_handle",
-            handle: identity.handle,
-            name: identity.name,
-            subjectActorId: identity.actorId,
-            detail: "记名字时，对方不在你所在的场景",
-          });
-        }
-        const owner = beliefOwners.get(identity.name);
-        if (owner !== undefined && owner !== identity.presentationId) {
-          identityWarnings.push({
-            code: "name_collision",
-            handle: identity.handle,
-            name: identity.name,
-            subjectActorId: identity.actorId,
-            detail: "你已经用同样的称呼记过另一个形象",
-          });
-        }
-        const clashesWithTrueName = worldActors.some(
-          (candidate) => candidate.id !== identity.actorId && candidate.name === identity.name,
-        );
-        if (clashesWithTrueName) {
-          identityWarnings.push({
-            code: "name_collision",
-            handle: identity.handle,
-            name: identity.name,
-            subjectActorId: identity.actorId,
-            detail: "这个称呼与另一个角色的本名相同",
-          });
-        }
-        beliefOwners.set(identity.name, identity.presentationId);
-      }
-      for (const warning of identityWarnings) {
-        options.logger?.warn("名字认知警告", warning);
-      }
+    const identityWarnings: IdentityWarning[] = resolved.identities
+      .filter((identity) => identity.stageId !== actorRow.stage.id)
+      .map((identity) => ({
+        code: "unseen_handle",
+        handle: identity.handle,
+        name: identity.name,
+        subjectActorId: identity.actorId,
+        detail: "认出对方时，对方不在你所在的场景",
+      }));
+    for (const warning of identityWarnings) {
+      options.logger?.warn("认知更新警告", warning);
     }
 
     for (const identity of resolved.identities) {
-      await upsertKnowledge(
+      await upsertRecognition(
         tx,
         {
           gameId,
           observerActorId: actorRow.actor.id,
           presentationId: identity.presentationId,
-          name: identity.name,
           source: "self",
           learnedStageId: actorRow.stage.id,
         },
@@ -366,7 +334,7 @@ export async function applyActorPlan(
       await appendMemoryMessages(tx, memory.row.id, [
         {
           type: "human",
-          content: `# 认知\n你把 ${identity.handle} 记作「${identity.name}」。`,
+          content: `# 认知\n你认出了 ${identity.handle} 是「${identity.name}」。`,
           metadata: { kind: MEMORY_KINDS.identityUpdate },
         },
       ]);

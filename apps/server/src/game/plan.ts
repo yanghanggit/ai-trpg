@@ -436,20 +436,20 @@ export function buildActorLookTool(stageName: string): ToolDefinition {
 }
 
 /**
- * 记录一个名字信念。
+ * 记录一次识别。
  *
- * 引擎不做名字抽取：只有角色自己判断「我已经从世界内信息得知他叫什么」之后才调用。
+ * 引擎不做名字抽取：只有角色自己判断「我已经知道他是谁」之后才调用；名字必须是真名。
  * 它只改自己的记忆，不产生公共事件，也不占行动名额。
  */
-export function buildRememberIdentityTool(handles: readonly string[]): ToolDefinition {
+export function buildRecognizeIdentityTool(handles: readonly string[]): ToolDefinition {
   return {
     type: "function",
     function: {
-      name: "remember_identity",
-      description: `把「某个编号」记成你相信的名字或称呼。
+      name: "recognize_identity",
+      description: `记下「你已经知道某个编号是谁」。
 
-只在你已经从世界内信息得知时使用：对方自报、别人介绍、或者你从可见的记载里读到。不要用它猜名字，也不要把 # 编号当成名字。
-记错、被骗、改口都可以重记，后一次覆盖前一次。一轮里可以记多个名字；它只写进你自己的记忆——别人不会知道，场景也不会变，也不占行动名额。`,
+只在你已经从世界内信息得知对方真名时使用：对方自报、别人介绍、或者你从可见的记载里读到。name 必须正好是对方的真名；写错会被拒绝，不会记成别名。
+一轮里可以记多个；它只写进你自己的记忆——别人不会知道，场景也不会变，也不占行动名额。`,
       parameters: {
         type: "object",
         properties: {
@@ -460,7 +460,7 @@ export function buildRememberIdentityTool(handles: readonly string[]): ToolDefin
           },
           name: {
             type: "string",
-            description: `你相信对方叫什么；控制在 ${MAX_IDENTITY_NAME_LENGTH} 字以内`,
+            description: `对方的真名；控制在 ${MAX_IDENTITY_NAME_LENGTH} 字以内`,
           },
         },
         required: ["handle", "name"],
@@ -469,7 +469,7 @@ export function buildRememberIdentityTool(handles: readonly string[]): ToolDefin
   };
 }
 
-/** 称呼本身不依赖寻址方式；模型与玩家入口共用同一套长度与格式校验。 */
+/** 真名不依赖寻址方式；模型与玩家入口共用同一套长度与格式校验。 */
 export function parseIdentityName(raw: unknown): string {
   const name = typeof raw === "string" ? raw.trim() : "";
   if (name.length === 0) {
@@ -484,7 +484,7 @@ export function parseIdentityName(raw: unknown): string {
   return name;
 }
 
-export function parseRememberIdentity(args: Record<string, unknown>): {
+export function parseRecognizeIdentity(args: Record<string, unknown>): {
   handle: string;
   name: string;
 } {

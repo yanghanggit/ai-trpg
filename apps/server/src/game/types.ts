@@ -63,21 +63,20 @@ export type World = {
   stages: readonly Stage[];
   connections: readonly Connection[];
   actors: readonly Actor[];
-  /** 开局既知的名字：观察者与对象都用 `Actor.key` 引用，不用展示名。 */
+  /** 开局时就已认识的角色：观察者与对象都用 `Actor.key` 引用；认识即知道真名。 */
   knownIdentities?: readonly KnownIdentity[];
   /** 世界实体可用的动作；必须显式列出。 */
   actions: readonly WorldActionKind[];
 };
 
 /**
- * 开局时就已建立的名字信念。
+ * 开局时就已建立的识别关系。
  *
- * `name` 是观察者使用的称呼，不要求等于对象的展示名（可以只是“父王”这种身份）。
+ * 只声明「认识」：认得这具形象就等于知道对方的真名，不声明称呼。
  */
 export type KnownIdentity = {
   observer: string;
   subject: string;
-  name: string;
 };
 
 /**
@@ -341,6 +340,7 @@ export type StageActionKind = StageAction["kind"];
 /** 把某个引用记成自己相信的名字；只改自己的记忆。 */
 export type IdentityBinding = {
   handle: string;
+  /** 必须是对象的真名；引擎按真名校验，不允许别名。 */
   name: string;
 };
 
@@ -449,7 +449,7 @@ export type ActorState = {
   profile: string;
   /** 当前形象的展示值（换装后由外观推理重写）。 */
   appearance: string;
-  /** 当前正在使用的形象；观察者句柄与名字信念都以它为单位。 */
+  /** 当前正在使用的形象；观察者编号与识别关系都以它为单位。 */
   presentation: PresentationState;
   baseBody: BaseBody;
   stats: Stats;
@@ -596,26 +596,25 @@ export type GameState = {
   player: PlayerState;
   world: WorldState;
   messages: MessageState[];
-  /** 本局全部名字信念（god view）；渲染层按观察者过滤后才进提示词。 */
-  knowledge: NameKnowledgeState[];
+  /** 本局全部识别关系（god view）；渲染层按观察者过滤后才进提示词。 */
+  recognitions: RecognitionState[];
   /** 访问历史；只用于传送与地图，不参与普通移动权限。 */
   visits: StageVisitState[];
 };
 
 /** 认知更新的告警：不阻断行动，只进轨迹与日志。 */
 export type IdentityWarning = {
-  code: "unseen_handle" | "name_collision";
+  code: "unseen_handle";
   handle: string;
   name: string;
   subjectActorId: string;
   detail: string;
 };
 
-/** 一条名字信念：观察者相信某个形象叫什么。 */
-export type NameKnowledgeState = {
+/** 一条识别关系：观察者认识哪个形象；认识即知道真名，不存称呼。 */
+export type RecognitionState = {
   observerActorId: string;
   presentationId: string;
-  name: string;
   source: string;
   learnedStageId: string | null;
 };
