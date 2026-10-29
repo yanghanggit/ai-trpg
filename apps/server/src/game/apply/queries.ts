@@ -152,6 +152,7 @@ export async function stageAddressLookup(
         token: handleOf(self.presentation.seq),
         label: "你自己",
         mention: "你",
+        appearance: self.presentation.appearance,
         knownName: plainEntityName(self.actor.name),
       };
     }

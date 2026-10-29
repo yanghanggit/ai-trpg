@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { EMPTY_STATS } from "../src/game/attributes";
-import { applyItemEffect, UNARMED_EFFECT } from "../src/game/item-effects";
+import { applyItemEffect } from "../src/game/item-effects";
 import { toItemState } from "../src/game/items";
 
 const ROW = {
@@ -14,12 +14,18 @@ const ROW = {
 };
 
 describe("item effects", () => {
-  it("keeps the declarative effect on the item state", () => {
+  it("keeps the declarative effect and provided actions on the item state", () => {
     expect(toItemState({ ...ROW, kind: "accessory" }).effect).toEqual({ type: "event" });
-    expect(toItemState({ ...ROW, kind: "weapon", effect: { type: "damage" } }).effect).toEqual({
-      type: "damage",
+    const weapon = toItemState({
+      ...ROW,
+      kind: "weapon",
+      effect: { type: "damage" },
+      actions: ["strike"],
     });
-    expect(UNARMED_EFFECT).toEqual({ type: "damage" });
+    expect(weapon.effect).toEqual({ type: "damage" });
+    expect(weapon.actions).toEqual(["strike"]);
+    // 没声明动作的物品不会凭空借出动作。
+    expect(toItemState({ ...ROW, kind: "weapon", effect: { type: "damage" } }).actions).toEqual([]);
   });
 
   it("routes by effect.type and rejects unknown handlers", async () => {

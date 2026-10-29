@@ -162,6 +162,8 @@ export type ItemDefinition = {
   effect: ItemEffect;
   /** 词缀；可省略，创建时归一化为空数组。 */
   affixes?: readonly Affix[];
+  /** 物品能提供的动作；穿戴中才借给角色。可省略，创建时归一化为空数组。 */
+  actions?: readonly ActionKind[];
   /** 材料来源；只有 `material` 可以声明，其它大类声明会被内容校验拒绝。 */
   source?: string;
 };
@@ -224,9 +226,15 @@ export type WaitAction = {
   kind: "wait";
 };
 
-/** 攻击同场景的一个角色；固定使用已装备的武器，没有可用武器时空手。 */
-export type AttackAction = {
-  kind: "attack";
+/** 用武器攻击同场景角色；武器隐式取自 `equipment.weapon`，且必须提供 `strike`。 */
+export type StrikeAction = {
+  kind: "strike";
+  targetActorHandle: string;
+};
+
+/** 用身体攻击同场景角色；不读物品，伤害只来自自身 stats。 */
+export type BrawlAction = {
+  kind: "brawl";
   targetActorHandle: string;
 };
 
@@ -282,7 +290,8 @@ export type ActorAction =
   | MoveAction
   | TeleportAction
   | WaitAction
-  | AttackAction
+  | StrikeAction
+  | BrawlAction
   | StealAction
   | GiveAction
   | PickupAction
@@ -356,11 +365,13 @@ export type ItemBaseState = {
   effect: ItemEffect;
   /** 词缀；非空时 damage 路由到 LLM 结算 handler。 */
   affixes: readonly Affix[];
+  /** 物品能提供的动作；穿戴中才借给角色。 */
+  actions: readonly ActionKind[];
   /** 归一化后的完整属性；五种物品都携带，未用到的字段为 0。 */
   stats: Stats;
 };
 
-/** 武器：`attack` 只读它的 `damage`；穿戴后 `block` 与其它槽一样计入减伤。 */
+/** 武器：`strike` 读它的 `damage`；穿戴后 `block` 与其它槽一样计入减伤。 */
 export type WeaponState = ItemBaseState & { kind: "weapon" };
 
 /** 装备：不能用于出手，但穿戴后 `block` 计入减伤。 */

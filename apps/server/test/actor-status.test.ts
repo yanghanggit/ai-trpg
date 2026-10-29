@@ -10,9 +10,9 @@ import { actors } from "../src/db/schema";
 import {
   createGame,
   getGameState,
-  playerAttack,
   playerGive,
   playerSteal,
+  playerStrike,
   playerWait,
   refreshAppearances,
   releaseActorControl,
@@ -128,7 +128,7 @@ describe.skipIf(!testDatabaseUrl)("actor status", () => {
 
     // 尸体仍可被攻击，只是伤害结算空转；行动主体才必须活着。
     await takeActorControl(handle.db, created.game.slug, "守烬人");
-    const swing = await playerAttack(handle.db, created.game.slug, "守烬人", {
+    const swing = await playerStrike(handle.db, created.game.slug, "守烬人", {
       targetActorRef: "提灯修士",
     });
     expect(swing.ok).toBe(true);
@@ -215,7 +215,7 @@ describe.skipIf(!testDatabaseUrl)("death phase", () => {
     await takeActorControl(handle.db, created.game.slug, "守烬人");
 
     const service = new DeathAppearanceService();
-    const attacked = await playerAttack(
+    const attacked = await playerStrike(
       handle.db,
       created.game.slug,
       "守烬人",
@@ -233,7 +233,7 @@ describe.skipIf(!testDatabaseUrl)("death phase", () => {
     expect(monkBefore?.hp).toBe(4);
 
     // 再打一次把 HP 打到 0：这次由死者自己触发一次外观收尾。
-    const killed = await playerAttack(
+    const killed = await playerStrike(
       handle.db,
       created.game.slug,
       "守烬人",
@@ -390,7 +390,7 @@ describe.skipIf(!testDatabaseUrl)("death phase", () => {
     });
     await takeActorControl(handle.db, created.game.slug, "守烬人");
 
-    const result = await playerAttack(
+    const result = await playerStrike(
       handle.db,
       created.game.slug,
       "守烬人",
@@ -500,7 +500,7 @@ describe.skipIf(!testDatabaseUrl)("death phase does not block death", () => {
 
     const failing = new FailingAppearanceService();
     const kill = () =>
-      playerAttack(
+      playerStrike(
         handle.db,
         created.game.slug,
         "守烬人",
@@ -571,7 +571,7 @@ describe.skipIf(!testDatabaseUrl)("death phase does not block death", () => {
     await takeActorControl(handle.db, created.game.slug, "守烬人");
     const service = new DeathAppearanceService();
     const strike = () =>
-      playerAttack(
+      playerStrike(
         handle.db,
         created.game.slug,
         "守烬人",
@@ -659,7 +659,7 @@ describe.skipIf(!testDatabaseUrl)("corpses can be operated on", () => {
     });
     await takeActorControl(handle.db, created.game.slug, "守烬人");
     const strike = () =>
-      playerAttack(
+      playerStrike(
         handle.db,
         created.game.slug,
         "守烬人",
@@ -683,7 +683,7 @@ describe.skipIf(!testDatabaseUrl)("corpses can be operated on", () => {
     const before = await findMonk(created.game.slug);
     expect(before?.hp).toBe(0);
 
-    const again = await playerAttack(handle.db, created.game.slug, "守烬人", {
+    const again = await playerStrike(handle.db, created.game.slug, "守烬人", {
       targetActorRef: "提灯修士",
     });
     expect(again.ok).toBe(true);
@@ -718,8 +718,8 @@ describe.skipIf(!testDatabaseUrl)("corpses can be operated on", () => {
     await releaseActorControl(handle.db, created.game.slug, "守烬人");
     await runNpcTurn(handle.db, created.game.slug, "守烬人", { service: capture });
 
-    // attack / give / use 的参数枚举都包含尸体名，没有第二套存活过滤。
-    for (const toolName of ["attack", "give", "use"]) {
+    // strike / give / use 的参数枚举都包含尸体名，没有第二套存活过滤。
+    for (const toolName of ["strike", "give", "use"]) {
       const tool = capture.tools.find((tool) => tool.function.name === toolName);
       const enumValues = (tool?.function.parameters as { properties?: Record<string, unknown> })
         ?.properties;
@@ -767,7 +767,7 @@ describe.skipIf(!testDatabaseUrl)("corpses can be operated on", () => {
       world,
     });
     await takeActorControl(handle.db, created.game.slug, "守烬人");
-    await playerAttack(handle.db, created.game.slug, "守烬人", {
+    await playerStrike(handle.db, created.game.slug, "守烬人", {
       targetActorRef: "提灯修士",
     });
 
@@ -796,7 +796,7 @@ describe.skipIf(!testDatabaseUrl)("corpses can be operated on", () => {
 
     // 同场景旁观者：知道这一下打得多重、对方有没有倒下，但不知道对方还剩多少生命。
     const observer = await read(scribe.id);
-    expect(observer).toContain("守烬人对提灯修士攻击");
+    expect(observer).toContain("守烬人对提灯修士挥击");
     expect(observer).toContain("造成6点伤害");
     expect(observer).not.toContain("剩余 HP");
     expect(observer).not.toContain("倒下");

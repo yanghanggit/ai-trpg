@@ -1,11 +1,12 @@
-import { assertActionAllowed } from "../actions";
-import { resolveAttack } from "../actions/attack";
+import { allowedActionKinds, assertActionAllowed } from "../actions";
+import { resolveBrawl } from "../actions/brawl";
 import { resolveEquip } from "../actions/equip";
 import { resolveGive } from "../actions/give";
 import { resolveMove } from "../actions/move";
 import { resolvePickup } from "../actions/pickup";
 import { resolveSay } from "../actions/say";
 import { resolveSteal } from "../actions/steal";
+import { resolveStrike } from "../actions/strike";
 import { resolveTeleport } from "../actions/teleport";
 import { resolveUnequip } from "../actions/unequip";
 import { resolveUse } from "../actions/use";
@@ -14,7 +15,7 @@ import { resolveWhisper } from "../actions/whisper";
 import { MAX_IDENTITIES_PER_TURN } from "../constants";
 import { GameError } from "../errors";
 import type { ActorPlan } from "../types";
-import { findActorViewByHandleInWorld } from "./queries";
+import { findActorViewByHandleInWorld, resolveEquippedItems } from "./queries";
 import type {
   ActorWithStageRow,
   Executor,
@@ -38,9 +39,15 @@ export async function resolvePlan(
 ): Promise<ResolvedPlan> {
   let stage: StageRow = actorRow.stage;
   const resolved: ResolvedAction[] = [];
+  // 物品提供的动作与角色固有动作同权：穿戴中的物品把自己的动作借给角色。
+  // 装备变更在本轮解析期不回灌，所以「本回合卸下/换上武器」要到下一回合才影响可用动作。
+  const granted = (await resolveEquippedItems(executor, actorRow.actor)).flatMap(
+    (row) => row.actions,
+  );
+  const allowed = allowedActionKinds(actorRow.actor.actions, granted);
 
   for (const action of plan.actions) {
-    assertActionAllowed(actorRow.actor.actions, action.kind, actorRow.actor.name);
+    assertActionAllowed(allowed, action.kind, actorRow.actor.name);
     switch (action.kind) {
       case "say":
         resolved.push(await resolveSay(executor, stage, actorRow.actor.id, action));
@@ -66,8 +73,11 @@ export async function resolvePlan(
       case "wait":
         resolved.push(resolveWait(stage, action));
         break;
-      case "attack":
-        resolved.push(await resolveAttack(executor, stage, actorRow, action));
+      case "strike":
+        resolved.push(await resolveStrike(executor, stage, actorRow, action));
+        break;
+      case "brawl":
+        resolved.push(await resolveBrawl(executor, stage, actorRow, action));
         break;
       case "steal":
         resolved.push(await resolveSteal(executor, stage, actorRow.actor.id, action));

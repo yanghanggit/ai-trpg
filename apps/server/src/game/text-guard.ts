@@ -1,4 +1,4 @@
-import { type AddressLookup, HANDLE_PATTERN, mentionOf } from "./addressing";
+import { type AddressLookup, appearanceLine, HANDLE_PATTERN } from "./addressing";
 import { ENTITY_PREFIX, plainEntityName } from "./entity-name";
 
 /**
@@ -67,25 +67,54 @@ export function hasCanonicalEntityName(text: string): boolean {
 }
 
 /**
- * 把 environment 渲染成某个观察者能看到的文本。
+ * 把 environment 脱敏成某个观察者能读的文本（读取时的最后一道防线）。
  *
- * 写入时已经会拒绝名字与指代；这里是读取时的最后一道防线，处理历史数据与内容里的
- * 规范名：本场角色用它在该观察者眼里的称呼，世界内其他角色替换成模糊身影，剩余
- * 类型前缀直接去掉。
+ * 正常内容不会在 environment 里写角色：写入校验已经拒绝名字、`@N` 与类别前缀。
+ * 这里只处理历史数据与内容漂移，规则与名单 / 观察一致：本场角色用观察者眼里的称呼；
+ * 不知道名字时句子用指代 `@N`，外观另起一行——对在场者来说，外观永远可观测。
+ * 不在本场、无法观测的名字不编造身份，替换成泛称。
  */
-export function renderEnvironmentForActor(
+export function sanitizeStageEnvironment(
   environment: string,
   stageActors: readonly { id: string; name: string }[],
   address: AddressLookup,
   otherActorNames: readonly string[] = [],
 ): string {
-  let text = environment.replace(glob(HANDLE_PATTERN.source), "一个看不清的身影");
-  for (const actor of stageActors) {
-    text = text.split(actor.name).join(mentionOf(address(actor.id)));
+  const entries = stageActors.map((actor) => ({ actor, resolved: address(actor.id) }));
+  const byName = new Map(entries.map((entry) => [entry.actor.name, entry]));
+  const byToken = new Map(
+    entries
+      .filter((entry) => entry.resolved.token.length > 0)
+      .map((entry) => [entry.resolved.token, entry]),
+  );
+  const appearances: string[] = [];
+
+  // 本场角色怎么出现在句子里的：名字，或「指代 + 独立的外观行」。
+  const shown = (entry: (typeof entries)[number]): string => {
+    if (entry.resolved.knownName !== null) {
+      return entry.resolved.knownName;
+    }
+    const line = appearanceLine(entry.resolved);
+    if (line !== null) {
+      appearances.push(line);
+    }
+    return entry.resolved.token.length > 0 ? entry.resolved.token : "某个不在场者";
+  };
+
+  let text = environment;
+  for (const [name, entry] of byName) {
+    text = text.split(name).join(shown(entry));
   }
+  // 残留的指代：对得上本场角色就按观察者重写，对不上说明无法观测。
+  text = text.replace(glob(HANDLE_PATTERN.source), (handle) => {
+    const entry = byToken.get(handle);
+    return entry ? shown(entry) : "某个不在场者";
+  });
   for (const name of otherActorNames) {
-    text = text.split(name).join("一个看不清的身影");
+    text = text.split(name).join("某个不在场者");
   }
   text = text.replace(glob(CANONICAL_ENTITY_PREFIX_PATTERN.source), "");
-  return text;
+
+  const unique = [...new Set(appearances)];
+  return unique.length === 0 ? text : `${text}\n\n${unique.join("\n")}`;
 }

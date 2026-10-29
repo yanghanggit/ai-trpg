@@ -56,6 +56,8 @@ export const BELL_MONASTERY: Script = {
           count: 1,
           stats: { damage: 8, block: 0 },
           effect: { type: "damage" },
+          // 挥击由武器提供：这把火把被装备后，角色才会多出 strike 这个动作。
+          actions: ["strike"],
           affixes: [
             {
               name: "松脂渗毛",
@@ -141,6 +143,7 @@ export const BELL_MONASTERY: Script = {
           count: 1,
           stats: { damage: 6, block: 0 },
           effect: { type: "damage" },
+          actions: ["strike"],
         },
         {
           key: "patched-cloak",
@@ -159,7 +162,7 @@ export const BELL_MONASTERY: Script = {
         "announce",
         "move",
         "wait",
-        "attack",
+        "brawl",
         "give",
         "pickup",
         "use",
@@ -189,7 +192,7 @@ export const BELL_MONASTERY: Script = {
       stats: { maxHp: 10, strength: 7, wisdom: 1, agility: 7, damage: 7, block: 1 },
       items: [],
       // 动物：会说话、走动与战斗，但不操作道具。
-      actions: ["say", "whisper", "announce", "move", "wait", "attack"],
+      actions: ["say", "whisper", "announce", "move", "wait", "brawl"],
     },
     {
       stageKey: "graveyard",
@@ -267,7 +270,7 @@ export const BELL_MONASTERY: Script = {
         "announce",
         "move",
         "wait",
-        "attack",
+        "brawl",
         "give",
         "pickup",
         "use",
@@ -298,7 +301,7 @@ export const BELL_MONASTERY: Script = {
       stats: { maxHp: 120, strength: 60, wisdom: 100, agility: 8, damage: 60, block: 100 },
       items: [],
       // 动物：沉睡时由 openingBriefing 约束留在原地；苏醒后可以移动与攻击，不操作道具。
-      actions: ["say", "whisper", "announce", "move", "wait", "attack"],
+      actions: ["say", "whisper", "announce", "move", "wait", "brawl"],
     },
   ],
   // 开局既知：只声明世界内已经成立的关系，其余姓名要靠自我介绍 / 互动。

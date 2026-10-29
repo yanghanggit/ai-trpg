@@ -5,7 +5,7 @@ import { appendPublicMessage, bumpGameVersion } from "../apply/messages";
 import { findStageInWorld } from "../apply/queries";
 import type { ActorWithStageRow, Executor, ResolvedTeleport, WorldRow } from "../apply/types";
 import { GameError } from "../errors";
-import { renderAction, renderEnvironment } from "../observation-text";
+import { renderAction, renderEnvironmentChange, withAppearances } from "../observation-text";
 import { appendCustomStageObservation, appendStageMemory } from "../observations";
 import { moveActorToStage } from "../persistence/actors";
 import { hasStageVisit, recordStageVisit } from "../persistence/visits";
@@ -89,7 +89,9 @@ export async function applyTeleport(
     actorRow.actor.id,
     (_observer, address) =>
       renderAction(
-        `# 场景动态\n${mentionOf(address(actorRow.actor.id))}在原地消失了。`,
+        withAppearances(`# 场景动态\n${mentionOf(address(actorRow.actor.id))}在原地消失了。`, [
+          address(actorRow.actor.id),
+        ]),
         resolved.stage.id,
       ),
     trace,
@@ -109,8 +111,10 @@ export async function applyTeleport(
     target.id,
     actorRow.actor.id,
     (_observer, address) =>
-      renderEnvironment(
-        `# 环境变化\n${mentionOf(address(actorRow.actor.id))}出现在这里。`,
+      renderEnvironmentChange(
+        withAppearances(`# 环境变化\n${mentionOf(address(actorRow.actor.id))}出现在这里。`, [
+          address(actorRow.actor.id),
+        ]),
         target.id,
       ),
     trace,

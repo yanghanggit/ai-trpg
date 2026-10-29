@@ -9,8 +9,8 @@ import {
   createGame,
   getGameState,
   parseDrops,
-  playerAttack,
   playerSteal,
+  playerStrike,
   playerUse,
   runDropTurn,
   settleDeaths,
@@ -109,8 +109,8 @@ describe.skipIf(!testDatabaseUrl)("death drops", () => {
       { name: "浸血的灰袍碎片", description: "边角焦黑，布料里混着石粉。", count: 2 },
     ]);
     // 修士 HP 10、一刀 3：第一刀不死，第二刀才触发死亡阶段。
-    await playerAttack(handle.db, created.game.slug, "守烬人", { targetActorRef: "提灯修士" });
-    const hit = await playerAttack(
+    await playerStrike(handle.db, created.game.slug, "守烬人", { targetActorRef: "提灯修士" });
+    const hit = await playerStrike(
       handle.db,
       created.game.slug,
       "守烬人",
@@ -213,8 +213,8 @@ describe.skipIf(!testDatabaseUrl)("death drops", () => {
       { name: "骨片", description: "重复。" },
     ]);
     // 修士 HP 10、一刀 3：第一刀不死，第二刀才触发死亡阶段。
-    await playerAttack(handle.db, created.game.slug, "守烬人", { targetActorRef: "提灯修士" });
-    const hit = await playerAttack(
+    await playerStrike(handle.db, created.game.slug, "守烬人", { targetActorRef: "提灯修士" });
+    const hit = await playerStrike(
       handle.db,
       created.game.slug,
       "守烬人",

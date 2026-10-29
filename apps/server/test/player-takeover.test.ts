@@ -12,9 +12,9 @@ import {
   getGameState,
   isPlayerControlled,
   playerAnnounce,
-  playerAttack,
   playerMove,
   playerSay,
+  playerStrike,
   playerWhisper,
   releaseActorControl,
   runNpcTurn,
@@ -168,7 +168,7 @@ describe.skipIf(!testDatabaseUrl)("player takeover", () => {
     expect(keeperStage?.name).toBe("断钟中殿");
   });
 
-  it("lets a controlled actor attack", async () => {
+  it("lets a controlled actor strike", async () => {
     const game = await createGame(handle.db, {
       username: DEMO_USER.username,
       name: "玩家攻击测试局",
@@ -176,18 +176,18 @@ describe.skipIf(!testDatabaseUrl)("player takeover", () => {
     });
     await takeActorControl(handle.db, game.game.slug, "守烬人");
 
-    const attacked = await playerAttack(handle.db, game.game.slug, "守烬人", {
+    const attacked = await playerStrike(handle.db, game.game.slug, "守烬人", {
       targetActorRef: "提灯修士",
     });
     expect(attacked.ok).toBe(true);
     expect(attacked.plan?.actions[0]).toMatchObject({
-      kind: "attack",
+      kind: "strike",
       targetActorHandle: "提灯修士",
     });
 
     const state = await getGameState(handle.db, game.game.slug);
     expect(state.game.version).toBe(1);
-    expect(state.messages.map((message) => message.kind)).toEqual(["attack"]);
+    expect(state.messages.map((message) => message.kind)).toEqual(["strike"]);
     const monk = state.world.stages
       .flatMap((stage) => stage.actors)
       .find((actor) => actor.name === "提灯修士");

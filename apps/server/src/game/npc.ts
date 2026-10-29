@@ -14,13 +14,14 @@ import {
 } from "../rag";
 import { ACTION_SUMMARIES, allowedActionKinds } from "./actions";
 import { buildAnnounceTool, parseAnnounce } from "./actions/announce";
-import { buildAttackTool, parseAttack } from "./actions/attack";
+import { buildBrawlTool, parseBrawl } from "./actions/brawl";
 import { buildEquipTool, parseEquip } from "./actions/equip";
 import { buildGiveTool, parseGive } from "./actions/give";
 import { buildMoveTool, parseMove } from "./actions/move";
 import { buildPickupTool, parsePickup } from "./actions/pickup";
 import { buildSayTool, parseSay } from "./actions/say";
 import { buildStealTool, parseSteal } from "./actions/steal";
+import { buildStrikeTool, parseStrike } from "./actions/strike";
 import { buildTeleportTool, parseTeleport } from "./actions/teleport";
 import { buildUnequipTool, parseUnequip } from "./actions/unequip";
 import { buildUseTool, parseUse, usableItemNames } from "./actions/use";
@@ -38,7 +39,7 @@ import { isAlive } from "./apply/queries";
 import { DEFAULT_NPC_MAX_ROUNDS, MAX_ACTIONS_PER_TURN, MAX_IDENTITIES_PER_TURN } from "./constants";
 import { isPlayerControlled } from "./control";
 import { GameError } from "./errors";
-import { isWearable } from "./items";
+import { equippedItemActions, isWearable } from "./items";
 import { loadAgentMemory } from "./memory";
 import {
   buildActorLookTool,
@@ -75,7 +76,7 @@ export function buildActorTurnInput(state: GameState, current: ActorWithStage): 
   const address = addressLookupFor(state, current.actor, current.stage);
   const selfHandle = address(current.actor.id).token;
   const targets = others.map((actor) => address(actor.id).token);
-  const allowed = allowedActionKinds(current.actor.actions);
+  const allowed = allowedActionKinds(current.actor.actions, equippedItemActions(current.actor));
   const actionList = allowed.map((kind) => `${kind}（${ACTION_SUMMARIES[kind]}）`).join("、");
   const actorLines =
     others.length === 0
@@ -212,7 +213,8 @@ export async function runNpcTurn(
     move: buildMoveTool(stageNames),
     teleport: buildTeleportTool(teleportTargets),
     wait: buildWaitTool(),
-    attack: buildAttackTool(targets),
+    strike: buildStrikeTool(targets),
+    brawl: buildBrawlTool(targets),
     steal: buildStealTool(targets),
     give: buildGiveTool(targets),
     pickup: buildPickupTool(),
@@ -227,7 +229,8 @@ export async function runNpcTurn(
     move: parseMove,
     teleport: parseTeleport,
     wait: () => parseWait(),
-    attack: parseAttack,
+    strike: parseStrike,
+    brawl: parseBrawl,
     steal: parseSteal,
     give: parseGive,
     pickup: parsePickup,
@@ -236,7 +239,7 @@ export async function runNpcTurn(
     unequip: parseUnequip,
   };
 
-  const allowed = allowedActionKinds(current.actor.actions);
+  const allowed = allowedActionKinds(current.actor.actions, equippedItemActions(current.actor));
   const actions: ActorAction[] = [];
   const identities: { handle: string; name: string }[] = [];
   let submitted: ActorPlan | null = null;

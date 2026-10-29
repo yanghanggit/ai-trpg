@@ -9,7 +9,7 @@ import {
   renderAction,
   renderCommunication as renderCommunicationRaw,
   renderDamage as renderDamageRaw,
-  renderEnvironment,
+  renderEnvironmentChange,
   renderItemEvent as renderItemEventRaw,
 } from "../src/game/observation-text";
 
@@ -21,12 +21,30 @@ const TARGET = { ...OTHER, maxHp: 12 };
 /** 测试里假定观察者知道双方名字；未知名字的分支由 observation-text 的专门用例覆盖。 */
 const ADDRESS: AddressLookup = (actorId) => {
   if (actorId === ACTOR.id) {
-    return { token: "@1", label: "守烬人", mention: "守烬人", knownName: "守烬人" };
+    return {
+      token: "@1",
+      label: "守烬人",
+      mention: "守烬人",
+      appearance: "披着旧斗篷。",
+      knownName: "守烬人",
+    };
   }
   if (actorId === OTHER.id) {
-    return { token: "@2", label: "提灯修士", mention: "提灯修士", knownName: "提灯修士" };
+    return {
+      token: "@2",
+      label: "提灯修士",
+      mention: "提灯修士",
+      appearance: "灰袍下摆浸着泥水。",
+      knownName: "提灯修士",
+    };
   }
-  return { token: "", label: "一个看不清的身影", mention: "一个看不清的身影", knownName: null };
+  return {
+    token: "",
+    label: "某个不在场者",
+    mention: "某个不在场者",
+    appearance: "",
+    knownName: null,
+  };
 };
 
 const renderDamage = (
@@ -52,7 +70,7 @@ const renderCommunication = (
 ) => renderCommunicationRaw(args[0], args[1], args[2], ADDRESS);
 
 const damage = (overrides: Partial<DamageObservation> = {}): DamageObservation => ({
-  action: "attack",
+  action: "strike",
   attacker: ACTOR,
   target: TARGET,
   damage: 3,
@@ -61,26 +79,56 @@ const damage = (overrides: Partial<DamageObservation> = {}): DamageObservation =
 });
 
 describe("damageActionText", () => {
-  it("句式由动作锁定：攻击的主体是攻击，使用的主体是使用", () => {
-    expect(damageActionText("attack")).toBe("攻击");
-    expect(damageActionText("attack", "断齿刀")).toBe("攻击（使用断齿刀）");
+  it("句式由动作锁定：挥击的主体是挥击，肉搏是肉搏，使用的主体是使用", () => {
+    expect(damageActionText("strike")).toBe("挥击");
+    expect(damageActionText("strike", "断齿刀")).toBe("挥击（使用断齿刀）");
+    expect(damageActionText("brawl")).toBe("肉搏");
     expect(damageActionText("use", "松脂火把")).toBe("使用松脂火把");
   });
 });
 
+/** 观察者不认识攻击者：句子只留指代，外观单独一行。 */
+const UNKNOWN_ATTACKER: AddressLookup = (actorId) =>
+  actorId === ACTOR.id
+    ? {
+        token: "@1",
+        label: "外观：披着旧斗篷。",
+        mention: "@1",
+        appearance: "披着旧斗篷。",
+        knownName: null,
+      }
+    : {
+        token: "@2",
+        label: "提灯修士",
+        mention: "提灯修士",
+        appearance: "灰袍下摆浸着泥水。",
+        knownName: "提灯修士",
+      };
+
 describe("damage observations", () => {
+  it("未知名字时不把外观当称呼，外观另起一行", () => {
+    const content = renderDamageRaw(STAGE, damage(), "actor-3", UNKNOWN_ATTACKER).content;
+    expect(content).toBe("# 战斗\n@1对提灯修士挥击，造成3点伤害。\n\n@1 外观：披着旧斗篷。");
+    expect(content.split("\n")[1]).not.toContain("披着旧斗篷");
+
+    // 受害者视角同理：只标注攻击者的外观。
+    const victim = renderDamageRaw(STAGE, damage(), TARGET.id, UNKNOWN_ATTACKER).content;
+    expect(victim).toContain("@1对你挥击");
+    expect(victim).toContain("@1 外观：披着旧斗篷。");
+  });
+
   it("只有受害者视角带剩余生命", () => {
     const victim = renderDamage(STAGE, damage(), TARGET.id);
     const bystander = renderDamage(STAGE, damage(), "actor-3");
 
-    expect(victim.content).toBe("# 你被攻击\n守烬人对你攻击，造成3点伤害；你剩余 HP 9/12。");
+    expect(victim.content).toBe("# 你被攻击\n守烬人对你挥击，造成3点伤害；你剩余 HP 9/12。");
     expect(victim.metadata).toEqual({
       kind: MEMORY_KINDS.actionObservation,
       stageId: STAGE.id,
       attackerActorId: ACTOR.id,
     });
 
-    expect(bystander.content).toBe("# 战斗\n守烬人对提灯修士攻击，造成3点伤害。");
+    expect(bystander.content).toBe("# 战斗\n守烬人对提灯修士挥击，造成3点伤害。");
     expect(bystander.content).not.toContain("9/12");
     expect(bystander.metadata).toEqual({
       kind: MEMORY_KINDS.actionObservation,
@@ -90,20 +138,30 @@ describe("damage observations", () => {
     });
   });
 
-  it("攻击带上武器仍写作攻击，并区分倒下", () => {
-    const armed = { action: "attack" as const, itemName: "断齿刀" };
+  it("挥击带上武器仍写作挥击，并区分倒下", () => {
+    const armed = { action: "strike" as const, itemName: "断齿刀" };
     expect(renderDamage(STAGE, damage(armed), TARGET.id).content).toBe(
-      "# 你被攻击\n守烬人对你攻击（使用断齿刀），造成3点伤害；你剩余 HP 9/12。",
+      "# 你被攻击\n守烬人对你挥击（使用断齿刀），造成3点伤害；你剩余 HP 9/12。",
     );
     expect(
       renderDamage(STAGE, damage({ ...armed, damage: 12, remainingHp: 0 }), TARGET.id).content,
-    ).toBe("# 你被攻击\n守烬人对你攻击（使用断齿刀），造成12点伤害；你倒下了。");
+    ).toBe("# 你被攻击\n守烬人对你挥击（使用断齿刀），造成12点伤害；你倒下了。");
     expect(renderDamage(STAGE, damage({ damage: 12, remainingHp: 0 }), "actor-3").content).toBe(
-      "# 战斗\n守烬人对提灯修士攻击，造成12点伤害；提灯修士倒下了。",
+      "# 战斗\n守烬人对提灯修士挥击，造成12点伤害；提灯修士倒下了。",
     );
   });
 
-  it("使用道具造成伤害时写作使用，不冒充攻击", () => {
+  it("肉搏与挥击共用战斗标题，但措词各自锁定", () => {
+    const brawl = damage({ action: "brawl" });
+    expect(renderDamage(STAGE, brawl, TARGET.id).content).toBe(
+      "# 你被攻击\n守烬人对你肉搏，造成3点伤害；你剩余 HP 9/12。",
+    );
+    expect(renderDamage(STAGE, brawl, "actor-3").content).toBe(
+      "# 战斗\n守烬人对提灯修士肉搏，造成3点伤害。",
+    );
+  });
+
+  it("使用道具造成伤害时写作使用，不冒充挥击", () => {
     const using = damage({ action: "use", itemName: "松脂火把", damage: 13, remainingHp: 0 });
     expect(renderDamage(STAGE, using, TARGET.id).content).toBe(
       "# 你被使用道具\n守烬人对你使用松脂火把，造成13点伤害；你倒下了。",
@@ -220,7 +278,7 @@ describe("communication observations", () => {
 
 describe("plain observations", () => {
   it("环境与行动观察只换 kind", () => {
-    expect(renderEnvironment("# 环境变化\n有人进入。", STAGE.id).metadata).toEqual({
+    expect(renderEnvironmentChange("# 环境变化\n有人进入。", STAGE.id).metadata).toEqual({
       kind: MEMORY_KINDS.environmentObservation,
       stageId: STAGE.id,
     });

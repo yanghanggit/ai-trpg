@@ -157,7 +157,11 @@ export type PlayerTeleportInput = {
   targetStageRef: string;
 };
 
-export type PlayerAttackInput = {
+export type PlayerStrikeInput = {
+  targetActorRef: string;
+};
+
+export type PlayerBrawlInput = {
   targetActorRef: string;
 };
 
@@ -271,15 +275,29 @@ export async function playerWait(
   return applyPlayerAction(db, gameRef, actorRef, action);
 }
 
-export async function playerAttack(
+export async function playerStrike(
   db: Database,
   gameRef: string,
   actorRef: string,
-  input: PlayerAttackInput,
+  input: PlayerStrikeInput,
   options: ApplyActorPlanOptions = {},
 ): Promise<ActorTurnResult> {
   const action: ActorAction = {
-    kind: "attack",
+    kind: "strike",
+    targetActorHandle: input.targetActorRef,
+  };
+  return applyPlayerAction(db, gameRef, actorRef, action, options);
+}
+
+export async function playerBrawl(
+  db: Database,
+  gameRef: string,
+  actorRef: string,
+  input: PlayerBrawlInput,
+  options: ApplyActorPlanOptions = {},
+): Promise<ActorTurnResult> {
+  const action: ActorAction = {
+    kind: "brawl",
     targetActorHandle: input.targetActorRef,
   };
   return applyPlayerAction(db, gameRef, actorRef, action, options);

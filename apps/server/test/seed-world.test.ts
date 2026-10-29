@@ -154,10 +154,23 @@ describe("dark fantasy seed world", () => {
       }
     }
 
-    // 狗与鼠王会攻击，幼崽不会。
-    expect(actionsOf("角色.煤渣")).toContain("attack");
-    expect(actionsOf("角色.鼠王")).toContain("attack");
-    expect(actionsOf("角色.坏运气")).not.toContain("attack");
+    // 挥击由武器提供，不再是角色固有动作；肉搏是固有动作，按角色显式声明。
+    for (const actor of BELL_MONASTERY_WORLD.actors) {
+      expect(actionsOf(actor.name)).not.toContain("strike");
+    }
+    for (const fighter of ["角色.奥德里克", "角色.无名者", "角色.煤渣", "角色.鼠王"]) {
+      expect(actionsOf(fighter)).toContain("brawl");
+    }
+    expect(actionsOf("角色.坏运气")).not.toContain("brawl");
+    const weaponActions = (itemName: string) => {
+      const item = BELL_MONASTERY_WORLD.actors
+        .flatMap((actor) => actor.items)
+        .concat(BELL_MONASTERY_WORLD.stages.flatMap((stage) => stage.items ?? []))
+        .find((candidate) => candidate.name === itemName);
+      return [...(item?.actions ?? [])];
+    };
+    expect(weaponActions("武器.掘墓人的铁锹")).toEqual(["strike"]);
+    expect(weaponActions("武器.松脂火把")).toEqual(["strike"]);
 
     // 人类可以操作道具；偷窃只属于无名者。
     for (const human of ["角色.奥德里克", "角色.无名者"]) {

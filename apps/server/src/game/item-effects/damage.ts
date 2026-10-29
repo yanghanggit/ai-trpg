@@ -46,10 +46,11 @@ export async function applyDamage(context: ItemEffectContext, damage: number): P
   const remainingHp = hit.remainingHp;
   await bumpGameVersion(executor, gameId, now);
 
+  // 公共消息是上帝视角：句首与结局都用规范名，不混入观察者相对的指代。
   const outcome =
     remainingHp <= 0
-      ? `；${ref(context.address)}倒下了。`
-      : `；${ref(context.address)}剩余 HP ${remainingHp}/${current.stats.maxHp}。`;
+      ? `；${target.name}倒下了。`
+      : `；${target.name}剩余 HP ${remainingHp}/${current.stats.maxHp}。`;
   // 句式由动作锁定：公共消息、舞台记忆、观察与反馈用的是同一个动作短语。
   const actionText = damageActionText(actionKind, item?.name);
   const damageText = via === "affix" ? `词缀追加${damage}点伤害` : `造成${damage}点伤害`;

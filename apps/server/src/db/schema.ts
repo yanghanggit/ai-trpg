@@ -305,6 +305,8 @@ export const items = pgTable(
     stats: jsonb("stats").$type<Stats>().notNull(),
     effect: jsonb("effect").$type<ItemEffect>().notNull(),
     affixes: jsonb("affixes").$type<Affix[]>().notNull().default([]),
+    /** 物品提供的动作；只有穿戴中才会生效，目前只有武器会声明。 */
+    actions: jsonb("actions").$type<ActionKind[]>().notNull().default([]),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (table) => [uniqueIndex("items_actor_name_unique").on(table.actorId, table.name)],
@@ -330,6 +332,8 @@ export const stageItems = pgTable(
     stats: jsonb("stats").$type<Stats>().notNull(),
     effect: jsonb("effect").$type<ItemEffect>().notNull(),
     affixes: jsonb("affixes").$type<Affix[]>().notNull().default([]),
+    /** 物品提供的动作；只有穿戴中才会生效，目前只有武器会声明。 */
+    actions: jsonb("actions").$type<ActionKind[]>().notNull().default([]),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (table) => [uniqueIndex("stage_items_stage_name_unique").on(table.stageId, table.name)],

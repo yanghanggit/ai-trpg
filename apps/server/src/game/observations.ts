@@ -94,6 +94,7 @@ async function writeObservations(
             token: handleOf(presentation.seq),
             label: "你自己",
             mention: "你",
+            appearance: presentation.appearance,
             knownName: plainEntityName(observer.name),
           }
         : base(actorId);

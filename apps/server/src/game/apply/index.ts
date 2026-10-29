@@ -5,13 +5,14 @@ import { type TraceContext, traceEvent } from "../../debug/trace";
 import type { ChatCompletionService } from "../../llm/protocol";
 import type { Logger } from "../../logging";
 import { applyAnnounce } from "../actions/announce";
-import { applyAttack } from "../actions/attack";
+import { applyBrawl } from "../actions/brawl";
 import { applyEquip } from "../actions/equip";
 import { applyGive } from "../actions/give";
 import { applyMove } from "../actions/move";
 import { applyPickup } from "../actions/pickup";
 import { applySay } from "../actions/say";
 import { applySteal } from "../actions/steal";
+import { applyStrike } from "../actions/strike";
 import { applyTeleport } from "../actions/teleport";
 import { applyUnequip } from "../actions/unequip";
 import { applyUse } from "../actions/use";
@@ -58,8 +59,10 @@ async function applyResolvedAction(
       return applyTeleport(executor, gameId, actorRow, resolved, now, trace);
     case "wait":
       return applyWait(executor, gameId, actorRow, resolved, now, trace);
-    case "attack":
-      return applyAttack(executor, gameId, actorRow, resolved, now, address, trace);
+    case "strike":
+      return applyStrike(executor, gameId, actorRow, resolved, now, address, trace);
+    case "brawl":
+      return applyBrawl(executor, gameId, actorRow, resolved, now, address, trace);
     case "steal":
       return applySteal(executor, gameId, actorRow, resolved, now, address, trace);
     case "give":
@@ -81,11 +84,11 @@ function affixRequestFor(
   defaultFeedback: string,
   address: AddressLookup,
 ): AffixRequest | null {
-  if (resolved.kind === "attack" && resolved.item && resolved.item.affixes.length > 0) {
+  if (resolved.kind === "strike" && resolved.item.affixes.length > 0) {
     return {
       actorId,
       itemId: resolved.item.id,
-      actionKind: "attack",
+      actionKind: "strike",
       targetActorId: resolved.target.id,
       targetLabel: refOf(address(resolved.target.id)),
       defaultFeedback,

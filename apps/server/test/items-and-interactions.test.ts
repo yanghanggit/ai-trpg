@@ -11,13 +11,15 @@ import {
   createGame,
   getGameMemories,
   getGameState,
-  playerAttack,
+  playerBrawl,
   playerGive,
   playerMove,
   playerPickup,
   playerSteal,
+  playerStrike,
   playerUnequip,
   playerUse,
+  runNpcTurn,
   takeActorControl,
 } from "../src/game";
 import {
@@ -143,6 +145,29 @@ function toolCallResult(
     finishReason: "tool_calls",
     toolCalls,
   });
+}
+
+/** 只记录本轮装配了哪些工具，然后交一份空转计划。 */
+class ToolCaptureService implements ChatCompletionService {
+  tools: string[] = [];
+
+  async complete(request: Parameters<ChatCompletionService["complete"]>[0]) {
+    this.tools = request.tools?.map((tool) => tool.function.name) ?? [];
+    const toolCalls: ToolCall[] = [
+      {
+        id: randomUUID(),
+        type: "function",
+        function: { name: "wait", arguments: "{}" },
+      },
+      { id: randomUUID(), type: "function", function: { name: "submit_plan", arguments: "{}" } },
+    ];
+    return new ChatCompletionResult({
+      request,
+      aiMessage: { type: "ai", content: "", toolCalls },
+      finishReason: "tool_calls",
+      toolCalls,
+    });
+  }
 }
 
 /** 每次请求都返回 provider 错误：模拟网络失败 / 超时。 */
@@ -405,7 +430,7 @@ describe.skipIf(!testDatabaseUrl)("items and interactions", () => {
     });
     await takeActorControl(handle.db, created.game.slug, "守烬人");
 
-    // 裂齿短刃在武器槽里：它归 attack 或被动装备，不能当道具使用。
+    // 裂齿短刃在武器槽里：它归 strike 或被动装备，不能当道具使用。
     await expect(
       playerUse(handle.db, created.game.slug, "守烬人", {
         itemName: "裂齿短刃",
@@ -447,7 +472,7 @@ describe.skipIf(!testDatabaseUrl)("items and interactions", () => {
     await takeActorControl(handle.db, created.game.slug, "守烬人");
 
     const service = new AffixDamageService();
-    const attacked = await playerAttack(
+    const attacked = await playerStrike(
       handle.db,
       created.game.slug,
       "守烬人",
@@ -468,7 +493,7 @@ describe.skipIf(!testDatabaseUrl)("items and interactions", () => {
     expect(monk?.hp).toBe(0);
     // 死亡广播会追加一条 kind=death 的消息，所以按攻击消息取最近两条。
     const recent = state.messages
-      .filter((message) => message.kind === "attack")
+      .filter((message) => message.kind === "strike")
       .slice(-2)
       .map((message) => message.content);
     expect(recent[0]).toContain("造成6点伤害");
@@ -496,7 +521,7 @@ describe.skipIf(!testDatabaseUrl)("items and interactions", () => {
     });
     await takeActorControl(handle.db, created.game.slug, "守烬人");
 
-    const attacked = await playerAttack(
+    const attacked = await playerStrike(
       handle.db,
       created.game.slug,
       "守烬人",
@@ -537,7 +562,7 @@ describe.skipIf(!testDatabaseUrl)("items and interactions", () => {
     });
     await takeActorControl(handle.db, created.game.slug, "守烬人");
 
-    const attacked = await playerAttack(
+    const attacked = await playerStrike(
       handle.db,
       created.game.slug,
       "守烬人",
@@ -569,7 +594,7 @@ describe.skipIf(!testDatabaseUrl)("items and interactions", () => {
     await takeActorControl(handle.db, created.game.slug, "守烬人");
 
     const deathService = new CapturingDeathService();
-    const attacked = await playerAttack(
+    const attacked = await playerStrike(
       handle.db,
       created.game.slug,
       "守烬人",
@@ -599,7 +624,7 @@ describe.skipIf(!testDatabaseUrl)("items and interactions", () => {
     await takeActorControl(handle.db, created.game.slug, "守烬人");
 
     const service = new AffixDamageService();
-    const attacked = await playerAttack(
+    const attacked = await playerStrike(
       handle.db,
       created.game.slug,
       "守烬人",
@@ -611,12 +636,12 @@ describe.skipIf(!testDatabaseUrl)("items and interactions", () => {
     expect(service.calls).toBe(1);
 
     const state = await getGameState(handle.db, created.game.slug);
-    const attackMessages = state.messages
-      .filter((message) => message.kind === "attack")
+    const strikeMessages = state.messages
+      .filter((message) => message.kind === "strike")
       .map((message) => message.content);
-    expect(attackMessages).toHaveLength(1);
-    expect(attackMessages[0]).toContain("造成6点伤害");
-    expect(attackMessages.some((content) => content.includes("词缀追加"))).toBe(false);
+    expect(strikeMessages).toHaveLength(1);
+    expect(strikeMessages[0]).toContain("造成6点伤害");
+    expect(strikeMessages.some((content) => content.includes("词缀追加"))).toBe(false);
   });
 
   it("keeps the computed damage when the affix LLM request fails", async () => {
@@ -628,7 +653,7 @@ describe.skipIf(!testDatabaseUrl)("items and interactions", () => {
     await takeActorControl(handle.db, created.game.slug, "守烬人");
 
     const service = new ErrorCompletionService();
-    const attacked = await playerAttack(
+    const attacked = await playerStrike(
       handle.db,
       created.game.slug,
       "守烬人",
@@ -645,11 +670,11 @@ describe.skipIf(!testDatabaseUrl)("items and interactions", () => {
       .find((actor) => actor.name === "提灯修士");
     // 只结算计算端的 6 点，词缀的 42 点没有发生。
     expect(monk?.hp).toBe(4);
-    const attackMessages = state.messages
-      .filter((message) => message.kind === "attack")
+    const strikeMessages = state.messages
+      .filter((message) => message.kind === "strike")
       .map((message) => message.content);
-    expect(attackMessages.at(-1)).toContain("造成6点伤害");
-    expect(attackMessages.some((content) => content.includes("造成42点伤害"))).toBe(false);
+    expect(strikeMessages.at(-1)).toContain("造成6点伤害");
+    expect(strikeMessages.some((content) => content.includes("造成42点伤害"))).toBe(false);
   });
 
   it("keeps the computed damage when the affix service throws", async () => {
@@ -661,7 +686,7 @@ describe.skipIf(!testDatabaseUrl)("items and interactions", () => {
     await takeActorControl(handle.db, created.game.slug, "守烬人");
 
     // 词缀阶段抛异常不能冒泡成行动失败。
-    const attacked = await playerAttack(
+    const attacked = await playerStrike(
       handle.db,
       created.game.slug,
       "守烬人",
@@ -686,7 +711,7 @@ describe.skipIf(!testDatabaseUrl)("items and interactions", () => {
     await takeActorControl(handle.db, created.game.slug, "守烬人");
 
     // 未配置推理端：跳过增量，而不是拒绝整个行动。
-    const attacked = await playerAttack(handle.db, created.game.slug, "守烬人", {
+    const attacked = await playerStrike(handle.db, created.game.slug, "守烬人", {
       targetActorRef: "提灯修士",
     });
     expect(attacked.ok).toBe(true);
@@ -706,7 +731,7 @@ describe.skipIf(!testDatabaseUrl)("items and interactions", () => {
     });
     await takeActorControl(handle.db, created.game.slug, "守烬人");
 
-    const attacked = await playerAttack(handle.db, created.game.slug, "守烬人", {
+    const attacked = await playerStrike(handle.db, created.game.slug, "守烬人", {
       targetActorRef: "提灯修士",
     });
     expect(attacked.ok).toBe(true);
@@ -720,7 +745,7 @@ describe.skipIf(!testDatabaseUrl)("items and interactions", () => {
     expect(state.messages.at(-1)?.content).toContain("造成4点伤害");
   });
 
-  it("attacks unarmed when the weapon slot is empty", async () => {
+  it("brawls with body stats only and ignores the equipped weapon", async () => {
     const world = {
       ...TEST_WORLD,
       actors: TEST_WORLD.actors.map((actor) =>
@@ -729,23 +754,154 @@ describe.skipIf(!testDatabaseUrl)("items and interactions", () => {
     };
     const created = await createGame(handle.db, {
       username: DEMO_USER.username,
-      name: "空手攻击测试局",
+      name: "肉搏测试局",
       world,
     });
     await takeActorControl(handle.db, created.game.slug, "守烬人");
 
-    const attacked = await playerAttack(handle.db, created.game.slug, "守烬人", {
+    // 没有装备武器也能肉搏：6（自身 damage）- 3（修士 block）= 3。
+    const brawled = await playerBrawl(handle.db, created.game.slug, "守烬人", {
       targetActorRef: "提灯修士",
     });
-    expect(attacked.ok).toBe(true);
+    expect(brawled.ok).toBe(true);
 
     const state = await getGameState(handle.db, created.game.slug);
     const monk = state.world.stages
       .flatMap((stage) => stage.actors)
       .find((actor) => actor.name === "提灯修士");
-    // 空手：6（自身 damage）- 3（修士 block）= 3 点伤害；背包里的裂齿短刃没装备，不参与结算。
     expect(monk?.hp).toBe(7);
-    expect(state.messages.at(-1)?.content).toContain("造成3点伤害");
+    expect(state.messages.at(-1)?.kind).toBe("brawl");
+    // 公共消息是上帝视角：双方都用规范名，结局不混入观察者相对的指代。
+    expect(state.messages.at(-1)?.content).toBe(
+      "守烬人对提灯修士肉搏，造成3点伤害；提灯修士剩余 HP 7/10。",
+    );
+  });
+
+  it("does not read weapon stats or affixes when brawling", async () => {
+    const created = await createGame(handle.db, {
+      username: DEMO_USER.username,
+      name: "肉搏不吃词缀测试局",
+      world: AFFIX_WORLD,
+    });
+    await takeActorControl(handle.db, created.game.slug, "守烬人");
+
+    const service = new AffixDamageService();
+    const brawled = await playerBrawl(
+      handle.db,
+      created.game.slug,
+      "守烬人",
+      { targetActorRef: "提灯修士" },
+      { service },
+    );
+    expect(brawled.ok).toBe(true);
+    // 词缀挂在武器上，肉搏没有物品可挂，LLM 一次都不该被调用。
+    expect(service.calls).toBe(0);
+
+    const state = await getGameState(handle.db, created.game.slug);
+    const monk = state.world.stages
+      .flatMap((stage) => stage.actors)
+      .find((actor) => actor.name === "提灯修士");
+    // 6（自身 damage）- 3（修士 block）= 3；武器伤害与词缀都不参与。
+    expect(monk?.hp).toBe(7);
+  });
+
+  it("rejects brawl for an actor whose actions do not include it", async () => {
+    const world = {
+      ...TEST_WORLD,
+      actors: TEST_WORLD.actors.map((actor) =>
+        actor.name === "守烬人"
+          ? { ...actor, actions: actor.actions.filter((kind) => kind !== "brawl") }
+          : actor,
+      ),
+    };
+    const created = await createGame(handle.db, {
+      username: DEMO_USER.username,
+      name: "无肉搏能力测试局",
+      world,
+    });
+    await takeActorControl(handle.db, created.game.slug, "守烬人");
+
+    await expect(
+      playerBrawl(handle.db, created.game.slug, "守烬人", { targetActorRef: "提灯修士" }),
+    ).rejects.toThrow("不能使用动作: brawl");
+  });
+
+  it("rejects strike when the weapon slot is empty", async () => {
+    const world = {
+      ...TEST_WORLD,
+      actors: TEST_WORLD.actors.map((actor) =>
+        actor.name === "守烬人" ? { ...actor, equipment: {} } : actor,
+      ),
+    };
+    const created = await createGame(handle.db, {
+      username: DEMO_USER.username,
+      name: "无武器挥击测试局",
+      world,
+    });
+    await takeActorControl(handle.db, created.game.slug, "守烬人");
+
+    // 没有空手分支：武器槽为空就是错误，背包里的裂齿短刃不会顶替。
+    await expect(
+      playerStrike(handle.db, created.game.slug, "守烬人", { targetActorRef: "提灯修士" }),
+    ).rejects.toThrow("不能使用动作: strike");
+
+    const state = await getGameState(handle.db, created.game.slug);
+    const monk = state.world.stages
+      .flatMap((stage) => stage.actors)
+      .find((actor) => actor.name === "提灯修士");
+    expect(monk?.hp).toBe(10);
+  });
+
+  it("rejects strike when the equipped weapon does not provide it", async () => {
+    const world = {
+      ...TEST_WORLD,
+      actors: TEST_WORLD.actors.map((actor) =>
+        actor.name === "守烬人"
+          ? {
+              ...actor,
+              items: actor.items.map((item) => ({ ...item, actions: [] })),
+            }
+          : actor,
+      ),
+    };
+    const created = await createGame(handle.db, {
+      username: DEMO_USER.username,
+      name: "无挥击武器测试局",
+      world,
+    });
+    await takeActorControl(handle.db, created.game.slug, "守烬人");
+
+    // 装备着武器，但武器没声明 strike：同样拒绝，不静默降级。
+    await expect(
+      playerStrike(handle.db, created.game.slug, "守烬人", { targetActorRef: "提灯修士" }),
+    ).rejects.toThrow("不能使用动作: strike");
+  });
+
+  it("only exposes strike when the weapon provides it", async () => {
+    const created = await createGame(handle.db, {
+      username: DEMO_USER.username,
+      name: "挥击工具装配测试局",
+      world: TEST_WORLD,
+    });
+    const capture = new ToolCaptureService();
+    await runNpcTurn(handle.db, created.game.slug, "守烬人", { service: capture });
+    expect(capture.tools).toContain("strike");
+
+    const unarmed = await createGame(handle.db, {
+      username: DEMO_USER.username,
+      name: "无武器工具装配测试局",
+      world: {
+        ...TEST_WORLD,
+        actors: TEST_WORLD.actors.map((actor) =>
+          actor.name === "守烬人" ? { ...actor, equipment: {} } : actor,
+        ),
+      },
+    });
+    const bareCapture = new ToolCaptureService();
+    await runNpcTurn(handle.db, unarmed.game.slug, "守烬人", { service: bareCapture });
+    expect(bareCapture.tools).not.toContain("strike");
+    // 固有动作不受影响，只有武器提供的动作消失。
+    expect(bareCapture.tools).toContain("say");
   });
 
   it("gives an owned item to a living actor in the same stage", async () => {

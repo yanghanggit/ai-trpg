@@ -427,6 +427,7 @@ export async function createGame(
           stats: toStats(item.stats),
           effect: item.effect,
           affixes: [...(item.affixes ?? [])],
+          actions: [...(item.actions ?? [])],
         });
       }
     }
@@ -527,6 +528,7 @@ export async function createGame(
           stats: toStats(item.stats),
           effect: item.effect,
           affixes: [...(item.affixes ?? [])],
+          actions: [...(item.actions ?? [])],
         });
       }
 

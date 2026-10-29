@@ -2,7 +2,7 @@ import type { Database } from "../../db/pool";
 import type { actors, items, stageItems, stages, worlds } from "../../db/schema";
 import type {
   AnnounceAction,
-  AttackAction,
+  BrawlAction,
   EquipAction,
   GiveAction,
   MessageVisibility,
@@ -10,6 +10,7 @@ import type {
   PickupAction,
   SayAction,
   StealAction,
+  StrikeAction,
   TeleportAction,
   UnequipAction,
   UseAction,
@@ -88,12 +89,19 @@ export type ResolvedWait = {
   stage: StageRow;
 };
 
-export type ResolvedAttack = {
-  kind: "attack";
-  action: AttackAction;
+export type ResolvedStrike = {
+  kind: "strike";
+  action: StrikeAction;
   stage: StageRow;
   target: ActorRow;
-  item?: ItemRow;
+  item: ItemRow;
+};
+
+export type ResolvedBrawl = {
+  kind: "brawl";
+  action: BrawlAction;
+  stage: StageRow;
+  target: ActorRow;
 };
 
 export type ResolvedSteal = {
@@ -149,7 +157,8 @@ export type ResolvedAction =
   | ResolvedMove
   | ResolvedTeleport
   | ResolvedWait
-  | ResolvedAttack
+  | ResolvedStrike
+  | ResolvedBrawl
   | ResolvedSteal
   | ResolvedGive
   | ResolvedPickup

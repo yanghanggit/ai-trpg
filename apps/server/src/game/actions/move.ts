@@ -5,7 +5,7 @@ import { appendPublicMessage, bumpGameVersion } from "../apply/messages";
 import { resolveAdjacentStage } from "../apply/queries";
 import type { ActorWithStageRow, Executor, ResolvedMove, WorldRow } from "../apply/types";
 import { GameError } from "../errors";
-import { renderAction, renderEnvironment } from "../observation-text";
+import { renderAction, renderEnvironmentChange, withAppearances } from "../observation-text";
 import { appendCustomStageObservation, appendStageMemory } from "../observations";
 import { moveActorToStage } from "../persistence/actors";
 import { recordStageVisit } from "../persistence/visits";
@@ -68,7 +68,10 @@ export async function applyMove(
     actorRow.actor.id,
     (_observer, address) =>
       renderAction(
-        `# 场景动态\n${mentionOf(address(actorRow.actor.id))}离开了${plainEntityName(resolved.stage.name)}。`,
+        withAppearances(
+          `# 场景动态\n${mentionOf(address(actorRow.actor.id))}离开了${plainEntityName(resolved.stage.name)}。`,
+          [address(actorRow.actor.id)],
+        ),
         resolved.stage.id,
       ),
     trace,
@@ -93,8 +96,11 @@ export async function applyMove(
     target.id,
     actorRow.actor.id,
     (_observer, address) =>
-      renderEnvironment(
-        `# 环境变化\n${mentionOf(address(actorRow.actor.id))}进入了${plainEntityName(target.name)}。`,
+      renderEnvironmentChange(
+        withAppearances(
+          `# 环境变化\n${mentionOf(address(actorRow.actor.id))}进入了${plainEntityName(target.name)}。`,
+          [address(actorRow.actor.id)],
+        ),
         target.id,
       ),
     trace,

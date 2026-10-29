@@ -9,7 +9,7 @@ import { MEMORY_KINDS } from "./constants";
 import { runDropTurn } from "./drops";
 import { GameError } from "./errors";
 import { appendMemoryMessages, loadAgentMemory } from "./memory";
-import { renderAction } from "./observation-text";
+import { renderAction, withAppearances } from "./observation-text";
 import {
   appendCustomStageObservation,
   appendSelfObservation,
@@ -226,7 +226,10 @@ async function announceDeath(
       actor.id,
       (_observer, address) =>
         renderAction(
-          `# 场景动态\n${mentionOf(address(actor.id))}倒下了，不再有任何生命迹象。`,
+          withAppearances(
+            `# 场景动态\n${mentionOf(address(actor.id))}倒下了，不再有任何生命迹象。`,
+            [address(actor.id)],
+          ),
           actor.stageId,
         ),
       trace,

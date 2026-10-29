@@ -51,6 +51,7 @@ export async function moveStageItemToActor(
     stats: stageItem.stats,
     effect: stageItem.effect,
     affixes: [...stageItem.affixes],
+    actions: [...stageItem.actions],
   });
 }
 
@@ -126,6 +127,7 @@ export async function addActorMaterials(
       stats: toStats({}),
       effect: MATERIAL_EFFECT,
       affixes: [],
+      actions: [],
     });
     written.push(material.name);
   }

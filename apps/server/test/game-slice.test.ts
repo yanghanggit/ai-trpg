@@ -25,9 +25,9 @@ import { ChatCompletionResult, type ChatCompletionService, type ToolCall } from 
 
 const testDatabaseUrl = process.env.TEST_DATABASE_URL?.trim();
 
-/** 攻击动作：十二个平级动作之一。 */
-function attackAction(targetActorHandle: string): ActorAction {
-  return { kind: "attack", targetActorHandle };
+/** 挥击动作：十二个平级动作之一，由装备中的武器提供。 */
+function strikeAction(targetActorHandle: string): ActorAction {
+  return { kind: "strike", targetActorHandle };
 }
 
 /** 只记录本次请求暴露了哪些工具，然后提交一个 wait。 */
@@ -283,7 +283,9 @@ describe.skipIf(!testDatabaseUrl)("memory-driven NPC slice", () => {
     const keeperService = new ToolCaptureService();
     await runNpcTurn(handle.db, created.game.slug, "角色.奥德里克", { service: keeperService });
     expect(keeperService.tools).toContain("say");
-    expect(keeperService.tools).toContain("attack");
+    expect(keeperService.tools).toContain("strike");
+    // 肉搏是固有动作，与武器装备无关。
+    expect(keeperService.tools).toContain("brawl");
     expect(keeperService.tools).not.toContain("steal");
     expect(keeperService.tools).toContain("get_self");
     expect(keeperService.tools).toContain("observe_actor");
@@ -306,10 +308,15 @@ describe.skipIf(!testDatabaseUrl)("memory-driven NPC slice", () => {
     expect(dogService.tools).toContain("query");
     expect(dogService.tools).not.toContain("equip");
     expect(dogService.tools).not.toContain("unequip");
+    // 犬没有武器，挥击由武器提供，所以没有这个动作；肉搏是身体动作，仍然有。
+    expect(dogService.tools).not.toContain("strike");
+    expect(dogService.tools).toContain("brawl");
 
     const mouseService = new ToolCaptureService();
     await runNpcTurn(handle.db, created.game.slug, "角色.坏运气", { service: mouseService });
-    expect(mouseService.tools).not.toContain("attack");
+    expect(mouseService.tools).not.toContain("strike");
+    // 幼崽不会战斗：身体动作也没有。
+    expect(mouseService.tools).not.toContain("brawl");
     expect(mouseService.tools).not.toContain("pickup");
     expect(mouseService.tools).not.toContain("give");
     expect(mouseService.tools).not.toContain("use");
@@ -376,23 +383,23 @@ describe.skipIf(!testDatabaseUrl)("memory-driven NPC slice", () => {
     ).toBe(true);
   });
 
-  it("applies attack using damage and block, and writes combat feedback", async () => {
+  it("applies strike using damage and block, and writes combat feedback", async () => {
     const created = await createGame(handle.db, {
       username: DEMO_USER.username,
       name: "攻击测试局",
       world: TEST_WORLD,
     });
-    const service = new ScriptedNpcService([{ actions: [attackAction("提灯修士")] }]);
+    const service = new ScriptedNpcService([{ actions: [strikeAction("提灯修士")] }]);
 
     const result = await runNpcTurn(handle.db, created.game.slug, "守烬人", { service });
     expect(result.ok).toBe(true);
 
     const state = await getGameState(handle.db, created.game.slug);
     expect(state.game.version).toBe(1);
-    expect(state.messages.map((message) => message.kind)).toEqual(["attack"]);
+    expect(state.messages.map((message) => message.kind)).toEqual(["strike"]);
     // 守烬人装备了裂齿短刃：6（自身 damage）+ 3（武器 damage）- 3（修士 block）= 6 点伤害。
     expect(state.messages[0]?.content).toContain(
-      "守烬人对提灯修士攻击（使用裂齿短刃），造成6点伤害",
+      "守烬人对提灯修士挥击（使用裂齿短刃），造成6点伤害",
     );
     expect(state.messages[0]?.targetActorId).toBeTruthy();
     expect(state.messages[0]?.sourceActorId).toBeTruthy();
@@ -408,12 +415,12 @@ describe.skipIf(!testDatabaseUrl)("memory-driven NPC slice", () => {
     const monk = memories.find((memory) => memory.name === "提灯修士");
     expect(
       keeper?.messages.some((message) =>
-        message.content.includes("提灯修士攻击（使用裂齿短刃），造成6点伤害"),
+        message.content.includes("提灯修士挥击（使用裂齿短刃），造成6点伤害"),
       ),
     ).toBe(true);
     expect(
       monk?.messages.some((message) =>
-        message.content.includes("守烬人对你攻击（使用裂齿短刃），造成6点伤害；你剩余 HP 4/10。"),
+        message.content.includes("守烬人对你挥击（使用裂齿短刃），造成6点伤害；你剩余 HP 4/10。"),
       ),
     ).toBe(true);
   });
@@ -449,7 +456,7 @@ describe.skipIf(!testDatabaseUrl)("memory-driven NPC slice", () => {
       name: "死亡测试局",
       world,
     });
-    const service = new ScriptedNpcService([{ actions: [attackAction("提灯修士")] }]);
+    const service = new ScriptedNpcService([{ actions: [strikeAction("提灯修士")] }]);
 
     const result = await runNpcTurn(handle.db, created.game.slug, "守烬人", { service });
     expect(result.ok).toBe(true);
@@ -492,7 +499,7 @@ describe.skipIf(!testDatabaseUrl)("memory-driven NPC slice", () => {
       .find((actor) => actor.name === "提灯修士");
     expect(defaultPlayer?.isDefaultPlayer).toBe(true);
 
-    const service = new ScriptedNpcService([{ actions: [attackAction("提灯修士")] }]);
+    const service = new ScriptedNpcService([{ actions: [strikeAction("提灯修士")] }]);
     const result = await runNpcTurn(handle.db, created.game.slug, "守烬人", { service });
     expect(result.ok).toBe(true);
 
@@ -544,7 +551,7 @@ describe.skipIf(!testDatabaseUrl)("memory-driven NPC slice", () => {
     expect(keeperLocation?.[1]).toBe("断钟中殿");
   });
 
-  it("writes observer-specific communication and attack memory for a third actor", async () => {
+  it("writes observer-specific communication and strike memory for a third actor", async () => {
     const world = {
       ...TEST_WORLD,
       actors: [
@@ -607,7 +614,7 @@ describe.skipIf(!testDatabaseUrl)("memory-driven NPC slice", () => {
         ],
       },
       {
-        actions: [attackAction("提灯修士")],
+        actions: [strikeAction("提灯修士")],
       },
     ]);
     const announced = await runNpcTurn(handle.db, game.game.slug, "守烬人", { service });
@@ -645,10 +652,10 @@ describe.skipIf(!testDatabaseUrl)("memory-driven NPC slice", () => {
       ),
     ).toBe(true);
     expect(
-      observer?.messages.some((message) => message.content.includes("守烬人对提灯修士攻击")),
+      observer?.messages.some((message) => message.content.includes("守烬人对提灯修士挥击")),
     ).toBe(true);
     expect(
-      scribe?.messages.some((message) => message.content.includes("守烬人对提灯修士攻击")),
+      scribe?.messages.some((message) => message.content.includes("守烬人对提灯修士挥击")),
     ).toBe(false);
   });
 });

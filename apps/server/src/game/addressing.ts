@@ -14,10 +14,12 @@ export { plainEntityName };
 export type Address = {
   /** 系统指代，如 `@3`；找不到主体时为空串。 */
   token: string;
-  /** 名单里的完整写法：`名字（外观）` 或只有外观。 */
+  /** 名单写法：`名字（外观）`；不知道名字时写 `外观：…`。 */
   label: string;
-  /** 句子里的自然称呼：知道名字就用名字，否则只用外观。 */
+  /** 句子里的称呼：知道名字用名字，否则只用指代 `@3`。 */
   mention: string;
+  /** 当前形象的外观；句子不内联它，需要时由 `appearanceLine` 单独成行。 */
+  appearance: string;
   /** 观察者相信的名字；未知为 null。 */
   knownName: string | null;
 };
@@ -33,7 +35,8 @@ export type AddressSubject = {
   appearance: string;
 };
 
-const UNKNOWN_LABEL = "一个看不清的身影";
+/** 指代无法解析（对方不在本场景）时的泛称：不可观测，也不编造外观。 */
+const UNKNOWN_LABEL = "某个不在场者";
 
 /** 形象序号就是句柄；与 actor / stage / item 共用本局实体序号。 */
 export function handleOf(presentationSeq: number): string {
@@ -53,7 +56,7 @@ export function entityNameMatches(candidate: string, ref: string): boolean {
 }
 
 function labelOf(knownName: string | null, appearance: string): string {
-  return knownName === null ? appearance : `${knownName}（${appearance}）`;
+  return knownName === null ? `外观：${appearance}` : `${knownName}（${appearance}）`;
 }
 
 /**
@@ -72,14 +75,17 @@ export function makeAddressLookup(
         token: "",
         label: UNKNOWN_LABEL,
         mention: UNKNOWN_LABEL,
+        appearance: "",
         knownName: null,
       };
     }
     const knownName = knownNames.get(subject.presentationId) ?? null;
+    const token = handleOf(subject.presentationSeq);
     return {
-      token: handleOf(subject.presentationSeq),
+      token,
       label: labelOf(knownName, subject.appearance),
-      mention: knownName ?? subject.appearance,
+      mention: knownName ?? token,
+      appearance: subject.appearance,
       knownName,
     };
   };
@@ -90,14 +96,24 @@ export function refOf(address: Address): string {
   return address.token.length === 0 ? address.label : `${address.token} ${address.label}`;
 }
 
-/** 句子里的自然称呼：知道名字就写名字，否则只写外观。 */
+/** 句子里的称呼：知道名字就写名字，否则只写指代。 */
 export function mentionOf(address: Address): string {
   return address.mention;
 }
 
-/** 行动反馈里的指代：带上句柄，方便下一轮直接引用。 */
+/** 未知名字时补充的外观行：`@15 外观：…`；已知名字返回 null。 */
+export function appearanceLine(address: Address): string | null {
+  if (address.knownName !== null || address.appearance.length === 0) {
+    return null;
+  }
+  return `${address.token} 外观：${address.appearance}`;
+}
+
+/** 行动反馈里的指代：知道名字时带上句柄；未知时句柄本身就是全部称呼。 */
 export function actionRef(address: Address): string {
-  return address.token.length === 0 ? address.mention : `${address.token} ${address.mention}`;
+  return address.token.length === 0 || address.knownName === null
+    ? address.mention
+    : `${address.token} ${address.mention}`;
 }
 
 /** 一组 actor 的当前形象；未提供时应视为不可见。 */
@@ -142,6 +158,7 @@ export function addressLookupFor(
         token: handleOf(observer.presentation.seq),
         label: "你自己",
         mention: "你",
+        appearance: observer.appearance,
         knownName: plainEntityName(observer.name),
       };
     }

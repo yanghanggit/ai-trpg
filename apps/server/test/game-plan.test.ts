@@ -1,12 +1,14 @@
 import { describe, expect, it } from "vitest";
+import { assertActionAllowed } from "../src/game/actions";
 import { buildAnnounceTool, parseAnnounce } from "../src/game/actions/announce";
-import { buildAttackTool, parseAttack } from "../src/game/actions/attack";
+import { buildBrawlTool, parseBrawl } from "../src/game/actions/brawl";
 import { buildEquipTool, parseEquip } from "../src/game/actions/equip";
 import { buildGiveTool, parseGive } from "../src/game/actions/give";
 import { buildMoveTool, parseMove } from "../src/game/actions/move";
 import { buildPickupTool, parsePickup } from "../src/game/actions/pickup";
 import { buildSayTool, parseSay } from "../src/game/actions/say";
 import { buildStealTool, parseSteal } from "../src/game/actions/steal";
+import { buildStrikeTool, parseStrike } from "../src/game/actions/strike";
 import { buildUnequipTool, parseUnequip } from "../src/game/actions/unequip";
 import { buildUseTool, parseUse, usableItemNames } from "../src/game/actions/use";
 import { buildWaitTool, parseWait } from "../src/game/actions/wait";
@@ -20,6 +22,16 @@ import {
   describeStats,
 } from "../src/game/plan";
 import { parseEndGame } from "../src/game/world-plan";
+
+describe("action authorization", () => {
+  it("权限报错直接用规范名，不重复类别前缀", () => {
+    expect(() => assertActionAllowed([], "strike", "角色.奥德里克")).toThrow(
+      "角色.奥德里克 不能使用动作: strike",
+    );
+    // 测试夹具里的裸名照原样输出，不额外补前缀。
+    expect(() => assertActionAllowed([], "brawl", "守烬人")).toThrow("守烬人 不能使用动作: brawl");
+  });
+});
 
 describe("action tools", () => {
   it("每类动作都是独立工具，参数即它的全部输入", () => {
@@ -37,7 +49,8 @@ describe("action tools", () => {
     expect(buildAnnounceTool().function.parameters.required).toEqual(["mind", "message"]);
     expect(buildMoveTool(stages).function.parameters.required).toEqual(["targetStageName"]);
     expect(buildWaitTool().function.parameters.required).toEqual([]);
-    expect(buildAttackTool(targets).function.parameters.required).toEqual(["targetActorHandle"]);
+    expect(buildStrikeTool(targets).function.parameters.required).toEqual(["targetActorHandle"]);
+    expect(buildBrawlTool(targets).function.parameters.required).toEqual(["targetActorHandle"]);
     expect(buildStealTool(targets).function.parameters.required).toEqual([
       "targetActorHandle",
       "itemName",
@@ -54,8 +67,11 @@ describe("action tools", () => {
     expect(buildUnequipTool(["weapon"]).function.parameters.required).toEqual(["slot"]);
 
     // 每个工具的参数就是它自己的输入，没有中间层字段。
-    const attackProps = Object.keys(buildAttackTool(targets).function.parameters.properties ?? {});
-    expect(attackProps).toEqual(["targetActorHandle"]);
+    const strikeProps = Object.keys(buildStrikeTool(targets).function.parameters.properties ?? {});
+    expect(strikeProps).toEqual(["targetActorHandle"]);
+    expect(Object.keys(buildBrawlTool(targets).function.parameters.properties ?? {})).toEqual([
+      "targetActorHandle",
+    ]);
     const useProps = Object.keys(
       buildUseTool(items, targets, "灰烬门廊").function.parameters.properties ?? {},
     );
@@ -78,6 +94,7 @@ describe("use candidates", () => {
       count: 1,
       stats: { maxHp: 0, strength: 0, wisdom: 0, agility: 0, damage: 0, block: 0 },
       effect: { type: effect },
+      actions: [],
     });
 
   it("排除穿戴中的物品与没有可执行效果的物品", () => {
@@ -116,9 +133,14 @@ describe("action parsers", () => {
       targetStageName: "断钟中殿",
     });
     expect(parseWait()).toEqual({ kind: "wait" });
-    // attack 不再接收物品名：武器由装备决定。
-    expect(parseAttack({ targetActorHandle: " 提灯修士 ", itemName: "裂齿短刃" })).toEqual({
-      kind: "attack",
+    // strike 不再接收物品名：武器由 weapon 槽决定。
+    expect(parseStrike({ targetActorHandle: " 提灯修士 ", itemName: "裂齿短刃" })).toEqual({
+      kind: "strike",
+      targetActorHandle: "提灯修士",
+    });
+    // 肉搏同样只接收目标：身体不是物品，没有可指定的武器。
+    expect(parseBrawl({ targetActorHandle: " 提灯修士 ", itemName: "裂齿短刃" })).toEqual({
+      kind: "brawl",
       targetActorHandle: "提灯修士",
     });
     expect(parseEquip({ itemName: " 裂齿短刃 ", slot: " weapon " })).toEqual({
@@ -170,7 +192,8 @@ describe("action parsers", () => {
     expect(() =>
       parseUse({ itemName: "钥匙", targetActorHandle: "守烬人", targetDetail: "锁孔" }),
     ).toThrow("targetDetail");
-    expect(() => parseAttack({ targetActorHandle: "  " })).toThrow("targetActorHandle");
+    expect(() => parseStrike({ targetActorHandle: "  " })).toThrow("targetActorHandle");
+    expect(() => parseBrawl({ targetActorHandle: "  " })).toThrow("targetActorHandle");
     expect(() => parseSteal({ targetActorHandle: "提灯修士" })).toThrow("itemName");
     expect(() => parsePickup({})).toThrow("itemName");
     expect(() => parseUse({ itemName: "钥匙" })).toThrow("targetActorHandle 或 targetStageName");
@@ -215,17 +238,7 @@ describe("read-only descriptions", () => {
       stats: { maxHp: 12, strength: 3, wisdom: 2, agility: 4, damage: 3, block: 2 },
       isDefaultPlayer: false,
       equipment: { weapon: "裂齿短刃" },
-      actions: [
-        "say",
-        "whisper",
-        "announce",
-        "move",
-        "wait",
-        "attack",
-        "give",
-        "pickup",
-        "use",
-      ] as const,
+      actions: ["say", "whisper", "announce", "move", "wait", "give", "pickup", "use"] as const,
       items: [
         {
           id: "item-1",
@@ -238,6 +251,7 @@ describe("read-only descriptions", () => {
           stats: { maxHp: 0, strength: 0, wisdom: 0, agility: 0, damage: 3, block: 0 },
           effect: { type: "damage" },
           affixes: [],
+          actions: ["strike" as const],
         },
       ],
     };
@@ -274,6 +288,7 @@ describe("read-only descriptions", () => {
           stats: { maxHp: 0, strength: 0, wisdom: 0, agility: 0, damage: 0, block: 0 },
           effect: { type: "none" },
           affixes: [],
+          actions: [],
         },
       ],
     };

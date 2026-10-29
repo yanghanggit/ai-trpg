@@ -7,7 +7,13 @@
  * 观察与行动反馈共用它，不许各自拼。文本对外可见（测试直接断言内容），改文案要同步测试。
  */
 
-import { type AddressLookup, mentionOf, plainEntityName } from "./addressing";
+import {
+  type Address,
+  type AddressLookup,
+  appearanceLine,
+  mentionOf,
+  plainEntityName,
+} from "./addressing";
 import { MEMORY_KINDS } from "./constants";
 import type { ActionKind, CommunicationKind, ItemEventKind, ObservationMetadata } from "./types";
 
@@ -54,16 +60,32 @@ export type ItemObservation = { actor: ActorRef; itemName: string } & (
 );
 
 /**
+ * 未知对方的观察把外观另起一行：句子只留名字或指代，外观不冒充称呼。
+ *
+ * 外观对认知隔离是必要的（不知道是谁，只能靠样子辨认），但它不是名字，不能塞进句子。
+ */
+export function withAppearances(content: string, addresses: readonly Address[]): string {
+  const lines = addresses
+    .map((address) => appearanceLine(address))
+    .filter((line): line is string => line !== null);
+  const unique = [...new Set(lines)];
+  return unique.length === 0
+    ? content
+    : `${content}
+
+${unique.join("\n")}`;
+}
+
+/**
  * 伤害观察的输入：数值由结算方给出，文案只负责按行动与视角取舍。
  *
- * `attack` 与 `use` 都会造成伤害，但不是同一件事：标题与措词一律跟着动作走，
- * 攻击即使带上了武器也仍叫攻击。
+ * `strike` / `brawl` / `use` 都会造成伤害，但不是同一件事：标题与措词一律跟着动作走。
  */
 export type DamageObservation = {
-  action: Extract<ActionKind, "attack" | "use">;
+  action: Extract<ActionKind, "strike" | "brawl" | "use">;
   attacker: ActorRef;
   target: ActorRef & { maxHp: number };
-  /** 本次动作用到的物品名；空手攻击时省略。 */
+  /** 本次动作用到的物品名；`strike` 必填，`use` 省略表示空手。 */
   itemName?: string;
   /** 词缀追加的伤害；默认效果省略。 */
   via?: "affix";
@@ -72,7 +94,7 @@ export type DamageObservation = {
 };
 
 /** 环境观察：进入场景、场景自身变化这类没有当事人视角的事实。 */
-export function renderEnvironment(content: string, stageId: string): ObservationView {
+export function renderEnvironmentChange(content: string, stageId: string): ObservationView {
   return { content, metadata: { kind: MEMORY_KINDS.environmentObservation, stageId } };
 }
 
@@ -83,12 +105,15 @@ export function renderAction(content: string, stageId: string): ObservationView 
 
 /**
  * 伤害行动的动作短语。句式由动作锁定，观察者、落点与视角都不改变它：
- * `attack` 的主体是「攻击」，道具只是括注；`use` 的主体是「使用道具」。
+ * `strike` 的主体是「挥击」，武器只是括注；`brawl` 是「肉搏」；`use` 的主体是「使用道具」。
  */
-export function damageActionText(action: "attack" | "use", itemName?: string): string {
+export function damageActionText(action: "strike" | "brawl" | "use", itemName?: string): string {
   const name = itemName === undefined ? undefined : plainEntityName(itemName);
-  if (action === "attack") {
-    return `攻击${name ? `（使用${name}）` : ""}`;
+  if (action === "strike") {
+    return `挥击${name ? `（使用${name}）` : ""}`;
+  }
+  if (action === "brawl") {
+    return "肉搏";
   }
   return `使用${name ?? "空手"}`;
 }
@@ -96,7 +121,7 @@ export function damageActionText(action: "attack" | "use", itemName?: string): s
 /**
  * 伤害观察：只有当事人带剩余生命，旁观者只知道这一下多疼、对方倒没倒下。
  *
- * 措词取自 `damageActionText`，标题跟着动作：`attack` 为「你被攻击 / 战斗」，
+ * 措词取自 `damageActionText`，标题跟着动作：`strike` / `brawl` 为「你被攻击 / 战斗」，
  * `use` 为「你被使用道具 / 场景动态」。
  */
 export function renderDamage(
@@ -107,19 +132,25 @@ export function renderDamage(
 ): ObservationView {
   const { action, attacker, target, itemName, damage, remainingHp, via } = observation;
   const actionText = damageActionText(action, itemName);
-  const attackerRef = mentionOf(address(attacker.id));
-  const targetRef = mentionOf(address(target.id));
+  const attackerAddress = address(attacker.id);
+  const targetAddress = address(target.id);
+  const attackerRef = mentionOf(attackerAddress);
+  const targetRef = mentionOf(targetAddress);
   const damageText = via === "affix" ? `词缀追加${damage}点伤害` : `造成${damage}点伤害`;
+  // 挥击与肉搏都是战斗；使用道具是另一件事。
   const heading =
-    action === "attack"
-      ? { target: "# 你被攻击", bystander: "# 战斗" }
-      : { target: "# 你被使用道具", bystander: "# 场景动态" };
+    action === "use"
+      ? { target: "# 你被使用道具", bystander: "# 场景动态" }
+      : { target: "# 你被攻击", bystander: "# 战斗" };
 
   if (observerId === target.id) {
     return {
-      content: `${heading.target}\n${attackerRef}对你${actionText}，${damageText}；${
-        remainingHp <= 0 ? "你倒下了" : `你剩余 HP ${remainingHp}/${target.maxHp}`
-      }。`,
+      content: withAppearances(
+        `${heading.target}\n${attackerRef}对你${actionText}，${damageText}；${
+          remainingHp <= 0 ? "你倒下了" : `你剩余 HP ${remainingHp}/${target.maxHp}`
+        }。`,
+        [attackerAddress],
+      ),
       metadata: {
         kind: MEMORY_KINDS.actionObservation,
         stageId: stage.id,
@@ -129,9 +160,12 @@ export function renderDamage(
   }
 
   return {
-    content: `${heading.bystander}\n${attackerRef}对${targetRef}${actionText}，${damageText}${
-      remainingHp <= 0 ? `；${targetRef}倒下了` : ""
-    }。`,
+    content: withAppearances(
+      `${heading.bystander}\n${attackerRef}对${targetRef}${actionText}，${damageText}${
+        remainingHp <= 0 ? `；${targetRef}倒下了` : ""
+      }。`,
+      [attackerAddress, targetAddress],
+    ),
     metadata: {
       kind: MEMORY_KINDS.actionObservation,
       stageId: stage.id,
@@ -155,7 +189,11 @@ export function renderItemEvent(
 ): ObservationView {
   const { actor } = observation;
   const itemName = plainEntityName(observation.itemName);
-  const actorRef = mentionOf(address(actor.id));
+  const actorAddress = address(actor.id);
+  const actorRef = mentionOf(actorAddress);
+  const targetAddress =
+    "target" in observation && observation.target ? address(observation.target.id) : null;
+  const targetRef = targetAddress ? mentionOf(targetAddress) : "";
   const metadata: ObservationMetadata = {
     kind: MEMORY_KINDS.actionObservation,
     stageId: stage.id,
@@ -164,21 +202,25 @@ export function renderItemEvent(
 
   if (observation.event === "steal") {
     return {
-      content: `# 你被窃取\n${actorRef}从你身上取走了${itemName}。`,
+      content: withAppearances(`# 你被窃取\n${actorRef}从你身上取走了${itemName}。`, [
+        actorAddress,
+      ]),
       metadata,
     };
   }
 
   if (observation.event === "give" && observerId === observation.target.id) {
     return {
-      content: `# 你收到物品\n${actorRef}把${itemName}交给了你。`,
+      content: withAppearances(`# 你收到物品\n${actorRef}把${itemName}交给了你。`, [actorAddress]),
       metadata,
     };
   }
 
   if (observation.event === "use" && observerId === observation.target?.id) {
     return {
-      content: `# 你被使用道具\n${actorRef}对你使用了${itemName}。`,
+      content: withAppearances(`# 你被使用道具\n${actorRef}对你使用了${itemName}。`, [
+        actorAddress,
+      ]),
       metadata,
     };
   }
@@ -186,17 +228,26 @@ export function renderItemEvent(
   switch (observation.event) {
     case "give":
       return {
-        content: `# 场景动态\n${actorRef}把${itemName}交给了${mentionOf(address(observation.target.id))}。`,
+        content: withAppearances(`# 场景动态\n${actorRef}把${itemName}交给了${targetRef}。`, [
+          actorAddress,
+          ...(targetAddress ? [targetAddress] : []),
+        ]),
         metadata: { ...metadata, targetActorId: observation.target.id },
       };
     case "pickup":
-      return { content: `# 场景动态\n${actorRef}拾取了${itemName}。`, metadata };
+      return {
+        content: withAppearances(`# 场景动态\n${actorRef}拾取了${itemName}。`, [actorAddress]),
+        metadata,
+      };
     case "use": {
       const where = observation.target
-        ? `对${mentionOf(address(observation.target.id))}`
+        ? `对${targetRef}`
         : `在${stage.name}${observation.targetDetail ? `的${observation.targetDetail}` : ""}`;
       return {
-        content: `# 场景动态\n${actorRef}${where}使用了${itemName}。`,
+        content: withAppearances(`# 场景动态\n${actorRef}${where}使用了${itemName}。`, [
+          actorAddress,
+          ...(targetAddress ? [targetAddress] : []),
+        ]),
         metadata: {
           ...metadata,
           ...(observation.target ? { targetActorId: observation.target.id } : {}),
@@ -216,11 +267,16 @@ export function renderCommunication(
   address: AddressLookup,
 ): ObservationView {
   const { source, message } = observation;
-  const sourceRef = mentionOf(address(source.id));
+  const sourceAddress = address(source.id);
+  const sourceRef = mentionOf(sourceAddress);
+  const targetAddress = observation.kind === "announce" ? null : address(observation.target.id);
 
   if (observation.kind === "whisper") {
     return {
-      content: `# 你听见\n${sourceRef}对你耳语（场景：${stage.name}）：${message}`,
+      content: withAppearances(
+        `# 你听见\n${sourceRef}对你耳语（场景：${stage.name}）：${message}`,
+        [sourceAddress],
+      ),
       metadata: {
         kind: MEMORY_KINDS.communicationObservation,
         visibility: "private",
@@ -231,15 +287,19 @@ export function renderCommunication(
     };
   }
 
+  const heardByTarget = observation.kind !== "announce" && observerId === observation.target.id;
   const heard =
     observation.kind === "announce"
       ? `${sourceRef}公开说`
-      : observerId === observation.target.id
+      : heardByTarget
         ? `${sourceRef}对你说`
         : `${sourceRef}对${mentionOf(address(observation.target.id))}说`;
 
   return {
-    content: `# 你听见\n${heard}（场景：${stage.name}）：${message}`,
+    content: withAppearances(`# 你听见\n${heard}（场景：${stage.name}）：${message}`, [
+      sourceAddress,
+      ...(heardByTarget || targetAddress === null ? [] : [targetAddress]),
+    ]),
     metadata: {
       kind: MEMORY_KINDS.communicationObservation,
       visibility: "stage",

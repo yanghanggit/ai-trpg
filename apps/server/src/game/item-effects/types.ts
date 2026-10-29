@@ -4,13 +4,13 @@ import type { AddressLookup } from "../addressing";
 import type { ActorRow, ActorWithStageRow, Executor, ItemRow, StageRow } from "../apply/types";
 import type { ItemEffect } from "../types";
 
-/** 动作分派给物品效果时携带的上下文；效果执行器不反向调用动作。 */
+/** 动作分派给效果 handler 时携带的上下文；不带物品的动作（如 `brawl`）省略 `item`。 */
 export type ItemEffectContext = {
   executor: Executor;
   gameId: string;
   actorRow: ActorWithStageRow;
   stage: StageRow;
-  actionKind: "attack" | "use";
+  actionKind: "strike" | "brawl" | "use";
   effect: ItemEffect;
   item?: ItemRow;
   target?: ActorRow;
@@ -31,7 +31,7 @@ export type ItemEffectHandler = (context: ItemEffectContext) => Promise<string>;
 export type AffixRequest = {
   actorId: string;
   itemId: string;
-  actionKind: "attack" | "use";
+  actionKind: "strike" | "brawl" | "use";
   targetActorId?: string;
   /** 出手者视角的指代；给补充结算用，避免真名进入生成文本。 */
   targetLabel?: string;

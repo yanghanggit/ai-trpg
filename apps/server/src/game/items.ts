@@ -1,6 +1,7 @@
 import { type Stats, toStats } from "./attributes";
 import { GameError } from "./errors";
 import type {
+  ActionKind,
   ActorState,
   Affix,
   EquipmentSlot,
@@ -24,6 +25,7 @@ export function toItemState(row: {
   stats: Stats;
   effect: ItemEffect;
   affixes?: readonly Affix[];
+  actions?: readonly ActionKind[];
 }): ItemState {
   const base = {
     id: row.id,
@@ -34,6 +36,7 @@ export function toItemState(row: {
     count: row.count,
     effect: row.effect,
     affixes: row.affixes ?? [],
+    actions: row.actions ?? [],
     stats: toStats(row.stats),
   };
   switch (row.kind) {
@@ -85,6 +88,11 @@ export function equippedItems(actor: Pick<ActorState, "items" | "equipment">): E
     }
   }
   return equipped;
+}
+
+/** 穿戴中的物品提供的动作；槽位索引指向不存在的物品时不授予。 */
+export function equippedItemActions(actor: Pick<ActorState, "items" | "equipment">): ActionKind[] {
+  return equippedItems(actor).flatMap(({ item }) => item.actions);
 }
 
 export function equipSlot(

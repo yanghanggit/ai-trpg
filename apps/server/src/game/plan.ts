@@ -6,7 +6,7 @@ import { isAlive } from "./apply/queries";
 import { MAX_IDENTITY_NAME_LENGTH, MAX_WORLD_NOTIFICATION_LENGTH } from "./constants";
 import { GameError } from "./errors";
 import { teleportTargetsFor } from "./teleport";
-import { renderEnvironmentForActor } from "./text-guard";
+import { sanitizeStageEnvironment } from "./text-guard";
 import type { ActorState, GameState, ItemState, StageAction } from "./types";
 import { EQUIPMENT_SLOT_LABELS, EQUIPMENT_SLOTS } from "./types";
 
@@ -287,7 +287,15 @@ export function describeItems(actor: Pick<ActorState, "items" | "equipment">): s
   }
   const lines = actor.items.map((item) => {
     const { damage, block } = item.stats;
-    const stats = damage > 0 || block > 0 ? `（damage ${damage}，block ${block}）` : "";
+    const notes: string[] = [];
+    if (damage > 0 || block > 0) {
+      notes.push(`damage ${damage}`, `block ${block}`);
+    }
+    // 物品提供的动作只在穿戴时生效；写出来，模型才知道能否挥击、卸下会失去什么。
+    if (item.actions.length > 0) {
+      notes.push(`提供 ${item.actions.join("、")}`);
+    }
+    const stats = notes.length > 0 ? `（${notes.join("，")}）` : "";
     const worn = Object.values(actor.equipment).includes(item.name) ? "，已穿戴" : "";
     return `- ${plainEntityName(item.name)}（${item.kind}，count ${item.count}${itemSourceNote(item)}${worn}）：${item.description}${stats}`;
   });
@@ -417,7 +425,7 @@ export function describeStageForActor(
     .flatMap((candidate) => candidate.actors)
     .filter((actor) => !stage.actors.some((present) => present.id === actor.id))
     .map((actor) => actor.name);
-  const environment = renderEnvironmentForActor(
+  const environment = sanitizeStageEnvironment(
     stage.environment,
     stage.actors,
     address,

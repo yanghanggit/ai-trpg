@@ -5,7 +5,7 @@ import { appendPublicMessage, bumpGameVersion } from "../apply/messages";
 import type { ActorWithStageRow, Executor, ResolvedUnequip } from "../apply/types";
 import { GameError } from "../errors";
 import { unequipSlot } from "../items";
-import { renderAction } from "../observation-text";
+import { renderAction, withAppearances } from "../observation-text";
 import { appendCustomStageObservation, appendStageMemory } from "../observations";
 import { setActorEquipment } from "../persistence/actors";
 import {
@@ -87,7 +87,10 @@ export async function applyUnequip(
     actor.id,
     (_observer, address) =>
       renderAction(
-        `# 场景动态\n${mentionOf(address(actor.id))}卸下了${plainEntityName(resolved.itemName)}（${label}）。`,
+        withAppearances(
+          `# 场景动态\n${mentionOf(address(actor.id))}卸下了${plainEntityName(resolved.itemName)}（${label}）。`,
+          [address(actor.id)],
+        ),
         resolved.stage.id,
       ),
     trace,

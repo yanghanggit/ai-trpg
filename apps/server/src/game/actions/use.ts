@@ -39,7 +39,7 @@ export function buildUseTool(
     function: {
       name: "use",
       description:
-        "把一次使用道具加入计划：使用一件背在身上、没穿戴的物品，作用于一个角色或当前场景。物品只声明 effect；use 只负责选择物品与目标并分派。targetActorHandle 与 targetStageName 二选一。正装备在槽里的物品不能使用：武器用 attack 出手，其余先 unequip。",
+        "把一次使用道具加入计划：使用一件背在身上、没穿戴的物品，作用于一个角色或当前场景。物品只声明 effect；use 只负责选择物品与目标并分派。targetActorHandle 与 targetStageName 二选一。正装备在槽里的物品不能使用：武器用 strike 出手，其余先 unequip。",
       parameters: {
         type: "object",
         properties: {
@@ -108,7 +108,7 @@ export async function resolveUse(
   action: UseAction,
 ): Promise<ResolvedUse> {
   const transferItem = await resolveActorItem(executor, actorRow.actor.id, action.itemName);
-  // 动作由物品状态唯一决定：装备中的物品归 attack 或被动装备，不能当道具使用。
+  // 动作由物品状态唯一决定：装备中的物品归 strike 或被动装备，不能当道具使用。
   const slot = equippedSlotOf(actorRow.actor.equipment, transferItem.name);
   if (slot) {
     throw new GameError(

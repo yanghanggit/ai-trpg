@@ -42,13 +42,14 @@ import {
   isAlive,
   listPlayerControlledActorIds,
   playerAnnounce,
-  playerAttack,
+  playerBrawl,
   playerEquip,
   playerGive,
   playerMove,
   playerPickup,
   playerSay,
   playerSteal,
+  playerStrike,
   playerTeleport,
   playerUnequip,
   playerUse,
@@ -174,7 +175,8 @@ function usage(): void {
       "agent-game player-move --game <gameId|slug> --actor <actorId|actorName> --to <stageId|stageName>",
       "agent-game player-teleport --game <gameId|slug> --actor <actorId|actorName> --to <stageId|stageName>",
       "agent-game player-wait --game <gameId|slug> --actor <actorId|actorName>",
-      "agent-game player-attack --game <gameId|slug> --actor <actorId|actorName> --target <actorName>（武器由装备决定）",
+      "agent-game player-strike --game <gameId|slug> --actor <actorId|actorName> --target <actorName>（武器取自 weapon 槽，必须提供 strike）",
+      "agent-game player-brawl --game <gameId|slug> --actor <actorId|actorName> --target <actorName>（用身体，不读物品）",
       "agent-game player-steal --game <gameId|slug> --actor <actorId|actorName> --target <actorName> --item <itemName>",
       "agent-game player-give --game <gameId|slug> --actor <actorId|actorName> --target <actorName> --item <itemName>",
       "agent-game player-pickup --game <gameId|slug> --actor <actorId|actorName> --item <itemName>",
@@ -468,18 +470,36 @@ async function main(): Promise<void> {
     return;
   }
 
-  if (command === "player-attack") {
+  if (command === "player-strike") {
     const { game, actor } = requireActorArgs(values, command);
     if (typeof values.target !== "string" || values.target.trim().length === 0) {
-      throw new Error("player-attack 需要 --target <actorName>");
+      throw new Error("player-strike 需要 --target <actorName>");
     }
     const result = await withDatabase((db) =>
-      playerAttack(
+      playerStrike(
         db,
         game,
         actor,
         { targetActorRef: values.target as string },
         { service: DEEPSEEK_SERVICE, appearanceService: DEEPSEEK_SERVICE },
+      ),
+    );
+    emitTurn(command, result);
+    return;
+  }
+
+  if (command === "player-brawl") {
+    const { game, actor } = requireActorArgs(values, command);
+    if (typeof values.target !== "string" || values.target.trim().length === 0) {
+      throw new Error("player-brawl 需要 --target <actorName>");
+    }
+    const result = await withDatabase((db) =>
+      playerBrawl(
+        db,
+        game,
+        actor,
+        { targetActorRef: values.target as string },
+        { appearanceService: DEEPSEEK_SERVICE },
       ),
     );
     emitTurn(command, result);

@@ -3,7 +3,7 @@ import type { ToolDefinition } from "../../llm/types";
 import { mentionOf } from "../addressing";
 import { appendPublicMessage, bumpGameVersion } from "../apply/messages";
 import type { ActorWithStageRow, Executor, ResolvedWait } from "../apply/types";
-import { renderAction } from "../observation-text";
+import { renderAction, withAppearances } from "../observation-text";
 import { appendCustomStageObservation, appendStageMemory } from "../observations";
 import type { WaitAction } from "../types";
 
@@ -53,7 +53,10 @@ export async function applyWait(
     actorRow.actor.id,
     (_observer, address) =>
       renderAction(
-        `# 场景动态\n${mentionOf(address(actorRow.actor.id))}留在原地，继续观察四周。`,
+        withAppearances(
+          `# 场景动态\n${mentionOf(address(actorRow.actor.id))}留在原地，继续观察四周。`,
+          [address(actorRow.actor.id)],
+        ),
         resolved.stage.id,
       ),
     trace,

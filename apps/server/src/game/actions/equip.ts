@@ -6,7 +6,7 @@ import { resolveActorItem } from "../apply/queries";
 import type { ActorWithStageRow, Executor, ResolvedEquip } from "../apply/types";
 import { GameError } from "../errors";
 import { equipSlot } from "../items";
-import { renderAction } from "../observation-text";
+import { renderAction, withAppearances } from "../observation-text";
 import { appendCustomStageObservation, appendStageMemory } from "../observations";
 import { setActorEquipment } from "../persistence/actors";
 import {
@@ -102,7 +102,10 @@ export async function applyEquip(
     actor.id,
     (_observer, address) =>
       renderAction(
-        `# 场景动态\n${mentionOf(address(actor.id))}穿上了${plainEntityName(item.name)}（${label}）。`,
+        withAppearances(
+          `# 场景动态\n${mentionOf(address(actor.id))}穿上了${plainEntityName(item.name)}（${label}）。`,
+          [address(actor.id)],
+        ),
         resolved.stage.id,
       ),
     trace,
