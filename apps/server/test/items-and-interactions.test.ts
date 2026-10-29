@@ -190,8 +190,8 @@ class ThrowingService implements ChatCompletionService {
   }
 }
 
-const SEALED_STAGE_NAME = "场景.封印门";
-const SEALED_KEY_NAME = "饰品.测试钥匙";
+const SEALED_STAGE_NAME = "封印门";
+const SEALED_KEY_NAME = "测试钥匙";
 
 const testDatabaseUrl = process.env.TEST_DATABASE_URL?.trim();
 
@@ -204,7 +204,7 @@ const ITEM_WORLD = {
           items: [
             {
               key: "test-torch",
-              name: "武器.测试火把",
+              name: "测试火把",
               description: "测试用的场景武器。",
               kind: "weapon" as const,
               count: 1,
@@ -771,7 +771,7 @@ describe.skipIf(!testDatabaseUrl)("items and interactions", () => {
       .find((actor) => actor.name === "提灯修士");
     expect(monk?.hp).toBe(7);
     expect(state.messages.at(-1)?.kind).toBe("brawl");
-    // 公共消息是上帝视角：双方都用规范名，结局不混入观察者相对的指代。
+    // 公共消息是上帝视角：双方都用名字，结局不混入观察者相对的指代。
     expect(state.messages.at(-1)?.content).toBe(
       "守烬人对提灯修士肉搏，造成3点伤害；提灯修士剩余 HP 7/10。",
     );
@@ -941,7 +941,7 @@ describe.skipIf(!testDatabaseUrl)("items and interactions", () => {
     await takeActorControl(handle.db, created.game.slug, "守烬人");
 
     const picked = await playerPickup(handle.db, created.game.slug, "守烬人", {
-      itemName: "武器.测试火把",
+      itemName: "测试火把",
     });
     expect(picked.ok).toBe(true);
 
@@ -949,7 +949,7 @@ describe.skipIf(!testDatabaseUrl)("items and interactions", () => {
     const gate = state.world.stages.find((stage) => stage.name === "灰烬门廊");
     const keeper = gate?.actors.find((actor) => actor.name === "守烬人");
     expect(gate?.items).toEqual([]);
-    const torch = keeper?.items.find((item) => item.name === "武器.测试火把");
+    const torch = keeper?.items.find((item) => item.name === "测试火把");
     expect(torch).toMatchObject({
       key: "test-torch",
       count: 1,

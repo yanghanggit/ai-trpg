@@ -8,7 +8,7 @@ import type { World } from "../src/game/types";
 export const TEST_WORLD: World = {
   contentVersion: "test-world.v1",
   contentKey: "test-world",
-  worldName: "世界.灰烬测试局",
+  worldName: "灰烬测试局",
   profile: "一个封闭的测试世界：故事在门廊与中殿之间收束，没有别的出口。",
   campaignSetting: "这是一个用于验证服务层行为的封闭测试世界。",
   systemRules: "角色只能沿场景连接移动；行动结果由服务层结算。",

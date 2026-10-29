@@ -1,6 +1,6 @@
 import type { Database } from "../db/pool";
 import { adjacentStages, findActorWithStage } from "./actors";
-import { addressLookupFor, plainEntityName } from "./addressing";
+import { addressLookupFor } from "./addressing";
 import { MEMORY_KINDS } from "./constants";
 import { getMemoryState } from "./memory";
 import { getGameState } from "./service";
@@ -10,15 +10,15 @@ import type { NameKnowledgeState } from "./types";
 /**
  * 客户端用的「世界面」投影。
  *
- * 公共事件流的文本在写入时就已经带规范名，无法可靠地事后脱敏；所以观看者视角直接
+ * 公共事件流的文本在写入时就已经带名字，无法可靠地事后脱敏；所以观看者视角直接
  * 读该 actor 的记忆——它本来就是为了这个观察者渲染的。这里只负责把记忆、场景与
- * 指代整理成稳定形状，不做新的过滤规则。
+ * 引用整理成稳定形状，不做新的过滤规则。
  */
 
 export type ViewerAddress = {
   actorId: string;
   presentationId: string;
-  /** 系统指代，例如 `@3`；客户端可以直接拿它提交行动。 */
+  /** 引用，例如 `#3`；客户端可以直接拿它提交行动。 */
   token: string;
   /** 观察者视角下的称呼：`名字（此刻的样子）` 或只有外观。 */
   label: string;
@@ -117,11 +117,11 @@ export async function getActorView(
     .filter((visit) => visit.actorId === actor.id)
     .flatMap((visit) => {
       const visited = stageById.get(visit.stageId);
-      return visited ? [{ stageId: visited.id, name: plainEntityName(visited.name) }] : [];
+      return visited ? [{ stageId: visited.id, name: visited.name }] : [];
     });
   const teleportTargets = teleportTargetsFor(state, actor, stage).map((target) => ({
     stageId: target.id,
-    name: plainEntityName(target.name),
+    name: target.name,
   }));
 
   const log: ViewerLogEntry[] = (memory?.messages ?? []).flatMap((message) => {
@@ -153,22 +153,22 @@ export async function getActorView(
     viewer: {
       actorId: actor.id,
       presentationId: actor.presentation.id,
-      name: plainEntityName(actor.name),
+      name: actor.name,
       appearance: actor.appearance,
     },
     scene: {
       id: stage.id,
-      name: plainEntityName(stage.name),
+      name: stage.name,
       environment: stage.environment,
       items: stage.items.map((item) => ({
-        name: plainEntityName(item.name),
+        name: item.name,
         kind: item.kind,
         description: item.description,
       })),
       actors,
       exits: adjacentStages(state, stage.id).map((exit) => ({
         stageId: exit.id,
-        name: plainEntityName(exit.name),
+        name: exit.name,
       })),
     },
     knowledge: state.knowledge.filter((row) => row.observerActorId === actor.id),

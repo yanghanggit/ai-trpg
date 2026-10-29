@@ -3,7 +3,6 @@ import { z } from "zod";
 import type { Database } from "../db/pool";
 import { DEEPSEEK_MODEL_FLASH, DEEPSEEK_SERVICE } from "../deepseek";
 import { ChatCompletionRequest, type ChatCompletionService, type ToolDefinition } from "../llm";
-import { plainEntityName } from "./entity-name";
 import { insertDialogueBlock } from "./persistence/dialogue-blocks";
 import type {
   ActorAction,
@@ -240,9 +239,9 @@ export async function auditPlayerDialogue(
     verdict = await judge({
       actionKind: context.actionKind,
       message: context.message,
-      actorName: plainEntityName(context.actorName),
-      stageName: plainEntityName(context.stageName),
-      worldName: plainEntityName(context.worldName),
+      actorName: context.actorName,
+      stageName: context.stageName,
+      worldName: context.worldName,
       campaignSetting: context.campaignSetting,
     });
   } catch (error) {

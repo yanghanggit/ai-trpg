@@ -1,6 +1,6 @@
 import type { TraceContext } from "../../debug/trace";
 import type { ToolDefinition } from "../../llm/types";
-import { type AddressLookup, actionRef, plainEntityName } from "../addressing";
+import { type AddressLookup, actionRef } from "../addressing";
 import { appendPublicMessage, bumpGameVersion } from "../apply/messages";
 import {
   assertItemNameFree,
@@ -28,7 +28,7 @@ export function buildGiveTool(targetActorHandles: readonly string[]): ToolDefini
         properties: {
           targetActorHandle: {
             type: "string",
-            description: "接收物品的同场景角色的指代（@数字）；尸体也可以",
+            description: "接收物品的同场景角色的引用（@名字 或 #编号）；尸体也可以",
             ...(targetActorHandles.length > 0 ? { enum: [...targetActorHandles] } : {}),
           },
           itemName: {
@@ -119,5 +119,5 @@ export async function applyGive(
     },
     trace,
   );
-  return `# 行动结果\n你把${plainEntityName(item.name)}交给了${actionRef(address(target.id))}。`;
+  return `# 行动结果\n你把${item.name}交给了${actionRef(address(target.id))}。`;
 }

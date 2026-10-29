@@ -1,13 +1,13 @@
 import type { TraceContext } from "../../debug/trace";
 import type { ToolDefinition } from "../../llm/types";
-import { type AddressLookup, actionRef, HANDLE_PATTERN, plainEntityName } from "../addressing";
+import { type AddressLookup, actionRef } from "../addressing";
 import { appendPublicMessage, bumpGameVersion } from "../apply/messages";
 import { findActorInStage } from "../apply/queries";
 import type { ActorWithStageRow, Executor, ResolvedSay } from "../apply/types";
 import { MAX_MIND_LENGTH } from "../constants";
 import { GameError } from "../errors";
 import { appendCommunicationObservations, appendStageMemory } from "../observations";
-import { hasCanonicalEntityName } from "../text-guard";
+import { assertNoSystemReference } from "../text-guard";
 import type { SayAction } from "../types";
 
 export function buildSayTool(targets: readonly string[]): ToolDefinition {
@@ -26,7 +26,7 @@ export function buildSayTool(targets: readonly string[]): ToolDefinition {
           },
           targetActorHandle: {
             type: "string",
-            description: "当前场景内唯一的说话对象：用同场景角色列表里的 @数字 指代",
+            description: "当前场景内唯一的说话对象：用同场景角色列表里的 @名字 或 #编号 引用",
             ...(targets.length > 0 ? { enum: [...targets] } : {}),
           },
           message: { type: "string", description: "你要说出的内容" },
@@ -48,12 +48,7 @@ export function parseSay(args: Record<string, unknown>): SayAction {
   if (message.trim().length === 0) {
     throw new GameError("invalid_action", "say 需要非空 message");
   }
-  if (HANDLE_PATTERN.test(message)) {
-    throw new GameError("invalid_action", "message 里不能出现系统指代（@数字）");
-  }
-  if (hasCanonicalEntityName(message)) {
-    throw new GameError("invalid_action", "message 里不能出现类别.名称形式的规范名");
-  }
+  assertNoSystemReference(message);
   if (targetActorHandle.length === 0) {
     throw new GameError("invalid_action", "say 需要非空 targetActorHandle");
   }
@@ -66,6 +61,7 @@ export async function resolveSay(
   actorId: string,
   action: SayAction,
 ): Promise<ResolvedSay> {
+  assertNoSystemReference(action.message);
   const target = await findActorInStage(executor, stage.id, action.targetActorHandle);
   if (target.id === actorId) {
     throw new GameError("invalid_action", "say 的目标不能是自己");
@@ -112,5 +108,5 @@ export async function applySay(
     { eventKind: "say" },
     trace,
   );
-  return `# 行动结果\n你对${actionRef(address(target.id))}说（场景：${plainEntityName(resolved.stage.name)}）：${resolved.action.message}`;
+  return `# 行动结果\n你对${actionRef(address(target.id))}说（场景：${resolved.stage.name}）：${resolved.action.message}`;
 }

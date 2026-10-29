@@ -24,39 +24,24 @@ describe("world content validation", () => {
     expect(keeper?.profile).toBe(TEST_WORLD.actors[0]?.profile);
   });
 
-  it("rejects a prefix that does not match the entity type", () => {
-    const world = {
-      ...TEST_WORLD,
-      stages: TEST_WORLD.stages.map((stage, index) =>
-        index === 0 ? { ...stage, name: "角色.灰烬门廊" } : stage,
-      ),
-    };
-    expect(() => parseWorldContent(world)).toThrow(/场景\./);
+  it("rejects names with system markers", () => {
+    for (const name of ["@守烬人", "#守烬人", "守烬 人", "角色.守烬人"]) {
+      const world = {
+        ...TEST_WORLD,
+        actors: TEST_WORLD.actors.map((actor, index) => (index === 0 ? { ...actor, name } : actor)),
+      };
+      expect(() => parseWorldContent(world)).toThrow(/名称不能包含/);
+    }
   });
 
-  it("rejects an item prefix that does not match its kind", () => {
+  it("rejects duplicate actor and stage names", () => {
     const world = {
       ...TEST_WORLD,
       actors: TEST_WORLD.actors.map((actor) =>
-        actor.name === "守烬人"
-          ? {
-              ...actor,
-              items: actor.items.map((item) => ({ ...item, name: "装备.裂齿短刃" })),
-            }
-          : actor,
+        actor.name === "提灯修士" ? { ...actor, name: "灰烬门廊" } : actor,
       ),
     };
-    expect(() => parseWorldContent(world)).toThrow(/武器\./);
-  });
-
-  it("rejects a name with an unknown category prefix", () => {
-    const world = {
-      ...TEST_WORLD,
-      actors: TEST_WORLD.actors.map((actor, index) =>
-        index === 0 ? { ...actor, name: "道具.守烬人" } : actor,
-      ),
-    };
-    expect(() => parseWorldContent(world)).toThrow(/角色\./);
+    expect(() => parseWorldContent(world)).toThrow(/名字重复: 灰烬门廊/);
   });
 
   it("rejects an environment that names an actor", () => {
@@ -76,7 +61,7 @@ describe("world content validation", () => {
         index === 0 ? { ...stage, environment: "@12 站在灰烬里。" } : stage,
       ),
     };
-    expect(() => parseWorldContent(world)).toThrow(/系统指代/);
+    expect(() => parseWorldContent(world)).toThrow(/系统引用/);
   });
 
   it("requires every stage to expose environment updates", () => {
@@ -134,7 +119,7 @@ describe("world content validation", () => {
                   name: "灰烬碎片",
                   description: "一撮混着石粉的冷灰。",
                   kind: "material" as const,
-                  source: "角色.守烬人",
+                  source: "守烬人",
                   effect: { type: "none" },
                 },
               ],
@@ -151,7 +136,7 @@ describe("world content validation", () => {
     expect(
       parsed.actors.flatMap((actor) => actor.items).find((item) => item.name === "灰烬碎片")
         ?.source,
-    ).toBe("角色.守烬人");
+    ).toBe("守烬人");
     expect(() =>
       parseWorldContent({
         ...world,
@@ -170,7 +155,7 @@ describe("world content validation", () => {
             ? {
                 ...actor,
                 items: actor.items.map((item) =>
-                  item.kind === "weapon" ? { ...item, source: "角色.守烬人" } : item,
+                  item.kind === "weapon" ? { ...item, source: "守烬人" } : item,
                 ),
               }
             : actor,

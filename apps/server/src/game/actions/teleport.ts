@@ -1,6 +1,6 @@
 import type { TraceContext } from "../../debug/trace";
 import type { ToolDefinition } from "../../llm/types";
-import { mentionOf, plainEntityName } from "../addressing";
+import { mentionOf, stripNameRef } from "../addressing";
 import { appendPublicMessage, bumpGameVersion } from "../apply/messages";
 import { findStageInWorld } from "../apply/queries";
 import type { ActorWithStageRow, Executor, ResolvedTeleport, WorldRow } from "../apply/types";
@@ -39,7 +39,7 @@ export function parseTeleport(args: Record<string, unknown>): TeleportAction {
   if (targetStageName.length === 0) {
     throw new GameError("invalid_action", "teleport 需要非空 targetStageName");
   }
-  return { kind: "teleport", targetStageName };
+  return { kind: "teleport", targetStageName: stripNameRef(targetStageName) };
 }
 
 export async function resolveTeleport(
@@ -57,13 +57,13 @@ export async function resolveTeleport(
     throw new GameError("invalid_action", "不能传送到当前场景");
   }
   if (stage.teleportBlocked) {
-    throw new GameError("invalid_action", `当前场景禁止传送: ${plainEntityName(stage.name)}`);
+    throw new GameError("invalid_action", `当前场景禁止传送: ${stage.name}`);
   }
   if (targetStage.teleportBlocked) {
-    throw new GameError("invalid_action", `目标场景禁止传送: ${plainEntityName(targetStage.name)}`);
+    throw new GameError("invalid_action", `目标场景禁止传送: ${targetStage.name}`);
   }
   if (!(await hasStageVisit(executor, actorId, targetStage.id))) {
-    throw new GameError("invalid_action", `你没有去过 ${plainEntityName(targetStage.name)}`);
+    throw new GameError("invalid_action", `你没有去过 ${targetStage.name}`);
   }
   return { kind: "teleport", action, stage, targetStage };
 }
@@ -77,9 +77,9 @@ export async function applyTeleport(
   trace?: TraceContext,
 ): Promise<string> {
   const target = resolved.targetStage;
-  const actorName = plainEntityName(actorRow.actor.name);
-  const sourceName = plainEntityName(resolved.stage.name);
-  const targetName = plainEntityName(target.name);
+  const actorName = actorRow.actor.name;
+  const sourceName = resolved.stage.name;
+  const targetName = target.name;
 
   // 离开与到达是瞬时事实：源场景看到消失，目标场景看到出现。
   await appendCustomStageObservation(

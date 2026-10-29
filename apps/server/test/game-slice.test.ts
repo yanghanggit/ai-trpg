@@ -281,7 +281,7 @@ describe.skipIf(!testDatabaseUrl)("memory-driven NPC slice", () => {
     });
 
     const keeperService = new ToolCaptureService();
-    await runNpcTurn(handle.db, created.game.slug, "角色.奥德里克", { service: keeperService });
+    await runNpcTurn(handle.db, created.game.slug, "奥德里克", { service: keeperService });
     expect(keeperService.tools).toContain("say");
     expect(keeperService.tools).toContain("strike");
     // 肉搏是固有动作，与武器装备无关。
@@ -299,12 +299,12 @@ describe.skipIf(!testDatabaseUrl)("memory-driven NPC slice", () => {
 
     // 公共知识库检索对所有 actor 开放，不按角色开关。
     const corpseService = new ToolCaptureService();
-    await runNpcTurn(handle.db, created.game.slug, "角色.无名者", { service: corpseService });
+    await runNpcTurn(handle.db, created.game.slug, "无名者", { service: corpseService });
     expect(corpseService.tools).toContain("steal");
     expect(corpseService.tools).toContain("query");
 
     const dogService = new ToolCaptureService();
-    await runNpcTurn(handle.db, created.game.slug, "角色.煤渣", { service: dogService });
+    await runNpcTurn(handle.db, created.game.slug, "煤渣", { service: dogService });
     expect(dogService.tools).toContain("query");
     expect(dogService.tools).not.toContain("equip");
     expect(dogService.tools).not.toContain("unequip");
@@ -313,7 +313,7 @@ describe.skipIf(!testDatabaseUrl)("memory-driven NPC slice", () => {
     expect(dogService.tools).toContain("brawl");
 
     const mouseService = new ToolCaptureService();
-    await runNpcTurn(handle.db, created.game.slug, "角色.坏运气", { service: mouseService });
+    await runNpcTurn(handle.db, created.game.slug, "坏运气", { service: mouseService });
     expect(mouseService.tools).not.toContain("strike");
     // 幼崽不会战斗：身体动作也没有。
     expect(mouseService.tools).not.toContain("brawl");
@@ -431,13 +431,11 @@ describe.skipIf(!testDatabaseUrl)("memory-driven NPC slice", () => {
       name: "故事结构测试局",
       world: BELL_MONASTERY_WORLD,
     });
-    const pyre = created.world.stages.find((stage) => stage.name === "场景.焚尸房");
-    const coffin = created.world.stages.find((stage) => stage.name === "场景.棺材");
+    const pyre = created.world.stages.find((stage) => stage.name === "焚尸房");
+    const coffin = created.world.stages.find((stage) => stage.name === "棺材");
     expect(pyre?.actors).toEqual([]);
-    expect(pyre?.items.map((item) => [item.name, item.kind])).toEqual([
-      ["武器.松脂火把", "weapon"],
-    ]);
-    expect(coffin?.actors.map((actor) => actor.name)).toEqual(["角色.无名者"]);
+    expect(pyre?.items.map((item) => [item.name, item.kind])).toEqual([["松脂火把", "weapon"]]);
+    expect(coffin?.actors.map((actor) => actor.name)).toEqual(["无名者"]);
     // 建局不写开场消息：玩家从场景 environment 与角色自己的记忆里拼出开场。
     expect(created.messages).toEqual([]);
   });
@@ -632,30 +630,30 @@ describe.skipIf(!testDatabaseUrl)("memory-driven NPC slice", () => {
     const scribe = memories.find((memory) => memory.name === "缄默抄经人");
     expect(
       observer?.messages.some((message) =>
-        message.content.includes("守烬人公开说（场景：灰烬门廊）：灰里有人。"),
+        message.content.includes("@守烬人公开说（场景：灰烬门廊）：灰里有人。"),
       ),
     ).toBe(true);
     expect(
       observer?.messages.some((message) =>
-        message.content.includes("守烬人对提灯修士说（场景：灰烬门廊）：只对你说。"),
+        message.content.includes("@守烬人对@提灯修士说（场景：灰烬门廊）：只对你说。"),
       ),
     ).toBe(true);
     expect(observer?.messages.some((message) => message.content.includes("别回头"))).toBe(false);
     expect(
       monk?.messages.some((message) =>
-        message.content.includes("守烬人对你说（场景：灰烬门廊）：只对你说。"),
+        message.content.includes("@守烬人对你说（场景：灰烬门廊）：只对你说。"),
       ),
     ).toBe(true);
     expect(
       monk?.messages.some((message) =>
-        message.content.includes("守烬人对你耳语（场景：灰烬门廊）：别回头。"),
+        message.content.includes("@守烬人对你耳语（场景：灰烬门廊）：别回头。"),
       ),
     ).toBe(true);
     expect(
-      observer?.messages.some((message) => message.content.includes("守烬人对提灯修士挥击")),
+      observer?.messages.some((message) => message.content.includes("@守烬人对@提灯修士挥击")),
     ).toBe(true);
     expect(
-      scribe?.messages.some((message) => message.content.includes("守烬人对提灯修士挥击")),
+      scribe?.messages.some((message) => message.content.includes("@守烬人对@提灯修士挥击")),
     ).toBe(false);
   });
 });

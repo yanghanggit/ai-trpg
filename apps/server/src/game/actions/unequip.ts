@@ -1,6 +1,6 @@
 import type { TraceContext } from "../../debug/trace";
 import type { ToolDefinition } from "../../llm/types";
-import { mentionOf, plainEntityName } from "../addressing";
+import { mentionOf } from "../addressing";
 import { appendPublicMessage, bumpGameVersion } from "../apply/messages";
 import type { ActorWithStageRow, Executor, ResolvedUnequip } from "../apply/types";
 import { GameError } from "../errors";
@@ -88,7 +88,7 @@ export async function applyUnequip(
     (_observer, address) =>
       renderAction(
         withAppearances(
-          `# 场景动态\n${mentionOf(address(actor.id))}卸下了${plainEntityName(resolved.itemName)}（${label}）。`,
+          `# 场景动态\n${mentionOf(address(actor.id))}卸下了${resolved.itemName}（${label}）。`,
           [address(actor.id)],
         ),
         resolved.stage.id,

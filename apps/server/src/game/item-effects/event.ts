@@ -1,4 +1,4 @@
-import { type AddressLookup, actionRef, plainEntityName } from "../addressing";
+import { type AddressLookup, actionRef } from "../addressing";
 import { appendPublicMessage, bumpGameVersion } from "../apply/messages";
 import { appendItemObservations, appendStageMemory } from "../observations";
 import type { ItemEffectHandler } from "./types";
@@ -13,8 +13,8 @@ export const applyEventEffect: ItemEffectHandler = async (context) => {
   const actor = { id: actorRow.actor.id, name: actorRow.actor.name };
   const address: AddressLookup | undefined = context.address;
   const targetRef = target && address ? actionRef(address(target.id)) : undefined;
-  const targetLabel = targetStage?.name ?? targetRef ?? target?.name ?? "目标";
-  const itemName = plainEntityName(item.name);
+  const targetLabel = targetStage ? targetStage.name : (targetRef ?? target?.name ?? "目标");
+  const itemName = item.name;
   const stageDetailText = targetDetail ? `的${targetDetail}` : "";
   const content = targetStage
     ? `${actor.name}在${targetStage.name}${stageDetailText}使用了${item.name}。`

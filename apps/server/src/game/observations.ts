@@ -11,11 +11,10 @@
  */
 
 import { type TraceContext, traceEvent } from "../debug/trace";
-import { type AddressLookup, type AddressSubject, handleOf, makeAddressLookup } from "./addressing";
+import { type AddressLookup, type AddressSubject, makeAddressLookup } from "./addressing";
 import { listStageActorViews } from "./apply/queries";
 import type { ActorRow, Executor } from "./apply/types";
 import { MEMORY_KINDS } from "./constants";
-import { plainEntityName } from "./entity-name";
 import { appendMemoryMessages, loadAgentMemory } from "./memory";
 import {
   type Audience,
@@ -91,11 +90,12 @@ async function writeObservations(
     const address: AddressLookup = (actorId) =>
       actorId === observer.id
         ? {
-            token: handleOf(presentation.seq),
+            token: `@${observer.name}`,
             label: "你自己",
             mention: "你",
             appearance: presentation.appearance,
-            knownName: plainEntityName(observer.name),
+            knownName: observer.name,
+            isSelf: true,
           }
         : base(actorId);
     const view = spec.render(observer, address);
@@ -120,7 +120,7 @@ async function writeObservations(
 /**
  * 由调用方提供逐观察者渲染函数的一次场景广播。
  *
- * 需要把当事人写进句子（离开、穿上、倒下）时用它：文案必须按观察者重新取指代，
+ * 需要把当事人写进句子（离开、穿上、倒下）时用它：文案必须按观察者重新取引用，
  * 不能拿拼好真名的字符串广播。
  */
 export async function appendCustomStageObservation(

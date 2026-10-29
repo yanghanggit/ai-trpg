@@ -319,7 +319,7 @@ export type StageAction =
 /** 场景作为小 GM 能执行的动作；能力清单成员，由 `StageAction` 派生。 */
 export type StageActionKind = StageAction["kind"];
 
-/** 把某个系统指代记成自己相信的名字；只改自己的记忆。 */
+/** 把某个引用记成自己相信的名字；只改自己的记忆。 */
 export type IdentityBinding = {
   handle: string;
   name: string;

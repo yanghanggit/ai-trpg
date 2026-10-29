@@ -4,13 +4,13 @@ import type { Script } from "../assemble";
 export const BELL_MONASTERY: Script = {
   contentVersion: "dark-fantasy.v15",
   contentKey: "bell-monastery",
-  worldName: "世界.枯钟修道院的故事",
+  worldName: "枯钟修道院的故事",
   profile: `这局故事的世界是枯钟修道院：一座被黑疖病掏空的修道院，连同它的墓园、地窖、焚尸房、铁闸门与山道。故事之外还有更大的天地，但那不属于这一局。
 这个故事有且只有两种收尾：无名者离开了他原本被困住的地方，或者他死在这里。门被打开、钥匙换了手、尸体被发现、鼠群被清空，都只是世界级的事实，需要你裁决，但还不足以让故事结束。`,
   stages: [
     {
       key: "graveyard",
-      name: "场景.墓园",
+      name: "墓园",
       profile: `修道院的中庭兼墓园。北面是封死的铁闸门，西侧石阶通向下沉的地窖，东边小屋后是焚尸房，南面斜坡通向乱葬坑。
 地面撒过石灰，墓碑之间插着几十块木牌，那是黑疖病最盛时留下的计数，字迹已被雨水泡烂。
 南坡的坑沿上搁着一口只压了薄土的棺材，没有人说得清是谁抬来的。`,
@@ -20,7 +20,7 @@ export const BELL_MONASTERY: Script = {
     },
     {
       key: "coffin",
-      name: "场景.棺材",
+      name: "棺材",
       profile: `乱葬坑坑沿的一口棺材，棺盖没有钉死，只压着一层薄土。
 黑疖病最盛的四十多天里，死人都被石灰一层层压进南坡的坑里，修士从不用棺材下葬；这口棺材是谁备下的、里面为什么有人，没有人说过。
 棺壁内侧刻满符文，刻痕里塞着干涸的黑蜡；钟形花纹当中本该刻名字的地方被指甲抠出一道浅坑。
@@ -31,7 +31,7 @@ export const BELL_MONASTERY: Script = {
     },
     {
       key: "cellar",
-      name: "场景.地窖",
+      name: "地窖",
       profile: `修道院的酒窖与储粮间。黑疖病之后，这里成了鼠群的巢：酒桶被啃穿，粮袋被咬空，地面积着骨渣与鼠毛。
 鼠王盘踞在最深处，它是这场瘟疫里活得最久、吃得最饱的东西。`,
       actions: ["submit_environment"],
@@ -40,7 +40,7 @@ export const BELL_MONASTERY: Script = {
     },
     {
       key: "crematorium",
-      name: "场景.焚尸房",
+      name: "焚尸房",
       profile: `修道院小屋后的焚尸房。黑疖病最盛时，这里日夜不停地烧；炉膛冷下来之后，墙上还留着人形的油印。
 屋角靠着一支浸透松脂的火把——对毛皮厚实的活物来说，那是少数能顺着毛根烧进去的东西。`,
       actions: ["submit_environment"],
@@ -49,7 +49,7 @@ export const BELL_MONASTERY: Script = {
       items: [
         {
           key: "crematorium-torch",
-          name: "武器.松脂火把",
+          name: "松脂火把",
           description:
             "一支浸透松脂的火把，火头缠着一团干枯的毛；点燃后火焰会沿着油脂爬满整支木柄，被火苗舔到的毛皮会把油脂一路吸到毛根。",
           kind: "weapon" as const,
@@ -69,7 +69,7 @@ export const BELL_MONASTERY: Script = {
     },
     {
       key: "gate",
-      name: "场景.铁闸门",
+      name: "铁闸门",
       profile:
         "修道院北侧的铁闸门。黑疖病流行时，院长下令把它封死，带着还能走的修士从别的路离开；门后是一条沿山壁凿出的窄道，通往修道院之外。锁孔与奥德里克随身带着的钥匙吻合。",
       actions: ["submit_environment", "open_passage"],
@@ -78,7 +78,7 @@ export const BELL_MONASTERY: Script = {
     },
     {
       key: "mountain-path",
-      name: "场景.山道",
+      name: "山道",
       profile: `铁闸门外沿山壁凿出的一条窄道，一头往河谷去，一头绕过钟楼后墙。
 黑疖病之后没有人再走过这里，石阶上长满湿滑的苔藓。
 这里是修道院与外界唯一的缺口：任何一个活物出现在山道上，都意味着枯钟修道院的封锁已经被打破，也就是有人逃出了枯钟修道院。把这件事报告给世界，并说明故事可以在这里收束，由世界裁决是否结束。`,
@@ -102,7 +102,7 @@ export const BELL_MONASTERY: Script = {
     {
       stageKey: "graveyard",
       key: "odric",
-      name: "角色.奥德里克",
+      name: "奥德里克",
       appearance:
         "旧呢斗篷上沾着石灰与新土，下摆结着一片洗不掉的暗褐血渍；背后斜靠一把磨亮的铁锹。",
       profile: `**历史**: 你是枯钟修道院的掘墓人与守门人，埋过这座墓园里最后一具完整的尸体。黑疖病最盛时，院长带着还能走的修士从北门离开，只留下你、一把钥匙和一口没人再敲的钟。
@@ -123,13 +123,13 @@ export const BELL_MONASTERY: Script = {
       hp: 14,
       stats: { maxHp: 14, strength: 5, wisdom: 2, agility: 3, damage: 5, block: 2 },
       equipment: {
-        weapon: "武器.掘墓人的铁锹",
-        armor: "装备.补丁斗篷",
+        weapon: "掘墓人的铁锹",
+        armor: "补丁斗篷",
       },
       items: [
         {
           key: "gate-key",
-          name: "贵重物.闸门钥匙",
+          name: "闸门钥匙",
           description: "一把铸铁的闸门钥匙，柄上刻着修道院的钟形纹；齿纹被磨得很亮。",
           kind: "valuable" as const,
           count: 1,
@@ -137,7 +137,7 @@ export const BELL_MONASTERY: Script = {
         },
         {
           key: "gravedigger-shovel",
-          name: "武器.掘墓人的铁锹",
+          name: "掘墓人的铁锹",
           description: "锹刃磨得发亮，木柄缠着浸过焦油的布条；刃口有干涸的暗色。",
           kind: "weapon" as const,
           count: 1,
@@ -147,7 +147,7 @@ export const BELL_MONASTERY: Script = {
         },
         {
           key: "patched-cloak",
-          name: "装备.补丁斗篷",
+          name: "补丁斗篷",
           description: "厚重的旧呢斗篷，补丁上结着石灰与新土，下摆有一片洗不掉的暗褐血渍。",
           kind: "equipment" as const,
           count: 1,
@@ -173,7 +173,7 @@ export const BELL_MONASTERY: Script = {
     {
       stageKey: "graveyard",
       key: "cinder",
-      name: "角色.煤渣",
+      name: "煤渣",
       profile: `**历史**: 你从焚尸房的灰堆里被奥德里克捡回来，因此得名煤渣。你在墓园里长大，认得每一块墓碑的气味。
 **性格**: 对陌生人低吼，对奥德里克绝对服从；受了伤也不退。
 **说话习惯/口音**: 你是犬，不说人话；对非同族只会低吼、呜咽、磨牙或短促的“汪汪”，只有遇到同族犬时才用清晰语言交流。你可以在心里正常思考，内心独白不受叫声限制。
@@ -197,7 +197,7 @@ export const BELL_MONASTERY: Script = {
     {
       stageKey: "graveyard",
       key: "bad-luck",
-      name: "角色.坏运气",
+      name: "坏运气",
       profile: `**历史**: 你是鼠王的幼崽，在酒窖出生。修士们烧鼠窝那晚，你从火里钻了出来，奥德里克从此叫你“坏运气”——你到哪儿，哪儿就死人。
 **性格**: 胆小、机警，对血与冲突极敏感；你不会战斗。
 **说话习惯/口音**: 对同族鼠类必须用清晰、完整的语言说短句，不要用叫声代替句子，急了会重复同一个词；对非同族只会“吱吱、丝丝”、磨牙或尖叫，不说人话。你可以在心里正常思考，内心独白不受叫声限制。
@@ -221,7 +221,7 @@ export const BELL_MONASTERY: Script = {
     {
       stageKey: "coffin",
       key: "nameless",
-      name: "角色.无名者",
+      name: "无名者",
       appearance:
         "身上裹着半幅发黄的裹尸布，布角拖过石灰；皮肤灰白，指甲缝里塞着干涸的黑蜡与棺木屑；衣领下露出半截被鼠牙啃过的锁链，走路时关节会发出干涩的响声。",
       profile: `**历史**: 你在一口刻满符文的棺材里醒来，记忆残缺；只记得石灰、裹尸布、衣领下那截被鼠牙啃过的锁链，以及指甲缝里干涸的黑蜡。修士把黑疖病的死者倒进南坡的乱葬坑，从不用棺材下葬——你不记得自己为什么会在里面，也认不得棺壁上那些符文，只认得当中的钟形花纹。
@@ -241,13 +241,13 @@ export const BELL_MONASTERY: Script = {
       stats: { maxHp: 20, strength: 6, wisdom: 2, agility: 3, damage: 6, block: 2 },
       isDefaultPlayer: true,
       equipment: {
-        armor: "装备.发黄的裹尸布",
-        accessory: "饰品.颈上的断链",
+        armor: "发黄的裹尸布",
+        accessory: "颈上的断链",
       },
       items: [
         {
           key: "yellow-shroud",
-          name: "装备.发黄的裹尸布",
+          name: "发黄的裹尸布",
           description: "半幅发黄的粗麻裹尸布，布角沾着湿泥与石灰，还留着尸坑的霉味。",
           kind: "equipment" as const,
           count: 1,
@@ -256,7 +256,7 @@ export const BELL_MONASTERY: Script = {
         },
         {
           key: "broken-neck-chain",
-          name: "饰品.颈上的断链",
+          name: "颈上的断链",
           description: "半截被鼠牙啃过的铁链，断口发亮，仍挂在颈间。",
           kind: "accessory" as const,
           count: 1,
@@ -282,7 +282,7 @@ export const BELL_MONASTERY: Script = {
     {
       stageKey: "cellar",
       key: "rat-king",
-      name: "角色.鼠王",
+      name: "鼠王",
       profile: `**历史**: 你是酒窖鼠群的王。黑疖病最盛时，你靠啃食尸体活了下来；如今盘踞在地窖，坏运气是你唯一不伤的子嗣。
 **性格**: 残暴、傲慢、护崽；对一切非鼠类都怀有饥饿的敌意。
 **说话习惯/口音**: 对同族鼠类必须用清晰、完整的语言说话，低沉、命令式，句子短，常以“我的地界”自称；对非同族只会发出低沉的鼠叫、磨牙与尖叫，绝不说人话。你可以在心里正常思考，内心独白不受叫声限制。

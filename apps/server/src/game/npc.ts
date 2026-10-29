@@ -33,7 +33,7 @@ import {
   findActorWithStage,
   otherActorsInStage,
 } from "./actors";
-import { addressLookupFor, plainEntityName, refOf } from "./addressing";
+import { addressLookupFor, refOf } from "./addressing";
 import { applyActorPlan } from "./apply";
 import { isAlive } from "./apply/queries";
 import { DEFAULT_NPC_MAX_ROUNDS, MAX_ACTIONS_PER_TURN, MAX_IDENTITIES_PER_TURN } from "./constants";
@@ -88,18 +88,20 @@ export function buildActorTurnInput(state: GameState, current: ActorWithStage): 
     current.stage.items.length === 0
       ? "无"
       : current.stage.items
-          .map((item) => `${plainEntityName(item.name)}（${item.kind}）：${item.description}`)
+          .map((item) => `${item.name}（${item.kind}）：${item.description}`)
           .join("\n");
   const targetLines = targets.length === 0 ? "无" : targets.join("、");
-  const moveLines = moves.length === 0 ? "无" : moves.join("、");
+  const moveLines = moves.length === 0 ? "无" : moves.map((name) => `@${name}`).join("、");
   const canTeleport = current.actor.actions.includes("teleport");
   const teleportTargets = teleportTargetsFor(state, current.actor, current.stage);
   const teleportLines =
-    teleportTargets.length === 0 ? "无" : teleportTargets.map((stage) => stage.name).join("、");
+    teleportTargets.length === 0
+      ? "无"
+      : teleportTargets.map((stage) => `@${stage.name}`).join("、");
   const knowledgeHint =
     "当问题涉及任何进入该世界的人都可能观察、询问或从公开记载中得知的固定事实，而当前场景与记忆无法直接确认时，必须先调用 query 检索，再回答或行动；不要用常识补全，也不要把检索结果当成亲眼所见。query 只读、不占行动，不提供角色秘密或当前状态。";
   const identityHint =
-    "`@数字` 是系统指代，不是称呼：可以用它指定行动对象，但绝不能说出口，也不能从它推断姓名。名字只有在世界内被告知后才算知道；若本轮对话让你得知了某人叫什么，用 remember_identity 记下（不占行动名额）。";
+    "`@名字` 与 `#编号` 都可作为行动对象，但都不能说出口，也不能从 `#编号` 推断姓名。名字只有在世界内被告知后才算知道；若本轮对话让你得知了某人叫什么，用 remember_identity 记下（不占行动名额）。";
 
   return `# 当前环境
 
@@ -108,7 +110,7 @@ ${current.stage.name}
 ${current.stage.environment}
 
 ## 你的状态
-${current.actor.name}（你的指代：${selfHandle}）| HP ${current.actor.hp}/${current.actor.stats.maxHp}
+${current.actor.name}（你的引用：${selfHandle}）| HP ${current.actor.hp}/${current.actor.stats.maxHp}
 
 ## 同场景角色
 ${actorLines}
@@ -185,9 +187,7 @@ export async function runNpcTurn(
   const selfAndTargets = [address(current.actor.id).token, ...targets];
   // 材料之类的惰性物品没有可用效果，穿戴中的物品也不能当道具，两者都不列进 use 的候选。
   const availableUseItemNames = usableItemNames(current.actor.items, current.actor.equipment);
-  const wearableItemNames = current.actor.items
-    .filter(isWearable)
-    .map((item) => plainEntityName(item.name));
+  const wearableItemNames = current.actor.items.filter(isWearable).map((item) => item.name);
   const occupiedSlots = EQUIPMENT_SLOTS.filter(
     (slot) => current.actor.equipment[slot] !== undefined,
   );
@@ -202,7 +202,8 @@ export async function runNpcTurn(
   const lookTool = buildActorLookTool(current.stage.name);
   const selfTool = buildSelfInfoTool();
   const observeTool = buildObserveActorTool(targets);
-  const rememberTool = buildRememberIdentityTool(targets);
+  // 只能给「还不知道名字」的角色记称呼：已经知道的引用不需要再记。
+  const rememberTool = buildRememberIdentityTool(targets.filter((token) => token.startsWith("#")));
   const submitTool = buildSubmitPlanTool();
 
   /** 十二个动作的工具与参数解析器；按 kind 平铺，按权限过滤后使用。 */
@@ -210,15 +211,15 @@ export async function runNpcTurn(
     say: buildSayTool(targets),
     whisper: buildWhisperTool(targets),
     announce: buildAnnounceTool(),
-    move: buildMoveTool(stageNames),
-    teleport: buildTeleportTool(teleportTargets),
+    move: buildMoveTool(stageNames.map((name) => `@${name}`)),
+    teleport: buildTeleportTool(teleportTargets.map((name) => `@${name}`)),
     wait: buildWaitTool(),
     strike: buildStrikeTool(targets),
     brawl: buildBrawlTool(targets),
     steal: buildStealTool(targets),
     give: buildGiveTool(targets),
     pickup: buildPickupTool(),
-    use: buildUseTool(availableUseItemNames, selfAndTargets, current.stage.name),
+    use: buildUseTool(availableUseItemNames, selfAndTargets, `@${current.stage.name}`),
     equip: buildEquipTool(wearableItemNames),
     unequip: buildUnequipTool(occupiedSlots),
   };
@@ -295,7 +296,7 @@ export async function runNpcTurn(
           typeof args.targetActorRef === "string" ? args.targetActorRef.trim() : "";
         const target = otherActors.find((actor) => address(actor.id).token === targetActorRef);
         if (!target) {
-          return `错误：当前场景内找不到指代 ${targetActorRef}`;
+          return `错误：当前场景内找不到引用 ${targetActorRef}`;
         }
         return describeObservedActor(target, address);
       },

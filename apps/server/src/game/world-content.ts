@@ -1,6 +1,5 @@
 import { z } from "zod";
 import { ACTION_KINDS } from "./actions";
-import { ENTITY_PREFIX, type EntityKind, splitEntityName } from "./entity-name";
 import { findTextLeaks } from "./text-guard";
 import type { StageActionKind, World, WorldActionKind } from "./types";
 
@@ -138,20 +137,19 @@ const worldSchema = z
     actions: z.array(worldActionSchema),
   })
   .superRefine((value, ctx) => {
-    // 类型前缀是系统词汇：一旦写了前缀，就必须与这个位置的代码类型一致。
-    // 不带前缀的写法只允许作为测试夹具或过渡内容的逃生口，正式 seed 由 seed 守卫拒绝。
-    checkEntityName(value.worldName, "world", ["worldName"], ctx);
+    // 名字就是名字：角色与场景在 world 内全局唯一，且不能带系统标记字符。
+    checkEntityNamesUnique(value, ctx);
     const actorNames = value.actors.map((actor) => actor.name);
     value.stages.forEach((stage, index) => {
-      checkEntityName(stage.name, "stage", ["stages", index, "name"], ctx);
+      checkEntityName(stage.name, ["stages", index, "name"], ctx);
       stage.items?.forEach((item, itemIndex) => {
-        checkEntityName(item.name, item.kind, ["stages", index, "items", itemIndex, "name"], ctx);
+        checkEntityName(item.name, ["stages", index, "items", itemIndex, "name"], ctx);
       });
       const leaks = findTextLeaks(stage.environment, actorNames);
       if (leaks.length > 0) {
         ctx.addIssue({
           code: "custom",
-          message: `environment 不能包含角色名、系统指代或规范名: ${leaks
+          message: `environment 不能包含角色名或系统引用（@ / #编号）: ${leaks
             .map((leak) => leak.token)
             .join("、")}`,
           path: ["stages", index, "environment"],
@@ -166,36 +164,51 @@ const worldSchema = z
       }
     });
     value.actors.forEach((actor, index) => {
-      checkEntityName(actor.name, "actor", ["actors", index, "name"], ctx);
+      checkEntityName(actor.name, ["actors", index, "name"], ctx);
       actor.items.forEach((item, itemIndex) => {
-        checkEntityName(item.name, item.kind, ["actors", index, "items", itemIndex, "name"], ctx);
+        checkEntityName(item.name, ["actors", index, "items", itemIndex, "name"], ctx);
       });
     });
   });
 
-/**
- * 名称前缀校验。
- *
- * 允许完全不带前缀（测试夹具 / 过渡内容）；只要出现前缀，就必须是这一位置对应的
- * 系统词汇，物品前缀还必须与 `kind` 一致。
- */
-function checkEntityName(
-  raw: string,
-  expected: EntityKind,
-  path: (string | number)[],
-  ctx: z.RefinementCtx,
-): void {
-  const parsed = splitEntityName(raw);
-  if (parsed.prefix === "" && parsed.kind === null) {
-    return;
-  }
-  const expectedPrefix = ENTITY_PREFIX[expected];
-  if (parsed.prefix !== expectedPrefix) {
+/** 名字里不能出现系统标记：`@` 是名字引用，`#` 是匿名编号，点号是旧前缀分隔符。 */
+function checkEntityName(raw: string, path: (string | number)[], ctx: z.RefinementCtx): void {
+  if (/[@#\s.]/.test(raw)) {
     ctx.addIssue({
       code: "custom",
-      message: `名称前缀必须是 ${expectedPrefix}.，实际是 ${parsed.prefix}.`,
+      message: "名称不能包含 @、#、空白或 .",
       path,
     });
+  }
+}
+
+/**
+ * 角色名与场景名在 world 内全局唯一；撞名会让 `@名字` 的引用产生歧义。
+ *
+ * 道具按持有者 / 场景作用域唯一，不参与这条检查。
+ */
+function checkEntityNamesUnique(
+  value: { stages: { name: string }[]; actors: { name: string }[] },
+  ctx: z.RefinementCtx,
+): void {
+  const seen = new Map<string, string[]>();
+  const add = (name: string, kind: string) => {
+    seen.set(name, [...(seen.get(name) ?? []), kind]);
+  };
+  for (const stage of value.stages) {
+    add(stage.name, "场景");
+  }
+  for (const actor of value.actors) {
+    add(actor.name, "角色");
+  }
+  for (const [name, kinds] of seen) {
+    if (kinds.length > 1) {
+      ctx.addIssue({
+        code: "custom",
+        message: `名字重复: ${name}（${kinds.join(" / ")}）`,
+        path: ["actors"],
+      });
+    }
   }
 }
 

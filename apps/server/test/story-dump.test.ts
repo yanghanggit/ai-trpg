@@ -24,7 +24,7 @@ describe("story dump", () => {
       version: 4,
       story: "奥德里克把无名者击倒在墓园里。",
       rounds: 5,
-      memoriesRead: ["world:枯钟修道院", "actor:角色.奥德里克"],
+      memoriesRead: ["world:枯钟修道院", "actor:奥德里克"],
       eventsRead: true,
       now: new Date("2026-01-02T03:04:05"),
     };

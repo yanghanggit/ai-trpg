@@ -1,12 +1,12 @@
 import type { TraceContext } from "../../debug/trace";
 import type { ToolDefinition } from "../../llm/types";
-import { HANDLE_PATTERN, plainEntityName } from "../addressing";
+
 import { appendPublicMessage, bumpGameVersion } from "../apply/messages";
 import type { ActorWithStageRow, Executor, ResolvedAnnounce } from "../apply/types";
 import { MAX_MIND_LENGTH } from "../constants";
 import { GameError } from "../errors";
 import { appendCommunicationObservations, appendStageMemory } from "../observations";
-import { hasCanonicalEntityName } from "../text-guard";
+import { assertNoSystemReference } from "../text-guard";
 import type { AnnounceAction } from "../types";
 
 export function buildAnnounceTool(): ToolDefinition {
@@ -39,12 +39,7 @@ export function parseAnnounce(args: Record<string, unknown>): AnnounceAction {
   if (message.trim().length === 0) {
     throw new GameError("invalid_action", "announce 需要非空 message");
   }
-  if (HANDLE_PATTERN.test(message)) {
-    throw new GameError("invalid_action", "message 里不能出现系统指代（@数字）");
-  }
-  if (hasCanonicalEntityName(message)) {
-    throw new GameError("invalid_action", "message 里不能出现类别.名称形式的规范名");
-  }
+  assertNoSystemReference(message);
   return { kind: "announce", mind, message };
 }
 
@@ -83,5 +78,5 @@ export async function applyAnnounce(
     { eventKind: "announce" },
     trace,
   );
-  return `# 行动结果\n你（场景：${plainEntityName(resolved.stage.name)}）公开说：${resolved.action.message}`;
+  return `# 行动结果\n你（场景：${resolved.stage.name}）公开说：${resolved.action.message}`;
 }

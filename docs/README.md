@@ -48,7 +48,7 @@
 | [LLM 基础组件](llm.md)                   | provider 分层、失败模型、agent loop 与重试    |
 | [图像生成基建](image-generation.md)      | 图像 provider 分层、资产边界与失败模型        |
 | [后台作业队列](background-jobs.md)       | 队列选型、worker 租约、串行键与接入边界       |
-| [术语表](glossary.md)                    | 规范名、本名、称呼、指代、形象与控制面/世界面 |
+| [术语表](glossary.md)                    | 名字、称呼、引用（`@` / `#`）、形象与两个面   |
 | [信息披露](information-disclosure.md)    | 四类实体的全知边界、名字与下行披露规则        |
 | [玩家对话审核](dialogue-audit.md)        | 玩家台词的无状态审核、失败关闭与被拒记录      |
 | [数据库](database.md)                    | PostgreSQL 状态源、表与不变式、死亡、迁移     |

@@ -142,7 +142,7 @@ export async function applyWorldPlan(
       const leaks = findTextLeaks(text, actorNames);
       if (leaks.length > 0) {
         return reject(
-          `${action.kind} 被拒绝：不能包含角色名、系统指代或规范名（${leaks
+          `${action.kind} 被拒绝：不能包含角色名或系统引用（@ / #编号）（${leaks
             .map((leak) => leak.token)
             .join("、")}）。`,
         );

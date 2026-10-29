@@ -9,9 +9,8 @@ import {
   stages,
   worlds,
 } from "../../db/schema";
-import { type AddressLookup, entityNameMatches, handleOf, makeAddressLookup } from "../addressing";
+import { type AddressLookup, makeAddressLookup, stripNameRef } from "../addressing";
 import { addStats, type Stats } from "../attributes";
-import { plainEntityName } from "../entity-name";
 import { GameError } from "../errors";
 import { EQUIPMENT_SLOTS } from "../types";
 import type { ActorRow, Executor, ItemRow, StageItemRow, StageRow, WorldRow } from "./types";
@@ -39,7 +38,7 @@ export async function listStageActorViews(
     .orderBy(actors.seq);
 }
 
-/** 按句柄（`@<形象序号>`）在本场景内定位角色。 */
+/** 按匿名编号（`#<形象序号>`）在本场景内定位角色。 */
 export async function findActorViewByHandleInStage(
   executor: Executor,
   stageId: string,
@@ -91,7 +90,7 @@ export async function findActorViewByHandleInWorld(
   return row;
 }
 
-/** 本 world 内全部 actor 的 id 与规范名；用于检测称呼撞上别人的本名。 */
+/** 本 world 内全部 actor 的 id 与名字；用于检测称呼撞上别人的本名。 */
 export async function listActorNamesInWorld(
   executor: Executor,
   worldId: string,
@@ -119,7 +118,7 @@ export async function knowledgeNamesFor(
 }
 
 /**
- * 某个观察者在当前场景里的指代表。
+ * 某个观察者在当前场景里的引用表。
  *
  * 自己固定解析为「你自己」：自己的名字属于自知，不查名字表。
  */
@@ -149,21 +148,34 @@ export async function stageAddressLookup(
   return (actorId) => {
     if (self && actorId === observerId) {
       return {
-        token: handleOf(self.presentation.seq),
+        token: `@${self.actor.name}`,
         label: "你自己",
         mention: "你",
         appearance: self.presentation.appearance,
-        knownName: plainEntityName(self.actor.name),
+        knownName: self.actor.name,
+        isSelf: true,
       };
     }
     return base(actorId);
   };
 }
 
+/** 本场景角色的 id 与名字；文本脱敏只需要这两项。 */
+export async function listStageActorRefs(
+  executor: Executor,
+  stageId: string,
+): Promise<{ id: string; name: string }[]> {
+  return executor
+    .select({ id: actors.id, name: actors.name })
+    .from(actors)
+    .where(eq(actors.stageId, stageId))
+    .orderBy(actors.seq);
+}
+
 /**
  * 在当前场景内定位角色。
  *
- * 模型给的永远是句柄（`@3`）；god-view 入口（玩家接管、CLI、测试）可以继续用真名。
+ * 三种写法：`#12`（你还不知道名字）、`@名字`（观察者引用）、纯名字 / id（god-view 入口）。
  * 不接受简称，也不做模糊匹配。
  */
 export async function findActorInStage(
@@ -171,28 +183,30 @@ export async function findActorInStage(
   stageId: string,
   ref: string,
 ): Promise<ActorRow> {
-  if (ref.startsWith("@")) {
-    const view = await findActorViewByHandleInStage(executor, stageId, ref);
+  const value = ref.trim();
+  if (value.startsWith("#")) {
+    const view = await findActorViewByHandleInStage(executor, stageId, value);
     if (!view) {
-      throw new GameError("invalid_action", `场景内没有这个指代: ${ref}`);
+      throw new GameError("invalid_action", `场景内没有这个编号: ${value}`);
     }
     return view.actor;
   }
+  const name = value.startsWith("@") ? value.slice(1) : value;
   // god-view 入口可以直接用 actor id：客户端拿到的稳定身份就是它。
-  const matches = UUID_PATTERN.test(ref)
+  const matches = UUID_PATTERN.test(name)
     ? await executor
         .select()
         .from(actors)
-        .where(and(eq(actors.stageId, stageId), eq(actors.id, ref)))
+        .where(and(eq(actors.stageId, stageId), eq(actors.id, name)))
         .limit(2)
     : await executor
         .select()
         .from(actors)
-        .where(and(eq(actors.stageId, stageId), eq(actors.name, ref)))
+        .where(and(eq(actors.stageId, stageId), eq(actors.name, name)))
         .limit(2);
   const [target] = matches;
   if (matches.length !== 1 || !target) {
-    throw new GameError("invalid_action", `当前场景内找不到唯一角色: ${ref}`);
+    throw new GameError("invalid_action", `当前场景内找不到唯一角色: ${value}`);
   }
   return target;
 }
@@ -237,7 +251,7 @@ export async function resolveActorItem(
   itemName: string,
 ): Promise<ItemRow> {
   const rows = await executor.select().from(items).where(eq(items.actorId, actorId));
-  const matches = rows.filter((row) => entityNameMatches(row.name, itemName));
+  const matches = rows.filter((row) => row.name === itemName);
   const [item] = matches;
   if (matches.length !== 1 || !item) {
     throw new GameError("invalid_action", `actor 没有唯一物品: ${itemName}`);
@@ -251,7 +265,7 @@ export async function resolveStageItem(
   itemName: string,
 ): Promise<StageItemRow> {
   const rows = await executor.select().from(stageItems).where(eq(stageItems.stageId, stageId));
-  const matches = rows.filter((row) => entityNameMatches(row.name, itemName));
+  const matches = rows.filter((row) => row.name === itemName);
   const [item] = matches;
   if (matches.length !== 1 || !item) {
     throw new GameError("invalid_action", `场景内没有唯一物品: ${itemName}`);
@@ -266,7 +280,7 @@ export async function resolveAdjacentStage(
   stage: StageRow,
   targetStageRef: string,
 ): Promise<StageRow> {
-  const ref = targetStageRef.trim();
+  const ref = stripNameRef(targetStageRef.trim());
   const [target] = await executor
     .select()
     .from(stages)
@@ -278,7 +292,7 @@ export async function resolveAdjacentStage(
     )
     .limit(1);
   if (!target) {
-    throw new GameError("invalid_action", `目标场景不存在（需要 id 或规范名）: ${ref}`);
+    throw new GameError("invalid_action", `目标场景不存在（需要 id 或名字）: ${ref}`);
   }
   const [connection] = await executor
     .select()
@@ -293,21 +307,18 @@ export async function resolveAdjacentStage(
     )
     .limit(1);
   if (!connection) {
-    throw new GameError(
-      "invalid_action",
-      `没有从 ${plainEntityName(stage.name)} 到 ${plainEntityName(target.name)} 的通道`,
-    );
+    throw new GameError("invalid_action", `没有从 ${stage.name} 到 ${target.name} 的通道`);
   }
   return target;
 }
 
-/** 在世界内按 id 或规范名找场景；用于 teleport 这类非邻接目标。 */
+/** 在世界内按 id 或名字找场景；用于 teleport 这类非邻接目标。 */
 export async function findStageInWorld(
   executor: Executor,
   worldId: string,
   ref: string,
 ): Promise<StageRow | undefined> {
-  const value = ref.trim();
+  const value = stripNameRef(ref.trim());
   const [row] = await executor
     .select()
     .from(stages)

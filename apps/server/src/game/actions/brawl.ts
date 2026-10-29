@@ -25,7 +25,7 @@ export function buildBrawlTool(targetActorHandles: readonly string[]): ToolDefin
         properties: {
           targetActorHandle: {
             type: "string",
-            description: "要攻击的同场景角色的指代（@数字）；尸体也可以（伤害结算会空转）",
+            description: "要攻击的同场景角色的引用（@名字 或 #编号）；尸体也可以（伤害结算会空转）",
             ...(targetActorHandles.length > 0 ? { enum: [...targetActorHandles] } : {}),
           },
         },

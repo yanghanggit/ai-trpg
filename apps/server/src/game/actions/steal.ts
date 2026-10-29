@@ -1,6 +1,6 @@
 import type { TraceContext } from "../../debug/trace";
 import type { ToolDefinition } from "../../llm/types";
-import { type AddressLookup, actionRef, plainEntityName } from "../addressing";
+import { type AddressLookup, actionRef } from "../addressing";
 import { appendPublicMessage, bumpGameVersion } from "../apply/messages";
 import {
   assertItemNameFree,
@@ -29,7 +29,7 @@ export function buildStealTool(targetActorHandles: readonly string[]): ToolDefin
         properties: {
           targetActorHandle: {
             type: "string",
-            description: "被取走物品的同场景角色的指代（@数字）",
+            description: "被取走物品的同场景角色的引用（@名字 或 #编号）",
             ...(targetActorHandles.length > 0 ? { enum: [...targetActorHandles] } : {}),
           },
           itemName: { type: "string", description: "要取走的物品名" },
@@ -123,5 +123,5 @@ export async function applySteal(
     },
     trace,
   );
-  return `# 行动结果\n你从${actionRef(address(target.id))}身上取走了${plainEntityName(item.name)}。`;
+  return `# 行动结果\n你从${actionRef(address(target.id))}身上取走了${item.name}。`;
 }

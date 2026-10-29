@@ -121,13 +121,13 @@ describe.skipIf(!testDatabaseUrl)("player takeover", () => {
     const monk = memories.find((memory) => memory.name === "提灯修士");
     const scribe = memories.find((memory) => memory.name === "缄默抄经人");
 
-    expect(keeper?.messages.some((message) => /你对@\d+ 提灯修士说/.test(message.content))).toBe(
+    expect(keeper?.messages.some((message) => message.content.includes("你对@提灯修士说"))).toBe(
       true,
     );
-    expect(monk?.messages.some((message) => message.content.includes("守烬人对你说"))).toBe(true);
-    expect(scribe?.messages.some((message) => message.content.includes("守烬人对提灯修士说"))).toBe(
-      true,
-    );
+    expect(monk?.messages.some((message) => message.content.includes("@守烬人对你说"))).toBe(true);
+    expect(
+      scribe?.messages.some((message) => message.content.includes("@守烬人对@提灯修士说")),
+    ).toBe(true);
 
     expect(monk?.messages.some((message) => message.content.includes("这是一句秘密。"))).toBe(true);
     expect(scribe?.messages.some((message) => message.content.includes("这是一句秘密。"))).toBe(

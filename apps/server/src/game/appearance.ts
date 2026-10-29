@@ -4,7 +4,6 @@ import { agentLoop } from "../llm/agent-loop";
 import type { ChatCompletionService } from "../llm/protocol";
 import type { ToolDefinition } from "../llm/types";
 import { findActor } from "./actors";
-import { entityNameMatches } from "./addressing";
 import { bumpGameVersion } from "./apply/messages";
 import { isAlive } from "./apply/queries";
 import { formatBaseBody } from "./body";
@@ -15,6 +14,7 @@ import { loadAgentMemory } from "./memory";
 import { setActorAppearance, setActorEquipment } from "./persistence/actors";
 import { lockGameRow } from "./persistence/games";
 import { getGameState } from "./service";
+import { findTextLeaks } from "./text-guard";
 import {
   type ActorState,
   EQUIPMENT_SLOT_LABELS,
@@ -65,13 +65,24 @@ export function buildSubmitAppearanceTool(): ToolDefinition {
   };
 }
 
-export function parseAppearance(args: Record<string, unknown>): string {
+export function parseAppearance(
+  args: Record<string, unknown>,
+  actorNames: readonly string[] = [],
+): string {
   const appearance = typeof args.appearance === "string" ? args.appearance.trim() : "";
   if (appearance.length === 0) {
     throw new GameError("invalid_action", "appearance 不能为空");
   }
   if (appearance.length > MAX_APPEARANCE_LENGTH) {
     throw new GameError("invalid_action", `appearance 不能超过 ${MAX_APPEARANCE_LENGTH} 个字符`);
+  }
+  // 外观会进名单与观察（世界面）：名字与引用都不允许混进来。
+  const leaks = findTextLeaks(appearance, actorNames);
+  if (leaks.length > 0) {
+    throw new GameError(
+      "invalid_action",
+      `appearance 不能包含角色名或系统引用（@ / #编号）: ${leaks.map((leak) => leak.token).join("、")}`,
+    );
   }
   return appearance;
 }
@@ -130,6 +141,9 @@ export async function runAppearanceTurn(
     throw new GameError("invalid_state", `游戏已结束: ${state.game.status}`);
   }
   const actor = findActor(state, actorRef);
+  const actorNames = state.world.stages.flatMap((stage) =>
+    stage.actors.map((candidate) => candidate.name),
+  );
   const memory = await loadAgentMemory(db, state.game.id, "actor", actor.id);
   if (!memory) {
     throw new GameError("invalid_state", `actor 缺少 memory: ${actor.name}`);
@@ -149,7 +163,7 @@ export async function runAppearanceTurn(
         if (submitted !== null) {
           throw new GameError("invalid_action", "外观已提交");
         }
-        submitted = parseAppearance(args);
+        submitted = parseAppearance(args, actorNames);
         return "外观已提交";
       },
     },
@@ -205,7 +219,7 @@ export async function setEquipmentSlot(
 
   let equipment = actor.equipment;
   if (itemName !== null) {
-    const item = actor.items.find((candidate) => entityNameMatches(candidate.name, itemName));
+    const item = actor.items.find((candidate) => candidate.name === itemName);
     if (!item) {
       throw new GameError("not_found", `actor 没有物品: ${itemName}`);
     }

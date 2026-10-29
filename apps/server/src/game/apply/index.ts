@@ -18,7 +18,7 @@ import { applyUnequip } from "../actions/unequip";
 import { applyUse } from "../actions/use";
 import { applyWait } from "../actions/wait";
 import { applyWhisper } from "../actions/whisper";
-import { type AddressLookup, plainEntityName, refOf } from "../addressing";
+import { type AddressLookup, refOf } from "../addressing";
 import { MAX_ACTIONS_PER_TURN, MEMORY_KINDS } from "../constants";
 import { settleDeaths } from "../death";
 import type { DialogueJudge } from "../dialogue-audit";
@@ -27,12 +27,12 @@ import { runAffixEffect } from "../item-effects/affix-agent";
 import type { AffixRequest } from "../item-effects/types";
 import { appendMemoryMessages, loadAgentMemory } from "../memory";
 import { listKnowledgeForObserver, upsertKnowledge } from "../persistence/knowledge";
+import { sanitizeActorFacingText } from "../text-guard";
 import type { ActorPlan, DeathPhaseResult, IdentityWarning } from "../types";
-import { isAlive, listActorNamesInWorld } from "./queries";
+import { isAlive, listActorNamesInWorld, listStageActorRefs, stageAddressLookup } from "./queries";
 
 export * from "./queries";
 
-import { stageAddressLookup } from "./queries";
 import { resolvePlan } from "./resolve";
 import type { ActorWithStageRow, Executor, ResolvedAction } from "./types";
 
@@ -218,10 +218,24 @@ export async function applyActorPlan(
       if (!(error instanceof GameError)) {
         throw error;
       }
+      // 写进记忆的那份要脱敏：CLI/trace 保留名字，actor 记忆只留引用。
+      const rejectionAddress = await stageAddressLookup(
+        tx,
+        gameId,
+        actorRow.actor.id,
+        actorRow.stage.id,
+      );
+      const rejectionForMemory = sanitizeActorFacingText(
+        error.message,
+        await listStageActorRefs(tx, actorRow.stage.id),
+        rejectionAddress,
+        [],
+        { resolveHandles: false },
+      );
       await appendMemoryMessages(tx, memory.row.id, [
         {
           type: "human",
-          content: `# 行动结果\n行动被拒绝：${error.message}`,
+          content: `# 行动结果\n行动被拒绝：${rejectionForMemory}`,
           metadata: { kind: MEMORY_KINDS.actionRejected },
         },
       ]);
@@ -234,6 +248,7 @@ export async function applyActorPlan(
 
     const now = new Date();
     const address = await stageAddressLookup(tx, gameId, actorRow.actor.id, actorRow.stage.id);
+    const stageActorRefs = await listStageActorRefs(tx, actorRow.stage.id);
     const applied: { event: "applied"; actionKind: string; feedback: string }[] = [];
     for (const action of resolved.actions) {
       const feedback = await applyResolvedAction(
@@ -253,7 +268,10 @@ export async function applyActorPlan(
       await appendMemoryMessages(tx, memory.row.id, [
         {
           type: "human",
-          content: feedback,
+          // 反馈文本是对外给 actor 的，写库前统一脱敏（反馈本身保留引用）。
+          content: sanitizeActorFacingText(feedback, stageActorRefs, address, [], {
+            resolveHandles: false,
+          }),
           metadata: { kind: MEMORY_KINDS.actionFeedback },
         },
       ]);
@@ -286,8 +304,7 @@ export async function applyActorPlan(
           });
         }
         const clashesWithTrueName = worldActors.some(
-          (candidate) =>
-            candidate.id !== identity.actorId && plainEntityName(candidate.name) === identity.name,
+          (candidate) => candidate.id !== identity.actorId && candidate.name === identity.name,
         );
         if (clashesWithTrueName) {
           identityWarnings.push({

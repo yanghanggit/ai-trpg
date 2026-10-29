@@ -1,19 +1,14 @@
-import { type AddressLookup, appearanceLine, HANDLE_PATTERN } from "./addressing";
-import { ENTITY_PREFIX, plainEntityName } from "./entity-name";
+import { type AddressLookup, appearanceLine, HANDLE_PATTERN, NAME_REF_PATTERN } from "./addressing";
+import { GameError } from "./errors";
 
 /**
  * 世界面文本的泄漏检查。
  *
- * 规范名、`@N` 指代与角色本名都只属于控制面：它们可以出现在 stage / world 自己的
+ * `@名字`、`#12` 与角色本名都只属于控制面：它们可以出现在 stage / world 自己的
  * 全知记忆里，但不能进入 actor 能看到的环境、台词或结局文案。
  */
 
-const PREFIXES = Object.values(ENTITY_PREFIX).sort((a, b) => b.length - a.length);
-
-/** 只匹配 `类别.` 前缀；名称部分由 actorNames 精确匹配，避免吞掉后面的中文。 */
-export const CANONICAL_ENTITY_PREFIX_PATTERN = new RegExp(`(?:${PREFIXES.join("|")})\\.`, "g");
-
-export type TextLeakCode = "handle" | "canonical_name" | "actor_name";
+export type TextLeakCode = "reference" | "handle" | "actor_name";
 
 export type TextLeak = {
   code: TextLeakCode;
@@ -21,7 +16,7 @@ export type TextLeak = {
 };
 
 export type TextLeakOptions = {
-  /** 为 false 时只查句柄与规范名，适合“名字本身合法”的 god-view 文本。 */
+  /** 为 false 时只查引用与句柄，适合“名字本身合法”的 god-view 文本。 */
   actorNames?: boolean;
 };
 
@@ -32,7 +27,7 @@ function glob(pattern: string): RegExp {
 /**
  * 找出文本里不应出现在世界面的内容。
  *
- * `actorNames` 同时检查规范名与去掉前缀的本名；结果按 `code:token` 去重。
+ * 场景名、道具名是公共标签，出现在自然叙述里合法；这里只拦系统引用与角色本名。
  */
 export function findTextLeaks(
   text: string,
@@ -44,41 +39,53 @@ export function findTextLeaks(
     found.set(`${code}:${token}`, { code, token });
   };
 
+  // 名字没有可靠的终止符（中文里 `@某甲说` 连在一起），因此只报告标记本身。
+  if (NAME_REF_PATTERN.test(text)) {
+    add("reference", "@");
+  }
   for (const match of text.matchAll(glob(HANDLE_PATTERN.source))) {
     add("handle", match[0]);
   }
-  for (const match of text.matchAll(glob(CANONICAL_ENTITY_PREFIX_PATTERN.source))) {
-    add("canonical_name", match[0]);
-  }
   if (options.actorNames !== false) {
     for (const name of actorNames) {
-      for (const candidate of new Set([name, plainEntityName(name)])) {
-        if (candidate.length > 0 && text.includes(candidate)) {
-          add("actor_name", candidate);
-        }
+      if (name.length > 0 && text.includes(name)) {
+        add("actor_name", name);
       }
     }
   }
   return [...found.values()];
 }
 
-export function hasCanonicalEntityName(text: string): boolean {
-  return new RegExp(CANONICAL_ENTITY_PREFIX_PATTERN.source).test(text);
+/** 台词与叙述里不能出现系统引用：模型或玩家照抄引用会污染世界面。 */
+export function assertNoSystemReference(text: string): void {
+  if (NAME_REF_PATTERN.test(text) || HANDLE_PATTERN.test(text)) {
+    throw new GameError("invalid_action", "不能出现系统引用（@名字 / #编号）");
+  }
 }
 
+export type ActorFacingOptions = {
+  /**
+   * 是否把残留的 `#12` 解析成观察者视角的引用。
+   *
+   * environment 需要（历史数据里可能只剩句柄）；行动反馈本身就是用引用写的，
+   * 必须原样保留，否则下一轮没法直接引用。
+   */
+  resolveHandles?: boolean;
+};
+
 /**
- * 把 environment 脱敏成某个观察者能读的文本（读取时的最后一道防线）。
+ * 把任意要写给 actor 的文本脱敏成观察者能读的版本。
  *
- * 正常内容不会在 environment 里写角色：写入校验已经拒绝名字、`@N` 与类别前缀。
- * 这里只处理历史数据与内容漂移，规则与名单 / 观察一致：本场角色用观察者眼里的称呼；
- * 不知道名字时句子用指代 `@N`，外观另起一行——对在场者来说，外观永远可观测。
- * 不在本场、无法观测的名字不编造身份，替换成泛称。
+ * 用途有两处：environment 的读取兜底，以及写入 actor 记忆前的最后一道防线（反馈与拒绝原因）。
+ * 规则与名单 / 观察一致：本场角色写成 `@名字`；不知道名字时保留 `#12`，外观另起一行
+ * ——对在场者来说，外观永远可观测。不在本场、无法观测的名字不编造身份。
  */
-export function sanitizeStageEnvironment(
-  environment: string,
+export function sanitizeActorFacingText(
+  text: string,
   stageActors: readonly { id: string; name: string }[],
   address: AddressLookup,
   otherActorNames: readonly string[] = [],
+  options: ActorFacingOptions = {},
 ): string {
   const entries = stageActors.map((actor) => ({ actor, resolved: address(actor.id) }));
   const byName = new Map(entries.map((entry) => [entry.actor.name, entry]));
@@ -89,10 +96,10 @@ export function sanitizeStageEnvironment(
   );
   const appearances: string[] = [];
 
-  // 本场角色怎么出现在句子里的：名字，或「指代 + 独立的外观行」。
+  // 本场角色怎么出现在句子里的：`@名字`，或 `#12` + 独立的外观行。
   const shown = (entry: (typeof entries)[number]): string => {
     if (entry.resolved.knownName !== null) {
-      return entry.resolved.knownName;
+      return entry.resolved.mention;
     }
     const line = appearanceLine(entry.resolved);
     if (line !== null) {
@@ -101,20 +108,26 @@ export function sanitizeStageEnvironment(
     return entry.resolved.token.length > 0 ? entry.resolved.token : "某个不在场者";
   };
 
-  let text = environment;
+  let sanitized = text;
   for (const [name, entry] of byName) {
-    text = text.split(name).join(shown(entry));
+    // 只处理裸名字：已经写成 `@名字` 的引用不再重复替换，也不收集外观。
+    const bareName = new RegExp(`(?<!@)${name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}`, "g");
+    if (!bareName.test(sanitized)) {
+      continue;
+    }
+    sanitized = sanitized.replace(bareName, shown(entry));
   }
-  // 残留的指代：对得上本场角色就按观察者重写，对不上说明无法观测。
-  text = text.replace(glob(HANDLE_PATTERN.source), (handle) => {
-    const entry = byToken.get(handle);
-    return entry ? shown(entry) : "某个不在场者";
-  });
+  if (options.resolveHandles !== false) {
+    // 残留的 `#12`：对得上本场角色就按观察者重写，对不上说明无法观测。
+    sanitized = sanitized.replace(glob(HANDLE_PATTERN.source), (handle) => {
+      const entry = byToken.get(handle);
+      return entry ? shown(entry) : "某个不在场者";
+    });
+  }
   for (const name of otherActorNames) {
-    text = text.split(name).join("某个不在场者");
+    sanitized = sanitized.split(name).join("某个不在场者");
   }
-  text = text.replace(glob(CANONICAL_ENTITY_PREFIX_PATTERN.source), "");
 
   const unique = [...new Set(appearances)];
-  return unique.length === 0 ? text : `${text}\n\n${unique.join("\n")}`;
+  return unique.length === 0 ? sanitized : `${sanitized}\n\n${unique.join("\n")}`;
 }

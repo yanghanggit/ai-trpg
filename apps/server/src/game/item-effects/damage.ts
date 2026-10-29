@@ -46,7 +46,7 @@ export async function applyDamage(context: ItemEffectContext, damage: number): P
   const remainingHp = hit.remainingHp;
   await bumpGameVersion(executor, gameId, now);
 
-  // 公共消息是上帝视角：句首与结局都用规范名，不混入观察者相对的指代。
+  // 公共消息是上帝视角：句首与结局都用名字，不混入观察者相对的引用。
   const outcome =
     remainingHp <= 0
       ? `；${target.name}倒下了。`

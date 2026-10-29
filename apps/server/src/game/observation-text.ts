@@ -7,13 +7,7 @@
  * 观察与行动反馈共用它，不许各自拼。文本对外可见（测试直接断言内容），改文案要同步测试。
  */
 
-import {
-  type Address,
-  type AddressLookup,
-  appearanceLine,
-  mentionOf,
-  plainEntityName,
-} from "./addressing";
+import { type Address, type AddressLookup, appearanceLine, mentionOf } from "./addressing";
 import { MEMORY_KINDS } from "./constants";
 import type { ActionKind, CommunicationKind, ItemEventKind, ObservationMetadata } from "./types";
 
@@ -60,7 +54,7 @@ export type ItemObservation = { actor: ActorRef; itemName: string } & (
 );
 
 /**
- * 未知对方的观察把外观另起一行：句子只留名字或指代，外观不冒充称呼。
+ * 未知对方的观察把外观另起一行：句子只留名字或引用，外观不冒充称呼。
  *
  * 外观对认知隔离是必要的（不知道是谁，只能靠样子辨认），但它不是名字，不能塞进句子。
  */
@@ -108,7 +102,7 @@ export function renderAction(content: string, stageId: string): ObservationView 
  * `strike` 的主体是「挥击」，武器只是括注；`brawl` 是「肉搏」；`use` 的主体是「使用道具」。
  */
 export function damageActionText(action: "strike" | "brawl" | "use", itemName?: string): string {
-  const name = itemName === undefined ? undefined : plainEntityName(itemName);
+  const name = itemName === undefined ? undefined : itemName;
   if (action === "strike") {
     return `挥击${name ? `（使用${name}）` : ""}`;
   }
@@ -188,7 +182,7 @@ export function renderItemEvent(
   address: AddressLookup,
 ): ObservationView {
   const { actor } = observation;
-  const itemName = plainEntityName(observation.itemName);
+  const itemName = observation.itemName;
   const actorAddress = address(actor.id);
   const actorRef = mentionOf(actorAddress);
   const targetAddress =

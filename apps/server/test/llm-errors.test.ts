@@ -33,11 +33,11 @@ describe("ChatError", () => {
     ["api", 422, false],
     ["api", undefined, false],
   ])("kind=%s status=%s -> retryable=%s", (kind, statusCode, expected) => {
-    const error = new ChatError("角色.无名", "boom", { kind, statusCode });
+    const error = new ChatError("无名", "boom", { kind, statusCode });
     expect(error.retryable).toBe(expected);
-    expect(error.label).toBe("角色.无名");
+    expect(error.label).toBe("无名");
     expect(error.statusCode).toBe(statusCode);
-    expect(error.message).toContain("[角色.无名]");
+    expect(error.message).toContain("[无名]");
     expect(error).toBeInstanceOf(Error);
   });
 

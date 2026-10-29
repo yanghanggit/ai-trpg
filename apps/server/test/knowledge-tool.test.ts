@@ -95,7 +95,7 @@ describe.skipIf(!testDatabaseUrl)("knowledge retrieval tool", () => {
     ]);
 
     const service = new KnowledgeService();
-    const result = await runNpcTurn(handle.db, created.game.slug, "角色.奥德里克", {
+    const result = await runNpcTurn(handle.db, created.game.slug, "奥德里克", {
       service,
       knowledgeProvider: provider,
     });
@@ -108,7 +108,7 @@ describe.skipIf(!testDatabaseUrl)("knowledge retrieval tool", () => {
     );
     expect(toolMessage?.content).toContain("石灰");
     const memory = (await getGameMemories(handle.db, created.game.id)).find(
-      (item) => item.name === "角色.奥德里克",
+      (item) => item.name === "奥德里克",
     );
     expect(memory?.messages.some((message) => message.type === "tool")).toBe(false);
     // 这里借用了 seed 的真实 collection；测完清空，避免向测试库留下 orphan 文档。

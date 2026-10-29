@@ -1,6 +1,6 @@
 import type { TraceContext } from "../../debug/trace";
 import type { ToolDefinition } from "../../llm/types";
-import { mentionOf, plainEntityName } from "../addressing";
+import { mentionOf } from "../addressing";
 import { appendPublicMessage, bumpGameVersion } from "../apply/messages";
 import { resolveActorItem } from "../apply/queries";
 import type { ActorWithStageRow, Executor, ResolvedEquip } from "../apply/types";
@@ -103,7 +103,7 @@ export async function applyEquip(
     (_observer, address) =>
       renderAction(
         withAppearances(
-          `# 场景动态\n${mentionOf(address(actor.id))}穿上了${plainEntityName(item.name)}（${label}）。`,
+          `# 场景动态\n${mentionOf(address(actor.id))}穿上了${item.name}（${label}）。`,
           [address(actor.id)],
         ),
         resolved.stage.id,

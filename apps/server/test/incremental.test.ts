@@ -33,7 +33,7 @@ describe("incremental phase", () => {
   it("records ok / skipped and never rewrites the outcome", async () => {
     const ok = await runIncrementalPhase({ name: "affix", trace }, async () => ({
       kind: "applied",
-      actorName: "角色.甲",
+      actorName: "甲",
       detail: { amount: 42 },
     }));
     const skipped = await runIncrementalPhase({ name: "affix", trace }, async () => ({

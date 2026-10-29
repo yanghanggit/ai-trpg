@@ -11,7 +11,7 @@ const testDatabaseUrl = process.env.TEST_DATABASE_URL?.trim();
 
 /**
  * 观看者投影：客户端要按角色视角展示时，读这个角色的记忆（本来就按观察者渲染过），
- * 而不是重新渲染公共事件流——后者的文本在写入时就已含规范名。
+ * 而不是重新渲染公共事件流——后者的文本在写入时就已含名字。
  */
 describe.skipIf(!testDatabaseUrl)("actor view", () => {
   let handle: DatabaseHandle;
@@ -33,13 +33,13 @@ describe.skipIf(!testDatabaseUrl)("actor view", () => {
       name: "观看者投影测试局",
       world: BELL_MONASTERY_WORLD,
     });
-    await takeActorControl(handle.db, created.game.slug, "角色.无名者");
-    await playerMove(handle.db, created.game.slug, "角色.无名者", {
-      targetStageRef: "场景.墓园",
+    await takeActorControl(handle.db, created.game.slug, "无名者");
+    await playerMove(handle.db, created.game.slug, "无名者", {
+      targetStageRef: "墓园",
     });
 
     // 煤渣认识奥德里克，但没见过无名者的名字。
-    const view = await getActorView(handle.db, created.game.slug, "角色.煤渣");
+    const view = await getActorView(handle.db, created.game.slug, "煤渣");
     expect(view.viewer.name).toBe("煤渣");
     expect(view.scene?.name).toBe("墓园");
     expect(view.scene?.exits.map((exit) => exit.name).sort()).toEqual(
@@ -53,47 +53,50 @@ describe.skipIf(!testDatabaseUrl)("actor view", () => {
 
     const odric = view.scene?.actors.find((actor) => actor.knownName === "奥德里克");
     expect(odric?.label).toContain("奥德里克");
-    expect(odric?.token).toMatch(/^@\d+$/);
+    expect(odric?.token).toMatch(/^@\S+$/);
 
     const stranger = view.scene?.actors.find(
       (actor) => !actor.self && actor.label.includes("裹尸布"),
     );
     expect(stranger?.knownName).toBeNull();
-    expect(stranger?.token).toMatch(/^@\d+$/);
+    expect(stranger?.token).toMatch(/^#\d+$/);
     expect(view.scene?.actors.some((actor) => actor.label.includes("无名者"))).toBe(false);
 
     const log = view.log.map((entry) => entry.content).join("\n");
     expect(log).toContain("裹尸布");
     expect(log).not.toContain("无名者");
-    // 行动反馈与观察也走世界面：场景名不带类型前缀。
+    // 行动反馈与观察也走世界面：不会出现系统引用标记。
     expect(log).not.toContain("场景.");
     expect(view.knowledge).toHaveLength(1);
   });
 
-  it("moves by the stageId from the viewer projection and rejects bare names", async () => {
+  it("moves by stageId or name and rejects unknown stages", async () => {
     const created = await createGame(handle.db, {
       username: DEMO_USER.username,
       name: "观看者移动测试局",
       world: BELL_MONASTERY_WORLD,
     });
-    await takeActorControl(handle.db, created.game.slug, "角色.无名者");
+    await takeActorControl(handle.db, created.game.slug, "无名者");
 
-    const before = await getActorView(handle.db, created.game.slug, "角色.无名者");
+    const before = await getActorView(handle.db, created.game.slug, "无名者");
     const exit = before.scene?.exits.find((candidate) => candidate.name === "墓园");
     expect(exit?.stageId).toBeTruthy();
 
-    const moved = await playerMove(handle.db, created.game.slug, "角色.无名者", {
+    const moved = await playerMove(handle.db, created.game.slug, "无名者", {
       targetStageRef: exit?.stageId as string,
     });
     expect(moved.ok).toBe(true);
 
-    const after = await getActorView(handle.db, created.game.slug, "角色.无名者");
+    const after = await getActorView(handle.db, created.game.slug, "无名者");
     expect(after.scene?.name).toBe("墓园");
 
-    // 视图里给的是去掉前缀的名字；它只用于显示，不能直接当移动目标。
+    // 名字就是名字：视图里显示的 `焚尸房` 可以直接当移动目标。
+    expect(
+      (await playerMove(handle.db, created.game.slug, "无名者", { targetStageRef: "焚尸房" })).ok,
+    ).toBe(true);
     await expect(
-      playerMove(handle.db, created.game.slug, "角色.无名者", { targetStageRef: "焚尸房" }),
-    ).rejects.toThrow(/id 或规范名/);
+      playerMove(handle.db, created.game.slug, "无名者", { targetStageRef: "不存在的地方" }),
+    ).rejects.toThrow(/场景不存在/);
   });
 
   it("keeps scene items free of type prefixes", async () => {
@@ -102,17 +105,17 @@ describe.skipIf(!testDatabaseUrl)("actor view", () => {
       name: "观看者物品测试局",
       world: BELL_MONASTERY_WORLD,
     });
-    await takeActorControl(handle.db, created.game.slug, "角色.无名者");
-    await playerMove(handle.db, created.game.slug, "角色.无名者", {
-      targetStageRef: "场景.墓园",
+    await takeActorControl(handle.db, created.game.slug, "无名者");
+    await playerMove(handle.db, created.game.slug, "无名者", {
+      targetStageRef: "墓园",
     });
-    await playerMove(handle.db, created.game.slug, "角色.无名者", {
-      targetStageRef: "场景.焚尸房",
+    await playerMove(handle.db, created.game.slug, "无名者", {
+      targetStageRef: "焚尸房",
     });
 
-    const view = await getActorView(handle.db, created.game.slug, "角色.无名者");
+    const view = await getActorView(handle.db, created.game.slug, "无名者");
     expect(view.scene?.name).toBe("焚尸房");
-    // 内容里是 `武器.松脂火把`，角色看到的是去掉类型前缀的写法。
+    // 内容里是 `松脂火把`，角色看到的就是这个名字本身。
     expect(view.scene?.items.map((item) => item.name)).toEqual(["松脂火把"]);
   });
 });

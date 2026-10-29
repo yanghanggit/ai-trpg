@@ -17,17 +17,23 @@ import type {
   GameState,
 } from "./types";
 
-/** 客户端可以用 id、规范名或 `@N` 指代目标；与玩家入口的寻址约定一致。 */
+/** 客户端可以用 id、名字、`@名字` 或 `#编号` 指定目标；与玩家入口的寻址约定一致。 */
 function findActorByRef(state: GameState, ref: string): ActorState {
-  if (!ref.startsWith("@")) {
-    return findActor(state, ref);
+  const value = ref.trim();
+  if (!value.startsWith("@") && !value.startsWith("#")) {
+    return findActor(state, value);
   }
-  const seq = Number(ref.slice(1));
+  const seq = value.startsWith("#") ? Number(value.slice(1)) : Number.NaN;
+  const name = value.startsWith("@") ? value.slice(1) : "";
   const actor = state.world.stages
     .flatMap((stage) => stage.actors)
-    .find((candidate) => candidate.presentation.seq === seq);
+    .find(
+      (candidate) =>
+        (Number.isInteger(seq) && candidate.presentation.seq === seq) ||
+        (name.length > 0 && candidate.name === name),
+    );
   if (!actor) {
-    throw new GameError("not_found", `没有这个指代: ${ref}`);
+    throw new GameError("not_found", `没有这个引用: ${value}`);
   }
   return actor;
 }
@@ -124,10 +130,10 @@ async function applyPlayerAction(
 /**
  * 玩家入口的通用引用。接受三种写法：
  * - `actor.id`：稳定身份，客户端首选；
- * - 规范名（如 `角色.某甲`）：给人工操作与 CLI 用；
- * - 系统指代（如 `@3`）：复用 agent 视角时用。
+ * - 名字（如 `某甲`）：给人工操作与 CLI 用；
+ * - 引用（如 `@某甲` / `#3`）：复用 agent 视角时用。
  *
- * 玩家入口是 god view，与模型工具不同：模型只能看到 `@` 指代。
+ * 玩家入口是 god view，与模型工具不同：模型只能看到引用。
  */
 /**
  * 说话动作的服务层输入。
@@ -148,12 +154,12 @@ export type PlayerAnnounceInput = {
 };
 
 export type PlayerMoveInput = {
-  /** 场景 id 或规范名；裸名不由服务端解析。 */
+  /** 场景 id 或名字；裸名不由服务端解析。 */
   targetStageRef: string;
 };
 
 export type PlayerTeleportInput = {
-  /** 目标场景 id 或规范名；必须是 actor 去过的场景。 */
+  /** 目标场景 id 或名字；必须是 actor 去过的场景。 */
   targetStageRef: string;
 };
 
@@ -363,7 +369,7 @@ export async function playerUnequip(
 
 /** 玩家替自己控制的角色记下一个称呼；与模型侧的认知更新走同一份计划。 */
 export type PlayerRememberInput = {
-  /** 目标引用：id、规范名或 `@N`。 */
+  /** 目标引用：id、名字、`@名字` 或 `#编号`。 */
   targetActorRef: string;
   /** 角色相信对方叫什么。 */
   name: string;

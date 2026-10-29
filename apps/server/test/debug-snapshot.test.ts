@@ -50,7 +50,7 @@ describe("snapshot store", () => {
       world: { mode: "home", turn: 0 },
       session: events(),
       parts: {
-        "entities/角色.无名.json": { name: "角色.无名", hp: 10 },
+        "entities/无名.json": { name: "无名", hp: 10 },
         "dungeon/room.json": { name: "入口", type: "opening" },
       },
       action: "new",
@@ -65,7 +65,7 @@ describe("snapshot store", () => {
       user: "alice",
       game: "Game1",
       action: "new",
-      parts: ["dungeon/room.json", "entities/角色.无名.json"],
+      parts: ["dungeon/room.json", "entities/无名.json"],
     });
 
     const manifest = JSON.parse(

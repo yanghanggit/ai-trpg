@@ -19,7 +19,7 @@ const PICKUP_WORLD = {
           items: [
             {
               key: "test-torch",
-              name: "武器.测试火把",
+              name: "测试火把",
               description: "测试用的场景武器。",
               kind: "weapon" as const,
               count: 1,
@@ -115,9 +115,9 @@ describe.skipIf(!testDatabaseUrl)("entity seq", () => {
     const before = await getGameState(handle.db, created.game.slug);
     const torchBefore = before.world.stages
       .flatMap((stage) => stage.items)
-      .find((item) => item.name === "武器.测试火把");
+      .find((item) => item.name === "测试火把");
     const picked = await playerPickup(handle.db, created.game.slug, "守烬人", {
-      itemName: "武器.测试火把",
+      itemName: "测试火把",
     });
     expect(picked.ok).toBe(true);
 
@@ -125,7 +125,7 @@ describe.skipIf(!testDatabaseUrl)("entity seq", () => {
     const keeper = after.world.stages
       .flatMap((stage) => stage.actors)
       .find((actor) => actor.name === "守烬人");
-    const torch = keeper?.items.find((item) => item.name === "武器.测试火把");
+    const torch = keeper?.items.find((item) => item.name === "测试火把");
 
     expect(torch?.seq).toBe(torchBefore?.seq);
     expect(maxSeq(after)).toBe(maxSeq(before));

@@ -8,6 +8,7 @@ import { resetDomainData, seedDemoData } from "../src/db/maintenance";
 import { runMigrations } from "../src/db/migrate";
 import {
   createGame,
+  getGameMemories,
   getGameState,
   playerEquip,
   playerUnequip,
@@ -36,7 +37,7 @@ describe.skipIf(!testDatabaseUrl)("equip and unequip actions", () => {
       name,
       world: BELL_MONASTERY_WORLD,
     });
-    await takeActorControl(handle.db, created.game.slug, "角色.奥德里克");
+    await takeActorControl(handle.db, created.game.slug, "奥德里克");
     return created;
   };
 
@@ -45,39 +46,51 @@ describe.skipIf(!testDatabaseUrl)("equip and unequip actions", () => {
     const before = await getGameState(handle.db, created.game.slug);
     const appearanceBefore = before.world.stages
       .flatMap((stage) => stage.actors)
-      .find((actor) => actor.name === "角色.奥德里克")?.appearance;
+      .find((actor) => actor.name === "奥德里克")?.appearance;
 
     // 先把斗篷卸下，再穿回去，两次都是纯动作。
-    const removed = await playerUnequip(handle.db, created.game.slug, "角色.奥德里克", {
+    const removed = await playerUnequip(handle.db, created.game.slug, "奥德里克", {
       slot: "armor",
     });
     expect(removed.ok).toBe(true);
     expect(removed.plan?.actions[0]).toEqual({ kind: "unequip", slot: "armor" });
 
-    const worn = await playerEquip(handle.db, created.game.slug, "角色.奥德里克", {
-      itemName: "装备.补丁斗篷",
+    const worn = await playerEquip(handle.db, created.game.slug, "奥德里克", {
+      itemName: "补丁斗篷",
       slot: "armor",
     });
     expect(worn.ok).toBe(true);
     expect(worn.plan?.actions[0]).toEqual({
       kind: "equip",
-      itemName: "装备.补丁斗篷",
+      itemName: "补丁斗篷",
       slot: "armor",
     });
 
     const state = await getGameState(handle.db, created.game.slug);
     const keeper = state.world.stages
       .flatMap((stage) => stage.actors)
-      .find((actor) => actor.name === "角色.奥德里克");
-    expect(keeper?.equipment.armor).toBe("装备.补丁斗篷");
+      .find((actor) => actor.name === "奥德里克");
+    expect(keeper?.equipment.armor).toBe("补丁斗篷");
     // 外观是独立快照：动作不会顺手改它，需要 agent:game appearance 单独推动。
     expect(keeper?.appearance).toBe(appearanceBefore);
     expect(state.messages.map((message) => message.kind)).toEqual(["unequip", "equip"]);
+
+    // 写进 actor 记忆的反馈已经脱敏：物品名就是名字本身（公共消息仍是上帝视角）。
+    const memories = await getGameMemories(handle.db, created.game.id);
+    const feedback =
+      memories
+        .find((memory) => memory.name === "奥德里克")
+        ?.messages.filter((message) => message.content.startsWith("# 行动结果"))
+        .map((message) => message.content)
+        .join("\n") ?? "";
+    expect(feedback).toContain("你穿上了补丁斗篷");
+    expect(feedback).toContain("你卸下了补丁斗篷");
+    expect(feedback).not.toContain("@");
   });
 
   it("物品仍在背包里，只是不再计入穿戴", async () => {
     const created = await createKeeperGame("卸下后仍在背包测试局");
-    const removed = await playerUnequip(handle.db, created.game.slug, "角色.奥德里克", {
+    const removed = await playerUnequip(handle.db, created.game.slug, "奥德里克", {
       slot: "weapon",
     });
     expect(removed.ok).toBe(true);
@@ -85,16 +98,16 @@ describe.skipIf(!testDatabaseUrl)("equip and unequip actions", () => {
     const state = await getGameState(handle.db, created.game.slug);
     const keeper = state.world.stages
       .flatMap((stage) => stage.actors)
-      .find((actor) => actor.name === "角色.奥德里克");
+      .find((actor) => actor.name === "奥德里克");
     expect(keeper?.equipment.weapon).toBeUndefined();
-    expect(keeper?.items.map((item) => item.name)).toContain("武器.掘墓人的铁锹");
+    expect(keeper?.items.map((item) => item.name)).toContain("掘墓人的铁锹");
   });
 
   it("槽位大类不匹配时拒绝", async () => {
     const created = await createKeeperGame("槽位大类测试局");
     await expect(
-      playerEquip(handle.db, created.game.slug, "角色.奥德里克", {
-        itemName: "贵重物.闸门钥匙",
+      playerEquip(handle.db, created.game.slug, "奥德里克", {
+        itemName: "闸门钥匙",
         slot: "armor",
       }),
     ).rejects.toThrow("不能放进护甲槽");
@@ -103,7 +116,7 @@ describe.skipIf(!testDatabaseUrl)("equip and unequip actions", () => {
   it("空槽位不能卸下", async () => {
     const created = await createKeeperGame("空槽位测试局");
     await expect(
-      playerUnequip(handle.db, created.game.slug, "角色.奥德里克", { slot: "accessory" }),
+      playerUnequip(handle.db, created.game.slug, "奥德里克", { slot: "accessory" }),
     ).rejects.toThrow("槽没有装备");
   });
 

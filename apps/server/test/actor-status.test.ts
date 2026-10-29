@@ -725,7 +725,7 @@ describe.skipIf(!testDatabaseUrl)("corpses can be operated on", () => {
         ?.properties;
       const targetName = enumValues?.targetActorHandle as { enum?: string[] } | undefined;
       expect(targetName?.enum?.length).toBeGreaterThan(0);
-      expect(targetName?.enum?.every((handle) => /^@\d+$/.test(handle))).toBe(true);
+      expect(targetName?.enum?.every((handle) => /^(@\S+|#\d+)$/.test(handle))).toBe(true);
     }
     // 观察文本只有一个「可作用对象」，且包含尸体。
     expect(capture.input).toContain("## 可作用对象");
@@ -796,7 +796,7 @@ describe.skipIf(!testDatabaseUrl)("corpses can be operated on", () => {
 
     // 同场景旁观者：知道这一下打得多重、对方有没有倒下，但不知道对方还剩多少生命。
     const observer = await read(scribe.id);
-    expect(observer).toContain("守烬人对提灯修士挥击");
+    expect(observer).toContain("@守烬人对@提灯修士挥击");
     expect(observer).toContain("造成6点伤害");
     expect(observer).not.toContain("剩余 HP");
     expect(observer).not.toContain("倒下");

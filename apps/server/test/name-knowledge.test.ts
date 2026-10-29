@@ -106,12 +106,12 @@ describe.skipIf(!testDatabaseUrl)("names and addresses", () => {
       name: "名字隔离测试局",
       world: BELL_MONASTERY_WORLD,
     });
-    await takeActorControl(handle.db, created.game.slug, "角色.无名者");
-    await playerMove(handle.db, created.game.slug, "角色.无名者", {
-      targetStageRef: "场景.墓园",
+    await takeActorControl(handle.db, created.game.slug, "无名者");
+    await playerMove(handle.db, created.game.slug, "无名者", {
+      targetStageRef: "墓园",
     });
 
-    const { state, actor } = await actorByName(created.game.slug, handle, "角色.奥德里克");
+    const { state, actor } = await actorByName(created.game.slug, handle, "奥德里克");
     const stage = state.world.stages.find((candidate) =>
       candidate.actors.some((other) => other.id === actor.id),
     );
@@ -125,10 +125,10 @@ describe.skipIf(!testDatabaseUrl)("names and addresses", () => {
     expect(observation).toContain("坏运气");
     expect(observation).not.toContain("无名者");
     expect(observation).toContain("半幅发黄的裹尸布");
-    // 指代是 @数字，不是名字。
+    // 指代是 @名字 或 #编号，不是名字。
     const unknown = state.world.stages
       .flatMap((candidate) => candidate.actors)
-      .find((candidate) => candidate.name === "角色.无名者");
+      .find((candidate) => candidate.name === "无名者");
     if (!unknown) {
       throw new Error("缺少无名者");
     }
@@ -141,24 +141,24 @@ describe.skipIf(!testDatabaseUrl)("names and addresses", () => {
       name: "记名字测试局",
       world: BELL_MONASTERY_WORLD,
     });
-    await takeActorControl(handle.db, created.game.slug, "角色.无名者");
-    await playerMove(handle.db, created.game.slug, "角色.无名者", {
-      targetStageRef: "场景.墓园",
+    await takeActorControl(handle.db, created.game.slug, "无名者");
+    await playerMove(handle.db, created.game.slug, "无名者", {
+      targetStageRef: "墓园",
     });
-    const { actor } = await actorByName(created.game.slug, handle, "角色.无名者");
+    const { actor } = await actorByName(created.game.slug, handle, "无名者");
 
     const service = new RememberService(handleOf(actor.presentation.seq));
-    const turn = await runNpcTurn(handle.db, created.game.slug, "角色.奥德里克", { service });
+    const turn = await runNpcTurn(handle.db, created.game.slug, "奥德里克", { service });
     expect(turn.ok).toBe(true);
     expect(turn.loopSuccess).toBe(true);
 
     const after = await getGameState(handle.db, created.game.slug);
     const odric = after.world.stages
       .flatMap((stage) => stage.actors)
-      .find((candidate) => candidate.name === "角色.奥德里克");
+      .find((candidate) => candidate.name === "奥德里克");
     const nameless = after.world.stages
       .flatMap((stage) => stage.actors)
-      .find((candidate) => candidate.name === "角色.无名者");
+      .find((candidate) => candidate.name === "无名者");
     const belief = after.knowledge.find(
       (row) =>
         row.observerActorId === odric?.id && row.presentationId === nameless?.presentation.id,
@@ -169,7 +169,7 @@ describe.skipIf(!testDatabaseUrl)("names and addresses", () => {
     // 记下之后，下一次观察里就会出现这个名字。
     const odricNow = after.world.stages
       .flatMap((stage) => stage.actors)
-      .find((candidate) => candidate.name === "角色.奥德里克");
+      .find((candidate) => candidate.name === "奥德里克");
     const stage = after.world.stages.find((candidate) =>
       candidate.actors.some((other) => other.id === odricNow?.id),
     );
@@ -188,14 +188,14 @@ describe.skipIf(!testDatabaseUrl)("names and addresses", () => {
     const state = await getGameState(handle.db, created.game.slug);
     const ratKing = state.world.stages
       .flatMap((stage) => stage.actors)
-      .find((candidate) => candidate.name === "角色.鼠王");
+      .find((candidate) => candidate.name === "鼠王");
     if (!ratKing) {
       throw new Error("缺少鼠王");
     }
 
     // 鼠王在地窖，奥德里克在墓园：没看见就记名字；而且这个称呼撞上煤渣的本名。
     const service = new RememberService(handleOf(ratKing.presentation.seq), "煤渣");
-    const turn = await runNpcTurn(handle.db, created.game.slug, "角色.奥德里克", { service });
+    const turn = await runNpcTurn(handle.db, created.game.slug, "奥德里克", { service });
     expect(turn.ok).toBe(true);
     const warnings = turn.identityWarnings ?? [];
     expect(warnings.map((warning) => warning.code)).toEqual(
@@ -205,7 +205,7 @@ describe.skipIf(!testDatabaseUrl)("names and addresses", () => {
     const after = await getGameState(handle.db, created.game.slug);
     const odric = after.world.stages
       .flatMap((stage) => stage.actors)
-      .find((candidate) => candidate.name === "角色.奥德里克");
+      .find((candidate) => candidate.name === "奥德里克");
     expect(
       after.knowledge.find(
         (row) =>
@@ -220,13 +220,13 @@ describe.skipIf(!testDatabaseUrl)("names and addresses", () => {
       name: "玩家记名字测试局",
       world: BELL_MONASTERY_WORLD,
     });
-    await takeActorControl(handle.db, created.game.slug, "角色.无名者");
-    await playerMove(handle.db, created.game.slug, "角色.无名者", {
-      targetStageRef: "场景.墓园",
+    await takeActorControl(handle.db, created.game.slug, "无名者");
+    await playerMove(handle.db, created.game.slug, "无名者", {
+      targetStageRef: "墓园",
     });
 
-    const turn = await playerRememberIdentity(handle.db, created.game.slug, "角色.无名者", {
-      targetActorRef: "角色.奥德里克",
+    const turn = await playerRememberIdentity(handle.db, created.game.slug, "无名者", {
+      targetActorRef: "奥德里克",
       name: "守墓人",
     });
     expect(turn.ok).toBe(true);
@@ -234,10 +234,10 @@ describe.skipIf(!testDatabaseUrl)("names and addresses", () => {
     const after = await getGameState(handle.db, created.game.slug);
     const nameless = after.world.stages
       .flatMap((stage) => stage.actors)
-      .find((candidate) => candidate.name === "角色.无名者");
+      .find((candidate) => candidate.name === "无名者");
     const odric = after.world.stages
       .flatMap((stage) => stage.actors)
-      .find((candidate) => candidate.name === "角色.奥德里克");
+      .find((candidate) => candidate.name === "奥德里克");
     expect(
       after.knowledge.find(
         (row) =>
@@ -252,7 +252,7 @@ describe.skipIf(!testDatabaseUrl)("names and addresses", () => {
       name: "形象切换识别测试局",
       world: BELL_MONASTERY_WORLD,
     });
-    const { actor: odric } = await actorByName(created.game.slug, handle, "角色.奥德里克");
+    const { actor: odric } = await actorByName(created.game.slug, handle, "奥德里克");
 
     let maskedId = "";
     await handle.db.transaction(async (tx) => {
@@ -272,7 +272,7 @@ describe.skipIf(!testDatabaseUrl)("names and addresses", () => {
     const masked = await getGameState(handle.db, created.game.slug);
     const cinder = masked.world.stages
       .flatMap((stage) => stage.actors)
-      .find((candidate) => candidate.name === "角色.煤渣");
+      .find((candidate) => candidate.name === "煤渣");
     const stage = masked.world.stages.find((candidate) =>
       candidate.actors.some((other) => other.id === cinder?.id),
     );
@@ -289,7 +289,7 @@ describe.skipIf(!testDatabaseUrl)("names and addresses", () => {
     const restored = await getGameState(handle.db, created.game.slug);
     const cinderBack = restored.world.stages
       .flatMap((candidate) => candidate.actors)
-      .find((candidate) => candidate.name === "角色.煤渣");
+      .find((candidate) => candidate.name === "煤渣");
     const stageBack = restored.world.stages.find((candidate) =>
       candidate.actors.some((other) => other.id === cinderBack?.id),
     );
@@ -316,7 +316,7 @@ describe.skipIf(!testDatabaseUrl)("names and addresses", () => {
       throw new Error("缺少提灯修士");
     }
 
-    // 三种寻址方式都成立：稳定 id、规范名、系统指代。
+    // 三种寻址方式都成立：稳定 id、名字、引用。
     for (const ref of [monk.id, monk.name, handleOf(monk.presentation.seq)]) {
       const said = await playerSay(
         handle.db,
@@ -337,29 +337,28 @@ describe.skipIf(!testDatabaseUrl)("names and addresses", () => {
     expect(targets.every((message) => message.targetActorId === monk.id)).toBe(true);
   });
 
-  it("rejects canonical entity names in speech", () => {
+  it("lets speech use names but still rejects system references", () => {
     expect(() =>
-      parseSay({ mind: "试探", targetActorHandle: "@3", message: "你是角色.守烬人？" }),
-    ).toThrow(/规范名/);
+      parseSay({ mind: "试探", targetActorHandle: "@守烬人", message: "你是守烬人？" }),
+    ).not.toThrow();
     expect(() =>
-      parseWhisper({ mind: "试探", targetActorHandle: "@3", message: "场景.灰烬门廊见。" }),
-    ).toThrow(/规范名/);
-    expect(() => parseAnnounce({ mind: "宣布", message: "武器.裂齿短刃在我手里。" })).toThrow(
-      /规范名/,
-    );
+      parseWhisper({ mind: "试探", targetActorHandle: "@守烬人", message: "灰烬门廊见。" }),
+    ).not.toThrow();
+    expect(() => parseAnnounce({ mind: "宣布", message: "裂齿短刃在我手里。" })).not.toThrow();
+    expect(() =>
+      parseSay({ mind: "试探", targetActorHandle: "@守烬人", message: "@守烬人，你是谁？" }),
+    ).toThrow(/系统引用/);
+    expect(() =>
+      parseWhisper({ mind: "试探", targetActorHandle: "@守烬人", message: "编号是 #3。" }),
+    ).toThrow(/系统引用/);
   });
 
-  it("keeps speech free of system handles and rejects handle-shaped names", () => {
-    expect(() =>
-      parseSay({ mind: "试探", targetActorHandle: "@3", message: "@3，你是谁？" }),
-    ).toThrow(/系统指代/);
-    expect(() =>
-      parseWhisper({ mind: "试探", targetActorHandle: "@3", message: "编号是 @3。" }),
-    ).toThrow(/系统指代/);
-    expect(() => parseRememberIdentity({ handle: "@3", name: "编号 @3" })).toThrow(/系统指代/);
-    expect(() => parseRememberIdentity({ handle: "@3", name: "" })).toThrow(/name/);
-    expect(parseRememberIdentity({ handle: "@3", name: "守钟人" })).toEqual({
-      handle: "@3",
+  it("records beliefs by anonymous handle and rejects marker-shaped names", () => {
+    expect(() => parseRememberIdentity({ handle: "#3", name: "编号 #3" })).toThrow(/系统标记/);
+    expect(() => parseRememberIdentity({ handle: "#3", name: "" })).toThrow(/name/);
+    expect(() => parseRememberIdentity({ handle: "@3", name: "守钟人" })).toThrow(/匿名编号/);
+    expect(parseRememberIdentity({ handle: "#3", name: "守钟人" })).toEqual({
+      handle: "#3",
       name: "守钟人",
     });
   });

@@ -1,6 +1,6 @@
 import type { TraceContext } from "../../debug/trace";
 import type { ToolDefinition } from "../../llm/types";
-import { mentionOf, plainEntityName } from "../addressing";
+import { mentionOf, stripNameRef } from "../addressing";
 import { appendPublicMessage, bumpGameVersion } from "../apply/messages";
 import { resolveAdjacentStage } from "../apply/queries";
 import type { ActorWithStageRow, Executor, ResolvedMove, WorldRow } from "../apply/types";
@@ -38,7 +38,7 @@ export function parseMove(args: Record<string, unknown>): MoveAction {
   if (targetStageName.length === 0) {
     throw new GameError("invalid_action", "move 需要非空 targetStageName");
   }
-  return { kind: "move", targetStageName };
+  return { kind: "move", targetStageName: stripNameRef(targetStageName) };
 }
 
 export async function resolveMove(
@@ -60,7 +60,7 @@ export async function applyMove(
   trace?: TraceContext,
 ): Promise<string> {
   const target = resolved.targetStage;
-  // 离开观察要在移动前写：此时移动者仍在本场景，观察者才能拿到他的指代。
+  // 离开观察要在移动前写：此时移动者仍在本场景，观察者才能拿到他的引用。
   await appendCustomStageObservation(
     executor,
     gameId,
@@ -69,7 +69,7 @@ export async function applyMove(
     (_observer, address) =>
       renderAction(
         withAppearances(
-          `# 场景动态\n${mentionOf(address(actorRow.actor.id))}离开了${plainEntityName(resolved.stage.name)}。`,
+          `# 场景动态\n${mentionOf(address(actorRow.actor.id))}离开了${resolved.stage.name}。`,
           [address(actorRow.actor.id)],
         ),
         resolved.stage.id,
@@ -98,7 +98,7 @@ export async function applyMove(
     (_observer, address) =>
       renderEnvironmentChange(
         withAppearances(
-          `# 环境变化\n${mentionOf(address(actorRow.actor.id))}进入了${plainEntityName(target.name)}。`,
+          `# 环境变化\n${mentionOf(address(actorRow.actor.id))}进入了${target.name}。`,
           [address(actorRow.actor.id)],
         ),
         target.id,
@@ -125,5 +125,5 @@ export async function applyMove(
     },
     trace,
   );
-  return `# 行动结果\n你从${plainEntityName(resolved.stage.name)}抵达了${plainEntityName(target.name)}。`;
+  return `# 行动结果\n你从${resolved.stage.name}抵达了${target.name}。`;
 }

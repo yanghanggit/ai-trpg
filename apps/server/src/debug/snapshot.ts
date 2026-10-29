@@ -58,7 +58,7 @@ export type SaveSnapshotInput = {
   game: string;
   world: JsonValue;
   session?: readonly SessionEvent[];
-  /** 可选的领域文件：key 是快照内的相对路径（如 `entities/角色.json`）。 */
+  /** 可选的领域文件：key 是快照内的相对路径（如 `entities/json`）。 */
   parts?: Readonly<Record<string, JsonValue>>;
   action?: string;
   parent?: string;

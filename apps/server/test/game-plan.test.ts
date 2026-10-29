@@ -24,12 +24,10 @@ import {
 import { parseEndGame } from "../src/game/world-plan";
 
 describe("action authorization", () => {
-  it("权限报错直接用规范名，不重复类别前缀", () => {
-    expect(() => assertActionAllowed([], "strike", "角色.奥德里克")).toThrow(
-      "角色.奥德里克 不能使用动作: strike",
+  it("权限报错直接写实体的名字", () => {
+    expect(() => assertActionAllowed([], "strike", "奥德里克")).toThrow(
+      "奥德里克 不能使用动作: strike",
     );
-    // 测试夹具里的裸名照原样输出，不额外补前缀。
-    expect(() => assertActionAllowed([], "brawl", "守烬人")).toThrow("守烬人 不能使用动作: brawl");
   });
 });
 
@@ -160,20 +158,20 @@ describe("action parsers", () => {
       targetActorHandle: "提灯修士",
       itemName: "裂齿短刃",
     });
-    expect(parsePickup({ itemName: "武器.测试火把" })).toEqual({
+    expect(parsePickup({ itemName: "测试火把" })).toEqual({
       kind: "pickup",
-      itemName: "武器.测试火把",
+      itemName: "测试火把",
     });
     expect(
       parseUse({
-        itemName: "贵重物.闸门钥匙",
-        targetStageName: "场景.铁闸门",
+        itemName: "闸门钥匙",
+        targetStageName: "铁闸门",
         targetDetail: "锁孔",
       }),
     ).toEqual({
       kind: "use",
-      itemName: "贵重物.闸门钥匙",
-      targetStageName: "场景.铁闸门",
+      itemName: "闸门钥匙",
+      targetStageName: "铁闸门",
       targetDetail: "锁孔",
     });
   });
@@ -198,7 +196,7 @@ describe("action parsers", () => {
     expect(() => parsePickup({})).toThrow("itemName");
     expect(() => parseUse({ itemName: "钥匙" })).toThrow("targetActorHandle 或 targetStageName");
     expect(() =>
-      parseUse({ itemName: "钥匙", targetActorHandle: "提灯修士", targetStageName: "场景.铁闸门" }),
+      parseUse({ itemName: "钥匙", targetActorHandle: "提灯修士", targetStageName: "铁闸门" }),
     ).toThrow("二选一");
   });
 });

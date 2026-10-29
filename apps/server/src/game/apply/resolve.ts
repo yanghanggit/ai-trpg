@@ -14,6 +14,7 @@ import { resolveWait } from "../actions/wait";
 import { resolveWhisper } from "../actions/whisper";
 import { MAX_IDENTITIES_PER_TURN } from "../constants";
 import { GameError } from "../errors";
+import { assertNoSystemReference } from "../text-guard";
 import type { ActorPlan } from "../types";
 import { findActorViewByHandleInWorld, resolveEquippedItems } from "./queries";
 import type {
@@ -56,6 +57,7 @@ export async function resolvePlan(
         resolved.push(await resolveWhisper(executor, stage, actorRow.actor.id, action));
         break;
       case "announce":
+        assertNoSystemReference(action.message);
         resolved.push({ kind: "announce", action, stage });
         break;
       case "move": {
@@ -113,7 +115,7 @@ export async function resolvePlan(
   for (const binding of bindings) {
     const view = await findActorViewByHandleInWorld(executor, world.id, binding.handle);
     if (!view) {
-      throw new GameError("invalid_action", `世界内没有这个指代: ${binding.handle}`);
+      throw new GameError("invalid_action", `世界内没有这个编号: ${binding.handle}`);
     }
     identities.push({
       handle: binding.handle,

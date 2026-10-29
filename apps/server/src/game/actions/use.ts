@@ -1,6 +1,6 @@
 import type { TraceContext } from "../../debug/trace";
 import type { ToolDefinition } from "../../llm/types";
-import { type AddressLookup, plainEntityName } from "../addressing";
+import { type AddressLookup, stripNameRef } from "../addressing";
 import { findActorInStage, resolveActorItem } from "../apply/queries";
 import type { ActorWithStageRow, Executor, ResolvedUse } from "../apply/types";
 import { MAX_TARGET_DETAIL_LENGTH } from "../constants";
@@ -26,7 +26,7 @@ export function usableItemNames(items: readonly ItemState[], equipment: Equipmen
         hasItemEffectHandler(item.effect.type) &&
         equippedSlotOf(equipment, item.name) === undefined,
     )
-    .map((item) => plainEntityName(item.name));
+    .map((item) => item.name);
 }
 
 export function buildUseTool(
@@ -50,7 +50,7 @@ export function buildUseTool(
           },
           targetActorHandle: {
             type: "string",
-            description: "道具作用的对象角色的指代（@数字）；可以是自己，也可以是尸体",
+            description: "道具作用的对象角色的引用（@名字 或 #编号）；可以是自己，也可以是尸体",
             ...(targetActorHandles.length > 0 ? { enum: [...targetActorHandles] } : {}),
           },
           targetStageName: {
@@ -96,7 +96,7 @@ export function parseUse(args: Record<string, unknown>): UseAction {
     kind: "use",
     itemName,
     ...(targetActorHandle.length > 0 ? { targetActorHandle } : {}),
-    ...(targetStageName.length > 0 ? { targetStageName } : {}),
+    ...(targetStageName.length > 0 ? { targetStageName: stripNameRef(targetStageName) } : {}),
     ...(targetDetail.length > 0 ? { targetDetail } : {}),
   };
 }
@@ -131,7 +131,7 @@ export async function resolveUse(
   let targetStage: ResolvedUse["targetStage"];
 
   if (action.targetStageName !== undefined) {
-    if (action.targetStageName !== stage.name) {
+    if (stripNameRef(action.targetStageName) !== stage.name) {
       throw new GameError("invalid_action", "只能对当前所在场景使用道具");
     }
     targetStage = stage;

@@ -248,16 +248,16 @@ describe.skipIf(!testDatabaseUrl)("stage mini-GM", () => {
   it("rejects a bare actor name with production canonical names", async () => {
     const created = await createGame(handle.db, {
       username: DEMO_USER.username,
-      name: "生产规范名环境测试局",
+      name: "生产名字环境测试局",
       world: BELL_MONASTERY_WORLD,
     });
     const before = await getGameState(handle.db, created.game.slug);
-    const graveyard = before.world.stages.find((stage) => stage.name === "场景.墓园");
+    const graveyard = before.world.stages.find((stage) => stage.name === "墓园");
     if (!graveyard) {
       throw new Error("缺少墓园");
     }
 
-    // 生产 seed 里 actor.name 是 `角色.奥德里克`；旧守卫只查这个完整写法，
+    // 生产 seed 里 actor.name 是 `奥德里克`；旧守卫只查这个完整写法，
     // 裸本名正好从缝隙里漏过去。
     const ok = await applyStagePlan(
       handle.db,
@@ -278,7 +278,7 @@ describe.skipIf(!testDatabaseUrl)("stage mini-GM", () => {
     );
   });
 
-  it("rejects a system handle and a canonical item name in the environment", async () => {
+  it("rejects system references but allows public item names in the environment", async () => {
     const created = await createGame(handle.db, {
       username: DEMO_USER.username,
       name: "环境指代测试局",
@@ -299,15 +299,16 @@ describe.skipIf(!testDatabaseUrl)("stage mini-GM", () => {
         true,
       ),
     ).toBe(false);
+    // 道具名是公共标签：environment 里自然叙述它是合法的。
     expect(
       await applyStagePlan(
         handle.db,
         before.game.id,
         gate.id,
-        { actions: [{ kind: "submit_environment", environment: "门边靠着一把武器.裂齿短刃。" }] },
+        { actions: [{ kind: "submit_environment", environment: "门边靠着一把裂齿短刃。" }] },
         true,
       ),
-    ).toBe(false);
+    ).toBe(true);
   });
 
   it("rejects a plan that updates the environment twice", async () => {

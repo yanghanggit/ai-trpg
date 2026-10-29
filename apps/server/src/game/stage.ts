@@ -108,7 +108,7 @@ function assertEnvironmentHasNoLeaks(environment: string, actorNames: readonly s
   if (leaks.length > 0) {
     throw new GameError(
       "invalid_action",
-      `environment 不能包含角色名、系统指代或规范名: ${leaks.map((leak) => leak.token).join("、")}`,
+      `environment 不能包含角色名或系统引用（@ / #编号）: ${leaks.map((leak) => leak.token).join("、")}`,
     );
   }
 }

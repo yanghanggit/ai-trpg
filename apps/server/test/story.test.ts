@@ -49,7 +49,7 @@ class StoryService implements ChatCompletionService {
 function storyScript(): ToolCall[][] {
   return [
     [call("list_memories", {})],
-    [call("read_memory", { ownerType: "world", name: "世界.灰烬测试局" })],
+    [call("read_memory", { ownerType: "world", name: "灰烬测试局" })],
     [call("read_memory", { ownerType: "stage", name: "灰烬门廊" })],
     [call("read_memory", { ownerType: "stage", name: "断钟中殿" })],
     [call("read_memory", { ownerType: "actor", name: "守烬人" })],

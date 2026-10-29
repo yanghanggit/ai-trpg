@@ -1,12 +1,12 @@
 import type { ToolDefinition } from "../llm/types";
 import type { RagSearchResult } from "../rag";
 import { type ActorWithStage, adjacentStageNames, findStageByName } from "./actors";
-import { type AddressLookup, addressLookupFor, plainEntityName, refOf } from "./addressing";
+import { type AddressLookup, addressLookupFor, refOf } from "./addressing";
 import { isAlive } from "./apply/queries";
 import { MAX_IDENTITY_NAME_LENGTH, MAX_WORLD_NOTIFICATION_LENGTH } from "./constants";
 import { GameError } from "./errors";
 import { teleportTargetsFor } from "./teleport";
-import { sanitizeStageEnvironment } from "./text-guard";
+import { sanitizeActorFacingText } from "./text-guard";
 import type { ActorState, GameState, ItemState, StageAction } from "./types";
 import { EQUIPMENT_SLOT_LABELS, EQUIPMENT_SLOTS } from "./types";
 
@@ -82,7 +82,7 @@ export function buildObserveActorTool(availableTargetActorRefs: readonly string[
           targetActorRef: {
             type: "string",
             enum: availableTargetActorRefs,
-            description: "要感知的同场景角色：actor 使用系统指代（@数字），stage 使用规范名",
+            description: "要感知的同场景角色：actor 使用引用（@名字 或 #编号），stage 使用名字",
           },
         },
         required: ["targetActorRef"],
@@ -297,7 +297,7 @@ export function describeItems(actor: Pick<ActorState, "items" | "equipment">): s
     }
     const stats = notes.length > 0 ? `（${notes.join("，")}）` : "";
     const worn = Object.values(actor.equipment).includes(item.name) ? "，已穿戴" : "";
-    return `- ${plainEntityName(item.name)}（${item.kind}，count ${item.count}${itemSourceNote(item)}${worn}）：${item.description}${stats}`;
+    return `- ${item.name}（${item.kind}，count ${item.count}${itemSourceNote(item)}${worn}）：${item.description}${stats}`;
   });
   return `物品：
 ${lines.join("\n")}`;
@@ -306,7 +306,7 @@ ${lines.join("\n")}`;
 export function describeEquipment(actor: Pick<ActorState, "equipment">): string {
   const lines = EQUIPMENT_SLOTS.flatMap((slot) => {
     const itemName = actor.equipment[slot];
-    return itemName ? [`- ${EQUIPMENT_SLOT_LABELS[slot]}：${plainEntityName(itemName)}`] : [];
+    return itemName ? [`- ${EQUIPMENT_SLOT_LABELS[slot]}：${itemName}`] : [];
   });
   return lines.length === 0 ? "穿戴：无" : `穿戴：\n${lines.join("\n")}`;
 }
@@ -358,16 +358,16 @@ export function buildRememberIdentityTool(handles: readonly string[]): ToolDefin
     type: "function",
     function: {
       name: "remember_identity",
-      description: `把「某个指代」记成你相信的名字或称呼。
+      description: `把「某个编号」记成你相信的名字或称呼。
 
-只在你已经从世界内信息得知时使用：对方自报、别人介绍、或者你从可见的记载里读到。不要用它猜名字，也不要把 @ 开头的系统指代当成名字。
+只在你已经从世界内信息得知时使用：对方自报、别人介绍、或者你从可见的记载里读到。不要用它猜名字，也不要把 # 编号当成名字。
 记错、被骗、改口都可以重记，后一次覆盖前一次。它只改变你自己的记忆，不产生世界事件，也不占行动名额。`,
       parameters: {
         type: "object",
         properties: {
           handle: {
             type: "string",
-            description: "你看到的系统指代，例如 @3",
+            description: "对方的匿名编号，例如 #12",
             ...(handles.length > 0 ? { enum: [...handles] } : {}),
           },
           name: {
@@ -390,8 +390,8 @@ export function parseIdentityName(raw: unknown): string {
   if (name.length > MAX_IDENTITY_NAME_LENGTH) {
     throw new GameError("invalid_action", `name 不能超过 ${MAX_IDENTITY_NAME_LENGTH} 个字符`);
   }
-  if (/@\d+/.test(name)) {
-    throw new GameError("invalid_action", "name 不能包含系统指代");
+  if (/[@#]/.test(name)) {
+    throw new GameError("invalid_action", "name 不能包含系统标记（@ 或 #）");
   }
   return name;
 }
@@ -401,13 +401,13 @@ export function parseRememberIdentity(args: Record<string, unknown>): {
   name: string;
 } {
   const handle = typeof args.handle === "string" ? args.handle.trim() : "";
-  if (!/^@\d+$/.test(handle)) {
-    throw new GameError("invalid_action", "handle 必须是系统指代，例如 @3");
+  if (!/^#\d+$/.test(handle)) {
+    throw new GameError("invalid_action", "handle 必须是匿名编号，例如 #12");
   }
   return { handle, name: parseIdentityName(args.name) };
 }
 
-/** actor 视角的场景视图：只允许本场景，名单走观察者相对的指代。 */
+/** actor 视角的场景视图：只允许本场景，名单走观察者相对的引用。 */
 export function describeStageForActor(
   state: GameState,
   stageName: string,
@@ -425,7 +425,7 @@ export function describeStageForActor(
     .flatMap((candidate) => candidate.actors)
     .filter((actor) => !stage.actors.some((present) => present.id === actor.id))
     .map((actor) => actor.name);
-  const environment = sanitizeStageEnvironment(
+  const environment = sanitizeActorFacingText(
     stage.environment,
     stage.actors,
     address,
@@ -434,7 +434,7 @@ export function describeStageForActor(
   const moves = adjacentStageNames(state, stage.id);
   const canTeleport = current.actor.actions.includes("teleport");
   const teleportLines = teleportTargetsFor(state, current.actor, stage)
-    .map((candidate) => candidate.name)
+    .map((candidate) => `@${candidate.name}`)
     .join("、");
   const actors =
     stage.actors.length === 0
@@ -446,16 +446,13 @@ export function describeStageForActor(
     stage.items.length === 0
       ? "无"
       : stage.items
-          .map(
-            (item) =>
-              `${plainEntityName(item.name)}（${item.kind}${itemSourceNote(item)}）：${item.description}`,
-          )
+          .map((item) => `${item.name}（${item.kind}${itemSourceNote(item)}）：${item.description}`)
           .join("；");
   return `场景：${stage.name}
 ${environment}
 角色：${actors}
 物品：${items}
-可去：${moves.length === 0 ? "无" : moves.join("、")}${
+可去：${moves.length === 0 ? "无" : moves.map((name) => `@${name}`).join("、")}${
     canTeleport
       ? `
 可传送：${teleportLines.length === 0 ? "无" : teleportLines}`

@@ -1,33 +1,36 @@
-import { plainEntityName } from "./entity-name";
 import type { ActorState, GameState, StageState } from "./types";
 
-export { plainEntityName };
-
 /**
- * 观察者相对的指代（address）。
+ * 观察者相对的引用（address）。
  *
  * 名字是知识、不是地址：同一个 actor 在不同观察者眼里有不同的称呼，没被告知姓名时只剩
- * 外观。`token`（`@<形象序号>`）是系统给本轮用的不透明指代，稳定、不含真名，不得出现在
- * 台词里。
+ * 外观。引用只有两种写法：
+ *
+ * - `@名字`：你知道他是谁；
+ * - `#12`：你还不知道他叫什么，只能靠外观辨认。
+ *
+ * 两者都是系统标记，不得出现在台词里。
  */
 
 export type Address = {
-  /** 系统指代，如 `@3`；找不到主体时为空串。 */
+  /** 引用写法：`@名字` 或 `#12`；找不到主体时为空串。 */
   token: string;
-  /** 名单写法：`名字（外观）`；不知道名字时写 `外观：…`。 */
+  /** 名单写法：`名字（外观）` / `外观：…`。 */
   label: string;
-  /** 句子里的称呼：知道名字用名字，否则只用指代 `@3`。 */
+  /** 句子里的引用：`token`；自己固定为「你」。 */
   mention: string;
   /** 当前形象的外观；句子不内联它，需要时由 `appearanceLine` 单独成行。 */
   appearance: string;
   /** 观察者相信的名字；未知为 null。 */
   knownName: string | null;
+  /** 是否为观察者自己。 */
+  isSelf: boolean;
 };
 
-/** 按 actorId 取该观察者视角下的指代。 */
+/** 按 actorId 取该观察者视角下的引用。 */
 export type AddressLookup = (actorId: string) => Address;
 
-/** 构建指代所需的最小主体数据：身份、当前形象与可见外观。 */
+/** 构建引用所需的最小主体数据：身份、当前形象与可见外观。 */
 export type AddressSubject = {
   actorId: string;
   presentationId: string;
@@ -35,32 +38,53 @@ export type AddressSubject = {
   appearance: string;
 };
 
-/** 指代无法解析（对方不在本场景）时的泛称：不可观测，也不编造外观。 */
+/** 引用无法解析（对方不在本场景）时的泛称：不可观测，也不编造外观。 */
 const UNKNOWN_LABEL = "某个不在场者";
 
-/** 形象序号就是句柄；与 actor / stage / item 共用本局实体序号。 */
+/** 不知道名字时的匿名编号；与 actor / stage / item 共用本局实体序号。 */
 export function handleOf(presentationSeq: number): string {
-  return `@${presentationSeq}`;
+  return `#${presentationSeq}`;
 }
 
-/** 句柄的形状；台词里出现它说明模型把系统指代当成了称呼。 */
-export const HANDLE_PATTERN = /@\d+/;
+/** 匿名编号的形状；台词里出现它说明模型把引用当成了称呼。 */
+export const HANDLE_PATTERN = /#\d+/;
+
+/** 名字引用的形状：`@名字`，在空白与标点处截断。 */
+export const NAME_REF_PATTERN = /@\S*/;
+
+/** 参数归一：名字类参数允许带一个前导 `@`；`#编号` 与纯名字原样返回。 */
+export function stripNameRef(ref: string): string {
+  return ref.startsWith("@") ? ref.slice(1) : ref;
+}
+
+/** 名单里的引用：`@某甲（外观）` / `#12 外观：…`。 */
+export function refOf(address: Address): string {
+  if (address.token.length === 0) {
+    return address.label;
+  }
+  return address.knownName === null ? `${address.token} ${address.label}` : `@${address.label}`;
+}
+
+/** 句子里的引用。 */
+export function mentionOf(address: Address): string {
+  return address.mention;
+}
+
+/** 未知名字时补充的外观行：`#12 外观：…`；已知名字返回 null。 */
+export function appearanceLine(address: Address): string | null {
+  if (address.knownName !== null || address.appearance.length === 0) {
+    return null;
+  }
+  return `${address.token} 外观：${address.appearance}`;
+}
+
+/** 行动反馈里的引用：自己写作「你自己」。 */
+export function actionRef(address: Address): string {
+  return address.isSelf ? "你自己" : address.mention;
+}
 
 /**
- * 物品/实体名匹配：全名与去掉类型前缀的写法都接受。
- *
- * 内容里仍用全名（`武器.某物`）保证唯一；角色看到的是去掉前缀的写法。
- */
-export function entityNameMatches(candidate: string, ref: string): boolean {
-  return candidate === ref || plainEntityName(candidate) === ref;
-}
-
-function labelOf(knownName: string | null, appearance: string): string {
-  return knownName === null ? `外观：${appearance}` : `${knownName}（${appearance}）`;
-}
-
-/**
- * 用「观察者已知的名字」+「主体当前形象」拼出指代。
+ * 用「观察者已知的名字」+「主体当前形象」拼出引用。
  *
  * 名字只按形象 id 查：换了形象就等于换了对象，旧名字不会自动跟过去。
  */
@@ -77,43 +101,23 @@ export function makeAddressLookup(
         mention: UNKNOWN_LABEL,
         appearance: "",
         knownName: null,
+        isSelf: false,
       };
     }
     const knownName = knownNames.get(subject.presentationId) ?? null;
-    const token = handleOf(subject.presentationSeq);
+    const token = knownName === null ? handleOf(subject.presentationSeq) : `@${knownName}`;
     return {
       token,
-      label: labelOf(knownName, subject.appearance),
-      mention: knownName ?? token,
+      label:
+        knownName === null
+          ? `外观：${subject.appearance}`
+          : `${knownName}（${subject.appearance}）`,
+      mention: token,
       appearance: subject.appearance,
       knownName,
+      isSelf: false,
     };
   };
-}
-
-/** 名单里的指代：`@3 某人（此刻裹着斗篷）`。 */
-export function refOf(address: Address): string {
-  return address.token.length === 0 ? address.label : `${address.token} ${address.label}`;
-}
-
-/** 句子里的称呼：知道名字就写名字，否则只写指代。 */
-export function mentionOf(address: Address): string {
-  return address.mention;
-}
-
-/** 未知名字时补充的外观行：`@15 外观：…`；已知名字返回 null。 */
-export function appearanceLine(address: Address): string | null {
-  if (address.knownName !== null || address.appearance.length === 0) {
-    return null;
-  }
-  return `${address.token} 外观：${address.appearance}`;
-}
-
-/** 行动反馈里的指代：知道名字时带上句柄；未知时句柄本身就是全部称呼。 */
-export function actionRef(address: Address): string {
-  return address.token.length === 0 || address.knownName === null
-    ? address.mention
-    : `${address.token} ${address.mention}`;
 }
 
 /** 一组 actor 的当前形象；未提供时应视为不可见。 */
@@ -142,9 +146,9 @@ function knownNamesOf(state: GameState, observerActorId: string): Map<string, st
 }
 
 /**
- * actor 视角的指代表：主体取本场景的全部角色。
+ * actor 视角的引用表：主体取本场景的全部角色。
  *
- * 自己的指代固定为「你自己」，名字是自己的知识，不占用名字表。
+ * 自己的引用固定为「你」，名字是自己的知识，不占用名字表。
  */
 export function addressLookupFor(
   state: GameState,
@@ -155,11 +159,12 @@ export function addressLookupFor(
   return (actorId) => {
     if (actorId === observer.id) {
       return {
-        token: handleOf(observer.presentation.seq),
+        token: `@${observer.name}`,
         label: "你自己",
         mention: "你",
         appearance: observer.appearance,
-        knownName: plainEntityName(observer.name),
+        knownName: observer.name,
+        isSelf: true,
       };
     }
     return lookup(actorId);
