@@ -100,8 +100,13 @@ export function buildActorTurnInput(state: GameState, current: ActorWithStage): 
       : teleportTargets.map((stage) => `@${stage.name}`).join("、");
   const knowledgeHint =
     "当问题涉及任何进入该世界的人都可能观察、询问或从公开记载中得知的固定事实，而当前场景与记忆无法直接确认时，必须先调用 query 检索，再回答或行动；不要用常识补全，也不要把检索结果当成亲眼所见。query 只读、不占行动，不提供角色秘密或当前状态。";
+  // 只有名单里还有 `#编号` 时才提醒记名字：此时 remember_identity 才有对象可记。
+  const unknownTargets = targets.filter((token) => token.startsWith("#"));
   const identityHint =
-    "`@名字` 与 `#编号` 都可作为行动对象，但都不能说出口，也不能从 `#编号` 推断姓名。名字只有在世界内被告知后才算知道；若本轮对话让你得知了某人叫什么，用 remember_identity 记下（不占行动名额）。";
+    "`@名字` 与 `#编号` 都可作为行动对象，但都不能说出口，也不能从 `#编号` 推断姓名。名字只有在世界内被告知后才算知道。" +
+    (unknownTargets.length === 0
+      ? ""
+      : "名单里还有 `#编号`：如果你已经从对话或记载中知道其中某人的名字，用 remember_identity 记下（不占行动名额）。");
 
   return `# 当前环境
 

@@ -133,6 +133,8 @@ describe.skipIf(!testDatabaseUrl)("names and addresses", () => {
       throw new Error("缺少无名者");
     }
     expect(observation).toContain(handleOf(unknown.presentation.seq));
+    // 名单里还有编号时，提示词提醒可以记名字。
+    expect(observation).toContain("用 remember_identity 记下");
   });
 
   it("lets an actor record a name in its plan without any action", async () => {
@@ -176,7 +178,10 @@ describe.skipIf(!testDatabaseUrl)("names and addresses", () => {
     if (!odricNow || !stage) {
       throw new Error("缺少墓园");
     }
-    expect(buildActorTurnInput(after, { actor: odricNow, stage })).toContain("无名者");
+    const promptAfter = buildActorTurnInput(after, { actor: odricNow, stage });
+    expect(promptAfter).toContain("无名者");
+    // 没有编号可记之后，提醒不再出现。
+    expect(promptAfter).not.toContain("用 remember_identity 记下");
   });
 
   it("warns without blocking when the target is unseen or the name collides", async () => {
