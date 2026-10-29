@@ -59,7 +59,7 @@ export function findTextLeaks(
 /** 台词与叙述里不能出现系统引用：模型或玩家照抄引用会污染世界面。 */
 export function assertNoSystemReference(text: string): void {
   if (NAME_REF_PATTERN.test(text) || HANDLE_PATTERN.test(text)) {
-    throw new GameError("invalid_action", "不能出现系统引用（@名字 / #编号）");
+    throw new GameError("invalid_action", "不能出现系统引用标记");
   }
 }
 

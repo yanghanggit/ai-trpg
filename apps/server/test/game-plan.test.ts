@@ -26,7 +26,7 @@ import { parseEndGame } from "../src/game/world-plan";
 describe("action authorization", () => {
   it("权限报错直接写实体的名字", () => {
     expect(() => assertActionAllowed([], "strike", "奥德里克")).toThrow(
-      "奥德里克 不能使用动作: strike",
+      "奥德里克不能使用动作: strike",
     );
   });
 });

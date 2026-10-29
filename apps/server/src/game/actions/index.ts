@@ -59,5 +59,5 @@ export function assertActionAllowed(
     return;
   }
   // actorName 就是实体的名字，CLI 与日志直接用它定位。
-  throw new GameError("invalid_action", `${actorName} 不能使用动作: ${kind}`);
+  throw new GameError("invalid_action", `${actorName}不能使用动作: ${kind}`);
 }
