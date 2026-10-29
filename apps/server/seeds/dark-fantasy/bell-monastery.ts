@@ -6,7 +6,7 @@ export const BELL_MONASTERY: Script = {
   contentKey: "bell-monastery",
   worldName: "枯钟修道院的故事",
   profile: `这局故事的世界是枯钟修道院：一座被黑疖病掏空的修道院，连同它的墓园、地窖、焚尸房、铁闸门与山道。故事之外还有更大的天地，但那不属于这一局。
-这个故事有且只有两种收尾：无名者离开了他原本被困住的地方，或者他死在这里。门被打开、钥匙换了手、尸体被发现、鼠群被清空，都只是世界级的事实，需要你裁决，但还不足以让故事结束。`,
+这个故事有且只有三种收尾：无名者离开了他原本被困住的地方，他死在这里，或者鼠王倒下、地窖里的鼠窝与黑疖病的源头被毁。门被打开、钥匙换了手、尸体被发现、鼠群被清空，都只是世界级的事实，需要你裁决；只有第三种同时满足“鼠王已死、鼠窝被毁”时，才足以让故事结束。`,
   stages: [
     {
       key: "graveyard",
@@ -34,10 +34,11 @@ export const BELL_MONASTERY: Script = {
       key: "cellar",
       name: "地窖",
       profile: `修道院的酒窖与储粮间。黑疖病之后，这里成了鼠群的巢：酒桶被啃穿，粮袋被咬空，地面积着骨渣与鼠毛。
-鼠王盘踞在最深处，它是这场瘟疫里活得最久、吃得最饱的东西。`,
-      actions: ["submit_environment"],
+鼠王盘踞在最深处，它是这场瘟疫里活得最久、吃得最饱的东西。尽头的鼠窝是鼠群与黑疖病的源头；只有鼠王已死、鼠窝被毁，才算源头被清除，必须把这件事报告给世界，由世界裁决是否收束。`,
+      actions: ["submit_environment", "notify_world"],
       environment:
         "地窖顶很低，酒桶被啃出大洞，干涸的酒渍发黑；梁上垂着破绳，墙角堆着咬碎的骨头与发霉的粮袋。尽头的鼠窝由骨渣、破布和啃断的钥匙串堆成。",
+      anchors: [{ label: "鼠窝", description: "地窖尽头由骨渣、破布和啃断的钥匙串堆成的鼠窝。" }],
     },
     {
       key: "crematorium",
@@ -313,7 +314,17 @@ export const BELL_MONASTERY: Script = {
       },
       hp: 120,
       stats: { maxHp: 120, strength: 60, wisdom: 100, agility: 8, damage: 60, block: 100 },
-      items: [],
+      items: [
+        {
+          key: "rat-king-flint",
+          name: "窝里的燧石",
+          description:
+            "一块被鼠群收在身边的燧石，边缘磨得发亮，缠着一小截油布；擦出的火星足够点着干燥的骨渣与破布。",
+          kind: "valuable" as const,
+          count: 1,
+          effect: { type: "event" },
+        },
+      ],
       // 动物：沉睡时由 openingBriefing 约束留在原地；苏醒后可以移动与攻击，不操作道具。
       actions: ["say", "whisper", "announce", "move", "wait", "brawl"],
     },

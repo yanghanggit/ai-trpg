@@ -88,6 +88,12 @@ describe("dark fantasy seed world", () => {
       .filter((actor) => actor.isDefaultPlayer)
       .map((actor) => actor.name);
     expect(defaultPlayers).toEqual(["无名者"]);
+    // 鼠王随身收着一块可偷的燧石：valuable + event，不是身体材料。
+    expect(king?.items.find((item) => item.name === "窝里的燧石")).toMatchObject({
+      key: "rat-king-flint",
+      kind: "valuable",
+      effect: { type: "event" },
+    });
     expect(king?.baseBody.race).toBe("鼠");
     expect(king?.hp).toBeGreaterThan(keeper?.hp ?? 0);
     expect(king?.stats.damage).toBeGreaterThan(20);
@@ -184,7 +190,7 @@ describe("dark fantasy seed world", () => {
     // 只有铁闸门能改变与门外的连通性。
     for (const item of stages) {
       expect(item.actions).toContain("submit_environment");
-      if (item.key !== "mountain-path") {
+      if (item.key !== "mountain-path" && item.key !== "cellar") {
         expect(item.actions).not.toContain("notify_world");
       }
     }
@@ -196,6 +202,10 @@ describe("dark fantasy seed world", () => {
     expect(stage("gate").anchors).toEqual([
       { label: "锁孔", description: "铁闸门上被干蜡塞住的锁孔。" },
     ]);
+    expect(stage("cellar").actions).toEqual(["submit_environment", "notify_world"]);
+    expect(stage("cellar").anchors).toEqual([
+      { label: "鼠窝", description: "地窖尽头由骨渣、破布和啃断的钥匙串堆成的鼠窝。" },
+    ]);
     expect(BELL_MONASTERY_WORLD.actions).toEqual(["notify_stage", "end_game"]);
   });
 
@@ -206,7 +216,7 @@ describe("dark fantasy seed world", () => {
     expect(profile).not.toContain("end_game");
     expect(profile).not.toContain("notify_stage");
     // 收束条件属于世界设定；全局规则只定边界，不重复具体玩法。
-    expect(profile).toContain("有且只有两种收尾");
+    expect(profile).toContain("有且只有三种收尾");
     const prompt = buildWorldSystemPrompt(BELL_MONASTERY_WORLD);
     expect(prompt).toContain("## 世界设定");
     expect(prompt).toContain("主角倒下时你会收到通知");
