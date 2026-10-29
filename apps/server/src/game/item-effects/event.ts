@@ -36,7 +36,7 @@ export const applyEventEffect: ItemEffectHandler = async (context) => {
       actor,
       itemName: item.name,
       event: "use",
-      ...(target ? { target: { id: target.id, name: target.name } } : {}),
+      ...(target ? { target: { id: target.id } } : {}),
       ...(targetStage ? { targetStageName: targetStage.name } : {}),
       ...(targetDetail ? { targetDetail } : {}),
     },

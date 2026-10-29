@@ -40,7 +40,8 @@ type ObservationSpec = {
   /** 事实的发起者；他自己的认知走行动反馈，这里不再重复写。 */
   excludeActorId: string;
   audience: Audience;
-  render: (observer: ActorRow, address: AddressLookup) => ObservationView;
+  /** 观察者只以 id 传入：名字必须由 address 渲染，避免 renderer 直接拼真名。 */
+  render: (observerId: string, address: AddressLookup) => ObservationView;
 };
 
 function sees(observer: ActorRow, audience: Audience): boolean {
@@ -100,7 +101,7 @@ async function writeObservations(
             isSelf: true,
           }
         : base(actorId);
-    const view = spec.render(observer, address);
+    const view = spec.render(observer.id, address);
     kind = String(view.metadata.kind);
     recipients.push({ actorId: observer.id, actorName: observer.name, content: view.content });
     await appendMemoryMessages(executor, memory.row.id, [{ type: "human", ...view }]);
@@ -130,7 +131,7 @@ export async function appendCustomStageObservation(
   gameId: string,
   stageId: string,
   sourceActorId: string,
-  render: (observer: ActorRow, address: AddressLookup) => ObservationView,
+  render: (observerId: string, address: AddressLookup) => ObservationView,
   trace?: TraceContext,
 ): Promise<void> {
   await writeObservations(
@@ -160,7 +161,7 @@ export async function appendDamageObservations(
       stageId: stage.id,
       excludeActorId: facts.attacker.id,
       audience,
-      render: (observer, address) => renderDamage(stage, facts, observer.id, address),
+      render: (observerId, address) => renderDamage(stage, facts, observerId, address),
     },
     trace,
   );
@@ -188,7 +189,7 @@ export async function appendItemObservations(
         observation.event === "steal"
           ? { type: "only", actorId: observation.target.id }
           : STAGE_WIDE,
-      render: (observer, address) => renderItemEvent(stage, observation, observer.id, address),
+      render: (observerId, address) => renderItemEvent(stage, observation, observerId, address),
     },
     trace,
   );
@@ -212,7 +213,7 @@ export async function appendCommunicationObservations(
         observation.kind === "whisper"
           ? { type: "only", actorId: observation.target.id }
           : STAGE_WIDE,
-      render: (observer, address) => renderCommunication(stage, observation, observer.id, address),
+      render: (observerId, address) => renderCommunication(stage, observation, observerId, address),
     },
     trace,
   );

@@ -11,8 +11,13 @@ import { type Address, type AddressLookup, appearanceLine, mentionOf } from "./a
 import { MEMORY_KINDS } from "./constants";
 import type { ActionKind, CommunicationKind, ItemEventKind, ObservationMetadata } from "./types";
 
-/** 观察对象的最小投影：文案只需要名字，测试也不必构造整行。 */
-export type ActorRef = { id: string; name: string };
+/**
+ * 观察对象的最小投影：只带 id。
+ *
+ * 观察文本里的名字必须由 `AddressLookup` 渲染；这里不提供 name，
+ * 新写的 renderer 想拼真名会在类型层直接编译失败。
+ */
+export type ActorRef = { id: string };
 
 /** 场景的最小投影：`id` 进 metadata，`name` 进文案。 */
 export type StageRef = { id: string; name: string };

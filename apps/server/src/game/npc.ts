@@ -57,6 +57,7 @@ import {
   describeSelf,
   describeStageForActor,
   parseRememberIdentity,
+  renderStageEnvironmentForActor,
 } from "./plan";
 import { getGameState } from "./service";
 import { teleportTargetsFor } from "./teleport";
@@ -116,7 +117,7 @@ export function buildActorTurnInput(state: GameState, current: ActorWithStage): 
 
 ## 场景
 ${current.stage.name}
-${current.stage.environment}
+${renderStageEnvironmentForActor(state, current.stage, current)}
 
 ## 你的状态
 ${current.actor.name}（你的引用：${selfHandle}）| HP ${current.actor.hp}/${current.actor.stats.maxHp}

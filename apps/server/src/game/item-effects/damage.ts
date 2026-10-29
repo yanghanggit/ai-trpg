@@ -68,8 +68,8 @@ export async function applyDamage(context: ItemEffectContext, damage: number): P
     stage,
     {
       action: actionKind,
-      attacker: { id: actorRow.actor.id, name: actorRow.actor.name },
-      target: { id: target.id, name: target.name, maxHp: current.stats.maxHp },
+      attacker: { id: actorRow.actor.id },
+      target: { id: target.id, maxHp: current.stats.maxHp },
       ...(item ? { itemName: item.name } : {}),
       damage,
       remainingHp,

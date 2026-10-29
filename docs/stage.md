@@ -12,7 +12,7 @@ stage 不是 actor，也不是完整 GM：没有 HP、位置、行动槽与自�
 
 stage 与 actor 共用 `agent_memories` 表，以 `owner_type=stage` 标识。它能看到本场景内所有事件：公开与私密沟通、actor 进出、攻击 / 窃取 / 给予 / 拾取 / 使用、等待、死亡与游戏结束、自己造成的环境变化。
 
-它看不到其他场景的事件，也看不到 actor 的内部 `mind`。看到私密事件不改变 actor 的可见性：其他 actor 是否知道 whisper 仍由原行动范围决定。
+它有意的例外是 `look_stage`：可以主动查看任意场景的静态状态（environment、角色名单、陈列物品），但这条口子不包含其他场景的事件与记忆。它看不到其他场景的事件，也看不到 actor 的内部 `mind`。看到私密事件不改变 actor 的可见性：其他 actor 是否知道 whisper 仍由原行动范围决定。
 
 ## Environment
 
@@ -22,7 +22,7 @@ stage 与 actor 共用 `agent_memories` 表，以 `owner_type=stage` 标识。�
 - 必须与当前场景物品一致：还在场景中的物品保留描述，不在场景中的直接省略，也不解释原因；
 - 不含角色名称、行动或状态——角色由名单（`## 同场景角色`）、观察与记忆承载，历史在 stage memory 与 `game_messages` 里。写入时会拒绝角色名字与 `@`/`#` 引用；actor 读取时再按观察者脱敏一次：本场角色写成 `@名字`，**不知道名字就用 `#编号`，外观另起一行**——在场者一定看得见对方，不存在「看不清」的兜底。
 
-environment 是拉取模型：stage 更新后不推送，actor 下一次 plan 与 `look_stage` 都读当时的 `stages.environment`。
+environment 是拉取模型：stage 更新后不推送，actor 下一次 plan 与 `look_stage` 都读当时的 `stages.environment`，并按观察者渲染一次。
 
 ## 连通性
 

@@ -7,6 +7,7 @@ import { MAX_TARGET_DETAIL_LENGTH } from "../constants";
 import { GameError } from "../errors";
 import { applyItemEffect, hasItemEffectHandler } from "../item-effects";
 import { equippedSlotOf } from "../items";
+import { assertNoSystemReference } from "../text-guard";
 import {
   EQUIPMENT_SLOT_LABELS,
   type EquipmentSlots,
@@ -92,6 +93,11 @@ export function parseUse(args: Record<string, unknown>): UseAction {
   if (targetDetail.length > 0 && targetStageName.length === 0) {
     throw new GameError("invalid_action", "targetDetail 只能与 targetStageName 一起使用");
   }
+  if (targetDetail.length > 0) {
+    // targetDetail 会随观察写进同场景其他 actor 的记忆：它是行动描述，不是寻址入口，
+    // 不允许携带只有系统才能写的引用标记。
+    assertNoSystemReference(targetDetail);
+  }
   return {
     kind: "use",
     itemName,
@@ -125,6 +131,10 @@ export async function resolveUse(
   }
   if (targetDetail && action.targetStageName === undefined) {
     throw new GameError("invalid_action", "targetDetail 只能与 targetStageName 一起使用");
+  }
+  if (targetDetail) {
+    // 玩家入口绕过 parseUse，解析阶段再守一次：自由文本不得携带 @ / # 引用。
+    assertNoSystemReference(targetDetail);
   }
 
   let target: ResolvedUse["target"];

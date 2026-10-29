@@ -7,7 +7,7 @@ import { MAX_IDENTITY_NAME_LENGTH, MAX_WORLD_NOTIFICATION_LENGTH } from "./const
 import { GameError } from "./errors";
 import { teleportTargetsFor } from "./teleport";
 import { sanitizeActorFacingText } from "./text-guard";
-import type { ActorState, GameState, ItemState, StageAction } from "./types";
+import type { ActorState, GameState, ItemState, StageAction, StageState } from "./types";
 import { EQUIPMENT_SLOT_LABELS, EQUIPMENT_SLOTS } from "./types";
 
 export function buildLookTool(state: GameState): ToolDefinition {
@@ -407,6 +407,25 @@ export function parseRememberIdentity(args: Record<string, unknown>): {
   return { handle, name: parseIdentityName(args.name) };
 }
 
+/**
+ * 把 environment 渲染成某个 actor 能读的版本。
+ *
+ * 回合初始输入与 `look_stage` 共用：environment 是拉取入口，读取时按观察者再脱敏
+ * 一次，不能只依赖写入守卫（建局数据与历史数据都可能绕过守卫）。
+ */
+export function renderStageEnvironmentForActor(
+  state: GameState,
+  stage: StageState,
+  current: ActorWithStage,
+): string {
+  const address = addressLookupFor(state, current.actor, stage);
+  const otherActorNames = state.world.stages
+    .flatMap((candidate) => candidate.actors)
+    .filter((actor) => !stage.actors.some((present) => present.id === actor.id))
+    .map((actor) => actor.name);
+  return sanitizeActorFacingText(stage.environment, stage.actors, address, otherActorNames);
+}
+
 /** actor 视角的场景视图：只允许本场景，名单走观察者相对的引用。 */
 export function describeStageForActor(
   state: GameState,
@@ -421,16 +440,7 @@ export function describeStageForActor(
     return "错误：你只能看见自己所在的场景";
   }
   const address = addressLookupFor(state, current.actor, stage);
-  const otherActorNames = state.world.stages
-    .flatMap((candidate) => candidate.actors)
-    .filter((actor) => !stage.actors.some((present) => present.id === actor.id))
-    .map((actor) => actor.name);
-  const environment = sanitizeActorFacingText(
-    stage.environment,
-    stage.actors,
-    address,
-    otherActorNames,
-  );
+  const environment = renderStageEnvironmentForActor(state, stage, current);
   const moves = adjacentStageNames(state, stage.id);
   const canTeleport = current.actor.actions.includes("teleport");
   const teleportLines = teleportTargetsFor(state, current.actor, stage)

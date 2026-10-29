@@ -87,7 +87,7 @@ export async function applyTeleport(
     gameId,
     resolved.stage.id,
     actorRow.actor.id,
-    (_observer, address) =>
+    (_observerId, address) =>
       renderAction(
         withAppearances(`# 场景动态\n${mentionOf(address(actorRow.actor.id))}在原地消失了。`, [
           address(actorRow.actor.id),
@@ -110,7 +110,7 @@ export async function applyTeleport(
     gameId,
     target.id,
     actorRow.actor.id,
-    (_observer, address) =>
+    (_observerId, address) =>
       renderEnvironmentChange(
         withAppearances(`# 环境变化\n${mentionOf(address(actorRow.actor.id))}出现在这里。`, [
           address(actorRow.actor.id),

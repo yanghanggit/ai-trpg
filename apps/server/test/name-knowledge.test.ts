@@ -1,4 +1,5 @@
 import { randomUUID } from "node:crypto";
+import { eq } from "drizzle-orm";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import "../src/db/env";
 import { BELL_MONASTERY_WORLD } from "../seeds/dark-fantasy";
@@ -6,6 +7,7 @@ import { type DatabaseHandle, openDatabase } from "../src/db/connect";
 import { DEMO_USER } from "../src/db/demo-fixture";
 import { resetDomainData, seedDemoData } from "../src/db/maintenance";
 import { runMigrations } from "../src/db/migrate";
+import { stages } from "../src/db/schema";
 import {
   type ActorPlan,
   applyActorPlan,
@@ -137,6 +139,46 @@ describe.skipIf(!testDatabaseUrl)("names and addresses", () => {
     expect(observation).toContain(handleOf(unknown.presentation.seq));
     // 名单里还有编号时，提示词提醒可以记名字。
     expect(observation).toContain("用 remember_identity 记下");
+  });
+
+  it("renders the turn input environment through the observer's address", async () => {
+    const created = await createGame(handle.db, {
+      username: DEMO_USER.username,
+      name: "回合输入环境渲染测试局",
+      world: BELL_MONASTERY_WORLD,
+    });
+    await takeActorControl(handle.db, created.game.slug, "无名者");
+    await playerMove(handle.db, created.game.slug, "无名者", {
+      targetStageRef: "墓园",
+    });
+
+    const before = await getGameState(handle.db, created.game.slug);
+    const stage = before.world.stages.find((candidate) => candidate.name === "墓园");
+    const nameless = stage?.actors.find((actor) => actor.name === "无名者");
+    const odric = stage?.actors.find((actor) => actor.name === "奥德里克");
+    if (!stage || !nameless || !odric) {
+      throw new Error("墓园缺少夹具");
+    }
+    const namelessHandle = handleOf(nameless.presentation.seq);
+
+    // 绕过写入守卫直写：模拟建局或历史数据里的裸名字与句柄。
+    await handle.db
+      .update(stages)
+      .set({ environment: `无名者把灯放在${namelessHandle}旁。` })
+      .where(eq(stages.id, stage.id));
+
+    const state = await getGameState(handle.db, created.game.slug);
+    const current = state.world.stages.find((candidate) => candidate.id === stage.id);
+    const observer = current?.actors.find((actor) => actor.id === odric.id);
+    if (!current || !observer) {
+      throw new Error("墓园缺少夹具");
+    }
+
+    // 回合输入与 look_stage 共用同一套观察者渲染：裸名字与句柄都变成 #编号 + 外观。
+    const input = buildActorTurnInput(state, { actor: observer, stage: current });
+    expect(input).toContain(`${namelessHandle}把灯放在${namelessHandle}旁。`);
+    expect(input).toContain(`${namelessHandle} 外观：`);
+    expect(input).not.toContain("无名者");
   });
 
   it("lets an actor record a name in its plan without any action", async () => {

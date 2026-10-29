@@ -51,7 +51,7 @@ export async function applyWait(
     gameId,
     resolved.stage.id,
     actorRow.actor.id,
-    (_observer, address) =>
+    (_observerId, address) =>
       renderAction(
         withAppearances(
           `# 场景动态\n${mentionOf(address(actorRow.actor.id))}留在原地，继续观察四周。`,

@@ -85,7 +85,7 @@ export async function applyUnequip(
     gameId,
     resolved.stage.id,
     actor.id,
-    (_observer, address) =>
+    (_observerId, address) =>
       renderAction(
         withAppearances(
           `# 场景动态\n${mentionOf(address(actor.id))}卸下了${resolved.itemName}（${label}）。`,

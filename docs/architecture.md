@@ -58,7 +58,7 @@
 四条约束，新增能力时都要满足：
 
 - 状态只由拥有它的回合写：environment 与通道归 stage，外观归外观阶段，结局归 world。
-- 推理端只读控制面，不写 actor 记忆，也不直接产出面向 actor 的上下文；可见后果只进场景记忆，由 stage pull。actor 侧的知识一律由 actor pull，compact 只把同一主体的记忆改写成摘要。
+- 推理端只读控制面，不把未经观察者渲染的他人名字或他人私有信息写进 actor 记忆，也不直接产出面向 actor 的上下文；actor 自己行动的数值后果经既有伤害通道写回它自己的行动反馈。可见后果只进场景记忆，由 stage pull。actor 侧的知识一律由 actor pull，compact 只把同一主体的记忆改写成摘要。
 - 引擎把事件追加到对应 owner 的 memory：不更新状态，也不唤醒 agent。
 - actor / stage / world 都显式推动；唯一自动的是提交后的增量阶段（词缀、死亡后的外观与掉落），只追加、不回滚、不触发另一个 agent。
 

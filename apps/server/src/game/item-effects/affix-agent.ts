@@ -44,7 +44,8 @@ function statsText(stats: Stats): string {
  * 不能靠模型的世界外常识补全。
  *
  * 仲裁 agent 没有记忆与观察者视角，读的是控制面事实（角色名、外观、数值）；
- * 它不写 actor 记忆，只把第三人称可见事实写进场景记忆，由 actor 下次 pull。
+ * 它不写 actor 记忆中的他人信息：第三人称可见事实只写进场景记忆，由 actor 下次 pull；
+ * 数值后果经伤害通道写回出手者自己的行动反馈，目标只以出手者已知的引用出现。
  */
 export function buildAffixPrompt(input: {
   world: CampaignContextWorld;
@@ -347,7 +348,8 @@ async function evaluateAffix(
 /**
  * 落账判定结果，返回真正生效的条数。
  *
- * 约束：追加伤害必须对当事人可见，因此反馈同时写进出手者记忆。
+ * 约束：追加伤害必须让出手者知道，因此反馈写进出手者记忆；文本由 applyDamage
+ * 按出手者的 address 渲染，目标只会是 @已知名 或 #编号。
  */
 async function settleAffix(
   db: Database,

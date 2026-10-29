@@ -198,6 +198,13 @@ describe("action parsers", () => {
     expect(() =>
       parseUse({ itemName: "钥匙", targetActorHandle: "提灯修士", targetStageName: "铁闸门" }),
     ).toThrow("二选一");
+    // targetDetail 会随观察进入他人记忆：不允许携带 @ / # 系统引用。
+    expect(() =>
+      parseUse({ itemName: "钥匙", targetStageName: "铁闸门", targetDetail: "@提灯修士的锁孔" }),
+    ).toThrow("系统引用");
+    expect(() =>
+      parseUse({ itemName: "钥匙", targetStageName: "铁闸门", targetDetail: "#12 的锁孔" }),
+    ).toThrow("系统引用");
   });
 });
 

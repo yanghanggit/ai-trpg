@@ -268,6 +268,14 @@ const AFFIX_DEADLY_WORLD = {
   ),
 };
 
+/** 出手者不认识目标：词缀反馈只能出现 #编号，不能把目标真名写进出击者记忆。 */
+const AFFIX_UNKNOWN_WORLD = {
+  ...AFFIX_WORLD,
+  knownIdentities: TEST_WORLD.knownIdentities?.filter(
+    (identity) => !(identity.observer === "ember-keeper" && identity.subject === "lantern-monk"),
+  ),
+};
+
 const ARMORED_MONK_WORLD = {
   ...ITEM_WORLD,
   actors: ITEM_WORLD.actors.map((actor) =>
@@ -510,6 +518,42 @@ describe.skipIf(!testDatabaseUrl)("items and interactions", () => {
     expect(
       keeperMemory?.messages.some((message) => message.content.includes("词缀追加42点伤害")),
     ).toBe(true);
+  });
+
+  it("keeps an unknown target's real name out of the striker's affix feedback", async () => {
+    const created = await createGame(handle.db, {
+      username: DEMO_USER.username,
+      name: "词缀未知目标名字测试局",
+      world: AFFIX_UNKNOWN_WORLD,
+    });
+    await takeActorControl(handle.db, created.game.slug, "守烬人");
+
+    const attacked = await playerStrike(
+      handle.db,
+      created.game.slug,
+      "守烬人",
+      { targetActorRef: "提灯修士" },
+      { service: new AffixDamageService() },
+    );
+    expect(attacked.ok).toBe(true);
+
+    const state = await getGameState(handle.db, created.game.slug);
+    const keeper = state.world.stages
+      .flatMap((stage) => stage.actors)
+      .find((actor) => actor.name === "守烬人");
+    const monk = state.world.stages
+      .flatMap((stage) => stage.actors)
+      .find((actor) => actor.name === "提灯修士");
+    const memories = await getGameMemories(handle.db, created.game.id);
+    const keeperMemory = memories.find(
+      (memory) => memory.ownerType === "actor" && memory.ownerId === keeper?.id,
+    );
+    const contents = keeperMemory?.messages.map((message) => message.content) ?? [];
+
+    // 增量照常写进出手者记忆，但目标只能以它自己的引用出现。
+    expect(contents.some((content) => content.includes("词缀追加42点伤害"))).toBe(true);
+    expect(contents.some((content) => content.includes(`#${monk?.presentation.seq}`))).toBe(true);
+    expect(contents.some((content) => content.includes("提灯修士"))).toBe(false);
   });
 
   it("writes the affix's visible consequence only into the stage memory", async () => {
@@ -985,5 +1029,33 @@ describe.skipIf(!testDatabaseUrl)("items and interactions", () => {
     const memories = await getGameMemories(handle.db, created.game.id);
     const stageMemory = memories.find((memory) => memory.name === SEALED_STAGE_NAME);
     expect(stageMemory?.messages.some((message) => message.content.includes("的锁孔"))).toBe(true);
+  });
+
+  it("rejects system references in a player's targetDetail", async () => {
+    const created = await createGame(handle.db, {
+      username: DEMO_USER.username,
+      name: "场景使用描述引用测试局",
+      world: SEALED_WORLD,
+    });
+    await takeActorControl(handle.db, created.game.slug, "守烬人");
+    await playerMove(handle.db, created.game.slug, "守烬人", {
+      targetStageRef: SEALED_STAGE_NAME,
+    });
+
+    // 玩家入口绕过 parseUse，解析阶段必须拦住：targetDetail 会进入他人的观察记忆。
+    await expect(
+      playerUse(handle.db, created.game.slug, "守烬人", {
+        targetStageName: SEALED_STAGE_NAME,
+        itemName: SEALED_KEY_NAME,
+        targetDetail: "#12 的锁孔",
+      }),
+    ).rejects.toThrow("系统引用");
+    await expect(
+      playerUse(handle.db, created.game.slug, "守烬人", {
+        targetStageName: SEALED_STAGE_NAME,
+        itemName: SEALED_KEY_NAME,
+        targetDetail: "@提灯修士的锁孔",
+      }),
+    ).rejects.toThrow("系统引用");
   });
 });

@@ -66,7 +66,7 @@ export async function applyMove(
     gameId,
     resolved.stage.id,
     actorRow.actor.id,
-    (_observer, address) =>
+    (_observerId, address) =>
       renderAction(
         withAppearances(
           `# 场景动态\n${mentionOf(address(actorRow.actor.id))}离开了${resolved.stage.name}。`,
@@ -95,7 +95,7 @@ export async function applyMove(
     gameId,
     target.id,
     actorRow.actor.id,
-    (_observer, address) =>
+    (_observerId, address) =>
       renderEnvironmentChange(
         withAppearances(
           `# 环境变化\n${mentionOf(address(actorRow.actor.id))}进入了${target.name}。`,

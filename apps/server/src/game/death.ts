@@ -224,7 +224,7 @@ async function announceDeath(
       gameId,
       actor.stageId,
       actor.id,
-      (_observer, address) =>
+      (_observerId, address) =>
         renderAction(
           withAppearances(
             `# 场景动态\n${mentionOf(address(actor.id))}倒下了，不再有任何生命迹象。`,

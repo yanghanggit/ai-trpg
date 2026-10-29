@@ -66,6 +66,13 @@ describe("world text guard", () => {
     expect(rendered).toBe("@煤渣守在某个不在场者 身旁，地窖的台阶湿滑。");
   });
 
+  it("resolves a known actor's leftover handle to its name", () => {
+    const actor = { id: "a", name: "煤渣", presentation: { seq: 9 } };
+    const rendered = sanitizeActorFacingText("煤渣守在#9 身旁。", [actor], ADDRESS(true));
+    // 名字与旧句柄都换成观察者视角的称呼。
+    expect(rendered).toBe("@煤渣守在@煤渣 身旁。");
+  });
+
   it("keeps appearance for an in-stage actor whose name is unknown", () => {
     const stranger = { id: "a", name: "无名者" };
     const rendered = sanitizeActorFacingText("无名者站在坡底。", [stranger], ADDRESS(false));
