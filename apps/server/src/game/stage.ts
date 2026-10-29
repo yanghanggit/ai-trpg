@@ -84,7 +84,7 @@ export function buildStageTurnInput(state: GameState, stage: StageState): string
     ...(canSubmit
       ? [
           "根据当前环境与本场景记忆，判断并提交更新后的完整 environment 与可交互锚点。",
-          "anchors 只列出当前环境中可见、可被角色操作的位置或部位；环境里不存在的锚点必须移除。锚点只说明“可以作用在哪里”，不写后果、效果或机制，不得包含角色名字、@ 或 #编号。",
+          "anchors 不是任务清单：只列真实可见、可被作用的位置或部位，不承诺结果；不写后果或机制，不得出现角色名、@ 或 #；纯装饰、已失效或不存在的不要列。",
         ]
       : []),
     ...(canOpen
