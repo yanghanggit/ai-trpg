@@ -7,6 +7,8 @@ import { DEMO_USER } from "../src/db/demo-fixture";
 import { resetDomainData, seedDemoData } from "../src/db/maintenance";
 import { runMigrations } from "../src/db/migrate";
 import {
+  type ActorPlan,
+  applyActorPlan,
   createGame,
   getGameState,
   playerMove,
@@ -356,6 +358,52 @@ describe.skipIf(!testDatabaseUrl)("names and addresses", () => {
     expect(() =>
       parseWhisper({ mind: "试探", targetActorHandle: "@守烬人", message: "编号是 #3。" }),
     ).toThrow(/系统引用/);
+  });
+
+  it("records as many names as the plan carries, and keeps the last name per handle", async () => {
+    const created = await createGame(handle.db, {
+      username: DEMO_USER.username,
+      name: "多名认知测试局",
+      world: BELL_MONASTERY_WORLD,
+    });
+    const state = await getGameState(handle.db, created.game.slug);
+    const actors = state.world.stages.flatMap((stage) => stage.actors);
+    const odric = actors.find((candidate) => candidate.name === "奥德里克");
+    const cinder = actors.find((candidate) => candidate.name === "煤渣");
+    const ratKing = actors.find((candidate) => candidate.name === "鼠王");
+    if (!odric || !cinder || !ratKing) {
+      throw new Error("缺少开局角色");
+    }
+
+    // 一份计划里记三个名字，且奥德里克被记两次：条数不设上限，后一次覆盖前一次。
+    const plan: ActorPlan = {
+      actions: [],
+      identities: [
+        { handle: handleOf(odric.presentation.seq), name: "掘墓人" },
+        { handle: handleOf(cinder.presentation.seq), name: "黑狗" },
+        { handle: handleOf(ratKing.presentation.seq), name: "大耗子" },
+        { handle: handleOf(odric.presentation.seq), name: "守墓人" },
+      ],
+    };
+    const before = await getGameState(handle.db, created.game.slug);
+    const nameless = before.world.stages
+      .flatMap((stage) => stage.actors)
+      .find((candidate) => candidate.name === "无名者");
+    if (!nameless) {
+      throw new Error("缺少无名者");
+    }
+    const result = await applyActorPlan(handle.db, created.game.id, nameless.id, plan, true);
+    expect(result.ok).toBe(true);
+
+    const after = await getGameState(handle.db, created.game.slug);
+    const beliefs = after.knowledge.filter((row) => row.observerActorId === nameless.id);
+    expect(beliefs.map((row) => row.name).sort()).toEqual(["大耗子", "守墓人", "黑狗"].sort());
+    expect(beliefs.find((row) => row.presentationId === odric.presentation.id)?.name).toBe(
+      "守墓人",
+    );
+
+    // 只有认知更新的计划不产生公共事件。
+    expect(after.messages).toEqual([]);
   });
 
   it("records beliefs by anonymous handle and rejects marker-shaped names", () => {

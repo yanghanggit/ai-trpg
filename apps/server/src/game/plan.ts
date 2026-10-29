@@ -351,7 +351,7 @@ export function buildActorLookTool(stageName: string): ToolDefinition {
  * 记录一个名字信念。
  *
  * 引擎不做名字抽取：只有角色自己判断「我已经从世界内信息得知他叫什么」之后才调用。
- * 它只改自己的记忆，不产生世界事件，也不占行动名额。
+ * 它只改自己的记忆，不产生公共事件，也不占行动名额。
  */
 export function buildRememberIdentityTool(handles: readonly string[]): ToolDefinition {
   return {
@@ -361,7 +361,7 @@ export function buildRememberIdentityTool(handles: readonly string[]): ToolDefin
       description: `把「某个编号」记成你相信的名字或称呼。
 
 只在你已经从世界内信息得知时使用：对方自报、别人介绍、或者你从可见的记载里读到。不要用它猜名字，也不要把 # 编号当成名字。
-记错、被骗、改口都可以重记，后一次覆盖前一次。它只改变你自己的记忆，不产生世界事件，也不占行动名额。`,
+记错、被骗、改口都可以重记，后一次覆盖前一次。一轮里可以记多个名字；它只写进你自己的记忆——别人不会知道，场景也不会变，也不占行动名额。`,
       parameters: {
         type: "object",
         properties: {

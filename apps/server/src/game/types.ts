@@ -328,7 +328,7 @@ export type IdentityBinding = {
 /** 一轮计划：按提交顺序执行的动作列表；条数上限由 `MAX_ACTIONS_PER_TURN` 约束。 */
 export type ActorPlan = {
   actions: ActorAction[];
-  /** 认知更新：与动作同事务落账，但不产生世界事件、不占行动名额。 */
+  /** 认知更新：与动作同事务落账，但不产生公共事件、不占行动名额。 */
   identities?: IdentityBinding[];
 };
 

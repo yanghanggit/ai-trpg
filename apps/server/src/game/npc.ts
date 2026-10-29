@@ -40,7 +40,6 @@ import {
   DEFAULT_LLM_ERROR_RETRIES,
   DEFAULT_NPC_MAX_ROUNDS,
   MAX_ACTIONS_PER_TURN,
-  MAX_IDENTITIES_PER_TURN,
 } from "./constants";
 import { isPlayerControlled } from "./control";
 import { GameError } from "./errors";
@@ -143,13 +142,16 @@ ${teleportLines}`
 
 # 本轮任务
 
-根据当前环境与自己的记忆决定行动。使用 get_self 查看自己的完整信息，使用 observe_actor 查看同场景目标携带的物品；需要多项信息时，可以一次返回多个只读工具调用，也可以分多轮调用。${knowledgeHint}${identityHint}你能使用的行动工具：${actionList}。本轮最多 ${MAX_ACTIONS_PER_TURN} 个行动；通常一次沟通加一个其他行动，不要重复同一动作。先加入的行动先执行。最后调用 submit_plan 提交。look_stage、get_self、observe_actor、query、remember_identity 不占计划。look_stage 只能看本场景。`;
+根据当前环境与自己的记忆决定行动。使用 get_self 查看自己的完整信息，使用 observe_actor 查看同场景目标携带的物品；需要多项信息时，可以一次返回多个只读工具调用，也可以分多轮调用。${knowledgeHint}${identityHint}你能使用的行动工具：${actionList}。本轮只能提交 ${MAX_ACTIONS_PER_TURN} 个行动：说话、移动、动手都各占一个回合，需要连着做就分几个回合。最后调用 submit_plan 提交。look_stage、get_self、observe_actor、query、remember_identity 不占计划。look_stage 只能看本场景。`;
 }
 
 /** 把动作加入本轮计划；条数上限在这里就告诉模型，避免提交后才被拒绝。 */
 function addAction(actions: ActorAction[], action: ActorAction): void {
   if (actions.length >= MAX_ACTIONS_PER_TURN) {
-    throw new GameError("invalid_action", `本轮最多 ${MAX_ACTIONS_PER_TURN} 个行动`);
+    throw new GameError(
+      "invalid_action",
+      `本轮最多 ${MAX_ACTIONS_PER_TURN} 个行动；需要连着做多个动作时，请分几个回合`,
+    );
   }
   actions.push(action);
 }
@@ -275,10 +277,14 @@ export async function runNpcTurn(
 
   const addIdentity = (args: Record<string, unknown>) => {
     ensureOpen();
-    if (identities.length >= MAX_IDENTITIES_PER_TURN) {
-      throw new GameError("invalid_action", `本轮最多记 ${MAX_IDENTITIES_PER_TURN} 个名字`);
+    const binding = parseRememberIdentity(args);
+    // 同一个编号重复记时后一次覆盖前一次：既不重复写记忆，也不用额外条数上限。
+    const known = identities.find((existing) => existing.handle === binding.handle);
+    if (known) {
+      known.name = binding.name;
+      return `${binding.handle} 的称呼已更新`;
     }
-    identities.push(parseRememberIdentity(args));
+    identities.push(binding);
     return "名字已加入计划";
   };
 

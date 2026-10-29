@@ -12,7 +12,6 @@ import { resolveUnequip } from "../actions/unequip";
 import { resolveUse } from "../actions/use";
 import { resolveWait } from "../actions/wait";
 import { resolveWhisper } from "../actions/whisper";
-import { MAX_IDENTITIES_PER_TURN } from "../constants";
 import { GameError } from "../errors";
 import { assertNoSystemReference } from "../text-guard";
 import type { ActorPlan } from "../types";
@@ -104,15 +103,13 @@ export async function resolvePlan(
     }
   }
 
-  const bindings = plan.identities ?? [];
-  if (bindings.length > MAX_IDENTITIES_PER_TURN) {
-    throw new GameError(
-      "invalid_action",
-      `本轮最多记 ${MAX_IDENTITIES_PER_TURN} 个名字，实际提交 ${bindings.length} 个`,
-    );
-  }
+  // 认知更新不设条数上限：每个编号都必须是世界内已存在的形象，天然被世界规模约束；
+  // 同一个编号在一份计划里重复出现时，后一次覆盖前一次，避免重复写记忆。
+  const bindings = new Map(
+    (plan.identities ?? []).map((binding) => [binding.handle, binding] as const),
+  );
   const identities: ResolvedIdentity[] = [];
-  for (const binding of bindings) {
+  for (const binding of bindings.values()) {
     const view = await findActorViewByHandleInWorld(executor, world.id, binding.handle);
     if (!view) {
       throw new GameError("invalid_action", `世界内没有这个编号: ${binding.handle}`);

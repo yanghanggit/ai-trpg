@@ -47,6 +47,7 @@ import {
   playerGive,
   playerMove,
   playerPickup,
+  playerRememberIdentity,
   playerSay,
   playerSteal,
   playerStrike,
@@ -95,6 +96,7 @@ const options = {
   item: { type: "string" },
   slot: { type: "string" },
   detail: { type: "string" },
+  as: { type: "string" },
   reason: { type: "string" },
   owner: { type: "string" },
   "min-ratio": { type: "string" },
@@ -183,6 +185,7 @@ function usage(): void {
       "agent-game player-use --game <gameId|slug> --actor <actorId|actorName> --item <itemName> (--target <actorName> | --stage <stageName>) [--detail <text>]",
       "agent-game player-equip --game <gameId|slug> --actor <actorId|actorName> --slot <slot> --item <itemName>",
       "agent-game player-unequip --game <gameId|slug> --actor <actorId|actorName> --slot <slot>",
+      "agent-game player-remember-identity --game <gameId|slug> --actor <actorId|actorName> --target <actorName> --as <name>（只改自己的记忆，不占行动）",
       "agent-game appearance --game <gameId|slug> (--actor <actorId|actorName> | --all)",
       "agent-game deaths --game <gameId|slug>（对每个 hp 归零且未收尾的 actor 跑一次死亡阶段）",
       "agent-game snapshot --game <gameId|slug> [--root <dir>]",
@@ -580,6 +583,20 @@ async function main(): Promise<void> {
     const { game, actor } = requireActorArgs(values, command);
     const result = await withDatabase((db) =>
       playerUnequip(db, game, actor, { slot: requireSlot(values) }),
+    );
+    emitTurn(command, result);
+    return;
+  }
+
+  if (command === "player-remember-identity") {
+    const { game, actor } = requireActorArgs(values, command);
+    const target = typeof values.target === "string" ? values.target.trim() : "";
+    const name = typeof values.as === "string" ? values.as.trim() : "";
+    if (target.length === 0 || name.length === 0) {
+      throw new Error("player-remember-identity 需要 --target <actorName> 与 --as <name>");
+    }
+    const result = await withDatabase((db) =>
+      playerRememberIdentity(db, game, actor, { targetActorRef: target, name }),
     );
     emitTurn(command, result);
     return;

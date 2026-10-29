@@ -340,12 +340,12 @@ describe.skipIf(!testDatabaseUrl)("memory-driven NPC slice", () => {
       created.game.id,
       keeper?.id as string,
       {
-        actions: [{ kind: "wait" }, { kind: "wait" }, { kind: "wait" }],
+        actions: [{ kind: "wait" }, { kind: "wait" }],
       },
       true,
     );
     expect(result.ok).toBe(false);
-    expect(result.rejection).toContain("本轮最多 2 个行动");
+    expect(result.rejection).toContain("本轮最多 1 个行动");
 
     const state = await getGameState(handle.db, created.game.slug);
     expect(state.game.version).toBe(0);
@@ -355,7 +355,7 @@ describe.skipIf(!testDatabaseUrl)("memory-driven NPC slice", () => {
     const memories = await getGameMemories(handle.db, created.game.id);
     const keeperMemory = memories.find((memory) => memory.name === "守烬人");
     expect(
-      keeperMemory?.messages.some((message) => message.content.includes("本轮最多 2 个行动")),
+      keeperMemory?.messages.some((message) => message.content.includes("本轮最多 1 个行动")),
     ).toBe(true);
   });
 
@@ -507,17 +507,17 @@ describe.skipIf(!testDatabaseUrl)("memory-driven NPC slice", () => {
     expect(state.messages.some((message) => message.kind === "game_completed")).toBe(false);
   });
 
-  it("applies one talk and one move action in tool-call order", async () => {
+  it("runs one action per turn, so move then talk takes two turns", async () => {
     const created = await createGame(handle.db, {
       username: DEMO_USER.username,
-      name: "组合行动测试局",
+      name: "单动作回合测试局",
       world: TEST_WORLD,
     });
 
     const service = new ScriptedNpcService([
+      { actions: [{ kind: "move", targetStageName: "断钟中殿" }] },
       {
         actions: [
-          { kind: "move", targetStageName: "断钟中殿" },
           {
             kind: "say",
             mind: "到了中殿再问抄经人。",
@@ -528,9 +528,13 @@ describe.skipIf(!testDatabaseUrl)("memory-driven NPC slice", () => {
       },
     ]);
 
-    const result = await runNpcTurn(handle.db, created.game.slug, "守烬人", { service });
-    expect(result.ok).toBe(true);
-    expect(result.plan?.actions).toHaveLength(2);
+    const moved = await runNpcTurn(handle.db, created.game.slug, "守烬人", { service });
+    expect(moved.ok).toBe(true);
+    expect(moved.plan?.actions).toHaveLength(1);
+
+    const talked = await runNpcTurn(handle.db, created.game.slug, "守烬人", { service });
+    expect(talked.ok).toBe(true);
+    expect(talked.plan?.actions).toHaveLength(1);
 
     const state = await getGameState(handle.db, created.game.slug);
     expect(state.game.version).toBe(2);
@@ -547,6 +551,29 @@ describe.skipIf(!testDatabaseUrl)("memory-driven NPC slice", () => {
       .flatMap((stage) => stage.actors.map((actor) => [actor.name, stage.name] as const))
       .find(([name]) => name === "守烬人");
     expect(keeperLocation?.[1]).toBe("断钟中殿");
+  });
+
+  it("drops the second action when a plan carries more than the cap", async () => {
+    const created = await createGame(handle.db, {
+      username: DEMO_USER.username,
+      name: "多余行动丢弃测试局",
+      world: TEST_WORLD,
+    });
+
+    const service = new ScriptedNpcService([
+      {
+        actions: [{ kind: "move", targetStageName: "断钟中殿" }, { kind: "wait" }],
+      },
+    ]);
+
+    const result = await runNpcTurn(handle.db, created.game.slug, "守烬人", { service });
+    expect(result.ok).toBe(true);
+    // 第二个动作在加入计划时就报错，计划里只留下第一个。
+    expect(result.plan?.actions.map((action) => action.kind)).toEqual(["move"]);
+
+    const state = await getGameState(handle.db, created.game.slug);
+    expect(state.game.version).toBe(1);
+    expect(state.messages.map((message) => message.kind)).toEqual(["move"]);
   });
 
   it("writes observer-specific communication and strike memory for a third actor", async () => {

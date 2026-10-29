@@ -1,8 +1,10 @@
-/** 一轮最多提交的动作条数；具体“做什么组合”交给提示词约定，不做分类校验。 */
-export const MAX_ACTIONS_PER_TURN = 2;
-
-/** 一轮最多记住几个名字；认知更新不占行动名额，但要有上限。 */
-export const MAX_IDENTITIES_PER_TURN = 3;
+/**
+ * 一轮最多提交的动作条数。
+ *
+ * 当前收紧为 1：一个回合只结算一个动作，机制最简单也最难被绕过；
+ * 「沟通 + 移动」这类组合改为连续多个回合完成。
+ */
+export const MAX_ACTIONS_PER_TURN = 1;
 
 /** 角色能记住的称呼长度上限。 */
 export const MAX_IDENTITY_NAME_LENGTH = 24;
