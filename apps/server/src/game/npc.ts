@@ -52,6 +52,7 @@ import {
   buildRememberIdentityTool,
   buildSelfInfoTool,
   buildSubmitPlanTool,
+  describeEquipmentBrief,
   describeKnowledgeResults,
   describeObservedActor,
   describeSelf,
@@ -62,7 +63,14 @@ import {
 } from "./plan";
 import { getGameState } from "./service";
 import { teleportTargetsFor } from "./teleport";
-import type { ActionKind, ActorAction, ActorPlan, ActorTurnResult, GameState } from "./types";
+import type {
+  ActionKind,
+  ActorAction,
+  ActorPlan,
+  ActorState,
+  ActorTurnResult,
+  GameState,
+} from "./types";
 import { EQUIPMENT_SLOTS } from "./types";
 
 export type NpcTurnOptions = {
@@ -75,6 +83,14 @@ export type NpcTurnOptions = {
   knowledgeProvider?: EmbeddingProvider;
 };
 
+/**
+ * 侦察（`observe_actor`）是偷窃的前置：只有能 `steal` 的角色才注入这个工具。
+ * 工具注入与任务提示词共用这一条判断，避免提示词提到不存在的工具。
+ */
+function canObserveActorItems(actor: Pick<ActorState, "actions">): boolean {
+  return actor.actions.includes("steal");
+}
+
 /** 构造 actor 本轮的公开环境与任务说明；NPC 与探针共用。 */
 export function buildActorTurnInput(state: GameState, current: ActorWithStage): string {
   const moves = adjacentStageNames(state, current.stage.id);
@@ -84,11 +100,27 @@ export function buildActorTurnInput(state: GameState, current: ActorWithStage): 
   const targets = others.map((actor) => address(actor.id).token);
   const allowed = allowedActionKinds(current.actor.actions, equippedItemActions(current.actor));
   const actionList = allowed.map((kind) => `${kind}（${ACTION_SUMMARIES[kind]}）`).join("、");
+  // 侦察与偷窃同生共死：不偷东西的角色只看姓名与穿戴，不提供背包细节。
+  const canObserve = canObserveActorItems(current.actor);
+  const toolHint = canObserve
+    ? "使用 get_self 查看自己的完整信息，使用 observe_actor 查看同场景目标背包里的全部物品（含未穿戴的）；"
+    : "使用 get_self 查看自己的完整信息；";
+  const readOnlyHint = `${[
+    "look_stage",
+    "get_self",
+    ...(canObserve ? ["observe_actor"] : []),
+    "query",
+    "remember_identity",
+  ].join("、")} 不占计划。look_stage 只能看本场景。`;
   const actorLines =
     others.length === 0
       ? "无"
       : others
-          .map((actor) => `${refOf(address(actor.id))}${isAlive(actor) ? "" : "（已死亡）"}`)
+          .map((actor) => {
+            const worn = describeEquipmentBrief(actor);
+            const dead = isAlive(actor) ? "" : "（已死亡）";
+            return `${refOf(address(actor.id))}${dead}${worn.length === 0 ? "" : `｜${worn}`}`;
+          })
           .join("\n");
   const itemLines =
     current.stage.items.length === 0
@@ -148,7 +180,7 @@ ${teleportLines}`
 
 # 本轮任务
 
-根据当前环境与自己的记忆决定行动。使用 get_self 查看自己的完整信息，使用 observe_actor 查看同场景目标携带的物品；需要多项信息时，可以一次返回多个只读工具调用，也可以分多轮调用。${knowledgeHint}${identityHint}你能使用的行动工具：${actionList}。本轮只能提交 ${MAX_ACTIONS_PER_TURN} 个行动：说话、移动、动手都各占一个回合，需要连着做就分几个回合。最后调用 submit_plan 提交。look_stage、get_self、observe_actor、query、remember_identity 不占计划。look_stage 只能看本场景。`;
+根据当前环境与自己的记忆决定行动。名单里已列出同场景他人身上穿戴的装备；${toolHint}需要多项信息时，可以一次返回多个只读工具调用，也可以分多轮调用。${knowledgeHint}${identityHint}你能使用的行动工具：${actionList}。本轮只能提交 ${MAX_ACTIONS_PER_TURN} 个行动：说话、移动、动手都各占一个回合，需要连着做就分几个回合。最后调用 submit_plan 提交。${readOnlyHint}`;
 }
 
 /** 把动作加入本轮计划；条数上限在这里就告诉模型，避免提交后才被拒绝。 */
@@ -219,7 +251,10 @@ export async function runNpcTurn(
   );
   const lookTool = buildActorLookTool(current.stage.name);
   const selfTool = buildSelfInfoTool();
-  const observeTool = buildObserveActorTool(targets);
+  // 侦察是偷窃的前置：只有能 steal 的角色才注入 observe_actor，与任务提示词同一判断。
+  const observeTool = canObserveActorItems(current.actor)
+    ? buildObserveActorTool(targets)
+    : undefined;
   // 只能给「还不知道名字」的角色记称呼：已经知道的引用不需要再记。
   const rememberTool = buildRememberIdentityTool(targets.filter((token) => token.startsWith("#")));
   const submitTool = buildSubmitPlanTool();
@@ -306,7 +341,7 @@ export async function runNpcTurn(
     tools: [
       lookTool,
       selfTool,
-      observeTool,
+      ...(observeTool ? [observeTool] : []),
       knowledgeTool,
       rememberTool,
       ...allowed.map((kind) => actionTools[kind]),
@@ -318,15 +353,21 @@ export async function runNpcTurn(
         return describeStageForActor(state, stageName, current);
       },
       [selfTool.function.name]: () => describeSelf(current.actor),
-      [observeTool.function.name]: (args) => {
-        const targetActorRef =
-          typeof args.targetActorRef === "string" ? args.targetActorRef.trim() : "";
-        const target = otherActors.find((actor) => address(actor.id).token === targetActorRef);
-        if (!target) {
-          return `错误：当前场景内找不到引用 ${targetActorRef}`;
-        }
-        return describeObservedActor(target, address);
-      },
+      ...(observeTool
+        ? {
+            [observeTool.function.name]: (args: Record<string, unknown>) => {
+              const targetActorRef =
+                typeof args.targetActorRef === "string" ? args.targetActorRef.trim() : "";
+              const target = otherActors.find(
+                (actor) => address(actor.id).token === targetActorRef,
+              );
+              if (!target) {
+                return `错误：当前场景内找不到引用 ${targetActorRef}`;
+              }
+              return describeObservedActor(target, address);
+            },
+          }
+        : {}),
       [knowledgeTool.function.name]: async (args: Record<string, unknown>) => {
         const keywords = typeof args.keywords === "string" ? args.keywords.trim() : "";
         if (keywords.length === 0) {

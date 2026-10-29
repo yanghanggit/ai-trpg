@@ -570,10 +570,16 @@ async function main(): Promise<void> {
       throw new Error("player-equip 需要 --item <itemName>");
     }
     const result = await withDatabase((db) =>
-      playerEquip(db, game, actor, {
-        itemName: values.item as string,
-        slot: requireSlot(values),
-      }),
+      playerEquip(
+        db,
+        game,
+        actor,
+        {
+          itemName: values.item as string,
+          slot: requireSlot(values),
+        },
+        { appearanceService: DEEPSEEK_SERVICE },
+      ),
     );
     emitTurn(command, result);
     return;
@@ -582,7 +588,15 @@ async function main(): Promise<void> {
   if (command === "player-unequip") {
     const { game, actor } = requireActorArgs(values, command);
     const result = await withDatabase((db) =>
-      playerUnequip(db, game, actor, { slot: requireSlot(values) }),
+      playerUnequip(
+        db,
+        game,
+        actor,
+        { slot: requireSlot(values) },
+        {
+          appearanceService: DEEPSEEK_SERVICE,
+        },
+      ),
     );
     emitTurn(command, result);
     return;

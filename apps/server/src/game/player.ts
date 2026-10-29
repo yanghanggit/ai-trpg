@@ -352,9 +352,10 @@ export async function playerEquip(
   gameRef: string,
   actorRef: string,
   input: PlayerEquipInput,
+  options: ApplyActorPlanOptions = {},
 ): Promise<ActorTurnResult> {
   const action: ActorAction = { kind: "equip", itemName: input.itemName, slot: input.slot };
-  return applyPlayerAction(db, gameRef, actorRef, action);
+  return applyPlayerAction(db, gameRef, actorRef, action, options);
 }
 
 export async function playerUnequip(
@@ -362,9 +363,10 @@ export async function playerUnequip(
   gameRef: string,
   actorRef: string,
   input: PlayerUnequipInput,
+  options: ApplyActorPlanOptions = {},
 ): Promise<ActorTurnResult> {
   const action: ActorAction = { kind: "unequip", slot: input.slot };
-  return applyPlayerAction(db, gameRef, actorRef, action);
+  return applyPlayerAction(db, gameRef, actorRef, action, options);
 }
 
 /** 玩家替自己控制的角色记下一个称呼；与模型侧的认知更新走同一份计划。 */

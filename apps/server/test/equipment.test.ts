@@ -1,3 +1,4 @@
+import { randomUUID } from "node:crypto";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { BELL_MONASTERY_WORLD } from "../seeds/dark-fantasy";
 import { DEMO_USER } from "../src/db/demo-fixture";
@@ -11,9 +12,14 @@ import {
   getGameMemories,
   getGameState,
   playerEquip,
+  playerMove,
   playerUnequip,
+  runNpcTurn,
   takeActorControl,
 } from "../src/game";
+import { buildActorTurnInput } from "../src/game/npc";
+import { describeStageForActor } from "../src/game/plan";
+import { ChatCompletionResult, type ChatCompletionService, type ToolCall } from "../src/llm";
 
 const testDatabaseUrl = process.env.TEST_DATABASE_URL?.trim();
 
@@ -71,7 +77,7 @@ describe.skipIf(!testDatabaseUrl)("equip and unequip actions", () => {
       .flatMap((stage) => stage.actors)
       .find((actor) => actor.name === "奥德里克");
     expect(keeper?.equipment.armor).toBe("补丁斗篷");
-    // 外观是独立快照：动作不会顺手改它，需要 agent:game appearance 单独推动。
+    // 没提供 appearanceService：动作不会顺手改外观，需要 agent:game appearance 单独推动。
     expect(keeper?.appearance).toBe(appearanceBefore);
     expect(state.messages.map((message) => message.kind)).toEqual(["unequip", "equip"]);
 
@@ -176,4 +182,176 @@ describe.skipIf(!testDatabaseUrl)("equip and unequip actions", () => {
     expect(keeper?.appearance).toBe(appearanceBefore);
     expect(state.messages.map((message) => message.kind)).toEqual(["equip", "equip"]);
   });
+
+  it("同场景名单列出已穿戴装备，回合输入直接可读", async () => {
+    const created = await createGame(handle.db, {
+      username: DEMO_USER.username,
+      name: "名单穿戴测试局",
+      world: BELL_MONASTERY_WORLD,
+    });
+    await takeActorControl(handle.db, created.game.slug, "奥德里克");
+    const state = await getGameState(handle.db, created.game.slug);
+    const cinder = state.world.stages
+      .flatMap((stage) => stage.actors)
+      .find((actor) => actor.name === "煤渣");
+    const stage = state.world.stages.find((candidate) =>
+      candidate.actors.some((actor) => actor.id === cinder?.id),
+    );
+    if (!cinder || !stage) {
+      throw new Error("缺少墓园夹具");
+    }
+
+    const input = buildActorTurnInput(state, { actor: cinder, stage });
+    expect(input).toContain("武器：掘墓人的铁锹");
+    expect(input).toContain("护甲：补丁斗篷");
+    expect(describeStageForActor(state, "墓园", { actor: cinder, stage })).toContain(
+      "武器：掘墓人的铁锹",
+    );
+  });
+
+  it("主角亮出武器后，同场景角色的名单与记忆都能看到", async () => {
+    const created = await createGame(handle.db, {
+      username: DEMO_USER.username,
+      name: "亮武器测试局",
+      world: BELL_MONASTERY_WORLD,
+    });
+    await takeActorControl(handle.db, created.game.slug, "无名者");
+    await playerMove(handle.db, created.game.slug, "无名者", { targetStageRef: "墓园" });
+    await playerEquip(handle.db, created.game.slug, "无名者", {
+      itemName: "撬弯的棺钉",
+      slot: "weapon",
+    });
+
+    const state = await getGameState(handle.db, created.game.slug);
+    const cinder = state.world.stages
+      .flatMap((candidate) => candidate.actors)
+      .find((actor) => actor.name === "煤渣");
+    const stage = state.world.stages.find((candidate) =>
+      candidate.actors.some((actor) => actor.id === cinder?.id),
+    );
+    if (!cinder || !stage) {
+      throw new Error("缺少墓园夹具");
+    }
+
+    const input = buildActorTurnInput(state, { actor: cinder, stage });
+    expect(input).toContain("武器：撬弯的棺钉");
+    // 换装事件也已落进旁观者记忆，名字仍是编号。
+    const memories = await getGameMemories(handle.db, created.game.id);
+    const seen =
+      memories
+        .find((memory) => memory.name === "煤渣")
+        ?.messages.map((message) => message.content)
+        .join("\n") ?? "";
+    expect(seen).toContain("穿上了撬弯的棺钉（武器）");
+    expect(seen).not.toContain("无名者");
+  });
+
+  it("提供 appearanceService 时，换装在事务外补一次外观推理", async () => {
+    const created = await createKeeperGame("换装推外观测试局");
+    const service = new AppearanceSubmitService("只穿旧衬衣，腰间别着铁锹。");
+    const removed = await playerUnequip(
+      handle.db,
+      created.game.slug,
+      "奥德里克",
+      { slot: "armor" },
+      { appearanceService: service },
+    );
+    expect(removed.ok).toBe(true);
+    // 玩家路径没有规划 loop，只有这一次外观 loop。
+    expect(service.calls).toBe(1);
+    expect(service.input).toContain("[人类]");
+    expect(service.input).not.toContain("补丁斗篷");
+
+    const state = await getGameState(handle.db, created.game.slug);
+    const keeper = state.world.stages
+      .flatMap((stage) => stage.actors)
+      .find((actor) => actor.name === "奥德里克");
+    expect(keeper?.appearance).toBe("只穿旧衬衣，腰间别着铁锹。");
+    expect(keeper?.equipment.armor).toBeUndefined();
+
+    // 新外观已广播给同场景知道名字的煤渣。
+    const memories = await getGameMemories(handle.db, created.game.id);
+    const seen =
+      memories
+        .find((memory) => memory.name === "煤渣")
+        ?.messages.map((message) => message.content)
+        .join("\n") ?? "";
+    expect(seen).toContain("只穿旧衬衣，腰间别着铁锹。");
+  });
+
+  it("NPC 换装是规划与外观两个 loop", async () => {
+    const created = await createGame(handle.db, {
+      username: DEMO_USER.username,
+      name: "NPC换装双循环测试局",
+      world: BELL_MONASTERY_WORLD,
+    });
+    const planner = new UnequipPlanService();
+    const appearance = new AppearanceSubmitService("空着手，旧斗篷还披在肩上。");
+    const turn = await runNpcTurn(handle.db, created.game.slug, "奥德里克", {
+      service: planner,
+      appearanceService: appearance,
+    });
+    expect(turn.ok).toBe(true);
+    expect(planner.calls).toBe(1);
+    expect(appearance.calls).toBe(1);
+
+    const state = await getGameState(handle.db, created.game.slug);
+    const keeper = state.world.stages
+      .flatMap((stage) => stage.actors)
+      .find((actor) => actor.name === "奥德里克");
+    expect(keeper?.equipment.weapon).toBeUndefined();
+    expect(keeper?.appearance).toBe("空着手，旧斗篷还披在肩上。");
+  });
 });
+
+/** 只提交一个外观的假服务；calls 用来数外观 loop。 */
+class AppearanceSubmitService implements ChatCompletionService {
+  calls = 0;
+  input = "";
+
+  constructor(private readonly appearance: string) {}
+
+  async complete(request: Parameters<ChatCompletionService["complete"]>[0]) {
+    this.calls += 1;
+    this.input = request.inputMessage;
+    const toolCalls: ToolCall[] = [
+      {
+        id: randomUUID(),
+        type: "function",
+        function: {
+          name: "submit_appearance",
+          arguments: JSON.stringify({ appearance: this.appearance }),
+        },
+      },
+    ];
+    return new ChatCompletionResult({
+      request,
+      aiMessage: { type: "ai", content: "", toolCalls },
+      finishReason: "tool_calls",
+      toolCalls,
+    });
+  }
+}
+
+/** 只提交一个卸装计划的假服务；calls 用来数规划 loop。 */
+class UnequipPlanService implements ChatCompletionService {
+  calls = 0;
+
+  async complete(request: Parameters<ChatCompletionService["complete"]>[0]) {
+    this.calls += 1;
+    const toolCalls: ToolCall[] = [
+      {
+        id: randomUUID(),
+        type: "function",
+        function: { name: "unequip", arguments: JSON.stringify({ slot: "weapon" }) },
+      },
+      { id: randomUUID(), type: "function", function: { name: "submit_plan", arguments: "{}" } },
+    ];
+    return new ChatCompletionResult({
+      request,
+      aiMessage: { type: "ai", content: "", toolCalls },
+      finishReason: "tool_calls",
+      toolCalls,
+    });
+  }
+}

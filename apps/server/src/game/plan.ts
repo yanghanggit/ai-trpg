@@ -88,7 +88,7 @@ export function buildObserveActorTool(availableTargetActorRefs: readonly string[
     function: {
       name: "observe_actor",
       description:
-        "感知同场景目标角色携带的物品（含其穿戴），用于判断能否 steal；看不到对方的 stats 或存活状态。只读。",
+        "感知同场景目标角色携带的物品（含其穿戴）；看不到对方的 stats 或存活状态。只读。",
       parameters: {
         type: "object",
         properties: {
@@ -385,6 +385,19 @@ export function describeEquipment(actor: Pick<ActorState, "equipment">): string 
   return lines.length === 0 ? "穿戴：无" : `穿戴：\n${lines.join("\n")}`;
 }
 
+/**
+ * 同场景角色名单里的穿戴摘要：一行只列已穿戴的槽位。
+ *
+ * 与 `describeEquipment` 的区别是给名单内联用；没穿东西时返回空串。
+ * 完整背包（含未穿戴物品与数值）仍走 `observe_actor`。
+ */
+export function describeEquipmentBrief(actor: Pick<ActorState, "equipment">): string {
+  return EQUIPMENT_SLOTS.flatMap((slot) => {
+    const itemName = actor.equipment[slot];
+    return itemName ? [`${EQUIPMENT_SLOT_LABELS[slot]}：${itemName}`] : [];
+  }).join("；");
+}
+
 export function describeSelf(actor: ActorState): string {
   return `外观：${actor.appearance}
 ${describeStats(actor)}
@@ -525,7 +538,11 @@ export function describeStageForActor(
     stage.actors.length === 0
       ? "无"
       : stage.actors
-          .map((actor) => `${refOf(address(actor.id))}${isAlive(actor) ? "" : "（已死亡）"}`)
+          .map((actor) => {
+            const worn = describeEquipmentBrief(actor);
+            const dead = isAlive(actor) ? "" : "（已死亡）";
+            return `${refOf(address(actor.id))}${dead}${worn.length === 0 ? "" : `｜${worn}`}`;
+          })
           .join("、");
   const items =
     stage.items.length === 0

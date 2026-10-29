@@ -31,9 +31,9 @@ system prompt 只描述稳定的 `base_body`：外观一变就重写 prompt，�
 
 ## 换装入口
 
-`equip` / `unequip` 只修改穿戴索引，**不**触发外观推理：动作在事务内完成，推理是一次 LLM loop，必须留在事务外。外观因此可能短暂落后于 `equipment`，由 `agent:game appearance`（或客户端）显式推动一次合并推理。
+`equip` / `unequip` 在事务内只改穿戴索引；调用方提供 `appearanceService` 时，`applyActorPlan` 会在事务提交后补一次外观推理（失败只记日志，不回滚已落账的穿戴）。NPC 回合与 `agent:game player-equip` 都带这个 service，所以一次换装是「规划 + 外观」两个 loop；玩家接管路径没有规划 loop，只有外观 loop。不提供 service 的入口（测试、未接服务的路由）保持旧行为：外观暂时落后，由 `agent:game appearance` 显式补推。
 
-`setEquipmentSlot` 是「改槽位 + 立刻重算外观」的便捷入口，装备动作与客户端换装都走它：槽位与外观各用短事务，LLM 调用在事务外。批量入口 `refreshAppearances` 幂等：活人重推，未收尾的死者交死亡阶段，已收尾的尸体跳过。
+`setEquipmentSlot` 是「改槽位 + 立刻重算外观」的便捷入口：槽位与外观各用短事务，LLM 调用在事务外。批量入口 `refreshAppearances` 幂等：活人重推，未收尾的死者交死亡阶段，已收尾的尸体跳过。
 
 槽位只有 `weapon`、`armor`、`accessory` 三个，一个大类只对应一个槽位。
 

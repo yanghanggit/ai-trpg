@@ -17,7 +17,7 @@ PostgreSQL 是游戏状态的唯一真相。`agent:game` 从数据库读取状�
 
 `Stats` 只有 `maxHp` / `damage` / `block` 参与结算，其余三项保留在结构里但无人读取；六项都恒定可加，`addStats()` 是唯一加法规则。`hp` 不是属性，扣血只写这一列，上限看 `stats.maxHp`。
 
-物品没有根级 `damage` / `block`，可穿戴性只能看 `kind`。`base_body` 是「捏脸完成、还没穿装备」的形态，`appearance` 是其他角色实际看到的样子，存在当前形象上；观察只读当前形象的 `appearance`，换装只改槽位索引、外观要显式再推一次。
+物品没有根级 `damage` / `block`，可穿戴性只能看 `kind`。`base_body` 是「捏脸完成、还没穿装备」的形态，`appearance` 是其他角色实际看到的样子，存在当前形象上；观察只读当前形象的 `appearance`，换装只改槽位索引，带 `appearanceService` 的入口在事务外补一次外观推理。
 
 → 参见：[术语表](glossary.md)
 

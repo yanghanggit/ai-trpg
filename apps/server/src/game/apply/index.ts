@@ -19,6 +19,7 @@ import { applyUse } from "../actions/use";
 import { applyWait } from "../actions/wait";
 import { applyWhisper } from "../actions/whisper";
 import type { AddressLookup } from "../addressing";
+import { runAppearanceTurn } from "../appearance";
 import { MAX_ACTIONS_PER_TURN, MEMORY_KINDS } from "../constants";
 import { settleDeaths } from "../death";
 import type { DialogueJudge } from "../dialogue-audit";
@@ -369,6 +370,30 @@ export async function applyActorPlan(
     for (const request of result.affixRequests) {
       await runAffixEffect(db, gameId, request, options.service, options.trace, options.logger);
     }
+  }
+  // 换装改的是「别人看到的样子」：在事务外补一次外观推理。
+  // 失败与死亡阶段一致，只记日志，不回滚已落账的穿戴。
+  const equipmentChanged = (result.applied ?? []).some(
+    ({ actionKind }) => actionKind === "equip" || actionKind === "unequip",
+  );
+  if (equipmentChanged && options.appearanceService) {
+    let failed = false;
+    try {
+      const appearance = await runAppearanceTurn(db, gameId, actorId, {
+        service: options.appearanceService,
+        ...(options.logger ? { logger: options.logger } : {}),
+        ...(options.trace ? { trace: options.trace } : {}),
+      });
+      failed = !appearance.ok;
+    } catch (error) {
+      failed = true;
+      options.logger?.warn("换装后外观重算失败", error);
+    }
+    await traceEvent(options.trace, {
+      event: "phase",
+      name: "appearance",
+      status: failed ? "failed" : "ok",
+    });
   }
   // 死亡阶段在事务外跑：它要调 LLM，失败也不能回滚这次行动。
   try {

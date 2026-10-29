@@ -37,7 +37,7 @@
 
 | 主体 | actor 能看到 | stage 能看到 | world 能看到 |
 | --- | --- | --- | --- |
-| actor | 自己的设定与记忆；同场景他者的形象、已知称呼、携带物品；自己的背包 | 本场景 actor 的名字、当前外观、携带物品与行动记忆 | 全部 actor 的名字与所在场景；不含 profile、记忆、外观与背包 |
+| actor | 自己的设定与记忆；同场景他者的形象、已知称呼、已穿戴装备（完整背包仅具备 `steal` 的角色可见）；自己的背包 | 本场景 actor 的名字、当前外观、携带物品与行动记忆 | 全部 actor 的名字与所在场景；不含 profile、记忆、外观与背包 |
 | stage | 当前场景的 environment、陈列物品、开放出口、在场 actor | 自己的 profile、environment、记忆、未开启通道、本场景 actor 与物品 | 全部场景的 profile、environment、actor 名与陈列物品 |
 | world | 只通过 campaign setting 与全局规则知道世界设定；不把 world 当对象 | 同 actor，另有世界设定与全局规则；不含 world profile | 自己的 worldName、profile 与全部场景状态 |
 | item | 自己的物品；同场景他者携带的物品；当前场景的陈列 | 本场景陈列；本场景 actor 携带的物品 | 全部场景的陈列；不读 actor 背包 |
