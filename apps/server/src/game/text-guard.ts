@@ -70,17 +70,6 @@ export function assertNoSystemReference(text: string): void {
 }
 
 /**
- * `targetDetail` 只描述场景位置或部位，不能写角色名字。
- *
- * 错误信息不回显原文：拒绝原因会被写进发起者自己的记忆，回显等于把名字又带回去。
- */
-export function assertNoActorNameInDetail(detail: string, actorNames: readonly string[]): void {
-  if (actorNames.some((name) => name.length > 0 && detail.includes(name))) {
-    throw new GameError("invalid_action", "targetDetail 只能描述位置或部位，不能包含角色名字");
-  }
-}
-
-/**
  * 世界面文本的写入守卫。
  *
  * 推理端不写 actor 记忆，也不直接产出面向 actor 的上下文；它只读控制面、只产出

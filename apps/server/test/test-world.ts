@@ -19,6 +19,7 @@ export const TEST_WORLD: World = {
       profile: "修道院的入口，穹顶塌了一半，长明灯只剩冷灰。",
       actions: ["submit_environment", "notify_world"],
       environment: "风从破窗灌入，灰烬像雪一样落在石阶上。",
+      anchors: [{ label: "门闩", description: "门板上被灰烬塞住的门闩。" }],
     },
     {
       key: "nave",

@@ -17,7 +17,7 @@ export type ItemEffectContext = {
   targetStage?: StageRow;
   /** 出手者视角的引用；行动反馈必须经过它，不能直接写真名。 */
   address?: AddressLookup;
-  targetDetail?: string;
+  targetAnchor?: string;
   /** 伤害来源：默认效果省略；词缀追加写 `affix`。 */
   via?: "affix";
   now: Date;
@@ -34,7 +34,7 @@ export type AffixRequest = {
   actionKind: "strike" | "brawl" | "use";
   targetActorId?: string;
   targetStageId?: string;
-  targetDetail?: string;
+  targetAnchor?: string;
   defaultFeedback: string;
 };
 

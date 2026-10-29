@@ -73,7 +73,19 @@ describe("action tools", () => {
     const useProps = Object.keys(
       buildUseTool(items, targets, "灰烬门廊").function.parameters.properties ?? {},
     );
-    expect(useProps).toEqual(["itemName", "targetActorHandle", "targetStageName", "targetDetail"]);
+    expect(useProps).toEqual(["itemName", "targetActorHandle", "targetStageName"]);
+    const anchoredUse = buildUseTool(items, targets, "灰烬门廊", ["门闩"]);
+    expect(Object.keys(anchoredUse.function.parameters.properties ?? {})).toEqual([
+      "itemName",
+      "targetActorHandle",
+      "targetStageName",
+      "targetAnchor",
+    ]);
+    const anchoredProps = anchoredUse.function.parameters.properties as Record<
+      string,
+      { enum?: string[] }
+    >;
+    expect(anchoredProps.targetAnchor).toMatchObject({ enum: ["门闩"] });
     expect(Object.keys(buildEquipTool(items).function.parameters.properties ?? {})).toEqual([
       "itemName",
       "slot",
@@ -166,13 +178,13 @@ describe("action parsers", () => {
       parseUse({
         itemName: "闸门钥匙",
         targetStageName: "铁闸门",
-        targetDetail: "锁孔",
+        targetAnchor: "锁孔",
       }),
     ).toEqual({
       kind: "use",
       itemName: "闸门钥匙",
       targetStageName: "铁闸门",
-      targetDetail: "锁孔",
+      targetAnchor: "锁孔",
     });
   });
 
@@ -188,8 +200,8 @@ describe("action parsers", () => {
     );
     expect(() => parseMove({ targetStageName: "" })).toThrow("targetStageName");
     expect(() =>
-      parseUse({ itemName: "钥匙", targetActorHandle: "守烬人", targetDetail: "锁孔" }),
-    ).toThrow("targetDetail");
+      parseUse({ itemName: "钥匙", targetActorHandle: "守烬人", targetAnchor: "锁孔" }),
+    ).toThrow("targetAnchor");
     expect(() => parseStrike({ targetActorHandle: "  " })).toThrow("targetActorHandle");
     expect(() => parseBrawl({ targetActorHandle: "  " })).toThrow("targetActorHandle");
     expect(() => parseSteal({ targetActorHandle: "提灯修士" })).toThrow("itemName");
@@ -198,13 +210,15 @@ describe("action parsers", () => {
     expect(() =>
       parseUse({ itemName: "钥匙", targetActorHandle: "提灯修士", targetStageName: "铁闸门" }),
     ).toThrow("二选一");
-    // targetDetail 会随观察进入他人记忆：不允许携带 @ / # 系统引用。
-    expect(() =>
-      parseUse({ itemName: "钥匙", targetStageName: "铁闸门", targetDetail: "@提灯修士的锁孔" }),
-    ).toThrow("系统引用");
-    expect(() =>
-      parseUse({ itemName: "钥匙", targetStageName: "铁闸门", targetDetail: "#12 的锁孔" }),
-    ).toThrow("系统引用");
+    // 具体是否为当前场景锚点由 resolveUse 校验；parseUse 只负责形状。
+    expect(parseUse({ itemName: "钥匙", targetStageName: "铁闸门", targetAnchor: "锁孔" })).toEqual(
+      {
+        kind: "use",
+        itemName: "钥匙",
+        targetStageName: "铁闸门",
+        targetAnchor: "锁孔",
+      },
+    );
   });
 });
 

@@ -64,6 +64,56 @@ describe("world content validation", () => {
     expect(() => parseWorldContent(world)).toThrow(/系统引用/);
   });
 
+  it("accepts stage anchors and trims their labels", () => {
+    const world = {
+      ...TEST_WORLD,
+      stages: TEST_WORLD.stages.map((stage, index) =>
+        index === 0
+          ? {
+              ...stage,
+              anchors: [{ label: "  锁舌  ", description: "  门板内侧的铜锁舌。  " }],
+            }
+          : stage,
+      ),
+    };
+    const parsed = parseWorldContent(world);
+    expect(parsed.stages[0]?.anchors).toEqual([
+      { label: "锁舌", description: "门板内侧的铜锁舌。" },
+    ]);
+  });
+
+  it("rejects anchors that leak actor names or system references", () => {
+    for (const label of ["守烬人的门闩", "@门闩", "#12 门闩"]) {
+      const world = {
+        ...TEST_WORLD,
+        stages: TEST_WORLD.stages.map((stage, index) =>
+          index === 0 ? { ...stage, anchors: [{ label }] } : stage,
+        ),
+      };
+      expect(() => parseWorldContent(world)).toThrow(/锚点不能包含/);
+    }
+  });
+
+  it("rejects duplicate anchor labels and anchor payloads", () => {
+    const duplicate = {
+      ...TEST_WORLD,
+      stages: TEST_WORLD.stages.map((stage, index) =>
+        index === 0 ? { ...stage, anchors: [{ label: "门闩" }, { label: "门闩" }] } : stage,
+      ),
+    };
+    expect(() => parseWorldContent(duplicate)).toThrow(/锚点标签重复/);
+
+    const withEffect = {
+      ...TEST_WORLD,
+      stages: TEST_WORLD.stages.map((stage, index) =>
+        index === 0
+          ? { ...stage, anchors: [{ label: "门闩", effect: { type: "damage" } }] }
+          : stage,
+      ),
+    };
+    expect(() => parseWorldContent(withEffect)).toThrow();
+  });
+
   it("requires every stage to expose environment updates", () => {
     const world = {
       ...TEST_WORLD,

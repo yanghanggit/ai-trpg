@@ -24,6 +24,7 @@ import type {
   ItemKind,
   PassageState,
   StageActionKind,
+  StageAnchor,
   WorldActionKind,
 } from "../game/types";
 import type { JobStatus } from "../jobs/types";
@@ -130,6 +131,7 @@ export const stages = pgTable(
     name: text("name").notNull(),
     profile: text("profile").notNull(),
     environment: text("environment").notNull(),
+    anchors: jsonb("anchors").$type<StageAnchor[]>().notNull().default([]),
     actions: jsonb("actions").$type<StageActionKind[]>().notNull().default([]),
     /** 禁止 teleport 进出；普通 move 不受影响。 */
     teleportBlocked: boolean("teleport_blocked").notNull().default(false),

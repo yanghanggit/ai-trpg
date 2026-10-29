@@ -5,7 +5,7 @@ import type { ItemEffectHandler } from "./types";
 
 /** 事件效果：只记录“谁在何处对谁使用了什么”，后果交给 stage/world。 */
 export const applyEventEffect: ItemEffectHandler = async (context) => {
-  const { executor, gameId, actorRow, stage, item, target, targetStage, targetDetail, now, trace } =
+  const { executor, gameId, actorRow, stage, item, target, targetStage, targetAnchor, now, trace } =
     context;
   if (!item) {
     throw new Error("event effect 需要物品");
@@ -15,9 +15,9 @@ export const applyEventEffect: ItemEffectHandler = async (context) => {
   const targetRef = target && address ? actionRef(address(target.id)) : undefined;
   const targetLabel = targetStage ? targetStage.name : (targetRef ?? target?.name ?? "目标");
   const itemName = item.name;
-  const stageDetailText = targetDetail ? `的${targetDetail}` : "";
+  const stageAnchorText = targetAnchor ? `的${targetAnchor}` : "";
   const content = targetStage
-    ? `${actor.name}在${targetStage.name}${stageDetailText}使用了${item.name}。`
+    ? `${actor.name}在${targetStage.name}${stageAnchorText}使用了${item.name}。`
     : `${actor.name}对${targetLabel}使用了${item.name}。`;
 
   await bumpGameVersion(executor, gameId, now);
@@ -38,7 +38,7 @@ export const applyEventEffect: ItemEffectHandler = async (context) => {
       event: "use",
       ...(target ? { target: { id: target.id } } : {}),
       ...(targetStage ? { targetStageName: targetStage.name } : {}),
-      ...(targetDetail ? { targetDetail } : {}),
+      ...(targetAnchor ? { targetAnchor } : {}),
     },
     trace,
   );
@@ -56,6 +56,6 @@ export const applyEventEffect: ItemEffectHandler = async (context) => {
   );
 
   return targetStage
-    ? `# 行动结果\n你在${targetLabel}${stageDetailText}使用了${itemName}。`
+    ? `# 行动结果\n你在${targetLabel}${stageAnchorText}使用了${itemName}。`
     : `# 行动结果\n你对${targetLabel}使用了${itemName}。`;
 };

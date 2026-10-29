@@ -55,6 +55,7 @@ import {
   describeKnowledgeResults,
   describeObservedActor,
   describeSelf,
+  describeStageAnchors,
   describeStageForActor,
   parseRememberIdentity,
   renderStageEnvironmentForActor,
@@ -95,6 +96,7 @@ export function buildActorTurnInput(state: GameState, current: ActorWithStage): 
       : current.stage.items
           .map((item) => `${item.name}（${item.kind}）：${item.description}`)
           .join("\n");
+  const anchorLines = describeStageAnchors(current.stage.anchors);
   const targetLines = targets.length === 0 ? "无" : targets.join("、");
   const moveLines = moves.length === 0 ? "无" : moves.map((name) => `@${name}`).join("、");
   const canTeleport = current.actor.actions.includes("teleport");
@@ -108,7 +110,7 @@ export function buildActorTurnInput(state: GameState, current: ActorWithStage): 
   // 只有名单里还有 `#编号` 时才提醒记名字：此时 remember_identity 才有对象可记。
   const unknownTargets = targets.filter((token) => token.startsWith("#"));
   const identityHint =
-    "`@名字` 与 `#编号` 都可作为行动对象，但都不能说出口，也不能从 `#编号` 推断姓名。名字只有在世界内被告知后才算知道。use 的 targetDetail 只描述当前场景的位置或部位，不写人名，也不要使用 `@` / `#`。" +
+    "`@名字` 与 `#编号` 都可作为行动对象，但都不能说出口，也不能从 `#编号` 推断姓名。名字只有在世界内被告知后才算知道。use 的 targetAnchor 只能从当前场景的「可交互锚点」里选，不能自己写位置描述。" +
     (unknownTargets.length === 0
       ? ""
       : "名单里还有 `#编号`：如果你已经从对话或记载中知道其中某人的名字，用 remember_identity 记下（不占行动名额）。");
@@ -127,6 +129,9 @@ ${actorLines}
 
 ## 场景物品
 ${itemLines}
+
+## 可交互锚点
+${anchorLines}
 
 ## 可作用对象
 ${targetLines}
@@ -232,7 +237,12 @@ export async function runNpcTurn(
     steal: buildStealTool(targets),
     give: buildGiveTool(targets),
     pickup: buildPickupTool(),
-    use: buildUseTool(availableUseItemNames, selfAndTargets, `@${current.stage.name}`),
+    use: buildUseTool(
+      availableUseItemNames,
+      selfAndTargets,
+      `@${current.stage.name}`,
+      current.stage.anchors.map((anchor) => anchor.label),
+    ),
     equip: buildEquipTool(wearableItemNames),
     unequip: buildUnequipTool(occupiedSlots),
   };

@@ -1,6 +1,7 @@
 import { and, eq } from "drizzle-orm";
 import { stages } from "../../db/schema";
 import type { Executor, StageRow } from "../apply/types";
+import type { StageAnchor } from "../types";
 
 /** 读一个场景，并限定在该 world 内。 */
 export async function loadStageInWorld(
@@ -28,4 +29,13 @@ export async function setStageEnvironment(
   environment: string,
 ): Promise<void> {
   await executor.update(stages).set({ environment }).where(eq(stages.id, stageId));
+}
+
+/** 写入完整的锚点快照；调用方负责校验与公共事件。 */
+export async function setStageAnchors(
+  executor: Executor,
+  stageId: string,
+  anchors: StageAnchor[],
+): Promise<void> {
+  await executor.update(stages).set({ anchors }).where(eq(stages.id, stageId));
 }

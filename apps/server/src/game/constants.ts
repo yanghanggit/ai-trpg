@@ -21,8 +21,14 @@ export const MAX_AFFIX_EFFECTS = 2;
 /** 词缀后果文案上限；目标体验与旁人可见两段各自受限。 */
 export const MAX_AFFIX_EFFECT_LENGTH = 160;
 
-/** 使用道具时，对场景具体部位描述的最大长度。 */
-export const MAX_TARGET_DETAIL_LENGTH = 120;
+/** 一个场景最多保留的可交互锚点数。 */
+export const MAX_STAGE_ANCHORS = 8;
+
+/** 单个锚点标签的最大长度。 */
+export const MAX_STAGE_ANCHOR_LABEL_LENGTH = 24;
+
+/** 单个锚点描述的最大长度。 */
+export const MAX_STAGE_ANCHOR_DESCRIPTION_LENGTH = 120;
 
 /** stage 发给 world 的单条通知最大长度。 */
 export const MAX_WORLD_NOTIFICATION_LENGTH = 500;

@@ -99,7 +99,7 @@ function affixRequestFor(
       actionKind: "use",
       ...(resolved.target ? { targetActorId: resolved.target.id } : {}),
       ...(resolved.targetStage ? { targetStageId: resolved.targetStage.id } : {}),
-      ...(resolved.action.targetDetail ? { targetDetail: resolved.action.targetDetail } : {}),
+      ...(resolved.targetAnchor ? { targetAnchor: resolved.targetAnchor } : {}),
       defaultFeedback,
     };
   }

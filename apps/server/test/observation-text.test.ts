@@ -231,11 +231,11 @@ describe("item observations", () => {
       itemName: "火把",
       event: "use",
       targetStageName: "灰烬门廊",
-      targetDetail: "东墙",
+      targetAnchor: "东墙",
     };
     const view = renderItemEvent(STAGE, onStage, "actor-3");
     expect(view.content).toBe("# 场景动态\n@守烬人在灰烬门廊的东墙使用了火把。");
-    expect(view.metadata).toMatchObject({ targetStageName: "灰烬门廊", targetDetail: "东墙" });
+    expect(view.metadata).toMatchObject({ targetStageName: "灰烬门廊", targetAnchor: "东墙" });
     expect(view.metadata.targetActorId).toBeUndefined();
   });
 });

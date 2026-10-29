@@ -301,6 +301,7 @@ const SEALED_WORLD: World = {
       profile: "测试用铁闸门。",
       actions: ["submit_environment"] as const,
       environment: "门板上刻着鼠牙。",
+      anchors: [{ label: "锁孔", description: "门板中央的铜锁孔。" }],
     },
   ],
   connections: [
@@ -1018,7 +1019,7 @@ describe.skipIf(!testDatabaseUrl)("items and interactions", () => {
     const used = await playerUse(handle.db, created.game.slug, "守烬人", {
       targetStageName: SEALED_STAGE_NAME,
       itemName: SEALED_KEY_NAME,
-      targetDetail: "锁孔",
+      targetAnchor: "锁孔",
     });
     expect(used.ok).toBe(true);
 
@@ -1032,10 +1033,10 @@ describe.skipIf(!testDatabaseUrl)("items and interactions", () => {
     expect(stageMemory?.messages.some((message) => message.content.includes("的锁孔"))).toBe(true);
   });
 
-  it("rejects system references in a player's targetDetail", async () => {
+  it("only accepts anchors exposed by the current stage", async () => {
     const created = await createGame(handle.db, {
       username: DEMO_USER.username,
-      name: "场景使用描述引用测试局",
+      name: "场景锚点校验测试局",
       world: SEALED_WORLD,
     });
     await takeActorControl(handle.db, created.game.slug, "守烬人");
@@ -1043,27 +1044,31 @@ describe.skipIf(!testDatabaseUrl)("items and interactions", () => {
       targetStageRef: SEALED_STAGE_NAME,
     });
 
-    // 玩家入口绕过 parseUse，解析阶段必须拦住：targetDetail 会进入他人的观察记忆。
-    await expect(
-      playerUse(handle.db, created.game.slug, "守烬人", {
-        targetStageName: SEALED_STAGE_NAME,
-        itemName: SEALED_KEY_NAME,
-        targetDetail: "#12 的锁孔",
-      }),
-    ).rejects.toThrow("系统引用");
-    await expect(
-      playerUse(handle.db, created.game.slug, "守烬人", {
-        targetStageName: SEALED_STAGE_NAME,
-        itemName: SEALED_KEY_NAME,
-        targetDetail: "@提灯修士的锁孔",
-      }),
-    ).rejects.toThrow("系统引用");
+    // 玩家入口绕过 parseUse，resolveUse 必须按当前场景的锚点集校验。
+    // 另一个场景的锚点、角色名字、系统引用都只是“不存在的锚点”。
+    for (const label of ["门闩", "守烬人的锁孔", "#12 的锁孔", "@提灯修士的锁孔"]) {
+      await expect(
+        playerUse(handle.db, created.game.slug, "守烬人", {
+          targetStageName: SEALED_STAGE_NAME,
+          itemName: SEALED_KEY_NAME,
+          targetAnchor: label,
+        }),
+      ).rejects.toThrow("当前场景没有这个可交互锚点");
+    }
+
+    const state = await getGameState(handle.db, created.game.slug);
+    expect(state.game.version).toBe(1); // 只有移动作业成功，错误锚点没有落账。
+
+    const memories = await getGameMemories(handle.db, created.game.id);
+    const keeperMemory = memories.find((memory) => memory.name === "守烬人");
+    const contents = keeperMemory?.messages.map((message) => message.content) ?? [];
+    expect(contents.some((content) => content.includes("守烬人的锁孔"))).toBe(false);
   });
 
-  it("rejects actor names in targetDetail from NPC plans and player takeover", async () => {
+  it("rejects unknown anchors from NPC plans before writing memory", async () => {
     const created = await createGame(handle.db, {
       username: DEMO_USER.username,
-      name: "场景使用描述名字测试局",
+      name: "NPC 场景锚点测试局",
       world: SEALED_WORLD,
     });
     await takeActorControl(handle.db, created.game.slug, "守烬人");
@@ -1079,7 +1084,7 @@ describe.skipIf(!testDatabaseUrl)("items and interactions", () => {
       throw new Error("缺少守烬人");
     }
 
-    // NPC plan 路径：模型写错名字也要在落账前被拦。
+    // NPC plan 与玩家接管共用 resolveUse；模型写错也只能得到通用拒绝。
     const npcResult = await applyActorPlan(
       handle.db,
       created.game.id,
@@ -1090,29 +1095,18 @@ describe.skipIf(!testDatabaseUrl)("items and interactions", () => {
             kind: "use",
             itemName: SEALED_KEY_NAME,
             targetStageName: SEALED_STAGE_NAME,
-            targetDetail: "守烬人的锁孔",
+            targetAnchor: "守烬人的锁孔",
           },
         ],
       },
       true,
     );
     expect(npcResult.ok).toBe(false);
-    expect(npcResult.rejection).toContain("角色名字");
+    expect(npcResult.rejection).toContain("当前场景没有这个可交互锚点");
 
-    // 玩家接管路径走同一个 resolveUse，不需要另一套护栏。
-    await expect(
-      playerUse(handle.db, created.game.slug, "守烬人", {
-        targetStageName: SEALED_STAGE_NAME,
-        itemName: SEALED_KEY_NAME,
-        targetDetail: "守烬人的锁孔",
-      }),
-    ).rejects.toThrow("角色名字");
-
-    // 拒绝原因写回发起者记忆时不回显原文，避免名字二次泄漏。
     const memories = await getGameMemories(handle.db, created.game.id);
     const keeperMemory = memories.find((memory) => memory.name === "守烬人");
     const contents = keeperMemory?.messages.map((message) => message.content) ?? [];
-    expect(contents.some((content) => content.includes("targetDetail"))).toBe(true);
     expect(contents.some((content) => content.includes("守烬人的锁孔"))).toBe(false);
   });
 });

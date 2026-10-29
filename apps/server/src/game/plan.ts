@@ -3,11 +3,24 @@ import type { RagSearchResult } from "../rag";
 import { type ActorWithStage, adjacentStageNames, findStageByName } from "./actors";
 import { type AddressLookup, addressLookupFor, refOf } from "./addressing";
 import { isAlive } from "./apply/queries";
-import { MAX_IDENTITY_NAME_LENGTH, MAX_WORLD_NOTIFICATION_LENGTH } from "./constants";
+import {
+  MAX_IDENTITY_NAME_LENGTH,
+  MAX_STAGE_ANCHOR_DESCRIPTION_LENGTH,
+  MAX_STAGE_ANCHOR_LABEL_LENGTH,
+  MAX_STAGE_ANCHORS,
+  MAX_WORLD_NOTIFICATION_LENGTH,
+} from "./constants";
 import { GameError } from "./errors";
 import { teleportTargetsFor } from "./teleport";
 import { sanitizeActorFacingText } from "./text-guard";
-import type { ActorState, GameState, ItemState, StageAction, StageState } from "./types";
+import type {
+  ActorState,
+  GameState,
+  ItemState,
+  StageAction,
+  StageAnchor,
+  StageState,
+} from "./types";
 import { EQUIPMENT_SLOT_LABELS, EQUIPMENT_SLOTS } from "./types";
 
 export function buildLookTool(state: GameState): ToolDefinition {
@@ -15,7 +28,7 @@ export function buildLookTool(state: GameState): ToolDefinition {
     type: "function",
     function: {
       name: "look_stage",
-      description: "查看当前世界中某个场景的环境、角色与可去方向。只读，可多次调用。",
+      description: "查看当前世界中某个场景的环境、角色、可交互锚点与可去方向。只读，可多次调用。",
       parameters: {
         type: "object",
         properties: {
@@ -37,7 +50,7 @@ export function buildStageLookTool(stageName: string): ToolDefinition {
     type: "function",
     function: {
       name: "look_stage",
-      description: "查看本场景的当前环境、角色与场景物品。只读。",
+      description: "查看本场景的当前环境、角色、场景物品与可交互锚点。只读。",
       parameters: {
         type: "object",
         properties: {
@@ -157,7 +170,7 @@ export function buildSubmitEnvironmentTool(): ToolDefinition {
     type: "function",
     function: {
       name: "submit_environment",
-      description: `提交本轮场景计划并结束仲裁：可提交更新后的 environment，也可只提交已经通过 notify_world 记录的通知。
+      description: `提交本轮场景计划并结束仲裁：可提交更新后的 environment、可交互锚点，也可只提交已经通过 notify_world 记录的通知。
 
 environment 是场景当前的身体状态：只描述此刻可以直接观察到的环境、物体、表面、光线、气味与氛围。
 - 必须与当前场景物品一致：仍在场景中的物品要写；不在场景中的物品直接省略，不写它曾经存在、消失、被拿走，也不写它留下的空位、印子、痕迹、碎屑。
@@ -166,7 +179,9 @@ environment 是场景当前的身体状态：只描述此刻可以直接观察�
 - 不能包含角色名称、角色行动或角色状态；角色由场景状态单独承载。
 - 不要替角色行动，不要修改角色属性、物品或位置。
 
-提交的是完整快照，不是差异。environment 可省略，但本轮必须至少提交一条动作。`,
+anchors 是当前环境中可被角色操作的位置或部位的完整快照；省略表示不修改，空数组表示全部移除。锚点只说明“可以作用在哪里”，不写后果、效果或机制，也不得包含角色名字、@ 或 #编号。
+
+提交的是完整快照，不是差异。environment 与 anchors 可省略，但本轮必须至少提交一条动作。`,
       parameters: {
         type: "object",
         properties: {
@@ -174,6 +189,24 @@ environment 是场景当前的身体状态：只描述此刻可以直接观察�
             type: "string",
             description:
               "更新后的完整 environment 快照；只描述当前可观察状态，不含角色名称、角色行动与历史线索；省略表示不修改环境",
+          },
+          anchors: {
+            type: "array",
+            description: `当前场景可交互锚点的完整快照；省略表示不修改，空数组表示全部移除。最多 ${MAX_STAGE_ANCHORS} 个，标签场景内唯一；只写当前环境可见、可操作的位置或部位，不写后果、角色名字、@ 或 #编号。`,
+            items: {
+              type: "object",
+              properties: {
+                label: {
+                  type: "string",
+                  description: `锚点标签（世界面短标签）；不超过 ${MAX_STAGE_ANCHOR_LABEL_LENGTH} 字`,
+                },
+                description: {
+                  type: "string",
+                  description: `可选的可观察细节；不超过 ${MAX_STAGE_ANCHOR_DESCRIPTION_LENGTH} 字`,
+                },
+              },
+              required: ["label"],
+            },
           },
         },
         required: [],
@@ -185,6 +218,47 @@ environment 是场景当前的身体状态：只描述此刻可以直接观察�
 export function parseEnvironment(args: Record<string, unknown>): string | undefined {
   const environment = typeof args.environment === "string" ? args.environment.trim() : "";
   return environment.length > 0 ? environment : undefined;
+}
+
+/** 解析 stage 提交的锚点快照；结构错误在这里拦住，内容语义在 applyStagePlan 里校验。 */
+export function parseAnchors(args: Record<string, unknown>): StageAnchor[] | undefined {
+  if (args.anchors === undefined) {
+    return undefined;
+  }
+  if (!Array.isArray(args.anchors)) {
+    throw new GameError("invalid_action", "anchors 必须是数组");
+  }
+  return args.anchors.map((raw) => {
+    if (typeof raw !== "object" || raw === null) {
+      throw new GameError("invalid_action", "anchors 的每一项必须是对象");
+    }
+    const label = typeof raw.label === "string" ? raw.label.trim() : "";
+    if (label.length === 0) {
+      throw new GameError("invalid_action", "锚点 label 不能为空");
+    }
+    const description = typeof raw.description === "string" ? raw.description.trim() : undefined;
+    return {
+      label,
+      ...(description !== undefined && description.length > 0 ? { description } : {}),
+    };
+  });
+}
+
+/** 场景锚点的统一渲染：stage 与 actor 都看同一份公开列表。 */
+export function describeStageAnchors(anchors: readonly StageAnchor[]): string {
+  if (anchors.length === 0) {
+    return "无";
+  }
+  return anchors
+    .map((anchor) =>
+      anchor.description ? `- ${anchor.label}：${anchor.description}` : `- ${anchor.label}`,
+    )
+    .join("\n");
+}
+
+/** 单行场景视图只列标签；详细描述留给回合初始输入。 */
+export function describeStageAnchorLabels(anchors: readonly StageAnchor[]): string {
+  return anchors.length === 0 ? "无" : anchors.map((anchor) => anchor.label).join("、");
 }
 
 /** 通知只是报告，不是世界事实。 */
@@ -331,7 +405,8 @@ export function buildActorLookTool(stageName: string): ToolDefinition {
     type: "function",
     function: {
       name: "look_stage",
-      description: "重新查看你所在场景的环境、在场角色与可去方向。只读，可多次调用。",
+      description:
+        "重新查看你所在场景的环境、在场角色、场景物品、可交互锚点与可去方向。只读，可多次调用。",
       parameters: {
         type: "object",
         properties: {
@@ -462,6 +537,7 @@ export function describeStageForActor(
 ${environment}
 角色：${actors}
 物品：${items}
+可交互：${describeStageAnchorLabels(stage.anchors)}
 可去：${moves.length === 0 ? "无" : moves.map((name) => `@${name}`).join("、")}${
     canTeleport
       ? `
@@ -492,5 +568,6 @@ export function lookStage(state: GameState, stageName: string): string {
 ${stage.environment}
 角色：${actors}
 物品：${items}
+可交互：${describeStageAnchorLabels(stage.anchors)}
 可去：${moves.length === 0 ? "无" : moves.join("、")}`;
 }

@@ -53,7 +53,7 @@ export type ItemObservation = { actor: ActorRef; itemName: string } & (
       event: Extract<ItemEventKind, "use">;
       target?: ActorRef;
       targetStageName?: string;
-      targetDetail?: string;
+      targetAnchor?: string;
     }
   | { event: "pickup" }
 );
@@ -241,7 +241,7 @@ export function renderItemEvent(
     case "use": {
       const where = observation.target
         ? `对${targetRef}`
-        : `在${stage.name}${observation.targetDetail ? `的${observation.targetDetail}` : ""}`;
+        : `在${stage.name}${observation.targetAnchor ? `的${observation.targetAnchor}` : ""}`;
       return {
         content: withAppearances(`# 场景动态\n${actorRef}${where}使用了${itemName}。`, [
           actorAddress,
@@ -251,7 +251,7 @@ export function renderItemEvent(
           ...metadata,
           ...(observation.target ? { targetActorId: observation.target.id } : {}),
           ...(observation.targetStageName ? { targetStageName: observation.targetStageName } : {}),
-          ...(observation.targetDetail ? { targetDetail: observation.targetDetail } : {}),
+          ...(observation.targetAnchor ? { targetAnchor: observation.targetAnchor } : {}),
         },
       };
     }

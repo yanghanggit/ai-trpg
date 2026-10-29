@@ -1,0 +1,1 @@
+ALTER TABLE "stages" ADD COLUMN "anchors" jsonb DEFAULT '[]'::jsonb NOT NULL;

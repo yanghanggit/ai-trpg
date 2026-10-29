@@ -190,6 +190,12 @@ describe("dark fantasy seed world", () => {
     }
     expect(stage("gate").actions).toEqual(["submit_environment", "open_passage"]);
     expect(stage("mountain-path").actions).toEqual(["submit_environment", "notify_world"]);
+    expect(stage("graveyard").anchors).toEqual([
+      { label: "锁孔", description: "铁闸门上被干蜡塞住的锁孔。" },
+    ]);
+    expect(stage("gate").anchors).toEqual([
+      { label: "锁孔", description: "铁闸门上被干蜡塞住的锁孔。" },
+    ]);
     expect(BELL_MONASTERY_WORLD.actions).toEqual(["notify_stage", "end_game"]);
   });
 

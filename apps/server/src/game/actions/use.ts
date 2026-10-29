@@ -1,13 +1,13 @@
 import type { TraceContext } from "../../debug/trace";
 import type { ToolDefinition } from "../../llm/types";
 import { type AddressLookup, stripNameRef } from "../addressing";
-import { findActorInStage, listActorNamesInWorld, resolveActorItem } from "../apply/queries";
+import { findActorInStage, resolveActorItem } from "../apply/queries";
 import type { ActorWithStageRow, Executor, ResolvedUse } from "../apply/types";
-import { MAX_TARGET_DETAIL_LENGTH } from "../constants";
+import { MAX_STAGE_ANCHOR_LABEL_LENGTH } from "../constants";
 import { GameError } from "../errors";
 import { applyItemEffect, hasItemEffectHandler } from "../item-effects";
 import { equippedSlotOf } from "../items";
-import { assertNoActorNameInDetail, assertNoSystemReference } from "../text-guard";
+
 import {
   EQUIPMENT_SLOT_LABELS,
   type EquipmentSlots,
@@ -34,6 +34,7 @@ export function buildUseTool(
   availableItemNames: readonly string[],
   targetActorHandles: readonly string[],
   currentStageName: string,
+  stageAnchors: readonly string[] = [],
 ): ToolDefinition {
   return {
     type: "function",
@@ -59,11 +60,16 @@ export function buildUseTool(
             description: "道具作用的场景；当前只允许所在场景",
             enum: [currentStageName],
           },
-          targetDetail: {
-            type: "string",
-            description:
-              "对场景中具体位置或部位的描述；只用于 targetStageName。只写位置或部位，不得包含角色名字、@ 或 #编号。",
-          },
+          ...(stageAnchors.length > 0
+            ? {
+                targetAnchor: {
+                  type: "string",
+                  description:
+                    "当前场景的可交互锚点；只用于 targetStageName。必须从枚举中选择，不能自己写位置描述。",
+                  enum: [...stageAnchors],
+                },
+              }
+            : {}),
         },
         required: ["itemName"],
       },
@@ -77,33 +83,28 @@ export function parseUse(args: Record<string, unknown>): UseAction {
     typeof args.targetActorHandle === "string" ? args.targetActorHandle.trim() : "";
   const targetStageName =
     typeof args.targetStageName === "string" ? args.targetStageName.trim() : "";
-  const targetDetail = typeof args.targetDetail === "string" ? args.targetDetail.trim() : "";
+  const targetAnchor = typeof args.targetAnchor === "string" ? args.targetAnchor.trim() : "";
   if (itemName.length === 0) {
     throw new GameError("invalid_action", "use 需要非空 itemName");
   }
   if ((targetActorHandle.length === 0) === (targetStageName.length === 0)) {
     throw new GameError("invalid_action", "use 需要 targetActorHandle 或 targetStageName 二选一");
   }
-  if (targetDetail.length > MAX_TARGET_DETAIL_LENGTH) {
+  if (targetAnchor.length > MAX_STAGE_ANCHOR_LABEL_LENGTH) {
     throw new GameError(
       "invalid_action",
-      `targetDetail 不能超过 ${MAX_TARGET_DETAIL_LENGTH} 个字符`,
+      `targetAnchor 不能超过 ${MAX_STAGE_ANCHOR_LABEL_LENGTH} 个字符`,
     );
   }
-  if (targetDetail.length > 0 && targetStageName.length === 0) {
-    throw new GameError("invalid_action", "targetDetail 只能与 targetStageName 一起使用");
-  }
-  if (targetDetail.length > 0) {
-    // targetDetail 会随观察写进同场景其他 actor 的记忆：它是行动描述，不是寻址入口，
-    // 不允许携带只有系统才能写的引用标记。
-    assertNoSystemReference(targetDetail);
+  if (targetAnchor.length > 0 && targetStageName.length === 0) {
+    throw new GameError("invalid_action", "targetAnchor 只能与 targetStageName 一起使用");
   }
   return {
     kind: "use",
     itemName,
     ...(targetActorHandle.length > 0 ? { targetActorHandle } : {}),
     ...(targetStageName.length > 0 ? { targetStageName: stripNameRef(targetStageName) } : {}),
-    ...(targetDetail.length > 0 ? { targetDetail } : {}),
+    ...(targetAnchor.length > 0 ? { targetAnchor } : {}),
   };
 }
 
@@ -122,24 +123,15 @@ export async function resolveUse(
       `${transferItem.name}正装备在${EQUIPMENT_SLOT_LABELS[slot]}槽，先卸下再使用`,
     );
   }
-  const targetDetail = action.targetDetail?.trim();
-  if (targetDetail && targetDetail.length > MAX_TARGET_DETAIL_LENGTH) {
+  const targetAnchor = action.targetAnchor?.trim();
+  if (targetAnchor && targetAnchor.length > MAX_STAGE_ANCHOR_LABEL_LENGTH) {
     throw new GameError(
       "invalid_action",
-      `targetDetail 不能超过 ${MAX_TARGET_DETAIL_LENGTH} 个字符`,
+      `targetAnchor 不能超过 ${MAX_STAGE_ANCHOR_LABEL_LENGTH} 个字符`,
     );
   }
-  if (targetDetail && action.targetStageName === undefined) {
-    throw new GameError("invalid_action", "targetDetail 只能与 targetStageName 一起使用");
-  }
-  if (targetDetail) {
-    // 玩家入口绕过 parseUse，解析阶段再守一次：自由文本不得携带 @ / # 引用。
-    assertNoSystemReference(targetDetail);
-    // targetDetail 会原样进入同场景其他 actor 的记忆；它只描述位置/部位，不能借道写人名。
-    const actorNames = (await listActorNamesInWorld(executor, stage.worldId)).map(
-      (actor) => actor.name,
-    );
-    assertNoActorNameInDetail(targetDetail, actorNames);
+  if (targetAnchor && action.targetStageName === undefined) {
+    throw new GameError("invalid_action", "targetAnchor 只能与 targetStageName 一起使用");
   }
 
   let target: ResolvedUse["target"];
@@ -148,6 +140,12 @@ export async function resolveUse(
   if (action.targetStageName !== undefined) {
     if (stripNameRef(action.targetStageName) !== stage.name) {
       throw new GameError("invalid_action", "只能对当前所在场景使用道具");
+    }
+    if (
+      targetAnchor !== undefined &&
+      !stage.anchors.some((anchor) => anchor.label === targetAnchor)
+    ) {
+      throw new GameError("invalid_action", "当前场景没有这个可交互锚点");
     }
     targetStage = stage;
   } else {
@@ -166,6 +164,7 @@ export async function resolveUse(
     transferItem,
     ...(target ? { target } : {}),
     ...(targetStage ? { targetStage } : {}),
+    ...(targetAnchor ? { targetAnchor } : {}),
   };
 }
 
@@ -178,7 +177,7 @@ export async function applyUse(
   address: AddressLookup,
   trace?: TraceContext,
 ): Promise<string> {
-  const targetDetail = resolved.targetStage ? resolved.action.targetDetail?.trim() : undefined;
+  const targetAnchor = resolved.targetStage ? resolved.targetAnchor : undefined;
   return applyItemEffect({
     executor,
     gameId,
@@ -190,7 +189,7 @@ export async function applyUse(
     address,
     ...(resolved.target ? { target: resolved.target } : {}),
     ...(resolved.targetStage ? { targetStage: resolved.targetStage } : {}),
-    ...(targetDetail ? { targetDetail } : {}),
+    ...(targetAnchor ? { targetAnchor } : {}),
     now,
     ...(trace ? { trace } : {}),
   });

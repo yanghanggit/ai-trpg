@@ -46,7 +46,7 @@
 | 沉睡唤醒 | 场景内说话、攻击或非 `wait` | 由鼠王 openingBriefing 与 LLM 判断，不做确定性断言 |
 | 窃取 / 给予 | `steal` / 暗语触发 `give` | 窃取为 private；钥匙不在穿戴槽，活着也能偷；暗语通过 say 进入记忆，奥德里克自行选择 give |
 | 尸体掉落 | 死亡阶段第三步 | 只产 `material` 并写进尸体背包；同名材料合并；重推外观不会再次掉落；搜刮走 `steal` |
-| 使用钥匙 | `use` + `targetDetail` | 只写场景事件，不改连通性、不通知 world；开门由铁闸门下一轮裁决 |
+| 使用钥匙 | `use` + `targetAnchor` | 锚点从场景的 `锁孔` 枚举中选择；只写场景事件，不改连通性、不通知 world；开门由铁闸门下一轮裁决 |
 | 游戏结束 | world `end_game` | 只有 world 收尾，写 `game_completed` 与它自己命名的 `outcome` |
 | 普通挥击 Boss | `strike` | 鼠王 block 100，只有火把的武器伤害打不穿，靠词缀由 LLM 额外放大 |
 | 鼠王攻击 | 苏醒后推进鼠王 | 用 `brawl`，damage 60 秒杀普通角色；清场后自行搜索下一个场景 |

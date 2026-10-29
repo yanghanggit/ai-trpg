@@ -17,6 +17,7 @@ export const BELL_MONASTERY: Script = {
       actions: ["submit_environment"],
       environment:
         "墓园被一圈倒塌的石墙围住，石灰在枯草上结出白斑；墓碑之间插着几十块木牌，只剩模糊的日期。北侧铁闸门缠着三圈铁链，锁孔里塞着蜡。西侧石阶向下没入黑暗，东边小屋后飘出焦糊味。南面斜坡塌了半边，坡底的坑沿上搁着一口只压了薄土的棺材；坡能爬上来，却下不去。",
+      anchors: [{ label: "锁孔", description: "铁闸门上被干蜡塞住的锁孔。" }],
     },
     {
       key: "coffin",
@@ -75,6 +76,7 @@ export const BELL_MONASTERY: Script = {
       actions: ["submit_environment", "open_passage"],
       environment:
         "铁闸门嵌在墓园北侧的岩壁里，门板上刻着修道院的钟形纹；铁链缠了三圈，锁孔里塞着干蜡。门外没有声音，只有风从门缝里挤进来的细响。",
+      anchors: [{ label: "锁孔", description: "铁闸门上被干蜡塞住的锁孔。" }],
     },
     {
       key: "mountain-path",

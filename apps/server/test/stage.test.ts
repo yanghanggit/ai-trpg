@@ -46,6 +46,17 @@ function submitEnvironment(environment: string): ToolCall {
   };
 }
 
+function submitAnchors(anchors: Array<{ label: string; description?: string }>): ToolCall {
+  return {
+    id: randomUUID(),
+    type: "function",
+    function: {
+      name: "submit_environment",
+      arguments: JSON.stringify({ anchors }),
+    },
+  };
+}
+
 class ScriptedStageService implements ChatCompletionService {
   private readonly environments: string[];
 
@@ -59,6 +70,35 @@ class ScriptedStageService implements ChatCompletionService {
       throw new Error("脚本化 stage 环境已耗尽");
     }
     const toolCalls = [submitEnvironment(environment)];
+    return new ChatCompletionResult({
+      request,
+      aiMessage: { type: "ai", content: "", toolCalls },
+      finishReason: "tool_calls",
+      toolCalls,
+    });
+  }
+}
+
+class ScriptedAnchorService implements ChatCompletionService {
+  constructor(private readonly anchors: Array<{ label: string; description?: string }>) {}
+
+  async complete(request: Parameters<ChatCompletionService["complete"]>[0]) {
+    const toolCalls = [submitAnchors(this.anchors)];
+    return new ChatCompletionResult({
+      request,
+      aiMessage: { type: "ai", content: "", toolCalls },
+      finishReason: "tool_calls",
+      toolCalls,
+    });
+  }
+}
+
+class SubmitEnvironmentThenAnchorsService implements ChatCompletionService {
+  async complete(request: Parameters<ChatCompletionService["complete"]>[0]) {
+    const toolCalls = [
+      submitEnvironment("风停了，灰烬沉在石阶缝里。"),
+      submitAnchors([{ label: "锁舌", description: "门板内侧新露出的铜锁舌。" }]),
+    ];
     return new ChatCompletionResult({
       request,
       aiMessage: { type: "ai", content: "", toolCalls },
@@ -85,9 +125,15 @@ class SubmitThenNotifyService implements ChatCompletionService {
 
 class CapturingWaitService implements ChatCompletionService {
   inputMessage = "";
+  useAnchorEnum: string[] | undefined;
 
   async complete(request: Parameters<ChatCompletionService["complete"]>[0]) {
     this.inputMessage = request.inputMessage;
+    const use = request.tools?.find((tool) => tool.function.name === "use");
+    const properties = use?.function.parameters.properties as
+      | Record<string, { enum?: string[] }>
+      | undefined;
+    this.useAnchorEnum = properties?.targetAnchor?.enum;
     const toolCalls: ToolCall[] = [
       {
         id: randomUUID(),
@@ -201,6 +247,87 @@ describe.skipIf(!testDatabaseUrl)("stage mini-GM", () => {
     const capturing = new CapturingWaitService();
     await runNpcTurn(handle.db, slug, "提灯修士", { service: capturing });
     expect(capturing.inputMessage).toContain(environment);
+  });
+
+  it("updates anchors without environment and exposes them to the next actor turn", async () => {
+    const created = await createGame(handle.db, {
+      username: DEMO_USER.username,
+      name: "场景锚点更新测试局",
+      world: TEST_WORLD,
+    });
+    const anchors = [{ label: "锁舌", description: "门板内侧新露出的铜锁舌。" }];
+    const result = await runStageTurn(handle.db, created.game.slug, "灰烬门廊", {
+      service: new ScriptedAnchorService(anchors),
+    });
+
+    expect(result.ok).toBe(true);
+    expect(result.plan?.actions).toEqual([{ kind: "submit_environment", anchors }]);
+    expect(result.state.game.version).toBe(1);
+    expect(result.state.world.stages.find((stage) => stage.name === "灰烬门廊")?.anchors).toEqual(
+      anchors,
+    );
+    expect(result.state.messages.at(-1)).toMatchObject({
+      kind: "anchor_change",
+      stageId: result.state.world.stages.find((stage) => stage.name === "灰烬门廊")?.id,
+    });
+
+    const capturing = new CapturingWaitService();
+    await runNpcTurn(handle.db, created.game.slug, "守烬人", { service: capturing });
+    expect(capturing.inputMessage).toContain("## 可交互锚点");
+    expect(capturing.inputMessage).toContain("锁舌：门板内侧新露出的铜锁舌。");
+    expect(capturing.useAnchorEnum).toEqual(["锁舌"]);
+  });
+
+  it("merges environment and anchors submitted in the same turn", async () => {
+    const created = await createGame(handle.db, {
+      username: DEMO_USER.username,
+      name: "场景快照合并测试局",
+      world: TEST_WORLD,
+    });
+    const environment = "风停了，灰烬沉在石阶缝里。";
+    const anchors = [{ label: "锁舌", description: "门板内侧新露出的铜锁舌。" }];
+    const result = await runStageTurn(handle.db, created.game.slug, "灰烬门廊", {
+      service: new SubmitEnvironmentThenAnchorsService(),
+    });
+
+    expect(result.ok).toBe(true);
+    expect(result.plan?.actions).toEqual([{ kind: "submit_environment", environment, anchors }]);
+    const stage = result.state.world.stages.find((candidate) => candidate.name === "灰烬门廊");
+    expect(stage?.environment).toBe(environment);
+    expect(stage?.anchors).toEqual(anchors);
+  });
+
+  it("rejects anchor labels that leak actor names or system references", async () => {
+    const created = await createGame(handle.db, {
+      username: DEMO_USER.username,
+      name: "场景锚点守卫测试局",
+      world: TEST_WORLD,
+    });
+    const state = await getGameState(handle.db, created.game.slug);
+    const gate = state.world.stages.find((stage) => stage.name === "灰烬门廊");
+    if (!gate) {
+      throw new Error("缺少灰烬门廊");
+    }
+
+    for (const label of ["守烬人的门闩", "@门闩", "#12 门闩"]) {
+      const ok = await applyStagePlan(
+        handle.db,
+        created.game.id,
+        gate.id,
+        { actions: [{ kind: "submit_environment", anchors: [{ label }] }] },
+        true,
+      );
+      expect(ok).toBe(false);
+    }
+
+    const after = await getGameState(handle.db, created.game.slug);
+    expect(after.game.version).toBe(0);
+    expect(after.world.stages.find((stage) => stage.id === gate.id)?.anchors).toEqual(gate.anchors);
+    const memories = await getGameMemories(handle.db, created.game.id);
+    const gateMemory = memories.find((memory) => memory.name === "灰烬门廊");
+    expect(
+      gateMemory?.messages.filter((message) => message.content.includes("锚点更新被拒绝")).length,
+    ).toBe(3);
   });
 
   it("keeps notify_world calls that arrive after submit_environment", async () => {

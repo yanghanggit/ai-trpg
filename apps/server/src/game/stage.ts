@@ -9,6 +9,9 @@ import { isAlive, listActorNamesInWorld } from "./apply/queries";
 import {
   DEFAULT_LLM_ERROR_RETRIES,
   DEFAULT_STAGE_MAX_ROUNDS,
+  MAX_STAGE_ANCHOR_DESCRIPTION_LENGTH,
+  MAX_STAGE_ANCHOR_LABEL_LENGTH,
+  MAX_STAGE_ANCHORS,
   MAX_STAGE_NOTIFICATIONS_PER_TURN,
   MEMORY_KINDS,
 } from "./constants";
@@ -17,7 +20,12 @@ import { appendMemoryMessages, loadAgentMemory } from "./memory";
 import { appendStageMemory } from "./observations";
 import { isPassageSealed, openPassage } from "./persistence/edges";
 import { lockGameRow } from "./persistence/games";
-import { listStagesOfWorld, loadStageInWorld, setStageEnvironment } from "./persistence/stages";
+import {
+  listStagesOfWorld,
+  loadStageInWorld,
+  setStageAnchors,
+  setStageEnvironment,
+} from "./persistence/stages";
 import { loadWorldByGame } from "./persistence/worlds";
 import {
   buildNotifyWorldTool,
@@ -26,14 +34,23 @@ import {
   buildStageLookTool,
   buildSubmitEnvironmentTool,
   describeObservedActor,
+  describeStageAnchors,
   lookStage,
+  parseAnchors,
   parseEnvironment,
   parseOpenPassage,
   parseWorldNotification,
 } from "./plan";
 import { getGameState } from "./service";
 import { assertWorldFaceText } from "./text-guard";
-import type { GameState, StageAction, StagePlan, StageState, StageTurnResult } from "./types";
+import type {
+  GameState,
+  StageAction,
+  StageAnchor,
+  StagePlan,
+  StageState,
+  StageTurnResult,
+} from "./types";
 import { appendWorldNotification } from "./world-events";
 
 export type StageTurnOptions = {
@@ -59,11 +76,17 @@ export function buildStageTurnInput(state: GameState, stage: StageState): string
     stage.items.length === 0
       ? "无"
       : stage.items.map((item) => `${item.name}（${item.kind}）：${item.description}`).join("\n");
+  const anchorLines = describeStageAnchors(stage.anchors);
   const moveLines = moves.length === 0 ? "无" : moves.join("、");
   const sealedLines = sealed.length === 0 ? "无" : sealed.join("、");
   const taskLines = [
     "你是本场景的小 GM，只能看到本场景的事件与记忆。",
-    ...(canSubmit ? ["根据当前环境与本场景记忆，判断并提交更新后的完整 environment。"] : []),
+    ...(canSubmit
+      ? [
+          "根据当前环境与本场景记忆，判断并提交更新后的完整 environment 与可交互锚点。",
+          "anchors 只列出当前环境中可见、可被角色操作的位置或部位；环境里不存在的锚点必须移除。锚点只说明“可以作用在哪里”，不写后果、效果或机制，不得包含角色名字、@ 或 #编号。",
+        ]
+      : []),
     ...(canOpen
       ? [
           "如果本场景已有的信息表明某个未开启通道确实存在，并且本轮事件确实解除了它的阻断，用 open_passage 打开它；只改变连通性，不向世界报告，也不改变对面场景。",
@@ -74,7 +97,7 @@ export function buildStageTurnInput(state: GameState, stage: StageState): string
           "只有当行动产生了跨场景/世界级后果、会改变其他场景，或需要 world 裁决世界级事实时，才使用 notify_world。判断依据必须来自本场景已有的信息（设定、环境、本场景事件）：只有当它把这个目标描述成可被操作的机制，并且本轮事件表明该机制可能被改变时才通知。仅凭外观、装饰或相似形状不能推断出机制或隐藏功能。通知只是报告，不是既成事实；也不要因为角色使用了某个物品就自动通知世界。",
         ]
       : []),
-    "只读工具（look_stage / observe_actor）可以多次调用，不占额度；本轮会写库的动作最多：environment 一次、通道一条、world 通知两条。",
+    "只读工具（look_stage / observe_actor）可以多次调用，不占额度；本轮会写库的动作最多：environment/anchors 一次、通道一条、world 通知两条。",
     "细节规则见各工具说明。",
   ];
 
@@ -93,6 +116,9 @@ ${actorLines}
 ## 场景物品
 ${itemLines}
 
+## 可交互锚点
+${anchorLines}
+
 ## 可去场景
 ${moveLines}
 
@@ -106,6 +132,60 @@ ${taskLines.join("\n")}`;
 
 function assertEnvironmentHasNoLeaks(environment: string, actorNames: readonly string[]): void {
   assertWorldFaceText(environment, actorNames, "environment");
+}
+
+function normalizeAnchors(anchors: readonly StageAnchor[]): StageAnchor[] {
+  return anchors.map((anchor) => {
+    const description = anchor.description?.trim();
+    return {
+      label: anchor.label.trim(),
+      ...(description ? { description } : {}),
+    };
+  });
+}
+
+/** 返回拒绝原因；null 表示通过。 */
+function validateAnchors(
+  anchors: readonly StageAnchor[],
+  actorNames: readonly string[],
+): string | null {
+  if (anchors.length > MAX_STAGE_ANCHORS) {
+    return `锚点最多 ${MAX_STAGE_ANCHORS} 个。`;
+  }
+  const labels = new Set<string>();
+  for (const anchor of anchors) {
+    if (anchor.label.length === 0) {
+      return "锚点 label 不能为空。";
+    }
+    if (anchor.label.length > MAX_STAGE_ANCHOR_LABEL_LENGTH) {
+      return `锚点 label 不能超过 ${MAX_STAGE_ANCHOR_LABEL_LENGTH} 个字符。`;
+    }
+    if (/[\r\n]/.test(anchor.label)) {
+      return "锚点 label 不能换行。";
+    }
+    if (
+      anchor.description !== undefined &&
+      anchor.description.length > MAX_STAGE_ANCHOR_DESCRIPTION_LENGTH
+    ) {
+      return `锚点 description 不能超过 ${MAX_STAGE_ANCHOR_DESCRIPTION_LENGTH} 个字符。`;
+    }
+    if (labels.has(anchor.label)) {
+      return `锚点 label 重复：${anchor.label}。`;
+    }
+    labels.add(anchor.label);
+    try {
+      assertWorldFaceText(anchor.label, actorNames, "锚点 label");
+      if (anchor.description) {
+        assertWorldFaceText(anchor.description, actorNames, "锚点 description");
+      }
+    } catch (error) {
+      if (error instanceof GameError) {
+        return error.message;
+      }
+      throw error;
+    }
+  }
+  return null;
 }
 
 /** 计划非法时写入 stage memory 并返回 false；数据库错误继续抛出。 */
@@ -158,7 +238,12 @@ export async function applyStagePlan(
     }
 
     const environments = plan.actions.flatMap((action) =>
-      action.kind === "submit_environment" ? [action.environment] : [],
+      action.kind === "submit_environment" && action.environment !== undefined
+        ? [action.environment]
+        : [],
+    );
+    const anchorUpdates = plan.actions.flatMap((action) =>
+      action.kind === "submit_environment" && action.anchors !== undefined ? [action.anchors] : [],
     );
     const notifications = plan.actions.flatMap((action) =>
       action.kind === "notify_world" ? [action.notification] : [],
@@ -169,6 +254,9 @@ export async function applyStagePlan(
     if (environments.length > 1) {
       return reject("本轮最多一次 environment 更新。", MEMORY_KINDS.actionRejected);
     }
+    if (anchorUpdates.length > 1) {
+      return reject("本轮最多一次锚点更新。", MEMORY_KINDS.actionRejected);
+    }
     if (passages.length > 1) {
       return reject("本轮最多打开一条通道。", MEMORY_KINDS.actionRejected);
     }
@@ -178,9 +266,14 @@ export async function applyStagePlan(
         `本轮最多 ${MAX_STAGE_NOTIFICATIONS_PER_TURN} 条 world 通知`,
       );
     }
-    if (environments.length === 0 && notifications.length === 0 && passages.length === 0) {
+    if (
+      environments.length === 0 &&
+      anchorUpdates.length === 0 &&
+      notifications.length === 0 &&
+      passages.length === 0
+    ) {
       return reject(
-        "本轮没有 environment、通道或 world 通知，状态未改变。",
+        "本轮没有 environment、锚点、通道或 world 通知，状态未改变。",
         MEMORY_KINDS.planFailed,
       );
     }
@@ -215,27 +308,65 @@ export async function applyStagePlan(
         return reject(`环境更新被拒绝：${error.message}`, MEMORY_KINDS.actionRejected);
       }
     }
+    for (const anchors of anchorUpdates) {
+      const error = validateAnchors(normalizeAnchors(anchors), actorNames);
+      if (error !== null) {
+        return reject(`锚点更新被拒绝：${error}`, MEMORY_KINDS.actionRejected);
+      }
+    }
 
     const now = new Date();
     for (const action of plan.actions) {
       if (action.kind === "submit_environment") {
-        await setStageEnvironment(tx, stage.id, action.environment);
-        const content = `${stage.name}的环境发生了变化。\n${action.environment}`;
-        await appendPublicMessage(tx, gameId, null, {
-          kind: "environment_change",
-          stageId: stage.id,
-          visibility: "stage",
-          content,
-        });
-        await appendStageMemory(
-          tx,
-          gameId,
-          stage.id,
-          `# 场景事件\n${content}`,
-          { eventKind: "environment_change" },
-          trace,
-        );
-        await traceEvent(trace, { event: "applied", actionKind: action.kind, feedback: content });
+        if (action.environment !== undefined) {
+          await setStageEnvironment(tx, stage.id, action.environment);
+          const content = `${stage.name}的环境发生了变化。\n${action.environment}`;
+          await appendPublicMessage(tx, gameId, null, {
+            kind: "environment_change",
+            stageId: stage.id,
+            visibility: "stage",
+            content,
+          });
+          await appendStageMemory(
+            tx,
+            gameId,
+            stage.id,
+            `# 场景事件\n${content}`,
+            { eventKind: "environment_change" },
+            trace,
+          );
+          await traceEvent(trace, { event: "applied", actionKind: action.kind, feedback: content });
+        }
+        if (action.anchors !== undefined) {
+          const anchors = normalizeAnchors(action.anchors);
+          await setStageAnchors(tx, stage.id, anchors);
+          const anchorText =
+            anchors.length === 0
+              ? "无"
+              : anchors
+                  .map((anchor) =>
+                    anchor.description
+                      ? `- ${anchor.label}：${anchor.description}`
+                      : `- ${anchor.label}`,
+                  )
+                  .join("\n");
+          const content = `${stage.name}的可交互位置发生了变化。\n${anchorText}`;
+          await appendPublicMessage(tx, gameId, null, {
+            kind: "anchor_change",
+            stageId: stage.id,
+            visibility: "stage",
+            content,
+          });
+          await appendStageMemory(
+            tx,
+            gameId,
+            stage.id,
+            `# 场景事件\n${content}`,
+            { eventKind: "anchor_change" },
+            trace,
+          );
+          await traceEvent(trace, { event: "applied", actionKind: action.kind, feedback: content });
+        }
         continue;
       }
 
@@ -365,18 +496,31 @@ export async function runStageTurn(
         ? {
             [submitTool.function.name]: (args: Record<string, unknown>) => {
               const environment = parseEnvironment(args);
-              if (environment !== undefined) {
+              const anchors = parseAnchors(args);
+              if (environment !== undefined || anchors !== undefined) {
                 const index = actions.findIndex((action) => action.kind === "submit_environment");
+                const current = index >= 0 ? actions[index] : undefined;
+                const next: StageAction = {
+                  kind: "submit_environment",
+                  ...(current?.kind === "submit_environment" && current.environment !== undefined
+                    ? { environment: current.environment }
+                    : {}),
+                  ...(current?.kind === "submit_environment" && current.anchors !== undefined
+                    ? { anchors: current.anchors }
+                    : {}),
+                  ...(environment !== undefined ? { environment } : {}),
+                  ...(anchors !== undefined ? { anchors } : {}),
+                };
                 if (index >= 0) {
-                  actions[index] = { kind: "submit_environment", environment };
+                  actions[index] = next;
                 } else {
-                  actions.push({ kind: "submit_environment", environment });
+                  actions.push(next);
                 }
               }
               if (actions.length === 0) {
                 throw new GameError(
                   "invalid_action",
-                  "计划必须包含 environment、通道开启或至少一条 notify_world 通知",
+                  "计划必须包含 environment、锚点、通道开启或至少一条 notify_world 通知",
                 );
               }
               submit();

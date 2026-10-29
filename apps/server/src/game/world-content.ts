@@ -1,5 +1,10 @@
 import { z } from "zod";
 import { ACTION_KINDS } from "./actions";
+import {
+  MAX_STAGE_ANCHOR_DESCRIPTION_LENGTH,
+  MAX_STAGE_ANCHOR_LABEL_LENGTH,
+  MAX_STAGE_ANCHORS,
+} from "./constants";
 import { findTextLeaks } from "./text-guard";
 import type { StageActionKind, World, WorldActionKind } from "./types";
 
@@ -79,11 +84,19 @@ const equipmentSchema = z.strictObject({
   accessory: z.string().optional(),
 });
 
+const stageAnchorSchema = z
+  .object({
+    label: z.string().trim().min(1).max(MAX_STAGE_ANCHOR_LABEL_LENGTH),
+    description: z.string().trim().max(MAX_STAGE_ANCHOR_DESCRIPTION_LENGTH).optional(),
+  })
+  .strict();
+
 const stageSchema = z.object({
   key: z.string().min(1),
   name: z.string().min(1),
   profile: z.string(),
   environment: z.string(),
+  anchors: z.array(stageAnchorSchema).max(MAX_STAGE_ANCHORS).optional(),
   items: z.array(itemSchema).optional(),
   actions: z.array(stageActionSchema),
   teleportBlocked: z.boolean().optional(),
@@ -162,6 +175,30 @@ const worldSchema = z
           path: ["stages", index, "actions"],
         });
       }
+      const anchorLabels = new Set<string>();
+      stage.anchors?.forEach((anchor, anchorIndex) => {
+        if (anchorLabels.has(anchor.label)) {
+          ctx.addIssue({
+            code: "custom",
+            message: `锚点标签重复: ${anchor.label}`,
+            path: ["stages", index, "anchors", anchorIndex, "label"],
+          });
+        }
+        anchorLabels.add(anchor.label);
+        const anchorLeaks = findTextLeaks(
+          [anchor.label, anchor.description ?? ""].join("\n"),
+          actorNames,
+        );
+        if (anchorLeaks.length > 0) {
+          ctx.addIssue({
+            code: "custom",
+            message: `锚点不能包含角色名或系统引用（@ / #编号）: ${anchorLeaks
+              .map((leak) => leak.token)
+              .join("、")}`,
+            path: ["stages", index, "anchors", anchorIndex],
+          });
+        }
+      });
     });
     value.actors.forEach((actor, index) => {
       checkEntityName(actor.name, ["actors", index, "name"], ctx);

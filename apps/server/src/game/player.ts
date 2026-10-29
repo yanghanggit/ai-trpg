@@ -198,7 +198,7 @@ export type PlayerUseInput = {
   itemName: string;
   targetActorRef?: string;
   targetStageName?: string;
-  targetDetail?: string;
+  targetAnchor?: string;
 };
 
 function playerMind(reason: string | undefined): string {
@@ -404,7 +404,7 @@ export async function playerUse(
     itemName: input.itemName,
     ...(input.targetActorRef !== undefined ? { targetActorHandle: input.targetActorRef } : {}),
     ...(input.targetStageName !== undefined ? { targetStageName: input.targetStageName } : {}),
-    ...(input.targetDetail !== undefined ? { targetDetail: input.targetDetail } : {}),
+    ...(input.targetAnchor !== undefined ? { targetAnchor: input.targetAnchor } : {}),
   };
   return applyPlayerAction(db, gameRef, actorRef, action, options);
 }

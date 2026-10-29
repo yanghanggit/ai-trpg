@@ -95,7 +95,7 @@ const options = {
   stage: { type: "string" },
   item: { type: "string" },
   slot: { type: "string" },
-  detail: { type: "string" },
+  anchor: { type: "string" },
   as: { type: "string" },
   reason: { type: "string" },
   owner: { type: "string" },
@@ -182,7 +182,7 @@ function usage(): void {
       "agent-game player-steal --game <gameId|slug> --actor <actorId|actorName> --target <actorName> --item <itemName>",
       "agent-game player-give --game <gameId|slug> --actor <actorId|actorName> --target <actorName> --item <itemName>",
       "agent-game player-pickup --game <gameId|slug> --actor <actorId|actorName> --item <itemName>",
-      "agent-game player-use --game <gameId|slug> --actor <actorId|actorName> --item <itemName> (--target <actorName> | --stage <stageName>) [--detail <text>]",
+      "agent-game player-use --game <gameId|slug> --actor <actorId|actorName> --item <itemName> (--target <actorName> | --stage <stageName>) [--anchor <label>]",
       "agent-game player-equip --game <gameId|slug> --actor <actorId|actorName> --slot <slot> --item <itemName>",
       "agent-game player-unequip --game <gameId|slug> --actor <actorId|actorName> --slot <slot>",
       "agent-game player-remember-identity --game <gameId|slug> --actor <actorId|actorName> --target <actorName> --as <name>（只改自己的记忆，不占行动）",
@@ -539,12 +539,12 @@ async function main(): Promise<void> {
     }
     const targetActorRef = typeof values.target === "string" ? values.target : undefined;
     const targetStageName = typeof values.stage === "string" ? values.stage : undefined;
-    const targetDetail = typeof values.detail === "string" ? values.detail : undefined;
+    const targetAnchor = typeof values.anchor === "string" ? values.anchor : undefined;
     if ((targetActorRef === undefined) === (targetStageName === undefined)) {
       throw new Error("player-use 需要 --target 或 --stage 二选一");
     }
-    if (targetDetail !== undefined && targetStageName === undefined) {
-      throw new Error("player-use 的 --detail 只能与 --stage 一起使用");
+    if (targetAnchor !== undefined && targetStageName === undefined) {
+      throw new Error("player-use 的 --anchor 只能与 --stage 一起使用");
     }
     const result = await withDatabase((db) =>
       playerUse(
@@ -555,7 +555,7 @@ async function main(): Promise<void> {
           itemName: values.item as string,
           ...(targetActorRef !== undefined ? { targetActorRef } : {}),
           ...(targetStageName !== undefined ? { targetStageName } : {}),
-          ...(targetDetail !== undefined ? { targetDetail } : {}),
+          ...(targetAnchor !== undefined ? { targetAnchor } : {}),
         },
         { service: DEEPSEEK_SERVICE, appearanceService: DEEPSEEK_SERVICE },
       ),

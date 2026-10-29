@@ -134,6 +134,8 @@ export type ResolvedUse = {
   transferItem: ItemRow;
   target?: ActorRow;
   targetStage?: StageRow;
+  /** 已按当前场景锚点校验过的标签。 */
+  targetAnchor?: string;
 };
 
 export type ResolvedEquip = {

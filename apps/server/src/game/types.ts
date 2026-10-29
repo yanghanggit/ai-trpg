@@ -80,12 +80,26 @@ export type KnownIdentity = {
   name: string;
 };
 
+/**
+ * 场景内的可交互锚点：actor 能明确指认的位置或部位。
+ *
+ * 它只是可供性索引，不承载效果；`use` 只能从当前场景的锚点里选。
+ */
+export type StageAnchor = {
+  /** 世界面短标签，场景内唯一。 */
+  label: string;
+  /** 可选的可观察细节；不写后果或机制。 */
+  description?: string;
+};
+
 /** World 内的初始场景定义；`key` 仅在创建时用于连接与 actor 归属。 */
 export type Stage = {
   key: string;
   name: string;
   profile: string;
   environment: string;
+  /** 场景内可交互的锚点，创建后由 stage 回合维护。 */
+  anchors?: readonly StageAnchor[];
   /** 暂放在场景中的物品；创建时物化为 `stage_items`。 */
   items?: readonly ItemDefinition[];
   /** 场景自身的能力清单；必须显式列出。 */
@@ -267,8 +281,8 @@ export type UseAction = {
   itemName: string;
   targetActorHandle?: string;
   targetStageName?: string;
-  /** 对场景中具体位置/部位的描述；只是行动描述，不是结果。 */
-  targetDetail?: string;
+  /** 当前场景的可交互锚点标签；必须来自该场景的 `anchors`。 */
+  targetAnchor?: string;
 };
 
 export type EquipAction = {
@@ -312,7 +326,12 @@ export type ItemEventKind = Extract<ActionKind, "steal" | "give" | "pickup" | "u
 
 /** stage 的一次仲裁动作；与 actor / world 的计划同构，都是有序动作列表。 */
 export type StageAction =
-  | { kind: "submit_environment"; environment: string }
+  | {
+      kind: "submit_environment";
+      environment?: string;
+      /** 完整锚点快照；省略表示不修改，空数组表示全部移除。 */
+      anchors?: StageAnchor[];
+    }
   | { kind: "notify_world"; notification: string }
   | { kind: "open_passage"; targetStageName: string };
 
@@ -452,6 +471,7 @@ export type StageState = {
   name: string;
   profile: string;
   environment: string;
+  anchors: StageAnchor[];
   ordinal: number;
   teleportBlocked: boolean;
   actors: ActorState[];
@@ -515,7 +535,7 @@ export type ObservationMetadata = {
   itemName?: string;
   targetStageId?: string;
   targetStageName?: string;
-  targetDetail?: string;
+  targetAnchor?: string;
 };
 
 /** stage 自己记忆里的场景事件：`kind` 与 `stageId` 由写入方固定，调用方只说明事件类别。 */
