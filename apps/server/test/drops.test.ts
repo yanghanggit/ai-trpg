@@ -25,12 +25,15 @@ const CORPSE_APPEARANCE = "他仰面倒在石阶上，灰袍翻起一角，指�
 
 /** 按本轮可用工具分别提交尸体外观或掉落材料的假服务。 */
 class MaterialDropService implements ChatCompletionService {
+  inputs: string[] = [];
+
   constructor(
     private readonly materials: unknown,
     private readonly appearance = CORPSE_APPEARANCE,
   ) {}
 
   async complete(request: Parameters<ChatCompletionService["complete"]>[0]) {
+    this.inputs.push(request.inputMessage);
     const toolNames = (request.tools ?? []).map((tool) => tool.function.name);
     const dropping = toolNames.includes("drop_materials");
     const toolCalls = [
@@ -81,6 +84,18 @@ describe("drop materials parser", () => {
     expect(() => parseDrops({ items: [{ ...valid, count: 11 }] })).toThrow(/数量/);
     expect(() => parseDrops({ items: "骨片" })).toThrow(/items/);
   });
+
+  it("材料名与描述是公共标签，不得含引用或角色名", () => {
+    expect(() => parseDrops({ items: [{ name: "@骨片", description: "碎得只剩边角。" }] })).toThrow(
+      /材料名 不能包含/,
+    );
+    expect(() => parseDrops({ items: [{ name: "骨片", description: "#12 的碎骨。" }] })).toThrow(
+      /材料描述 不能包含/,
+    );
+    expect(() =>
+      parseDrops({ items: [{ name: "守烬人的骨片", description: "碎得只剩边角。" }] }, ["守烬人"]),
+    ).toThrow(/角色名/);
+  });
 });
 
 describe.skipIf(!testDatabaseUrl)("death drops", () => {
@@ -120,6 +135,12 @@ describe.skipIf(!testDatabaseUrl)("death drops", () => {
     expect(hit.death?.settled).toEqual(["提灯修士"]);
     expect(hit.death?.dropped).toEqual([{ actorName: "提灯修士", items: ["浸血的灰袍碎片"] }]);
     expect(hit.death?.dropFailed).toEqual([]);
+    // 掉落推理自带该局的战役设定：材料名与描述不会靠模型的世界外常识补全。
+    expect(
+      service.inputs.some(
+        (input) => input.includes("尸体掉落") && input.includes(TEST_WORLD.campaignSetting),
+      ),
+    ).toBe(true);
 
     const state = await getGameState(handle.db, created.game.slug);
     const gate = state.world.stages.find((stage) => stage.name === "灰烬门廊");

@@ -7,6 +7,7 @@ import { adjacentStageNames, findStage, sealedStageNames } from "./actors";
 import { appendPublicMessage, bumpGameVersion } from "./apply/messages";
 import { isAlive, listActorNamesInWorld } from "./apply/queries";
 import {
+  DEFAULT_LLM_ERROR_RETRIES,
   DEFAULT_STAGE_MAX_ROUNDS,
   MAX_STAGE_NOTIFICATIONS_PER_TURN,
   MEMORY_KINDS,
@@ -31,7 +32,7 @@ import {
   parseWorldNotification,
 } from "./plan";
 import { getGameState } from "./service";
-import { findTextLeaks } from "./text-guard";
+import { assertWorldFaceText } from "./text-guard";
 import type { GameState, StageAction, StagePlan, StageState, StageTurnResult } from "./types";
 import { appendWorldNotification } from "./world-events";
 
@@ -104,13 +105,7 @@ ${taskLines.join("\n")}`;
 }
 
 function assertEnvironmentHasNoLeaks(environment: string, actorNames: readonly string[]): void {
-  const leaks = findTextLeaks(environment, actorNames);
-  if (leaks.length > 0) {
-    throw new GameError(
-      "invalid_action",
-      `environment 不能包含角色名或系统引用（@ / #编号）: ${leaks.map((leak) => leak.token).join("、")}`,
-    );
-  }
+  assertWorldFaceText(environment, actorNames, "environment");
 }
 
 /** 计划非法时写入 stage memory 并返回 false；数据库错误继续抛出。 */
@@ -422,6 +417,7 @@ export async function runStageTurn(
     terminalTools: canSubmit ? [submitTool] : [],
     service: options.service,
     maxRounds: options.maxRounds ?? DEFAULT_STAGE_MAX_ROUNDS,
+    errorRetries: DEFAULT_LLM_ERROR_RETRIES,
     loopId: randomUUID(),
     ...(options.logger ? { logger: options.logger } : {}),
     ...(trace ? { trace } : {}),

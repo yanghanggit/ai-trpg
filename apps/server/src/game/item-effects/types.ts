@@ -33,8 +33,6 @@ export type AffixRequest = {
   itemId: string;
   actionKind: "strike" | "brawl" | "use";
   targetActorId?: string;
-  /** 出手者视角的引用；给补充结算用，避免真名进入生成文本。 */
-  targetLabel?: string;
   targetStageId?: string;
   targetDetail?: string;
   defaultFeedback: string;

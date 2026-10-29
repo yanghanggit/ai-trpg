@@ -8,6 +8,7 @@
  * - 观察者集合是事实发生后该场景的 actor 行（含尸体），所以 `move` 的移动者收不到自己的
  *   离开/进入观察；
  * - 文案与 metadata 全部由 `observation-text.ts` 构造，这里只决定「写给谁」。
+ * - 当事人自述同样是世界面文本：第二人称，不写名字与引用，守卫在这一层统一执行。
  */
 
 import { type TraceContext, traceEvent } from "../debug/trace";
@@ -28,6 +29,7 @@ import {
   type StageRef,
 } from "./observation-text";
 import { listKnowledge } from "./persistence/knowledge";
+import { assertWorldFaceText } from "./text-guard";
 import type { ObservationMetadata, StageEventMetadata } from "./types";
 
 /** 场景广播：场景内除发起者外的所有 actor。 */
@@ -234,6 +236,10 @@ export async function appendSelfObservation(
   if (!memory) {
     return;
   }
+  // 自述是写给“你”的，不需要名字与引用；它只由引擎为确定性事实写入（死亡等），
+  // 推理端不得调用。
+  const actorNames = (await listStageActorViews(executor, stageId)).map(({ actor }) => actor.name);
+  assertWorldFaceText(content, actorNames, "自述");
   await appendMemoryMessages(executor, memory.row.id, [
     {
       type: "human",

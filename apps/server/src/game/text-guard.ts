@@ -63,6 +63,29 @@ export function assertNoSystemReference(text: string): void {
   }
 }
 
+/**
+ * 世界面文本的写入守卫。
+ *
+ * 推理端不写 actor 记忆，也不直接产出面向 actor 的上下文；它只读控制面、只产出
+ * 状态与自己的记忆。世界面文本（观察、自述、公共标签）只由引擎写入，这道守卫
+ * 负责拦住漏进世界面的名字与引用。
+ *
+ * `actorNames` 为空时只查引用，适合“主体自己的记忆”这类名字合法的文本。
+ */
+export function assertWorldFaceText(
+  text: string,
+  actorNames: readonly string[],
+  label: string,
+): void {
+  const leaks = findTextLeaks(text, actorNames);
+  if (leaks.length > 0) {
+    throw new GameError(
+      "invalid_action",
+      `${label} 不能包含角色名或系统引用（@ / #编号）: ${leaks.map((leak) => leak.token).join("、")}`,
+    );
+  }
+}
+
 export type ActorFacingOptions = {
   /**
    * 是否把残留的 `#12` 解析成观察者视角的引用。

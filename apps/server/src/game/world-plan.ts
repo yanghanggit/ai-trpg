@@ -99,7 +99,7 @@ export function buildSubmitWorldPlanTool(): ToolDefinition {
     function: {
       name: "submit_world_plan",
       description:
-        "提交本轮 world 计划并结束。计划按加入顺序执行；end_game 必须是最后一条。没有动作时不要提交。",
+        "提交本轮 world 计划并结束。计划按加入顺序执行；end_game 必须是最后一条。本轮确实没有世界级事实需要裁决时，直接提交空计划表示不做变更；不要为了能提交而编造通知。",
       parameters: {
         type: "object",
         properties: {},

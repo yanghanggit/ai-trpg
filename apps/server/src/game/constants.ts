@@ -32,6 +32,12 @@ export const MAX_WORLD_DIRECTIVE_LENGTH = 1000;
 export const DEFAULT_NPC_MAX_ROUNDS = 4;
 
 /**
+ * 运行时 agent 的默认通讯重试次数：只作用于 `retryable` 的传输错误，
+ * 就地重发同一请求、不占工具轮次。业务可以按回合强度在调用点覆盖。
+ */
+export const DEFAULT_LLM_ERROR_RETRIES = 2;
+
+/**
  * stage 小 GM 的轮数上限：look_stage + environment + open_passage + 两条通知，再加一次纠偏。
  * 与动作上限绑在一起，保证「按任务提示正常规划」在结构上能完成一轮。
  */

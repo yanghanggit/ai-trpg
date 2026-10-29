@@ -8,6 +8,7 @@ import {
   getBufferString,
 } from "../llm";
 import { allActors, findActorWithStage, findStage } from "./actors";
+import { buildCampaignSettingBlock, type CampaignContextWorld } from "./campaign-context";
 import { MEMORY_KINDS } from "./constants";
 import { GameError } from "./errors";
 import { appendMemoryMessages, loadAgentMemory, type MemoryOwnerType } from "./memory";
@@ -92,11 +93,25 @@ function resolveAllOwners(state: GameState): ResolvedOwner[] {
   ];
 }
 
-function buildCompactionInput(owner: ResolvedOwner, transcript: string): string {
+/**
+ * 压缩任务也要带上世界设定：压缩结果会成为该主体后续所有回合的长期记忆，
+ * 专名、称谓与人称必须在压缩后仍然一致。
+ */
+export function buildCompactionInput(
+  owner: ResolvedOwner,
+  transcript: string,
+  world: CampaignContextWorld,
+): string {
+  const campaign = buildCampaignSettingBlock(world, {
+    purpose: "压缩时保持专名、称谓与人称一致；不得据此新增记忆里没有的事实。",
+  });
+
   return `# 记忆压缩
 
 记忆主体：${owner.ownerName}
 主体类型：${owner.ownerType}
+
+${campaign}
 
 以下只包含该主体本局可回忆的私有记忆。请把它们压缩成一段连续的私有记忆，保留对后续行动仍然重要的内容。
 
@@ -109,6 +124,7 @@ async function summarizeMemory(
   owner: ResolvedOwner,
   messages: readonly ChatMessage[],
   service: ChatCompletionService,
+  world: CampaignContextWorld,
 ): Promise<string> {
   const transcript = getBufferString(messages.slice(1), { renderToolCalls: true });
   if (transcript.trim().length === 0) {
@@ -117,7 +133,7 @@ async function summarizeMemory(
   const result = await service.complete(
     new ChatCompletionRequest({
       label: `compact:${owner.ownerType}:${owner.ownerName}`,
-      inputMessage: buildCompactionInput(owner, transcript),
+      inputMessage: buildCompactionInput(owner, transcript, world),
       messages: [{ type: "system", content: COMPACT_SYSTEM_PROMPT }],
     }),
   );
@@ -146,6 +162,7 @@ function validateMinRatio(minRatio: number | undefined): void {
 async function compactResolvedMemory(
   db: Database,
   gameId: string,
+  world: CampaignContextWorld,
   owner: ResolvedOwner,
   options: CompactMemoryOptions,
 ): Promise<CompactMemoryResult> {
@@ -179,7 +196,7 @@ async function compactResolvedMemory(
     };
   }
 
-  const summary = await summarizeMemory(owner, memory.messages, options.service);
+  const summary = await summarizeMemory(owner, memory.messages, options.service, world);
   const lastContent = memory.messages.at(-1)?.content;
   const beforeUpdatedAt = memory.row.updatedAt.getTime();
 
@@ -242,7 +259,7 @@ export async function compactMemory(
 ): Promise<CompactMemoryResult> {
   const state = await getGameState(db, gameRef);
   const owner = resolveTarget(state, target);
-  return compactResolvedMemory(db, state.game.id, owner, options);
+  return compactResolvedMemory(db, state.game.id, state.world, owner, options);
 }
 
 export async function compactAllMemories(
@@ -253,7 +270,7 @@ export async function compactAllMemories(
   const state = await getGameState(db, gameRef);
   const results: CompactMemoryResult[] = [];
   for (const owner of resolveAllOwners(state)) {
-    results.push(await compactResolvedMemory(db, state.game.id, owner, options));
+    results.push(await compactResolvedMemory(db, state.game.id, state.world, owner, options));
   }
   return results;
 }

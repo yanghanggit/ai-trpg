@@ -76,6 +76,8 @@ describe.skipIf(!testDatabaseUrl)("memory compaction", () => {
     expect(results.every((result) => result.skipped === false)).toBe(true);
     expect(service.calls).toBe(6);
     expect(service.inputs.every((input) => input.includes("记忆压缩"))).toBe(true);
+    // 压缩结果会回灌成长期记忆，所以每次压缩都要带该局的战役设定。
+    expect(service.inputs.every((input) => input.includes(TEST_WORLD.campaignSetting))).toBe(true);
 
     const after = await getGameMemories(handle.db, created.game.id);
     for (const memory of after) {

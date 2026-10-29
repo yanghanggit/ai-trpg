@@ -45,6 +45,15 @@ export type AgentLoopOptions = {
   toolChoice?: ToolChoice;
   thinking?: boolean;
   terminalTools?: readonly ToolDefinition[];
+  /** 单次 completion 的超时；省略时由 provider 决定。 */
+  timeoutMs?: number;
+  /**
+   * 可重试的通讯失败（`error.retryable`）就地重试的次数；不计入 `maxRounds`，
+   * 也不单独记一轮。默认 0，由业务按回合强度决定。
+   */
+  errorRetries?: number;
+  /** 重试退避基数（毫秒）：第 n 次重试前等待 `base * 2^(n-1)`。默认 500。 */
+  errorRetryDelayMs?: number;
   inputMetadata?: Readonly<MessageMetadata>;
   loopId?: string;
   logger?: Logger;
@@ -160,11 +169,18 @@ function parseToolArguments(raw: string): Record<string, unknown> {
   return parsed as Record<string, unknown>;
 }
 
+function sleep(ms: number): Promise<void> {
+  return ms <= 0 ? Promise.resolve() : new Promise((resolve) => setTimeout(resolve, ms));
+}
+
 /**
  * 通用 agentic 循环。
  *
  * 当声明了 terminalTools 时，`finishReason === "stop"` 不再等同于正常结束：
  * 若尚未成功调用任一终止工具，则注入纠偏提示后强制重试（最多 maxTerminalNudges 次）。
+ *
+ * 通讯失败与纠偏是两套重试：`errorRetries` 只作用于 `retryable` 的传输错误，
+ * 就地重发同一请求、不占工具轮次；不可重试的错误仍走原有的“本轮失败、进入下一轮”。
  */
 export async function agentLoop(options: AgentLoopOptions): Promise<AgentLoopResult> {
   const {
@@ -184,6 +200,9 @@ export async function agentLoop(options: AgentLoopOptions): Promise<AgentLoopRes
     loopId,
     logger = silentLogger,
     trace,
+    timeoutMs,
+    errorRetries = 0,
+    errorRetryDelayMs = 500,
   } = options;
 
   if (!Number.isInteger(maxRounds) || maxRounds < 1) {
@@ -191,6 +210,12 @@ export async function agentLoop(options: AgentLoopOptions): Promise<AgentLoopRes
   }
   if (!Number.isInteger(maxTerminalNudges) || maxTerminalNudges < 0) {
     throw new RangeError("maxTerminalNudges 必须为 >= 0 的整数");
+  }
+  if (!Number.isInteger(errorRetries) || errorRetries < 0) {
+    throw new RangeError("errorRetries 必须为 >= 0 的整数");
+  }
+  if (!Number.isFinite(errorRetryDelayMs) || errorRetryDelayMs < 0) {
+    throw new RangeError("errorRetryDelayMs 必须为 >= 0 的数字");
   }
 
   const history: ChatMessage[] = mutateMessages ? messages : [...messages];
@@ -211,51 +236,69 @@ export async function agentLoop(options: AgentLoopOptions): Promise<AgentLoopRes
         tools,
         toolChoice: nudgeCount > 0 ? "required" : toolChoice,
         thinking,
+        ...(timeoutMs === undefined ? {} : { timeoutMs }),
       });
 
-      await traceEvent(trace, {
-        event: "llm_call",
-        round,
-        ...(loopId === undefined ? {} : { loopId }),
-        label: name,
-        settings: {
-          model: request.model ?? null,
-          thinking: request.thinking,
-          toolChoice: request.toolChoice ?? "auto",
-          reasoningEffort: request.reasoningEffort ?? null,
-          temperature: request.temperature ?? null,
-          maxTokens: request.maxTokens ?? null,
-        },
-        tools: request.tools,
-        inputMessage: currentPrompt,
-        messages: history,
-      });
+      let completion: ChatCompletionResult;
+      for (let attempt = 1; ; attempt += 1) {
+        const attemptMark = attempt > 1 ? { attempt } : {};
 
-      const completion = await service.complete(request);
+        await traceEvent(trace, {
+          event: "llm_call",
+          round,
+          ...attemptMark,
+          ...(loopId === undefined ? {} : { loopId }),
+          label: name,
+          settings: {
+            model: request.model ?? null,
+            thinking: request.thinking,
+            toolChoice: request.toolChoice ?? "auto",
+            reasoningEffort: request.reasoningEffort ?? null,
+            temperature: request.temperature ?? null,
+            maxTokens: request.maxTokens ?? null,
+          },
+          tools: request.tools,
+          inputMessage: currentPrompt,
+          messages: history,
+        });
 
-      await traceEvent(trace, {
-        event: "llm_result",
-        round,
-        ...(loopId === undefined ? {} : { loopId }),
-        label: name,
-        finishReason: completion.finishReason,
-        content: completion.content,
-        contextUsageRatio: contextUsageRatioOf(completion),
-        elapsedMs: completion.elapsedMs,
-        usage: completion.usage,
-        ...(completion.error
-          ? {
-              error: {
-                kind: completion.error.kind,
-                message: completion.error.message,
-                retryable: completion.error.retryable,
-              },
-            }
-          : {
-              reasoningContent: completion.reasoningContent,
-              toolCalls: completion.toolCalls,
-            }),
-      });
+        completion = await service.complete(request);
+
+        await traceEvent(trace, {
+          event: "llm_result",
+          round,
+          ...attemptMark,
+          ...(loopId === undefined ? {} : { loopId }),
+          label: name,
+          finishReason: completion.finishReason,
+          content: completion.content,
+          contextUsageRatio: contextUsageRatioOf(completion),
+          elapsedMs: completion.elapsedMs,
+          usage: completion.usage,
+          ...(completion.error
+            ? {
+                error: {
+                  kind: completion.error.kind,
+                  message: completion.error.message,
+                  retryable: completion.error.retryable,
+                },
+              }
+            : {
+                reasoningContent: completion.reasoningContent,
+                toolCalls: completion.toolCalls,
+              }),
+        });
+
+        if (!completion.error?.retryable || attempt > errorRetries) {
+          break;
+        }
+
+        const delayMs = errorRetryDelayMs * 2 ** (attempt - 1);
+        logger.warn(
+          `[agent_loop:${name}] 第 ${round} 轮第 ${attempt} 次请求失败（${completion.error.kind}），${delayMs}ms 后就地重试`,
+        );
+        await sleep(delayMs);
+      }
 
       if (completion.error) {
         logger.error(

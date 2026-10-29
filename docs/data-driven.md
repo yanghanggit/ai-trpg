@@ -10,6 +10,10 @@
 
 框架层保持内容无关：数据库 schema、领域类型、prompt 组装、动作结算、stage / world 能力都不含具体故事知识；场景与角色能做什么由内容里的 `actions` 声明，运行时以数据库为准。
 
+内容无关不等于内容缺席：`campaignSetting` 必须进每个会推理的运行时 agent。
+
+→ 参见：[LLM 基础组件](llm.md)
+
 内容集中在 `seeds/dark-fantasy/`：`campaign.ts` 是不可变的战役文本，每个剧本一个文件，知识库与检索评测集同目录 1:1 绑定，`index.ts` 用 `assembleWorld()` 拼成 `World`，最后由 `seeds/index.ts` 注册为 `ContentPack`。
 
 ## 隔离边界

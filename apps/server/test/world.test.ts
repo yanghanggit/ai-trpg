@@ -147,6 +147,35 @@ describe.skipIf(!testDatabaseUrl)("world agent", () => {
     expect(gate?.messages.some((message) => message.content.includes(directive))).toBe(true);
   });
 
+  it("treats an explicitly empty world plan as a no-op", async () => {
+    const created = await createGame(handle.db, {
+      username: DEMO_USER.username,
+      name: "世界空计划测试局",
+      world: TEST_WORLD,
+    });
+    const before = await getGameState(handle.db, created.game.slug);
+
+    // 明确提交空计划 = 本轮没有世界级变更；不写拒绝记忆，也不递增版本。
+    const result = await runWorldTurn(handle.db, created.game.slug, {
+      service: new ScriptedService([call("submit_world_plan", {})]),
+    });
+
+    expect(result.ok).toBe(true);
+    expect(result.loopSuccess).toBe(true);
+    expect(result.plan).toEqual({ actions: [] });
+
+    const after = await getGameState(handle.db, created.game.slug);
+    expect(after.game.version).toBe(before.game.version);
+    expect(after.game.status).toBe("active");
+    expect(after.messages).toEqual(before.messages);
+
+    const memories = await getGameMemories(handle.db, created.game.id);
+    const world = memories.find((memory) => memory.ownerType === "world");
+    expect(
+      world?.messages.some((message) => message.content.includes("没有提交有效世界计划")),
+    ).toBe(false);
+  });
+
   it("rejects a world directive that names an actor", async () => {
     const created = await createGame(handle.db, {
       username: DEMO_USER.username,
@@ -223,14 +252,14 @@ describe.skipIf(!testDatabaseUrl)("world agent", () => {
     expect(result.state.messages.some((message) => message.kind === "game_completed")).toBe(true);
   });
 
-  it("rejects an end_game without an outcome", async () => {
+  it("rejects an end_game without an outcome and keeps the game active", async () => {
     const created = await createGame(handle.db, {
       username: DEMO_USER.username,
       name: "世界结局标签测试局",
       world: TEST_WORLD,
     });
 
-    // 模型每轮都只给 message：工具报错、计划始终为空，整局保持 active。
+    // 非法 end_game 被工具拒绝；随后提交空计划即本轮无变更，整局保持 active。
     const result = await runWorldTurn(handle.db, created.game.slug, {
       service: new ScriptedService([
         call("end_game", { message: "门在身后合上了。" }),
@@ -238,8 +267,9 @@ describe.skipIf(!testDatabaseUrl)("world agent", () => {
       ]),
     });
 
-    expect(result.loopSuccess).toBe(false);
-    expect(result.ok).toBe(false);
+    expect(result.loopSuccess).toBe(true);
+    expect(result.ok).toBe(true);
+    expect(result.plan).toEqual({ actions: [] });
     expect(result.state.game.status).toBe("active");
     expect(result.state.game.outcome).toBeNull();
   });

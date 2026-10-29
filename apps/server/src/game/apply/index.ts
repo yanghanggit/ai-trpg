@@ -18,7 +18,7 @@ import { applyUnequip } from "../actions/unequip";
 import { applyUse } from "../actions/use";
 import { applyWait } from "../actions/wait";
 import { applyWhisper } from "../actions/whisper";
-import { type AddressLookup, refOf } from "../addressing";
+import type { AddressLookup } from "../addressing";
 import { MAX_ACTIONS_PER_TURN, MEMORY_KINDS } from "../constants";
 import { settleDeaths } from "../death";
 import type { DialogueJudge } from "../dialogue-audit";
@@ -82,7 +82,6 @@ function affixRequestFor(
   resolved: ResolvedAction,
   actorId: string,
   defaultFeedback: string,
-  address: AddressLookup,
 ): AffixRequest | null {
   if (resolved.kind === "strike" && resolved.item.affixes.length > 0) {
     return {
@@ -90,7 +89,6 @@ function affixRequestFor(
       itemId: resolved.item.id,
       actionKind: "strike",
       targetActorId: resolved.target.id,
-      targetLabel: refOf(address(resolved.target.id)),
       defaultFeedback,
     };
   }
@@ -99,9 +97,7 @@ function affixRequestFor(
       actorId,
       itemId: resolved.transferItem.id,
       actionKind: "use",
-      ...(resolved.target
-        ? { targetActorId: resolved.target.id, targetLabel: refOf(address(resolved.target.id)) }
-        : {}),
+      ...(resolved.target ? { targetActorId: resolved.target.id } : {}),
       ...(resolved.targetStage ? { targetStageId: resolved.targetStage.id } : {}),
       ...(resolved.action.targetDetail ? { targetDetail: resolved.action.targetDetail } : {}),
       defaultFeedback,
@@ -261,7 +257,7 @@ export async function applyActorPlan(
         options.trace,
       );
       applied.push({ event: "applied", actionKind: action.kind, feedback });
-      const affixRequest = affixRequestFor(action, actorRow.actor.id, feedback, address);
+      const affixRequest = affixRequestFor(action, actorRow.actor.id, feedback);
       if (affixRequest) {
         affixRequests.push(affixRequest);
       }

@@ -7,14 +7,18 @@ import { findActor } from "./actors";
 import { bumpGameVersion } from "./apply/messages";
 import { isAlive } from "./apply/queries";
 import { formatBaseBody } from "./body";
-import { DEFAULT_APPEARANCE_MAX_ROUNDS, MAX_APPEARANCE_LENGTH } from "./constants";
+import {
+  DEFAULT_APPEARANCE_MAX_ROUNDS,
+  DEFAULT_LLM_ERROR_RETRIES,
+  MAX_APPEARANCE_LENGTH,
+} from "./constants";
 import { GameError } from "./errors";
 import { equippedItems, equipSlot, unequipSlot } from "./items";
 import { loadAgentMemory } from "./memory";
 import { setActorAppearance, setActorEquipment } from "./persistence/actors";
 import { lockGameRow } from "./persistence/games";
 import { getGameState } from "./service";
-import { findTextLeaks } from "./text-guard";
+import { assertWorldFaceText } from "./text-guard";
 import {
   type ActorState,
   EQUIPMENT_SLOT_LABELS,
@@ -77,13 +81,7 @@ export function parseAppearance(
     throw new GameError("invalid_action", `appearance 不能超过 ${MAX_APPEARANCE_LENGTH} 个字符`);
   }
   // 外观会进名单与观察（世界面）：名字与引用都不允许混进来。
-  const leaks = findTextLeaks(appearance, actorNames);
-  if (leaks.length > 0) {
-    throw new GameError(
-      "invalid_action",
-      `appearance 不能包含角色名或系统引用（@ / #编号）: ${leaks.map((leak) => leak.token).join("、")}`,
-    );
-  }
+  assertWorldFaceText(appearance, actorNames, "appearance");
   return appearance;
 }
 
@@ -170,6 +168,7 @@ export async function runAppearanceTurn(
     terminalTools: [tool],
     service: options.service,
     maxRounds: options.maxRounds ?? DEFAULT_APPEARANCE_MAX_ROUNDS,
+    errorRetries: DEFAULT_LLM_ERROR_RETRIES,
     loopId: randomUUID(),
     ...(options.logger ? { logger: options.logger } : {}),
     ...(options.trace ? { trace: options.trace } : {}),

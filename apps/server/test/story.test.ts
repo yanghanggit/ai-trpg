@@ -92,6 +92,8 @@ describe.skipIf(!testDatabaseUrl)("game story", () => {
     expect(result.memoriesRead).toHaveLength(6);
     expect(result.eventsRead).toBe(true);
     expect(result.rounds).toBe(9);
+    // 故事整理也带该局的战役设定：称谓与意象靠它对齐，但不作为事实来源。
+    expect(service.inputs[0]).toContain(TEST_WORLD.campaignSetting);
     expect(service.tools).toEqual(
       expect.arrayContaining(["list_memories", "read_memory", "read_events", "submit_story"]),
     );

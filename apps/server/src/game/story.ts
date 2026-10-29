@@ -3,6 +3,8 @@ import { agentLoop } from "../llm/agent-loop";
 import type { ChatCompletionService } from "../llm/protocol";
 import type { ToolDefinition } from "../llm/types";
 import { findActorWithStage, findStage } from "./actors";
+import { buildCampaignSettingBlock } from "./campaign-context";
+import { DEFAULT_LLM_ERROR_RETRIES } from "./constants";
 import { GameError } from "./errors";
 import { getGameMemories } from "./memory";
 import { getGameState } from "./service";
@@ -182,7 +184,12 @@ function buildSubmitStoryTool(): ToolDefinition {
   };
 }
 
-function buildStoryInput(state: GameState, memories: readonly AgentMemoryState[]): string {
+export function buildStoryInput(state: GameState, memories: readonly AgentMemoryState[]): string {
+  const campaign = buildCampaignSettingBlock(state.world, {
+    purpose:
+      "故事里的称谓、专名与意象应与之一致；它不是本局已发生事实的来源，事实仍只来自记忆与事件流。",
+  });
+
   return `# 当前游戏
 
 - 游戏：${state.game.name}
@@ -190,6 +197,8 @@ function buildStoryInput(state: GameState, memories: readonly AgentMemoryState[]
 - 状态：${state.game.status}
 - 内容版本：${state.game.contentVersion}
 - 版本号：${state.game.version}
+
+${campaign}
 
 本局共有 ${memories.length} 个实体记忆。请先调用 list_memories，再读取每一个实体，最后读取事件流并提交故事。
 
@@ -253,6 +262,7 @@ export async function runStory(
     terminalTools: [submitTool],
     maxRounds: options.maxRounds ?? DEFAULT_STORY_MAX_ROUNDS,
     service: options.service,
+    errorRetries: DEFAULT_LLM_ERROR_RETRIES,
     ...(options.logger ? { logger: options.logger } : {}),
     ...(trace ? { trace } : {}),
     handlers: {

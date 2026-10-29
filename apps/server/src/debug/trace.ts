@@ -75,6 +75,8 @@ export type TraceEvent =
   | {
       event: "llm_call";
       round: number;
+      /** 同一轮内的第几次发出；只有就地重试时才会 > 1。 */
+      attempt?: number;
       loopId?: string;
       label: string;
       /** 这次请求实际使用的生成参数；model 为空表示由 provider 取默认值。 */
@@ -94,6 +96,8 @@ export type TraceEvent =
   | {
       event: "llm_result";
       round: number;
+      /** 同一轮内的第几次响应；只有就地重试时才会 > 1。 */
+      attempt?: number;
       loopId?: string;
       label: string;
       finishReason?: string;
@@ -570,7 +574,8 @@ export function renderTurnText(events: readonly TraceLine[]): string {
       case "turn_start":
         break;
       case "llm_call": {
-        out.push("", `## 第 ${line.round} 轮 LLM 请求`, settingsText(line.settings));
+        const attempt = line.attempt === undefined ? "" : `（第 ${line.attempt} 次尝试）`;
+        out.push("", `## 第 ${line.round} 轮 LLM 请求${attempt}`, settingsText(line.settings));
         out.push(`tools: ${line.tools.map((tool) => tool.function.name).join(", ") || "无"}`);
         if (line.inputMessage.length > 0) {
           out.push("", "### 本轮任务提示词", line.inputMessage);
@@ -589,6 +594,7 @@ export function renderTurnText(events: readonly TraceLine[]): string {
         break;
       }
       case "llm_result": {
+        const attempt = line.attempt === undefined ? "" : `（第 ${line.attempt} 次尝试）`;
         const parts = [
           `finish: ${line.finishReason ?? "-"}`,
           line.usage
@@ -599,7 +605,7 @@ export function renderTurnText(events: readonly TraceLine[]): string {
             ? undefined
             : `ctx ${Math.round(line.contextUsageRatio * 100)}%`,
         ].filter(Boolean);
-        out.push("", `## 第 ${line.round} 轮 LLM 响应`, parts.join(" | "));
+        out.push("", `## 第 ${line.round} 轮 LLM 响应${attempt}`, parts.join(" | "));
         if (line.error) {
           out.push(
             `! 错误: [${line.error.kind}] ${line.error.message}${line.error.retryable ? "（可重试）" : ""}`,

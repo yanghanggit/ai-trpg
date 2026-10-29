@@ -36,7 +36,12 @@ import {
 import { addressLookupFor, refOf } from "./addressing";
 import { applyActorPlan } from "./apply";
 import { isAlive } from "./apply/queries";
-import { DEFAULT_NPC_MAX_ROUNDS, MAX_ACTIONS_PER_TURN, MAX_IDENTITIES_PER_TURN } from "./constants";
+import {
+  DEFAULT_LLM_ERROR_RETRIES,
+  DEFAULT_NPC_MAX_ROUNDS,
+  MAX_ACTIONS_PER_TURN,
+  MAX_IDENTITIES_PER_TURN,
+} from "./constants";
 import { isPlayerControlled } from "./control";
 import { GameError } from "./errors";
 import { equippedItemActions, isWearable } from "./items";
@@ -339,6 +344,7 @@ export async function runNpcTurn(
     terminalTools: [submitTool],
     service: options.service,
     maxRounds: options.maxRounds ?? DEFAULT_NPC_MAX_ROUNDS,
+    errorRetries: DEFAULT_LLM_ERROR_RETRIES,
     loopId: randomUUID(),
     ...(options.logger ? { logger: options.logger } : {}),
     ...(trace ? { trace } : {}),

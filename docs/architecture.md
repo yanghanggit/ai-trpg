@@ -51,6 +51,25 @@
 
 → 参见：[Actor 行动与记忆](actor-actions-memory.md)
 
+## 拉取循环
+
+运行时只有一个驱动：拉取。agent 在回合开始时读自己的 memory 与当前状态，规划并提交动作；动作只改状态与事件流，不把结果推回任何人的上下文。下一次由调用方显式推动回合，agent 再拉一次。这也是“看见事件需要多推几步”的来源：事件先落到 stage，stage 更新 environment，actor 下一回合才读到。
+
+四条约束，新增能力时都要满足：
+
+- 状态只由拥有它的回合写：environment 与通道归 stage，外观归外观阶段，结局归 world。
+- 推理端只读控制面，不写 actor 记忆，也不直接产出面向 actor 的上下文；可见后果只进场景记忆，由 stage pull。actor 侧的知识一律由 actor pull，compact 只把同一主体的记忆改写成摘要。
+- 引擎把事件追加到对应 owner 的 memory：不更新状态，也不唤醒 agent。
+- actor / stage / world 都显式推动；唯一自动的是提交后的增量阶段（词缀、死亡后的外观与掉落），只追加、不回滚、不触发另一个 agent。
+
+主动推会同时引入时序、重复消费、跨作用域泄漏与上下文膨胀；拉取循环把这四件事收敛到回合边界。`test/state-writer-boundary.test.ts` 守住写入点的唯一性。
+
+agent 的 pull 只读 environment、观察与自己的 memory，不含 `game_messages`——那是 server→web 的事件通道，上帝视角、带名字，供客户端展示与后续寻址。
+
+actor 获取的信息一律是 pull，这正是信息披露不变量成立的前提：将来若要让 actor 从推理端产生的信息缓存里“取信”，仍要做成 actor 自己的 pull 步骤，不得反推 actor 记忆。
+
+→ 参见：[Actor 行动与记忆](actor-actions-memory.md)、[信息披露](information-disclosure.md)
+
 ## LLM 层
 
 LLM 是服务端内部依赖，不是客户端可调用的 API：浏览器只提交业务请求、展示业务结果，不接触模型名、prompt、tools 或 provider key。LLM 输出视为不可信中间数据，经业务校验后才能改变状态；provider 错误映射为业务错误，原始细节不透给客户端。

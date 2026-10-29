@@ -285,4 +285,100 @@ describe("agentLoop", () => {
     expect(result.rounds).toHaveLength(2);
     expect(result.messages.at(-1)?.content).toBe("recovered");
   });
+
+  it("errorRetries 就地重发可重试失败，不占工具轮次", async () => {
+    const { calls, service } = scriptedService((request, index) =>
+      index < 2
+        ? new ChatCompletionResult({
+            request,
+            error: new ChatError(request.label, "timeout", { kind: "timeout" }),
+          })
+        : completion(request, { content: "recovered" }),
+    );
+    const messages: ChatMessage[] = [systemMessage()];
+
+    const result = await agentLoop({
+      name: "in-place-retry",
+      inputMessage: "ping",
+      messages,
+      tools: [],
+      handlers: {},
+      service,
+      errorRetries: 2,
+      errorRetryDelayMs: 0,
+    });
+
+    expect(result.ok).toBe(true);
+    expect(calls).toHaveLength(3);
+    expect(result.rounds).toHaveLength(1);
+    expect(messages.map((message) => message.type)).toEqual(["system", "human", "ai"]);
+  });
+
+  it("不可重试的通讯失败不使用 errorRetries", async () => {
+    const { calls, service } = scriptedService(
+      (request) =>
+        new ChatCompletionResult({
+          request,
+          error: new ChatError(request.label, "unauthorized", { kind: "api", statusCode: 401 }),
+        }),
+    );
+
+    const result = await agentLoop({
+      name: "non-retryable",
+      inputMessage: "ping",
+      messages: [systemMessage()],
+      tools: [],
+      handlers: {},
+      service,
+      maxRounds: 1,
+      errorRetries: 2,
+      errorRetryDelayMs: 0,
+    });
+
+    expect(result.ok).toBe(false);
+    expect(calls).toHaveLength(1);
+  });
+
+  it("重试次数用尽后回到按轮推进", async () => {
+    const { calls, service } = scriptedService(
+      (request) =>
+        new ChatCompletionResult({
+          request,
+          error: new ChatError(request.label, "timeout", { kind: "timeout" }),
+        }),
+    );
+
+    const result = await agentLoop({
+      name: "retry-exhausted",
+      inputMessage: "ping",
+      messages: [systemMessage()],
+      tools: [],
+      handlers: {},
+      service,
+      maxRounds: 1,
+      errorRetries: 1,
+      errorRetryDelayMs: 0,
+    });
+
+    expect(result.ok).toBe(false);
+    // 1 次首发 + 1 次就地重试；用尽后不再额外重试。
+    expect(calls).toHaveLength(2);
+    expect(result.rounds).toHaveLength(1);
+  });
+
+  it("timeoutMs 透传给每次请求", async () => {
+    const { calls, service } = scriptedService((request) => completion(request, { content: "ok" }));
+
+    await agentLoop({
+      name: "timeout",
+      inputMessage: "ping",
+      messages: [systemMessage()],
+      tools: [],
+      handlers: {},
+      service,
+      timeoutMs: 1_234,
+    });
+
+    expect(calls[0]?.timeoutMs).toBe(1_234);
+  });
 });

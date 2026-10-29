@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { findTextLeaks, sanitizeActorFacingText } from "../src/game/text-guard";
+import {
+  assertWorldFaceText,
+  findTextLeaks,
+  sanitizeActorFacingText,
+} from "../src/game/text-guard";
 
 describe("world text guard", () => {
   it("finds references, handles and actor names", () => {
@@ -22,6 +26,14 @@ describe("world text guard", () => {
     expect(findTextLeaks("你对@奥德里克说。", ["奥德里克"], { actorNames: false })).toEqual([
       { code: "reference", token: "@" },
     ]);
+  });
+
+  it("assertWorldFaceText 拦引用与角色名，空名字列表只拦引用", () => {
+    expect(() => assertWorldFaceText("你看见 @煤渣。", [], "外观")).toThrow(/外观 不能包含/);
+    expect(() => assertWorldFaceText("#12 站在门口。", [], "材料名")).toThrow(/系统引用/);
+    expect(() => assertWorldFaceText("守烬人的骨片。", ["守烬人"], "材料描述")).toThrow(/角色名/);
+    // 主体自己的记忆里名字是合法的，只拦引用。
+    expect(() => assertWorldFaceText("你记得自己叫煤渣。", [], "世界面文本")).not.toThrow();
   });
 
   const ADDRESS = (known: boolean) => (id: string) =>

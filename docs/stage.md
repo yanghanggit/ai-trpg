@@ -56,4 +56,6 @@ stage 回合与 actor 回合平行，但不共享 actor plan：读状态与 stag
 
 只有 world 能 `end_game`，`outcome` 是它自己命名的短标签，框架不枚举；只在世界设定与全局规则里的收束条件已由不可逆事实满足时使用。world 的只读工具不限次数，写动作一轮最多 `MAX_WORLD_ACTIONS_PER_TURN` 个，上限与提交节奏同样写进任务文本。
 
+world 回合允许没有动作：显式提交空计划即表示本轮无世界级变更，与「没提交计划」相区分；模型不必为了走完流程编造通知。
+
 → 参见：[Actor 行动与记忆](actor-actions-memory.md) → 参见：[Agent 探针](probe.md) → 参见：[开发期 Agent 工作流](debug-workflow.md)

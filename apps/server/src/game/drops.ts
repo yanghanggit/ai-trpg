@@ -6,8 +6,10 @@ import type { ToolDefinition } from "../llm/types";
 import { findActor } from "./actors";
 import { bumpGameVersion } from "./apply/messages";
 import { formatBaseBody } from "./body";
+import { buildCampaignSettingBlock, type CampaignContextWorld } from "./campaign-context";
 import {
   DEFAULT_DROP_MAX_ROUNDS,
+  DEFAULT_LLM_ERROR_RETRIES,
   MAX_DROP_MATERIALS,
   MAX_MATERIAL_COUNT,
   MAX_MATERIAL_DESCRIPTION_LENGTH,
@@ -18,6 +20,7 @@ import { appendStageMemory } from "./observations";
 import { lockGameRow } from "./persistence/games";
 import { addActorMaterials, type MaterialDrop } from "./persistence/items";
 import { getGameState } from "./service";
+import { assertWorldFaceText } from "./text-guard";
 import type { ActorState, GameState, StageState } from "./types";
 
 export type DropTurnOptions = {
@@ -41,7 +44,7 @@ export function buildDropMaterialsTool(): ToolDefinition {
     type: "function",
     function: {
       name: "drop_materials",
-      description: `提交尸体留下的材料，最多 ${MAX_DROP_MATERIALS} 条。只写尸体本身产生的、可以被别人搜走的实体残留，材质不限。不写它生前持有的武器、钥匙、信件或其它剧情物品——那些属于尸体原有的背包，不靠掉落生成。材料会留在尸体上。没有合理产物就提交空数组。必须是本轮最后一个动作。`,
+      description: `提交尸体留下的材料，最多 ${MAX_DROP_MATERIALS} 条。只写尸体本身产生的、可以被别人搜走的实体残留，材质不限。不写它生前持有的武器、钥匙、信件或其它剧情物品——那些属于尸体原有的背包，不靠掉落生成。材料会留在尸体上。材料名与描述不得含角色名或系统引用。没有合理产物就提交空数组。必须是本轮最后一个动作。`,
       parameters: {
         type: "object",
         properties: {
@@ -74,8 +77,15 @@ export function buildDropMaterialsTool(): ToolDefinition {
   };
 }
 
-/** 掉落物只能是非空、不超长的材料；任一条不合法整批拒绝，不静默截断。 */
-export function parseDrops(args: Record<string, unknown>): MaterialDrop[] {
+/**
+ * 掉落物只能是非空、不超长的材料；任一条不合法整批拒绝，不静默截断。
+ *
+ * 材料会成为物品状态，任何在场者都能观察到；物品名与描述因此不得含角色名与 `@`/`#` 引用。
+ */
+export function parseDrops(
+  args: Record<string, unknown>,
+  actorNames: readonly string[] = [],
+): MaterialDrop[] {
   const items = args.items;
   if (!Array.isArray(items)) {
     throw new GameError("invalid_action", "drop_materials 需要 items 数组");
@@ -110,6 +120,8 @@ export function parseDrops(args: Record<string, unknown>): MaterialDrop[] {
         `材料描述不能为空且不超过 ${MAX_MATERIAL_DESCRIPTION_LENGTH} 个字符: ${name}`,
       );
     }
+    assertWorldFaceText(name, actorNames, "材料名");
+    assertWorldFaceText(description, actorNames, "材料描述");
     if (
       typeof count !== "number" ||
       !Number.isInteger(count) ||
@@ -122,11 +134,27 @@ export function parseDrops(args: Record<string, unknown>): MaterialDrop[] {
   });
 }
 
-/** 掉落只看得到尸体本身与所在场景；不注入死者记忆，掉落必须是外部可观察的事实。 */
-export function buildDropTurnInput(actor: ActorState, stage: StageState): string {
+/**
+ * 掉落只看得到尸体本身与所在场景；不注入死者记忆，掉落必须是外部可观察的事实。
+ *
+ * 世界设定是任务上下文：材料会变成公共物品名并被玩家反复引用，必须使用该世界
+ * 自己的材质、工艺与叫法，不能靠模型的世界外常识补全。
+ */
+export function buildDropTurnInput(
+  actor: ActorState,
+  stage: StageState,
+  world: CampaignContextWorld,
+): string {
+  const campaign = buildCampaignSettingBlock(world, {
+    purpose:
+      "材料名与描述必须使用这个世界自己的材质、工艺与叫法，不引入现实专名、现代工业制品或设定之外的事物。",
+  });
+
   return `# 尸体掉落
 
 ${actor.name}刚刚死亡。
+
+${campaign}
 
 ## 种族与裸体形态
 
@@ -143,6 +171,8 @@ ${stage.name}：${stage.environment}
 # 本轮任务
 
 判断这具尸体在被搜刮之前留下什么可以被别人捡走的材料。只写尸体本身产生的、可以被别人搜走的实体残留，材质不限；不写衣物或生前持有的物品。
+
+材料名与描述不得含角色名或系统引用。
 
 不写它生前持有的武器、钥匙、信件或任何剧情物品；那些留在尸体背包里，不走掉落。不写心理、名字与规则，不解释推理过程。没有合理产物就提交空数组。完成后调用 drop_materials 提交。`;
 }
@@ -172,9 +202,12 @@ export async function runDropTurn(
 
   const tool = buildDropMaterialsTool();
   const submitted: { materials: MaterialDrop[] | null } = { materials: null };
+  const actorNames = state.world.stages.flatMap((candidate) =>
+    candidate.actors.map((member) => member.name),
+  );
   const loop = await agentLoop({
     name: actor.name,
-    inputMessage: buildDropTurnInput(actor, stage),
+    inputMessage: buildDropTurnInput(actor, stage, state.world),
     messages: [],
     mutateMessages: false,
     tools: [tool],
@@ -183,13 +216,14 @@ export async function runDropTurn(
         if (submitted.materials !== null) {
           throw new GameError("invalid_action", "掉落已提交");
         }
-        submitted.materials = parseDrops(args);
+        submitted.materials = parseDrops(args, actorNames);
         return "掉落已提交";
       },
     },
     terminalTools: [tool],
     service: options.service,
     maxRounds: options.maxRounds ?? DEFAULT_DROP_MAX_ROUNDS,
+    errorRetries: DEFAULT_LLM_ERROR_RETRIES,
     loopId: randomUUID(),
     ...(options.logger ? { logger: options.logger } : {}),
     ...(options.trace ? { trace: options.trace } : {}),

@@ -59,7 +59,6 @@ class AffixDamageService implements ChatCompletionService {
           name: "record_effect",
           arguments: JSON.stringify({
             targetActorHandle: "提灯修士",
-            experience: TORCH_EXPERIENCE,
             witnessText: TORCH_WITNESS,
           }),
         },
@@ -79,7 +78,6 @@ class AffixDamageService implements ChatCompletionService {
   }
 }
 
-const TORCH_EXPERIENCE = "火焰卷上你的毛根，皮肉在油脂里噼啪作响，焦糊味钻进鼻腔。";
 const TORCH_WITNESS = "提灯修士的毛皮被火燎得卷曲发黑，空气里浮着焦毛味。";
 
 /** 只记录可见后果，不追加伤害：验证故事效果能独立于数值发生。 */
@@ -90,7 +88,6 @@ class AffixEffectService implements ChatCompletionService {
         name: "record_effect",
         args: {
           targetActorHandle: "提灯修士",
-          experience: TORCH_EXPERIENCE,
           witnessText: TORCH_WITNESS,
         },
       },
@@ -104,12 +101,12 @@ class OverLimitEffectService implements ChatCompletionService {
   async complete(request: Parameters<ChatCompletionService["complete"]>[0]) {
     const record = (text: string) => ({
       name: "record_effect",
-      args: { targetActorHandle: "提灯修士", experience: text, witnessText: text },
+      args: { targetActorHandle: "提灯修士", witnessText: text },
     });
     return toolCallResult(request, [
-      record("火焰卷上你的一号毛根。"),
-      record("火焰卷上你的二号毛根。"),
-      record("火焰卷上你的三号毛根。"),
+      record("灰毛上翻起一号焦痕。"),
+      record("灰毛上翻起二号焦痕。"),
+      record("灰毛上翻起三号焦痕。"),
       { name: "submit_affix", args: {} },
     ]);
   }
@@ -485,6 +482,8 @@ describe.skipIf(!testDatabaseUrl)("items and interactions", () => {
     expect(service.input).toContain("对多毛类生物额外造成武器伤害的一百倍");
     expect(service.input).toContain("种族：人类");
     expect(service.input).toContain("外观：中等身量，右手虎口有一圈烫疤，指节被灯烟熏黄。");
+    // 仲裁 agent 是控制面读者：目标用名字寻址，而不是出手者视角的引用。
+    expect(service.input).toContain("目标：提灯修士");
 
     const state = await getGameState(handle.db, created.game.slug);
     const monk = state.world.stages
@@ -513,7 +512,7 @@ describe.skipIf(!testDatabaseUrl)("items and interactions", () => {
     ).toBe(true);
   });
 
-  it("writes the affix's visible consequence into the target and the stage memory", async () => {
+  it("writes the affix's visible consequence only into the stage memory", async () => {
     const created = await createGame(handle.db, {
       username: DEMO_USER.username,
       name: "词缀后果记忆测试局",
@@ -545,8 +544,10 @@ describe.skipIf(!testDatabaseUrl)("items and interactions", () => {
       (memory) => memory.ownerType === "stage" && memory.ownerId === stage?.id,
     );
 
-    // 第二人称写进目标记忆，第三人称写进舞台记忆。
-    expect(monkMemory?.messages.some((message) => message.content === TORCH_EXPERIENCE)).toBe(true);
+    // 推理端不写 actor 记忆；第三人称可见事实只进场景记忆，由 actor 下次 pull。
+    expect(monkMemory?.messages.some((message) => message.content.includes(TORCH_WITNESS))).toBe(
+      false,
+    );
     expect(stageMemory?.messages.some((message) => message.content.includes(TORCH_WITNESS))).toBe(
       true,
     );
@@ -575,17 +576,18 @@ describe.skipIf(!testDatabaseUrl)("items and interactions", () => {
     const monk = state.world.stages
       .flatMap((stage) => stage.actors)
       .find((actor) => actor.name === "提灯修士");
+    const stage = state.world.stages.find((candidate) =>
+      candidate.actors.some((actor) => actor.id === monk?.id),
+    );
     const memories = await getGameMemories(handle.db, created.game.id);
-    const monkMemory = memories.find(
-      (memory) => memory.ownerType === "actor" && memory.ownerId === monk?.id,
+    const stageMemory = memories.find(
+      (memory) => memory.ownerType === "stage" && memory.ownerId === stage?.id,
     );
-    const recorded = monkMemory?.messages.filter((message) =>
-      message.content.includes("火焰卷上你的"),
-    );
+    const recorded = stageMemory?.messages.filter((message) => message.content.includes("焦痕"));
     expect(recorded).toHaveLength(2);
   });
 
-  it("lets the death appearance read the affix consequence from memory", async () => {
+  it("keeps inference output out of the death appearance's memory", async () => {
     const created = await createGame(handle.db, {
       username: DEMO_USER.username,
       name: "词缀后果外观测试局",
@@ -606,8 +608,8 @@ describe.skipIf(!testDatabaseUrl)("items and interactions", () => {
     );
     expect(attacked.ok).toBe(true);
 
-    // 外观阶段拿到的是目标的长期记忆，里面必须能看到词缀后果。
-    expect(deathService.seen).toContain("火焰卷上你的毛根");
+    // 外观阶段读的是尸体自己的记忆，其中没有推理端写下的词缀后果。
+    expect(deathService.seen).not.toContain(TORCH_WITNESS);
     const state = await getGameState(handle.db, created.game.slug);
     const monk = state.world.stages
       .flatMap((stage) => stage.actors)

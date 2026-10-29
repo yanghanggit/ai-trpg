@@ -8,11 +8,12 @@ import type { Logger } from "../../logging";
 import { isAlive, stageAddressLookup } from "../apply/queries";
 import type { Executor } from "../apply/types";
 import { STAT_KEYS, type Stats } from "../attributes";
+import { buildCampaignSettingBlock, type CampaignContextWorld } from "../campaign-context";
 import { MAX_AFFIX_EFFECT_LENGTH, MAX_AFFIX_EFFECTS, MEMORY_KINDS } from "../constants";
 import { GameError } from "../errors";
 import { runIncrementalPhase } from "../incremental";
 import { appendMemoryMessages, loadAgentMemory } from "../memory";
-import { appendSelfObservation, appendStageMemory } from "../observations";
+import { appendStageMemory } from "../observations";
 import { loadActorByNameInStage, loadActorWithStage } from "../persistence/actors";
 import { lockGameRow } from "../persistence/games";
 import { loadActorItem } from "../persistence/items";
@@ -24,7 +25,7 @@ import type { AffixRequest } from "./types";
 
 type AffixOperation =
   | { kind: "damage"; targetActorHandle: string; amount: number; reason: string }
-  | { kind: "effect"; targetActorHandle: string; experience: string; witnessText: string };
+  | { kind: "effect"; targetActorHandle: string; witnessText: string };
 
 /** 属性渲染成 `damage 8、block 2`；未用到的字段不出现，全 0 写“无”。 */
 function statsText(stats: Stats): string {
@@ -38,8 +39,15 @@ function statsText(stats: Stats): string {
  * 词缀是自然语言规则，可由 agent-loop 做任意事；伤害只是当前已注册的其中一种效果。
  * 所以这里只给事实（持有者、物品、目标）与判定口径，不预设效果类型，也不写死工具名：
  * 字段级细则（人称、条数上限）留在工具描述里，这里只写判定与结算规则。
+ *
+ * 世界设定同样进任务上下文：词缀产生的可见后果会写进场景记忆，
+ * 不能靠模型的世界外常识补全。
+ *
+ * 仲裁 agent 没有记忆与观察者视角，读的是控制面事实（角色名、外观、数值）；
+ * 它不写 actor 记忆，只把第三人称可见事实写进场景记忆，由 actor 下次 pull。
  */
-function buildAffixPrompt(input: {
+export function buildAffixPrompt(input: {
+  world: CampaignContextWorld;
   actorName: string;
   actorStats: Stats;
   itemName: string;
@@ -62,7 +70,14 @@ function buildAffixPrompt(input: {
     input.targetHp ? `HP：${input.targetHp}` : "",
   ].filter((line) => line.length > 0);
 
+  const campaign = buildCampaignSettingBlock(input.world, {
+    purpose:
+      "词缀的判定理由与可见后果必须使用这个世界的语汇与因果，不引入现实专名、现代科技或设定之外的事物。",
+  });
+
   return `# 词缀任务
+
+${campaign}
 
 默认效果已结算（见下），不代表词缀生效；词缀是否生效由你判定并用工具落账。
 
@@ -84,9 +99,10 @@ ${targetFacts.join("\n")}
 1. 按语义读词缀的对象、条件、效果与比例，用目标的名字、种族、外观与当前状态判定；同义或上下位表述都算成立，不按字面排除。
 2. 条件成立才执行；不成立或工具表达不了该效果时，只结束任务，不附加词缀以外的后果。
 3. 数值取物品自身的字段换算，与默认效果无关；程度留有余地时按特征强弱小幅增减。
-4. 数值后果用 damage_target，可见后果用 record_effect；只写本条词缀造成的感官变化，不写数值、机制或心理。
-5. 写出的可见文本里不要出现角色真名；用“目标”“那条狗”这类外观与身份指代。
-6. 最后用 ${input.terminalToolName} 结束，即使什么都没做。`;
+4. 数值后果用 damage_target，可见后果用 record_effect；只写第三人称可见的事实，不写第二人称体验、数值、机制或心理。
+5. 目标已经倒下时，追加伤害没有意义，但可见后果仍要记录：尸体照样会变。
+6. 写出的可见文本里不要出现角色真名；用“目标”“那条狗”这类外观与身份指代。
+7. 最后用 ${input.terminalToolName} 结束，即使什么都没做。`;
 }
 
 function buildTools(targetNames: readonly string[]): {
@@ -127,7 +143,7 @@ function buildTools(targetNames: readonly string[]): {
       type: "function",
       function: {
         name: "record_effect",
-        description: `把这条词缀造成的可见后果写进目标记忆与场景记忆；不扣血、不改数值，最多 ${MAX_AFFIX_EFFECTS} 条。experience 用第二人称写目标亲身经历，witnessText 用第三人称写旁人可见的事实。`,
+        description: `把这条词缀造成的可见后果写进场景记忆；不扣血、不改数值，最多 ${MAX_AFFIX_EFFECTS} 条。witnessText 用第三人称写旁人可见的事实，不写目标的第一/第二人称体验。`,
         parameters: {
           type: "object",
           properties: {
@@ -136,16 +152,12 @@ function buildTools(targetNames: readonly string[]): {
               enum: [...targetNames],
               description: "产生可见后果的目标角色",
             },
-            experience: {
-              type: "string",
-              description: "第二人称，写目标的亲身体验与感受",
-            },
             witnessText: {
               type: "string",
               description: "第三人称，写场景与他人可见的事实",
             },
           },
-          required: ["targetActorHandle", "experience", "witnessText"],
+          required: ["targetActorHandle", "witnessText"],
         },
       },
     },
@@ -224,6 +236,7 @@ async function evaluateAffix(
   const loop = await agentLoop({
     name: `${item.name}词缀`,
     inputMessage: buildAffixPrompt({
+      world: state.world,
       actorName: actor.name,
       actorStats: actor.stats,
       itemName: item.name,
@@ -235,7 +248,7 @@ async function evaluateAffix(
       stageName: stage.name,
       ...(target
         ? {
-            targetName: request.targetLabel ?? target.name,
+            targetName: target.name,
             targetRace: target.baseBody.race,
             targetAppearance: target.baseBody.description,
           }
@@ -270,15 +283,11 @@ async function evaluateAffix(
         }
         const targetActorHandle =
           typeof args.targetActorHandle === "string" ? args.targetActorHandle.trim() : "";
-        const experience = typeof args.experience === "string" ? args.experience.trim() : "";
         const witnessText = typeof args.witnessText === "string" ? args.witnessText.trim() : "";
-        if (!targetNames.includes(targetActorHandle) || !experience || !witnessText) {
+        if (!targetNames.includes(targetActorHandle) || !witnessText) {
           throw new GameError("invalid_action", "record_effect 参数无效");
         }
-        if (
-          experience.length > MAX_AFFIX_EFFECT_LENGTH ||
-          witnessText.length > MAX_AFFIX_EFFECT_LENGTH
-        ) {
+        if (witnessText.length > MAX_AFFIX_EFFECT_LENGTH) {
           throw new GameError(
             "invalid_action",
             `词缀后果不能超过 ${MAX_AFFIX_EFFECT_LENGTH} 个字符`,
@@ -289,7 +298,7 @@ async function evaluateAffix(
         ) {
           throw new GameError("invalid_action", `最多记录 ${MAX_AFFIX_EFFECTS} 条词缀后果`);
         }
-        operations.push({ kind: "effect", targetActorHandle, experience, witnessText });
+        operations.push({ kind: "effect", targetActorHandle, witnessText });
         return `已记录对 ${targetActorHandle} 的可见后果`;
       },
       [tools.submit.function.name]: () => {
@@ -300,6 +309,9 @@ async function evaluateAffix(
     terminalTools: [tools.submit],
     service,
     maxRounds: 2,
+    // 词缀是默认效果已落账后的补充结算：失败只等于少一次补伤害，
+    // 不为它在已提交的回合里额外等待重试。
+    errorRetries: 0,
     loopId: randomUUID(),
     ...(trace ? { trace } : {}),
   });
@@ -372,16 +384,8 @@ async function settleAffix(
         continue;
       }
       if (operation.kind === "effect") {
-        // 目标可能已经被默认效果打死：尸体照样会变，记忆必须写。
-        await appendSelfObservation(
-          tx,
-          gameId,
-          actorRow.stage.id,
-          targetRow.id,
-          operation.experience,
-          { itemName: itemRow.name, targetActorId: targetRow.id },
-          trace,
-        );
+        // 目标可能已经被默认效果打死：尸体照样会变。可见事实只进场景记忆，
+        // actor 的认知由它自己 pull，不由推理端写入。
         await appendStageMemory(
           tx,
           gameId,
