@@ -8,6 +8,7 @@ import { type DatabaseHandle, openDatabase } from "../src/db/connect";
 import { resetDomainData, seedDemoData } from "../src/db/maintenance";
 import { runMigrations } from "../src/db/migrate";
 import {
+  applyActorPlan,
   createGame,
   getGameMemories,
   getGameState,
@@ -1057,5 +1058,61 @@ describe.skipIf(!testDatabaseUrl)("items and interactions", () => {
         targetDetail: "@提灯修士的锁孔",
       }),
     ).rejects.toThrow("系统引用");
+  });
+
+  it("rejects actor names in targetDetail from NPC plans and player takeover", async () => {
+    const created = await createGame(handle.db, {
+      username: DEMO_USER.username,
+      name: "场景使用描述名字测试局",
+      world: SEALED_WORLD,
+    });
+    await takeActorControl(handle.db, created.game.slug, "守烬人");
+    await playerMove(handle.db, created.game.slug, "守烬人", {
+      targetStageRef: SEALED_STAGE_NAME,
+    });
+
+    const state = await getGameState(handle.db, created.game.slug);
+    const keeper = state.world.stages
+      .flatMap((stage) => stage.actors)
+      .find((actor) => actor.name === "守烬人");
+    if (!keeper) {
+      throw new Error("缺少守烬人");
+    }
+
+    // NPC plan 路径：模型写错名字也要在落账前被拦。
+    const npcResult = await applyActorPlan(
+      handle.db,
+      created.game.id,
+      keeper.id,
+      {
+        actions: [
+          {
+            kind: "use",
+            itemName: SEALED_KEY_NAME,
+            targetStageName: SEALED_STAGE_NAME,
+            targetDetail: "守烬人的锁孔",
+          },
+        ],
+      },
+      true,
+    );
+    expect(npcResult.ok).toBe(false);
+    expect(npcResult.rejection).toContain("角色名字");
+
+    // 玩家接管路径走同一个 resolveUse，不需要另一套护栏。
+    await expect(
+      playerUse(handle.db, created.game.slug, "守烬人", {
+        targetStageName: SEALED_STAGE_NAME,
+        itemName: SEALED_KEY_NAME,
+        targetDetail: "守烬人的锁孔",
+      }),
+    ).rejects.toThrow("角色名字");
+
+    // 拒绝原因写回发起者记忆时不回显原文，避免名字二次泄漏。
+    const memories = await getGameMemories(handle.db, created.game.id);
+    const keeperMemory = memories.find((memory) => memory.name === "守烬人");
+    const contents = keeperMemory?.messages.map((message) => message.content) ?? [];
+    expect(contents.some((content) => content.includes("targetDetail"))).toBe(true);
+    expect(contents.some((content) => content.includes("守烬人的锁孔"))).toBe(false);
   });
 });

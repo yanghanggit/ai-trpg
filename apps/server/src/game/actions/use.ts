@@ -1,13 +1,13 @@
 import type { TraceContext } from "../../debug/trace";
 import type { ToolDefinition } from "../../llm/types";
 import { type AddressLookup, stripNameRef } from "../addressing";
-import { findActorInStage, resolveActorItem } from "../apply/queries";
+import { findActorInStage, listActorNamesInWorld, resolveActorItem } from "../apply/queries";
 import type { ActorWithStageRow, Executor, ResolvedUse } from "../apply/types";
 import { MAX_TARGET_DETAIL_LENGTH } from "../constants";
 import { GameError } from "../errors";
 import { applyItemEffect, hasItemEffectHandler } from "../item-effects";
 import { equippedSlotOf } from "../items";
-import { assertNoSystemReference } from "../text-guard";
+import { assertNoActorNameInDetail, assertNoSystemReference } from "../text-guard";
 import {
   EQUIPMENT_SLOT_LABELS,
   type EquipmentSlots,
@@ -62,7 +62,7 @@ export function buildUseTool(
           targetDetail: {
             type: "string",
             description:
-              "对场景中具体位置或部位的描述；只用于 targetStageName，是行动描述而非结果。",
+              "对场景中具体位置或部位的描述；只用于 targetStageName。只写位置或部位，不得包含角色名字、@ 或 #编号。",
           },
         },
         required: ["itemName"],
@@ -135,6 +135,11 @@ export async function resolveUse(
   if (targetDetail) {
     // 玩家入口绕过 parseUse，解析阶段再守一次：自由文本不得携带 @ / # 引用。
     assertNoSystemReference(targetDetail);
+    // targetDetail 会原样进入同场景其他 actor 的记忆；它只描述位置/部位，不能借道写人名。
+    const actorNames = (await listActorNamesInWorld(executor, stage.worldId)).map(
+      (actor) => actor.name,
+    );
+    assertNoActorNameInDetail(targetDetail, actorNames);
   }
 
   let target: ResolvedUse["target"];
