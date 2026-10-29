@@ -1,4 +1,5 @@
 import { randomUUID } from "node:crypto";
+import { and, eq } from "drizzle-orm";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { BELL_MONASTERY_WORLD } from "../seeds/dark-fantasy";
 import { DEMO_USER } from "../src/db/demo-fixture";
@@ -6,6 +7,7 @@ import "../src/db/env";
 import { type DatabaseHandle, openDatabase } from "../src/db/connect";
 import { resetDomainData, seedDemoData } from "../src/db/maintenance";
 import { runMigrations } from "../src/db/migrate";
+import { nameKnowledge } from "../src/db/schema";
 import {
   createGame,
   getGameMemories,
@@ -100,6 +102,8 @@ describe.skipIf(!testDatabaseUrl)("appearance fusion", () => {
     expect(result.appearance).toBe("只穿旧衬衣，手背沾着新土。");
     expect(service.calls).toBe(1);
     expect(service.observation).toContain("[人类]");
+    // 世界背景整段进输入，外观的语气、材质与时代都以它为准。
+    expect(service.observation).toContain("这是一个架空的黑暗奇幻世界");
     expect(service.observation).not.toContain("补丁斗篷");
 
     const state = await getGameState(handle.db, created.game.slug);
@@ -130,6 +134,9 @@ describe.skipIf(!testDatabaseUrl)("appearance fusion", () => {
     await expect(wear("armor", "颈上的断链")).rejects.toThrow("不能放进护甲槽");
 
     expect((await wear("accessory", "颈上的断链")).ok).toBe(true);
+    // 饰品可以穿戴，但不参与外观推理：输入里没有这个槽位，也没有它的物品。
+    expect(service.observation).not.toContain("饰品");
+    expect(service.observation).not.toContain("颈上的断链");
 
     const state = await getGameState(handle.db, created.game.slug);
     const actor = state.world.stages
@@ -139,5 +146,43 @@ describe.skipIf(!testDatabaseUrl)("appearance fusion", () => {
       armor: "发黄的裹尸布",
       accessory: "颈上的断链",
     });
+  });
+
+  it("broadcasts the new appearance with observer-relative references", async () => {
+    const created = await createGame(handle.db, {
+      username: DEMO_USER.username,
+      name: "外观广播测试局",
+      world: BELL_MONASTERY_WORLD,
+    });
+    const state = await getGameState(handle.db, created.game.slug);
+    const odric = state.world.stages
+      .flatMap((stage) => stage.actors)
+      .find((actor) => actor.name === "奥德里克");
+    const cinder = state.world.stages
+      .flatMap((stage) => stage.actors)
+      .find((actor) => actor.name === "煤渣");
+    if (!odric || !cinder) {
+      throw new Error("缺少测试角色");
+    }
+
+    // 煤渣没被介绍过奥德里克：广播只能出现编号与新外观，不能漏出真名。
+    await handle.db
+      .delete(nameKnowledge)
+      .where(
+        and(
+          eq(nameKnowledge.gameId, created.game.id),
+          eq(nameKnowledge.observerActorId, cinder.id),
+          eq(nameKnowledge.presentationId, odric.presentation.id),
+        ),
+      );
+
+    const service = new AppearanceService("斗篷下摆结着新泥，手背全是湿土。");
+    await setEquipmentSlot(handle.db, created.game.slug, "奥德里克", "armor", null, { service });
+
+    const memories = await getGameMemories(handle.db, created.game.id);
+    const latest = memories.find((memory) => memory.name === "煤渣")?.messages.at(-1);
+    expect(latest?.content).toContain("斗篷下摆结着新泥，手背全是湿土。");
+    expect(latest?.content).toContain(`#${odric.presentation.seq}的可见外观变了`);
+    expect(latest?.content).not.toContain("奥德里克");
   });
 });

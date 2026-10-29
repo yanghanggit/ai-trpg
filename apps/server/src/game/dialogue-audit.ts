@@ -139,7 +139,7 @@ function buildAuditMessage(input: DialogueAuditRequest): string {
   return [
     `世界：${input.worldName}`,
     "世界背景与风格（判断沉浸与出界的首要依据）：",
-    input.campaignSetting.slice(0, 2000),
+    input.campaignSetting,
     "",
     `待审动作：${input.actionKind}`,
     `角色：${input.actorName}`,

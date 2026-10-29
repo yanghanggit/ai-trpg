@@ -3,7 +3,7 @@ import type { Database } from "../db/pool";
 import { agentLoop } from "../llm/agent-loop";
 import type { ChatCompletionService } from "../llm/protocol";
 import type { ToolDefinition } from "../llm/types";
-import { findActor } from "./actors";
+import { findActor, findActorWithStage } from "./actors";
 import { bumpGameVersion } from "./apply/messages";
 import { isAlive } from "./apply/queries";
 import { formatBaseBody } from "./body";
@@ -15,6 +15,8 @@ import {
 import { GameError } from "./errors";
 import { equippedItems, equipSlot, unequipSlot } from "./items";
 import { loadAgentMemory } from "./memory";
+import { renderAppearanceChange } from "./observation-text";
+import { appendCustomStageObservation } from "./observations";
 import { setActorAppearance, setActorEquipment } from "./persistence/actors";
 import { lockGameRow } from "./persistence/games";
 import { getGameState } from "./service";
@@ -34,6 +36,11 @@ export type AppearanceTurnOptions = {
   trace?: Parameters<typeof agentLoop>[0]["trace"];
   /** 死亡阶段的外观更新：写尸体而不是活人。 */
   dead?: boolean;
+  /**
+   * 写回后是否向同场景其他 actor 广播外观变化。默认开；死亡收尾与批量维护
+   * 关掉，避免在已有广播的事件后面重复贴一条。
+   */
+  broadcast?: boolean;
 };
 
 export type AppearanceTurnResult = {
@@ -85,8 +92,14 @@ export function parseAppearance(
   return appearance;
 }
 
-export function buildAppearanceTurnInput(actor: ActorState, dead = false): string {
-  const worn = equippedItems(actor);
+export function buildAppearanceTurnInput(
+  actor: ActorState,
+  campaignSetting: string,
+  dead = false,
+): string {
+  // 饰品不参与外观推理：这个大类在不同题材里语义漂移（它也可能指与外观无关的植入物），
+  // 引擎只保留槽位与穿戴索引，外观只消费衣物与武器。见 docs/data-driven.md。
+  const worn = equippedItems(actor).filter(({ slot }) => slot !== "accessory");
   const wornLines =
     worn.length === 0
       ? "无"
@@ -106,6 +119,12 @@ export function buildAppearanceTurnInput(actor: ActorState, dead = false): strin
 
 你要为${actor.name}重新推理“当前可见外观”。
 
+## 世界背景
+
+以下设定决定外观的材质、时代与审美；它只是背景，不是本轮任务。
+
+${campaignSetting}
+
 ## 基础体型
 
 ${formatBaseBody(actor.baseBody)}
@@ -118,9 +137,9 @@ ${wornLines}
 
 ${task}
 
-只使用上面列出的穿戴；未列出的衣物、护甲、武器与饰品不存在，不要虚构。base body 没有写到的衣物视为没有穿上。不要改写种族与身体特征。
+只使用上面列出的穿戴；未列出的衣物、护甲与武器不存在，不要虚构。base body 没有写到的衣物视为没有穿上。不要改写种族与身体特征。
 
-穿戴不等于露出：只写从外面能看见的部分。被衣物、斗篷或绷带遮住的饰品、贴身物件与藏在衣兜里的东西不要提；如果一件饰品在常见穿戴下会被遮住，就让外观绕开它，而不是为了提到它去改写衣着。反之，只有明显露在外面的饰品（颈间、耳侧、腰侧、手持、垂在衣襟外的链子）才写进外观。
+穿戴不等于露出：只写从外面能看见的部分。被衣物、斗篷或绷带遮住的贴身物件与藏在衣兜里的东西不要提，也不为了提到它去改写衣着。
 
 只写可见外观，不写心理、名字与规则；不要解释过程。完成后调用 submit_appearance 提交。`;
 }
@@ -138,9 +157,9 @@ export async function runAppearanceTurn(
   if (state.game.status !== "active") {
     throw new GameError("invalid_state", `游戏已结束: ${state.game.status}`);
   }
-  const actor = findActor(state, actorRef);
-  const actorNames = state.world.stages.flatMap((stage) =>
-    stage.actors.map((candidate) => candidate.name),
+  const { actor, stage } = findActorWithStage(state, actorRef);
+  const actorNames = state.world.stages.flatMap((candidate) =>
+    candidate.actors.map((present) => present.name),
   );
   const memory = await loadAgentMemory(db, state.game.id, "actor", actor.id);
   if (!memory) {
@@ -152,7 +171,7 @@ export async function runAppearanceTurn(
   const dead = !isAlive(actor);
   const loop = await agentLoop({
     name: actor.name,
-    inputMessage: buildAppearanceTurnInput(actor, dead),
+    inputMessage: buildAppearanceTurnInput(actor, state.world.campaignSetting, dead),
     messages: memory.messages,
     mutateMessages: false,
     tools: [tool],
@@ -180,6 +199,7 @@ export async function runAppearanceTurn(
   const appearance = submitted;
 
   const now = new Date();
+  const broadcast = options.broadcast !== false && !dead;
   await db.transaction(async (tx) => {
     const game = await lockGameRow(tx, state.game.id);
     if (!game) {
@@ -189,6 +209,17 @@ export async function runAppearanceTurn(
       throw new GameError("invalid_state", `游戏已结束，不能更新外观: ${game.status}`);
     }
     await setActorAppearance(tx, actor.id, appearance);
+    if (broadcast) {
+      // 外观已写库：观察者渲染取到的是新值。引用按观察者渲染，名字不会外泄。
+      await appendCustomStageObservation(
+        tx,
+        state.game.id,
+        stage.id,
+        actor.id,
+        (_observerId, address) => renderAppearanceChange(address(actor.id), appearance, stage.id),
+        options.trace,
+      );
+    }
     await bumpGameVersion(tx, state.game.id, now);
   });
 

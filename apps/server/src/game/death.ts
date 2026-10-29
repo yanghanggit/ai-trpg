@@ -121,6 +121,8 @@ async function runDeathPhase(
         try {
           const appearance = await runAppearanceTurn(db, gameId, actor.id, {
             service,
+            // 死亡已经广播过，尸体快照不再重复贴一条外观变化。
+            broadcast: false,
             ...(trace ? { trace } : {}),
           });
           if (!appearance.ok) {
@@ -332,6 +334,8 @@ export async function refreshAppearances(
     }
     const appearance = await runAppearanceTurn(db, gameId, row.id, {
       service,
+      // 批量维护是幂等重推，不往每个场景贴广播。
+      broadcast: false,
       ...(options.logger ? { logger: options.logger } : {}),
     });
     if (appearance.ok) {
