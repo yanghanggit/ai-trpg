@@ -26,4 +26,4 @@ system prompt 要求 agent：只使用工具返回的记忆与事件；综合不
 
 测试用脚本化 fake LLM 走完整工具链，断言不改变 game version、公共消息与 memory。
 
-→ 参见：[开发期 Agent 工作流](debug-workflow.md)、→ 参见：[Actor 行动与记忆](actor-actions-memory.md)
+→ 参见：[开发期 Agent 工作流](debug-workflow.md)、[Actor 行动与记忆](actor-actions-memory.md)

@@ -35,7 +35,7 @@ system prompt 只描述稳定的 `base_body`：外观一变就重写 prompt，�
 
 槽位只有 `weapon`、`armor`、`accessory` 三个，一个大类只对应一个槽位。
 
-→ 参见：[物品](items.md) → 参见：[数据库](database.md)
+→ 参见：[物品](items.md)、[数据库](database.md)
 
 ## 种子数据
 

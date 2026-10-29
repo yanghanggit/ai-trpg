@@ -20,4 +20,4 @@ world 目前没有自己的 memory 与 system prompt，因此暂不作为探针�
 
 `agent:game probe` 用 `--actor` 或 `--stage` 指定目标，`--message` 给问题；输出包含目标类型、目标名称、回答与 finish reason，不返回可变游戏状态。
 
-→ 参见：[开发期 Agent 工作流](debug-workflow.md) → 参见：[Stage 小 GM](stage.md) → 参见：[Actor 行动与记忆](actor-actions-memory.md)
+→ 参见：[开发期 Agent 工作流](debug-workflow.md)、[Stage 小 GM](stage.md)、[Actor 行动与记忆](actor-actions-memory.md)

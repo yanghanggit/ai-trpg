@@ -21,7 +21,7 @@ PostgreSQL 是游戏状态的唯一真相。`agent:game` 从数据库读取状�
 
 → 参见：[术语表](glossary.md)
 
-→ 参见：[物品](items.md) → 参见：[外观](appearance.md)
+→ 参见：[物品](items.md)、[外观](appearance.md)
 
 ## 回合与事务
 
@@ -29,7 +29,7 @@ actor、stage、world 三条链路共用同一个节奏：读状态与 memory �
 
 不可让渡的边界：LLM 调用不进事务；工具 handler 只暂存计划、不写游戏状态；落账前由服务层重新校验整份计划，任何一条失败就整份丢弃；只读旁路失败只告警，不回滚业务。
 
-→ 参见：[Actor 行动与记忆](actor-actions-memory.md)、→ 参见：[Stage 小 GM](stage.md)
+→ 参见：[Actor 行动与记忆](actor-actions-memory.md)、[Stage 小 GM](stage.md)
 
 ## 死亡阶段
 
@@ -57,7 +57,7 @@ actor、stage、world 三条链路共用同一个节奏：读状态与 memory �
 
 开场信息只存在于 stage 的 `environment` 与 actor 的 `openingBriefing`，建局不写开场消息；测试用独立的小型世界，不随演示剧本变化。
 
-→ 参见：[数据驱动目标](data-driven.md) → 参见：[bell-monastery.md](../apps/server/seeds/dark-fantasy/bell-monastery.md)
+→ 参见：[数据驱动目标](data-driven.md)、[bell-monastery.md](../apps/server/seeds/dark-fantasy/bell-monastery.md)
 
 ## 迁移与重置
 

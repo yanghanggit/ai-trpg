@@ -58,4 +58,4 @@ stage 回合与 actor 回合平行，但不共享 actor plan：读状态与 stag
 
 world 回合允许没有动作：显式提交空计划即表示本轮无世界级变更，与「没提交计划」相区分；模型不必为了走完流程编造通知。
 
-→ 参见：[Actor 行动与记忆](actor-actions-memory.md) → 参见：[Agent 探针](probe.md) → 参见：[开发期 Agent 工作流](debug-workflow.md)
+→ 参见：[Actor 行动与记忆](actor-actions-memory.md)、[Agent 探针](probe.md)、[开发期 Agent 工作流](debug-workflow.md)

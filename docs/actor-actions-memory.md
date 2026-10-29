@@ -107,7 +107,7 @@ compact 只能手动触发：在事务外调用 LLM，在完整 turn 边界落�
 
 目标不需要存活：规则全局只有一条——行动者自己必须活着，尸体可以被说话、挥击、肉搏、给予、使用与偷窃。这是给复活类玩法留的口子，没有第二套过滤。
 
-→ 参见：[物品](items.md) → 参见：[外观](appearance.md)
+→ 参见：[物品](items.md)、[外观](appearance.md)
 
 ## 事务边界
 
@@ -119,4 +119,4 @@ LLM 与 agent loop 在数据库事务外完成。行动应用层在短事务中�
 
 开发期快照导出完整状态、各 owner 的 memory（含 system prompt）与公共消息，供人工与 agent 观察；过程轨迹不进快照。快照是只读投影，不是状态源；正式环境不把私有 memory 暴露给客户端。
 
-→ 参见：[开发期 Agent 工作流](debug-workflow.md)、→ 参见：[LLM 基础组件](llm.md)
+→ 参见：[开发期 Agent 工作流](debug-workflow.md)、[LLM 基础组件](llm.md)

@@ -57,4 +57,4 @@ embedding 在 Node 内通过 Transformers.js 跑本地模型（模型与精度�
 
 正文自动分块、混合检索、rerank、知识库 HTTP API、建局时自动 ingest。知识条目由 seed 直接提供，默认是短事实；长文档分块与增量重建留到内容规模需要时再加。
 
-→ 参见：[数据库](database.md)、→ 参见：[Actor 行动与记忆](actor-actions-memory.md)
+→ 参见：[数据库](database.md)、[Actor 行动与记忆](actor-actions-memory.md)

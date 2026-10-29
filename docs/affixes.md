@@ -27,7 +27,7 @@
 
 场景记忆是上帝视角，可以带名字；如果将来要让目标“亲身感到”词缀后果，只能加 pull 机制（例如 actor 回合读取待处理事件），不能由仲裁 agent 直接写 actor 记忆。
 
-→ 参见：[Actor 记忆](actor-actions-memory.md) → 参见：[外观](appearance.md)
+→ 参见：[Actor 记忆](actor-actions-memory.md)、[外观](appearance.md)
 
 ## 约束
 

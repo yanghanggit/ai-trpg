@@ -29,7 +29,7 @@
 
 `item.effect` 是声明式可序列化效果，`strike` / `use` 只按 `type` 分派；物品还能声明 `actions`，把 `strike` 这类动作借给穿戴它的角色；stage 报告是报告、不是世界事实；world 不直接替 stage 写 environment，只下发 directive。
 
-→ 参见：[Actor 行动与记忆](actor-actions-memory.md)、→ 参见：[Stage 小 GM](stage.md)、[Seed 内容编写原则](seed-authoring.md)
+→ 参见：[Actor 行动与记忆](actor-actions-memory.md)、[Stage 小 GM](stage.md)、[Seed 内容编写原则](seed-authoring.md)
 
 ## 内容入口
 
@@ -37,7 +37,7 @@
 
 建局必须显式给内容来源，没有默认故事：内置 seed、外部内容包（与 seed 等价）或只给 world 文件（该世界没有公共知识）。外部内容先经 `parseContentPack` / `parseWorldContent` 校验才进入 `createGame`；知识库要另外显式 ingest，不随建局自动入库。
 
-→ 参见：[公共知识检索](rag.md)、→ 参见：[开发期 Agent 工作流](debug-workflow.md)
+→ 参见：[公共知识检索](rag.md)、[开发期 Agent 工作流](debug-workflow.md)
 
 ## 检查方法
 

@@ -36,4 +36,4 @@
 
 `agent:api` 是一次性进程：一次调用发一次 HTTP 请求，不缓存世界状态。stdout 始终是 JSON，日志与错误写 stderr，非 2xx 以非零退出码结束。当前命令是 `health`、`openapi` 与通用 `request`；服务端地址用 `--base` 或 `AGENT_API_BASE_URL`，token 用 `--token` 或 `AGENT_API_TOKEN`。它用于探索与边界试探，不替代 `app.inject()` 回归测试。
 
-→ 参见：[架构与契约](architecture.md)、→ 参见：[数据库](database.md)
+→ 参见：[架构与契约](architecture.md)、[数据库](database.md)
