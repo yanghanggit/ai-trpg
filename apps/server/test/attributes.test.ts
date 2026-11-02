@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { addStats, EMPTY_STATS, toStats } from "../src/game/attributes";
-import { formatBaseBody, resolveAppearance } from "../src/game/body";
+import { formatForm, isValidForm, resolveAppearance } from "../src/game/form";
 import { equippedSlotOf, toItemState } from "../src/game/items";
 
 const ROW = {
@@ -79,16 +79,19 @@ describe("equipment index", () => {
   });
 });
 
-describe("base body", () => {
-  const baseBody = { race: "人类", description: "皮肤灰白，关节干涩。" };
+describe("form", () => {
+  const form = formatForm("人类", "皮肤灰白，关节干涩。");
 
-  it("exports race plus the naked appearance snapshot", () => {
-    expect(formatBaseBody(baseBody)).toBe("[人类] 皮肤灰白，关节干涩。");
+  it("requires the [race]:description shape", () => {
+    expect(formatForm("人类", "皮肤灰白，关节干涩。")).toBe(form);
+    expect(isValidForm(form)).toBe(true);
+    expect(isValidForm("人类:皮肤灰白")).toBe(false);
+    expect(isValidForm("[人类] 皮肤灰白")).toBe(false);
   });
 
-  it("prefers explicit appearance and falls back to the body for animals", () => {
-    expect(resolveAppearance({ baseBody, appearance: "披着旧斗篷。" })).toBe("披着旧斗篷。");
-    expect(resolveAppearance({ baseBody, appearance: "  " })).toBe(baseBody.description);
-    expect(resolveAppearance({ baseBody })).toBe(baseBody.description);
+  it("prefers explicit appearance and falls back to the form", () => {
+    expect(resolveAppearance({ form, appearance: "披着旧斗篷。" })).toBe("披着旧斗篷。");
+    expect(resolveAppearance({ form, appearance: "  " })).toBe(form);
+    expect(resolveAppearance({ form })).toBe(form);
   });
 });

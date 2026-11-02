@@ -3,7 +3,6 @@ import { and, asc, eq, sql } from "drizzle-orm";
 import type { Database } from "../db/pool";
 import { agentMemories, agentMemoryMessages, type JsonValue } from "../db/schema";
 import type { ChatMessage, ToolCall } from "../llm/types";
-import { formatBaseBody } from "./body";
 import { MEMORY_KINDS } from "./constants";
 import type { Actor, AgentMemoryMessageState, AgentMemoryState, Stage, World } from "./types";
 
@@ -82,7 +81,7 @@ function toRow(memoryId: string, sequence: number, message: ChatMessage) {
 
 export function buildActorSystemPrompt(
   world: { id: string; name: string; campaignSetting: string; systemRules: string },
-  actor: Pick<Actor, "name" | "profile" | "baseBody">,
+  actor: Pick<Actor, "name" | "profile"> & { form: string },
 ): string {
   return `# ${actor.name}
 
@@ -96,9 +95,9 @@ ${world.campaignSetting}
 
 ${actor.profile}
 
-### 基础体型
+### 形态
 
-${formatBaseBody(actor.baseBody)}
+${actor.form}
 
 ## 全局规则
 
@@ -200,7 +199,7 @@ async function createMemory(
 export async function createActorMemory(
   executor: Executor,
   gameId: string,
-  actor: Pick<Actor, "name" | "profile" | "baseBody" | "openingBriefing"> & { id: string },
+  actor: Pick<Actor, "name" | "profile" | "openingBriefing"> & { id: string; form: string },
   systemPrompt: string,
 ): Promise<MemoryRow> {
   const memory = await createMemory(

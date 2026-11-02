@@ -6,7 +6,6 @@ import type { ToolDefinition } from "../llm/types";
 import { findActor, findActorWithStage } from "./actors";
 import { bumpGameVersion } from "./apply/messages";
 import { isAlive } from "./apply/queries";
-import { formatBaseBody } from "./body";
 import {
   DEFAULT_APPEARANCE_MAX_ROUNDS,
   DEFAULT_LLM_ERROR_RETRIES,
@@ -67,7 +66,7 @@ export function buildSubmitAppearanceTool(): ToolDefinition {
         properties: {
           appearance: {
             type: "string",
-            description: "融合基础体型、当前穿戴与自身润色后的第三人称外观快照",
+            description: "融合形态、当前穿戴与自身润色后的第三人称外观快照",
           },
         },
         required: ["appearance"],
@@ -113,7 +112,7 @@ export function buildAppearanceTurnInput(
   const task = dead
     ? `角色已经倒下（当前生命 0）。写一段尸体外观快照：姿势、伤口、血迹、衣物与装备的错位、周围的痕迹。
 记忆里若有可见的变化与痕迹，把它们写进尸体状态；仍不写动作、心理或后续，不把死亡写成原因，也不复述数值。`
-    : `结合你的记忆（伤势、血迹、灰尘、姿态、最近发生的事，以及记忆里出现的可见变化），把基础体型、当前穿戴与自身润色融合成一段第三人称外观快照。`;
+    : `结合你的记忆（伤势、血迹、灰尘、姿态、最近发生的事，以及记忆里出现的可见变化），把形态、当前穿戴与自身润色融合成一段第三人称外观快照。`;
 
   return `# 外观更新
 
@@ -125,9 +124,9 @@ export function buildAppearanceTurnInput(
 
 ${campaignSetting}
 
-## 基础体型
+## 形态
 
-${formatBaseBody(actor.baseBody)}
+${actor.signature.form}
 
 ## 当前穿戴
 
@@ -137,7 +136,7 @@ ${wornLines}
 
 ${task}
 
-只使用上面列出的穿戴；未列出的衣物、护甲与武器不存在，不要虚构。base body 没有写到的衣物视为没有穿上。不要改写种族与身体特征。
+只使用上面列出的穿戴；未列出的衣物、护甲与武器不存在，不要虚构。形态描述里没有写到的衣物视为没有穿上。不要改写种族与身体特征。
 
 穿戴不等于露出：只写从外面能看见的部分。被衣物、斗篷或绷带遮住的贴身物件与藏在衣兜里的东西不要提，也不为了提到它去改写衣着。
 

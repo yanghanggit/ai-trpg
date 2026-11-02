@@ -17,9 +17,9 @@ import {
 import { dumpSystemPrompts } from "../debug/prompt-dump";
 import type { Logger } from "../logging";
 import { toStats } from "./attributes";
-import { resolveAppearance } from "./body";
 import { assertEdgeShape } from "./edges";
 import { GameError } from "./errors";
+import { resolveAppearance } from "./form";
 import { toItemState } from "./items";
 import {
   buildActorSystemPrompt,
@@ -30,8 +30,8 @@ import {
   createWorldMemory,
 } from "./memory";
 import { allocateEntitySeq } from "./persistence/entity-seq";
-import { insertPresentation, listCurrentPresentations } from "./persistence/presentations";
 import { listRecognitions, upsertRecognition } from "./persistence/recognitions";
+import { insertSignature, listCurrentSignatures } from "./persistence/signatures";
 import type {
   ActorState,
   ConnectionState,
@@ -160,10 +160,10 @@ export async function getGameState(db: Database, ref: string): Promise<GameState
           .where(inArray(items.actorId, actorIds))
           .orderBy(asc(items.seq));
 
-  // 每个 actor 当前只有一条形象；运行时快照把展示值拍平到 appearance，
+  // 每个 actor 当前只有一条签名；运行时快照把展示值拍平到 appearance，
   // 这里只把句柄与识别需要的字段带出来。
-  const presentationRows = await listCurrentPresentations(db, actorIds);
-  const presentationByActor = new Map(presentationRows.map((row) => [row.actorId, row]));
+  const signatureRows = await listCurrentSignatures(db, actorIds);
+  const signatureByActor = new Map(signatureRows.map((row) => [row.actorId, row]));
 
   const stageItemRows =
     stageIds.length === 0
@@ -196,9 +196,9 @@ export async function getGameState(db: Database, ref: string): Promise<GameState
 
   const actorsByStage = new Map<string, ActorState[]>();
   for (const actor of actorRows) {
-    const presentation = presentationByActor.get(actor.id);
-    if (!presentation) {
-      throw new GameError("invalid_state", `actor 缺少形象: ${actor.name}`);
+    const signature = signatureByActor.get(actor.id);
+    if (!signature) {
+      throw new GameError("invalid_state", `actor 缺少签名: ${actor.name}`);
     }
     const list = actorsByStage.get(actor.stageId) ?? [];
     list.push({
@@ -207,14 +207,12 @@ export async function getGameState(db: Database, ref: string): Promise<GameState
       key: actor.key,
       name: actor.name,
       profile: actor.profile,
-      appearance: presentation.appearance,
-      presentation: {
-        id: presentation.id,
-        seq: presentation.seq,
-        anchor: presentation.anchor,
-        isDefault: presentation.isDefault,
+      appearance: signature.appearance,
+      signature: {
+        id: signature.id,
+        seq: signature.seq,
+        form: signature.form,
       },
-      baseBody: actor.baseBody,
       stats: actor.stats,
       hp: actor.hp,
       isDefaultPlayer: actor.isDefaultPlayer,
@@ -258,7 +256,7 @@ export async function getGameState(db: Database, ref: string): Promise<GameState
   const recognitionRows = await listRecognitions(db, game.id);
   const recognitions: RecognitionState[] = recognitionRows.map((row) => ({
     observerActorId: row.observerActorId,
-    presentationId: row.presentationId,
+    signatureId: row.signatureId,
     source: row.source,
     learnedStageId: row.learnedStageId,
   }));
@@ -477,7 +475,7 @@ export async function createGame(
       });
     }
 
-    const actorRefs = new Map<string, { actorId: string; presentationId: string }>();
+    const actorRefs = new Map<string, { actorId: string; signatureId: string }>();
     for (const actor of input.world.actors) {
       const actorStageId = stageIds.get(actor.stageKey);
       if (!actorStageId) {
@@ -495,7 +493,6 @@ export async function createGame(
         key: actor.key,
         name: actor.name,
         profile: actor.profile,
-        baseBody: actor.baseBody,
         stats,
         hp,
         isDefaultPlayer: actor.isDefaultPlayer ?? false,
@@ -503,17 +500,16 @@ export async function createGame(
         actions: [...actor.actions],
       });
 
-      // 开局只有一个默认形象：本相。伪装 / 变身之后才会插入新形象。
-      const presentationId = randomUUID();
-      await insertPresentation(tx, {
-        id: presentationId,
+      // 开局只有一个签名。伪装 / 变身之后才会插入新签名。
+      const signatureId = randomUUID();
+      await insertSignature(tx, {
+        id: signatureId,
         seq: await allocateEntitySeq(tx, gameId),
         actorId,
-        anchor: actor.baseBody.description,
-        appearance: resolveAppearance(actor),
-        isDefault: true,
+        form: actor.signature.form,
+        appearance: resolveAppearance(actor.signature),
       });
-      actorRefs.set(actor.key, { actorId, presentationId });
+      actorRefs.set(actor.key, { actorId, signatureId });
 
       for (const item of actor.items) {
         await tx.insert(items).values({
@@ -540,7 +536,7 @@ export async function createGame(
           campaignSetting: input.world.campaignSetting,
           systemRules: input.world.systemRules,
         },
-        actor,
+        { name: actor.name, profile: actor.profile, form: actor.signature.form },
       );
       actorPrompts.push({ name: actor.name, prompt: actorPrompt });
       await createActorMemory(
@@ -551,7 +547,7 @@ export async function createGame(
           name: actor.name,
           profile: actor.profile,
           openingBriefing: actor.openingBriefing,
-          baseBody: actor.baseBody,
+          form: actor.signature.form,
         },
         actorPrompt,
       );
@@ -563,7 +559,7 @@ export async function createGame(
       });
     }
 
-    // 开局既知的识别关系：观察者与对象都用内容 key 引用，落库时变成 actor / 形象 id。
+    // 开局既知的识别关系：观察者与对象都用内容 key 引用，落库时变成 actor / 签名 id。
     for (const identity of input.world.knownIdentities ?? []) {
       const observer = actorRefs.get(identity.observer);
       const subject = actorRefs.get(identity.subject);
@@ -590,7 +586,7 @@ export async function createGame(
         {
           gameId,
           observerActorId: observer.actorId,
-          presentationId: subject.presentationId,
+          signatureId: subject.signatureId,
           source: "content",
           learnedStageId: null,
         },

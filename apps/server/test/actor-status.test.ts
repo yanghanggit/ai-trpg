@@ -20,6 +20,7 @@ import {
   settleDeaths,
   takeActorControl,
 } from "../src/game";
+import { formatForm } from "../src/game/form";
 import { loadAgentMemory } from "../src/game/memory";
 import { claimDeath } from "../src/game/persistence/deaths";
 import { describeStats } from "../src/game/plan";
@@ -744,8 +745,10 @@ describe.skipIf(!testDatabaseUrl)("corpses can be operated on", () => {
           stageKey: "gate",
           name: "旁听者",
           profile: "一个缩在门廊阴影里的无关者。",
-          appearance: "只看得见一双贴在石墙后的眼睛。",
-          baseBody: { race: "人类", description: "瘦小，总把自己藏在阴影里。" },
+          signature: {
+            form: formatForm("人类", "瘦小，总把自己藏在阴影里。"),
+            appearance: "只看得见一双贴在石墙后的眼睛。",
+          },
           hp: 8,
           stats: { maxHp: 8, strength: 1, wisdom: 1, agility: 2, damage: 1, block: 1 },
           items: [],

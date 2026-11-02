@@ -1,3 +1,4 @@
+import { formatForm } from "../../src/game/form";
 import type { Script } from "../assemble";
 
 /** 剧本「枯钟修道院」：黑暗奇幻战役下的第一个故事切片。 */
@@ -106,8 +107,6 @@ export const BELL_MONASTERY: Script = {
       stageKey: "graveyard",
       key: "odric",
       name: "奥德里克",
-      appearance:
-        "旧呢斗篷上沾着石灰与新土，下摆结着一片洗不掉的暗褐血渍；背后斜靠一把磨亮的铁锹。",
       profile: `**历史**: 你是枯钟修道院的掘墓人与守门人，埋过这座墓园里最后一具完整的尸体。黑疖病最盛时，院长带着还能走的修士从北门离开，只留下你、一把钥匙和一口没人再敲的钟。
 院长离开前一夜，有人抬来一口刻满符文的棺材，要你把它架在乱葬坑的坑沿，压上薄土，不钉棺盖，也不许多问；那是你埋的最后一具完整的尸体。
 **性格**: 沉默、谨慎、守序。你不怕尸体，只怕有人把铁闸门打开；你不愿把钥匙交给来路不明的尸体。
@@ -118,10 +117,13 @@ export const BELL_MONASTERY: Script = {
 **最爱**: 钟楼的安静，那把钥匙在掌心里的重量。
 **秘密**: 铁闸门的钟形纹下刻着一句旧铭文：“灰烬之下，旧钟无名”。有人对你说出这句话，你会把他当成留下守钟的故人；若他索要钥匙并承诺不把病带出去，你会交出。`,
       openingBriefing: `你守着墓园与北面的铁闸门，不能让任何人打开它，也不能让黑疖病离开修道院。坑沿那口棺材是你亲手压的土，棺盖一直只盖着薄薄一层——若有人从那里爬出来，先看清来的是什么。钥匙在你身上；煤渣——你从焚尸房灰堆里捡回来的黑狗——就在附近，再决定是否让它动手。`,
-      baseBody: {
-        race: "人类",
-        description:
+      signature: {
+        form: formatForm(
+          "人类",
           "高瘦，肩背因常年掘墓而佝偻；手背结着土垢与旧疤，左眉断了一截，指甲缝里洗不净黑泥。",
+        ),
+        appearance:
+          "旧呢斗篷上沾着石灰与新土，下摆结着一片洗不掉的暗褐血渍；背后斜靠一把磨亮的铁锹。",
       },
       hp: 14,
       stats: { maxHp: 14, strength: 5, wisdom: 2, agility: 3, damage: 5, block: 2 },
@@ -186,10 +188,11 @@ export const BELL_MONASTERY: Script = {
 **禁忌**: 不许人靠近奥德里克身上那把钥匙。
 **最爱**: 奥德里克的腿边、干粮。`,
       openingBriefing: `奥德里克在墓园里。你守在他腿边，先对陌生人低吼、试探；如果他受伤或死亡，追着凶手不放。`,
-      baseBody: {
-        race: "犬",
-        description:
+      signature: {
+        form: formatForm(
+          "犬",
           "肋骨从短毛下顶出来，左耳缺了一角，毛色像烧过的灰；后腿留着一道旧咬伤，走路时微微跛。",
+        ),
       },
       hp: 10,
       stats: { maxHp: 10, strength: 7, wisdom: 1, agility: 7, damage: 7, block: 1 },
@@ -209,10 +212,11 @@ export const BELL_MONASTERY: Script = {
 **禁忌**: 不靠近正在流血或打斗的活物；也不碰不属于你的东西——除了那块霉面包。
 **最爱**: 那块发霉的面包。`,
       openingBriefing: `你在墓园里，先躲开活物的视线。你认得父王：他叫鼠王，但你平时只叫他父王。一旦觉得危险，就钻回地窖，叫醒他，让他来处理。`,
-      baseBody: {
-        race: "鼠",
-        description:
+      signature: {
+        form: formatForm(
+          "鼠",
           "只有巴掌大，浑身蓬松的灰毛，尾巴末端有一撮白毛，右前爪缺了一趾；眼睛始终盯着活物的手。",
+        ),
       },
       hp: 4,
       stats: { maxHp: 4, strength: 1, wisdom: 0, agility: 10, damage: 1, block: 0 },
@@ -224,8 +228,6 @@ export const BELL_MONASTERY: Script = {
       stageKey: "coffin",
       key: "nameless",
       name: "无名者",
-      appearance:
-        "身上裹着半幅发黄的裹尸布，布角拖过石灰；皮肤灰白，指甲缝里塞着干涸的黑蜡与棺木屑，锁骨上留着被锁链磨出的暗红旧痕；走路时关节会发出干涩的响声。",
       profile: `**历史**: 你在一口刻满符文的棺材里醒来，记忆残缺；只记得石灰、裹尸布、衣领下那截被鼠牙啃过的锁链，以及指甲缝里干涸的黑蜡。修士把黑疖病的死者倒进南坡的乱葬坑，从不用棺材下葬——你不记得自己为什么会在里面，也认不得棺壁上那些符文，只认得当中的钟形花纹。
 **性格**: 冷静、试探、目的明确；能谈判也能动手，必要时会偷。
 **说话习惯/口音**: 语速慢，句子短，常把“记得”与“不记得”挂在嘴边。
@@ -233,10 +235,13 @@ export const BELL_MONASTERY: Script = {
 **禁忌**: 你恨被当成一具无名的尸体，也恨再被锁住。
 **最爱**: 记起自己是谁。`,
       openingBriefing: `你在一口刻满符文的棺材里醒来，只记得石灰、裹尸布和颈上的断链。棺盖没有钉死，推开就能爬出去，坡上就是墓园。你要弄清自己是谁，找回残缺的记忆；先活着离开这里。`,
-      baseBody: {
-        race: "人类",
-        description:
+      signature: {
+        form: formatForm(
+          "人类",
           "皮肤灰白，关节干涩；锁骨与手腕上留着被锁链磨出的旧痕，指甲缝里塞着干涸的黑蜡与棺木屑，像刚从棺里被挖出来。",
+        ),
+        appearance:
+          "身上裹着半幅发黄的裹尸布，布角拖过石灰；皮肤灰白，指甲缝里塞着干涸的黑蜡与棺木屑，锁骨上留着被锁链磨出的暗红旧痕；走路时关节会发出干涩的响声。",
       },
       hp: 20,
       stats: { maxHp: 20, strength: 6, wisdom: 2, agility: 3, damage: 6, block: 2 },
@@ -302,10 +307,11 @@ export const BELL_MONASTERY: Script = {
 **禁忌**: 绝不允许非鼠类在你的地界上走动，更不允许它们伤害坏运气。
 **最爱**: 地窖、血食。`,
       openingBriefing: `你正沉睡在地窖：只要本场景出现任何说话、攻击或非等待行为——包括坏运气跑进来报信——你立刻苏醒；苏醒前你只能留在原地。苏醒后你是一头残暴的猎手：本场景内每一个非鼠类活物都必须被你杀死。本场景没有非鼠类活物时，你自行在修道院中搜索、追踪并杀死遇到的非鼠类活物，直到目标死亡、离开修道院，或你自己倒下。你绝不会伤害坏运气。`,
-      baseBody: {
-        race: "鼠",
-        description:
+      signature: {
+        form: formatForm(
+          "鼠",
           "灰黑的毛皮厚得能攥出一把，毛根里结着骨渣与旧血，尾巴比人的手臂还粗，左眼蒙着一层白翳；即便闭着眼，胡须也会随脚步声抽动。",
+        ),
       },
       hp: 120,
       stats: { maxHp: 120, strength: 60, wisdom: 100, agility: 8, damage: 60, block: 100 },
@@ -329,7 +335,7 @@ export const BELL_MONASTERY: Script = {
     { observer: "odric", subject: "cinder" },
     { observer: "odric", subject: "bad-luck" },
     { observer: "cinder", subject: "odric" },
-    // 幼崽认得父王这具形象，因此知道他的真名；「父王」只是它说话时的关系称谓。
+    // 幼崽认得父王这个签名，因此知道他的真名；「父王」只是它说话时的关系称谓。
     { observer: "bad-luck", subject: "rat-king" },
     { observer: "rat-king", subject: "bad-luck" },
   ],

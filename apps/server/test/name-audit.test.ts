@@ -58,8 +58,8 @@ function memory(
   };
 }
 
-const OBSERVER = { id: "a", name: "煤渣", currentPresentationId: "pa" };
-const SUBJECT = { id: "b", name: "奥德里克", currentPresentationId: "pb" };
+const OBSERVER = { id: "a", name: "煤渣", currentSignatureId: "pa" };
+const SUBJECT = { id: "b", name: "奥德里克", currentSignatureId: "pb" };
 
 function baseInput(
   messages: AgentMemoryMessageState[],
@@ -67,7 +67,7 @@ function baseInput(
 ): NameAuditInput {
   return {
     actors: [OBSERVER, SUBJECT],
-    presentations: [
+    signatures: [
       { id: "pa", actorId: "a" },
       { id: "pb", actorId: "b" },
     ],
@@ -106,7 +106,7 @@ describe("name audit", () => {
     const leaks = findNameLeaks(
       baseInput(
         [message("你看见奥德里克站在门口。")],
-        [{ observerActorId: "a", presentationId: "pb" }],
+        [{ observerActorId: "a", signatureId: "pb" }],
       ),
     );
     expect(leaks).toEqual([]);
@@ -120,8 +120,8 @@ describe("name audit", () => {
   it("supports content-level allowlist names", () => {
     const input = baseInput([message("一个无名者走过。")], []);
     input.actors = [
-      { id: "a", name: "煤渣", currentPresentationId: "pa" },
-      { id: "b", name: "无名者", currentPresentationId: "pb" },
+      { id: "a", name: "煤渣", currentSignatureId: "pa" },
+      { id: "b", name: "无名者", currentSignatureId: "pb" },
     ];
     expect(findNameLeaks(input, { allowNames: ["无名者"] })).toEqual([]);
   });
@@ -140,22 +140,22 @@ describe("name audit", () => {
     });
   });
 
-  it("separates ever-known from current-presentation recognition", () => {
+  it("separates ever-known from current-signature recognition", () => {
     const input: NameAuditInput = {
       actors: [
-        { id: "a", name: "煤渣", currentPresentationId: "pa" },
-        { id: "b", name: "奥德里克", currentPresentationId: "pb-new" },
+        { id: "a", name: "煤渣", currentSignatureId: "pa" },
+        { id: "b", name: "奥德里克", currentSignatureId: "pb-new" },
       ],
-      presentations: [
+      signatures: [
         { id: "pa", actorId: "a" },
         { id: "pb-old", actorId: "b" },
         { id: "pb-new", actorId: "b" },
       ],
-      recognitions: [{ observerActorId: "a", presentationId: "pb-old" }],
+      recognitions: [{ observerActorId: "a", signatureId: "pb-old" }],
       memories: [memory("a", "煤渣", [message("你想起奥德里克。")])],
     };
     expect(findNameLeaks(input)).toEqual([]);
-    expect(findNameLeaks(input, { recognitionScope: "currentPresentation" })[0]).toMatchObject({
+    expect(findNameLeaks(input, { recognitionScope: "currentSignature" })[0]).toMatchObject({
       matchedName: "奥德里克",
     });
   });
@@ -163,14 +163,14 @@ describe("name audit", () => {
   it("does not report a name the observer already recognizes", () => {
     const input: NameAuditInput = {
       actors: [
-        { id: "a", name: "甲", currentPresentationId: "pa" },
-        { id: "b", name: "乙", currentPresentationId: "pb" },
+        { id: "a", name: "甲", currentSignatureId: "pa" },
+        { id: "b", name: "乙", currentSignatureId: "pb" },
       ],
-      presentations: [
+      signatures: [
         { id: "pa", actorId: "a" },
         { id: "pb", actorId: "b" },
       ],
-      recognitions: [{ observerActorId: "a", presentationId: "pb" }],
+      recognitions: [{ observerActorId: "a", signatureId: "pb" }],
       memories: [memory("a", "甲", [message("乙走了过来。")])],
     };
     expect(findNameLeaks(input)).toEqual([]);

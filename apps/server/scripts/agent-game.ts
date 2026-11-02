@@ -665,7 +665,7 @@ async function main(): Promise<void> {
       throw new Error("name-leaks 需要 --game");
     }
     const scopeValue = typeof values.scope === "string" ? values.scope : "ever";
-    if (!["ever", "current", "currentPresentation"].includes(scopeValue)) {
+    if (!["ever", "current", "currentSignature", "currentPresentation"].includes(scopeValue)) {
       throw new Error("--scope 只接受 ever 或 current");
     }
     const allowRaw = typeof values.allow === "string" ? values.allow : "";
@@ -679,7 +679,7 @@ async function main(): Promise<void> {
     }
     const report = await withDatabase((db) =>
       auditGameNameLeaks(db, values.game as string, {
-        recognitionScope: scopeValue === "ever" ? "ever" : "currentPresentation",
+        recognitionScope: scopeValue === "ever" ? "ever" : "currentSignature",
         ...(values["include-system"] === true ? { skipKinds: [] } : {}),
         ...(allowNames.length > 0 ? { allowNames } : {}),
         ...(since === undefined ? {} : { since }),

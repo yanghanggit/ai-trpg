@@ -67,7 +67,7 @@ describe("world text guard", () => {
   });
 
   it("resolves a known actor's leftover handle to its name", () => {
-    const actor = { id: "a", name: "煤渣", presentation: { seq: 9 } };
+    const actor = { id: "a", name: "煤渣", signature: { seq: 9 } };
     const rendered = sanitizeActorFacingText("煤渣守在#9 身旁。", [actor], ADDRESS(true));
     // 名字与旧句柄都换成观察者视角的引用。
     expect(rendered).toBe("@煤渣守在@煤渣 身旁。");

@@ -5,7 +5,6 @@ import type { ChatCompletionService } from "../llm/protocol";
 import type { ToolDefinition } from "../llm/types";
 import { findActor } from "./actors";
 import { bumpGameVersion } from "./apply/messages";
-import { formatBaseBody } from "./body";
 import { buildCampaignSettingBlock, type CampaignContextWorld } from "./campaign-context";
 import {
   DEFAULT_DROP_MAX_ROUNDS,
@@ -156,9 +155,9 @@ ${actor.name}刚刚死亡。
 
 ${campaign}
 
-## 种族与裸体形态
+## 形态
 
-${formatBaseBody(actor.baseBody)}
+${actor.signature.form}
 
 ## 尸体外观
 

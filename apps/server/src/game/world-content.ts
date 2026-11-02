@@ -5,6 +5,7 @@ import {
   MAX_STAGE_ANCHOR_LABEL_LENGTH,
   MAX_STAGE_ANCHORS,
 } from "./constants";
+import { isValidForm } from "./form";
 import { findTextLeaks } from "./text-guard";
 import type { StageActionKind, World, WorldActionKind } from "./types";
 
@@ -135,11 +136,12 @@ const actorSchema = z.object({
   name: z.string().min(1),
   profile: z.string(),
   openingBriefing: z.string().optional(),
-  appearance: z.string().optional(),
   equipment: equipmentSchema.optional(),
-  baseBody: z.object({
-    race: z.string().min(1),
-    description: z.string(),
+  signature: z.object({
+    /** 稳定形态，统一写成 `[种族]:描述`；它是识别与外观推理的输入。 */
+    form: z.string().refine(isValidForm, "form 必须写成 [种族]:描述"),
+    /** 预制外观快照；省略时回退到 form。 */
+    appearance: z.string().optional(),
   }),
   stats: statsSchema,
   hp: z.number().optional(),

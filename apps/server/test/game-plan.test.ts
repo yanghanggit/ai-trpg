@@ -13,6 +13,7 @@ import { buildUnequipTool, parseUnequip } from "../src/game/actions/unequip";
 import { buildUseTool, parseUse, usableItemNames } from "../src/game/actions/use";
 import { buildWaitTool, parseWait } from "../src/game/actions/wait";
 import { buildWhisperTool, parseWhisper } from "../src/game/actions/whisper";
+import { formatForm } from "../src/game/form";
 import { toItemState } from "../src/game/items";
 import {
   describeEquipment,
@@ -246,13 +247,11 @@ describe("read-only descriptions", () => {
       name: "守烬人",
       profile: "拾荒者",
       appearance: "披着旧斗篷。",
-      presentation: {
-        id: "presentation-1",
+      signature: {
+        id: "signature-1",
         seq: 2,
-        anchor: "瘦削，手腕有旧绳痕。",
-        isDefault: true,
+        form: formatForm("人类", "瘦削，手腕有旧绳痕。"),
       },
-      baseBody: { race: "人类", description: "瘦削，手腕有旧绳痕。" },
       hp: 12,
       stats: { maxHp: 12, strength: 3, wisdom: 2, agility: 4, damage: 3, block: 2 },
       isDefaultPlayer: false,

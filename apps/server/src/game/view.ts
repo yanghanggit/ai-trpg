@@ -17,12 +17,12 @@ import type { RecognitionState } from "./types";
 
 export type ViewerAddress = {
   actorId: string;
-  presentationId: string;
+  signatureId: string;
   /** 引用，例如 `#3`；客户端可以直接拿它提交行动。 */
   token: string;
   /** 观察者视角下的名单写法：`真名（此刻的样子）` 或只有外观。 */
   label: string;
-  /** 是否认得这具形象；认得即知道真名。 */
+  /** 是否认得这个签名；认得即知道真名。 */
   known: boolean;
   self: boolean;
   alive: boolean;
@@ -54,13 +54,13 @@ export type ActorView = {
   };
   viewer: {
     actorId: string;
-    presentationId: string;
+    signatureId: string;
     /** 自己的本名；自知不查识别表。 */
     name: string;
     appearance: string;
   };
   scene: ViewerScene | null;
-  /** 这个观察者认得的形象；其它观察者的识别关系不出现。 */
+  /** 这个观察者认得的签名；其它观察者的识别关系不出现。 */
   recognitions: RecognitionState[];
   /** 这个角色实际感知到的记忆，按发生顺序。 */
   log: ViewerLogEntry[];
@@ -104,7 +104,7 @@ export async function getActorView(
     const entry = address(candidate.id);
     return {
       actorId: candidate.id,
-      presentationId: candidate.presentation.id,
+      signatureId: candidate.signature.id,
       token: entry.token,
       label: entry.label,
       known: entry.known,
@@ -153,7 +153,7 @@ export async function getActorView(
     },
     viewer: {
       actorId: actor.id,
-      presentationId: actor.presentation.id,
+      signatureId: actor.signature.id,
       name: actor.name,
       appearance: actor.appearance,
     },

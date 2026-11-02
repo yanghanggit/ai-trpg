@@ -24,12 +24,10 @@ import { parseSay } from "../src/game/actions/say";
 import { parseWhisper } from "../src/game/actions/whisper";
 import { addressLookupFor, handleOf } from "../src/game/addressing";
 import { findActorInStage } from "../src/game/apply/queries";
+import { formatForm } from "../src/game/form";
 import { buildActorTurnInput } from "../src/game/npc";
 import { allocateEntitySeq } from "../src/game/persistence/entity-seq";
-import {
-  insertPresentation,
-  switchCurrentPresentation,
-} from "../src/game/persistence/presentations";
+import { insertSignature, switchCurrentSignature } from "../src/game/persistence/signatures";
 import { parseRecognizeIdentity } from "../src/game/plan";
 import { ChatCompletionResult, type ChatCompletionService } from "../src/llm";
 import { allowAllDialogue } from "./test-dialogue-judge";
@@ -104,11 +102,10 @@ describe.skipIf(!testDatabaseUrl)("names and addresses", () => {
     const actors = state.world.stages.flatMap((stage) => stage.actors);
     const badLuck = actors.find((actor) => actor.name === "坏运气");
     const ratKing = actors.find((actor) => actor.name === "鼠王");
-    // 幼崽认得父王这具形象，因此知道真名；「父王」不进入识别表。
+    // 幼崽认得父王这个签名，因此知道真名；「父王」不进入识别表。
     expect(
       state.recognitions.some(
-        (row) =>
-          row.observerActorId === badLuck?.id && row.presentationId === ratKing?.presentation.id,
+        (row) => row.observerActorId === badLuck?.id && row.signatureId === ratKing?.signature.id,
       ),
     ).toBe(true);
   });
@@ -176,7 +173,7 @@ describe.skipIf(!testDatabaseUrl)("names and addresses", () => {
     if (!unknown) {
       throw new Error("缺少无名者");
     }
-    expect(observation).toContain(handleOf(unknown.presentation.seq));
+    expect(observation).toContain(handleOf(unknown.signature.seq));
     // 名单里还有编号时，提示词提醒可以记名字。
     expect(observation).toContain("用 recognize_identity 记下");
   });
@@ -199,7 +196,7 @@ describe.skipIf(!testDatabaseUrl)("names and addresses", () => {
     if (!stage || !nameless || !odric) {
       throw new Error("墓园缺少夹具");
     }
-    const namelessHandle = handleOf(nameless.presentation.seq);
+    const namelessHandle = handleOf(nameless.signature.seq);
 
     // 绕过写入守卫直写：模拟建局或历史数据里的裸名字与句柄。
     await handle.db
@@ -233,7 +230,7 @@ describe.skipIf(!testDatabaseUrl)("names and addresses", () => {
     });
     const { actor } = await actorByName(created.game.slug, handle, "无名者");
 
-    const service = new RecognizeService(handleOf(actor.presentation.seq));
+    const service = new RecognizeService(handleOf(actor.signature.seq));
     const turn = await runNpcTurn(handle.db, created.game.slug, "奥德里克", { service });
     expect(turn.ok).toBe(true);
     expect(turn.loopSuccess).toBe(true);
@@ -246,8 +243,7 @@ describe.skipIf(!testDatabaseUrl)("names and addresses", () => {
       .flatMap((stage) => stage.actors)
       .find((candidate) => candidate.name === "无名者");
     const recognition = after.recognitions.find(
-      (row) =>
-        row.observerActorId === odric?.id && row.presentationId === nameless?.presentation.id,
+      (row) => row.observerActorId === odric?.id && row.signatureId === nameless?.signature.id,
     );
     expect(recognition?.source).toBe("self");
 
@@ -282,7 +278,7 @@ describe.skipIf(!testDatabaseUrl)("names and addresses", () => {
     }
 
     // 鼠王在地窖，奥德里克在墓园：没看见也可以认出，只给告警。
-    const service = new RecognizeService(handleOf(ratKing.presentation.seq), "鼠王");
+    const service = new RecognizeService(handleOf(ratKing.signature.seq), "鼠王");
     const turn = await runNpcTurn(handle.db, created.game.slug, "奥德里克", { service });
     expect(turn.ok).toBe(true);
     expect((turn.identityWarnings ?? []).map((warning) => warning.code)).toContain("unseen_handle");
@@ -293,8 +289,7 @@ describe.skipIf(!testDatabaseUrl)("names and addresses", () => {
       .find((candidate) => candidate.name === "奥德里克");
     expect(
       after.recognitions.some(
-        (row) =>
-          row.observerActorId === odric?.id && row.presentationId === ratKing.presentation.id,
+        (row) => row.observerActorId === odric?.id && row.signatureId === ratKing.signature.id,
       ),
     ).toBe(true);
   });
@@ -332,16 +327,15 @@ describe.skipIf(!testDatabaseUrl)("names and addresses", () => {
       .find((candidate) => candidate.name === "奥德里克");
     expect(
       after.recognitions.find(
-        (row) =>
-          row.observerActorId === nameless?.id && row.presentationId === odric?.presentation.id,
+        (row) => row.observerActorId === nameless?.id && row.signatureId === odric?.signature.id,
       ),
     ).toMatchObject({ source: "self" });
   });
 
-  it("stops recognizing a known person after a presentation change, and restores on switch back", async () => {
+  it("stops recognizing a known person after a signature change, and restores on switch back", async () => {
     const created = await createGame(handle.db, {
       username: DEMO_USER.username,
-      name: "形象切换识别测试局",
+      name: "签名切换识别测试局",
       world: BELL_MONASTERY_WORLD,
     });
     const { actor: odric } = await actorByName(created.game.slug, handle, "奥德里克");
@@ -349,16 +343,15 @@ describe.skipIf(!testDatabaseUrl)("names and addresses", () => {
     let maskedId = "";
     await handle.db.transaction(async (tx) => {
       maskedId = randomUUID();
-      await insertPresentation(tx, {
+      await insertSignature(tx, {
         id: maskedId,
         seq: await allocateEntitySeq(tx, created.game.id),
         actorId: odric.id,
-        anchor: "蒙着面，只露出眼睛",
+        form: formatForm("人类", "蒙着面，只露出眼睛"),
         appearance: "一个蒙面人，斗篷把身形盖得严严实实。",
-        isDefault: false,
         endedAt: new Date(),
       });
-      await switchCurrentPresentation(tx, odric.id, maskedId, new Date());
+      await switchCurrentSignature(tx, odric.id, maskedId, new Date());
     });
 
     const masked = await getGameState(handle.db, created.game.slug);
@@ -376,7 +369,7 @@ describe.skipIf(!testDatabaseUrl)("names and addresses", () => {
     expect(maskedView).toContain("一个蒙面人");
 
     await handle.db.transaction(async (tx) => {
-      await switchCurrentPresentation(tx, odric.id, odric.presentation.id, new Date());
+      await switchCurrentSignature(tx, odric.id, odric.signature.id, new Date());
     });
     const restored = await getGameState(handle.db, created.game.slug);
     const cinderBack = restored.world.stages
@@ -409,7 +402,7 @@ describe.skipIf(!testDatabaseUrl)("names and addresses", () => {
     }
 
     // 三种寻址方式都成立：稳定 id、名字、引用。
-    for (const ref of [monk.id, monk.name, handleOf(monk.presentation.seq)]) {
+    for (const ref of [monk.id, monk.name, handleOf(monk.signature.seq)]) {
       const said = await playerSay(
         handle.db,
         created.game.slug,
@@ -464,10 +457,10 @@ describe.skipIf(!testDatabaseUrl)("names and addresses", () => {
     const plan: ActorPlan = {
       actions: [],
       identities: [
-        { handle: handleOf(odric.presentation.seq), name: "奥德里克" },
-        { handle: handleOf(cinder.presentation.seq), name: "煤渣" },
-        { handle: handleOf(ratKing.presentation.seq), name: "鼠王" },
-        { handle: handleOf(odric.presentation.seq), name: "奥德里克" },
+        { handle: handleOf(odric.signature.seq), name: "奥德里克" },
+        { handle: handleOf(cinder.signature.seq), name: "煤渣" },
+        { handle: handleOf(ratKing.signature.seq), name: "鼠王" },
+        { handle: handleOf(odric.signature.seq), name: "奥德里克" },
       ],
     };
     const before = await getGameState(handle.db, created.game.slug);
@@ -484,7 +477,7 @@ describe.skipIf(!testDatabaseUrl)("names and addresses", () => {
     const recognitions = after.recognitions.filter((row) => row.observerActorId === nameless.id);
     expect(recognitions).toHaveLength(3);
     expect(recognitions.every((row) => row.source === "self")).toBe(true);
-    expect(recognitions.find((row) => row.presentationId === odric.presentation.id)).toBeDefined();
+    expect(recognitions.find((row) => row.signatureId === odric.signature.id)).toBeDefined();
 
     // 只有认知更新的计划不产生公共事件。
     expect(after.messages).toEqual([]);

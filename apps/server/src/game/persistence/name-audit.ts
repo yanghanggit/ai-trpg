@@ -1,6 +1,6 @@
 import { inArray } from "drizzle-orm";
 import type { Database } from "../../db/pool";
-import { actorPresentations } from "../../db/schema";
+import { actorSignatures } from "../../db/schema";
 import { getGameMemories } from "../memory";
 import type { NameAuditActor, NameAuditInput } from "../name-audit";
 import { getGameState } from "../service";
@@ -14,7 +14,7 @@ export async function loadNameAuditInput(db: Database, gameId: string): Promise<
     stage.actors.map((actor) => ({
       id: actor.id,
       name: actor.name,
-      currentPresentationId: actor.presentation.id,
+      currentSignatureId: actor.signature.id,
     })),
   );
   const actorIds = actors.map((actor) => actor.id);
@@ -22,26 +22,26 @@ export async function loadNameAuditInput(db: Database, gameId: string): Promise<
     actorIds.length === 0
       ? []
       : await db
-          .select({ id: actorPresentations.id, actorId: actorPresentations.actorId })
-          .from(actorPresentations)
-          .where(inArray(actorPresentations.actorId, actorIds));
-  const presentations = new Map(rows.map((row) => [row.id, row]));
+          .select({ id: actorSignatures.id, actorId: actorSignatures.actorId })
+          .from(actorSignatures)
+          .where(inArray(actorSignatures.actorId, actorIds));
+  const signatures = new Map(rows.map((row) => [row.id, row]));
   for (const actor of actors) {
-    presentations.set(actor.currentPresentationId, {
-      id: actor.currentPresentationId,
+    signatures.set(actor.currentSignatureId, {
+      id: actor.currentSignatureId,
       actorId: actor.id,
     });
   }
   const recognitions = (await listRecognitions(db, resolvedGameId)).map((row) => ({
     observerActorId: row.observerActorId,
-    presentationId: row.presentationId,
+    signatureId: row.signatureId,
   }));
   const memories = (await getGameMemories(db, resolvedGameId)).filter(
     (memory) => memory.ownerType === "actor",
   );
   return {
     actors,
-    presentations: [...presentations.values()],
+    signatures: [...signatures.values()],
     recognitions,
     memories,
   };

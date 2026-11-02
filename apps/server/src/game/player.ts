@@ -29,7 +29,7 @@ function findActorByRef(state: GameState, ref: string): ActorState {
     .flatMap((stage) => stage.actors)
     .find(
       (candidate) =>
-        (Number.isInteger(seq) && candidate.presentation.seq === seq) ||
+        (Number.isInteger(seq) && candidate.signature.seq === seq) ||
         (name.length > 0 && candidate.name === name),
     );
   if (!actor) {
@@ -387,9 +387,7 @@ export async function playerRecognizeIdentity(
   const target = findActorByRef(state, input.targetActorRef);
   const plan: ActorPlan = {
     actions: [],
-    identities: [
-      { handle: handleOf(target.presentation.seq), name: parseIdentityName(input.name) },
-    ],
+    identities: [{ handle: handleOf(target.signature.seq), name: parseIdentityName(input.name) }],
   };
   return applyPlayerPlan(db, gameRef, actorRef, plan);
 }

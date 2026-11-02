@@ -103,14 +103,14 @@ export type ActorFacingOptions = {
 };
 
 /**
- * 脱敏所需的角色最小投影：id 与名字；句柄解析额外需要当前形象的序号。
+ * 脱敏所需的角色最小投影：id 与名字；句柄解析额外需要当前签名的序号。
  *
- * `presentation` 省略时只做名字替换，不解析残留句柄（反馈路径本来就不解析）。
+ * `signature` 省略时只做名字替换，不解析残留句柄（反馈路径本来就不解析）。
  */
 export type SanitizableActor = {
   id: string;
   name: string;
-  presentation?: { seq: number };
+  signature?: { seq: number };
 };
 
 /**
@@ -137,9 +137,9 @@ export function sanitizeActorFacingText(
   // 已知名字的角色 token 是 @名字，但旧文本里可能还留着它的 #序号。
   const byHandle = new Map(
     entries.flatMap((entry) =>
-      entry.actor.presentation === undefined
+      entry.actor.signature === undefined
         ? []
-        : [[handleOf(entry.actor.presentation.seq), entry] as const],
+        : [[handleOf(entry.actor.signature.seq), entry] as const],
     ),
   );
   const appearances: string[] = [];

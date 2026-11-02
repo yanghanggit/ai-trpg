@@ -172,7 +172,7 @@ describe.skipIf(!testDatabaseUrl)("appearance fusion", () => {
         and(
           eq(actorRecognitions.gameId, created.game.id),
           eq(actorRecognitions.observerActorId, cinder.id),
-          eq(actorRecognitions.presentationId, odric.presentation.id),
+          eq(actorRecognitions.signatureId, odric.signature.id),
         ),
       );
 
@@ -182,7 +182,7 @@ describe.skipIf(!testDatabaseUrl)("appearance fusion", () => {
     const memories = await getGameMemories(handle.db, created.game.id);
     const latest = memories.find((memory) => memory.name === "煤渣")?.messages.at(-1);
     expect(latest?.content).toContain("斗篷下摆结着新泥，手背全是湿土。");
-    expect(latest?.content).toContain(`#${odric.presentation.seq}的可见外观变了`);
+    expect(latest?.content).toContain(`#${odric.signature.seq}的可见外观变了`);
     expect(latest?.content).not.toContain("奥德里克");
   });
 });

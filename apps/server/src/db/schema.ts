@@ -1,6 +1,7 @@
 import { sql } from "drizzle-orm";
 import {
   boolean,
+  check,
   index,
   integer,
   jsonb,
@@ -16,7 +17,6 @@ import type { Stats } from "../game/attributes";
 import type {
   ActionKind,
   Affix,
-  BaseBody,
   DialogueActionKind,
   DialogueCategory,
   EquipmentSlots,
@@ -178,7 +178,6 @@ export const actors = pgTable("actors", {
   key: text("key").notNull(),
   name: text("name").notNull(),
   profile: text("profile").notNull(),
-  baseBody: jsonb("base_body").$type<BaseBody>().notNull(),
   stats: jsonb("stats").$type<Stats>().notNull(),
   /** 当前生命；与 stats 分开存，扣血只写这一列。`hp === 0` 即死亡，没有单独的死亡状态。 */
   hp: integer("hp").notNull(),
@@ -216,14 +215,15 @@ export const stageVisits = pgTable(
 );
 
 /**
- * 一个 actor 可被看见的「形象」（presentation）。
+ * 一个 actor 可被看见的「签名」（signature）。
  *
- * `appearance` 属于形象而不是躯壳：换装只改当前形象，身份不变；伪装 / 变身会开一条
- * 新的形象并把旧的 `ended_at` 封上，所以认识旧形象的人看到新形象时认不出他。
- * 同一 actor 同时最多一条 `ended_at is null` 的形象。
+ * 签名是观察者识别的单位：`form` 是稳定的形态描述（`[种族]:描述`），`appearance` 是此刻
+ * 合成的样子。换装、受伤、死亡只改 `appearance`；伪装 / 变身会开一条新签名并把旧的
+ * `ended_at` 封上，所以认识旧签名的人看到新签名时认不出他。同一 actor 同时最多一条
+ * `ended_at is null` 的签名。
  */
-export const actorPresentations = pgTable(
-  "actor_presentations",
+export const actorSignatures = pgTable(
+  "actor_signatures",
   {
     id: uuid("id").primaryKey(),
     /** 本局内唯一的排序号；观察者句柄由它派生。 */
@@ -231,29 +231,31 @@ export const actorPresentations = pgTable(
     actorId: uuid("actor_id")
       .notNull()
       .references(() => actors.id, { onDelete: "cascade" }),
-    /** 稳定的识别特征（断眉、缺耳、跛足）；换装不会改写它。 */
-    anchor: text("anchor").notNull(),
-    /** 此刻别人看到的样子。 */
+    /** 稳定的形态描述，必须写成 `[种族]:描述`；换装不会改写它。 */
+    form: text("form").notNull(),
+    /** 此刻别人看到的样子；由形态、穿戴与伤势合成。 */
     appearance: text("appearance").notNull(),
-    /** 是否为该 actor 的本相；伪装 / 变身产生的形象为 false。 */
-    isDefault: boolean("is_default").notNull().default(true),
-    /** 形象退场时间；null 表示当前正在使用。 */
+    /** 签名退场时间；null 表示当前正在使用。 */
     endedAt: timestamp("ended_at", { withTimezone: true }),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (table) => [
-    index("actor_presentations_actor_idx").on(table.actorId),
-    uniqueIndex("actor_presentations_current_unique")
+    index("actor_signatures_actor_idx").on(table.actorId),
+    uniqueIndex("actor_signatures_current_unique")
       .on(table.actorId)
       .where(sql`${table.endedAt} is null`),
+    check(
+      "actor_signatures_form_format",
+      sql`${table.form} ~ '^\\[[^\\]\\r\\n]+\\]:\\S[^\\r\\n]*$'`,
+    ),
   ],
 );
 
 /**
- * 识别关系：观察者是否认得某个形象。
+ * 识别关系：观察者是否认得某个签名。
  *
- * 键是「观察者 × 形象」而不是「观察者 × actor」：伪装 / 变身会换形象，认识旧形象的人
- * 不会自动认出新形象。认得即知道对象的真名，不存称呼。
+ * 键是「观察者 × 签名」而不是「观察者 × actor」：伪装 / 变身会换签名，认识旧签名的人
+ * 不会自动认出新签名。认得即知道对象的真名，不存称呼。
  */
 export const actorRecognitions = pgTable(
   "actor_recognitions",
@@ -265,9 +267,9 @@ export const actorRecognitions = pgTable(
     observerActorId: uuid("observer_actor_id")
       .notNull()
       .references(() => actors.id, { onDelete: "cascade" }),
-    presentationId: uuid("presentation_id")
+    signatureId: uuid("signature_id")
       .notNull()
-      .references(() => actorPresentations.id, { onDelete: "cascade" }),
+      .references(() => actorSignatures.id, { onDelete: "cascade" }),
     /** `content`：开局既知；`self`：角色自己在回合里记下的。 */
     source: text("source").notNull().default("self"),
     /** 在哪里得知的；只用于审计。 */
@@ -278,9 +280,9 @@ export const actorRecognitions = pgTable(
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (table) => [
-    uniqueIndex("actor_recognitions_observer_presentation_unique").on(
+    uniqueIndex("actor_recognitions_observer_signature_unique").on(
       table.observerActorId,
-      table.presentationId,
+      table.signatureId,
     ),
     index("actor_recognitions_game_observer_idx").on(table.gameId, table.observerActorId),
   ],
@@ -531,7 +533,7 @@ export const schema = {
   stageConnections,
   actors,
   stageVisits,
-  actorPresentations,
+  actorSignatures,
   actorRecognitions,
   items,
   stageItems,

@@ -64,20 +64,20 @@ async function writeObservations(
   const recognitionRows = await listRecognitions(executor, gameId);
   // 主体表：场景内每个角色当前的可见外观；认识与否按观察者各自过滤。
   const subjects = new Map<string, AddressSubject>(
-    views.map(({ actor, presentation }) => [
+    views.map(({ actor, signature }) => [
       actor.id,
       {
         actorId: actor.id,
         name: actor.name,
-        presentationId: presentation.id,
-        presentationSeq: presentation.seq,
-        appearance: presentation.appearance,
+        signatureId: signature.id,
+        signatureSeq: signature.seq,
+        appearance: signature.appearance,
       },
     ]),
   );
   const recipients: { actorId: string; actorName: string; content: string }[] = [];
   let kind = "unknown";
-  for (const { actor: observer, presentation } of views) {
+  for (const { actor: observer, signature } of views) {
     if (observer.id === spec.excludeActorId || !sees(observer, spec.audience)) {
       continue;
     }
@@ -88,7 +88,7 @@ async function writeObservations(
     const recognized = new Set(
       recognitionRows
         .filter((row) => row.observerActorId === observer.id)
-        .map((row) => row.presentationId),
+        .map((row) => row.signatureId),
     );
     const base = makeAddressLookup(recognized, subjects);
     const address: AddressLookup = (actorId) =>
@@ -97,7 +97,7 @@ async function writeObservations(
             token: `@${observer.name}`,
             label: "你自己",
             mention: "你",
-            appearance: presentation.appearance,
+            appearance: signature.appearance,
             known: true,
             isSelf: true,
           }

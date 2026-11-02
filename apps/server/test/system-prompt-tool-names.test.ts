@@ -37,7 +37,7 @@ function systemPrompts(world: World): { name: string; prompt: string }[] {
       name: `actor:${actor.name}`,
       prompt: buildActorSystemPrompt(
         { ...campaign, id: "00000000-0000-4000-8000-000000000000" },
-        actor,
+        { name: actor.name, profile: actor.profile, form: actor.signature.form },
       ),
     })),
     // openingBriefing 不是 system prompt，但同样是内容注入的固定文本。

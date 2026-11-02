@@ -58,14 +58,14 @@ export function buildAffixPrompt(input: {
   defaultFeedback: string;
   terminalToolName: string;
   targetName?: string;
-  targetRace?: string;
+  targetForm?: string;
   targetAppearance?: string;
   targetHp?: string;
   targetBlock?: number;
   stageName: string;
 }): string {
   const targetFacts = [
-    input.targetRace ? `种族：${input.targetRace}` : "",
+    input.targetForm ? `形态：${input.targetForm}` : "",
     input.targetAppearance ? `外观：${input.targetAppearance}` : "",
     input.targetBlock !== undefined ? `block：${input.targetBlock}` : "",
     input.targetHp ? `HP：${input.targetHp}` : "",
@@ -250,8 +250,8 @@ async function evaluateAffix(
       ...(target
         ? {
             targetName: target.name,
-            targetRace: target.baseBody.race,
-            targetAppearance: target.baseBody.description,
+            targetForm: target.signature.form,
+            targetAppearance: target.appearance,
           }
         : {}),
       ...(target ? { targetBlock: target.stats.block } : {}),

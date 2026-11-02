@@ -29,7 +29,7 @@ const WORLD = {
 const ACTOR = {
   name: "守烬人",
   appearance: "斗篷边缘被烧焦，脸上覆着一层洗不净的灰。",
-  baseBody: TEST_WORLD.actors[0]?.baseBody,
+  signature: { id: "signature-1", seq: 1, form: TEST_WORLD.actors[0]?.signature.form },
 } as unknown as ActorState;
 
 const STAGE = {
@@ -104,7 +104,9 @@ describe("runtime agents carry the campaign setting", () => {
     }
     const world = { id: "world-1", ...WORLD, systemRules: TEST_WORLD.systemRules };
 
-    expect(buildActorSystemPrompt(world, actor)).toContain(TEST_WORLD.campaignSetting);
+    expect(buildActorSystemPrompt(world, { ...actor, form: actor.signature.form })).toContain(
+      TEST_WORLD.campaignSetting,
+    );
     expect(buildStageSystemPrompt(world, stage)).toContain(TEST_WORLD.campaignSetting);
     expect(
       buildWorldSystemPrompt({

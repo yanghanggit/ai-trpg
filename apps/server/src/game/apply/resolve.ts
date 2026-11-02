@@ -103,7 +103,7 @@ export async function resolvePlan(
     }
   }
 
-  // 认知更新不设条数上限：每个编号都必须是世界内已存在的形象，天然被世界规模约束；
+  // 认知更新不设条数上限：每个编号都必须是世界内已存在的签名，天然被世界规模约束；
   // 同一个编号在一份计划里重复出现时，后一次覆盖前一次，避免重复写记忆。
   const bindings = new Map(
     (plan.identities ?? []).map((binding) => [binding.handle, binding] as const),
@@ -122,7 +122,7 @@ export async function resolvePlan(
       handle: binding.handle,
       name: binding.name,
       actorId: view.actor.id,
-      presentationId: view.presentation.id,
+      signatureId: view.signature.id,
       stageId: view.actor.stageId,
     });
   }

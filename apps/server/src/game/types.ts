@@ -5,11 +5,6 @@ import type { MemoryKind } from "./constants";
 export type MessageVisibility = "stage" | "private";
 
 /** 初始裸体形态：种族 + 外观描述；不含衣物与装备。 */
-export type BaseBody = {
-  race: string;
-  description: string;
-};
-
 /** 物品大类；每个大类对应一个运行时子类。 */
 export type ItemKind =
   | "weapon"
@@ -72,7 +67,7 @@ export type World = {
 /**
  * 开局时就已建立的识别关系。
  *
- * 只声明「认识」：认得这具形象就等于知道对方的真名，不声明称呼。
+ * 只声明「认识」：认得这个签名就等于知道对方的真名，不声明称呼。
  */
 export type KnownIdentity = {
   observer: string;
@@ -120,7 +115,8 @@ export type Connection = {
 /**
  * World 内的初始 actor 定义。
  *
- * `baseBody` 是未穿装备的形态，之后与装备融合成 appearance。
+ * `signature` 是它开局时的形态与外观；`form` 必须写成 `[种族]:描述`，
+ * 之后与装备、伤势一起渲染成 appearance。
  */
 export type Actor = {
   /**
@@ -136,11 +132,13 @@ export type Actor = {
    * 可以承载目标、任务、处境、约束与初始知识，不要求是目标列表。
    */
   openingBriefing?: string;
-  /** 当前可见外观（含衣着/装备）；省略时回退到 baseBody.description。 */
-  appearance?: string;
+  /** 开局签名：稳定形态 + 预制外观快照；外观省略时回退到 `form`。 */
+  signature: {
+    form: string;
+    appearance?: string;
+  };
   /** 初始穿戴：槽位 → 物品名；物品本身不记录穿戴状态。 */
   equipment?: EquipmentSlots;
-  baseBody: BaseBody;
   /**
    * 完整属性；`maxHp` / `strength` / `wisdom` / `agility` / `damage` / `block` 全部显式写出。
    * 结算只读 `maxHp` / `damage` / `block`；力量 / 智慧 / 敏捷是保留属性，暂无读取点。
@@ -424,19 +422,17 @@ export type ItemState =
   | MaterialState;
 
 /**
- * actor 当前可被看见的形象。
+ * actor 当前可被看见的签名。
  *
  * 状态快照里只保留寻址与识别需要的字段：展示值由 `ActorState.appearance` 携带，
  * 避免同一个字符串在快照里存两份。
  */
-export type PresentationState = {
+export type SignatureState = {
   id: string;
-  /** 本局内唯一的排序号；观察者句柄由它派生（`@<seq>`）。 */
+  /** 本局内唯一的排序号；观察者句柄由它派生（`#<seq>`）。 */
   seq: number;
-  /** 稳定的识别特征；换装不改写它。 */
-  anchor: string;
-  /** 是否为该 actor 的本相；伪装 / 变身产生的形象为 false。 */
-  isDefault: boolean;
+  /** 稳定形态，`[种族]:描述`；换装不改写它。 */
+  form: string;
 };
 
 export type ActorState = {
@@ -447,11 +443,10 @@ export type ActorState = {
   key: string;
   name: string;
   profile: string;
-  /** 当前形象的展示值（换装后由外观推理重写）。 */
+  /** 当前签名的展示值（换装后由外观推理重写）。 */
   appearance: string;
-  /** 当前正在使用的形象；观察者编号与识别关系都以它为单位。 */
-  presentation: PresentationState;
-  baseBody: BaseBody;
+  /** 当前正在使用的签名；观察者编号与识别关系都以它为单位。 */
+  signature: SignatureState;
   stats: Stats;
   /** 当前生命；扣血只写这个字段，不再重写整块属性。`hp === 0` 即死亡。 */
   hp: number;
@@ -611,10 +606,10 @@ export type IdentityWarning = {
   detail: string;
 };
 
-/** 一条识别关系：观察者认识哪个形象；认识即知道真名，不存称呼。 */
+/** 一条识别关系：观察者认识哪个签名；认识即知道真名，不存称呼。 */
 export type RecognitionState = {
   observerActorId: string;
-  presentationId: string;
+  signatureId: string;
   source: string;
   learnedStageId: string | null;
 };

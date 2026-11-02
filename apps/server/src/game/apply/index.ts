@@ -325,7 +325,7 @@ export async function applyActorPlan(
         {
           gameId,
           observerActorId: actorRow.actor.id,
-          presentationId: identity.presentationId,
+          signatureId: identity.signatureId,
           source: "self",
           learnedStageId: actorRow.stage.id,
         },

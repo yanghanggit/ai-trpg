@@ -1,7 +1,7 @@
 import { and, eq, isNull } from "drizzle-orm";
 import {
-  actorPresentations,
   actorRecognitions,
+  actorSignatures,
   actors,
   items,
   stageConnections,
@@ -17,28 +17,28 @@ import type { ActorRow, Executor, ItemRow, StageItemRow, StageRow, WorldRow } fr
 
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
-export type PresentationRow = typeof actorPresentations.$inferSelect;
-export type ActorViewRow = { actor: ActorRow; presentation: PresentationRow };
+export type SignatureRow = typeof actorSignatures.$inferSelect;
+export type ActorViewRow = { actor: ActorRow; signature: SignatureRow };
 
-/** 当前形象的读取条件：同一 actor 至多一条未结束的形象。 */
-function currentPresentation(actorIdColumn: typeof actors.id) {
-  return and(eq(actorPresentations.actorId, actorIdColumn), isNull(actorPresentations.endedAt));
+/** 当前签名的读取条件：同一 actor 至多一条未结束的签名。 */
+function currentSignature(actorIdColumn: typeof actors.id) {
+  return and(eq(actorSignatures.actorId, actorIdColumn), isNull(actorSignatures.endedAt));
 }
 
-/** 本场景全部角色及其当前形象。 */
+/** 本场景全部角色及其当前签名。 */
 export async function listStageActorViews(
   executor: Executor,
   stageId: string,
 ): Promise<ActorViewRow[]> {
   return executor
-    .select({ actor: actors, presentation: actorPresentations })
+    .select({ actor: actors, signature: actorSignatures })
     .from(actors)
-    .innerJoin(actorPresentations, currentPresentation(actors.id))
+    .innerJoin(actorSignatures, currentSignature(actors.id))
     .where(eq(actors.stageId, stageId))
     .orderBy(actors.seq);
 }
 
-/** 按匿名编号（`#<形象序号>`）在本场景内定位角色。 */
+/** 按匿名编号（`#<签名序号>`）在本场景内定位角色。 */
 export async function findActorViewByHandleInStage(
   executor: Executor,
   stageId: string,
@@ -49,14 +49,14 @@ export async function findActorViewByHandleInStage(
     return undefined;
   }
   const [row] = await executor
-    .select({ actor: actors, presentation: actorPresentations })
-    .from(actorPresentations)
-    .innerJoin(actors, eq(actorPresentations.actorId, actors.id))
+    .select({ actor: actors, signature: actorSignatures })
+    .from(actorSignatures)
+    .innerJoin(actors, eq(actorSignatures.actorId, actors.id))
     .where(
       and(
         eq(actors.stageId, stageId),
-        eq(actorPresentations.seq, seq),
-        isNull(actorPresentations.endedAt),
+        eq(actorSignatures.seq, seq),
+        isNull(actorSignatures.endedAt),
       ),
     )
     .limit(2);
@@ -74,17 +74,13 @@ export async function findActorViewByHandleInWorld(
     return undefined;
   }
   const [row] = await executor
-    .select({ actor: actors, presentation: actorPresentations })
-    .from(actorPresentations)
-    .innerJoin(actors, eq(actorPresentations.actorId, actors.id))
+    .select({ actor: actors, signature: actorSignatures })
+    .from(actorSignatures)
+    .innerJoin(actors, eq(actorSignatures.actorId, actors.id))
     .innerJoin(stages, eq(actors.stageId, stages.id))
     .innerJoin(worlds, eq(stages.worldId, worlds.id))
     .where(
-      and(
-        eq(worlds.id, worldId),
-        eq(actorPresentations.seq, seq),
-        isNull(actorPresentations.endedAt),
-      ),
+      and(eq(worlds.id, worldId), eq(actorSignatures.seq, seq), isNull(actorSignatures.endedAt)),
     )
     .limit(2);
   return row;
@@ -102,8 +98,8 @@ export async function listActorNamesInWorld(
     .where(eq(stages.worldId, worldId));
 }
 
-/** 观察者认得的形象：认得即知道真名。 */
-export async function recognizedPresentationsFor(
+/** 观察者认得的签名：认得即知道真名。 */
+export async function recognizedSignaturesFor(
   executor: Executor,
   gameId: string,
   observerActorId: string,
@@ -117,7 +113,7 @@ export async function recognizedPresentationsFor(
         eq(actorRecognitions.observerActorId, observerActorId),
       ),
     );
-  return new Set(rows.map((row) => row.presentationId));
+  return new Set(rows.map((row) => row.signatureId));
 }
 
 /**
@@ -132,18 +128,18 @@ export async function stageAddressLookup(
   stageId: string,
 ): Promise<AddressLookup> {
   const views = await listStageActorViews(executor, stageId);
-  const recognized = await recognizedPresentationsFor(executor, gameId, observerId);
+  const recognized = await recognizedSignaturesFor(executor, gameId, observerId);
   const base = makeAddressLookup(
     recognized,
     new Map(
-      views.map(({ actor, presentation }) => [
+      views.map(({ actor, signature }) => [
         actor.id,
         {
           actorId: actor.id,
           name: actor.name,
-          presentationId: presentation.id,
-          presentationSeq: presentation.seq,
-          appearance: presentation.appearance,
+          signatureId: signature.id,
+          signatureSeq: signature.seq,
+          appearance: signature.appearance,
         },
       ]),
     ),
@@ -155,7 +151,7 @@ export async function stageAddressLookup(
         token: `@${self.actor.name}`,
         label: "你自己",
         mention: "你",
-        appearance: self.presentation.appearance,
+        appearance: self.signature.appearance,
         known: true,
         isSelf: true,
       };

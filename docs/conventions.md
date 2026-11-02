@@ -51,6 +51,6 @@ Markdown 由 `markdownlint-cli2` 检查，行宽规则 `MD013` 关闭，避免�
 
 ## 数据库
 
-表与列 snake_case，API 与 TypeScript 内部字段 camelCase，只在数据库边界转换。迁移是唯一建表路径：schema 在服务端代码里，SQL 由 Drizzle Kit 生成并入库；开发期不做旧数据搬运，改形状后直接重置重刷。
+表与列 snake_case，API 与 TypeScript 内部字段 camelCase，只在数据库边界转换。迁移是唯一建表路径：schema 在服务端代码里，SQL 由 Drizzle Kit 生成并入库；开发期不做旧数据搬运，改形状后直接重置重刷，当前只保留一个 baseline。
 
 → 参见：[数据库](database.md)

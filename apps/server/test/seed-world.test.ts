@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { BELL_MONASTERY_KNOWLEDGE, BELL_MONASTERY_WORLD } from "../seeds/dark-fantasy";
-import { resolveAppearance } from "../src/game/body";
+import { resolveAppearance } from "../src/game/form";
 import { buildWorldSystemPrompt } from "../src/game/memory";
 import { parseWorldContent } from "../src/game/world-content";
 
@@ -82,7 +82,7 @@ describe("dark fantasy seed world", () => {
       key: "gate-key",
       kind: "valuable",
     });
-    expect(keeper?.baseBody.race).toBe("人类");
+    expect(keeper?.signature.form.startsWith("[人类]:")).toBe(true);
     expect(keeper?.hp).toBe(14);
     const defaultPlayers = BELL_MONASTERY_WORLD.actors
       .filter((actor) => actor.isDefaultPlayer)
@@ -94,7 +94,7 @@ describe("dark fantasy seed world", () => {
       kind: "valuable",
       effect: { type: "event" },
     });
-    expect(king?.baseBody.race).toBe("鼠");
+    expect(king?.signature.form.startsWith("[鼠]:")).toBe(true);
     expect(king?.hp).toBeGreaterThan(keeper?.hp ?? 0);
     expect(king?.stats.damage).toBeGreaterThan(20);
     expect(king?.stats.block).toBeGreaterThan(king?.stats.damage ?? 0);
@@ -103,21 +103,21 @@ describe("dark fantasy seed world", () => {
     expect(king?.openingBriefing).toContain("苏醒前你只能留在原地");
   });
 
-  it("keeps human appearance clothed and lets animals fall back to base body", () => {
+  it("keeps human appearance clothed and lets animals fall back to the form", () => {
     const keeper = BELL_MONASTERY_WORLD.actors.find((actor) => actor.name === "奥德里克");
     const king = BELL_MONASTERY_WORLD.actors.find((actor) => actor.name === "鼠王");
     if (!king) {
       throw new Error("缺少鼠王");
     }
-    expect(keeper?.appearance).toContain("斗篷");
-    expect(king.appearance).toBeUndefined();
-    expect(resolveAppearance(king)).toBe(king.baseBody.description);
+    expect(keeper?.signature.appearance).toContain("斗篷");
+    expect(king.signature.appearance).toBeUndefined();
+    expect(resolveAppearance(king.signature)).toBe(king.signature.form);
   });
 
   it("encodes the plague backstory in the world text", () => {
     expect(stage("coffin").environment).toContain("石灰");
     const player = BELL_MONASTERY_WORLD.actors.find((actor) => actor.isDefaultPlayer);
-    expect(player?.appearance).toContain("裹尸布");
+    expect(player?.signature.appearance).toContain("裹尸布");
     expect(stage("coffin").profile).toContain("黑疖病");
     expect(stage("crematorium").profile).toContain("黑疖病");
     const keeper = BELL_MONASTERY_WORLD.actors.find((actor) => actor.name === "奥德里克");

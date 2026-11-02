@@ -1,7 +1,7 @@
 import { and, eq } from "drizzle-orm";
 import { actors, stages, worlds } from "../../db/schema";
 import type { ActorRow, ActorWithStageRow, Executor } from "../apply/types";
-import { setPresentationAppearance } from "./presentations";
+import { setSignatureAppearance } from "./signatures";
 
 /**
  * actor 的持久化原语（读与写）。
@@ -92,13 +92,13 @@ export async function moveActorToStage(
   await executor.update(actors).set({ stageId, updatedAt: now }).where(eq(actors.id, actorId));
 }
 
-/** 写当前形象的展示值；`actors` 不再持有外观。 */
+/** 写当前签名的展示值；`actors` 不再持有外观。 */
 export async function setActorAppearance(
   executor: Executor,
   actorId: string,
   appearance: string,
 ): Promise<void> {
-  await setPresentationAppearance(executor, actorId, appearance);
+  await setSignatureAppearance(executor, actorId, appearance);
 }
 
 export type DamageOutcome =

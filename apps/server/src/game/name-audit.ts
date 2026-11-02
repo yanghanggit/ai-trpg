@@ -9,7 +9,7 @@ import type { AgentMemoryMessageState, AgentMemoryState, CommunicationKind } fro
  * actor 记忆的名字泄漏审计。
  *
  * 只读：不写游戏状态，不调用 LLM。真名来自 `actors.name`，观察者的识别关系来自
- * `actor_recognitions`（观察者 × 形象），记忆来自 actor 的 `agent_memory_messages`。
+ * `actor_recognitions`（观察者 × 签名），记忆来自 actor 的 `agent_memory_messages`。
  * stage / world 自己的记忆是上帝视角，允许写名字，不在扫描范围。
  *
  * 默认跳过 system prompt：campaignSetting / profile 是内容层设定，可能刻意使用
@@ -32,30 +32,30 @@ const RUNTIME_LOOKBACK_MS = 2000;
 export type NameAuditActor = {
   id: string;
   name: string;
-  /** 当前形象的 id；`currentPresentation` 模式用它判断“现在认不认识”。 */
-  currentPresentationId: string;
+  /** 当前签名的 id；`currentSignature` 模式用它判断“现在认不认识”。 */
+  currentSignatureId: string;
 };
 
-export type NameAuditPresentation = {
+export type NameAuditSignature = {
   id: string;
   actorId: string;
 };
 
 export type NameAuditRecognition = {
   observerActorId: string;
-  presentationId: string;
+  signatureId: string;
 };
 
 export type NameAuditInput = {
   actors: readonly NameAuditActor[];
-  /** 包含已退场的形象；`ever` 模式靠它把旧识别关系归回 actor。 */
-  presentations: readonly NameAuditPresentation[];
+  /** 包含已退场的签名；`ever` 模式靠它把旧识别关系归回 actor。 */
+  signatures: readonly NameAuditSignature[];
   recognitions: readonly NameAuditRecognition[];
   /** 只消费 `ownerType === "actor"` 的记忆。 */
   memories: readonly AgentMemoryState[];
 };
 
-export type NameLeakScope = "ever" | "currentPresentation";
+export type NameLeakScope = "ever" | "currentSignature";
 export type NameLeakSeverity = "high" | "medium" | "low";
 export type NameLeakForm = "reference" | "bare";
 export type NameLeakPart = "content" | "tool_calls";
@@ -63,7 +63,7 @@ export type NameLeakPart = "content" | "tool_calls";
 export type NameLeakOptions = {
   /**
    * `ever`（默认）：观察者曾经认得这个 actor 就不报，历史记忆不会被误伤。
-   * `currentPresentation`：只认当前形象，适合检查伪装 / 变身后的识别泄漏。
+   * `currentSignature`：只认当前签名，适合检查伪装 / 变身后的识别泄漏。
    */
   recognitionScope?: NameLeakScope;
   /** 跳过的记忆类别；默认跳过 actor system prompt。 */
@@ -201,14 +201,14 @@ function subjectGroups(input: {
   observerId: string;
   recognitions: readonly NameAuditRecognition[];
   recognitionScope: NameLeakScope;
-  presentationActor: ReadonlyMap<string, string>;
+  signatureActor: ReadonlyMap<string, string>;
   allowNames: ReadonlySet<string>;
 }): SubjectGroup[] {
   const known = (subject: NameAuditActor): boolean =>
     input.recognitions.some((row) =>
-      input.recognitionScope === "currentPresentation"
-        ? row.presentationId === subject.currentPresentationId
-        : input.presentationActor.get(row.presentationId) === subject.id,
+      input.recognitionScope === "currentSignature"
+        ? row.signatureId === subject.currentSignatureId
+        : input.signatureActor.get(row.signatureId) === subject.id,
     );
 
   const byName = new Map<string, NameAuditActor[]>();
@@ -263,8 +263,8 @@ export function findNameAudit(
   const includeToolCalls = options.includeToolCalls !== false;
   const sinceMs = options.since === undefined ? undefined : new Date(options.since).getTime();
 
-  const presentationActor = new Map(
-    input.presentations.map((presentation) => [presentation.id, presentation.actorId]),
+  const signatureActor = new Map(
+    input.signatures.map((signature) => [signature.id, signature.actorId]),
   );
   const recognitionsByObserver = new Map<string, NameAuditRecognition[]>();
   for (const row of input.recognitions) {
@@ -294,7 +294,7 @@ export function findNameAudit(
       observerId: observer.id,
       recognitions: recognitionsByObserver.get(observer.id) ?? [],
       recognitionScope,
-      presentationActor,
+      signatureActor,
       allowNames,
     });
 
