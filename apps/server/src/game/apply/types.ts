@@ -3,6 +3,7 @@ import type { actors, items, stageItems, stages, worlds } from "../../db/schema"
 import type {
   AnnounceAction,
   BrawlAction,
+  CallAction,
   EquipAction,
   GiveAction,
   MessageVisibility,
@@ -66,6 +67,15 @@ export type ResolvedAnnounce = {
   kind: "announce";
   action: AnnounceAction;
   stage: StageRow;
+};
+
+/** 跨场景传音：source stage 与 target stage 分开保存，目标必须不在 source stage。 */
+export type ResolvedCall = {
+  kind: "call";
+  action: CallAction;
+  stage: StageRow;
+  target: ActorRow;
+  targetStage: StageRow;
 };
 
 export type ResolvedMove = {
@@ -155,6 +165,7 @@ export type ResolvedAction =
   | ResolvedSay
   | ResolvedWhisper
   | ResolvedAnnounce
+  | ResolvedCall
   | ResolvedMove
   | ResolvedTeleport
   | ResolvedWait

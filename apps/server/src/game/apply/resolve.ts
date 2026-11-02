@@ -1,5 +1,6 @@
 import { allowedActionKinds, assertActionAllowed } from "../actions";
 import { resolveBrawl } from "../actions/brawl";
+import { resolveCall } from "../actions/call";
 import { resolveEquip } from "../actions/equip";
 import { resolveGive } from "../actions/give";
 import { resolveMove } from "../actions/move";
@@ -81,6 +82,9 @@ export async function resolvePlan(
       case "announce":
         assertNoSystemReference(action.message);
         resolved.push({ kind: "announce", action, stage });
+        break;
+      case "call":
+        resolved.push(await resolveCall(executor, world, stage, actorRow.actor.id, action));
         break;
       case "move": {
         const move = await resolveMove(executor, world, stage, action);

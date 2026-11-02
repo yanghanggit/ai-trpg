@@ -8,6 +8,7 @@ import type {
   ActorAction,
   ActorState,
   AnnounceAction,
+  CallAction,
   DialogueActionKind,
   DialogueCategory,
   DialogueFailureKind,
@@ -217,8 +218,13 @@ const DEFAULT_DIALOGUE_JUDGE = createDeepSeekDialogueJudge(DEEPSEEK_SERVICE);
 
 export function isDialogueAction(
   action: ActorAction,
-): action is SayAction | WhisperAction | AnnounceAction {
-  return action.kind === "say" || action.kind === "whisper" || action.kind === "announce";
+): action is SayAction | WhisperAction | AnnounceAction | CallAction {
+  return (
+    action.kind === "say" ||
+    action.kind === "whisper" ||
+    action.kind === "announce" ||
+    action.kind === "call"
+  );
 }
 
 /**
@@ -317,7 +323,7 @@ export function dialogueContextFor(
   state: GameState,
   actor: ActorState,
   stageName: string,
-  action: SayAction | WhisperAction | AnnounceAction,
+  action: SayAction | WhisperAction | AnnounceAction | CallAction,
   targetActorId?: string | null,
 ): DialogueContext {
   return {

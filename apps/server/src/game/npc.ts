@@ -15,6 +15,7 @@ import {
 import { ACTION_SUMMARIES, allowedActionKinds } from "./actions";
 import { buildAnnounceTool, parseAnnounce } from "./actions/announce";
 import { buildBrawlTool, parseBrawl } from "./actions/brawl";
+import { buildCallTool, parseCall } from "./actions/call";
 import { buildEquipTool, parseEquip } from "./actions/equip";
 import { buildGiveTool, parseGive } from "./actions/give";
 import { buildMoveTool, parseMove } from "./actions/move";
@@ -268,6 +269,7 @@ export async function runNpcTurn(
     say: buildSayTool(targets),
     whisper: buildWhisperTool(targets),
     announce: buildAnnounceTool(),
+    call: buildCallTool(),
     move: buildMoveTool(stageNames.map((name) => `@${name}`)),
     teleport: buildTeleportTool(teleportTargets.map((name) => `@${name}`)),
     wait: buildWaitTool(),
@@ -289,6 +291,7 @@ export async function runNpcTurn(
     say: parseSay,
     whisper: parseWhisper,
     announce: parseAnnounce,
+    call: parseCall,
     move: parseMove,
     teleport: parseTeleport,
     wait: () => parseWait(),

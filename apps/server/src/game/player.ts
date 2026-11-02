@@ -1,5 +1,6 @@
 import type { Database } from "../db/pool";
 import { createTurnTrace, traceEvent } from "../debug/trace";
+import { parseCall } from "./actions/call";
 import { findActorByName, findActorBySignatureSeq } from "./actors";
 import { addressLookupFor, handleOf } from "./addressing";
 import { type ApplyActorPlanOptions, applyActorPlan } from "./apply";
@@ -95,7 +96,11 @@ async function applyPlayerPlan(
   const dialogue = plan.actions.find(isDialogueAction);
   if (dialogue) {
     const target =
-      dialogue.kind === "announce" ? null : findActorByRef(state, dialogue.targetActorHandle);
+      dialogue.kind === "announce"
+        ? null
+        : dialogue.kind === "call"
+          ? findActorByName(state, dialogue.targetActorName).actor
+          : findActorByRef(state, dialogue.targetActorHandle);
     const audit = await auditPlayerDialogue(
       db,
       dialogueContextFor(state, actor, stage?.name ?? "", dialogue, target?.id ?? null),
@@ -176,6 +181,13 @@ export type PlayerTalkInput = {
 /** 同 `PlayerTalkInput`：`reason` 只属于 agent / CLI 接管，不属于 web 客户端。 */
 export type PlayerAnnounceInput = {
   message: string;
+  reason?: string;
+};
+
+/** 跨场景传音；`targetActorName` 必须是真名，不接受引用或 id。 */
+export type PlayerCallInput = {
+  message: string;
+  targetActorName: string;
   reason?: string;
 };
 
@@ -275,6 +287,21 @@ export async function playerAnnounce(
     mind: playerMind(input.reason),
     message: input.message,
   };
+  return applyPlayerAction(db, gameRef, actorRef, action, options);
+}
+
+export async function playerCall(
+  db: Database,
+  gameRef: string,
+  actorRef: string,
+  input: PlayerCallInput,
+  options: ApplyActorPlanOptions = {},
+): Promise<ActorTurnResult> {
+  const action = parseCall({
+    mind: playerMind(input.reason),
+    targetActorName: input.targetActorName,
+    message: input.message,
+  });
   return applyPlayerAction(db, gameRef, actorRef, action, options);
 }
 

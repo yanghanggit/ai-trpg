@@ -264,8 +264,17 @@ export type AnnounceAction = {
   message: string;
 };
 
-/** 玩家对话审核只覆盖三类说话动作。 */
-export type DialogueActionKind = "say" | "whisper" | "announce";
+/** 用目标真名跨场景传话；双方都要有 call 能力，目标必须不在当前场景，只有目标听见。 */
+export type CallAction = {
+  kind: "call";
+  mind: string;
+  /** 目标的真名；不接收 @名字、#编号 或 id。 */
+  targetActorName: string;
+  message: string;
+};
+
+/** 玩家对话审核覆盖四种说话动作；call 也按台词审核。 */
+export type DialogueActionKind = "say" | "whisper" | "announce" | "call";
 
 /** 审核拒绝的类别；允许时为空。 */
 export type DialogueCategory = "immersion_break" | "out_of_world" | "prohibited" | "other";
@@ -349,11 +358,12 @@ export type UnequipAction = {
   slot: EquipmentSlot;
 };
 
-/** 一次 actor 行动；十二个具体动作平级，不再有中间分类层。 */
+/** 一次 actor 行动；十五个具体动作平级，不再有中间分类层。 */
 export type ActorAction =
   | SayAction
   | WhisperAction
   | AnnounceAction
+  | CallAction
   | MoveAction
   | TeleportAction
   | WaitAction
@@ -369,10 +379,10 @@ export type ActorAction =
 export type ActionKind = ActorAction["kind"];
 
 /**
- * 三个沟通动作；观察与提示词按这组区分「对谁说话、谁能听见」。
+ * 四个沟通动作；观察与提示词按这组区分「对谁说话、谁能听见」。
  * 从 `ActorAction` 派生，新增沟通动作时不会和动作清单脱钩。
  */
-export type CommunicationKind = Extract<ActionKind, "say" | "whisper" | "announce">;
+export type CommunicationKind = Extract<ActionKind, "say" | "whisper" | "announce" | "call">;
 
 /** 会改变物品归属或使用状态的四个动作；物品观察按这组分叉文本。 */
 export type ItemEventKind = Extract<ActionKind, "steal" | "give" | "pickup" | "use">;
@@ -578,7 +588,7 @@ export type ObservationMetadata = {
   kind: MemoryKind;
   /** 原始事件的可见范围；沟通观察会写，供快照阅读。 */
   visibility?: MessageVisibility;
-  /** 沟通观察的具体事件类型：say / whisper / announce。 */
+  /** 沟通观察的具体事件类型：say / whisper / announce / call。 */
   communicationKind?: CommunicationKind;
   /** 沟通观察里真正说出口的台词；供审计定位，渲染时仍以 content 为准。 */
   dialogue?: string;

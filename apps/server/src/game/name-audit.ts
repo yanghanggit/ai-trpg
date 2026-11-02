@@ -91,7 +91,7 @@ export type NameLeak = {
   subjectActorIds: string[];
   severity: NameLeakSeverity;
   form: NameLeakForm;
-  /** 沟通观察的事件类型；只有 say / whisper / announce 才有。 */
+  /** 沟通观察的事件类型；say / whisper / announce / call 才有。 */
   communicationKind: CommunicationKind | null;
   /** 命中位置是否落在该沟通观察结构化的 dialogue 字段内。 */
   inDialogue: boolean;
@@ -154,9 +154,11 @@ function metadataKind(message: AgentMemoryMessageState): string | null {
   return typeof kind === "string" ? kind : null;
 }
 
-/** 只接受台词事件的三种类型；其余值视为结构错误，不做猜测。 */
+/** 只接受已知的台词事件类型；其余值视为结构错误，不做猜测。 */
 function asCommunicationKind(value: unknown): CommunicationKind | null {
-  return value === "say" || value === "whisper" || value === "announce" ? value : null;
+  return value === "say" || value === "whisper" || value === "announce" || value === "call"
+    ? value
+    : null;
 }
 
 function dialogueOf(metadata: Record<string, unknown> | null): string | null {

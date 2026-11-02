@@ -6,6 +6,7 @@ import type { ChatCompletionService } from "../../llm/protocol";
 import type { Logger } from "../../logging";
 import { applyAnnounce } from "../actions/announce";
 import { applyBrawl } from "../actions/brawl";
+import { applyCall } from "../actions/call";
 import { applyEquip } from "../actions/equip";
 import { applyGive } from "../actions/give";
 import { applyMove } from "../actions/move";
@@ -47,6 +48,7 @@ function dialogueFeedbackMetadata(action: ResolvedAction): {
     case "say":
     case "whisper":
     case "announce":
+    case "call":
       return { communicationKind: action.kind, dialogue: action.action.message };
     default:
       return {};
@@ -70,6 +72,8 @@ async function applyResolvedAction(
       return applyWhisper(executor, gameId, actorRow, resolved, now, address, trace);
     case "announce":
       return applyAnnounce(executor, gameId, actorRow, resolved, now, trace);
+    case "call":
+      return applyCall(executor, gameId, resolved, now, trace);
     case "move":
       return applyMove(executor, gameId, actorRow, resolved, now, trace);
     case "teleport":

@@ -254,6 +254,34 @@ export async function appendSelfObservation(
 }
 
 /**
+ * 向单个 actor 写一条已经渲染好的观察。
+ *
+ * 跨场景传音的目标不在来源场景里，不能走场景 broadcaster；调用方负责按目标视角
+ * 渲染引用与内容，这里只做 owner 定位、落账与轨迹。
+ */
+export async function appendDirectObservation(
+  executor: Executor,
+  gameId: string,
+  stageId: string,
+  actorId: string,
+  view: ObservationView,
+  trace?: TraceContext,
+): Promise<void> {
+  const memory = await loadAgentMemory(executor, gameId, "actor", actorId);
+  if (!memory) {
+    return;
+  }
+  await appendMemoryMessages(executor, memory.row.id, [{ type: "human", ...view }]);
+  await traceEvent(trace, {
+    event: "observed",
+    via: "direct",
+    kind: String(view.metadata.kind),
+    stageId,
+    recipients: [{ actorId, actorName: memory.row.name, content: view.content }],
+  });
+}
+
+/**
  * 向 stage 自己的 memory 写入它看到的本场景事件。
  *
  * 与 actor 观察相反，stage 是单 owner 不变量：缺 memory 直接抛，不做尽力而为。

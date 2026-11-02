@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { assertActionAllowed } from "../src/game/actions";
 import { buildAnnounceTool, parseAnnounce } from "../src/game/actions/announce";
 import { buildBrawlTool, parseBrawl } from "../src/game/actions/brawl";
+import { buildCallTool, parseCall } from "../src/game/actions/call";
 import { buildEquipTool, parseEquip } from "../src/game/actions/equip";
 import { buildGiveTool, parseGive } from "../src/game/actions/give";
 import { buildMoveTool, parseMove } from "../src/game/actions/move";
@@ -46,6 +47,11 @@ describe("action tools", () => {
     ]);
     expect(buildWhisperTool(targets).function.name).toBe("whisper");
     expect(buildAnnounceTool().function.parameters.required).toEqual(["mind", "message"]);
+    expect(buildCallTool().function.parameters.required).toEqual([
+      "mind",
+      "targetActorName",
+      "message",
+    ]);
     expect(buildMoveTool(stages).function.parameters.required).toEqual(["targetStageName"]);
     expect(buildWaitTool().function.parameters.required).toEqual([]);
     expect(buildStrikeTool(targets).function.parameters.required).toEqual(["targetActorHandle"]);
@@ -139,6 +145,25 @@ describe("action parsers", () => {
       mind: "让所有人听见。",
       message: "灰里有人。",
     });
+    expect(
+      parseCall({
+        mind: "他还在中殿。",
+        targetActorName: "缄默抄经人",
+        message: "钟声还在吗？",
+      }),
+    ).toEqual({
+      kind: "call",
+      mind: "他还在中殿。",
+      targetActorName: "缄默抄经人",
+      message: "钟声还在吗？",
+    });
+    expect(() =>
+      parseCall({
+        mind: "他还在中殿。",
+        targetActorName: "@缄默抄经人",
+        message: "钟声还在吗？",
+      }),
+    ).toThrow(/必须使用真名/);
     expect(parseMove({ targetStageName: "断钟中殿" })).toEqual({
       kind: "move",
       targetStageName: "断钟中殿",

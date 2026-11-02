@@ -120,7 +120,7 @@ export type TraceEvent =
       subjectActorIds: readonly string[];
       severity: "high" | "medium" | "low";
       form: "reference" | "bare";
-      communicationKind: "say" | "whisper" | "announce" | null;
+      communicationKind: "say" | "whisper" | "announce" | "call" | null;
       inDialogue: boolean;
       messageSequence: number;
       messageType: "system" | "human" | "ai" | "tool";
@@ -153,7 +153,7 @@ export type TraceEvent =
   | {
       event: "observed";
       /** 观察去向：场景内广播 / stage 自己的记忆 / 只给当事人自己。 */
-      via: "stage-actors" | "stage-memory" | "world-memory" | "self";
+      via: "stage-actors" | "stage-memory" | "world-memory" | "self" | "direct";
       kind: string;
       stageId?: string;
       sourceActorId?: string;

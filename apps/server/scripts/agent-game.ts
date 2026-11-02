@@ -44,6 +44,7 @@ import {
   listPlayerControlledActorIds,
   playerAnnounce,
   playerBrawl,
+  playerCall,
   playerEquip,
   playerGive,
   playerMove,
@@ -180,6 +181,7 @@ function usage(): void {
       "agent-game player-say --game <gameId|slug> --actor <actorName> --target <actorName> --message <text> [--reason <text>]",
       "agent-game player-whisper --game <gameId|slug> --actor <actorName> --target <actorName> --message <text> [--reason <text>]",
       "agent-game player-announce --game <gameId|slug> --actor <actorName> --message <text> [--reason <text>]",
+      "agent-game player-call --game <gameId|slug> --actor <actorName> --target <trueName> --message <text>（跨场景传音，双方需有 call，目标必须用真名）",
       "agent-game player-move --game <gameId|slug> --actor <actorName> --to <stageId|stageName>",
       "agent-game player-teleport --game <gameId|slug> --actor <actorName> --to <stageId|stageName>",
       "agent-game player-wait --game <gameId|slug> --actor <actorName>",
@@ -228,6 +230,7 @@ function requireTalkArgs(
   values: Record<string, string | boolean | undefined>,
   command: string,
   requiresTarget = true,
+  targetLabel = "<actorName>",
 ): { game: string; actor: string; message: string; target: string } {
   const { game, actor } = requireActorArgs(values, command);
   if (typeof values.message !== "string" || values.message.trim().length === 0) {
@@ -235,7 +238,7 @@ function requireTalkArgs(
   }
   const target = typeof values.target === "string" ? values.target : "";
   if (requiresTarget && target.trim().length === 0) {
-    throw new Error(`${command} 需要 --target <actorName>`);
+    throw new Error(`${command} 需要 --target ${targetLabel}`);
   }
   return { game, actor, message: values.message, target };
 }
@@ -442,6 +445,20 @@ async function main(): Promise<void> {
     const result = await withDatabase((db) =>
       playerAnnounce(db, game, actor, {
         message,
+        ...(reason !== undefined ? { reason } : {}),
+      }),
+    );
+    emitTurn(command, result);
+    return;
+  }
+
+  if (command === "player-call") {
+    const { game, actor, message, target } = requireTalkArgs(values, command, true, "<trueName>");
+    const reason = typeof values.reason === "string" ? values.reason : undefined;
+    const result = await withDatabase((db) =>
+      playerCall(db, game, actor, {
+        message,
+        targetActorName: target,
         ...(reason !== undefined ? { reason } : {}),
       }),
     );

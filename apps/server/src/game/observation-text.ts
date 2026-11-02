@@ -33,13 +33,20 @@ export type ObservationView = { content: string; metadata: ObservationMetadata }
 /**
  * 沟通观察的输入。
  *
- * 成员与 `CommunicationKind` 对应：除公开宣告外都必须指定目标，
+ * 成员与同场景沟通动作对应：除公开宣告外都必须指定目标，
  * 「say 忘了带目标」在这里是不能表示的状态，因此不需要运行期校验。
+ * 跨场景的 `call` 不经过场景广播，单独用 `CallObservation`。
  */
 export type CommunicationObservation = { source: ActorRef; message: string } & (
-  | { kind: Exclude<CommunicationKind, "announce">; target: ActorRef }
+  | { kind: Exclude<CommunicationKind, "announce" | "call">; target: ActorRef }
   | { kind: "announce" }
 );
+
+/** 跨场景传音只写给目标；发起人不在结构里，只能由台词自己披露。 */
+export type CallObservation = {
+  target: ActorRef;
+  message: string;
+};
 
 /**
  * 物品观察的输入。
@@ -270,6 +277,21 @@ export function renderItemEvent(
       };
     }
   }
+}
+
+/** 跨场景传音：只有目标听见；不渲染发起人，避免结构层泄露来源。 */
+export function renderCall(stage: StageRef, observation: CallObservation): ObservationView {
+  return {
+    content: `# 你听见\n一个声音隔空对你说话（你在${stage.name}）：${observation.message}`,
+    metadata: {
+      kind: MEMORY_KINDS.communicationObservation,
+      visibility: "private",
+      communicationKind: "call",
+      dialogue: observation.message,
+      stageId: stage.id,
+      targetActorId: observation.target.id,
+    },
+  };
 }
 
 /** 沟通观察：耳语只有对方视角，公开宣告没有目标。 */

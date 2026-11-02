@@ -14,7 +14,15 @@ import { addStats, type Stats } from "../attributes";
 import { GameError } from "../errors";
 import { signatureNamesFor } from "../persistence/signature-names";
 import { EQUIPMENT_SLOTS } from "../types";
-import type { ActorRow, Executor, ItemRow, StageItemRow, StageRow, WorldRow } from "./types";
+import type {
+  ActorRow,
+  ActorWithStageRow,
+  Executor,
+  ItemRow,
+  StageItemRow,
+  StageRow,
+  WorldRow,
+} from "./types";
 
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const SIGNATURE_HANDLE_PATTERN = /^#([1-9]\d*)$/;
@@ -300,6 +308,32 @@ export async function resolveAdjacentStage(
     throw new GameError("invalid_action", `没有从 ${stage.name} 到 ${target.name} 的通道`);
   }
   return target;
+}
+
+/**
+ * 在本 world 内按真名定位 actor 及其场景。
+ *
+ * 只给控制面/测试动作使用：actor-facing 目标不能走裸真名。
+ */
+export async function resolveActorByNameInWorld(
+  executor: Executor,
+  worldId: string,
+  name: string,
+): Promise<ActorWithStageRow> {
+  const rows = await executor
+    .select({ actor: actors, stage: stages })
+    .from(actors)
+    .innerJoin(stages, eq(actors.stageId, stages.id))
+    .where(and(eq(stages.worldId, worldId), eq(actors.name, name)))
+    .limit(2);
+  const [row] = rows;
+  if (!row) {
+    throw new GameError("invalid_action", `真名不存在: ${name}`);
+  }
+  if (rows.length > 1) {
+    throw new GameError("invalid_action", `真名不唯一: ${name}`);
+  }
+  return row;
 }
 
 /** 在世界内按 id 或名字找场景；用于 teleport 这类非邻接目标。 */
