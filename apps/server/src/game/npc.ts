@@ -277,7 +277,7 @@ export async function runNpcTurn(
     brawl: buildBrawlTool(targets),
     steal: buildStealTool(targets),
     give: buildGiveTool(targets),
-    pickup: buildPickupTool(),
+    pickup: buildPickupTool(current.stage.items.map((item) => item.name)),
     use: buildUseTool(
       availableUseItemNames,
       selfAndTargets,

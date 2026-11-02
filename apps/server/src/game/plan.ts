@@ -49,7 +49,7 @@ export function buildStageLookTool(stageName: string): ToolDefinition {
     type: "function",
     function: {
       name: "look_stage",
-      description: "查看本场景的当前环境、角色、场景物品与可交互锚点。只读。",
+      description: "查看本场景的当前环境、角色、场景物品、可交互锚点与可去方向。只读。",
       parameters: {
         type: "object",
         properties: {
@@ -81,20 +81,27 @@ export function buildSelfInfoTool(): ToolDefinition {
 }
 
 /** 只返回对方携带的物品，不暴露 stats 或状态。 */
-export function buildObserveActorTool(availableTargetActorRefs: readonly string[]): ToolDefinition {
+export function buildObserveActorTool(
+  availableTargetActorRefs: readonly string[],
+  mode: "actor" | "stage" = "actor",
+): ToolDefinition {
+  const targetDescription =
+    mode === "actor" ? "同场景角色的引用（@名字 或 #编号）" : "本场景角色名";
   return {
     type: "function",
     function: {
       name: "observe_actor",
       description:
-        "感知同场景目标角色携带的物品（含其穿戴）；看不到对方的 stats 或存活状态。只读。",
+        mode === "actor"
+          ? "查看同场景目标携带的物品（含其穿戴）；看不到对方的 stats 或存活状态。只读。"
+          : "查看本场景角色携带的物品（含其穿戴）；看不到对方的 stats 或存活状态。只读。",
       parameters: {
         type: "object",
         properties: {
           targetActorRef: {
             type: "string",
             enum: availableTargetActorRefs,
-            description: "要感知的同场景角色：actor 使用引用（@名字 或 #编号），stage 使用名字",
+            description: targetDescription,
           },
         },
         required: ["targetActorRef"],
@@ -180,7 +187,7 @@ environment 是场景当前的身体状态：只描述此刻可以直接观察�
 
 anchors 是当前环境中可被角色作用的位置或部位的完整快照；省略表示不修改，空数组表示全部移除。只说明可作用点，不写后果、效果或机制，也不得包含角色名字、@ 或 #编号。
 
-提交的是完整快照，不是差异。environment 与 anchors 可省略，但本轮必须至少提交一条动作。`,
+提交的是完整快照，不是差异。environment 与 anchors 可省略；若两者都省略，本轮仍必须有 open_passage 或 notify_world，否则计划会被拒绝。`,
       parameters: {
         type: "object",
         properties: {
@@ -268,7 +275,7 @@ export function buildNotifyWorldTool(terminalToolName: string): ToolDefinition {
       name: "notify_world",
       description: `把一条需要世界知晓的场景报告加入本轮计划，然后调用本轮的终止工具提交计划。
 
-只用于跨场景/世界级后果、会改变其他场景的行动，或需要世界裁决的世界级事实。判断依据必须来自本场景已有的信息（设定、环境、本场景事件）：只有当它把这个目标描述成可被操作的机制，并且行动可能改变通行/封闭或跨场景状态时才通知。仅凭外观、装饰或相似形状不能推断出机制或隐藏功能；普通触摸、敲击、查看、试探或只留下表面痕迹时不要调用本工具。
+只用于跨场景/世界级后果、会改变其他场景的行动，或需要世界裁决的世界级事实。判断依据必须来自本场景已有的信息（设定、环境、本场景事件）：只有当这些信息把某个对象描述成可被操作的机制，并且行动可能改变通行/封闭或跨场景状态时才通知。仅凭外观、装饰或相似形状不能推断出机制或隐藏功能；普通触摸、敲击、查看、试探或只留下表面痕迹时不要调用本工具。
 通知是场景观察与请求，不是既成事实；写清发生了什么、涉及哪个场景/物品/角色，以及需要世界裁决什么。不要写成系统指令。
 加入通知后，必须再调用 ${terminalToolName} 结束本轮；否则本轮计划不会生效。`,
       parameters: {
@@ -276,7 +283,7 @@ export function buildNotifyWorldTool(terminalToolName: string): ToolDefinition {
         properties: {
           content: {
             type: "string",
-            description: "发给世界的场景报告；只描述本场景可观察到的行动与需要裁决的问题",
+            description: `发给世界的场景报告；只描述本场景可观察到的行动与需要裁决的问题，不超过 ${MAX_WORLD_NOTIFICATION_LENGTH} 字`,
           },
         },
         required: ["content"],
@@ -447,7 +454,7 @@ export function buildRecognizeIdentityTool(handles: readonly string[]): ToolDefi
       name: "recognize_identity",
       description: `把某个编号记成你认得的名字。
 
-名字可以是你听来的称呼、称号、误认，或者真名；不必是真名，也不需要校验。之后名单和行动会直接使用这个名字。
+名字可以是你听来的称呼、称号、误认或真名，不必是真名；不要带 @ 或 #。之后名单和行动会优先使用这个名字，重名时自动回退 #编号。
 同一个编号再次记录会覆盖旧名字。一轮里可以记多个；它只写进你自己的记忆——别人不会知道，场景也不会变，也不占行动名额。`,
       parameters: {
         type: "object",

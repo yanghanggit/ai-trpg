@@ -21,7 +21,7 @@ export function buildNotifyStageTool(stageNames: readonly string[]): ToolDefinit
           },
           content: {
             type: "string",
-            description: "世界裁决或跨场景变化；写清楚场景应知道什么，不要替场景写具体环境快照",
+            description: `世界裁决或跨场景变化；写清楚场景应知道什么，不超过 ${MAX_WORLD_DIRECTIVE_LENGTH} 字，不要替场景写具体环境快照`,
           },
         },
         required: ["stageName", "content"],
@@ -59,8 +59,7 @@ export function buildEndGameTool(): ToolDefinition {
         properties: {
           outcome: {
             type: "string",
-            description:
-              "用一个简短词语概括这次收束，作为结局标签；它只用于记录，不进入世界内叙事。",
+            description: `用一个简短词语概括这次收束，作为结局标签；不超过 ${MAX_OUTCOME_LENGTH} 字，只用于记录，不进入世界内叙事。`,
           },
           message: {
             type: "string",

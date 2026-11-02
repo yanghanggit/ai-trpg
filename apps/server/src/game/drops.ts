@@ -63,6 +63,8 @@ export function buildDropMaterialsTool(): ToolDefinition {
                 },
                 count: {
                   type: "integer",
+                  minimum: 1,
+                  maximum: MAX_MATERIAL_COUNT,
                   description: `数量，1 到 ${MAX_MATERIAL_COUNT}，省略按 1`,
                 },
               },

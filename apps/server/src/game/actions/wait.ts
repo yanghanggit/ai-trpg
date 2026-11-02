@@ -12,7 +12,7 @@ export function buildWaitTool(): ToolDefinition {
     type: "function",
     function: {
       name: "wait",
-      description: "把一次等待加入计划：留在原地继续观察，不改变任何状态。",
+      description: "把一次等待加入计划：留在原地继续观察，不改变场景、物品或角色状态。",
       parameters: {
         type: "object",
         properties: {},

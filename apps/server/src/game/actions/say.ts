@@ -14,8 +14,7 @@ export function buildSayTool(targets: readonly string[]): ToolDefinition {
     type: "function",
     function: {
       name: "say",
-      description:
-        "把一次公开说话加入计划：对当前场景的一个具名角色说一句话，场景内其他角色也能听见。",
+      description: "把一次公开说话加入计划：对当前场景的一个角色说一句话，场景内其他角色也能听见。",
       parameters: {
         type: "object",
         properties: {

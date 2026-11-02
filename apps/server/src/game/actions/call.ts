@@ -24,7 +24,7 @@ export function buildCallTool(): ToolDefinition {
     function: {
       name: "call",
       description:
-        "把一次跨场景传音加入计划：必须用目标的真名指定目标，不能使用 @名字、#编号 或 id；目标必须不在当前场景，且目标和行动者都必须拥有 call 能力。只有目标能听见。",
+        "把一次跨场景传音加入计划：必须用目标的真名指定目标，不能使用 @名字、#编号 或 id；目标必须不在当前场景，且目标和行动者都必须拥有 call 能力。只有目标能听见。传音不会自动暴露发起人；若想让对方知道你是谁，请把自称写进 message。",
       parameters: {
         type: "object",
         properties: {
@@ -34,7 +34,7 @@ export function buildCallTool(): ToolDefinition {
           },
           targetActorName: {
             type: "string",
-            description: "目标 actor 的真名；必须原样写真名，不能使用引用或 id",
+            description: "目标的真名（不是 @名字、#编号 或 id）",
           },
           message: { type: "string", description: "你要说出的内容" },
         },

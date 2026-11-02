@@ -8,7 +8,7 @@ import { appendItemObservations, appendStageMemory } from "../observations";
 import { moveStageItemToActor } from "../persistence/items";
 import type { PickupAction } from "../types";
 
-export function buildPickupTool(): ToolDefinition {
+export function buildPickupTool(availableItemNames: readonly string[] = []): ToolDefinition {
   return {
     type: "function",
     function: {
@@ -18,7 +18,11 @@ export function buildPickupTool(): ToolDefinition {
       parameters: {
         type: "object",
         properties: {
-          itemName: { type: "string", description: "要拾取的当前场景物品名" },
+          itemName: {
+            type: "string",
+            description: "要拾取的当前场景物品名",
+            ...(availableItemNames.length > 0 ? { enum: [...availableItemNames] } : {}),
+          },
         },
         required: ["itemName"],
       },

@@ -14,7 +14,7 @@ export function buildWhisperTool(targets: readonly string[]): ToolDefinition {
     type: "function",
     function: {
       name: "whisper",
-      description: "把一次耳语加入计划：对当前场景的一个具名角色低声说话，只有对方能听见。",
+      description: "把一次耳语加入计划：对当前场景的一个角色低声说话，只有对方能听见。",
       parameters: {
         type: "object",
         properties: {

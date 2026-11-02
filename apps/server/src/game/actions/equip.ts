@@ -25,7 +25,7 @@ export function buildEquipTool(wearableItemNames: readonly string[]): ToolDefini
     type: "function",
     function: {
       name: "equip",
-      description: `把背包里的一件物品穿到槽位：${SLOT_LABELS}。槽位必须接受该物品的大类；同槽原有物品会被替换，被替换的物品仍留在背包。换装只改变穿戴关系，不会立刻重写外观快照。`,
+      description: `把背包里的一件物品穿到槽位：${SLOT_LABELS}。槽位必须接受该物品的大类；同槽原有物品会被替换，被替换的物品仍留在背包。换装只改变穿戴关系，不直接改写外观文本。`,
       parameters: {
         type: "object",
         properties: {
