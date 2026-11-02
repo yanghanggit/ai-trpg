@@ -30,7 +30,7 @@ import { buildWhisperTool, parseWhisper } from "./actions/whisper";
 import {
   type ActorWithStage,
   adjacentStageNames,
-  findActorWithStage,
+  findActorByName,
   otherActorsInStage,
 } from "./actors";
 import { addressLookupFor, refOf } from "./addressing";
@@ -207,7 +207,7 @@ export async function runNpcTurn(
   if (state.game.status !== "active") {
     throw new GameError("invalid_state", `游戏已结束: ${state.game.status}`);
   }
-  const current = findActorWithStage(state, actorRef);
+  const current = findActorByName(state, actorRef);
   if (!isAlive(current.actor)) {
     throw new GameError("invalid_action", `actor 已死亡: ${current.actor.name}`);
   }

@@ -1,5 +1,5 @@
 import type { Database } from "../db/pool";
-import { adjacentStages, findActorWithStage } from "./actors";
+import { adjacentStages, findActorByName } from "./actors";
 import { addressLookupFor } from "./addressing";
 import { MEMORY_KINDS } from "./constants";
 import { getMemoryState } from "./memory";
@@ -96,7 +96,7 @@ export async function getActorView(
   actorRef: string,
 ): Promise<ActorView> {
   const state = await getGameState(db, gameRef);
-  const { actor, stage } = findActorWithStage(state, actorRef);
+  const { actor, stage } = findActorByName(state, actorRef);
   const memory = await getMemoryState(db, state.game.id, "actor", actor.id);
   const address = addressLookupFor(state, actor, stage);
 

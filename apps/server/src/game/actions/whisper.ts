@@ -2,7 +2,6 @@ import type { TraceContext } from "../../debug/trace";
 import type { ToolDefinition } from "../../llm/types";
 import { type AddressLookup, actionRef } from "../addressing";
 import { appendPublicMessage, bumpGameVersion } from "../apply/messages";
-import { findActorInStage } from "../apply/queries";
 import type { ActorWithStageRow, Executor, ResolvedWhisper } from "../apply/types";
 import { MAX_MIND_LENGTH } from "../constants";
 import { GameError } from "../errors";
@@ -54,14 +53,13 @@ export function parseWhisper(args: Record<string, unknown>): WhisperAction {
   return { kind: "whisper", mind, targetActorHandle, message };
 }
 
-export async function resolveWhisper(
-  executor: Executor,
+export function resolveWhisper(
   stage: ResolvedWhisper["stage"],
   actorId: string,
   action: WhisperAction,
-): Promise<ResolvedWhisper> {
+  target: ResolvedWhisper["target"],
+): ResolvedWhisper {
   assertNoSystemReference(action.message);
-  const target = await findActorInStage(executor, stage.id, action.targetActorHandle);
   if (target.id === actorId) {
     throw new GameError("invalid_action", "whisper 的目标不能是自己");
   }

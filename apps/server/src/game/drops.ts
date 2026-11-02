@@ -3,7 +3,7 @@ import type { Database } from "../db/pool";
 import { agentLoop } from "../llm/agent-loop";
 import type { ChatCompletionService } from "../llm/protocol";
 import type { ToolDefinition } from "../llm/types";
-import { findActor } from "./actors";
+import { findActorByName } from "./actors";
 import { bumpGameVersion } from "./apply/messages";
 import { buildCampaignSettingBlock, type CampaignContextWorld } from "./campaign-context";
 import {
@@ -191,7 +191,7 @@ export async function runDropTurn(
   if (state.game.status !== "active") {
     throw new GameError("invalid_state", `游戏已结束: ${state.game.status}`);
   }
-  const actor = findActor(state, actorRef);
+  const actor = findActorByName(state, actorRef).actor;
   const stage = state.world.stages.find((candidate) =>
     candidate.actors.some((member) => member.id === actor.id),
   );

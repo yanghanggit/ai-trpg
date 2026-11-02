@@ -2,7 +2,7 @@ import { createTurnTrace, traceEvent } from "../debug/trace";
 import { agentLoop } from "../llm/agent-loop";
 import type { ChatCompletionService } from "../llm/protocol";
 import type { ToolDefinition } from "../llm/types";
-import { findActorWithStage, findStage } from "./actors";
+import { findActorByName, findStage } from "./actors";
 import { buildCampaignSettingBlock } from "./campaign-context";
 import { DEFAULT_LLM_ERROR_RETRIES } from "./constants";
 import { GameError } from "./errors";
@@ -102,7 +102,7 @@ function resolveMemory(
 function entityProfile(state: GameState, ownerType: string, name: string): string {
   switch (ownerType) {
     case "actor":
-      return findActorWithStage(state, name).actor.profile;
+      return findActorByName(state, name).actor.profile;
     case "stage":
       return findStage(state, name).profile;
     case "world":

@@ -119,7 +119,7 @@ async function runDeathPhase(
     await Promise.all(
       settled.map(async (actor) => {
         try {
-          const appearance = await runAppearanceTurn(db, gameId, actor.id, {
+          const appearance = await runAppearanceTurn(db, gameId, actor.name, {
             service,
             // 先让死者自己写一段变化简报，再据此生成尸体外观。
             requestBrief: true,
@@ -153,7 +153,7 @@ async function runDeathPhase(
     await Promise.all(
       settled.map(async (actor) => {
         try {
-          const drop = await runDropTurn(db, gameId, actor.id, {
+          const drop = await runDropTurn(db, gameId, actor.name, {
             service,
             ...(trace ? { trace } : {}),
           });
@@ -334,7 +334,7 @@ export async function refreshAppearances(
       }
       continue;
     }
-    const appearance = await runAppearanceTurn(db, gameId, row.id, {
+    const appearance = await runAppearanceTurn(db, gameId, row.name, {
       service,
       // 批量维护是幂等重推，不往每个场景贴广播。
       broadcast: false,

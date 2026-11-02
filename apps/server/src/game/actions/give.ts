@@ -2,12 +2,7 @@ import type { TraceContext } from "../../debug/trace";
 import type { ToolDefinition } from "../../llm/types";
 import { type AddressLookup, actionRef } from "../addressing";
 import { appendPublicMessage, bumpGameVersion } from "../apply/messages";
-import {
-  assertItemNameFree,
-  assertNotSelf,
-  findActorInStage,
-  resolveActorItem,
-} from "../apply/queries";
+import { assertItemNameFree, assertNotSelf, resolveActorItem } from "../apply/queries";
 import type { ActorWithStageRow, Executor, ResolvedGive } from "../apply/types";
 import { GameError } from "../errors";
 import { withoutEquippedItem } from "../items";
@@ -58,8 +53,8 @@ export async function resolveGive(
   stage: ResolvedGive["stage"],
   actorId: string,
   action: GiveAction,
+  target: ResolvedGive["target"],
 ): Promise<ResolvedGive> {
-  const target = await findActorInStage(executor, stage.id, action.targetActorHandle);
   assertNotSelf(target, actorId);
   const transferItem = await resolveActorItem(executor, actorId, action.itemName);
   return { kind: "give", action, stage, target, transferItem };

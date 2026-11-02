@@ -3,7 +3,7 @@ import type { Database } from "../db/pool";
 import { agentLoop } from "../llm/agent-loop";
 import type { ChatCompletionService } from "../llm/protocol";
 import type { ToolDefinition } from "../llm/types";
-import { findActor, findActorWithStage } from "./actors";
+import { findActorByName } from "./actors";
 import { bumpGameVersion } from "./apply/messages";
 import { isAlive } from "./apply/queries";
 import {
@@ -224,7 +224,7 @@ export async function runAppearanceTurn(
   if (state.game.status !== "active") {
     throw new GameError("invalid_state", `游戏已结束: ${state.game.status}`);
   }
-  const { actor, stage } = findActorWithStage(state, actorRef);
+  const { actor, stage } = findActorByName(state, actorRef);
   const actorNames = state.world.stages.flatMap((candidate) =>
     candidate.actors.map((present) => present.name),
   );
@@ -364,7 +364,7 @@ export async function setEquipmentSlot(
   if (state.game.status !== "active") {
     throw new GameError("invalid_state", `游戏已结束: ${state.game.status}`);
   }
-  const actor = findActor(state, actorRef);
+  const actor = findActorByName(state, actorRef).actor;
 
   let equipment = actor.equipment;
   if (itemName !== null) {
@@ -390,6 +390,6 @@ export async function setEquipmentSlot(
     await bumpGameVersion(tx, state.game.id, now);
   });
 
-  const appearance = await runAppearanceTurn(db, gameRef, actor.id, options);
+  const appearance = await runAppearanceTurn(db, gameRef, actor.name, options);
   return { ...appearance, slot, itemName };
 }

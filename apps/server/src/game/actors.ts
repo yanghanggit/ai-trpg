@@ -11,20 +11,33 @@ export function allActors(state: GameState): ActorWithStage[] {
   return state.world.stages.flatMap((stage) => stage.actors.map((actor) => ({ actor, stage })));
 }
 
-/** 名称重复时直接拒绝，避免按名字定位到错误的角色。 */
-export function findActorWithStage(state: GameState, ref: string): ActorWithStage {
-  const matches = allActors(state).filter(({ actor }) => actor.id === ref || actor.name === ref);
+/**
+ * actor 检索只保留两种语义入口：这里的真名，以及 `apply/queries.ts` 的签名。
+ * id 是控制面的稳定身份，不作为 actor-facing 的检索键。
+ */
+
+/** 按真名定位；名字重复时直接拒绝，不退回 id 或编号。 */
+export function findActorByName(state: GameState, name: string): ActorWithStage {
+  const matches = allActors(state).filter(({ actor }) => actor.name === name);
   if (matches.length === 0) {
-    throw new GameError("not_found", `actor 不存在: ${ref}`);
+    throw new GameError("not_found", `actor 不存在: ${name}`);
   }
   if (matches.length > 1) {
-    throw new GameError("invalid_action", `actor 名称不唯一，请使用 id: ${ref}`);
+    throw new GameError("invalid_action", `actor 名称不唯一: ${name}`);
   }
   return matches[0] as ActorWithStage;
 }
 
-export function findActor(state: GameState, ref: string): ActorState {
-  return findActorWithStage(state, ref).actor;
+/** 按签名序号定位；只用于玩家 god-view 的 `#编号` 入口。 */
+export function findActorBySignatureSeq(state: GameState, seq: number): ActorWithStage {
+  const matches = allActors(state).filter(({ actor }) => actor.signature.seq === seq);
+  if (matches.length === 0) {
+    throw new GameError("not_found", `签名不存在: #${seq}`);
+  }
+  if (matches.length > 1) {
+    throw new GameError("invalid_state", `签名序号不唯一: #${seq}`);
+  }
+  return matches[0] as ActorWithStage;
 }
 
 export function otherActorsInStage(stage: StageState, actorId: string): ActorState[] {

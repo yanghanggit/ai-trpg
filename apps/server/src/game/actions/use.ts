@@ -1,7 +1,7 @@
 import type { TraceContext } from "../../debug/trace";
 import type { ToolDefinition } from "../../llm/types";
 import { type AddressLookup, stripNameRef } from "../addressing";
-import { findActorInStage, resolveActorItem } from "../apply/queries";
+import { resolveActorItem } from "../apply/queries";
 import type { ActorWithStageRow, Executor, ResolvedUse } from "../apply/types";
 import { MAX_STAGE_ANCHOR_LABEL_LENGTH } from "../constants";
 import { GameError } from "../errors";
@@ -113,6 +113,7 @@ export async function resolveUse(
   stage: ResolvedUse["stage"],
   actorRow: ActorWithStageRow,
   action: UseAction,
+  targetActor?: ResolvedUse["target"],
 ): Promise<ResolvedUse> {
   const transferItem = await resolveActorItem(executor, actorRow.actor.id, action.itemName);
   // 动作由物品状态唯一决定：装备中的物品归 strike 或被动装备，不能当道具使用。
@@ -149,12 +150,11 @@ export async function resolveUse(
     }
     targetStage = stage;
   } else {
-    const targetActorHandle = action.targetActorHandle;
-    if (!targetActorHandle) {
+    if (!targetActor) {
       throw new GameError("invalid_action", "use 缺少目标");
     }
     // 目标不要求存活：对尸体使用道具同样合法（例如未来的复活类玩法）。
-    target = await findActorInStage(executor, stage.id, targetActorHandle);
+    target = targetActor;
   }
 
   return {

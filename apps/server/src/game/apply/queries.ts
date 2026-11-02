@@ -17,6 +17,7 @@ import { EQUIPMENT_SLOTS } from "../types";
 import type { ActorRow, Executor, ItemRow, StageItemRow, StageRow, WorldRow } from "./types";
 
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+const SIGNATURE_HANDLE_PATTERN = /^#([1-9]\d*)$/;
 
 export type SignatureRow = typeof actorSignatures.$inferSelect;
 export type AppearanceRow = typeof appearances.$inferSelect;
@@ -46,43 +47,18 @@ export async function listStageActorViews(
     .orderBy(actors.seq);
 }
 
-/** 按匿名编号（`#<签名序号>`）在本场景内定位角色。 */
-export async function findActorViewByHandleInStage(
-  executor: Executor,
-  stageId: string,
-  handle: string,
-): Promise<ActorViewRow | undefined> {
-  const seq = Number(handle.slice(1));
-  if (!Number.isInteger(seq) || seq <= 0) {
-    return undefined;
-  }
-  const [row] = await executor
-    .select({ actor: actors, signature: actorSignatures, appearance: appearances })
-    .from(actorSignatures)
-    .innerJoin(actors, eq(actorSignatures.actorId, actors.id))
-    .innerJoin(appearances, currentAppearance(actorSignatures.id))
-    .where(
-      and(
-        eq(actors.stageId, stageId),
-        eq(actorSignatures.seq, seq),
-        isNull(actorSignatures.endedAt),
-      ),
-    )
-    .limit(2);
-  return row;
-}
-
-/** 按句柄在本 world 内定位角色；识别可以在人物离场后补记。 */
-export async function findActorViewByHandleInWorld(
+/** 按签名编号在本 world 内定位角色；只用于识别补记，不用于 actor-facing 目标解析。 */
+export async function findSignatureByHandleInWorld(
   executor: Executor,
   worldId: string,
   handle: string,
 ): Promise<ActorViewRow | undefined> {
-  const seq = Number(handle.slice(1));
-  if (!Number.isInteger(seq) || seq <= 0) {
+  const match = SIGNATURE_HANDLE_PATTERN.exec(handle);
+  if (!match) {
     return undefined;
   }
-  const [row] = await executor
+  const seq = Number(match[1]);
+  const rows = await executor
     .select({ actor: actors, signature: actorSignatures, appearance: appearances })
     .from(actorSignatures)
     .innerJoin(actors, eq(actorSignatures.actorId, actors.id))
@@ -93,7 +69,7 @@ export async function findActorViewByHandleInWorld(
       and(eq(worlds.id, worldId), eq(actorSignatures.seq, seq), isNull(actorSignatures.endedAt)),
     )
     .limit(2);
-  return row;
+  return rows.length === 1 ? rows[0] : undefined;
 }
 
 /** 本 world 内全部 actor 的 id 与名字；用于 god-view 查询与提示词。 */
@@ -126,10 +102,28 @@ export async function recognizedSignaturesFor(
   return new Set(rows.map((row) => row.signatureId));
 }
 
+/** 按签名编号在本场景内定位当前签名；只做签名查找，不查名字。 */
+export async function resolveSignatureInStage(
+  executor: Executor,
+  stageId: string,
+  handle: string,
+): Promise<ActorViewRow | undefined> {
+  const match = SIGNATURE_HANDLE_PATTERN.exec(handle);
+  if (!match) {
+    return undefined;
+  }
+  const seq = Number(match[1]);
+  const views = await listStageActorViews(executor, stageId);
+  const matches = views.filter((view) => view.signature.seq === seq);
+  return matches.length === 1 ? matches[0] : undefined;
+}
+
 /**
  * 某个观察者在当前场景里的引用表。
  *
  * 自己固定解析为「你自己」：自己的名字属于自知，不查名字表。
+ * actor-facing 的目标解析不直接用这张表查名字，而是走签名 / 真名两个入口，
+ * 见 `resolveSignatureInStage` 与 `resolveVisibleActor`。
  */
 export async function stageAddressLookup(
   executor: Executor,
@@ -170,6 +164,54 @@ export async function stageAddressLookup(
   };
 }
 
+/**
+ * actor-facing 的唯一目标入口，只允许两条路：
+ *
+ * - `#编号`：在本场景按签名查，永远不需要先知道真名；
+ * - `@真名`：按真名查，但观察者必须认得这个签名（自己除外）。
+ *
+ * 裸名字与 id 属于控制面，不从这里进入。
+ */
+export async function resolveVisibleActor(
+  executor: Executor,
+  input: {
+    gameId: string;
+    observerId: string;
+    stageId: string;
+    ref: string;
+  },
+): Promise<ActorRow> {
+  const value = input.ref.trim();
+
+  // 签名入口：#编号只按当前签名查，不需要先知道真名。
+  if (value.startsWith("#")) {
+    const view = await resolveSignatureInStage(executor, input.stageId, value);
+    if (!view) {
+      throw new GameError("invalid_action", `当前场景内找不到这个编号: ${value}`);
+    }
+    return view.actor;
+  }
+
+  // 真名入口：actor-facing 只接受 @真名；裸名字与 id 属于控制面，不从这里进入。
+  if (!value.startsWith("@")) {
+    throw new GameError("invalid_action", `引用必须使用 @真名 或 #编号: ${value}`);
+  }
+  const name = value.slice(1);
+  const views = await listStageActorViews(executor, input.stageId);
+  const matches = views.filter((view) => view.actor.name === name);
+  if (matches.length !== 1 || !matches[0]) {
+    throw new GameError("invalid_action", `当前场景内找不到唯一角色: ${value}`);
+  }
+  const view = matches[0];
+  if (view.actor.id !== input.observerId) {
+    const recognized = await recognizedSignaturesFor(executor, input.gameId, input.observerId);
+    if (!recognized.has(view.signature.id)) {
+      throw new GameError("invalid_action", `当前场景内找不到引用: ${value}`);
+    }
+  }
+  return view.actor;
+}
+
 /** 本场景角色的 id 与名字；文本脱敏只需要这两项。 */
 export async function listStageActorRefs(
   executor: Executor,
@@ -180,46 +222,6 @@ export async function listStageActorRefs(
     .from(actors)
     .where(eq(actors.stageId, stageId))
     .orderBy(actors.seq);
-}
-
-/**
- * 在当前场景内定位角色。
- *
- * 接受 `#12`、`@真名`、纯真名或 id；后三者都按真名 / id 解析，不做观察者识别校验。
- * 感知边界在渲染与写入时执行：名单只会给当前观察者 token，辨认真名也必须是真名；
- * 解析层信任调用方，god-view 入口可以直接用真名或 id。不接受简称，也不做模糊匹配。
- */
-export async function findActorInStage(
-  executor: Executor,
-  stageId: string,
-  ref: string,
-): Promise<ActorRow> {
-  const value = ref.trim();
-  if (value.startsWith("#")) {
-    const view = await findActorViewByHandleInStage(executor, stageId, value);
-    if (!view) {
-      throw new GameError("invalid_action", `场景内没有这个编号: ${value}`);
-    }
-    return view.actor;
-  }
-  const name = value.startsWith("@") ? value.slice(1) : value;
-  // god-view 入口可以直接用 actor id：客户端拿到的稳定身份就是它。
-  const matches = UUID_PATTERN.test(name)
-    ? await executor
-        .select()
-        .from(actors)
-        .where(and(eq(actors.stageId, stageId), eq(actors.id, name)))
-        .limit(2)
-    : await executor
-        .select()
-        .from(actors)
-        .where(and(eq(actors.stageId, stageId), eq(actors.name, name)))
-        .limit(2);
-  const [target] = matches;
-  if (matches.length !== 1 || !target) {
-    throw new GameError("invalid_action", `当前场景内找不到唯一角色: ${value}`);
-  }
-  return target;
 }
 
 /**

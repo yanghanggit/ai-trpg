@@ -7,7 +7,7 @@ import {
   type ChatMessage,
   getBufferString,
 } from "../llm";
-import { allActors, findActorWithStage, findStage } from "./actors";
+import { allActors, findActorByName, findStage } from "./actors";
 import { buildCampaignSettingBlock, type CampaignContextWorld } from "./campaign-context";
 import { MEMORY_KINDS } from "./constants";
 import { GameError } from "./errors";
@@ -53,7 +53,7 @@ const COMPACT_SYSTEM_PROMPT = `你是记忆压缩器，不是记忆主体。
 只输出一段正文，不要标题，不要解释。`;
 
 function resolveActorOwner(state: GameState, ref: string): ResolvedOwner {
-  const current = findActorWithStage(state, ref);
+  const current = findActorByName(state, ref);
   return { ownerType: "actor", ownerId: current.actor.id, ownerName: current.actor.name };
 }
 

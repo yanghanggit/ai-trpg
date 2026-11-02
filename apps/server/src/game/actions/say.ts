@@ -2,7 +2,6 @@ import type { TraceContext } from "../../debug/trace";
 import type { ToolDefinition } from "../../llm/types";
 import { type AddressLookup, actionRef } from "../addressing";
 import { appendPublicMessage, bumpGameVersion } from "../apply/messages";
-import { findActorInStage } from "../apply/queries";
 import type { ActorWithStageRow, Executor, ResolvedSay } from "../apply/types";
 import { MAX_MIND_LENGTH } from "../constants";
 import { GameError } from "../errors";
@@ -55,14 +54,13 @@ export function parseSay(args: Record<string, unknown>): SayAction {
   return { kind: "say", mind, targetActorHandle, message };
 }
 
-export async function resolveSay(
-  executor: Executor,
+export function resolveSay(
   stage: ResolvedSay["stage"],
   actorId: string,
   action: SayAction,
-): Promise<ResolvedSay> {
+  target: ResolvedSay["target"],
+): ResolvedSay {
   assertNoSystemReference(action.message);
-  const target = await findActorInStage(executor, stage.id, action.targetActorHandle);
   if (target.id === actorId) {
     throw new GameError("invalid_action", "say 的目标不能是自己");
   }

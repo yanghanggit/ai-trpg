@@ -31,7 +31,7 @@ export async function loadActorWithStage(
 /**
  * 按名字读同场景角色；找不到或名字不唯一时返回 undefined。
  *
- * 与 `apply/queries.ts` 的 `findActorInStage` 区别在这里不抛错：词缀落账是尽力而为，
+ * 词缀落账是尽力而为：
  * 目标在计划提交与落账之间离开场景时应当跳过，而不是让整次结算失败。
  */
 export async function loadActorByNameInStage(

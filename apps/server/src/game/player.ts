@@ -1,7 +1,7 @@
 import type { Database } from "../db/pool";
 import { createTurnTrace, traceEvent } from "../debug/trace";
-import { findActor } from "./actors";
-import { handleOf } from "./addressing";
+import { findActorByName, findActorBySignatureSeq } from "./actors";
+import { addressLookupFor, handleOf } from "./addressing";
 import { type ApplyActorPlanOptions, applyActorPlan } from "./apply";
 import { isPlayerControlled } from "./control";
 import { auditPlayerDialogue, dialogueContextFor, isDialogueAction } from "./dialogue-audit";
@@ -17,25 +17,48 @@ import type {
   GameState,
 } from "./types";
 
-/** 客户端可以用 id、名字、`@名字` 或 `#编号` 指定目标；与玩家入口的寻址约定一致。 */
+/**
+ * 玩家入口是 god view：可以用真名或签名引用指定目标。
+ * 这里只负责把 god-view 输入解析成 actor；真正进入 apply 前还会换成 actor-facing 引用。
+ */
 function findActorByRef(state: GameState, ref: string): ActorState {
   const value = ref.trim();
-  if (!value.startsWith("@") && !value.startsWith("#")) {
-    return findActor(state, value);
+  if (value.startsWith("#")) {
+    const seq = Number(value.slice(1));
+    if (!Number.isInteger(seq) || seq <= 0) {
+      throw new GameError("not_found", `没有这个引用: ${value}`);
+    }
+    return findActorBySignatureSeq(state, seq).actor;
   }
-  const seq = value.startsWith("#") ? Number(value.slice(1)) : Number.NaN;
-  const name = value.startsWith("@") ? value.slice(1) : "";
-  const actor = state.world.stages
-    .flatMap((stage) => stage.actors)
-    .find(
-      (candidate) =>
-        (Number.isInteger(seq) && candidate.signature.seq === seq) ||
-        (name.length > 0 && candidate.name === name),
-    );
-  if (!actor) {
-    throw new GameError("not_found", `没有这个引用: ${value}`);
-  }
-  return actor;
+  const name = value.startsWith("@") ? value.slice(1) : value;
+  return findActorByName(state, name).actor;
+}
+
+/**
+ * 玩家入口是 god view，可以用真名 / 引用指定目标；但进入 apply 前必须
+ * 换成该 actor 当前地址表发出的 actor-facing 引用，后续只走签名 / 已识别真名入口。
+ */
+function normalizePlayerTargets(
+  state: GameState,
+  actor: ActorState,
+  stage: GameState["world"]["stages"][number],
+  plan: ActorPlan,
+): ActorPlan {
+  const address = addressLookupFor(state, actor, stage);
+  return {
+    ...plan,
+    actions: plan.actions.map((action) => {
+      if (!("targetActorHandle" in action) || !action.targetActorHandle) {
+        return action;
+      }
+      const target = findActorByRef(state, action.targetActorHandle);
+      const token = address(target.id).token;
+      if (token.length === 0) {
+        throw new GameError("invalid_action", `当前场景内找不到引用: ${action.targetActorHandle}`);
+      }
+      return { ...action, targetActorHandle: token };
+    }),
+  };
 }
 
 /** 玩家直接提交计划；只允许玩家接管的 actor。 */
@@ -47,7 +70,7 @@ async function applyPlayerPlan(
   options: ApplyActorPlanOptions = {},
 ): Promise<ActorTurnResult> {
   const state = await getGameState(db, gameRef);
-  const actor = findActor(state, actorRef);
+  const actor = findActorByRef(state, actorRef);
 
   if (!(await isPlayerControlled(db, state.game.id, actor.id))) {
     throw new GameError("invalid_action", `actor 未被玩家接管: ${actor.name}`);
@@ -56,6 +79,10 @@ async function applyPlayerPlan(
   const stage = state.world.stages.find((candidate) =>
     candidate.actors.some((entry) => entry.id === actor.id),
   );
+  if (!stage) {
+    throw new GameError("invalid_state", `actor 不属于任何场景: ${actor.name}`);
+  }
+  plan = normalizePlayerTargets(state, actor, stage, plan);
   const trace = createTurnTrace({ game: state.game, turnKind: "player" });
   await traceEvent(trace, {
     event: "turn_start",

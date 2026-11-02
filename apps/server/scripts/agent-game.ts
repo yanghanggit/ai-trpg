@@ -168,35 +168,35 @@ function usage(): void {
       "agent-game create --user <username> (--seed <name> | --content-file <path> | --world-file <path> | --world '<json>') [--name <gameName>] [--slug <slug>]",
       "agent-game status --game <gameId|slug>",
       "agent-game scene-map --game <gameId|slug>",
-      "agent-game npc --game <gameId|slug> --actor <actorId|actorName>",
+      "agent-game npc --game <gameId|slug> --actor <actorName>",
       "agent-game npc --game <gameId|slug> --all",
       "agent-game stage --game <gameId|slug> --stage <stageId|stageName>",
       "agent-game stage --game <gameId|slug> --all",
       "agent-game world --game <gameId|slug>",
-      "agent-game probe --game <gameId|slug> --actor <actorId|actorName> --message <text>",
+      "agent-game probe --game <gameId|slug> --actor <actorName> --message <text>",
       "agent-game probe --game <gameId|slug> --stage <stageId|stageName> --message <text>",
-      "agent-game take-control --game <gameId|slug> --actor <actorId|actorName>",
-      "agent-game release-control --game <gameId|slug> --actor <actorId|actorName>",
-      "agent-game player-say --game <gameId|slug> --actor <actorId|actorName> --target <actorName> --message <text> [--reason <text>]",
-      "agent-game player-whisper --game <gameId|slug> --actor <actorId|actorName> --target <actorName> --message <text> [--reason <text>]",
-      "agent-game player-announce --game <gameId|slug> --actor <actorId|actorName> --message <text> [--reason <text>]",
-      "agent-game player-move --game <gameId|slug> --actor <actorId|actorName> --to <stageId|stageName>",
-      "agent-game player-teleport --game <gameId|slug> --actor <actorId|actorName> --to <stageId|stageName>",
-      "agent-game player-wait --game <gameId|slug> --actor <actorId|actorName>",
-      "agent-game player-strike --game <gameId|slug> --actor <actorId|actorName> --target <actorName>（武器取自 weapon 槽，必须提供 strike）",
-      "agent-game player-brawl --game <gameId|slug> --actor <actorId|actorName> --target <actorName>（用身体，不读物品）",
-      "agent-game player-steal --game <gameId|slug> --actor <actorId|actorName> --target <actorName> --item <itemName>",
-      "agent-game player-give --game <gameId|slug> --actor <actorId|actorName> --target <actorName> --item <itemName>",
-      "agent-game player-pickup --game <gameId|slug> --actor <actorId|actorName> --item <itemName>",
-      "agent-game player-use --game <gameId|slug> --actor <actorId|actorName> --item <itemName> (--target <actorName> | --stage <stageName>) [--anchor <label>]",
-      "agent-game player-equip --game <gameId|slug> --actor <actorId|actorName> --slot <slot> --item <itemName>",
-      "agent-game player-unequip --game <gameId|slug> --actor <actorId|actorName> --slot <slot>",
-      "agent-game player-recognize-identity --game <gameId|slug> --actor <actorId|actorName> --target <actorName> --as <name>（只改自己的记忆，不占行动）",
-      "agent-game appearance --game <gameId|slug> (--actor <actorId|actorName> | --all)",
+      "agent-game take-control --game <gameId|slug> --actor <actorName>",
+      "agent-game release-control --game <gameId|slug> --actor <actorName>",
+      "agent-game player-say --game <gameId|slug> --actor <actorName> --target <actorName> --message <text> [--reason <text>]",
+      "agent-game player-whisper --game <gameId|slug> --actor <actorName> --target <actorName> --message <text> [--reason <text>]",
+      "agent-game player-announce --game <gameId|slug> --actor <actorName> --message <text> [--reason <text>]",
+      "agent-game player-move --game <gameId|slug> --actor <actorName> --to <stageId|stageName>",
+      "agent-game player-teleport --game <gameId|slug> --actor <actorName> --to <stageId|stageName>",
+      "agent-game player-wait --game <gameId|slug> --actor <actorName>",
+      "agent-game player-strike --game <gameId|slug> --actor <actorName> --target <actorName>（武器取自 weapon 槽，必须提供 strike）",
+      "agent-game player-brawl --game <gameId|slug> --actor <actorName> --target <actorName>（用身体，不读物品）",
+      "agent-game player-steal --game <gameId|slug> --actor <actorName> --target <actorName> --item <itemName>",
+      "agent-game player-give --game <gameId|slug> --actor <actorName> --target <actorName> --item <itemName>",
+      "agent-game player-pickup --game <gameId|slug> --actor <actorName> --item <itemName>",
+      "agent-game player-use --game <gameId|slug> --actor <actorName> --item <itemName> (--target <actorName> | --stage <stageName>) [--anchor <label>]",
+      "agent-game player-equip --game <gameId|slug> --actor <actorName> --slot <slot> --item <itemName>",
+      "agent-game player-unequip --game <gameId|slug> --actor <actorName> --slot <slot>",
+      "agent-game player-recognize-identity --game <gameId|slug> --actor <actorName> --target <actorName> --as <name>（只改自己的记忆，不占行动）",
+      "agent-game appearance --game <gameId|slug> (--actor <actorName> | --all)",
       "agent-game deaths --game <gameId|slug>（对每个 hp 归零且未收尾的 actor 跑一次死亡阶段）",
       "agent-game name-leaks --game <gameId|slug> [--scope ever|current] [--include-system] [--allow <name1,name2>] [--since <ISO>] [--text]（只读扫描 actor 记忆中的真名泄漏）",
       "agent-game snapshot --game <gameId|slug> [--root <dir>]",
-      "agent-game compact --game <gameId|slug> --owner actor --name <actorId|actorName> [--min-ratio <0..1>]",
+      "agent-game compact --game <gameId|slug> --owner actor --name <actorName> [--min-ratio <0..1>]",
       "agent-game compact --game <gameId|slug> --owner stage --name <stageId|stageName> [--min-ratio <0..1>]",
       "agent-game compact --game <gameId|slug> --owner world [--min-ratio <0..1>]",
       "agent-game compact --game <gameId|slug> --owner all [--min-ratio <0..1>]",
@@ -269,7 +269,7 @@ function requireActorName(
   command: string,
 ): string {
   if (typeof values.actor !== "string" || values.actor.trim().length === 0) {
-    throw new Error(`${command} 需要 --actor <actorId|actorName> 或 --all`);
+    throw new Error(`${command} 需要 --actor <actorName> 或 --all`);
   }
   return values.actor;
 }
@@ -715,13 +715,13 @@ async function main(): Promise<void> {
       }
       const state = await getGameState(db, gameRef);
       const controlled = new Set(await listPlayerControlledActorIds(db, state.game.id));
-      const actorIds = state.world.stages
-        .flatMap((stage) => stage.actors.filter(isAlive).map((actor) => actor.id))
-        .filter((actorId) => !controlled.has(actorId));
+      const actors = state.world.stages
+        .flatMap((stage) => stage.actors.filter(isAlive))
+        .filter((actor) => !controlled.has(actor.id));
       const output = [];
-      for (const actorId of actorIds) {
+      for (const actor of actors) {
         output.push(
-          await runNpcTurn(db, gameRef, actorId, {
+          await runNpcTurn(db, gameRef, actor.name, {
             service: DEEPSEEK_SERVICE,
             appearanceService: DEEPSEEK_SERVICE,
             logger: cliLogger,

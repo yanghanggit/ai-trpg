@@ -15,7 +15,7 @@ import { resolveWhisper } from "../actions/whisper";
 import { GameError } from "../errors";
 import { assertNoSystemReference } from "../text-guard";
 import type { ActorPlan } from "../types";
-import { findActorViewByHandleInWorld, resolveEquippedItems } from "./queries";
+import { findSignatureByHandleInWorld, resolveEquippedItems, resolveVisibleActor } from "./queries";
 import type {
   ActorWithStageRow,
   Executor,
@@ -39,6 +39,14 @@ export async function resolvePlan(
 ): Promise<ResolvedPlan> {
   let stage: StageRow = actorRow.stage;
   const resolved: ResolvedAction[] = [];
+  // actor-facing 目标只走签名或已识别真名；裸名字、id、未识别的 @真名 都不命中。
+  const visibleTarget = (ref: string) =>
+    resolveVisibleActor(executor, {
+      gameId: world.gameId,
+      observerId: actorRow.actor.id,
+      stageId: stage.id,
+      ref,
+    });
   // 物品提供的动作与角色固有动作同权：穿戴中的物品把自己的动作借给角色。
   // 装备变更在本轮解析期不回灌，所以「本回合卸下/换上武器」要到下一回合才影响可用动作。
   const granted = (await resolveEquippedItems(executor, actorRow.actor)).flatMap(
@@ -50,10 +58,24 @@ export async function resolvePlan(
     assertActionAllowed(allowed, action.kind, actorRow.actor.name);
     switch (action.kind) {
       case "say":
-        resolved.push(await resolveSay(executor, stage, actorRow.actor.id, action));
+        resolved.push(
+          resolveSay(
+            stage,
+            actorRow.actor.id,
+            action,
+            await visibleTarget(action.targetActorHandle),
+          ),
+        );
         break;
       case "whisper":
-        resolved.push(await resolveWhisper(executor, stage, actorRow.actor.id, action));
+        resolved.push(
+          resolveWhisper(
+            stage,
+            actorRow.actor.id,
+            action,
+            await visibleTarget(action.targetActorHandle),
+          ),
+        );
         break;
       case "announce":
         assertNoSystemReference(action.message);
@@ -75,16 +97,47 @@ export async function resolvePlan(
         resolved.push(resolveWait(stage, action));
         break;
       case "strike":
-        resolved.push(await resolveStrike(executor, stage, actorRow, action));
+        resolved.push(
+          await resolveStrike(
+            executor,
+            stage,
+            actorRow,
+            action,
+            await visibleTarget(action.targetActorHandle),
+          ),
+        );
         break;
       case "brawl":
-        resolved.push(await resolveBrawl(executor, stage, actorRow, action));
+        resolved.push(
+          await resolveBrawl(
+            stage,
+            actorRow,
+            action,
+            await visibleTarget(action.targetActorHandle),
+          ),
+        );
         break;
       case "steal":
-        resolved.push(await resolveSteal(executor, stage, actorRow.actor.id, action));
+        resolved.push(
+          await resolveSteal(
+            executor,
+            stage,
+            actorRow.actor.id,
+            action,
+            await visibleTarget(action.targetActorHandle),
+          ),
+        );
         break;
       case "give":
-        resolved.push(await resolveGive(executor, stage, actorRow.actor.id, action));
+        resolved.push(
+          await resolveGive(
+            executor,
+            stage,
+            actorRow.actor.id,
+            action,
+            await visibleTarget(action.targetActorHandle),
+          ),
+        );
         break;
       case "pickup":
         resolved.push(await resolvePickup(executor, stage, action));
@@ -95,9 +148,13 @@ export async function resolvePlan(
       case "unequip":
         resolved.push(resolveUnequip(actorRow, action));
         break;
-      case "use":
-        resolved.push(await resolveUse(executor, stage, actorRow, action));
+      case "use": {
+        const target = action.targetActorHandle
+          ? await visibleTarget(action.targetActorHandle)
+          : undefined;
+        resolved.push(await resolveUse(executor, stage, actorRow, action, target));
         break;
+      }
       default:
         throw new GameError("invalid_action", `未知动作: ${String(action)}`);
     }
@@ -110,7 +167,7 @@ export async function resolvePlan(
   );
   const identities: ResolvedIdentity[] = [];
   for (const binding of bindings.values()) {
-    const view = await findActorViewByHandleInWorld(executor, world.id, binding.handle);
+    const view = await findSignatureByHandleInWorld(executor, world.id, binding.handle);
     if (!view) {
       throw new GameError("invalid_action", `世界内没有这个编号: ${binding.handle}`);
     }

@@ -1,7 +1,7 @@
 import { and, eq } from "drizzle-orm";
 import type { Database } from "../db/pool";
 import { actorControls } from "../db/schema";
-import { findActor } from "./actors";
+import { findActorByName } from "./actors";
 import { GameError } from "./errors";
 import { getGameState } from "./service";
 
@@ -14,7 +14,7 @@ export async function takeActorControl(
   actorRef: string,
 ): Promise<ActorControl> {
   const state = await getGameState(db, gameRef);
-  const actor = findActor(state, actorRef);
+  const actor = findActorByName(state, actorRef).actor;
 
   const [control] = await db
     .insert(actorControls)
@@ -47,7 +47,7 @@ export async function releaseActorControl(
   actorRef: string,
 ): Promise<void> {
   const state = await getGameState(db, gameRef);
-  const actor = findActor(state, actorRef);
+  const actor = findActorByName(state, actorRef).actor;
   await db.delete(actorControls).where(eq(actorControls.actorId, actor.id));
 }
 

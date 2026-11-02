@@ -180,6 +180,7 @@ export async function applyActorPlan(
       ...(options.trace ? { trace: options.trace } : {}),
     });
   };
+  let appearanceActorName: string | null = null;
   const result: ApplyPlanResult = await db.transaction(async (tx) => {
     const [game] = await tx.select().from(games).where(eq(games.id, gameId)).limit(1).for("update");
     if (!game) {
@@ -201,6 +202,7 @@ export async function applyActorPlan(
     if (!actorRow) {
       throw new GameError("not_found", `actor 不存在: ${actorId}`);
     }
+    appearanceActorName = actorRow.actor.name;
     if (!isAlive(actorRow.actor)) {
       throw new GameError("invalid_action", `actor 已死亡: ${actorRow.actor.name}`);
     }
@@ -377,9 +379,12 @@ export async function applyActorPlan(
     ({ actionKind }) => actionKind === "equip" || actionKind === "unequip",
   );
   if (equipmentChanged && options.appearanceService) {
+    if (!appearanceActorName) {
+      throw new GameError("invalid_state", `actor 名称缺失: ${actorId}`);
+    }
     let failed = false;
     try {
-      const appearance = await runAppearanceTurn(db, gameId, actorId, {
+      const appearance = await runAppearanceTurn(db, gameId, appearanceActorName, {
         service: options.appearanceService,
         ...(options.logger ? { logger: options.logger } : {}),
         ...(options.trace ? { trace: options.trace } : {}),

@@ -2,13 +2,7 @@ import type { TraceContext } from "../../debug/trace";
 import type { ToolDefinition } from "../../llm/types";
 import { type AddressLookup, actionRef } from "../addressing";
 import { appendPublicMessage, bumpGameVersion } from "../apply/messages";
-import {
-  assertItemNameFree,
-  assertNotSelf,
-  findActorInStage,
-  isAlive,
-  resolveActorItem,
-} from "../apply/queries";
+import { assertItemNameFree, assertNotSelf, isAlive, resolveActorItem } from "../apply/queries";
 import type { ActorWithStageRow, Executor, ResolvedSteal } from "../apply/types";
 import { GameError } from "../errors";
 import { withoutEquippedItem } from "../items";
@@ -56,8 +50,8 @@ export async function resolveSteal(
   stage: ResolvedSteal["stage"],
   actorId: string,
   action: StealAction,
+  target: ResolvedSteal["target"],
 ): Promise<ResolvedSteal> {
-  const target = await findActorInStage(executor, stage.id, action.targetActorHandle);
   assertNotSelf(target, actorId);
   const transferItem = await resolveActorItem(executor, target.id, action.itemName);
   if (isAlive(target) && Object.values(target.equipment).includes(transferItem.name)) {

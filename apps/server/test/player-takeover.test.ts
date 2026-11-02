@@ -182,7 +182,7 @@ describe.skipIf(!testDatabaseUrl)("player takeover", () => {
     expect(attacked.ok).toBe(true);
     expect(attacked.plan?.actions[0]).toMatchObject({
       kind: "strike",
-      targetActorHandle: "提灯修士",
+      targetActorHandle: "@提灯修士",
     });
 
     const state = await getGameState(handle.db, game.game.slug);

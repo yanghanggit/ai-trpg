@@ -23,7 +23,7 @@ import { parseAnnounce } from "../src/game/actions/announce";
 import { parseSay } from "../src/game/actions/say";
 import { parseWhisper } from "../src/game/actions/whisper";
 import { addressLookupFor, handleOf } from "../src/game/addressing";
-import { findActorInStage } from "../src/game/apply/queries";
+import { resolveVisibleActor } from "../src/game/apply/queries";
 import { formatForm } from "../src/game/form";
 import { buildActorTurnInput } from "../src/game/npc";
 import { recordAppearance } from "../src/game/persistence/appearances";
@@ -137,9 +137,61 @@ describe.skipIf(!testDatabaseUrl)("names and addresses", () => {
     // 认识写成 @真名，不认识写成 #编号；两种 token 都必须能解析回同一个 actor。
     for (const target of others) {
       const emitted = address(target.id);
-      const resolved = await findActorInStage(handle.db, stage.id, emitted.token);
+      const resolved = await resolveVisibleActor(handle.db, {
+        gameId: state.game.id,
+        observerId: actor.id,
+        stageId: stage.id,
+        ref: emitted.token,
+      });
       expect(resolved.id).toBe(target.id);
     }
+  });
+
+  it("only lets actor-facing lookup use a signature or a recognized true name", async () => {
+    const created = await createGame(handle.db, {
+      username: DEMO_USER.username,
+      name: "签名与真名入口测试局",
+      world: BELL_MONASTERY_WORLD,
+    });
+    await takeActorControl(handle.db, created.game.slug, "无名者");
+    await playerMove(handle.db, created.game.slug, "无名者", {
+      targetStageRef: "墓园",
+    });
+
+    const { state, actor } = await actorByName(created.game.slug, handle, "奥德里克");
+    const stage = state.world.stages.find((candidate) =>
+      candidate.actors.some((other) => other.id === actor.id),
+    );
+    if (!stage) {
+      throw new Error("缺少墓园");
+    }
+    const address = addressLookupFor(state, actor, stage);
+    const others = stage.actors.filter((other) => other.id !== actor.id);
+    const known = others.find((other) => address(other.id).known);
+    const unknown = others.find((other) => !address(other.id).known);
+    if (!known || !unknown) {
+      throw new Error("墓园缺少已知 / 未知目标");
+    }
+
+    const resolve = (ref: string) =>
+      resolveVisibleActor(handle.db, {
+        gameId: state.game.id,
+        observerId: actor.id,
+        stageId: stage.id,
+        ref,
+      });
+
+    // 签名入口：#编号对认得与不认得的目标都成立。
+    await expect(resolve(handleOf(known.signature.seq))).resolves.toMatchObject({ id: known.id });
+    await expect(resolve(handleOf(unknown.signature.seq))).resolves.toMatchObject({
+      id: unknown.id,
+    });
+
+    // 真名入口：认得才能用 @真名；裸名字与 id 都不进入 actor-facing 层。
+    await expect(resolve(`@${known.name}`)).resolves.toMatchObject({ id: known.id });
+    await expect(resolve(`@${unknown.name}`)).rejects.toThrow(/找不到引用/);
+    await expect(resolve(known.name)).rejects.toThrow(/引用必须使用/);
+    await expect(resolve(known.id)).rejects.toThrow(/引用必须使用/);
   });
 
   it("keeps unknown names out of observations, tool enums and prompts", async () => {
@@ -401,7 +453,7 @@ describe.skipIf(!testDatabaseUrl)("names and addresses", () => {
     );
   });
 
-  it("lets god-view callers target by id, canonical name or handle", async () => {
+  it("lets god-view callers target by canonical name or handle", async () => {
     const created = await createGame(handle.db, {
       username: DEMO_USER.username,
       name: "上帝视角寻址测试局",
@@ -416,8 +468,8 @@ describe.skipIf(!testDatabaseUrl)("names and addresses", () => {
       throw new Error("缺少提灯修士");
     }
 
-    // 三种寻址方式都成立：稳定 id、名字、引用。
-    for (const ref of [monk.id, monk.name, handleOf(monk.signature.seq)]) {
+    // 两种寻址方式成立：真名与签名引用；id 不再是 actor 检索入口。
+    for (const ref of [monk.name, handleOf(monk.signature.seq)]) {
       const said = await playerSay(
         handle.db,
         created.game.slug,
@@ -433,7 +485,7 @@ describe.skipIf(!testDatabaseUrl)("names and addresses", () => {
     // 幂等：三条消息都进了公共事件流，客户端可以按 id 反查实体。
     const after = await getGameState(handle.db, created.game.slug);
     const targets = after.messages.filter((message) => message.kind === "say");
-    expect(targets).toHaveLength(3);
+    expect(targets).toHaveLength(2);
     expect(targets.every((message) => message.targetActorId === monk.id)).toBe(true);
   });
 

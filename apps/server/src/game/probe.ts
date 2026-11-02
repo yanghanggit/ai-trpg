@@ -1,6 +1,6 @@
 import type { Database } from "../db/pool";
 import { ChatCompletionRequest, type ChatCompletionService, type ChatMessage } from "../llm";
-import { findActorWithStage, findStage } from "./actors";
+import { findActorByName, findStage } from "./actors";
 import { GameError } from "./errors";
 import { loadAgentMemory } from "./memory";
 import { getGameState } from "./service";
@@ -51,7 +51,7 @@ export async function runProbe(
 
   switch (options.target.type) {
     case "actor": {
-      const current = findActorWithStage(state, options.target.actorRef);
+      const current = findActorByName(state, options.target.actorRef);
       const memory = await loadAgentMemory(db, state.game.id, "actor", current.actor.id);
       if (!memory) {
         throw new GameError("invalid_state", `actor 缺少 memory: ${current.actor.name}`);

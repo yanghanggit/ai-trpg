@@ -1,7 +1,7 @@
 import type { TraceContext } from "../../debug/trace";
 import type { ToolDefinition } from "../../llm/types";
 import type { AddressLookup } from "../addressing";
-import { assertNotSelf, findActorInStage, resolveEquippedItems } from "../apply/queries";
+import { assertNotSelf, resolveEquippedItems } from "../apply/queries";
 import type { ActorWithStageRow, Executor, ResolvedStrike } from "../apply/types";
 import { GameError } from "../errors";
 import { applyItemEffect } from "../item-effects";
@@ -55,8 +55,8 @@ export async function resolveStrike(
   stage: ResolvedStrike["stage"],
   actorRow: ActorWithStageRow,
   action: StrikeAction,
+  target: ResolvedStrike["target"],
 ): Promise<ResolvedStrike> {
-  const target = await findActorInStage(executor, stage.id, action.targetActorHandle);
   assertNotSelf(target, actorRow.actor.id);
   const weaponName = actorRow.actor.equipment.weapon;
   const item = (await resolveEquippedItems(executor, actorRow.actor)).find(

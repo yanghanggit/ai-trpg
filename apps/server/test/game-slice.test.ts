@@ -130,7 +130,7 @@ describe.skipIf(!testDatabaseUrl)("memory-driven NPC slice", () => {
           {
             kind: "say",
             mind: "先试探他。",
-            targetActorHandle: "提灯修士",
+            targetActorHandle: "@提灯修士",
             message: "你听见钟声了吗？",
           },
         ],
@@ -140,7 +140,7 @@ describe.skipIf(!testDatabaseUrl)("memory-driven NPC slice", () => {
           {
             kind: "whisper",
             mind: "不要让它继续响。",
-            targetActorHandle: "守烬人",
+            targetActorHandle: "@守烬人",
             message: "别回应它。",
           },
         ],
@@ -398,7 +398,7 @@ describe.skipIf(!testDatabaseUrl)("memory-driven NPC slice", () => {
       name: "攻击测试局",
       world: TEST_WORLD,
     });
-    const service = new ScriptedNpcService([{ actions: [strikeAction("提灯修士")] }]);
+    const service = new ScriptedNpcService([{ actions: [strikeAction("@提灯修士")] }]);
 
     const result = await runNpcTurn(handle.db, created.game.slug, "守烬人", { service });
     expect(result.ok).toBe(true);
@@ -463,7 +463,7 @@ describe.skipIf(!testDatabaseUrl)("memory-driven NPC slice", () => {
       name: "死亡测试局",
       world,
     });
-    const service = new ScriptedNpcService([{ actions: [strikeAction("提灯修士")] }]);
+    const service = new ScriptedNpcService([{ actions: [strikeAction("@提灯修士")] }]);
 
     const result = await runNpcTurn(handle.db, created.game.slug, "守烬人", { service });
     expect(result.ok).toBe(true);
@@ -506,7 +506,7 @@ describe.skipIf(!testDatabaseUrl)("memory-driven NPC slice", () => {
       .find((actor) => actor.name === "提灯修士");
     expect(defaultPlayer?.isDefaultPlayer).toBe(true);
 
-    const service = new ScriptedNpcService([{ actions: [strikeAction("提灯修士")] }]);
+    const service = new ScriptedNpcService([{ actions: [strikeAction("@提灯修士")] }]);
     const result = await runNpcTurn(handle.db, created.game.slug, "守烬人", { service });
     expect(result.ok).toBe(true);
 
@@ -530,7 +530,7 @@ describe.skipIf(!testDatabaseUrl)("memory-driven NPC slice", () => {
           {
             kind: "say",
             mind: "到了中殿再问抄经人。",
-            targetActorHandle: "缄默抄经人",
+            targetActorHandle: "@缄默抄经人",
             message: "你看见钟摆了吗？",
           },
         ],
@@ -634,7 +634,7 @@ describe.skipIf(!testDatabaseUrl)("memory-driven NPC slice", () => {
           {
             kind: "say",
             mind: "这句给目标，但旁人也会听见。",
-            targetActorHandle: "提灯修士",
+            targetActorHandle: "@提灯修士",
             message: "只对你说。",
           },
         ],
@@ -644,13 +644,13 @@ describe.skipIf(!testDatabaseUrl)("memory-driven NPC slice", () => {
           {
             kind: "whisper",
             mind: "这句只给他听。",
-            targetActorHandle: "提灯修士",
+            targetActorHandle: "@提灯修士",
             message: "别回头。",
           },
         ],
       },
       {
-        actions: [strikeAction("提灯修士")],
+        actions: [strikeAction("@提灯修士")],
       },
     ]);
     const announced = await runNpcTurn(handle.db, game.game.slug, "守烬人", { service });

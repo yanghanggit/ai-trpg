@@ -1,7 +1,7 @@
 import type { TraceContext } from "../../debug/trace";
 import type { ToolDefinition } from "../../llm/types";
 import type { AddressLookup } from "../addressing";
-import { assertNotSelf, findActorInStage } from "../apply/queries";
+import { assertNotSelf } from "../apply/queries";
 import type { ActorWithStageRow, Executor, ResolvedBrawl } from "../apply/types";
 import { GameError } from "../errors";
 import { applyItemEffect } from "../item-effects";
@@ -45,13 +45,12 @@ export function parseBrawl(args: Record<string, unknown>): BrawlAction {
 }
 
 /** 目标不要求存活：尸体也能被攻击，伤害结算会在 `isAlive` 处空转。 */
-export async function resolveBrawl(
-  executor: Executor,
+export function resolveBrawl(
   stage: ResolvedBrawl["stage"],
   actorRow: ActorWithStageRow,
   action: BrawlAction,
-): Promise<ResolvedBrawl> {
-  const target = await findActorInStage(executor, stage.id, action.targetActorHandle);
+  target: ResolvedBrawl["target"],
+): ResolvedBrawl {
   assertNotSelf(target, actorRow.actor.id);
   return { kind: "brawl", action, stage, target };
 }
