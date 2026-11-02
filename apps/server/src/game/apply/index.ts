@@ -294,16 +294,20 @@ export async function applyActorPlan(
       if (affixRequest) {
         affixRequests.push(affixRequest);
       }
+      const dialogue = dialogueFeedbackMetadata(action);
       await appendMemoryMessages(tx, memory.row.id, [
         {
           type: "human",
-          // 反馈文本是对外给 actor 的，写库前统一脱敏（反馈本身保留引用）。
-          content: sanitizeActorFacingText(feedback, stageActorRefs, address, [], {
-            resolveHandles: false,
-          }),
+          // 台词原文是角色说出口的内容，保留原样；只有非台词的反馈才做名字脱敏。
+          content:
+            dialogue.dialogue === undefined
+              ? sanitizeActorFacingText(feedback, stageActorRefs, address, [], {
+                  resolveHandles: false,
+                })
+              : feedback,
           metadata: {
             kind: MEMORY_KINDS.actionFeedback,
-            ...dialogueFeedbackMetadata(action),
+            ...dialogue,
           },
         },
       ]);

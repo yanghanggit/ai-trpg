@@ -103,7 +103,7 @@ describe.skipIf(!testDatabaseUrl)("names and addresses", () => {
     const actors = state.world.stages.flatMap((stage) => stage.actors);
     const badLuck = actors.find((actor) => actor.name === "坏运气");
     const ratKing = actors.find((actor) => actor.name === "鼠王");
-    // 幼崽认得父王这个签名；seed 没写名字时默认使用对象真名。
+    // 幼崽的这条开局绑定显式把鼠王记作「鼠王」；「父王」只是台词里的关系称谓。
     expect(
       state.signatureNames.find(
         (row) => row.observerActorId === badLuck?.id && row.signatureId === ratKing?.signature.id,
@@ -114,7 +114,7 @@ describe.skipIf(!testDatabaseUrl)("names and addresses", () => {
   it("uses a seed name as the observer's current name", async () => {
     const world = {
       ...TEST_WORLD,
-      knownIdentities: [{ observer: "ember-keeper", subject: "lantern-monk", name: "提灯人" }],
+      signatureNames: [{ observer: "ember-keeper", subject: "lantern-monk", name: "提灯人" }],
     };
     const created = await createGame(handle.db, {
       username: DEMO_USER.username,

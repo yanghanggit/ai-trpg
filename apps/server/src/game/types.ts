@@ -112,8 +112,8 @@ export type World = {
   stages: readonly Stage[];
   connections: readonly Connection[];
   actors: readonly Actor[];
-  /** 开局时就已认识的角色：观察者与对象都用 `Actor.key` 引用。 */
-  knownIdentities?: readonly KnownIdentity[];
+  /** 开局时已经建立的名字绑定：观察者与对象都用 `Actor.key` 引用。 */
+  signatureNames?: readonly WorldSignatureName[];
   /** 世界实体可用的动作；必须显式列出。 */
   actions: readonly WorldActionKind[];
 };
@@ -121,13 +121,13 @@ export type World = {
 /**
  * 开局时就已建立的名字绑定。
  *
- * 只声明观察者与对象；`name` 省略时默认使用对象的真名。写了就是观察者对那个签名的
- * 当前称呼，允许是称号、误认或任何非真名。
+ * 等价于建局时替观察者执行一次 `recognize_identity`：`observer` 与 `subject` 用内容 key，
+ * `name` 是观察者当前对这个签名的称呼；允许是真名、称号、误认或听来的叫法。
  */
-export type KnownIdentity = {
+export type WorldSignatureName = {
   observer: string;
   subject: string;
-  name?: string;
+  name: string;
 };
 
 /**

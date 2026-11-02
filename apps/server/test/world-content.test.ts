@@ -24,23 +24,31 @@ describe("world content validation", () => {
     expect(keeper?.profile).toBe(TEST_WORLD.actors[0]?.profile);
   });
 
-  it("accepts a name on a known identity", () => {
+  it("accepts an explicit starting signature name", () => {
     const world = {
       ...TEST_WORLD,
-      knownIdentities: [{ observer: "ember-keeper", subject: "lantern-monk", name: "提灯人" }],
+      signatureNames: [{ observer: "ember-keeper", subject: "lantern-monk", name: "提灯人" }],
     };
     const parsed = parseWorldContent(world);
-    expect(parsed.knownIdentities?.[0]).toEqual({
+    expect(parsed.signatureNames?.[0]).toEqual({
       observer: "ember-keeper",
       subject: "lantern-monk",
       name: "提灯人",
     });
   });
 
-  it("rejects a known identity name with system markers", () => {
+  it("requires an explicit starting signature name", () => {
     const world = {
       ...TEST_WORLD,
-      knownIdentities: [{ observer: "ember-keeper", subject: "lantern-monk", name: "@提灯人" }],
+      signatureNames: [{ observer: "ember-keeper", subject: "lantern-monk" }],
+    };
+    expect(() => parseWorldContent(world)).toThrow();
+  });
+
+  it("rejects a starting signature name with system markers", () => {
+    const world = {
+      ...TEST_WORLD,
+      signatureNames: [{ observer: "ember-keeper", subject: "lantern-monk", name: "@提灯人" }],
     };
     expect(() => parseWorldContent(world)).toThrow(/名字不能包含/);
   });

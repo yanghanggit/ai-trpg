@@ -24,7 +24,7 @@ function callWorld(targetKnowsSource = true): World {
     ...(targetKnowsSource
       ? {}
       : {
-          knownIdentities: (TEST_WORLD.knownIdentities ?? []).filter(
+          signatureNames: (TEST_WORLD.signatureNames ?? []).filter(
             (edge) => !(edge.observer === "silent-scribe" && edge.subject === "ember-keeper"),
           ),
         }),
@@ -144,6 +144,22 @@ describe.skipIf(!testDatabaseUrl)("cross-stage call", () => {
         { judge: allowAllDialogue },
       ),
     ).rejects.toThrow(/目标没有传音能力/);
+  });
+
+  it("keeps the spoken self-name in the source feedback instead of turning it into a reference", async () => {
+    const created = await createControlledGame("跨场景传音台词保留测试局", callWorld());
+    await playerCall(
+      handle.db,
+      created.game.slug,
+      "守烬人",
+      { targetActorName: "缄默抄经人", message: "我是守烬人。听得到吗？" },
+      { judge: allowAllDialogue },
+    );
+    const memories = await getGameMemories(handle.db, created.game.id);
+    const keeper = memories.find((memory) => memory.name === "守烬人");
+    const feedback = keeper?.messages.find((message) => message.content.includes("你把话传到了"));
+    expect(feedback?.content).toContain("我是守烬人。听得到吗？");
+    expect(feedback?.content).not.toContain("我是@守烬人");
   });
 
   it("rejects @ references and same-stage targets", async () => {

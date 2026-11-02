@@ -94,7 +94,7 @@ describe.skipIf(!testDatabaseUrl)("memory compaction", () => {
   it("rejects an actor summary that mentions an unknown true name", async () => {
     const world = {
       ...TEST_WORLD,
-      knownIdentities: (TEST_WORLD.knownIdentities ?? []).filter(
+      signatureNames: (TEST_WORLD.signatureNames ?? []).filter(
         (edge) => !(edge.observer === "ember-keeper" && edge.subject === "lantern-monk"),
       ),
     };

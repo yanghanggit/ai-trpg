@@ -331,13 +331,13 @@ export const BELL_MONASTERY: Script = {
     },
   ],
   // 开局既知：只声明世界内已经成立的关系，其余姓名要靠自我介绍 / 互动。
-  knownIdentities: [
-    { observer: "odric", subject: "cinder" },
-    { observer: "odric", subject: "bad-luck" },
-    { observer: "cinder", subject: "odric" },
-    // 幼崽认得父王这个签名，因此知道他的真名；「父王」只是它说话时的关系称谓。
-    { observer: "bad-luck", subject: "rat-king" },
-    { observer: "rat-king", subject: "bad-luck" },
+  signatureNames: [
+    { observer: "odric", subject: "cinder", name: "煤渣" },
+    { observer: "odric", subject: "bad-luck", name: "坏运气" },
+    { observer: "cinder", subject: "odric", name: "奥德里克" },
+    // 幼崽认识父王的签名；当前称呼显式写为真名「鼠王」，「父王」只是台词里的关系称谓。
+    { observer: "bad-luck", subject: "rat-king", name: "鼠王" },
+    { observer: "rat-king", subject: "bad-luck", name: "坏运气" },
   ],
   actions: ["notify_stage", "end_game"],
 };

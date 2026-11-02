@@ -272,7 +272,7 @@ const AFFIX_DEADLY_WORLD = {
 /** 出手者不认识目标：词缀反馈只能出现 #编号，不能把目标真名写进出击者记忆。 */
 const AFFIX_UNKNOWN_WORLD = {
   ...AFFIX_WORLD,
-  knownIdentities: TEST_WORLD.knownIdentities?.filter(
+  signatureNames: TEST_WORLD.signatureNames?.filter(
     (identity) => !(identity.observer === "ember-keeper" && identity.subject === "lantern-monk"),
   ),
 };
@@ -308,7 +308,7 @@ const SEALED_WORLD: World = {
     { from: "gate", to: "sealed-gate" },
     { from: "sealed-gate", to: "gate" },
   ],
-  knownIdentities: [],
+  signatureNames: [],
   actors: [
     {
       ...KEEPER_ACTOR,

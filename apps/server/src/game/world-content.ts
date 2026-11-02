@@ -18,17 +18,17 @@ const stageActionSchema = z.enum([
   "open_passage",
 ] satisfies readonly StageActionKind[]);
 const worldActionSchema = z.enum(["notify_stage", "end_game"] satisfies readonly WorldActionKind[]);
-/** 内容层可以给开局关系指定观察者使用的名字；省略时由 service 默认成对象真名。 */
+/** 内容层给开局关系指定的当前称呼；必须显式写出，不接受隐藏的真名默认值。 */
 const signatureNameSchema = z
   .string()
   .trim()
   .min(1)
   .refine((value) => !/[@#\p{Cc}]/u.test(value), "名字不能包含 @、# 或控制字符");
 
-const knownIdentitySchema = z.strictObject({
+const worldSignatureNameSchema = z.strictObject({
   observer: z.string().min(1),
   subject: z.string().min(1),
-  name: signatureNameSchema.optional(),
+  name: signatureNameSchema,
 });
 
 const itemKindSchema = z.enum([
@@ -153,7 +153,7 @@ const worldSchema = z
       }),
     ),
     actors: z.array(actorSchema),
-    knownIdentities: z.array(knownIdentitySchema).optional(),
+    signatureNames: z.array(worldSignatureNameSchema).optional(),
     actions: z.array(worldActionSchema),
   })
   .superRefine((value, ctx) => {

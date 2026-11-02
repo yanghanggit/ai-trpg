@@ -270,9 +270,9 @@ describe("dark fantasy seed world", () => {
     expect(new Set(actorAndStage).size).toBe(actorAndStage.length);
   });
 
-  it("declares starting knowledge with actor keys, not display names", () => {
+  it("declares starting signature names with actor keys, not display names", () => {
     const keys = new Set(BELL_MONASTERY_WORLD.actors.map((actor) => actor.key));
-    const edges = BELL_MONASTERY_WORLD.knownIdentities ?? [];
+    const edges = BELL_MONASTERY_WORLD.signatureNames ?? [];
     expect(edges).toHaveLength(5);
     for (const edge of edges) {
       expect(keys.has(edge.observer)).toBe(true);

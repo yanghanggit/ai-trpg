@@ -579,26 +579,26 @@ export async function createGame(
       });
     }
 
-    // 开局既知的名字绑定：观察者与对象都用内容 key 引用，落库时变成 actor / 签名 id。
-    for (const identity of input.world.knownIdentities ?? []) {
-      const observer = actorRefs.get(identity.observer);
-      const subject = actorRefs.get(identity.subject);
+    // 开局名字绑定：观察者与对象都用内容 key 引用，落库时变成 actor / 签名 id。
+    for (const binding of input.world.signatureNames ?? []) {
+      const observer = actorRefs.get(binding.observer);
+      const subject = actorRefs.get(binding.subject);
       if (!observer) {
         throw new GameError(
           "invalid_state",
-          `knownIdentities 引用了不存在的观察者: ${identity.observer}`,
+          `signatureNames 引用了不存在的观察者: ${binding.observer}`,
         );
       }
       if (!subject) {
         throw new GameError(
           "invalid_state",
-          `knownIdentities 引用了不存在的对象: ${identity.subject}`,
+          `signatureNames 引用了不存在的对象: ${binding.subject}`,
         );
       }
       if (observer.actorId === subject.actorId) {
         throw new GameError(
           "invalid_state",
-          `knownIdentities 不能把自己记作他人: ${identity.observer}`,
+          `signatureNames 不能把自己记作他人: ${binding.observer}`,
         );
       }
       await upsertSignatureName(
@@ -607,7 +607,7 @@ export async function createGame(
           gameId,
           observerActorId: observer.actorId,
           signatureId: subject.signatureId,
-          name: identity.name ?? subject.name,
+          name: binding.name,
           source: "content",
           learnedStageId: null,
         },

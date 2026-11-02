@@ -605,13 +605,13 @@ describe.skipIf(!testDatabaseUrl)("memory-driven NPC slice", () => {
           actions: ["say", "whisper", "move", "wait"] as const,
         },
       ],
-      knownIdentities: [
-        ...(TEST_WORLD.knownIdentities ?? []),
-        { observer: "bystander-b", subject: "lantern-monk" },
-        { observer: "bystander-b", subject: "ember-keeper" },
-        { observer: "ember-keeper", subject: "bystander-b" },
-        { observer: "lantern-monk", subject: "bystander-b" },
-        { observer: "silent-scribe", subject: "bystander-b" },
+      signatureNames: [
+        ...(TEST_WORLD.signatureNames ?? []),
+        { observer: "bystander-b", subject: "lantern-monk", name: "提灯修士" },
+        { observer: "bystander-b", subject: "ember-keeper", name: "守烬人" },
+        { observer: "ember-keeper", subject: "bystander-b", name: "旁听者" },
+        { observer: "lantern-monk", subject: "bystander-b", name: "旁听者" },
+        { observer: "silent-scribe", subject: "bystander-b", name: "旁听者" },
       ],
     };
     const game = await createGame(handle.db, {
