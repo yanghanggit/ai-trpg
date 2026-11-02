@@ -20,6 +20,8 @@ class SummaryService implements ChatCompletionService {
   calls = 0;
   inputs: string[] = [];
 
+  constructor(private readonly summary = "压缩摘要：角色仍守在灰烬门廊，记得有人来过。") {}
+
   async complete(request: Parameters<ChatCompletionService["complete"]>[0]) {
     this.calls += 1;
     this.inputs.push(request.inputMessage);
@@ -27,7 +29,7 @@ class SummaryService implements ChatCompletionService {
       request,
       aiMessage: {
         type: "ai",
-        content: "压缩摘要：角色仍守在灰烬门廊，记得有人来过。",
+        content: this.summary,
         metadata: { contextUsageRatio: 0.01 },
       },
       finishReason: "stop",
@@ -87,6 +89,48 @@ describe.skipIf(!testDatabaseUrl)("memory compaction", () => {
       expect(memory.messages[1]?.metadata).toMatchObject({ kind: "compacted_memory" });
       expect(memory.contextUsageRatio).toBe(0);
     }
+  });
+
+  it("rejects an actor summary that mentions an unknown true name", async () => {
+    const world = {
+      ...TEST_WORLD,
+      knownIdentities: (TEST_WORLD.knownIdentities ?? []).filter(
+        (edge) => !(edge.observer === "ember-keeper" && edge.subject === "lantern-monk"),
+      ),
+    };
+    const created = await createGame(handle.db, {
+      username: DEMO_USER.username,
+      name: "压缩真名泄漏测试局",
+      world,
+    });
+    const memories = await getGameMemories(handle.db, created.game.id);
+    const keeper = memories.find((memory) => memory.name === "守烬人");
+    expect(keeper).toBeDefined();
+    await appendMemoryMessages(handle.db, keeper?.id as string, [
+      {
+        type: "ai",
+        content: "一条测试 AI 记忆。",
+        metadata: { contextUsageRatio: 0.5 },
+      },
+    ]);
+    const before = (await getGameMemories(handle.db, created.game.id)).find(
+      (memory) => memory.name === "守烬人",
+    );
+    const service = new SummaryService("压缩摘要：你记得提灯修士来过。");
+    await expect(
+      compactMemory(
+        handle.db,
+        created.game.slug,
+        { ownerType: "actor", ref: "守烬人" },
+        { service },
+      ),
+    ).rejects.toThrow(/未认知的真名/);
+
+    const after = (await getGameMemories(handle.db, created.game.id)).find(
+      (memory) => memory.name === "守烬人",
+    );
+    expect(after?.messages).toHaveLength(before?.messages.length ?? -1);
+    expect(after?.messages.some((message) => message.content.includes("提灯修士"))).toBe(false);
   });
 
   it("archives old messages under the new human summary, preserving nested compact branches", async () => {

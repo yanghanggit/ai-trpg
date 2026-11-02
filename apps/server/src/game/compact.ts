@@ -12,8 +12,10 @@ import { buildCampaignSettingBlock, type CampaignContextWorld } from "./campaign
 import { MEMORY_KINDS } from "./constants";
 import { GameError } from "./errors";
 import { appendMemoryMessages, loadAgentMemory, type MemoryOwnerType } from "./memory";
+import { findNameLeaks, type NameAuditInput } from "./name-audit";
+import { loadNameAuditInput } from "./persistence/name-audit";
 import { getGameState } from "./service";
-import type { GameState } from "./types";
+import type { AgentMemoryState, GameState } from "./types";
 
 /** 手动 compact 的目标；actor/stage 用名称或 id，world 不需要名称。 */
 export type CompactTarget =
@@ -94,6 +96,44 @@ function resolveAllOwners(state: GameState): ResolvedOwner[] {
 }
 
 /**
+ * actor 的 compact 摘要会回灌成长期记忆，落账前用名字审计的同一套白名单再检查一次：
+ * 摘要可以出现观察者自己的名字，或它已经用真名称呼过的其他 actor；其他真名说明
+ * 压缩 agent 把未认知的名字重新写了回来，拒绝本次压缩，保留旧 memory。
+ */
+function assertActorSummaryKnown(
+  input: NameAuditInput,
+  owner: ResolvedOwner,
+  summary: string,
+): void {
+  const observer = input.actors.find((actor) => actor.id === owner.ownerId);
+  if (!observer) {
+    throw new GameError("invalid_state", `压缩主体不在 actor 列表中: ${owner.ownerName}`);
+  }
+  const memory: AgentMemoryState = {
+    id: "compact-summary",
+    ownerType: "actor",
+    ownerId: owner.ownerId,
+    name: owner.ownerName,
+    contextUsageRatio: 0,
+    messages: [
+      {
+        sequence: 1,
+        type: "human",
+        content: summary,
+        createdAt: new Date().toISOString(),
+      },
+    ],
+  };
+  const leaks = findNameLeaks({ ...input, memories: [memory] });
+  if (leaks.length > 0) {
+    throw new GameError(
+      "invalid_state",
+      `压缩摘要包含观察者未认知的真名，已拒绝写回: ${leaks.length} 处`,
+    );
+  }
+}
+
+/**
  * 压缩任务也要带上世界设定：压缩结果会成为该主体后续所有回合的长期记忆，
  * 专名、称谓与人称必须在压缩后仍然一致。
  */
@@ -165,6 +205,7 @@ async function compactResolvedMemory(
   world: CampaignContextWorld,
   owner: ResolvedOwner,
   options: CompactMemoryOptions,
+  auditInput?: NameAuditInput,
 ): Promise<CompactMemoryResult> {
   validateMinRatio(options.minRatio);
   const memory = await loadAgentMemory(db, gameId, owner.ownerType, owner.ownerId);
@@ -197,6 +238,12 @@ async function compactResolvedMemory(
   }
 
   const summary = await summarizeMemory(owner, memory.messages, options.service, world);
+  if (owner.ownerType === "actor") {
+    if (!auditInput) {
+      throw new GameError("invalid_state", `缺少 actor 名字审计输入: ${owner.ownerName}`);
+    }
+    assertActorSummaryKnown(auditInput, owner, summary);
+  }
   const lastContent = memory.messages.at(-1)?.content;
   const beforeUpdatedAt = memory.row.updatedAt.getTime();
 
@@ -259,7 +306,9 @@ export async function compactMemory(
 ): Promise<CompactMemoryResult> {
   const state = await getGameState(db, gameRef);
   const owner = resolveTarget(state, target);
-  return compactResolvedMemory(db, state.game.id, state.world, owner, options);
+  const auditInput =
+    owner.ownerType === "actor" ? await loadNameAuditInput(db, state.game.id) : undefined;
+  return compactResolvedMemory(db, state.game.id, state.world, owner, options, auditInput);
 }
 
 export async function compactAllMemories(
@@ -268,9 +317,12 @@ export async function compactAllMemories(
   options: CompactMemoryOptions,
 ): Promise<CompactMemoryResult[]> {
   const state = await getGameState(db, gameRef);
+  const auditInput = await loadNameAuditInput(db, state.game.id);
   const results: CompactMemoryResult[] = [];
   for (const owner of resolveAllOwners(state)) {
-    results.push(await compactResolvedMemory(db, state.game.id, state.world, owner, options));
+    results.push(
+      await compactResolvedMemory(db, state.game.id, state.world, owner, options, auditInput),
+    );
   }
   return results;
 }
