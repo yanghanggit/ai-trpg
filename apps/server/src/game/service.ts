@@ -29,9 +29,10 @@ import {
   createStageMemory,
   createWorldMemory,
 } from "./memory";
+import { recordAppearance } from "./persistence/appearances";
 import { allocateEntitySeq } from "./persistence/entity-seq";
 import { listRecognitions, upsertRecognition } from "./persistence/recognitions";
-import { insertSignature, listCurrentSignatures } from "./persistence/signatures";
+import { insertSignature, listCurrentSignatureViews } from "./persistence/signatures";
 import type {
   ActorState,
   ConnectionState,
@@ -160,10 +161,14 @@ export async function getGameState(db: Database, ref: string): Promise<GameState
           .where(inArray(items.actorId, actorIds))
           .orderBy(asc(items.seq));
 
-  // 每个 actor 当前只有一条签名；运行时快照把展示值拍平到 appearance，
-  // 这里只把句柄与识别需要的字段带出来。
-  const signatureRows = await listCurrentSignatures(db, actorIds);
-  const signatureByActor = new Map(signatureRows.map((row) => [row.actorId, row]));
+  // 每个 actor 当前只有一条签名；外观由该签名的当前渲染行提供。
+  const signatureViews = await listCurrentSignatureViews(db, actorIds);
+  const signatureByActor = new Map(
+    signatureViews.map(({ signature, appearance }) => [
+      signature.actorId,
+      { signature, appearance },
+    ]),
+  );
 
   const stageItemRows =
     stageIds.length === 0
@@ -196,8 +201,8 @@ export async function getGameState(db: Database, ref: string): Promise<GameState
 
   const actorsByStage = new Map<string, ActorState[]>();
   for (const actor of actorRows) {
-    const signature = signatureByActor.get(actor.id);
-    if (!signature) {
+    const view = signatureByActor.get(actor.id);
+    if (!view) {
       throw new GameError("invalid_state", `actor 缺少签名: ${actor.name}`);
     }
     const list = actorsByStage.get(actor.stageId) ?? [];
@@ -207,11 +212,11 @@ export async function getGameState(db: Database, ref: string): Promise<GameState
       key: actor.key,
       name: actor.name,
       profile: actor.profile,
-      appearance: signature.appearance,
+      appearance: { id: view.appearance.id, text: view.appearance.text },
       signature: {
-        id: signature.id,
-        seq: signature.seq,
-        form: signature.form,
+        id: view.signature.id,
+        seq: view.signature.seq,
+        form: view.signature.form,
       },
       stats: actor.stats,
       hp: actor.hp,
@@ -507,7 +512,21 @@ export async function createGame(
         seq: await allocateEntitySeq(tx, gameId),
         actorId,
         form: actor.signature.form,
-        appearance: resolveAppearance(actor.signature),
+      });
+      await recordAppearance(tx, {
+        gameId,
+        actorId,
+        text: resolveAppearance(actor.signature),
+        input: {
+          version: 1,
+          source: "seed",
+          contentKey: input.world.contentKey,
+          contentVersion: input.world.contentVersion,
+          actorKey: actor.key,
+          form: actor.signature.form,
+          fallback: !actor.signature.appearance?.trim(),
+        },
+        now: new Date(),
       });
       actorRefs.set(actor.key, { actorId, signatureId });
 

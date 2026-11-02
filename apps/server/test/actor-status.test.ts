@@ -1,4 +1,4 @@
-import { eq } from "drizzle-orm";
+import { and, eq, isNull } from "drizzle-orm";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { DEMO_USER } from "../src/db/demo-fixture";
 import { TEST_WORLD } from "./test-world";
@@ -6,7 +6,7 @@ import "../src/db/env";
 import { type DatabaseHandle, openDatabase } from "../src/db/connect";
 import { resetDomainData, seedDemoData } from "../src/db/maintenance";
 import { runMigrations } from "../src/db/migrate";
-import { actors } from "../src/db/schema";
+import { actors, appearances } from "../src/db/schema";
 import {
   createGame,
   getGameState,
@@ -149,6 +149,9 @@ describe.skipIf(!testDatabaseUrl)("actor status", () => {
 class DeathAppearanceService implements ChatCompletionService {
   calls = 0;
   input = "";
+  private briefSubmitted = false;
+
+  constructor(private readonly brief?: string) {}
 
   async complete(request: Parameters<ChatCompletionService["complete"]>[0]) {
     const dropping = (request.tools ?? []).some((tool) => tool.function.name === "drop_materials");
@@ -171,6 +174,25 @@ class DeathAppearanceService implements ChatCompletionService {
     // 只有第一轮带 inputMessage，后续轮次沿用同一份 messages。
     if (this.input === "") {
       this.input = request.inputMessage;
+    }
+    if (this.brief && !this.briefSubmitted) {
+      this.briefSubmitted = true;
+      const briefCalls = [
+        {
+          id: "brief-1",
+          type: "function" as const,
+          function: {
+            name: "submit_appearance_brief",
+            arguments: JSON.stringify({ brief: this.brief }),
+          },
+        },
+      ];
+      return new ChatCompletionResult({
+        request,
+        aiMessage: { type: "ai", content: "", toolCalls: briefCalls },
+        finishReason: "tool_calls",
+        toolCalls: briefCalls,
+      });
     }
     const toolCalls = [
       {
@@ -250,12 +272,81 @@ describe.skipIf(!testDatabaseUrl)("death phase", () => {
       .flatMap((stage) => stage.actors)
       .find((actor) => actor.name === "提灯修士");
     expect(monkAfter?.hp).toBe(0);
-    expect(monkAfter?.appearance).toContain("倒");
+    expect(monkAfter?.appearance.text).toContain("倒");
+    if (!monkAfter) {
+      throw new Error("缺少提灯修士");
+    }
+
+    const deathRows = await handle.db
+      .select()
+      .from(appearances)
+      .where(
+        and(eq(appearances.signatureId, monkAfter.signature.id), isNull(appearances.supersededAt)),
+      );
+    expect(deathRows).toHaveLength(1);
+    expect(deathRows[0]?.source).toBe("runtime");
+    const deathInput = deathRows[0]?.input;
+    if (deathInput?.version !== 1 || deathInput.source === "seed") {
+      throw new Error("缺少死亡外观输入快照");
+    }
+    expect(deathInput.context.dead).toBe(true);
+    expect(deathInput.prompt.inputMessage).toContain("尸体外观");
 
     // 收尾只跑一次：第二次扫描不再重复调用。
     const again = await settleDeaths(handle.db, created.game.id, { service });
     expect(again.settled).toEqual([]);
     expect(service.calls).toBe(1);
+  });
+
+  it("lets the dead actor submit a change brief before the corpse appearance", async () => {
+    const created = await createGame(handle.db, {
+      username: DEMO_USER.username,
+      name: "死亡简报测试局",
+      world: TEST_WORLD,
+    });
+    await takeActorControl(handle.db, created.game.slug, "守烬人");
+
+    const brief = "被松脂火把烧过，皮毛焦黑，口鼻沾着烟灰。";
+    const service = new DeathAppearanceService(brief);
+    await playerStrike(
+      handle.db,
+      created.game.slug,
+      "守烬人",
+      { targetActorRef: "提灯修士" },
+      { appearanceService: service },
+    );
+    await playerStrike(
+      handle.db,
+      created.game.slug,
+      "守烬人",
+      { targetActorRef: "提灯修士" },
+      { appearanceService: service },
+    );
+
+    const state = await getGameState(handle.db, created.game.slug);
+    const monk = state.world.stages
+      .flatMap((stage) => stage.actors)
+      .find((actor) => actor.name === "提灯修士");
+    if (!monk) {
+      throw new Error("缺少提灯修士");
+    }
+    expect(service.calls).toBe(2);
+
+    const rows = await handle.db
+      .select()
+      .from(appearances)
+      .where(and(eq(appearances.signatureId, monk.signature.id), isNull(appearances.supersededAt)));
+    expect(rows).toHaveLength(1);
+    expect(rows[0]?.source).toBe("runtime");
+    const input = rows[0]?.input;
+    if (input?.version !== 1 || input.source === "seed") {
+      throw new Error("缺少死亡外观输入快照");
+    }
+    expect(input.context.dead).toBe(true);
+    expect(input.context.brief).toBe(brief);
+    expect(
+      input.prompt.tools.some((tool) => tool.function.name === "submit_appearance_brief"),
+    ).toBe(true);
   });
 
   it("复活式写入把 hp 抬回正数后，收尾标记会被清空，下次死亡重新收尾", async () => {
@@ -458,7 +549,7 @@ describe.skipIf(!testDatabaseUrl)("appearance maintenance", () => {
     const after = (await getGameState(handle.db, created.game.slug)).world.stages
       .flatMap((stage) => stage.actors)
       .find((actor) => actor.name === "提灯修士")?.appearance;
-    expect(after).toBe(corpseAppearance);
+    expect(after?.id).toBe(corpseAppearance?.id);
   });
 });
 
@@ -519,7 +610,7 @@ describe.skipIf(!testDatabaseUrl)("death phase does not block death", () => {
       .find((actor) => actor.name === "提灯修士");
     expect(monk?.hp).toBe(0);
     // 外观没推成 → 保持死亡前的样子，但这不影响死亡本身的宣布。
-    expect(monk?.appearance).not.toContain("倒");
+    expect(monk?.appearance.text).not.toContain("倒");
     expect(failing.calls).toBeGreaterThan(0);
 
     // 死亡广播是公共事件，不依赖 LLM。
@@ -559,8 +650,8 @@ describe.skipIf(!testDatabaseUrl)("death phase does not block death", () => {
     expect(state.messages.filter((message) => message.kind === "death")).toHaveLength(1);
     expect(
       state.world.stages.flatMap((stage) => stage.actors).find((actor) => actor.name === "提灯修士")
-        ?.appearance,
-    ).toBe(monk.appearance);
+        ?.appearance.id,
+    ).toBe(monk.appearance.id);
   });
 
   it("宣布死亡会写场景、旁观者与死者自己的记忆", async () => {
@@ -694,7 +785,7 @@ describe.skipIf(!testDatabaseUrl)("corpses can be operated on", () => {
       .flatMap((stage) => stage.actors)
       .find((actor) => actor.name === "提灯修士");
     expect(monk?.hp).toBe(0);
-    expect(monk?.appearance).toBe(before?.appearance);
+    expect(monk?.appearance.id).toBe(before?.appearance.id);
     expect(after.messages.filter((message) => message.kind === "death")).toHaveLength(1);
   });
 

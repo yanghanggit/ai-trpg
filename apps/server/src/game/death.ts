@@ -121,6 +121,8 @@ async function runDeathPhase(
         try {
           const appearance = await runAppearanceTurn(db, gameId, actor.id, {
             service,
+            // 先让死者自己写一段变化简报，再据此生成尸体外观。
+            requestBrief: true,
             // 死亡已经广播过，尸体快照不再重复贴一条外观变化。
             broadcast: false,
             ...(trace ? { trace } : {}),

@@ -155,7 +155,7 @@ export async function getActorView(
       actorId: actor.id,
       signatureId: actor.signature.id,
       name: actor.name,
-      appearance: actor.appearance,
+      appearance: actor.appearance.text,
     },
     scene: {
       id: stage.id,

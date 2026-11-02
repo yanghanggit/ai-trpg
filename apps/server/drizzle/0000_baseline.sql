@@ -23,7 +23,6 @@ CREATE TABLE "actor_signatures" (
 	"seq" integer DEFAULT 0 NOT NULL,
 	"actor_id" uuid NOT NULL,
 	"form" text NOT NULL,
-	"appearance" text NOT NULL,
 	"ended_at" timestamp with time zone,
 	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
 	CONSTRAINT "actor_signatures_form_format" CHECK ("actor_signatures"."form" ~ '^\[[^\]\r\n]+\]:\S[^\r\n]*$')
@@ -73,6 +72,17 @@ CREATE TABLE "app_meta" (
 	"key" text PRIMARY KEY NOT NULL,
 	"value" jsonb NOT NULL,
 	"updated_at" timestamp with time zone DEFAULT now() NOT NULL
+);
+--> statement-breakpoint
+CREATE TABLE "appearances" (
+	"id" uuid PRIMARY KEY NOT NULL,
+	"game_id" uuid NOT NULL,
+	"signature_id" uuid NOT NULL,
+	"text" text NOT NULL,
+	"source" text NOT NULL,
+	"input" jsonb NOT NULL,
+	"superseded_at" timestamp with time zone,
+	"created_at" timestamp with time zone DEFAULT now() NOT NULL
 );
 --> statement-breakpoint
 CREATE TABLE "dialogue_blocks" (
@@ -263,6 +273,8 @@ ALTER TABLE "actor_signatures" ADD CONSTRAINT "actor_signatures_actor_id_actors_
 ALTER TABLE "actors" ADD CONSTRAINT "actors_stage_id_stages_id_fk" FOREIGN KEY ("stage_id") REFERENCES "public"."stages"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "agent_memories" ADD CONSTRAINT "agent_memories_game_id_games_id_fk" FOREIGN KEY ("game_id") REFERENCES "public"."games"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "agent_memory_messages" ADD CONSTRAINT "agent_memory_messages_memory_id_agent_memories_id_fk" FOREIGN KEY ("memory_id") REFERENCES "public"."agent_memories"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "appearances" ADD CONSTRAINT "appearances_game_id_games_id_fk" FOREIGN KEY ("game_id") REFERENCES "public"."games"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "appearances" ADD CONSTRAINT "appearances_signature_id_actor_signatures_id_fk" FOREIGN KEY ("signature_id") REFERENCES "public"."actor_signatures"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "dialogue_blocks" ADD CONSTRAINT "dialogue_blocks_game_id_games_id_fk" FOREIGN KEY ("game_id") REFERENCES "public"."games"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "dialogue_blocks" ADD CONSTRAINT "dialogue_blocks_actor_id_actors_id_fk" FOREIGN KEY ("actor_id") REFERENCES "public"."actors"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "dialogue_blocks" ADD CONSTRAINT "dialogue_blocks_player_id_game_players_id_fk" FOREIGN KEY ("player_id") REFERENCES "public"."game_players"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
@@ -290,6 +302,9 @@ CREATE INDEX "actor_signatures_actor_idx" ON "actor_signatures" USING btree ("ac
 CREATE UNIQUE INDEX "actor_signatures_current_unique" ON "actor_signatures" USING btree ("actor_id") WHERE "actor_signatures"."ended_at" is null;--> statement-breakpoint
 CREATE UNIQUE INDEX "agent_memories_game_owner_unique" ON "agent_memories" USING btree ("game_id","owner_type","owner_id");--> statement-breakpoint
 CREATE UNIQUE INDEX "agent_memory_messages_memory_sequence_unique" ON "agent_memory_messages" USING btree ("memory_id","sequence");--> statement-breakpoint
+CREATE UNIQUE INDEX "appearances_current_unique" ON "appearances" USING btree ("signature_id") WHERE "appearances"."superseded_at" is null;--> statement-breakpoint
+CREATE INDEX "appearances_game_created_idx" ON "appearances" USING btree ("game_id","created_at");--> statement-breakpoint
+CREATE INDEX "appearances_signature_created_idx" ON "appearances" USING btree ("signature_id","created_at");--> statement-breakpoint
 CREATE INDEX "dialogue_blocks_game_created_idx" ON "dialogue_blocks" USING btree ("game_id","created_at");--> statement-breakpoint
 CREATE INDEX "dialogue_blocks_game_hash_idx" ON "dialogue_blocks" USING btree ("game_id","content_hash");--> statement-breakpoint
 CREATE UNIQUE INDEX "game_messages_game_sequence_unique" ON "game_messages" USING btree ("game_id","sequence");--> statement-breakpoint

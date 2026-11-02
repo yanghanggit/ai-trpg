@@ -3,6 +3,7 @@ import {
   actorRecognitions,
   actorSignatures,
   actors,
+  appearances,
   items,
   stageConnections,
   stageItems,
@@ -18,7 +19,13 @@ import type { ActorRow, Executor, ItemRow, StageItemRow, StageRow, WorldRow } fr
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 export type SignatureRow = typeof actorSignatures.$inferSelect;
-export type ActorViewRow = { actor: ActorRow; signature: SignatureRow };
+export type AppearanceRow = typeof appearances.$inferSelect;
+export type ActorViewRow = { actor: ActorRow; signature: SignatureRow; appearance: AppearanceRow };
+
+/** 连接当前外观行：每个签名至多一条 `superseded_at is null` 的记录。 */
+function currentAppearance(signatureIdColumn: typeof actorSignatures.id) {
+  return and(eq(appearances.signatureId, signatureIdColumn), isNull(appearances.supersededAt));
+}
 
 /** 当前签名的读取条件：同一 actor 至多一条未结束的签名。 */
 function currentSignature(actorIdColumn: typeof actors.id) {
@@ -31,9 +38,10 @@ export async function listStageActorViews(
   stageId: string,
 ): Promise<ActorViewRow[]> {
   return executor
-    .select({ actor: actors, signature: actorSignatures })
+    .select({ actor: actors, signature: actorSignatures, appearance: appearances })
     .from(actors)
     .innerJoin(actorSignatures, currentSignature(actors.id))
+    .innerJoin(appearances, currentAppearance(actorSignatures.id))
     .where(eq(actors.stageId, stageId))
     .orderBy(actors.seq);
 }
@@ -49,9 +57,10 @@ export async function findActorViewByHandleInStage(
     return undefined;
   }
   const [row] = await executor
-    .select({ actor: actors, signature: actorSignatures })
+    .select({ actor: actors, signature: actorSignatures, appearance: appearances })
     .from(actorSignatures)
     .innerJoin(actors, eq(actorSignatures.actorId, actors.id))
+    .innerJoin(appearances, currentAppearance(actorSignatures.id))
     .where(
       and(
         eq(actors.stageId, stageId),
@@ -74,11 +83,12 @@ export async function findActorViewByHandleInWorld(
     return undefined;
   }
   const [row] = await executor
-    .select({ actor: actors, signature: actorSignatures })
+    .select({ actor: actors, signature: actorSignatures, appearance: appearances })
     .from(actorSignatures)
     .innerJoin(actors, eq(actorSignatures.actorId, actors.id))
     .innerJoin(stages, eq(actors.stageId, stages.id))
     .innerJoin(worlds, eq(stages.worldId, worlds.id))
+    .innerJoin(appearances, currentAppearance(actorSignatures.id))
     .where(
       and(eq(worlds.id, worldId), eq(actorSignatures.seq, seq), isNull(actorSignatures.endedAt)),
     )
@@ -132,14 +142,14 @@ export async function stageAddressLookup(
   const base = makeAddressLookup(
     recognized,
     new Map(
-      views.map(({ actor, signature }) => [
+      views.map(({ actor, signature, appearance }) => [
         actor.id,
         {
           actorId: actor.id,
           name: actor.name,
           signatureId: signature.id,
           signatureSeq: signature.seq,
-          appearance: signature.appearance,
+          appearance: appearance.text,
         },
       ]),
     ),
@@ -151,7 +161,7 @@ export async function stageAddressLookup(
         token: `@${self.actor.name}`,
         label: "你自己",
         mention: "你",
-        appearance: self.signature.appearance,
+        appearance: self.appearance.text,
         known: true,
         isSelf: true,
       };

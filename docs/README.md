@@ -55,7 +55,7 @@
 | [数据库](database.md)                    | PostgreSQL 状态源、表与不变式、死亡、迁移     |
 | [公共知识检索](rag.md)                   | 知识边界、向量存储、query 工具与评测基线      |
 | [Actor 记忆](actor-actions-memory.md)    | actor 控制、行动事实、过程轨迹与接管          |
-| [外观](appearance.md)                    | base body、穿戴、外观推理与换装入口           |
+| [外观](appearance.md)                    | 形态、穿戴、外观推理、来源快照与换装入口      |
 | [物品](items.md)                         | 大类语义、可见性通道、转移与偷取条件          |
 | [词缀](affixes.md)                       | 宿主、两段结算、工具表达与叙事去向            |
 | [Stage 小 GM](stage.md)                  | 场景实体、场景记忆、环境仲裁与显式推动        |

@@ -1,12 +1,12 @@
 import { and, eq, inArray, isNull } from "drizzle-orm";
-import { actorSignatures } from "../../db/schema";
+import { actorSignatures, appearances } from "../../db/schema";
 import type { Executor } from "../apply/types";
 
 /**
  * 签名的持久化原语。
  *
- * `actors` 只持有身份；「别人此刻看到的样子」属于签名。外观的读写都走这里：
- * 换装只改 `appearance`，伪装 / 变身会开一条新签名并把旧的封上（`endedAt`）。
+ * `actors` 只持有身份，签名只持有稳定形态。当前外观是 `appearances` 里
+ * `superseded_at is null` 的那一行；伪装 / 变身会开一条新签名并把旧的封上（`endedAt`）。
  */
 
 export type SignatureWrite = {
@@ -15,7 +15,6 @@ export type SignatureWrite = {
   actorId: string;
   /** 稳定形态，`[种族]:描述`。 */
   form: string;
-  appearance: string;
   /** 新签名先以「已退场」插入，再由 `switchCurrentSignature` 启用，避免撞唯一索引。 */
   endedAt?: Date | null;
 };
@@ -25,20 +24,21 @@ export async function insertSignature(executor: Executor, write: SignatureWrite)
 }
 
 /**
- * 本局内给定 actor 的当前签名（每个 actor 至多一条）。
+ * 本局内给定 actor 的当前签名及其当前外观。
  *
  * 调用方先算出 actorIds，再一次性读回，避免按 actor 逐个查询。
  */
-export async function listCurrentSignatures(
-  executor: Executor,
-  actorIds: readonly string[],
-): Promise<(typeof actorSignatures.$inferSelect)[]> {
+export async function listCurrentSignatureViews(executor: Executor, actorIds: readonly string[]) {
   if (actorIds.length === 0) {
     return [];
   }
   return executor
-    .select()
+    .select({ signature: actorSignatures, appearance: appearances })
     .from(actorSignatures)
+    .innerJoin(
+      appearances,
+      and(eq(appearances.signatureId, actorSignatures.id), isNull(appearances.supersededAt)),
+    )
     .where(and(inArray(actorSignatures.actorId, [...actorIds]), isNull(actorSignatures.endedAt)));
 }
 
@@ -62,16 +62,4 @@ export async function switchCurrentSignature(
     .update(actorSignatures)
     .set({ endedAt: null })
     .where(and(eq(actorSignatures.id, signatureId), eq(actorSignatures.actorId, actorId)));
-}
-
-/** 写当前签名的展示值；外观推理与死亡快照都落在这里。 */
-export async function setSignatureAppearance(
-  executor: Executor,
-  actorId: string,
-  appearance: string,
-): Promise<void> {
-  await executor
-    .update(actorSignatures)
-    .set({ appearance })
-    .where(and(eq(actorSignatures.actorId, actorId), isNull(actorSignatures.endedAt)));
 }

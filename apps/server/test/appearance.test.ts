@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import { and, eq } from "drizzle-orm";
+import { and, asc, eq } from "drizzle-orm";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { BELL_MONASTERY_WORLD } from "../seeds/dark-fantasy";
 import { DEMO_USER } from "../src/db/demo-fixture";
@@ -7,7 +7,7 @@ import "../src/db/env";
 import { type DatabaseHandle, openDatabase } from "../src/db/connect";
 import { resetDomainData, seedDemoData } from "../src/db/maintenance";
 import { runMigrations } from "../src/db/migrate";
-import { actorRecognitions } from "../src/db/schema";
+import { actorRecognitions, appearances } from "../src/db/schema";
 import {
   createGame,
   getGameMemories,
@@ -75,7 +75,7 @@ describe.skipIf(!testDatabaseUrl)("appearance fusion", () => {
     await handle.pool.end();
   });
 
-  it("recomputes appearance from base body, worn equipment and memory after changing equipment", async () => {
+  it("recomputes appearance from form, worn equipment and memory after changing equipment", async () => {
     const created = await createGame(handle.db, {
       username: DEMO_USER.username,
       name: "外观融合测试局",
@@ -84,7 +84,7 @@ describe.skipIf(!testDatabaseUrl)("appearance fusion", () => {
     const keeper = created.world.stages
       .flatMap((stage) => stage.actors)
       .find((actor) => actor.name === "奥德里克");
-    expect(keeper?.appearance).toContain("斗篷");
+    expect(keeper?.appearance.text).toContain("斗篷");
 
     const service = new AppearanceService("只穿旧衬衣，手背沾着新土。");
     await expect(
@@ -110,8 +110,34 @@ describe.skipIf(!testDatabaseUrl)("appearance fusion", () => {
     const updated = state.world.stages
       .flatMap((stage) => stage.actors)
       .find((actor) => actor.name === "奥德里克");
-    expect(updated?.appearance).toBe("只穿旧衬衣，手背沾着新土。");
+    expect(updated?.appearance.text).toBe("只穿旧衬衣，手背沾着新土。");
     expect(updated?.equipment.armor).toBeUndefined();
+    if (!updated) {
+      throw new Error("缺少奥德里克");
+    }
+
+    const rows = await handle.db
+      .select()
+      .from(appearances)
+      .where(eq(appearances.signatureId, updated.signature.id))
+      .orderBy(asc(appearances.createdAt));
+    expect(rows).toHaveLength(2);
+    expect(rows[0]?.source).toBe("seed");
+    expect(rows[0]?.supersededAt).not.toBeNull();
+    const equipmentRow = rows[1];
+    expect(equipmentRow?.source).toBe("runtime");
+    expect(equipmentRow?.supersededAt).toBeNull();
+    const input = equipmentRow?.input;
+    if (input?.version !== 1 || input.source === "seed") {
+      throw new Error("缺少运行时外观输入快照");
+    }
+    expect(input.context.form).toContain("[人类]");
+    expect(input.context.dead).toBe(false);
+    expect(input.context.worn.some(({ name }) => name === "补丁斗篷")).toBe(false);
+    expect(input.prompt.inputMessage).toContain("外观更新");
+    expect(input.prompt.messages.length).toBeGreaterThan(0);
+    expect(input.prompt.tools[0]?.function.name).toBe("submit_appearance");
+    expect(input.model).toBeNull();
 
     const memories = await getGameMemories(handle.db, created.game.id);
     const keeperMemory = memories.find((memory) => memory.name === "奥德里克");

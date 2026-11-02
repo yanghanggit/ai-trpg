@@ -251,7 +251,7 @@ async function evaluateAffix(
         ? {
             targetName: target.name,
             targetForm: target.signature.form,
-            targetAppearance: target.appearance,
+            targetAppearance: target.appearance.text,
           }
         : {}),
       ...(target ? { targetBlock: target.stats.block } : {}),

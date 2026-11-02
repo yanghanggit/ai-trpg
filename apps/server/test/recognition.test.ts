@@ -26,6 +26,7 @@ import { addressLookupFor, handleOf } from "../src/game/addressing";
 import { findActorInStage } from "../src/game/apply/queries";
 import { formatForm } from "../src/game/form";
 import { buildActorTurnInput } from "../src/game/npc";
+import { recordAppearance } from "../src/game/persistence/appearances";
 import { allocateEntitySeq } from "../src/game/persistence/entity-seq";
 import { insertSignature, switchCurrentSignature } from "../src/game/persistence/signatures";
 import { parseRecognizeIdentity } from "../src/game/plan";
@@ -348,10 +349,24 @@ describe.skipIf(!testDatabaseUrl)("names and addresses", () => {
         seq: await allocateEntitySeq(tx, created.game.id),
         actorId: odric.id,
         form: formatForm("人类", "蒙着面，只露出眼睛"),
-        appearance: "一个蒙面人，斗篷把身形盖得严严实实。",
         endedAt: new Date(),
       });
       await switchCurrentSignature(tx, odric.id, maskedId, new Date());
+      await recordAppearance(tx, {
+        gameId: created.game.id,
+        actorId: odric.id,
+        text: "一个蒙面人，斗篷把身形盖得严严实实。",
+        input: {
+          version: 1,
+          source: "seed",
+          contentKey: "test",
+          contentVersion: "test",
+          actorKey: "odric",
+          form: formatForm("人类", "蒙着面，只露出眼睛"),
+          fallback: false,
+        },
+        now: new Date(),
+      });
     });
 
     const masked = await getGameState(handle.db, created.game.slug);

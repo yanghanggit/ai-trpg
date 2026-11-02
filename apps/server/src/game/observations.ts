@@ -64,20 +64,20 @@ async function writeObservations(
   const recognitionRows = await listRecognitions(executor, gameId);
   // 主体表：场景内每个角色当前的可见外观；认识与否按观察者各自过滤。
   const subjects = new Map<string, AddressSubject>(
-    views.map(({ actor, signature }) => [
+    views.map(({ actor, signature, appearance }) => [
       actor.id,
       {
         actorId: actor.id,
         name: actor.name,
         signatureId: signature.id,
         signatureSeq: signature.seq,
-        appearance: signature.appearance,
+        appearance: appearance.text,
       },
     ]),
   );
   const recipients: { actorId: string; actorName: string; content: string }[] = [];
   let kind = "unknown";
-  for (const { actor: observer, signature } of views) {
+  for (const { actor: observer, appearance } of views) {
     if (observer.id === spec.excludeActorId || !sees(observer, spec.audience)) {
       continue;
     }
@@ -97,7 +97,7 @@ async function writeObservations(
             token: `@${observer.name}`,
             label: "你自己",
             mention: "你",
-            appearance: signature.appearance,
+            appearance: appearance.text,
             known: true,
             isSelf: true,
           }

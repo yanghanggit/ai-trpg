@@ -246,7 +246,7 @@ describe("read-only descriptions", () => {
       key: "ember-keeper",
       name: "守烬人",
       profile: "拾荒者",
-      appearance: "披着旧斗篷。",
+      appearance: { id: "appearance-1", text: "披着旧斗篷。" },
       signature: {
         id: "signature-1",
         seq: 2,

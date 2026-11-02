@@ -161,7 +161,7 @@ ${actor.signature.form}
 
 ## 尸体外观
 
-${actor.appearance}
+${actor.appearance.text}
 
 ## 所在场景
 

@@ -52,7 +52,7 @@ describe.skipIf(!testDatabaseUrl)("equip and unequip actions", () => {
     const before = await getGameState(handle.db, created.game.slug);
     const appearanceBefore = before.world.stages
       .flatMap((stage) => stage.actors)
-      .find((actor) => actor.name === "奥德里克")?.appearance;
+      .find((actor) => actor.name === "奥德里克")?.appearance.text;
 
     // 先把斗篷卸下，再穿回去，两次都是纯动作。
     const removed = await playerUnequip(handle.db, created.game.slug, "奥德里克", {
@@ -78,7 +78,7 @@ describe.skipIf(!testDatabaseUrl)("equip and unequip actions", () => {
       .find((actor) => actor.name === "奥德里克");
     expect(keeper?.equipment.armor).toBe("补丁斗篷");
     // 没提供 appearanceService：动作不会顺手改外观，需要 agent:game appearance 单独推动。
-    expect(keeper?.appearance).toBe(appearanceBefore);
+    expect(keeper?.appearance.text).toBe(appearanceBefore);
     expect(state.messages.map((message) => message.kind)).toEqual(["unequip", "equip"]);
 
     // 写进 actor 记忆的反馈已经脱敏：物品名就是名字本身（公共消息仍是上帝视角）。
@@ -150,7 +150,7 @@ describe.skipIf(!testDatabaseUrl)("equip and unequip actions", () => {
     await takeActorControl(handle.db, created.game.slug, "守烬人");
     const appearanceBefore = created.world.stages
       .flatMap((stage) => stage.actors)
-      .find((actor) => actor.name === "守烬人")?.appearance;
+      .find((actor) => actor.name === "守烬人")?.appearance.text;
 
     // 背包里已有裂齿短刃，换成备用短刀。
     await playerEquip(handle.db, created.game.slug, "守烬人", {
@@ -179,7 +179,7 @@ describe.skipIf(!testDatabaseUrl)("equip and unequip actions", () => {
       [],
     );
     // 换装只改索引：外观快照保持原样，不触发任何推理。
-    expect(keeper?.appearance).toBe(appearanceBefore);
+    expect(keeper?.appearance.text).toBe(appearanceBefore);
     expect(state.messages.map((message) => message.kind)).toEqual(["equip", "equip"]);
   });
 
@@ -266,7 +266,7 @@ describe.skipIf(!testDatabaseUrl)("equip and unequip actions", () => {
     const keeper = state.world.stages
       .flatMap((stage) => stage.actors)
       .find((actor) => actor.name === "奥德里克");
-    expect(keeper?.appearance).toBe("只穿旧衬衣，腰间别着铁锹。");
+    expect(keeper?.appearance.text).toBe("只穿旧衬衣，腰间别着铁锹。");
     expect(keeper?.equipment.armor).toBeUndefined();
 
     // 新外观已广播给同场景知道名字的煤渣。
@@ -300,7 +300,7 @@ describe.skipIf(!testDatabaseUrl)("equip and unequip actions", () => {
       .flatMap((stage) => stage.actors)
       .find((actor) => actor.name === "奥德里克");
     expect(keeper?.equipment.weapon).toBeUndefined();
-    expect(keeper?.appearance).toBe("空着手，旧斗篷还披在肩上。");
+    expect(keeper?.appearance.text).toBe("空着手，旧斗篷还披在肩上。");
   });
 });
 

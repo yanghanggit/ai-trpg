@@ -1,5 +1,5 @@
 {
-  "id": "45ab2ca0-d310-4faa-9a84-a2e5f01e3c56",
+  "id": "511e7955-c961-4d18-be6a-e21d2e35e0cb",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "version": "7",
   "dialect": "postgresql",
@@ -281,12 +281,6 @@
         },
         "form": {
           "name": "form",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "appearance": {
-          "name": "appearance",
           "type": "text",
           "primaryKey": false,
           "notNull": true
@@ -718,6 +712,154 @@
       },
       "indexes": {},
       "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.appearances": {
+      "name": "appearances",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "game_id": {
+          "name": "game_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "signature_id": {
+          "name": "signature_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "text": {
+          "name": "text",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "source": {
+          "name": "source",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "input": {
+          "name": "input",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "superseded_at": {
+          "name": "superseded_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "appearances_current_unique": {
+          "name": "appearances_current_unique",
+          "columns": [
+            {
+              "expression": "signature_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "where": "\"appearances\".\"superseded_at\" is null",
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "appearances_game_created_idx": {
+          "name": "appearances_game_created_idx",
+          "columns": [
+            {
+              "expression": "game_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "created_at",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "appearances_signature_created_idx": {
+          "name": "appearances_signature_created_idx",
+          "columns": [
+            {
+              "expression": "signature_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "created_at",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "appearances_game_id_games_id_fk": {
+          "name": "appearances_game_id_games_id_fk",
+          "tableFrom": "appearances",
+          "tableTo": "games",
+          "columnsFrom": [
+            "game_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "appearances_signature_id_actor_signatures_id_fk": {
+          "name": "appearances_signature_id_actor_signatures_id_fk",
+          "tableFrom": "appearances",
+          "tableTo": "actor_signatures",
+          "columnsFrom": [
+            "signature_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
       "compositePrimaryKeys": {},
       "uniqueConstraints": {},
       "policies": {},

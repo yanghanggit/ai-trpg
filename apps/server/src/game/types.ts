@@ -1,3 +1,4 @@
+import type { ChatMessage, ToolDefinition } from "../llm/types";
 import type { Stats } from "./attributes";
 import type { MemoryKind } from "./constants";
 
@@ -29,6 +30,59 @@ export type ItemEffect = {
 export const EQUIPMENT_SLOTS = ["weapon", "armor", "accessory"] as const;
 export type EquipmentSlot = (typeof EQUIPMENT_SLOTS)[number];
 export type EquipmentSlots = Partial<Record<EquipmentSlot, string>>;
+
+/** 快照里的穿戴项；物品之后可能改名或删除，所以必须存当时的副本。 */
+export type AppearanceWornItem = {
+  slot: EquipmentSlot;
+  itemId: string;
+  name: string;
+  kind: ItemKind;
+  description: string;
+};
+
+/**
+ * 生成外观那一刻的输入快照。
+ *
+ * 运行时分支保存发给模型的完整 prompt 与结构化上下文；seed 分支只记录内容来源。
+ */
+export type AppearanceInput =
+  | {
+      version: 1;
+      source: "seed";
+      contentKey: string;
+      contentVersion: string;
+      actorKey: string;
+      form: string;
+      /** 种子没写 appearance 时为 true，text 回退为 form。 */
+      fallback: boolean;
+    }
+  | {
+      version: 1;
+      promptVersion: number;
+      source: "runtime";
+      /** provider 未暴露模型名时为 null。 */
+      model: string | null;
+      prompt: {
+        messages: readonly ChatMessage[];
+        inputMessage: string;
+        tools: readonly ToolDefinition[];
+        maxRounds: number;
+      };
+      context: {
+        form: string;
+        dead: boolean;
+        contentVersion: string;
+        worn: readonly AppearanceWornItem[];
+        /** 本次变化的可见简报；由角色自己或调用方提供。 */
+        brief?: string;
+      };
+    };
+
+/** 当前可见外观：id 用于追溯来源，text 是最终渲染值。 */
+export type AppearanceState = {
+  id: string;
+  text: string;
+};
 
 export const EQUIPMENT_SLOT_LABELS: Record<EquipmentSlot, string> = {
   weapon: "武器",
@@ -424,8 +478,8 @@ export type ItemState =
 /**
  * actor 当前可被看见的签名。
  *
- * 状态快照里只保留寻址与识别需要的字段：展示值由 `ActorState.appearance` 携带，
- * 避免同一个字符串在快照里存两份。
+ * 状态快照里只保留寻址与识别需要的字段；形态由 `ActorState.signature` 携带，
+ * 当前外观记录由 `ActorState.appearance` 携带。
  */
 export type SignatureState = {
   id: string;
@@ -443,8 +497,8 @@ export type ActorState = {
   key: string;
   name: string;
   profile: string;
-  /** 当前签名的展示值（换装后由外观推理重写）。 */
-  appearance: string;
+  /** 当前外观；`text` 是最终渲染值，`id` 用于追溯生成来源。 */
+  appearance: AppearanceState;
   /** 当前正在使用的签名；观察者编号与识别关系都以它为单位。 */
   signature: SignatureState;
   stats: Stats;

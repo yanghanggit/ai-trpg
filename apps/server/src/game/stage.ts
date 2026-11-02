@@ -70,7 +70,10 @@ export function buildStageTurnInput(state: GameState, stage: StageState): string
     stage.actors.length === 0
       ? "无"
       : stage.actors
-          .map((actor) => `${actor.name}：${actor.appearance}${isAlive(actor) ? "" : "（已死亡）"}`)
+          .map(
+            (actor) =>
+              `${actor.name}：${actor.appearance.text}${isAlive(actor) ? "" : "（已死亡）"}`,
+          )
           .join("\n");
   const itemLines =
     stage.items.length === 0

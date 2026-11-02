@@ -17,6 +17,7 @@ import type { Stats } from "../game/attributes";
 import type {
   ActionKind,
   Affix,
+  AppearanceInput,
   DialogueActionKind,
   DialogueCategory,
   EquipmentSlots,
@@ -233,8 +234,6 @@ export const actorSignatures = pgTable(
       .references(() => actors.id, { onDelete: "cascade" }),
     /** 稳定的形态描述，必须写成 `[种族]:描述`；换装不会改写它。 */
     form: text("form").notNull(),
-    /** 此刻别人看到的样子；由形态、穿戴与伤势合成。 */
-    appearance: text("appearance").notNull(),
     /** 签名退场时间；null 表示当前正在使用。 */
     endedAt: timestamp("ended_at", { withTimezone: true }),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
@@ -248,6 +247,41 @@ export const actorSignatures = pgTable(
       "actor_signatures_form_format",
       sql`${table.form} ~ '^\\[[^\\]\\r\\n]+\\]:\\S[^\\r\\n]*$'`,
     ),
+  ],
+);
+
+/**
+ * 外观渲染记录：每次成功生成外观都是一行不可变快照。
+ *
+ * `text` 是最终渲染值；`input` 保存生成那一刻的完整输入（prompt / 穿戴 / 来源）。
+ * 每个签名同时只有一条 `superseded_at is null` 的当前记录；历史行不覆盖、不删除。
+ */
+export const appearances = pgTable(
+  "appearances",
+  {
+    id: uuid("id").primaryKey(),
+    gameId: uuid("game_id")
+      .notNull()
+      .references(() => games.id, { onDelete: "cascade" }),
+    signatureId: uuid("signature_id")
+      .notNull()
+      .references(() => actorSignatures.id, { onDelete: "cascade" }),
+    /** 最终渲染值；原 appearance 字符串。 */
+    text: text("text").notNull(),
+    /** 来源：seed（预编译）/ runtime（运行时 LLM）。 */
+    source: text("source").notNull(),
+    /** 生成那一刻的输入快照；结构见 `AppearanceInput`。 */
+    input: jsonb("input").$type<AppearanceInput>().notNull(),
+    /** 被后续渲染取代的时间；null 表示当前。 */
+    supersededAt: timestamp("superseded_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    uniqueIndex("appearances_current_unique")
+      .on(table.signatureId)
+      .where(sql`${table.supersededAt} is null`),
+    index("appearances_game_created_idx").on(table.gameId, table.createdAt),
+    index("appearances_signature_created_idx").on(table.signatureId, table.createdAt),
   ],
 );
 

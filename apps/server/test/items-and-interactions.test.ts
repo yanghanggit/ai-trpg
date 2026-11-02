@@ -660,7 +660,7 @@ describe.skipIf(!testDatabaseUrl)("items and interactions", () => {
     const monk = state.world.stages
       .flatMap((stage) => stage.actors)
       .find((actor) => actor.name === "提灯修士");
-    expect(monk?.appearance).toBe("被火燎过的尸体，毛皮焦黑卷曲。");
+    expect(monk?.appearance.text).toBe("被火燎过的尸体，毛皮焦黑卷曲。");
   });
 
   it("treats the affix as a no-op when the computed damage already killed the target", async () => {

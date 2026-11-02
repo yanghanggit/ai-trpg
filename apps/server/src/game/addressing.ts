@@ -135,7 +135,7 @@ export function subjectsOf(stage: StageState): Map<string, AddressSubject> {
         name: actor.name,
         signatureId: actor.signature.id,
         signatureSeq: actor.signature.seq,
-        appearance: actor.appearance,
+        appearance: actor.appearance.text,
       },
     ]),
   );
@@ -169,7 +169,7 @@ export function addressLookupFor(
         token: `@${observer.name}`,
         label: "你自己",
         mention: "你",
-        appearance: observer.appearance,
+        appearance: observer.appearance.text,
         known: true,
         isSelf: true,
       };

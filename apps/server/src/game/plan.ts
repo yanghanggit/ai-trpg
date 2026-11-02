@@ -399,7 +399,7 @@ export function describeEquipmentBrief(actor: Pick<ActorState, "equipment">): st
 }
 
 export function describeSelf(actor: ActorState): string {
-  return `外观：${actor.appearance}
+  return `外观：${actor.appearance.text}
 ${describeStats(actor)}
 ${describeEquipment(actor)}
 ${describeItems(actor)}`;
