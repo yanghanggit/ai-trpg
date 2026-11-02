@@ -49,7 +49,6 @@ describe.skipIf(!testDatabaseUrl)("actor view", () => {
     const self = view.scene?.actors.find((actor) => actor.self);
     expect(self?.actorId).toBe(view.viewer.actorId);
     expect(self?.label).toBe("你自己");
-    expect(self?.known).toBe(true);
     expect(self?.token).toBe("@煤渣");
 
     const odric = view.scene?.actors.find((actor) => actor.token === "@奥德里克");
@@ -59,7 +58,6 @@ describe.skipIf(!testDatabaseUrl)("actor view", () => {
     const stranger = view.scene?.actors.find(
       (actor) => !actor.self && actor.label.includes("裹尸布"),
     );
-    expect(stranger?.known).toBe(false);
     expect(stranger?.token).toMatch(/^#\d+$/);
     expect(view.scene?.actors.some((actor) => actor.label.includes("无名者"))).toBe(false);
 
@@ -68,7 +66,7 @@ describe.skipIf(!testDatabaseUrl)("actor view", () => {
     expect(log).not.toContain("无名者");
     // 行动反馈与观察也走世界面：不会出现系统引用标记。
     expect(log).not.toContain("场景.");
-    expect(view.recognitions).toHaveLength(1);
+    expect(view.signatureNames).toHaveLength(1);
   });
 
   it("moves by stageId or name and rejects unknown stages", async () => {

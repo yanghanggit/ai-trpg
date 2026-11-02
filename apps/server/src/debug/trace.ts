@@ -111,14 +111,6 @@ export type TraceEvent =
     }
   | { event: "plan"; actions: unknown }
   | { event: "applied"; actionKind: string; feedback?: string; detail?: unknown }
-  | {
-      event: "identity_warning";
-      code: "unseen_handle";
-      handle: string;
-      name: string;
-      subjectActorId: string;
-      detail: string;
-    }
   | { event: "rejected"; code: string; reason: string }
   | {
       event: "name_leak";

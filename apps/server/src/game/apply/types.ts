@@ -26,13 +26,12 @@ export type ItemRow = typeof items.$inferSelect;
 export type StageItemRow = typeof stageItems.$inferSelect;
 export type ActorWithStageRow = { actor: ActorRow; stage: StageRow };
 
-/** 已解析的识别：句柄换成签名 id 与真名，写入时不再依赖可变的展示名。 */
+/** 已解析的名字绑定：句柄换成签名 id，写入时不再依赖可变的展示名。 */
 export type ResolvedIdentity = {
   handle: string;
   name: string;
   actorId: string;
   signatureId: string;
-  stageId: string;
 };
 
 export type ResolvedPlan = {

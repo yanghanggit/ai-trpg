@@ -90,25 +90,71 @@ describe.skipIf(!testDatabaseUrl)("names and addresses", () => {
     await handle.pool.end();
   });
 
-  it("loads seed recognitions per observer", async () => {
+  it("loads seed signature names per observer", async () => {
     const created = await createGame(handle.db, {
       username: DEMO_USER.username,
       name: "开局识别测试局",
       world: BELL_MONASTERY_WORLD,
     });
     const state = await getGameState(handle.db, created.game.slug);
-    expect(state.recognitions).toHaveLength(5);
-    expect(state.recognitions.every((row) => row.source === "content")).toBe(true);
+    expect(state.signatureNames).toHaveLength(5);
+    expect(state.signatureNames.every((row) => row.source === "content")).toBe(true);
 
     const actors = state.world.stages.flatMap((stage) => stage.actors);
     const badLuck = actors.find((actor) => actor.name === "坏运气");
     const ratKing = actors.find((actor) => actor.name === "鼠王");
-    // 幼崽认得父王这个签名，因此知道真名；「父王」不进入识别表。
+    // 幼崽认得父王这个签名；seed 没写名字时默认使用对象真名。
     expect(
-      state.recognitions.some(
+      state.signatureNames.find(
         (row) => row.observerActorId === badLuck?.id && row.signatureId === ratKing?.signature.id,
       ),
-    ).toBe(true);
+    ).toMatchObject({ name: "鼠王", source: "content" });
+  });
+
+  it("uses a seed name as the observer's current name", async () => {
+    const world = {
+      ...TEST_WORLD,
+      knownIdentities: [{ observer: "ember-keeper", subject: "lantern-monk", name: "提灯人" }],
+    };
+    const created = await createGame(handle.db, {
+      username: DEMO_USER.username,
+      name: "种子称呼测试局",
+      world,
+    });
+    const state = await getGameState(handle.db, created.game.slug);
+    const actors = state.world.stages.flatMap((stage) => stage.actors);
+    const keeper = actors.find((actor) => actor.name === "守烬人");
+    const monk = actors.find((actor) => actor.name === "提灯修士");
+    const stage = state.world.stages.find((candidate) =>
+      candidate.actors.some((actor) => actor.id === keeper?.id),
+    );
+    if (!keeper || !monk || !stage) {
+      throw new Error("缺少测试角色");
+    }
+
+    expect(
+      state.signatureNames.find(
+        (row) => row.observerActorId === keeper.id && row.signatureId === monk.signature.id,
+      ),
+    ).toMatchObject({ name: "提灯人", source: "content" });
+    const address = addressLookupFor(state, keeper, stage);
+    expect(address(monk.id).token).toBe("@提灯人");
+    await expect(
+      resolveVisibleActor(handle.db, {
+        gameId: state.game.id,
+        observerId: keeper.id,
+        stageId: stage.id,
+        ref: "@提灯人",
+      }),
+    ).resolves.toMatchObject({ id: monk.id });
+    await expect(
+      resolveVisibleActor(handle.db, {
+        gameId: state.game.id,
+        observerId: keeper.id,
+        stageId: stage.id,
+        ref: "@提灯修士",
+      }),
+    ).rejects.toThrow(/找不到唯一引用/);
   });
 
   it("keeps every emitted reference resolvable in both directions", async () => {
@@ -131,10 +177,10 @@ describe.skipIf(!testDatabaseUrl)("names and addresses", () => {
     }
     const address = addressLookupFor(state, actor, stage);
     const others = stage.actors.filter((other) => other.id !== actor.id);
-    expect(others.some((other) => address(other.id).known)).toBe(true);
-    expect(others.some((other) => !address(other.id).known)).toBe(true);
+    expect(others.some((other) => address(other.id).token.startsWith("@"))).toBe(true);
+    expect(others.some((other) => !address(other.id).token.startsWith("@"))).toBe(true);
 
-    // 认识写成 @真名，不认识写成 #编号；两种 token 都必须能解析回同一个 actor。
+    // 有名字写成 @名字，没名字写成 #编号；两种 token 都必须能解析回同一个 actor。
     for (const target of others) {
       const emitted = address(target.id);
       const resolved = await resolveVisibleActor(handle.db, {
@@ -147,7 +193,7 @@ describe.skipIf(!testDatabaseUrl)("names and addresses", () => {
     }
   });
 
-  it("only lets actor-facing lookup use a signature or a recognized true name", async () => {
+  it("only lets actor-facing lookup use a signature or the observer's current name", async () => {
     const created = await createGame(handle.db, {
       username: DEMO_USER.username,
       name: "签名与真名入口测试局",
@@ -167,8 +213,8 @@ describe.skipIf(!testDatabaseUrl)("names and addresses", () => {
     }
     const address = addressLookupFor(state, actor, stage);
     const others = stage.actors.filter((other) => other.id !== actor.id);
-    const known = others.find((other) => address(other.id).known);
-    const unknown = others.find((other) => !address(other.id).known);
+    const known = others.find((other) => address(other.id).token.startsWith("@"));
+    const unknown = others.find((other) => !address(other.id).token.startsWith("@"));
     if (!known || !unknown) {
       throw new Error("墓园缺少已知 / 未知目标");
     }
@@ -187,9 +233,9 @@ describe.skipIf(!testDatabaseUrl)("names and addresses", () => {
       id: unknown.id,
     });
 
-    // 真名入口：认得才能用 @真名；裸名字与 id 都不进入 actor-facing 层。
+    // 名字入口：只认观察者当前名字；裸名字与 id 都不进入 actor-facing 层。
     await expect(resolve(`@${known.name}`)).resolves.toMatchObject({ id: known.id });
-    await expect(resolve(`@${unknown.name}`)).rejects.toThrow(/找不到引用/);
+    await expect(resolve(`@${unknown.name}`)).rejects.toThrow(/找不到唯一引用/);
     await expect(resolve(known.name)).rejects.toThrow(/引用必须使用/);
     await expect(resolve(known.id)).rejects.toThrow(/引用必须使用/);
   });
@@ -228,7 +274,7 @@ describe.skipIf(!testDatabaseUrl)("names and addresses", () => {
     }
     expect(observation).toContain(handleOf(unknown.signature.seq));
     // 名单里还有编号时，提示词提醒可以记名字。
-    expect(observation).toContain("用 recognize_identity 记下");
+    expect(observation).toContain("用 recognize_identity 把它记成");
   });
 
   it("renders the turn input environment through the observer's address", async () => {
@@ -283,7 +329,7 @@ describe.skipIf(!testDatabaseUrl)("names and addresses", () => {
     });
     const { actor } = await actorByName(created.game.slug, handle, "无名者");
 
-    const service = new RecognizeService(handleOf(actor.signature.seq));
+    const service = new RecognizeService(handleOf(actor.signature.seq), "裹尸布人");
     const turn = await runNpcTurn(handle.db, created.game.slug, "奥德里克", { service });
     expect(turn.ok).toBe(true);
     expect(turn.loopSuccess).toBe(true);
@@ -295,10 +341,10 @@ describe.skipIf(!testDatabaseUrl)("names and addresses", () => {
     const nameless = after.world.stages
       .flatMap((stage) => stage.actors)
       .find((candidate) => candidate.name === "无名者");
-    const recognition = after.recognitions.find(
+    const name = after.signatureNames.find(
       (row) => row.observerActorId === odric?.id && row.signatureId === nameless?.signature.id,
     );
-    expect(recognition?.source).toBe("self");
+    expect(name).toMatchObject({ name: "裹尸布人", source: "self" });
 
     // 记下之后，下一次观察里就会出现这个名字。
     const odricNow = after.world.stages
@@ -311,46 +357,50 @@ describe.skipIf(!testDatabaseUrl)("names and addresses", () => {
       throw new Error("缺少墓园");
     }
     const promptAfter = buildActorTurnInput(after, { actor: odricNow, stage });
-    expect(promptAfter).toContain("无名者");
-    // 没有编号可记之后，提醒不再出现。
-    expect(promptAfter).not.toContain("用 recognize_identity 记下");
+    expect(promptAfter).toContain("裹尸布人");
+    expect(promptAfter).not.toContain("无名者");
+    // 没有未命名编号之后，起名提醒不再出现。
+    expect(promptAfter).not.toContain("用 recognize_identity 把它记成");
   });
 
-  it("warns without blocking when the target is unseen", async () => {
+  it("rejects a new name for a signature outside the current stage", async () => {
     const created = await createGame(handle.db, {
       username: DEMO_USER.username,
-      name: "认知告警测试局",
+      name: "场外起名测试局",
       world: BELL_MONASTERY_WORLD,
     });
     const state = await getGameState(handle.db, created.game.slug);
+    const odric = state.world.stages
+      .flatMap((stage) => stage.actors)
+      .find((candidate) => candidate.name === "奥德里克");
     const ratKing = state.world.stages
       .flatMap((stage) => stage.actors)
       .find((candidate) => candidate.name === "鼠王");
-    if (!ratKing) {
-      throw new Error("缺少鼠王");
+    if (!odric || !ratKing) {
+      throw new Error("缺少测试角色");
     }
 
-    // 鼠王在地窖，奥德里克在墓园：没看见也可以认出，只给告警。
-    const service = new RecognizeService(handleOf(ratKing.signature.seq), "鼠王");
-    const turn = await runNpcTurn(handle.db, created.game.slug, "奥德里克", { service });
-    expect(turn.ok).toBe(true);
-    expect((turn.identityWarnings ?? []).map((warning) => warning.code)).toContain("unseen_handle");
+    // 鼠王在地窖，奥德里克在墓园：没见过就没有起名依据。
+    const plan: ActorPlan = {
+      actions: [],
+      identities: [{ handle: handleOf(ratKing.signature.seq), name: "鼠王" }],
+    };
+    const result = await applyActorPlan(handle.db, created.game.id, odric.id, plan, true);
+    expect(result.ok).toBe(false);
+    expect(result.rejection).toMatch(/只能给当前场景内的角色起名/);
 
     const after = await getGameState(handle.db, created.game.slug);
-    const odric = after.world.stages
-      .flatMap((stage) => stage.actors)
-      .find((candidate) => candidate.name === "奥德里克");
     expect(
-      after.recognitions.some(
-        (row) => row.observerActorId === odric?.id && row.signatureId === ratKing.signature.id,
+      after.signatureNames.some(
+        (row) => row.observerActorId === odric.id && row.signatureId === ratKing.signature.id,
       ),
-    ).toBe(true);
+    ).toBe(false);
   });
 
-  it("only accepts the true name when a player records an identity", async () => {
+  it("accepts any current name from the player and overwrites it on update", async () => {
     const created = await createGame(handle.db, {
       username: DEMO_USER.username,
-      name: "玩家记名字测试局",
+      name: "玩家命名测试局",
       world: BELL_MONASTERY_WORLD,
     });
     await takeActorControl(handle.db, created.game.slug, "无名者");
@@ -358,18 +408,17 @@ describe.skipIf(!testDatabaseUrl)("names and addresses", () => {
       targetStageRef: "墓园",
     });
 
-    await expect(
-      playerRecognizeIdentity(handle.db, created.game.slug, "无名者", {
-        targetActorRef: "奥德里克",
-        name: "守墓人",
-      }),
-    ).rejects.toThrow(/无法确认/);
-
-    const turn = await playerRecognizeIdentity(handle.db, created.game.slug, "无名者", {
+    const first = await playerRecognizeIdentity(handle.db, created.game.slug, "无名者", {
       targetActorRef: "奥德里克",
-      name: "奥德里克",
+      name: "守墓人",
     });
-    expect(turn.ok).toBe(true);
+    expect(first.ok).toBe(true);
+
+    const second = await playerRecognizeIdentity(handle.db, created.game.slug, "无名者", {
+      targetActorRef: "奥德里克",
+      name: "灰衣人",
+    });
+    expect(second.ok).toBe(true);
 
     const after = await getGameState(handle.db, created.game.slug);
     const nameless = after.world.stages
@@ -379,13 +428,39 @@ describe.skipIf(!testDatabaseUrl)("names and addresses", () => {
       .flatMap((stage) => stage.actors)
       .find((candidate) => candidate.name === "奥德里克");
     expect(
-      after.recognitions.find(
+      after.signatureNames.find(
         (row) => row.observerActorId === nameless?.id && row.signatureId === odric?.signature.id,
       ),
-    ).toMatchObject({ source: "self" });
+    ).toMatchObject({ name: "灰衣人", source: "self" });
+
+    // 当前名字就是唯一的 actor-facing 名字；真名不会自动成立。
+    const stage = after.world.stages.find((candidate) =>
+      candidate.actors.some((actor) => actor.id === nameless?.id),
+    );
+    if (!nameless || !odric || !stage) {
+      throw new Error("缺少墓园夹具");
+    }
+    const address = addressLookupFor(after, nameless, stage);
+    expect(address(odric.id).token).toBe("@灰衣人");
+    await expect(
+      resolveVisibleActor(handle.db, {
+        gameId: after.game.id,
+        observerId: nameless.id,
+        stageId: stage.id,
+        ref: "@灰衣人",
+      }),
+    ).resolves.toMatchObject({ id: odric.id });
+    await expect(
+      resolveVisibleActor(handle.db, {
+        gameId: after.game.id,
+        observerId: nameless.id,
+        stageId: stage.id,
+        ref: "@奥德里克",
+      }),
+    ).rejects.toThrow(/找不到唯一引用/);
   });
 
-  it("stops recognizing a known person after a signature change, and restores on switch back", async () => {
+  it("stops using a name after a signature change, and restores on switch back", async () => {
     const created = await createGame(handle.db, {
       username: DEMO_USER.username,
       name: "签名切换识别测试局",
@@ -505,7 +580,7 @@ describe.skipIf(!testDatabaseUrl)("names and addresses", () => {
     ).toThrow(/系统引用/);
   });
 
-  it("records as many recognitions as the plan carries, and keeps the last one per handle", async () => {
+  it("records as many signature names as the plan carries, and keeps the last one per handle", async () => {
     const created = await createGame(handle.db, {
       username: DEMO_USER.username,
       name: "多名认知测试局",
@@ -515,38 +590,32 @@ describe.skipIf(!testDatabaseUrl)("names and addresses", () => {
     const actors = state.world.stages.flatMap((stage) => stage.actors);
     const odric = actors.find((candidate) => candidate.name === "奥德里克");
     const cinder = actors.find((candidate) => candidate.name === "煤渣");
-    const ratKing = actors.find((candidate) => candidate.name === "鼠王");
-    if (!odric || !cinder || !ratKing) {
+    const badLuck = actors.find((candidate) => candidate.name === "坏运气");
+    if (!odric || !cinder || !badLuck) {
       throw new Error("缺少开局角色");
     }
 
-    // 一份计划里认出三个角色，且奥德里克出现两次：条数不设上限，后一次覆盖前一次。
+    // 一份计划里给同场景两个角色起名，且奥德里克出现两次：后一次覆盖前一次。
     const plan: ActorPlan = {
       actions: [],
       identities: [
-        { handle: handleOf(odric.signature.seq), name: "奥德里克" },
-        { handle: handleOf(cinder.signature.seq), name: "煤渣" },
-        { handle: handleOf(ratKing.signature.seq), name: "鼠王" },
-        { handle: handleOf(odric.signature.seq), name: "奥德里克" },
+        { handle: handleOf(odric.signature.seq), name: "守墓人" },
+        { handle: handleOf(badLuck.signature.seq), name: "小东西" },
+        { handle: handleOf(odric.signature.seq), name: "灰衣人" },
       ],
     };
-    const before = await getGameState(handle.db, created.game.slug);
-    const nameless = before.world.stages
-      .flatMap((stage) => stage.actors)
-      .find((candidate) => candidate.name === "无名者");
-    if (!nameless) {
-      throw new Error("缺少无名者");
-    }
-    const result = await applyActorPlan(handle.db, created.game.id, nameless.id, plan, true);
+    const result = await applyActorPlan(handle.db, created.game.id, cinder.id, plan, true);
     expect(result.ok).toBe(true);
 
     const after = await getGameState(handle.db, created.game.slug);
-    const recognitions = after.recognitions.filter((row) => row.observerActorId === nameless.id);
-    expect(recognitions).toHaveLength(3);
-    expect(recognitions.every((row) => row.source === "self")).toBe(true);
-    expect(recognitions.find((row) => row.signatureId === odric.signature.id)).toBeDefined();
+    const names = after.signatureNames.filter((row) => row.observerActorId === cinder.id);
+    expect(names).toHaveLength(2);
+    expect(names.every((row) => row.source === "self")).toBe(true);
+    expect(names.find((row) => row.signatureId === odric.signature.id)).toMatchObject({
+      name: "灰衣人",
+    });
 
-    // 只有认知更新的计划不产生公共事件。
+    // 只有名字更新的计划不产生公共事件。
     expect(after.messages).toEqual([]);
   });
 

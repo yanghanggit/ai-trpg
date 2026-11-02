@@ -45,7 +45,7 @@ export async function listCurrentSignatureViews(executor: Executor, actorIds: re
 /**
  * 切换当前签名：把正在使用的那条封上，再把目标签名恢复为当前。
  *
- * 伪装 / 变身只切换、不销毁：切回旧签名时，旧的 `actor_recognitions` 行会立刻重新生效，
+ * 伪装 / 变身只切换、不销毁：切回旧签名时，旧的 `actor_signature_names` 行会立刻重新生效，
  * 老朋友不需要重新认识一遍。
  */
 export async function switchCurrentSignature(

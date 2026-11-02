@@ -31,7 +31,7 @@ import {
 } from "./memory";
 import { recordAppearance } from "./persistence/appearances";
 import { allocateEntitySeq } from "./persistence/entity-seq";
-import { listRecognitions, upsertRecognition } from "./persistence/recognitions";
+import { listSignatureNames, upsertSignatureName } from "./persistence/signature-names";
 import { insertSignature, listCurrentSignatureViews } from "./persistence/signatures";
 import type {
   ActorState,
@@ -42,7 +42,7 @@ import type {
   MessageState,
   MessageVisibility,
   PlayerState,
-  RecognitionState,
+  SignatureNameState,
   StageState,
   StageVisitState,
 } from "./types";
@@ -258,10 +258,11 @@ export async function getGameState(db: Database, ref: string): Promise<GameState
     role: playerRow.role,
   };
 
-  const recognitionRows = await listRecognitions(db, game.id);
-  const recognitions: RecognitionState[] = recognitionRows.map((row) => ({
+  const signatureNameRows = await listSignatureNames(db, game.id);
+  const signatureNames: SignatureNameState[] = signatureNameRows.map((row) => ({
     observerActorId: row.observerActorId,
     signatureId: row.signatureId,
+    name: row.name,
     source: row.source,
     learnedStageId: row.learnedStageId,
   }));
@@ -305,7 +306,7 @@ export async function getGameState(db: Database, ref: string): Promise<GameState
       connections,
     },
     messages,
-    recognitions,
+    signatureNames,
     visits,
   };
 }
@@ -480,7 +481,7 @@ export async function createGame(
       });
     }
 
-    const actorRefs = new Map<string, { actorId: string; signatureId: string }>();
+    const actorRefs = new Map<string, { actorId: string; signatureId: string; name: string }>();
     for (const actor of input.world.actors) {
       const actorStageId = stageIds.get(actor.stageKey);
       if (!actorStageId) {
@@ -528,7 +529,7 @@ export async function createGame(
         },
         now: new Date(),
       });
-      actorRefs.set(actor.key, { actorId, signatureId });
+      actorRefs.set(actor.key, { actorId, signatureId, name: actor.name });
 
       for (const item of actor.items) {
         await tx.insert(items).values({
@@ -578,7 +579,7 @@ export async function createGame(
       });
     }
 
-    // 开局既知的识别关系：观察者与对象都用内容 key 引用，落库时变成 actor / 签名 id。
+    // 开局既知的名字绑定：观察者与对象都用内容 key 引用，落库时变成 actor / 签名 id。
     for (const identity of input.world.knownIdentities ?? []) {
       const observer = actorRefs.get(identity.observer);
       const subject = actorRefs.get(identity.subject);
@@ -600,12 +601,13 @@ export async function createGame(
           `knownIdentities 不能把自己记作他人: ${identity.observer}`,
         );
       }
-      await upsertRecognition(
+      await upsertSignatureName(
         tx,
         {
           gameId,
           observerActorId: observer.actorId,
           signatureId: subject.signatureId,
+          name: identity.name ?? subject.name,
           source: "content",
           learnedStageId: null,
         },

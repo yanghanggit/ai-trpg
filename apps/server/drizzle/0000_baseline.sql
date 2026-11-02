@@ -7,11 +7,12 @@ CREATE TABLE "actor_controls" (
 	"updated_at" timestamp with time zone DEFAULT now() NOT NULL
 );
 --> statement-breakpoint
-CREATE TABLE "actor_recognitions" (
+CREATE TABLE "actor_signature_names" (
 	"id" uuid PRIMARY KEY NOT NULL,
 	"game_id" uuid NOT NULL,
 	"observer_actor_id" uuid NOT NULL,
 	"signature_id" uuid NOT NULL,
+	"name" text NOT NULL,
 	"source" text DEFAULT 'self' NOT NULL,
 	"learned_stage_id" uuid,
 	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
@@ -265,10 +266,10 @@ CREATE TABLE "worlds" (
 ALTER TABLE "actor_controls" ADD CONSTRAINT "actor_controls_actor_id_actors_id_fk" FOREIGN KEY ("actor_id") REFERENCES "public"."actors"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "actor_controls" ADD CONSTRAINT "actor_controls_game_id_games_id_fk" FOREIGN KEY ("game_id") REFERENCES "public"."games"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "actor_controls" ADD CONSTRAINT "actor_controls_player_id_game_players_id_fk" FOREIGN KEY ("player_id") REFERENCES "public"."game_players"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "actor_recognitions" ADD CONSTRAINT "actor_recognitions_game_id_games_id_fk" FOREIGN KEY ("game_id") REFERENCES "public"."games"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "actor_recognitions" ADD CONSTRAINT "actor_recognitions_observer_actor_id_actors_id_fk" FOREIGN KEY ("observer_actor_id") REFERENCES "public"."actors"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "actor_recognitions" ADD CONSTRAINT "actor_recognitions_signature_id_actor_signatures_id_fk" FOREIGN KEY ("signature_id") REFERENCES "public"."actor_signatures"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "actor_recognitions" ADD CONSTRAINT "actor_recognitions_learned_stage_id_stages_id_fk" FOREIGN KEY ("learned_stage_id") REFERENCES "public"."stages"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "actor_signature_names" ADD CONSTRAINT "actor_signature_names_game_id_games_id_fk" FOREIGN KEY ("game_id") REFERENCES "public"."games"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "actor_signature_names" ADD CONSTRAINT "actor_signature_names_observer_actor_id_actors_id_fk" FOREIGN KEY ("observer_actor_id") REFERENCES "public"."actors"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "actor_signature_names" ADD CONSTRAINT "actor_signature_names_signature_id_actor_signatures_id_fk" FOREIGN KEY ("signature_id") REFERENCES "public"."actor_signatures"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "actor_signature_names" ADD CONSTRAINT "actor_signature_names_learned_stage_id_stages_id_fk" FOREIGN KEY ("learned_stage_id") REFERENCES "public"."stages"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "actor_signatures" ADD CONSTRAINT "actor_signatures_actor_id_actors_id_fk" FOREIGN KEY ("actor_id") REFERENCES "public"."actors"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "actors" ADD CONSTRAINT "actors_stage_id_stages_id_fk" FOREIGN KEY ("stage_id") REFERENCES "public"."stages"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "agent_memories" ADD CONSTRAINT "agent_memories_game_id_games_id_fk" FOREIGN KEY ("game_id") REFERENCES "public"."games"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
@@ -296,8 +297,8 @@ ALTER TABLE "stage_visits" ADD CONSTRAINT "stage_visits_actor_id_actors_id_fk" F
 ALTER TABLE "stage_visits" ADD CONSTRAINT "stage_visits_stage_id_stages_id_fk" FOREIGN KEY ("stage_id") REFERENCES "public"."stages"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "stages" ADD CONSTRAINT "stages_world_id_worlds_id_fk" FOREIGN KEY ("world_id") REFERENCES "public"."worlds"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "worlds" ADD CONSTRAINT "worlds_game_id_games_id_fk" FOREIGN KEY ("game_id") REFERENCES "public"."games"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
-CREATE UNIQUE INDEX "actor_recognitions_observer_signature_unique" ON "actor_recognitions" USING btree ("observer_actor_id","signature_id");--> statement-breakpoint
-CREATE INDEX "actor_recognitions_game_observer_idx" ON "actor_recognitions" USING btree ("game_id","observer_actor_id");--> statement-breakpoint
+CREATE UNIQUE INDEX "actor_signature_names_observer_signature_unique" ON "actor_signature_names" USING btree ("observer_actor_id","signature_id");--> statement-breakpoint
+CREATE INDEX "actor_signature_names_game_observer_idx" ON "actor_signature_names" USING btree ("game_id","observer_actor_id");--> statement-breakpoint
 CREATE INDEX "actor_signatures_actor_idx" ON "actor_signatures" USING btree ("actor_id");--> statement-breakpoint
 CREATE UNIQUE INDEX "actor_signatures_current_unique" ON "actor_signatures" USING btree ("actor_id") WHERE "actor_signatures"."ended_at" is null;--> statement-breakpoint
 CREATE UNIQUE INDEX "agent_memories_game_owner_unique" ON "agent_memories" USING btree ("game_id","owner_type","owner_id");--> statement-breakpoint

@@ -15,7 +15,7 @@ export const DOMAIN_TABLES = [
   "vector_documents",
   "actor_controls",
   "dialogue_blocks",
-  "actor_recognitions",
+  "actor_signature_names",
   "appearances",
   "items",
   "stage_items",

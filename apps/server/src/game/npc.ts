@@ -33,7 +33,7 @@ import {
   findActorByName,
   otherActorsInStage,
 } from "./actors";
-import { addressLookupFor, refOf } from "./addressing";
+import { addressLookupFor, handleOf, refOf } from "./addressing";
 import { applyActorPlan } from "./apply";
 import { isAlive } from "./apply/queries";
 import {
@@ -141,13 +141,13 @@ export function buildActorTurnInput(state: GameState, current: ActorWithStage): 
       : teleportTargets.map((stage) => `@${stage.name}`).join("、");
   const knowledgeHint =
     "当问题涉及任何进入该世界的人都可能观察、询问或从公开记载中得知的固定事实，而当前场景与记忆无法直接确认时，必须先调用 query 检索，再回答或行动；不要用常识补全，也不要把检索结果当成亲眼所见。query 只读、不占行动，不提供角色秘密或当前状态。";
-  // 只有名单里还有 `#编号` 时才提醒记名字：此时 recognize_identity 才有对象可记。
+  // 只有名单里还有 `#编号` 时才提醒起名；已有名字也可以按 # 重新记录来更新称呼。
   const unknownTargets = targets.filter((token) => token.startsWith("#"));
   const identityHint =
-    "`@真名` 与 `#编号` 都可作为行动对象，但都不能说出口，也不能从 `#编号` 推断姓名。真名只有在世界内被告知后才算知道；称号与亲属称谓不是引用。use 的 targetAnchor 只能从当前场景的「可交互锚点」里选，不能自己写位置描述。" +
+    "`@名字` 与 `#编号` 都可作为行动对象，但都不能说出口，也不能从 `#编号` 推断真名。名字只是你当前对这个签名的称呼，可以是称号、误认或听来的叫法，不必是真名。use 的 targetAnchor 只能从当前场景的「可交互锚点」里选，不能自己写位置描述。" +
     (unknownTargets.length === 0
       ? ""
-      : "名单里还有 `#编号`：如果你已经从对话或记载中得知其中某人的真名，用 recognize_identity 记下（必须写对真名，不占行动名额）。");
+      : "名单里还有 `#编号`：可以用 recognize_identity 把它记成你认得的称呼；需要改名时对同一个编号再记一次（不占行动名额）。");
 
   return `# 当前环境
 
@@ -257,9 +257,9 @@ export async function runNpcTurn(
   const observeTool = canObserveActorItems(current.actor)
     ? buildObserveActorTool(targets)
     : undefined;
-  // 只能给「还不认得」的角色记识别：已经认得的引用不需要再记。
+  // 编号始终可见：既能给新签名起名，也能对已有名字重新记录来更新称呼。
   const recognizeTool = buildRecognizeIdentityTool(
-    targets.filter((token) => token.startsWith("#")),
+    otherActors.map((actor) => handleOf(actor.signature.seq)),
   );
   const submitTool = buildSubmitPlanTool();
 
@@ -332,7 +332,7 @@ export async function runNpcTurn(
     const known = identities.find((existing) => existing.handle === binding.handle);
     if (known) {
       known.name = binding.name;
-      return `${binding.handle} 的识别已更新`;
+      return `${binding.handle} 的名字已更新`;
     }
     identities.push(binding);
     return "名字已加入计划";
@@ -439,6 +439,5 @@ export async function runNpcTurn(
     loopSuccess: loop.success,
     state: await getGameState(db, state.game.id),
     ...(applied.death ? { death: applied.death } : {}),
-    ...(applied.identityWarnings ? { identityWarnings: applied.identityWarnings } : {}),
   };
 }

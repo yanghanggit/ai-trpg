@@ -59,9 +59,9 @@ export type ItemObservation = { actor: ActorRef; itemName: string } & (
 );
 
 /**
- * 未知对方的观察把外观另起一行：句子只留编号或真名，外观不冒充名字。
+ * 观察末尾把外观另起一行：句子只留编号或当前名字，外观不冒充名字。
  *
- * 外观对认知隔离是必要的（不知道是谁，只能靠样子辨认），但它不是名字，不能塞进句子。
+ * 外观对认知隔离是必要的（名字可能错或撞，只能靠样子辅助辨认），但它不是名字，不能塞进句子。
  */
 export function withAppearances(content: string, addresses: readonly Address[]): string {
   const lines = addresses
@@ -106,7 +106,7 @@ export function renderAction(content: string, stageId: string): ObservationView 
  * 外观变化观察：句子只给观察者视角的引用，新外观另起一行。
  *
  * 外观本身在提交时已过世界面守卫，不含名字与系统引用；这里再按观察者渲染引用，
- * 不知道名字的观察者只会看到 `#编号`。
+ * 没有名字的观察者只会看到 `#编号`。
  */
 export function renderAppearanceChange(
   address: Address,

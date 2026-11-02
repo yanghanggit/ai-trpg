@@ -4,7 +4,6 @@ import { type ActorWithStage, adjacentStageNames, findStageByName } from "./acto
 import { type AddressLookup, addressLookupFor, refOf } from "./addressing";
 import { isAlive } from "./apply/queries";
 import {
-  MAX_IDENTITY_NAME_LENGTH,
   MAX_STAGE_ANCHOR_DESCRIPTION_LENGTH,
   MAX_STAGE_ANCHOR_LABEL_LENGTH,
   MAX_STAGE_ANCHORS,
@@ -436,9 +435,9 @@ export function buildActorLookTool(stageName: string): ToolDefinition {
 }
 
 /**
- * 记录一次识别。
+ * 记下一个签名的当前名字。
  *
- * 引擎不做名字抽取：只有角色自己判断「我已经知道他是谁」之后才调用；名字必须是真名。
+ * 名字是观察者的认知，不要求是真名；同一个编号再次调用会覆盖旧名字。
  * 它只改自己的记忆，不产生公共事件，也不占行动名额。
  */
 export function buildRecognizeIdentityTool(handles: readonly string[]): ToolDefinition {
@@ -446,10 +445,10 @@ export function buildRecognizeIdentityTool(handles: readonly string[]): ToolDefi
     type: "function",
     function: {
       name: "recognize_identity",
-      description: `记下「你已经知道某个编号是谁」。
+      description: `把某个编号记成你认得的名字。
 
-只在你已经从世界内信息得知对方真名时使用：对方自报、别人介绍、或者你从可见的记载里读到。name 必须正好是对方的真名；写错会被拒绝，不会记成别名。
-一轮里可以记多个；它只写进你自己的记忆——别人不会知道，场景也不会变，也不占行动名额。`,
+名字可以是你听来的称呼、称号、误认，或者真名；不必是真名，也不需要校验。之后名单和行动会直接使用这个名字。
+同一个编号再次记录会覆盖旧名字。一轮里可以记多个；它只写进你自己的记忆——别人不会知道，场景也不会变，也不占行动名额。`,
       parameters: {
         type: "object",
         properties: {
@@ -460,7 +459,7 @@ export function buildRecognizeIdentityTool(handles: readonly string[]): ToolDefi
           },
           name: {
             type: "string",
-            description: `对方的真名；控制在 ${MAX_IDENTITY_NAME_LENGTH} 字以内`,
+            description: "你想怎么称呼对方；用一小段，不必是真名",
           },
         },
         required: ["handle", "name"],
@@ -469,17 +468,14 @@ export function buildRecognizeIdentityTool(handles: readonly string[]): ToolDefi
   };
 }
 
-/** 真名不依赖寻址方式；模型与玩家入口共用同一套长度与格式校验。 */
-export function parseIdentityName(raw: unknown): string {
+/** 签名的当前名字；模型与玩家入口共用同一套格式校验。 */
+export function parseSignatureName(raw: unknown): string {
   const name = typeof raw === "string" ? raw.trim() : "";
   if (name.length === 0) {
     throw new GameError("invalid_action", "name 不能为空");
   }
-  if (name.length > MAX_IDENTITY_NAME_LENGTH) {
-    throw new GameError("invalid_action", `name 不能超过 ${MAX_IDENTITY_NAME_LENGTH} 个字符`);
-  }
-  if (/[@#]/.test(name)) {
-    throw new GameError("invalid_action", "name 不能包含系统标记（@ 或 #）");
+  if (/[@#\p{Cc}]/u.test(name)) {
+    throw new GameError("invalid_action", "name 不能包含系统标记（@ 或 #）或控制字符");
   }
   return name;
 }
@@ -492,7 +488,7 @@ export function parseRecognizeIdentity(args: Record<string, unknown>): {
   if (!/^#\d+$/.test(handle)) {
     throw new GameError("invalid_action", "handle 必须是匿名编号，例如 #12");
   }
-  return { handle, name: parseIdentityName(args.name) };
+  return { handle, name: parseSignatureName(args.name) };
 }
 
 /**

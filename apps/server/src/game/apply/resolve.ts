@@ -13,6 +13,7 @@ import { resolveUse } from "../actions/use";
 import { resolveWait } from "../actions/wait";
 import { resolveWhisper } from "../actions/whisper";
 import { GameError } from "../errors";
+import { signatureNamesFor } from "../persistence/signature-names";
 import { assertNoSystemReference } from "../text-guard";
 import type { ActorPlan } from "../types";
 import { findSignatureByHandleInWorld, resolveEquippedItems, resolveVisibleActor } from "./queries";
@@ -39,7 +40,7 @@ export async function resolvePlan(
 ): Promise<ResolvedPlan> {
   let stage: StageRow = actorRow.stage;
   const resolved: ResolvedAction[] = [];
-  // actor-facing 目标只走签名或已识别真名；裸名字、id、未识别的 @真名 都不命中。
+  // actor-facing 目标只走签名或观察者当前名字；裸名字、id、未命名的 @名字 都不命中。
   const visibleTarget = (ref: string) =>
     resolveVisibleActor(executor, {
       gameId: world.gameId,
@@ -160,27 +161,33 @@ export async function resolvePlan(
     }
   }
 
-  // 认知更新不设条数上限：每个编号都必须是世界内已存在的签名，天然被世界规模约束；
-  // 同一个编号在一份计划里重复出现时，后一次覆盖前一次，避免重复写记忆。
+  // 名字更新不设条数上限：每个编号都必须是世界内已存在的签名，天然被世界规模约束；
+  // 同一个编号在一份计划里重复出现时，后一次覆盖前一次。
   const bindings = new Map(
     (plan.identities ?? []).map((binding) => [binding.handle, binding] as const),
   );
+  const existingNames =
+    bindings.size === 0
+      ? new Map<string, string>()
+      : await signatureNamesFor(executor, world.gameId, actorRow.actor.id);
   const identities: ResolvedIdentity[] = [];
   for (const binding of bindings.values()) {
     const view = await findSignatureByHandleInWorld(executor, world.id, binding.handle);
     if (!view) {
       throw new GameError("invalid_action", `世界内没有这个编号: ${binding.handle}`);
     }
-    // 只有「认识」这一种状态：必须是真名，别名一律拒绝，且报错不回显真名。
-    if (binding.name !== view.actor.name) {
-      throw new GameError("invalid_action", `无法确认 ${binding.handle} 的身份`);
+    if (view.actor.id === actorRow.actor.id) {
+      throw new GameError("invalid_action", "不能给自己起名");
+    }
+    // 新名字必须来自当前场景；已经绑定的签名可以从记忆里更新，即使它不在场。
+    if (view.actor.stageId !== stage.id && !existingNames.has(view.signature.id)) {
+      throw new GameError("invalid_action", `只能给当前场景内的角色起名: ${binding.handle}`);
     }
     identities.push({
       handle: binding.handle,
       name: binding.name,
       actorId: view.actor.id,
       signatureId: view.signature.id,
-      stageId: view.actor.stageId,
     });
   }
 

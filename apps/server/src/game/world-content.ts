@@ -18,32 +18,18 @@ const stageActionSchema = z.enum([
   "open_passage",
 ] satisfies readonly StageActionKind[]);
 const worldActionSchema = z.enum(["notify_stage", "end_game"] satisfies readonly WorldActionKind[]);
-/**
- * 识别关系只声明「谁认得谁」；旧内容里的 `name` 必须显式删掉，
- * 不能静默降级成“认得”，否则别名会被当成真名知识。
- */
-const knownIdentitySchema = z
-  .object({
-    observer: z.string().min(1),
-    subject: z.string().min(1),
-  })
-  .passthrough()
-  .superRefine((value, ctx) => {
-    for (const key of Object.keys(value)) {
-      if (key === "observer" || key === "subject") {
-        continue;
-      }
-      ctx.addIssue({
-        code: "custom",
-        message:
-          key === "name"
-            ? "knownIdentities 不再接受 name：只写 observer 与 subject，认得即知道真名"
-            : `knownIdentities 不接受字段: ${key}`,
-        path: [key],
-      });
-    }
-  })
-  .transform(({ observer, subject }) => ({ observer, subject }));
+/** 内容层可以给开局关系指定观察者使用的名字；省略时由 service 默认成对象真名。 */
+const signatureNameSchema = z
+  .string()
+  .trim()
+  .min(1)
+  .refine((value) => !/[@#\p{Cc}]/u.test(value), "名字不能包含 @、# 或控制字符");
+
+const knownIdentitySchema = z.strictObject({
+  observer: z.string().min(1),
+  subject: z.string().min(1),
+  name: signatureNameSchema.optional(),
+});
 
 const itemKindSchema = z.enum([
   "weapon",
@@ -138,7 +124,7 @@ const actorSchema = z.object({
   openingBriefing: z.string().optional(),
   equipment: equipmentSchema.optional(),
   signature: z.object({
-    /** 稳定形态，统一写成 `[种族]:描述`；它是识别与外观推理的输入。 */
+    /** 稳定形态，统一写成 `[种族]:描述`；它是辨认与外观推理的输入。 */
     form: z.string().refine(isValidForm, "form 必须写成 [种族]:描述"),
     /** 预制外观快照；省略时回退到 form。 */
     appearance: z.string().optional(),

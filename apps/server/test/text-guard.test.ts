@@ -38,22 +38,8 @@ describe("world text guard", () => {
 
   const ADDRESS = (known: boolean) => (id: string) =>
     id === "a" && known
-      ? {
-          token: "@煤渣",
-          label: "煤渣（灰毛犬）",
-          mention: "@煤渣",
-          appearance: "灰毛犬",
-          known: true,
-          isSelf: false,
-        }
-      : {
-          token: "#9",
-          label: "外观：灰毛犬",
-          mention: "#9",
-          appearance: "灰毛犬",
-          known: false,
-          isSelf: false,
-        };
+      ? { token: "@煤渣", appearance: "灰毛犬", isSelf: false }
+      : { token: "#9", appearance: "灰毛犬", isSelf: false };
 
   it("renders an in-stage actor as a name reference", () => {
     const actor = { id: "a", name: "煤渣" };

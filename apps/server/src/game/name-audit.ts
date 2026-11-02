@@ -8,8 +8,9 @@ import type { AgentMemoryMessageState, AgentMemoryState, CommunicationKind } fro
 /**
  * actor 记忆的名字泄漏审计。
  *
- * 只读：不写游戏状态，不调用 LLM。真名来自 `actors.name`，观察者的识别关系来自
- * `actor_recognitions`（观察者 × 签名），记忆来自 actor 的 `agent_memory_messages`。
+ * 只读：不写游戏状态，不调用 LLM。真名来自 `actors.name`，观察者的签名称呼来自
+ * `actor_signature_names`（观察者 × 签名 × 名字），记忆来自 actor 的
+ * `agent_memory_messages`。
  * stage / world 自己的记忆是上帝视角，允许写名字，不在扫描范围。
  *
  * 默认跳过 system prompt：campaignSetting / profile 是内容层设定，可能刻意使用
@@ -32,7 +33,7 @@ const RUNTIME_LOOKBACK_MS = 2000;
 export type NameAuditActor = {
   id: string;
   name: string;
-  /** 当前签名的 id；`currentSignature` 模式用它判断“现在认不认识”。 */
+  /** 当前签名的 id；`currentSignature` 模式用它判断“现在是否仍用这个名字”。 */
   currentSignatureId: string;
 };
 
@@ -41,16 +42,17 @@ export type NameAuditSignature = {
   actorId: string;
 };
 
-export type NameAuditRecognition = {
+export type NameAuditSignatureName = {
   observerActorId: string;
   signatureId: string;
+  name: string;
 };
 
 export type NameAuditInput = {
   actors: readonly NameAuditActor[];
-  /** 包含已退场的签名；`ever` 模式靠它把旧识别关系归回 actor。 */
+  /** 包含已退场的签名；`ever` 模式靠它把旧名字归回 actor。 */
   signatures: readonly NameAuditSignature[];
-  recognitions: readonly NameAuditRecognition[];
+  signatureNames: readonly NameAuditSignatureName[];
   /** 只消费 `ownerType === "actor"` 的记忆。 */
   memories: readonly AgentMemoryState[];
 };
@@ -62,10 +64,10 @@ export type NameLeakPart = "content" | "tool_calls";
 
 export type NameLeakOptions = {
   /**
-   * `ever`（默认）：观察者曾经认得这个 actor 就不报，历史记忆不会被误伤。
-   * `currentSignature`：只认当前签名，适合检查伪装 / 变身后的识别泄漏。
+   * `ever`（默认）：观察者曾经用这个 actor 的真名称呼过它就不报，历史记忆不会被误伤。
+   * `currentSignature`：只看当前签名的名字，适合检查伪装 / 变身后的称呼。
    */
-  recognitionScope?: NameLeakScope;
+  nameScope?: NameLeakScope;
   /** 跳过的记忆类别；默认跳过 actor system prompt。 */
   skipKinds?: readonly string[];
   /** 只扫这些记忆类别；设置后优先于 `skipKinds`。 */
@@ -124,7 +126,7 @@ export type NameLeakReport = {
   checked: {
     actors: number;
     messages: number;
-    recognitionRows: number;
+    nameRows: number;
   };
 };
 
@@ -192,23 +194,24 @@ function excerptOf(text: string, index: number, length: number, radius: number):
 
 type SubjectGroup = {
   name: string;
-  /** 观察者不认识的主体；同名角色可能多个。 */
+  /** 观察者没有在记忆里使用该主体真名的主体；同名角色可能多个。 */
   unknown: NameAuditActor[];
 };
 
 function subjectGroups(input: {
   actors: readonly NameAuditActor[];
   observerId: string;
-  recognitions: readonly NameAuditRecognition[];
-  recognitionScope: NameLeakScope;
+  signatureNames: readonly NameAuditSignatureName[];
+  nameScope: NameLeakScope;
   signatureActor: ReadonlyMap<string, string>;
   allowNames: ReadonlySet<string>;
 }): SubjectGroup[] {
-  const known = (subject: NameAuditActor): boolean =>
-    input.recognitions.some((row) =>
-      input.recognitionScope === "currentSignature"
-        ? row.signatureId === subject.currentSignatureId
-        : input.signatureActor.get(row.signatureId) === subject.id,
+  const namedTrueName = (subject: NameAuditActor): boolean =>
+    input.signatureNames.some(
+      (row) =>
+        input.signatureActor.get(row.signatureId) === subject.id &&
+        (input.nameScope === "ever" || row.signatureId === subject.currentSignatureId) &&
+        row.name === subject.name,
     );
 
   const byName = new Map<string, NameAuditActor[]>();
@@ -226,7 +229,7 @@ function subjectGroups(input: {
 
   return [...byName.entries()]
     .map(([name, subjects]) => {
-      const unknown = subjects.filter((subject) => !known(subject));
+      const unknown = subjects.filter((subject) => !namedTrueName(subject));
       return {
         name,
         unknown,
@@ -250,12 +253,12 @@ function mark(mask: Uint8Array, start: number, length: number): void {
   }
 }
 
-/** 纯函数：给定 actor、识别关系与记忆，找出所有真名越界与结构告警。 */
+/** 纯函数：给定 actor、签名称呼与记忆，找出所有真名越界与结构告警。 */
 export function findNameAudit(
   input: NameAuditInput,
   options: NameLeakOptions = {},
 ): NameAuditResult {
-  const recognitionScope = options.recognitionScope ?? "ever";
+  const nameScope = options.nameScope ?? "ever";
   const skipKinds = options.skipKinds ?? DEFAULT_SKIP_KINDS;
   const onlyKinds = options.onlyKinds;
   const allowNames = new Set(options.allowNames ?? []);
@@ -266,11 +269,11 @@ export function findNameAudit(
   const signatureActor = new Map(
     input.signatures.map((signature) => [signature.id, signature.actorId]),
   );
-  const recognitionsByObserver = new Map<string, NameAuditRecognition[]>();
-  for (const row of input.recognitions) {
-    const rows = recognitionsByObserver.get(row.observerActorId) ?? [];
+  const signatureNamesByObserver = new Map<string, NameAuditSignatureName[]>();
+  for (const row of input.signatureNames) {
+    const rows = signatureNamesByObserver.get(row.observerActorId) ?? [];
     rows.push(row);
-    recognitionsByObserver.set(row.observerActorId, rows);
+    signatureNamesByObserver.set(row.observerActorId, rows);
   }
   const memoryByOwner = new Map<string, AgentMemoryState>();
   for (const memory of input.memories) {
@@ -292,8 +295,8 @@ export function findNameAudit(
     const groups = subjectGroups({
       actors: input.actors,
       observerId: observer.id,
-      recognitions: recognitionsByObserver.get(observer.id) ?? [],
-      recognitionScope,
+      signatureNames: signatureNamesByObserver.get(observer.id) ?? [],
+      nameScope,
       signatureActor,
       allowNames,
     });
@@ -504,7 +507,7 @@ export async function auditGameNameLeaks(
     checked: {
       actors: input.actors.length,
       messages: countMessagesSince(input.memories, options.since),
-      recognitionRows: input.recognitions.length,
+      nameRows: input.signatureNames.length,
     },
   };
 }
@@ -542,7 +545,7 @@ export async function auditTurnNameLeaks(
 export function renderNameLeakReport(report: NameLeakReport): string {
   const lines = [
     `# 名字审计 · ${report.gameId}`,
-    `检查 ${report.checked.actors} 个 actor / ${report.checked.messages} 条消息 / ${report.checked.recognitionRows} 条识别关系`,
+    `检查 ${report.checked.actors} 个 actor / ${report.checked.messages} 条消息 / ${report.checked.nameRows} 条签名称呼`,
   ];
   if (report.leaks.length === 0 && report.alerts.length === 0) {
     lines.push("", "未发现真名泄漏或结构告警。");

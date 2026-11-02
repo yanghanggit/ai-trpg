@@ -1,5 +1,5 @@
 {
-  "id": "511e7955-c961-4d18-be6a-e21d2e35e0cb",
+  "id": "95a17b75-d404-402c-9316-1d21c52c1a71",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "version": "7",
   "dialect": "postgresql",
@@ -96,8 +96,8 @@
       "checkConstraints": {},
       "isRLSEnabled": false
     },
-    "public.actor_recognitions": {
-      "name": "actor_recognitions",
+    "public.actor_signature_names": {
+      "name": "actor_signature_names",
       "schema": "",
       "columns": {
         "id": {
@@ -121,6 +121,12 @@
         "signature_id": {
           "name": "signature_id",
           "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "name": {
+          "name": "name",
+          "type": "text",
           "primaryKey": false,
           "notNull": true
         },
@@ -153,8 +159,8 @@
         }
       },
       "indexes": {
-        "actor_recognitions_observer_signature_unique": {
-          "name": "actor_recognitions_observer_signature_unique",
+        "actor_signature_names_observer_signature_unique": {
+          "name": "actor_signature_names_observer_signature_unique",
           "columns": [
             {
               "expression": "observer_actor_id",
@@ -174,8 +180,8 @@
           "method": "btree",
           "with": {}
         },
-        "actor_recognitions_game_observer_idx": {
-          "name": "actor_recognitions_game_observer_idx",
+        "actor_signature_names_game_observer_idx": {
+          "name": "actor_signature_names_game_observer_idx",
           "columns": [
             {
               "expression": "game_id",
@@ -197,9 +203,9 @@
         }
       },
       "foreignKeys": {
-        "actor_recognitions_game_id_games_id_fk": {
-          "name": "actor_recognitions_game_id_games_id_fk",
-          "tableFrom": "actor_recognitions",
+        "actor_signature_names_game_id_games_id_fk": {
+          "name": "actor_signature_names_game_id_games_id_fk",
+          "tableFrom": "actor_signature_names",
           "tableTo": "games",
           "columnsFrom": [
             "game_id"
@@ -210,9 +216,9 @@
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
-        "actor_recognitions_observer_actor_id_actors_id_fk": {
-          "name": "actor_recognitions_observer_actor_id_actors_id_fk",
-          "tableFrom": "actor_recognitions",
+        "actor_signature_names_observer_actor_id_actors_id_fk": {
+          "name": "actor_signature_names_observer_actor_id_actors_id_fk",
+          "tableFrom": "actor_signature_names",
           "tableTo": "actors",
           "columnsFrom": [
             "observer_actor_id"
@@ -223,9 +229,9 @@
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
-        "actor_recognitions_signature_id_actor_signatures_id_fk": {
-          "name": "actor_recognitions_signature_id_actor_signatures_id_fk",
-          "tableFrom": "actor_recognitions",
+        "actor_signature_names_signature_id_actor_signatures_id_fk": {
+          "name": "actor_signature_names_signature_id_actor_signatures_id_fk",
+          "tableFrom": "actor_signature_names",
           "tableTo": "actor_signatures",
           "columnsFrom": [
             "signature_id"
@@ -236,9 +242,9 @@
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
-        "actor_recognitions_learned_stage_id_stages_id_fk": {
-          "name": "actor_recognitions_learned_stage_id_stages_id_fk",
-          "tableFrom": "actor_recognitions",
+        "actor_signature_names_learned_stage_id_stages_id_fk": {
+          "name": "actor_signature_names_learned_stage_id_stages_id_fk",
+          "tableFrom": "actor_signature_names",
           "tableTo": "stages",
           "columnsFrom": [
             "learned_stage_id"

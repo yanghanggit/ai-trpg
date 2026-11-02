@@ -3,28 +3,19 @@ import type { ActorState, GameState, StageState } from "./types";
 /**
  * 观察者相对的引用（address）。
  *
- * 名字是真名，只有一种；知道与不知道是二元的：
+ * 每个观察者给每个签名最多一个当前名字；名字不要求是真名：
  *
- * - `@真名`：你认得这个签名，知道他是谁；
- * - `#12`：你还不认得他，只能靠编号与外观辨认。
+ * - `@名字`：你已经给这个签名起了名字；
+ * - `#12`：你还没有名字，只能靠编号与外观辨认。
  *
- * 没有“知道一个别名”的中间态。称号、关系称谓（父王、守钟的）属于设定与台词，
- * 不是地址，也不进入名单与工具参数。
- *
- * 两者都是系统标记，不得出现在台词里。
+ * 名字可能是真名、称号或误认；系统不区分。两者都是系统标记，不得出现在台词里。
  */
 
 export type Address = {
-  /** 引用写法：`@真名` 或 `#12`；找不到主体时为空串。 */
+  /** 引用写法：`@名字` 或 `#12`；找不到主体时为空串。 */
   token: string;
-  /** 名单写法：`名字（外观）` / `外观：…`。 */
-  label: string;
-  /** 句子里的引用：`token`；自己固定为「你」。 */
-  mention: string;
   /** 当前签名的外观；句子不内联它，需要时由 `appearanceLine` 单独成行。 */
   appearance: string;
-  /** 是否认得这个签名；认得即知道真名。 */
-  known: boolean;
   /** 是否为观察者自己。 */
   isSelf: boolean;
 };
@@ -32,11 +23,8 @@ export type Address = {
 /** 按 actorId 取该观察者视角下的引用。 */
 export type AddressLookup = (actorId: string) => Address;
 
-/** 构建引用所需的最小主体数据：身份、真名、当前签名与可见外观。 */
+/** 构建引用所需的最小主体数据：签名与可见外观；不携带真名。 */
 export type AddressSubject = {
-  actorId: string;
-  /** 真名；认得这个签名时，引用只能用它。 */
-  name: string;
   signatureId: string;
   signatureSeq: number;
   appearance: string;
@@ -53,7 +41,7 @@ export function handleOf(signatureSeq: number): string {
 /** 匿名编号的形状；台词里出现它说明模型把引用当成了名字。 */
 export const HANDLE_PATTERN = /#\d+/;
 
-/** 名字引用的形状：`@名字`，在空白与标点处截断。 */
+/** 名字引用的标记：只用于检测 `@`，不负责解析名字边界。 */
 export const NAME_REF_PATTERN = /@\S*/;
 
 /** 参数归一：名字类参数允许带一个前导 `@`；`#编号` 与纯名字原样返回。 */
@@ -62,64 +50,79 @@ export function stripNameRef(ref: string): string {
 }
 
 /**
- * 名单与工具结果的展示写法：`@真名（外观）` / `#12 外观：…`。
+ * 名单与工具结果的展示写法：`@名字（外观）` / `#12 外观：…`。
  *
  * 只用于阅读，不是 token：可直接提交的地址永远是 `address.token`。
  */
 export function refOf(address: Address): string {
-  if (address.token.length === 0) {
-    return address.label;
+  if (address.isSelf) {
+    return "你自己";
   }
-  return address.known ? `@${address.label}` : `${address.token} ${address.label}`;
+  if (address.token.length === 0) {
+    return UNKNOWN_LABEL;
+  }
+  return address.token.startsWith("@")
+    ? `${address.token}（${address.appearance}）`
+    : `${address.token} 外观：${address.appearance}`;
 }
 
-/** 句子里的引用。 */
+/** 句子里的引用；自己写作「你」。 */
 export function mentionOf(address: Address): string {
-  return address.mention;
+  if (address.isSelf) {
+    return "你";
+  }
+  return address.token.length > 0 ? address.token : UNKNOWN_LABEL;
 }
 
-/** 未知名字时补充的外观行：`#12 外观：…`；已知名字返回 null。 */
+/**
+ * 观察末尾的外观行：有名字时写 `@名字（外观）`，没有名字时写 `#12 外观：…`。
+ *
+ * 外观是辨认依据；名字可能是误认，两者一起写进记忆更稳。自己的外观不重复成行。
+ */
 export function appearanceLine(address: Address): string | null {
-  if (address.known || address.appearance.length === 0) {
+  if (address.isSelf || address.appearance.length === 0) {
     return null;
   }
-  return `${address.token} 外观：${address.appearance}`;
+  return refOf(address);
 }
 
 /** 行动反馈里的引用：自己写作「你自己」。 */
 export function actionRef(address: Address): string {
-  return address.isSelf ? "你自己" : address.mention;
+  return address.isSelf ? "你自己" : mentionOf(address);
 }
 
 /**
- * 用「是否认得这个签名」+「主体真名」拼出引用。
+ * 用「观察者当前给签名的名字」+「签名外观」拼出引用。
  *
- * 认得就一定是真名，不认得就一定是编号；调用方没有机会塞进第三种叫法。
+ * 名字相同时不能生成两个相同的 `@名字`，这些主体退回 `#编号`；
+ * `reservedNames` 用来把观察者自己的名字也算进冲突，避免和 `@自己` 撞车。
  */
 export function makeAddressLookup(
-  recognized: ReadonlySet<string>,
+  names: ReadonlyMap<string, string>,
   subjects: ReadonlyMap<string, AddressSubject>,
+  reservedNames: readonly string[] = [],
 ): AddressLookup {
+  const counts = new Map<string, number>();
+  for (const name of reservedNames) {
+    counts.set(name, (counts.get(name) ?? 0) + 1);
+  }
+  for (const subject of subjects.values()) {
+    const name = names.get(subject.signatureId);
+    if (name !== undefined) {
+      counts.set(name, (counts.get(name) ?? 0) + 1);
+    }
+  }
+
   return (actorId) => {
     const subject = subjects.get(actorId);
     if (!subject) {
-      return {
-        token: "",
-        label: UNKNOWN_LABEL,
-        mention: UNKNOWN_LABEL,
-        appearance: "",
-        known: false,
-        isSelf: false,
-      };
+      return { token: "", appearance: "", isSelf: false };
     }
-    const known = recognized.has(subject.signatureId);
-    const token = known ? `@${subject.name}` : handleOf(subject.signatureSeq);
+    const name = names.get(subject.signatureId);
+    const unique = name !== undefined && counts.get(name) === 1;
     return {
-      token,
-      label: known ? `${subject.name}（${subject.appearance}）` : `外观：${subject.appearance}`,
-      mention: token,
+      token: unique ? `@${name}` : handleOf(subject.signatureSeq),
       appearance: subject.appearance,
-      known,
       isSelf: false,
     };
   };
@@ -131,8 +134,6 @@ export function subjectsOf(stage: StageState): Map<string, AddressSubject> {
     stage.actors.map((actor) => [
       actor.id,
       {
-        actorId: actor.id,
-        name: actor.name,
         signatureId: actor.signature.id,
         signatureSeq: actor.signature.seq,
         appearance: actor.appearance.text,
@@ -141,36 +142,35 @@ export function subjectsOf(stage: StageState): Map<string, AddressSubject> {
   );
 }
 
-/** 观察者认得哪些签名；认识与否只按签名 id 判断，不存称呼。 */
-function recognizedSignaturesOf(state: GameState, observerActorId: string): Set<string> {
-  const recognized = new Set<string>();
-  for (const row of state.recognitions) {
+/** 观察者当前给各签名的名字；名字只按签名 id 绑定。 */
+function signatureNamesOf(state: GameState, observerActorId: string): Map<string, string> {
+  const names = new Map<string, string>();
+  for (const row of state.signatureNames) {
     if (row.observerActorId === observerActorId) {
-      recognized.add(row.signatureId);
+      names.set(row.signatureId, row.name);
     }
   }
-  return recognized;
+  return names;
 }
 
 /**
  * actor 视角的引用表：主体取本场景的全部角色。
  *
- * 自己的引用固定为「你」，名字是自己的真名，不占用识别表。
+ * 自己的引用固定为「你」，名字是自己的真名，不占用名字表。
  */
 export function addressLookupFor(
   state: GameState,
   observer: ActorState,
   stage: StageState,
 ): AddressLookup {
-  const lookup = makeAddressLookup(recognizedSignaturesOf(state, observer.id), subjectsOf(stage));
+  const lookup = makeAddressLookup(signatureNamesOf(state, observer.id), subjectsOf(stage), [
+    observer.name,
+  ]);
   return (actorId) => {
     if (actorId === observer.id) {
       return {
         token: `@${observer.name}`,
-        label: "你自己",
-        mention: "你",
         appearance: observer.appearance.text,
-        known: true,
         isSelf: true,
       };
     }

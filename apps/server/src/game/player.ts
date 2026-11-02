@@ -6,7 +6,7 @@ import { type ApplyActorPlanOptions, applyActorPlan } from "./apply";
 import { isPlayerControlled } from "./control";
 import { auditPlayerDialogue, dialogueContextFor, isDialogueAction } from "./dialogue-audit";
 import { DialogueBlockedError, GameError } from "./errors";
-import { parseIdentityName } from "./plan";
+import { parseSignatureName } from "./plan";
 import { getGameState } from "./service";
 import type {
   ActorAction,
@@ -36,7 +36,7 @@ function findActorByRef(state: GameState, ref: string): ActorState {
 
 /**
  * 玩家入口是 god view，可以用真名 / 引用指定目标；但进入 apply 前必须
- * 换成该 actor 当前地址表发出的 actor-facing 引用，后续只走签名 / 已识别真名入口。
+ * 换成该 actor 当前地址表发出的 actor-facing 引用，后续只走签名 / 当前名字入口。
  */
 function normalizePlayerTargets(
   state: GameState,
@@ -139,7 +139,6 @@ async function applyPlayerPlan(
     loopSuccess: true,
     state: await getGameState(db, state.game.id),
     ...(result.death ? { death: result.death } : {}),
-    ...(result.identityWarnings ? { identityWarnings: result.identityWarnings } : {}),
   };
 }
 
@@ -396,11 +395,11 @@ export async function playerUnequip(
   return applyPlayerAction(db, gameRef, actorRef, action, options);
 }
 
-/** 玩家替自己控制的角色记下一次识别；与模型侧的认知更新走同一份计划。 */
+/** 玩家替自己控制的角色记下一个名字；与模型侧的名字更新走同一份计划。 */
 export type PlayerRecognizeInput = {
-  /** 目标引用：id、名字、`@名字` 或 `#编号`。 */
+  /** 目标引用：真名、`@真名` 或 `#编号`；玩家入口仍走控制面。 */
   targetActorRef: string;
-  /** 角色相信对方叫什么。 */
+  /** 角色当前想怎么称呼对方；不必是真名。 */
   name: string;
 };
 
@@ -414,7 +413,7 @@ export async function playerRecognizeIdentity(
   const target = findActorByRef(state, input.targetActorRef);
   const plan: ActorPlan = {
     actions: [],
-    identities: [{ handle: handleOf(target.signature.seq), name: parseIdentityName(input.name) }],
+    identities: [{ handle: handleOf(target.signature.seq), name: parseSignatureName(input.name) }],
   };
   return applyPlayerPlan(db, gameRef, actorRef, plan);
 }

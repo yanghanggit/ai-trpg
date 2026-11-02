@@ -3,6 +3,7 @@ import {
   appearanceLine,
   HANDLE_PATTERN,
   handleOf,
+  mentionOf,
   NAME_REF_PATTERN,
 } from "./addressing";
 import { GameError } from "./errors";
@@ -117,7 +118,7 @@ export type SanitizableActor = {
  * 把任意要写给 actor 的文本脱敏成观察者能读的版本。
  *
  * 用途有两处：environment 的读取兜底，以及写入 actor 记忆前的最后一道防线（反馈与拒绝原因）。
- * 规则与名单 / 观察一致：本场角色写成 `@名字`；不知道名字时保留 `#12`，外观另起一行
+ * 规则与名单 / 观察一致：本场角色写成 `@名字`；没有名字时保留 `#12`，外观另起一行
  * ——对在场者来说，外观永远可观测。不在本场、无法观测的名字不编造身份。
  */
 export function sanitizeActorFacingText(
@@ -146,8 +147,8 @@ export function sanitizeActorFacingText(
 
   // 本场角色怎么出现在句子里的：`@名字`，或 `#12` + 独立的外观行。
   const shown = (entry: (typeof entries)[number]): string => {
-    if (entry.resolved.known) {
-      return entry.resolved.mention;
+    if (entry.resolved.token.startsWith("@")) {
+      return mentionOf(entry.resolved);
     }
     const line = appearanceLine(entry.resolved);
     if (line !== null) {

@@ -4,7 +4,7 @@ import { actorSignatures } from "../../db/schema";
 import { getGameMemories } from "../memory";
 import type { NameAuditActor, NameAuditInput } from "../name-audit";
 import { getGameState } from "../service";
-import { listRecognitions } from "./recognitions";
+import { listSignatureNames } from "./signature-names";
 
 /** 从数据库装载名字审计输入；只读。 */
 export async function loadNameAuditInput(db: Database, gameId: string): Promise<NameAuditInput> {
@@ -32,9 +32,10 @@ export async function loadNameAuditInput(db: Database, gameId: string): Promise<
       actorId: actor.id,
     });
   }
-  const recognitions = (await listRecognitions(db, resolvedGameId)).map((row) => ({
+  const signatureNames = (await listSignatureNames(db, resolvedGameId)).map((row) => ({
     observerActorId: row.observerActorId,
     signatureId: row.signatureId,
+    name: row.name,
   }));
   const memories = (await getGameMemories(db, resolvedGameId)).filter(
     (memory) => memory.ownerType === "actor",
@@ -42,7 +43,7 @@ export async function loadNameAuditInput(db: Database, gameId: string): Promise<
   return {
     actors,
     signatures: [...signatures.values()],
-    recognitions,
+    signatureNames,
     memories,
   };
 }

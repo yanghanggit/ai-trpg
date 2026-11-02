@@ -112,20 +112,22 @@ export type World = {
   stages: readonly Stage[];
   connections: readonly Connection[];
   actors: readonly Actor[];
-  /** 开局时就已认识的角色：观察者与对象都用 `Actor.key` 引用；认识即知道真名。 */
+  /** 开局时就已认识的角色：观察者与对象都用 `Actor.key` 引用。 */
   knownIdentities?: readonly KnownIdentity[];
   /** 世界实体可用的动作；必须显式列出。 */
   actions: readonly WorldActionKind[];
 };
 
 /**
- * 开局时就已建立的识别关系。
+ * 开局时就已建立的名字绑定。
  *
- * 只声明「认识」：认得这个签名就等于知道对方的真名，不声明称呼。
+ * 只声明观察者与对象；`name` 省略时默认使用对象的真名。写了就是观察者对那个签名的
+ * 当前称呼，允许是称号、误认或任何非真名。
  */
 export type KnownIdentity = {
   observer: string;
   subject: string;
+  name?: string;
 };
 
 /**
@@ -389,10 +391,10 @@ export type StageAction =
 /** 场景作为小 GM 能执行的动作；能力清单成员，由 `StageAction` 派生。 */
 export type StageActionKind = StageAction["kind"];
 
-/** 把某个引用记成自己相信的名字；只改自己的记忆。 */
+/** 把某个引用记成自己当前的称呼；只改自己的记忆。 */
 export type IdentityBinding = {
   handle: string;
-  /** 必须是对象的真名；引擎按真名校验，不允许别名。 */
+  /** 观察者当前想怎么称呼这个签名；不必是真名。 */
   name: string;
 };
 
@@ -478,7 +480,7 @@ export type ItemState =
 /**
  * actor 当前可被看见的签名。
  *
- * 状态快照里只保留寻址与识别需要的字段；形态由 `ActorState.signature` 携带，
+ * 状态快照里只保留寻址需要的字段；形态由 `ActorState.signature` 携带，
  * 当前外观记录由 `ActorState.appearance` 携带。
  */
 export type SignatureState = {
@@ -499,7 +501,7 @@ export type ActorState = {
   profile: string;
   /** 当前外观；`text` 是最终渲染值，`id` 用于追溯生成来源。 */
   appearance: AppearanceState;
-  /** 当前正在使用的签名；观察者编号与识别关系都以它为单位。 */
+  /** 当前正在使用的签名；观察者编号与名字绑定都以它为单位。 */
   signature: SignatureState;
   stats: Stats;
   /** 当前生命；扣血只写这个字段，不再重写整块属性。`hp === 0` 即死亡。 */
@@ -645,25 +647,17 @@ export type GameState = {
   player: PlayerState;
   world: WorldState;
   messages: MessageState[];
-  /** 本局全部识别关系（god view）；渲染层按观察者过滤后才进提示词。 */
-  recognitions: RecognitionState[];
+  /** 本局全部签名称呼（god view）；渲染层按观察者过滤后才进提示词。 */
+  signatureNames: SignatureNameState[];
   /** 访问历史；只用于传送与地图，不参与普通移动权限。 */
   visits: StageVisitState[];
 };
 
-/** 认知更新的告警：不阻断行动，只进轨迹与日志。 */
-export type IdentityWarning = {
-  code: "unseen_handle";
-  handle: string;
-  name: string;
-  subjectActorId: string;
-  detail: string;
-};
-
-/** 一条识别关系：观察者认识哪个签名；认识即知道真名，不存称呼。 */
-export type RecognitionState = {
+/** 一条签名称呼：观察者当前把某个签名叫作什么；名字不要求是真名。 */
+export type SignatureNameState = {
   observerActorId: string;
   signatureId: string;
+  name: string;
   source: string;
   learnedStageId: string | null;
 };
@@ -697,8 +691,6 @@ export type ActorTurnResult = {
   plan: ActorPlan | null;
   loopSuccess: boolean;
   state: GameState;
-  /** 认知更新的可疑之处；不阻断行动，供轨迹与测试观察。 */
-  identityWarnings?: IdentityWarning[];
   /** 本次行动之后死亡阶段的结果；失败不回滚这次行动，但要让上层看得见。 */
   death?: DeathPhaseResult;
 };

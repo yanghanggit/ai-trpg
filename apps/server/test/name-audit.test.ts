@@ -63,7 +63,7 @@ const SUBJECT = { id: "b", name: "奥德里克", currentSignatureId: "pb" };
 
 function baseInput(
   messages: AgentMemoryMessageState[],
-  recognitions: NameAuditInput["recognitions"] = [],
+  signatureNames: NameAuditInput["signatureNames"] = [],
 ): NameAuditInput {
   return {
     actors: [OBSERVER, SUBJECT],
@@ -71,7 +71,7 @@ function baseInput(
       { id: "pa", actorId: "a" },
       { id: "pb", actorId: "b" },
     ],
-    recognitions,
+    signatureNames,
     memories: [memory("a", "煤渣", messages)],
   };
 }
@@ -106,7 +106,7 @@ describe("name audit", () => {
     const leaks = findNameLeaks(
       baseInput(
         [message("你看见奥德里克站在门口。")],
-        [{ observerActorId: "a", signatureId: "pb" }],
+        [{ observerActorId: "a", signatureId: "pb", name: "奥德里克" }],
       ),
     );
     expect(leaks).toEqual([]);
@@ -140,7 +140,7 @@ describe("name audit", () => {
     });
   });
 
-  it("separates ever-known from current-signature recognition", () => {
+  it("separates ever-used from current-signature names", () => {
     const input: NameAuditInput = {
       actors: [
         { id: "a", name: "煤渣", currentSignatureId: "pa" },
@@ -151,16 +151,16 @@ describe("name audit", () => {
         { id: "pb-old", actorId: "b" },
         { id: "pb-new", actorId: "b" },
       ],
-      recognitions: [{ observerActorId: "a", signatureId: "pb-old" }],
+      signatureNames: [{ observerActorId: "a", signatureId: "pb-old", name: "奥德里克" }],
       memories: [memory("a", "煤渣", [message("你想起奥德里克。")])],
     };
     expect(findNameLeaks(input)).toEqual([]);
-    expect(findNameLeaks(input, { recognitionScope: "currentSignature" })[0]).toMatchObject({
+    expect(findNameLeaks(input, { nameScope: "currentSignature" })[0]).toMatchObject({
       matchedName: "奥德里克",
     });
   });
 
-  it("does not report a name the observer already recognizes", () => {
+  it("does not report a true name the observer uses as the current name", () => {
     const input: NameAuditInput = {
       actors: [
         { id: "a", name: "甲", currentSignatureId: "pa" },
@@ -170,10 +170,21 @@ describe("name audit", () => {
         { id: "pa", actorId: "a" },
         { id: "pb", actorId: "b" },
       ],
-      recognitions: [{ observerActorId: "a", signatureId: "pb" }],
+      signatureNames: [{ observerActorId: "a", signatureId: "pb", name: "乙" }],
       memories: [memory("a", "甲", [message("乙走了过来。")])],
     };
     expect(findNameLeaks(input)).toEqual([]);
+  });
+
+  it("still reports a true name when the observer only knows an alias", () => {
+    const leaks = findNameLeaks(
+      baseInput(
+        [message("你看见奥德里克站在门口。")],
+        [{ observerActorId: "a", signatureId: "pb", name: "守墓人" }],
+      ),
+    );
+    expect(leaks).toHaveLength(1);
+    expect(leaks[0]).toMatchObject({ matchedName: "奥德里克", severity: "high" });
   });
 
   it("scans toolCalls and marks them medium severity", () => {
@@ -334,7 +345,7 @@ describe("name audit", () => {
       gameId: "demo",
       leaks,
       alerts: [],
-      checked: { actors: 2, messages: 1, recognitionRows: 0 },
+      checked: { actors: 2, messages: 1, nameRows: 0 },
     });
     expect(text).toContain("名字审计");
     expect(text).toContain("奥德里克");

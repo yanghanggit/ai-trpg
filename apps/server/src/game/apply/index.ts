@@ -28,9 +28,9 @@ import { runAffixEffect } from "../item-effects/affix-agent";
 import type { AffixRequest } from "../item-effects/types";
 import { appendMemoryMessages, loadAgentMemory } from "../memory";
 import { auditTurnNameLeaks, nameAuditEnabled, nameAuditSince } from "../name-audit";
-import { upsertRecognition } from "../persistence/recognitions";
+import { upsertSignatureName } from "../persistence/signature-names";
 import { sanitizeActorFacingText } from "../text-guard";
-import type { ActorPlan, CommunicationKind, DeathPhaseResult, IdentityWarning } from "../types";
+import type { ActorPlan, CommunicationKind, DeathPhaseResult } from "../types";
 import { isAlive, listStageActorRefs, stageAddressLookup } from "./queries";
 
 export * from "./queries";
@@ -136,8 +136,6 @@ export type ApplyPlanResult = {
   death?: DeathPhaseResult;
   /** 死亡阶段整体没能跑起来的原因（例如数据库错误）；行动本身仍然成功。 */
   deathError?: string;
-  /** 认知更新的可疑之处；不阻断行动。 */
-  identityWarnings?: IdentityWarning[];
 };
 
 export type ApplyActorPlanOptions = {
@@ -307,27 +305,15 @@ export async function applyActorPlan(
       ]);
     }
 
-    // 认知更新：只写自己的记忆，不产生公共事件；与动作同事务，失败整份丢弃。
-    const identityWarnings: IdentityWarning[] = resolved.identities
-      .filter((identity) => identity.stageId !== actorRow.stage.id)
-      .map((identity) => ({
-        code: "unseen_handle",
-        handle: identity.handle,
-        name: identity.name,
-        subjectActorId: identity.actorId,
-        detail: "认出对方时，对方不在你所在的场景",
-      }));
-    for (const warning of identityWarnings) {
-      options.logger?.warn("认知更新警告", warning);
-    }
-
+    // 名字更新：只写自己的记忆，不产生公共事件；与动作同事务，失败整份丢弃。
     for (const identity of resolved.identities) {
-      await upsertRecognition(
+      await upsertSignatureName(
         tx,
         {
           gameId,
           observerActorId: actorRow.actor.id,
           signatureId: identity.signatureId,
+          name: identity.name,
           source: "self",
           learnedStageId: actorRow.stage.id,
         },
@@ -336,7 +322,7 @@ export async function applyActorPlan(
       await appendMemoryMessages(tx, memory.row.id, [
         {
           type: "human",
-          content: `# 认知\n你认出了 ${identity.handle} 是「${identity.name}」。`,
+          content: `# 认知\n你把 ${identity.handle} 记作「${identity.name}」。`,
           metadata: { kind: MEMORY_KINDS.identityUpdate },
         },
       ]);
@@ -346,7 +332,6 @@ export async function applyActorPlan(
       ok: true,
       affixRequests,
       applied,
-      ...(identityWarnings.length > 0 ? { identityWarnings } : {}),
     };
   });
 
@@ -363,10 +348,6 @@ export async function applyActorPlan(
   for (const applied of result.applied ?? []) {
     await traceEvent(options.trace, applied);
   }
-  for (const warning of result.identityWarnings ?? []) {
-    await traceEvent(options.trace, { event: "identity_warning", ...warning });
-  }
-
   if (result.affixRequests && result.affixRequests.length > 0) {
     // 每个物品各自结算：一个失败只丢自己的增量，不影响其余，也不影响已提交的默认效果。
     for (const request of result.affixRequests) {

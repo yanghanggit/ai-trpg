@@ -1,6 +1,5 @@
 import { and, eq, isNull } from "drizzle-orm";
 import {
-  actorRecognitions,
   actorSignatures,
   actors,
   appearances,
@@ -13,6 +12,7 @@ import {
 import { type AddressLookup, makeAddressLookup, stripNameRef } from "../addressing";
 import { addStats, type Stats } from "../attributes";
 import { GameError } from "../errors";
+import { signatureNamesFor } from "../persistence/signature-names";
 import { EQUIPMENT_SLOTS } from "../types";
 import type { ActorRow, Executor, ItemRow, StageItemRow, StageRow, WorldRow } from "./types";
 
@@ -47,7 +47,7 @@ export async function listStageActorViews(
     .orderBy(actors.seq);
 }
 
-/** 按签名编号在本 world 内定位角色；只用于识别补记，不用于 actor-facing 目标解析。 */
+/** 按签名编号在本 world 内定位角色；只用于名字补记，不用于 actor-facing 目标解析。 */
 export async function findSignatureByHandleInWorld(
   executor: Executor,
   worldId: string,
@@ -84,24 +84,6 @@ export async function listActorNamesInWorld(
     .where(eq(stages.worldId, worldId));
 }
 
-/** 观察者认得的签名：认得即知道真名。 */
-export async function recognizedSignaturesFor(
-  executor: Executor,
-  gameId: string,
-  observerActorId: string,
-): Promise<Set<string>> {
-  const rows = await executor
-    .select()
-    .from(actorRecognitions)
-    .where(
-      and(
-        eq(actorRecognitions.gameId, gameId),
-        eq(actorRecognitions.observerActorId, observerActorId),
-      ),
-    );
-  return new Set(rows.map((row) => row.signatureId));
-}
-
 /** 按签名编号在本场景内定位当前签名；只做签名查找，不查名字。 */
 export async function resolveSignatureInStage(
   executor: Executor,
@@ -122,7 +104,7 @@ export async function resolveSignatureInStage(
  * 某个观察者在当前场景里的引用表。
  *
  * 自己固定解析为「你自己」：自己的名字属于自知，不查名字表。
- * actor-facing 的目标解析不直接用这张表查名字，而是走签名 / 真名两个入口，
+ * actor-facing 的目标解析不直接用这张表查名字，而是走签名 / 名字两个入口，
  * 见 `resolveSignatureInStage` 与 `resolveVisibleActor`。
  */
 export async function stageAddressLookup(
@@ -132,31 +114,27 @@ export async function stageAddressLookup(
   stageId: string,
 ): Promise<AddressLookup> {
   const views = await listStageActorViews(executor, stageId);
-  const recognized = await recognizedSignaturesFor(executor, gameId, observerId);
+  const names = await signatureNamesFor(executor, gameId, observerId);
+  const self = views.find((view) => view.actor.id === observerId);
   const base = makeAddressLookup(
-    recognized,
+    names,
     new Map(
       views.map(({ actor, signature, appearance }) => [
         actor.id,
         {
-          actorId: actor.id,
-          name: actor.name,
           signatureId: signature.id,
           signatureSeq: signature.seq,
           appearance: appearance.text,
         },
       ]),
     ),
+    self ? [self.actor.name] : [],
   );
-  const self = views.find((view) => view.actor.id === observerId);
   return (actorId) => {
     if (self && actorId === observerId) {
       return {
         token: `@${self.actor.name}`,
-        label: "你自己",
-        mention: "你",
         appearance: self.appearance.text,
-        known: true,
         isSelf: true,
       };
     }
@@ -167,8 +145,8 @@ export async function stageAddressLookup(
 /**
  * actor-facing 的唯一目标入口，只允许两条路：
  *
- * - `#编号`：在本场景按签名查，永远不需要先知道真名；
- * - `@真名`：按真名查，但观察者必须认得这个签名（自己除外）。
+ * - `#编号`：在本场景按签名查，永远不需要先知道名字；
+ * - `@名字`：查观察者当前给本场景签名起的名字；自己按真名匹配。
  *
  * 裸名字与 id 属于控制面，不从这里进入。
  */
@@ -183,7 +161,7 @@ export async function resolveVisibleActor(
 ): Promise<ActorRow> {
   const value = input.ref.trim();
 
-  // 签名入口：#编号只按当前签名查，不需要先知道真名。
+  // 签名入口：#编号只按当前签名查，不需要先知道名字。
   if (value.startsWith("#")) {
     const view = await resolveSignatureInStage(executor, input.stageId, value);
     if (!view) {
@@ -192,24 +170,23 @@ export async function resolveVisibleActor(
     return view.actor;
   }
 
-  // 真名入口：actor-facing 只接受 @真名；裸名字与 id 属于控制面，不从这里进入。
   if (!value.startsWith("@")) {
-    throw new GameError("invalid_action", `引用必须使用 @真名 或 #编号: ${value}`);
+    throw new GameError("invalid_action", `引用必须使用 @名字 或 #编号: ${value}`);
   }
   const name = value.slice(1);
-  const views = await listStageActorViews(executor, input.stageId);
-  const matches = views.filter((view) => view.actor.name === name);
+  const [views, names] = await Promise.all([
+    listStageActorViews(executor, input.stageId),
+    signatureNamesFor(executor, input.gameId, input.observerId),
+  ]);
+  const matches = views.filter((view) =>
+    view.actor.id === input.observerId
+      ? view.actor.name === name
+      : names.get(view.signature.id) === name,
+  );
   if (matches.length !== 1 || !matches[0]) {
-    throw new GameError("invalid_action", `当前场景内找不到唯一角色: ${value}`);
+    throw new GameError("invalid_action", `当前场景内找不到唯一引用: ${value}`);
   }
-  const view = matches[0];
-  if (view.actor.id !== input.observerId) {
-    const recognized = await recognizedSignaturesFor(executor, input.gameId, input.observerId);
-    if (!recognized.has(view.signature.id)) {
-      throw new GameError("invalid_action", `当前场景内找不到引用: ${value}`);
-    }
-  }
-  return view.actor;
+  return matches[0].actor;
 }
 
 /** 本场景角色的 id 与名字；文本脱敏只需要这两项。 */

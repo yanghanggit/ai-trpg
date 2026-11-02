@@ -286,13 +286,13 @@ export const appearances = pgTable(
 );
 
 /**
- * 识别关系：观察者是否认得某个签名。
+ * actor 对签名的当前称呼：观察者 × 签名 → 名字。
  *
- * 键是「观察者 × 签名」而不是「观察者 × actor」：伪装 / 变身会换签名，认识旧签名的人
- * 不会自动认出新签名。认得即知道对象的真名，不存称呼。
+ * 名字是观察者的认知，不要求等于 `actors.name`；同一个签名再次写入时直接覆盖当前名字。
+ * 键是签名而不是 actor：伪装 / 变身会换签名，旧名字不会自动跟到新签名。
  */
-export const actorRecognitions = pgTable(
-  "actor_recognitions",
+export const actorSignatureNames = pgTable(
+  "actor_signature_names",
   {
     id: uuid("id").primaryKey(),
     gameId: uuid("game_id")
@@ -304,6 +304,8 @@ export const actorRecognitions = pgTable(
     signatureId: uuid("signature_id")
       .notNull()
       .references(() => actorSignatures.id, { onDelete: "cascade" }),
+    /** 观察者当前对这个签名的称呼；可以是真名、称号、误认的名字。 */
+    name: text("name").notNull(),
     /** `content`：开局既知；`self`：角色自己在回合里记下的。 */
     source: text("source").notNull().default("self"),
     /** 在哪里得知的；只用于审计。 */
@@ -314,11 +316,11 @@ export const actorRecognitions = pgTable(
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (table) => [
-    uniqueIndex("actor_recognitions_observer_signature_unique").on(
+    uniqueIndex("actor_signature_names_observer_signature_unique").on(
       table.observerActorId,
       table.signatureId,
     ),
-    index("actor_recognitions_game_observer_idx").on(table.gameId, table.observerActorId),
+    index("actor_signature_names_game_observer_idx").on(table.gameId, table.observerActorId),
   ],
 );
 
@@ -568,7 +570,7 @@ export const schema = {
   actors,
   stageVisits,
   actorSignatures,
-  actorRecognitions,
+  actorSignatureNames,
   items,
   stageItems,
   gameMessages,
