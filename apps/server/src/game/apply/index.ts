@@ -36,6 +36,7 @@ import { isAlive, listStageActorRefs, stageAddressLookup } from "./queries";
 
 export * from "./queries";
 
+import { describeMemoryState } from "./memory-snapshot";
 import { resolvePlan } from "./resolve";
 import type { ActorWithStageRow, Executor, ResolvedAction } from "./types";
 
@@ -213,14 +214,26 @@ export async function applyActorPlan(
       throw new GameError("invalid_state", `actor 缺少 memory: ${actorId}`);
     }
 
-    if (!plan || (plan.actions.length === 0 && (plan.identities?.length ?? 0) === 0)) {
+    /** 计划失败与被拒绝也带当时状态；状态取事务内当前最终状态。 */
+    const appendMemoryResult = async (
+      content: string,
+      metadata: Record<string, unknown>,
+    ): Promise<void> => {
+      const state = await describeMemoryState(tx, gameId, actorId, world.id);
       await appendMemoryMessages(tx, memory.row.id, [
         {
           type: "human",
-          content: "# 行动结果\n本轮没有提交有效行动计划，状态未改变。",
-          metadata: { kind: MEMORY_KINDS.planFailed, loopSuccess },
+          content: state ? `${content}\n\n${state}` : content,
+          metadata,
         },
       ]);
+    };
+
+    if (!plan || (plan.actions.length === 0 && (plan.identities?.length ?? 0) === 0)) {
+      await appendMemoryResult("# 行动结果\n本轮没有提交有效行动计划，状态未改变。", {
+        kind: MEMORY_KINDS.planFailed,
+        loopSuccess,
+      });
       return {
         ok: false,
         rejection: "本轮没有提交有效行动计划",
@@ -230,13 +243,9 @@ export async function applyActorPlan(
 
     if (plan.actions.length > MAX_ACTIONS_PER_TURN) {
       const rejection = `本轮最多 ${MAX_ACTIONS_PER_TURN} 个行动，实际提交 ${plan.actions.length} 个`;
-      await appendMemoryMessages(tx, memory.row.id, [
-        {
-          type: "human",
-          content: `# 行动结果\n行动被拒绝：${rejection}。`,
-          metadata: { kind: MEMORY_KINDS.actionRejected },
-        },
-      ]);
+      await appendMemoryResult(`# 行动结果\n行动被拒绝：${rejection}。`, {
+        kind: MEMORY_KINDS.actionRejected,
+      });
       return { ok: false, rejection, rejectionCode: MEMORY_KINDS.actionRejected };
     }
 
@@ -261,13 +270,9 @@ export async function applyActorPlan(
         [],
         { resolveHandles: false },
       );
-      await appendMemoryMessages(tx, memory.row.id, [
-        {
-          type: "human",
-          content: `# 行动结果\n行动被拒绝：${rejectionForMemory}`,
-          metadata: { kind: MEMORY_KINDS.actionRejected },
-        },
-      ]);
+      await appendMemoryResult(`# 行动结果\n行动被拒绝：${rejectionForMemory}`, {
+        kind: MEMORY_KINDS.actionRejected,
+      });
       return {
         ok: false,
         rejection: error.message,
@@ -279,6 +284,7 @@ export async function applyActorPlan(
     const address = await stageAddressLookup(tx, gameId, actorRow.actor.id, actorRow.stage.id);
     const stageActorRefs = await listStageActorRefs(tx, actorRow.stage.id);
     const applied: { event: "applied"; actionKind: string; feedback: string }[] = [];
+    const pendingMemory: { content: string; metadata: Record<string, unknown> }[] = [];
     for (const action of resolved.actions) {
       const feedback = await applyResolvedAction(
         tx,
@@ -295,22 +301,19 @@ export async function applyActorPlan(
         affixRequests.push(affixRequest);
       }
       const dialogue = dialogueFeedbackMetadata(action);
-      await appendMemoryMessages(tx, memory.row.id, [
-        {
-          type: "human",
-          // 台词原文是角色说出口的内容，保留原样；只有非台词的反馈才做名字脱敏。
-          content:
-            dialogue.dialogue === undefined
-              ? sanitizeActorFacingText(feedback, stageActorRefs, address, [], {
-                  resolveHandles: false,
-                })
-              : feedback,
-          metadata: {
-            kind: MEMORY_KINDS.actionFeedback,
-            ...dialogue,
-          },
+      pendingMemory.push({
+        // 台词原文是角色说出口的内容，保留原样；只有非台词的反馈才做名字脱敏。
+        content:
+          dialogue.dialogue === undefined
+            ? sanitizeActorFacingText(feedback, stageActorRefs, address, [], {
+                resolveHandles: false,
+              })
+            : feedback,
+        metadata: {
+          kind: MEMORY_KINDS.actionFeedback,
+          ...dialogue,
         },
-      ]);
+      });
     }
 
     // 名字更新：只写自己的记忆，不产生公共事件；与动作同事务，失败整份丢弃。
@@ -327,13 +330,24 @@ export async function applyActorPlan(
         },
         now,
       );
-      await appendMemoryMessages(tx, memory.row.id, [
-        {
-          type: "human",
-          content: `# 认知\n你把 ${identity.handle} 记作「${identity.name}」。`,
-          metadata: { kind: MEMORY_KINDS.identityUpdate },
-        },
-      ]);
+      pendingMemory.push({
+        content: `# 认知\n你把 ${identity.handle} 记作「${identity.name}」。`,
+        metadata: { kind: MEMORY_KINDS.identityUpdate },
+      });
+    }
+
+    // 一次计划的最后一条 memory 带落账后的状态；识名更新也算计划结果的一部分。
+    const state = await describeMemoryState(tx, gameId, actorId, world.id);
+    const last = pendingMemory.at(-1);
+    if (last && state) {
+      last.content = `${last.content}\n\n${state}`;
+    }
+    if (pendingMemory.length > 0) {
+      await appendMemoryMessages(
+        tx,
+        memory.row.id,
+        pendingMemory.map((message) => ({ type: "human" as const, ...message })),
+      );
     }
 
     return {

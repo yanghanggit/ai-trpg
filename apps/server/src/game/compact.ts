@@ -46,13 +46,38 @@ type ResolvedOwner = {
   ownerName: string;
 };
 
-const COMPACT_SYSTEM_PROMPT = `你是记忆压缩器，不是记忆主体。
+const COMPACT_SYSTEM_PROMPT = `# 记忆压缩器
 
-把待压缩记忆写成一段第二人称“你”的私有记忆，供该主体在后续回合直接读取。
-保留仍然有效的身份与处境、目标与底线、关键关系、重要物品与地点、已经发生的关键事件、当前未解决的冲突，以及会改变后续行动的事实。
-删除重复描述、完整工具调用轨迹、一次性环境描写和已经失效的细节。
-不要新增记忆中没有出现的事实，不要编造心理活动，不要写“系统”“模型”“压缩”等元语言。
-只输出一段正文，不要标题，不要解释。`;
+## 身份
+
+你是记忆压缩器，不是记忆主体。把待压缩记忆写成一段第二人称“你”的私有记忆，供该主体在后续回合直接读取。
+
+## 保留
+
+- 仍然有效的身份与处境
+- 目标与底线
+- 关键关系
+- 最近一次明确的场景状态与称谓关系
+- 重要物品与地点
+- 已经发生的关键事件
+- 当前未解决的冲突
+- 会改变后续行动的事实
+
+## 删除
+
+- 重复描述
+- 完整工具调用轨迹
+- 一次性环境描写
+- 已经失效的细节
+
+## 约束
+
+- 不要新增记忆中没有出现的事实。
+- 不要编造心理活动。
+
+## 输出
+
+只输出压缩后的私有记忆正文，不要标题、列表、解释或“系统”“模型”“压缩”等元语言。`;
 
 function resolveActorOwner(state: GameState, ref: string): ResolvedOwner {
   const current = findActorByName(state, ref);
@@ -146,18 +171,35 @@ export function buildCompactionInput(
     purpose: "压缩时保持专名、称谓与人称一致；不得据此新增记忆里没有的事实。",
   });
 
-  return `# 记忆压缩
+  return `# 记忆压缩任务
 
-记忆主体：${owner.ownerName}
-主体类型：${owner.ownerType}
+## 记忆主体
+
+- 名称：${owner.ownerName}
+- 类型：${owner.ownerType}
 
 ${campaign}
 
-以下只包含该主体本局可回忆的私有记忆。请把它们压缩成一段连续的私有记忆，保留对后续行动仍然重要的内容。
-
 ## 待压缩记忆
 
-${transcript}`;
+以下是该主体本局可回忆的私有记忆。
+
+${transcript}
+
+## 输出
+
+把以上记忆压缩成一段连续的私有记忆，只输出压缩后的正文，不要标题、列表或解释。`;
+}
+
+/** 把内部消息渲染成 Markdown 小节，并把记忆正文的标题压到三级。 */
+function renderTranscript(messages: readonly ChatMessage[]): string {
+  return getBufferString(messages, { renderToolCalls: true })
+    .replace(/^Human: /gm, "### 记忆条目\n\n")
+    .replace(/^AI: /gm, "### 模型记录\n\n")
+    .replace(/^Tool: /gm, "### 工具结果\n\n")
+    .replace(/^(#{1,6})\s+(.+)$/gm, (_, _hashes: string, text: string) => `\n### ${text}\n`)
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
 }
 
 async function summarizeMemory(
@@ -166,7 +208,7 @@ async function summarizeMemory(
   service: ChatCompletionService,
   world: CampaignContextWorld,
 ): Promise<string> {
-  const transcript = getBufferString(messages.slice(1), { renderToolCalls: true });
+  const transcript = renderTranscript(messages.slice(1));
   if (transcript.trim().length === 0) {
     throw new GameError("invalid_action", `没有可压缩记忆: ${owner.ownerName}`);
   }

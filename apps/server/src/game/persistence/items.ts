@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import { and, eq, inArray } from "drizzle-orm";
+import { and, asc, eq, inArray } from "drizzle-orm";
 import { items, stageItems } from "../../db/schema";
 import type { Executor, ItemRow, StageItemRow } from "../apply/types";
 import { toStats } from "../attributes";
@@ -61,8 +61,17 @@ export function sameItemSignature(
 }
 
 /**
- * 物品与场景物品的写操作：玩法层只表达「谁拿到什么」，不关心两张表怎么搬。
+ * 物品与场景物品的读写操作：玩法层只表达「谁拿到什么」，不关心两张表怎么搬。
  */
+
+/** 读一个场景当前陈列的物品，按实体序号稳定排序。 */
+export async function listStageItems(executor: Executor, stageId: string): Promise<StageItemRow[]> {
+  return executor
+    .select()
+    .from(stageItems)
+    .where(eq(stageItems.stageId, stageId))
+    .orderBy(asc(stageItems.seq));
+}
 
 /** 读某个 actor 名下的某件物品（按稳定 id，不按名字）。 */
 export async function loadActorItem(

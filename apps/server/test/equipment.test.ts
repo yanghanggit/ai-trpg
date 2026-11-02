@@ -87,7 +87,7 @@ describe.skipIf(!testDatabaseUrl)("equip and unequip actions", () => {
       memories
         .find((memory) => memory.name === "奥德里克")
         ?.messages.filter((message) => message.content.startsWith("# 行动结果"))
-        .map((message) => message.content)
+        .map((message) => message.content.split("\n\n# 当时")[0] ?? message.content)
         .join("\n") ?? "";
     expect(feedback).toContain("你穿上了补丁斗篷");
     expect(feedback).toContain("你卸下了补丁斗篷");
