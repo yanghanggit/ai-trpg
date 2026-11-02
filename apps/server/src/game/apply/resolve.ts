@@ -183,8 +183,9 @@ export async function resolvePlan(
     if (view.actor.id === actorRow.actor.id) {
       throw new GameError("invalid_action", "不能给自己起名");
     }
-    // 新名字必须来自当前场景；已经绑定的签名可以从记忆里更新，即使它不在场。
-    if (view.actor.stageId !== stage.id && !existingNames.has(view.signature.id)) {
+    // 名字属于回合开始时的认知场景，不受本回合 move / teleport 改写；
+    // 已经绑定的签名可以从记忆里更新，即使它不在场。
+    if (view.actor.stageId !== actorRow.stage.id && !existingNames.has(view.signature.id)) {
       throw new GameError("invalid_action", `只能给当前场景内的角色起名: ${binding.handle}`);
     }
     identities.push({

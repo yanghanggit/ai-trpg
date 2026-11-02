@@ -397,6 +397,36 @@ describe.skipIf(!testDatabaseUrl)("names and addresses", () => {
     ).toBe(false);
   });
 
+  it("resolves a new name against the stage at the start of the turn", async () => {
+    const created = await createGame(handle.db, {
+      username: DEMO_USER.username,
+      name: "移动中起名测试局",
+      world: BELL_MONASTERY_WORLD,
+    });
+    const state = await getGameState(handle.db, created.game.slug);
+    const actors = state.world.stages.flatMap((stage) => stage.actors);
+    const cinder = actors.find((candidate) => candidate.name === "煤渣");
+    const badLuck = actors.find((candidate) => candidate.name === "坏运气");
+    if (!cinder || !badLuck) {
+      throw new Error("缺少测试角色");
+    }
+
+    // 煤渣在墓园看见坏运气，然后本回合走开；名字仍应来自出发时的场景。
+    const plan: ActorPlan = {
+      actions: [{ kind: "move", targetStageName: "地窖" }],
+      identities: [{ handle: handleOf(badLuck.signature.seq), name: "小东西" }],
+    };
+    const result = await applyActorPlan(handle.db, created.game.id, cinder.id, plan, true);
+    expect(result.ok).toBe(true);
+
+    const after = await getGameState(handle.db, created.game.slug);
+    expect(
+      after.signatureNames.find(
+        (row) => row.observerActorId === cinder.id && row.signatureId === badLuck.signature.id,
+      ),
+    ).toMatchObject({ name: "小东西", source: "self" });
+  });
+
   it("accepts any current name from the player and overwrites it on update", async () => {
     const created = await createGame(handle.db, {
       username: DEMO_USER.username,
