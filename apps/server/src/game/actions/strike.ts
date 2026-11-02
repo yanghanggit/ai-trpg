@@ -18,8 +18,7 @@ export function buildStrikeTool(targetActorHandles: readonly string[]): ToolDefi
     type: "function",
     function: {
       name: "strike",
-      description:
-        "把一次挥击加入计划：用当前装备的武器攻击同场景的一个角色。武器固定是你 weapon 槽里的那件，不能临时指定其他物品；要使用背包里的其他物品请用 use。先用 look_stage 确认目标是否在同场景。",
+      description: "把一次挥击加入计划：用 weapon 槽里装备的武器攻击同场景的一个角色。",
       parameters: {
         type: "object",
         properties: {

@@ -6,14 +6,7 @@ import type { ToolDefinition } from "../llm/types";
 import { findActorByName } from "./actors";
 import { bumpGameVersion } from "./apply/messages";
 import { buildCampaignSettingBlock, type CampaignContextWorld } from "./campaign-context";
-import {
-  DEFAULT_DROP_MAX_ROUNDS,
-  DEFAULT_LLM_ERROR_RETRIES,
-  MAX_DROP_MATERIALS,
-  MAX_MATERIAL_COUNT,
-  MAX_MATERIAL_DESCRIPTION_LENGTH,
-  MAX_MATERIAL_NAME_LENGTH,
-} from "./constants";
+import { DEFAULT_DROP_MAX_ROUNDS, DEFAULT_LLM_ERROR_RETRIES } from "./constants";
 import { GameError } from "./errors";
 import { appendStageMemory } from "./observations";
 import { lockGameRow } from "./persistence/games";
@@ -21,6 +14,12 @@ import { addActorMaterials, type MaterialDrop } from "./persistence/items";
 import { getGameState } from "./service";
 import { assertWorldFaceText } from "./text-guard";
 import type { ActorState, GameState, StageState } from "./types";
+
+/** 一具尸体一轮最多掉落的材料条数；属于掉落阶段，不是全局上限。 */
+const MAX_DROP_MATERIALS = 2;
+
+/** 单条掉落材料的数量上限；属于掉落阶段，不是全局上限。 */
+const MAX_MATERIAL_COUNT = 10;
 
 export type DropTurnOptions = {
   service: ChatCompletionService;
@@ -43,7 +42,7 @@ export function buildDropMaterialsTool(): ToolDefinition {
     type: "function",
     function: {
       name: "drop_materials",
-      description: `提交尸体留下的材料，最多 ${MAX_DROP_MATERIALS} 条。只写尸体本身产生的、可以被别人搜走的实体残留，材质不限。不写它生前持有的武器、钥匙、信件或其它剧情物品——那些属于尸体原有的背包，不靠掉落生成。材料会留在尸体上。材料名与描述不得含角色名或系统引用。没有合理产物就提交空数组。必须是本轮最后一个动作。`,
+      description: `提交尸体留下的材料；材料留在尸体上，名称与描述不得含角色名或系统引用。`,
       parameters: {
         type: "object",
         properties: {
@@ -55,11 +54,11 @@ export function buildDropMaterialsTool(): ToolDefinition {
               properties: {
                 name: {
                   type: "string",
-                  description: `材料名，${MAX_MATERIAL_NAME_LENGTH} 个字符以内`,
+                  description: "材料名",
                 },
                 description: {
                   type: "string",
-                  description: `第三人称可见的描述：颜色、质地、大小、残缺程度，${MAX_MATERIAL_DESCRIPTION_LENGTH} 个字符以内`,
+                  description: "第三人称可见的描述",
                 },
                 count: {
                   type: "integer",
@@ -105,21 +104,15 @@ export function parseDrops(
     const description = typeof value.description === "string" ? value.description.trim() : "";
     const count = value.count === undefined ? 1 : value.count;
 
-    if (name.length === 0 || name.length > MAX_MATERIAL_NAME_LENGTH) {
-      throw new GameError(
-        "invalid_action",
-        `材料名不能为空且不超过 ${MAX_MATERIAL_NAME_LENGTH} 个字符: ${name}`,
-      );
+    if (name.length === 0) {
+      throw new GameError("invalid_action", `材料名不能为空: ${name}`);
     }
     if (names.has(name)) {
       throw new GameError("invalid_action", `同一次掉落里材料名重复: ${name}`);
     }
     names.add(name);
-    if (description.length === 0 || description.length > MAX_MATERIAL_DESCRIPTION_LENGTH) {
-      throw new GameError(
-        "invalid_action",
-        `材料描述不能为空且不超过 ${MAX_MATERIAL_DESCRIPTION_LENGTH} 个字符: ${name}`,
-      );
+    if (description.length === 0) {
+      throw new GameError("invalid_action", `材料描述不能为空: ${name}`);
     }
     assertWorldFaceText(name, actorNames, "材料名");
     assertWorldFaceText(description, actorNames, "材料描述");

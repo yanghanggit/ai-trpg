@@ -26,7 +26,7 @@ embedding 在 Node 内通过 Transformers.js 跑本地模型（模型与精度�
 
 `query` 对所有 actor 开放：走 NPC tool loop 就能在 plan 中看到它，玩家入口不经过 loop，因此玩家角色不使用。它只读、非终止、可多次调用，不占动作额度，也不写进 `actions`。
 
-它只返回当前世界 collection 的公共知识，不返回 profile、私有 memory、stats、物品或实时场景状态；工具描述与返回文本都强调「公共知识不等于亲眼所见」。参数是 `keywords` 而不是整句：当前 embedding 是句向量 mean pooling、没有 IDF，整句里的高频词会把查询拖向通用条目。返回按 `category` 加分类标签，不显示相似度——余弦值容易被模型读成置信度。世界未入库时返回「这个世界没有可检索的公共知识」，与「确实没有这条知识」区分。
+它只返回当前世界 collection 的公共知识，不返回 profile、私有 memory、stats、物品或实时场景状态；返回文本与 actor 的回合任务都强调「公共知识不等于亲眼所见」。参数是 `keywords` 而不是整句：当前 embedding 是句向量 mean pooling、没有 IDF，整句里的高频词会把查询拖向通用条目。返回按 `category` 加分类标签，不显示相似度——余弦值容易被模型读成置信度。世界未入库时返回「这个世界没有可检索的公共知识」，与「确实没有这条知识」区分。
 
 ## 检索评测
 

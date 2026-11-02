@@ -1,10 +1,6 @@
 import { z } from "zod";
 import { ACTION_KINDS } from "./actions";
-import {
-  MAX_STAGE_ANCHOR_DESCRIPTION_LENGTH,
-  MAX_STAGE_ANCHOR_LABEL_LENGTH,
-  MAX_STAGE_ANCHORS,
-} from "./constants";
+import { MAX_STAGE_ANCHORS } from "./constants";
 import { isValidForm } from "./form";
 import { findTextLeaks } from "./text-guard";
 import type { StageActionKind, World, WorldActionKind } from "./types";
@@ -100,8 +96,8 @@ const equipmentSchema = z.strictObject({
 
 const stageAnchorSchema = z
   .object({
-    label: z.string().trim().min(1).max(MAX_STAGE_ANCHOR_LABEL_LENGTH),
-    description: z.string().trim().max(MAX_STAGE_ANCHOR_DESCRIPTION_LENGTH).optional(),
+    label: z.string().trim().min(1),
+    description: z.string().trim().optional(),
   })
   .strict();
 

@@ -204,9 +204,7 @@ describe.skipIf(!testDatabaseUrl)("equip and unequip actions", () => {
     const input = buildActorTurnInput(state, { actor: cinder, stage });
     expect(input).toContain("武器：掘墓人的铁锹");
     expect(input).toContain("护甲：补丁斗篷");
-    expect(describeStageForActor(state, "墓园", { actor: cinder, stage })).toContain(
-      "武器：掘墓人的铁锹",
-    );
+    expect(describeStageForActor(state, { actor: cinder, stage })).toContain("武器：掘墓人的铁锹");
   });
 
   it("主角亮出武器后，同场景角色的名单与记忆都能看到", async () => {

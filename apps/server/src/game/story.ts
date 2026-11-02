@@ -128,8 +128,7 @@ function buildReadMemoryTool(): ToolDefinition {
     type: "function",
     function: {
       name: "read_memory",
-      description:
-        "读取一个实体的记忆。必须读取 list_memories 返回的每一个实体；默认只读当前摘要，includeArchived=true 可展开 compact 归档树。",
+      description: "读取一个实体的记忆；默认只读当前摘要。",
       parameters: {
         type: "object",
         properties: {
@@ -140,7 +139,7 @@ function buildReadMemoryTool(): ToolDefinition {
           },
           name: {
             type: "string",
-            description: "实体名称，必须来自 list_memories",
+            description: "实体名称；取自本局实体清单",
           },
           includeArchived: {
             type: "boolean",

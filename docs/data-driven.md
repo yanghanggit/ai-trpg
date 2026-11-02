@@ -20,7 +20,7 @@
 
 - **数据库 schema**：只放 world / stage / actor / signature / item / message / memory 等通用概念，能力用 `actions` JSONB 承载。
 - **内容校验**：`parseContentPack` 校验内容包，`parseWorldContent` 校验世界内容，缺能力、缺 key、类型错误直接拒绝；所有场景必须声明 `submit_environment`。
-- **prompt 里没有故事样例，也没有工具名**：身份、设定与全局规则来自 `World` 字段，但不写工具名——工具会改名，内容不该跟着改；写法细则在工具描述里。守卫见「检查方法」。
+- **prompt 里没有故事样例，也没有工具名**：身份、设定与全局规则来自 `World` 字段，但不写工具名——工具会改名，内容不该跟着改；写法细则按层级放：动作规则在工具描述，流程在任务提示词，长期约束在 system prompt。守卫见「检查方法」。
 - **结束条件**：只有 world 能 `end_game`，`outcome` 由它自己命名，框架不枚举；主角死亡也只是一条通知 world 的事实。收束判据属于内容：通用判断规则在 `systemRules`，本剧本对世界与收束的理解在 world 的 `profile`。
 - **demo 用户与 `app_meta`**：独立 fixture，只记录 `{ version: 1, fixture: "demo-user" }`，不写故事名。
 - **CLI 建局**：必须显式给内容来源，没有默认故事；RAG 同理，建局不会自动 ingest。

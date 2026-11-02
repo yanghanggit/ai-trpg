@@ -9,7 +9,7 @@ import { isAlive, stageAddressLookup } from "../apply/queries";
 import type { Executor } from "../apply/types";
 import { STAT_KEYS, type Stats } from "../attributes";
 import { buildCampaignSettingBlock, type CampaignContextWorld } from "../campaign-context";
-import { MAX_AFFIX_EFFECT_LENGTH, MAX_AFFIX_EFFECTS, MEMORY_KINDS } from "../constants";
+import { MAX_AFFIX_EFFECTS, MEMORY_KINDS } from "../constants";
 import { GameError } from "../errors";
 import { runIncrementalPhase } from "../incremental";
 import { appendMemoryMessages, loadAgentMemory } from "../memory";
@@ -102,7 +102,7 @@ ${targetFacts.join("\n")}
 3. 数值取物品自身的字段换算，与默认效果无关；程度留有余地时按特征强弱小幅增减。
 4. 数值后果用 damage_target，可见后果用 record_effect；只写第三人称可见的事实，不写第二人称体验、数值、机制或心理。
 5. 目标已经倒下时，追加伤害没有意义，但可见后果仍要记录：尸体照样会变。
-6. 写出的可见文本里不要出现角色真名；用“目标”“那条狗”这类外观与身份指代。
+6. 写出的可见文本里不要出现角色真名；用“目标”“那个生物”这类外观与身份指代。
 7. 最后用 ${input.terminalToolName} 结束，即使什么都没做。`;
 }
 
@@ -144,7 +144,7 @@ function buildTools(targetNames: readonly string[]): {
       type: "function",
       function: {
         name: "record_effect",
-        description: `把这条词缀造成的可见后果写进场景记忆；不扣血、不改数值，最多 ${MAX_AFFIX_EFFECTS} 条。witnessText 用第三人称写旁人可见的事实，不写目标的第一/第二人称体验。`,
+        description: `把词缀造成的可见后果写进场景记忆；不扣血、不改数值，最多 ${MAX_AFFIX_EFFECTS} 条。`,
         parameters: {
           type: "object",
           properties: {
@@ -155,7 +155,7 @@ function buildTools(targetNames: readonly string[]): {
             },
             witnessText: {
               type: "string",
-              description: "第三人称，写场景与他人可见的事实",
+              description: "第三人称，旁人可见的事实",
             },
           },
           required: ["targetActorHandle", "witnessText"],
@@ -166,7 +166,7 @@ function buildTools(targetNames: readonly string[]): {
       type: "function",
       function: {
         name: "submit_affix",
-        description: "结束本轮词缀任务；没有可执行的效果也必须调用。",
+        description: "结束本轮词缀任务。",
         parameters: { type: "object", properties: {}, required: [] },
       },
     },
@@ -287,12 +287,6 @@ async function evaluateAffix(
         const witnessText = typeof args.witnessText === "string" ? args.witnessText.trim() : "";
         if (!targetNames.includes(targetActorHandle) || !witnessText) {
           throw new GameError("invalid_action", "record_effect 参数无效");
-        }
-        if (witnessText.length > MAX_AFFIX_EFFECT_LENGTH) {
-          throw new GameError(
-            "invalid_action",
-            `词缀后果不能超过 ${MAX_AFFIX_EFFECT_LENGTH} 个字符`,
-          );
         }
         if (
           operations.filter((operation) => operation.kind === "effect").length >= MAX_AFFIX_EFFECTS

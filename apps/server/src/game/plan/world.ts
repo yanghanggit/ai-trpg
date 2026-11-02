@@ -1,7 +1,28 @@
-import type { ToolDefinition } from "../llm/types";
-import { MAX_OUTCOME_LENGTH, MAX_WORLD_DIRECTIVE_LENGTH } from "./constants";
-import { GameError } from "./errors";
-import type { WorldAction } from "./types";
+import type { ToolDefinition } from "../../llm/types";
+import { GameError } from "../errors";
+import type { GameState, WorldAction } from "../types";
+
+export function buildLookTool(state: GameState): ToolDefinition {
+  return {
+    type: "function",
+    function: {
+      name: "look_stage",
+      description:
+        "查看当前世界中某个场景的设定、环境、角色、场景物品、可交互锚点与可去方向。只读，可多次调用。",
+      parameters: {
+        type: "object",
+        properties: {
+          stageName: {
+            type: "string",
+            enum: state.world.stages.map((stage) => stage.name),
+            description: "要查看的场景名",
+          },
+        },
+        required: ["stageName"],
+      },
+    },
+  };
+}
 
 /** 构造 world 向 stage 下发裁决的工具。 */
 export function buildNotifyStageTool(stageNames: readonly string[]): ToolDefinition {
@@ -10,7 +31,7 @@ export function buildNotifyStageTool(stageNames: readonly string[]): ToolDefinit
     function: {
       name: "notify_stage",
       description:
-        "把一条世界裁决或世界级变化下发给指定场景，写入该场景 memory，供其下一回合读取。它不直接修改场景 environment。",
+        "把一条世界裁决或世界级变化下发给指定场景，写入该场景 memory，供其下一回合读取。",
       parameters: {
         type: "object",
         properties: {
@@ -21,7 +42,7 @@ export function buildNotifyStageTool(stageNames: readonly string[]): ToolDefinit
           },
           content: {
             type: "string",
-            description: `世界裁决或跨场景变化；写清楚场景应知道什么，不超过 ${MAX_WORLD_DIRECTIVE_LENGTH} 字，不要替场景写具体环境快照`,
+            description: "世界裁决或跨场景变化；写清楚场景应知道什么。",
           },
         },
         required: ["stageName", "content"],
@@ -37,12 +58,6 @@ export function parseNotifyStage(args: Record<string, unknown>): WorldAction {
   if (stageName.length === 0 || content.length === 0) {
     throw new GameError("invalid_action", "notify_stage 需要非空 stageName 与 content");
   }
-  if (content.length > MAX_WORLD_DIRECTIVE_LENGTH) {
-    throw new GameError(
-      "invalid_action",
-      `notify_stage 的 content 不能超过 ${MAX_WORLD_DIRECTIVE_LENGTH} 个字符`,
-    );
-  }
   return { kind: "notify_stage", stageName, content };
 }
 
@@ -52,14 +67,13 @@ export function buildEndGameTool(): ToolDefinition {
     type: "function",
     function: {
       name: "end_game",
-      description:
-        "结束整局游戏。只有 world 拥有此能力；只在你的设定与全局规则里的收束条件已经由不可逆的世界级事实满足时使用，必须给出结局标签与世界内可见的结束文案。end_game 必须是本轮最后一个动作。",
+      description: "结束整局游戏；必须给出结局标签与世界内可见的结束文案。",
       parameters: {
         type: "object",
         properties: {
           outcome: {
             type: "string",
-            description: `用一个简短词语概括这次收束，作为结局标签；不超过 ${MAX_OUTCOME_LENGTH} 字，只用于记录，不进入世界内叙事。`,
+            description: "结局标签：一个简短词语，只用于记录，不进入叙事。",
           },
           message: {
             type: "string",
@@ -82,12 +96,6 @@ export function parseEndGame(args: Record<string, unknown>): WorldAction {
   if (outcome.length === 0) {
     throw new GameError("invalid_action", "end_game 需要非空 outcome");
   }
-  if (outcome.length > MAX_OUTCOME_LENGTH) {
-    throw new GameError(
-      "invalid_action",
-      `end_game 的 outcome 不能超过 ${MAX_OUTCOME_LENGTH} 个字符`,
-    );
-  }
   return { kind: "end_game", message, outcome };
 }
 
@@ -97,8 +105,7 @@ export function buildSubmitWorldPlanTool(): ToolDefinition {
     type: "function",
     function: {
       name: "submit_world_plan",
-      description:
-        "提交本轮 world 计划并结束。计划按加入顺序执行；end_game 必须是最后一条。本轮确实没有世界级事实需要裁决时，直接提交空计划表示不做变更；不要为了能提交而编造通知。",
+      description: "提交本轮 world 计划并结束。计划按加入的顺序执行。",
       parameters: {
         type: "object",
         properties: {},

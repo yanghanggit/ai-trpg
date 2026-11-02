@@ -49,7 +49,7 @@
 | [图像生成基建](image-generation.md)      | 图像 provider 分层、资产边界与失败模型        |
 | [后台作业队列](background-jobs.md)       | 队列选型、worker 租约、串行键与接入边界       |
 | [术语表](glossary.md)                    | 名字、签名称呼、引用、签名与两个面            |
-| [信息披露](information-disclosure.md)    | 四类实体的全知边界、名字与下行披露规则        |
+| [信息披露](information-disclosure.md)    | 四类实体的全知边界、认知隔离与下行披露        |
 | [名字审计](name-audit.md)                | actor 记忆的真名泄漏检查、CLI 与回合级 trace  |
 | [玩家对话审核](dialogue-audit.md)        | 玩家台词的无状态审核、失败关闭与被拒记录      |
 | [数据库](database.md)                    | PostgreSQL 状态源、表与不变式、死亡、迁移     |

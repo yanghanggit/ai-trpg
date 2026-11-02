@@ -249,6 +249,43 @@ describe.skipIf(!testDatabaseUrl)("stage mini-GM", () => {
     expect(capturing.inputMessage).toContain(environment);
   });
 
+  it("提交相同快照时不写环境或锚点事件", async () => {
+    const created = await createGame(handle.db, {
+      username: DEMO_USER.username,
+      name: "场景快照无变化测试局",
+      world: TEST_WORLD,
+    });
+    const before = await getGameState(handle.db, created.game.slug);
+    const stage = before.world.stages.find((item) => item.name === "灰烬门廊");
+    if (!stage) {
+      throw new Error("缺少灰烬门廊");
+    }
+
+    const ok = await applyStagePlan(
+      handle.db,
+      created.game.id,
+      stage.id,
+      {
+        actions: [
+          {
+            kind: "submit_environment",
+            environment: stage.environment,
+            anchors: stage.anchors,
+          },
+        ],
+      },
+      true,
+    );
+
+    expect(ok).toBe(true);
+    const after = await getGameState(handle.db, created.game.slug);
+    expect(after.messages).toHaveLength(before.messages.length);
+    expect(after.world.stages.find((item) => item.id === stage.id)?.environment).toBe(
+      stage.environment,
+    );
+    expect(after.world.stages.find((item) => item.id === stage.id)?.anchors).toEqual(stage.anchors);
+  });
+
   it("updates anchors without environment and exposes them to the next actor turn", async () => {
     const created = await createGame(handle.db, {
       username: DEMO_USER.username,

@@ -19,7 +19,7 @@ export function buildBrawlTool(targetActorHandles: readonly string[]): ToolDefin
     function: {
       name: "brawl",
       description:
-        "把一次肉搏加入计划：用身体（拳脚、牙爪）攻击同场景的一个角色。不使用任何物品，武器数值不参与结算。先用 look_stage 确认目标是否在同场景。",
+        "把一次肉搏加入计划：用身体（拳脚等肢体）攻击同场景的一个角色。不使用任何物品，武器数值不参与结算。",
       parameters: {
         type: "object",
         properties: {

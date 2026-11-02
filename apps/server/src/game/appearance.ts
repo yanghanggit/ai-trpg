@@ -6,11 +6,7 @@ import type { ToolDefinition } from "../llm/types";
 import { findActorByName } from "./actors";
 import { bumpGameVersion } from "./apply/messages";
 import { isAlive } from "./apply/queries";
-import {
-  DEFAULT_APPEARANCE_MAX_ROUNDS,
-  DEFAULT_LLM_ERROR_RETRIES,
-  MAX_APPEARANCE_LENGTH,
-} from "./constants";
+import { DEFAULT_APPEARANCE_MAX_ROUNDS, DEFAULT_LLM_ERROR_RETRIES } from "./constants";
 import { GameError } from "./errors";
 import { equippedItems, equipSlot, unequipSlot } from "./items";
 import { loadAgentMemory } from "./memory";
@@ -68,8 +64,7 @@ export function buildSubmitAppearanceTool(): ToolDefinition {
     type: "function",
     function: {
       name: "submit_appearance",
-      description:
-        "提交重新推理后的当前可见外观。只写第三人称可见的外观快照，不写心理、名字与规则，也不要解释推理过程。",
+      description: "提交重新推理后的当前可见外观。",
       parameters: {
         type: "object",
         properties: {
@@ -90,8 +85,7 @@ export function buildSubmitAppearanceBriefTool(): ToolDefinition {
     type: "function",
     function: {
       name: "submit_appearance_brief",
-      description:
-        "提交本次外观变化的第三人称简报：只写可见结果（死因、伤口、烧灼、姿势、衣物与装备的错位等），不写最终外观全文、心理、名字、数值或机制。",
+      description: "提交本次外观变化的第三人称简报。",
       parameters: {
         type: "object",
         properties: {
@@ -125,9 +119,6 @@ export function parseAppearance(
   const appearance = typeof args.appearance === "string" ? args.appearance.trim() : "";
   if (appearance.length === 0) {
     throw new GameError("invalid_action", "appearance 不能为空");
-  }
-  if (appearance.length > MAX_APPEARANCE_LENGTH) {
-    throw new GameError("invalid_action", `appearance 不能超过 ${MAX_APPEARANCE_LENGTH} 个字符`);
   }
   // 外观会进名单与观察（世界面）：名字与引用都不允许混进来。
   assertWorldFaceText(appearance, actorNames, "appearance");
@@ -193,13 +184,13 @@ ${actor.signature.form}
 
 ${wornLines}
 ${brief ? `\n## 本次变化\n\n${brief}\n\n以下是本次事件已经确认的可见变化，作为参考；与形态、穿戴和记忆冲突时以事实为准，不要机械照抄。` : ""}
-${requestBrief && !brief ? `\n## 生成步骤\n\n先调用 submit_appearance_brief，用一小段第三人称可见事实写下本次变化（死因、伤口、烧灼、姿势、衣物与装备的错位等）；然后再调用 submit_appearance 提交最终外观。简报只写可见结果，不写最终外观全文。` : ""}
+${requestBrief && !brief ? `\n## 生成步骤\n\n先调用 submit_appearance_brief，用一小段第三人称可见事实写下本次变化（死因、伤口、可见损伤、姿势、衣物与装备的错位等）；然后再调用 submit_appearance 提交最终外观。简报只写可见结果，不写最终外观全文。` : ""}
 
 # 本轮任务
 
 ${task}
 
-只使用上面列出的穿戴；未列出的衣物、护甲与武器不存在，不要虚构。形态描述里没有写到的衣物视为没有穿上。不要改写种族与身体特征。
+只使用上面列出的穿戴；未列出的衣物与装备不存在，不要虚构。形态描述里没有写到的衣物视为没有穿上。不要改写种族与身体特征。
 
 穿戴不等于露出：只写从外面能看见的部分。被衣物、斗篷或绷带遮住的贴身物件与藏在衣兜里的东西不要提，也不为了提到它去改写衣着。
 

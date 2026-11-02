@@ -31,7 +31,7 @@ JSON 字段统一 camelCase，包括嵌套对象、路径参数与查询参数�
 
 ## 运行期目录
 
-不使用点号前缀：过程轨迹放 `logs/trace`，世界快照放 `worlds`，故事总结放 `stories`，页面截图放 `screenshots`，生成的图片放 `images`。都 gitignore 内容、只保留 `.gitkeep`，避免把 prompt、回复、状态、故事或截图误提交。
+不使用点号前缀：过程轨迹放 `logs/trace`，运行时 system prompt 导出放 `prompts`，世界快照放 `worlds`，故事总结放 `stories`，页面截图放 `screenshots`，生成的图片放 `images`。都 gitignore 内容、只保留 `.gitkeep`，避免把 prompt、回复、状态、故事或截图误提交。
 
 → 参见：[LLM 基础组件](llm.md)
 
@@ -45,7 +45,7 @@ JSON 字段统一 camelCase，包括嵌套对象、路径参数与查询参数�
 
 代码是唯一事实源。注释只回答「为什么在这里」与「怎么用」，不复述行为、不记录讨论过程。设计取舍写进 `docs/`，并遵守知识库根节点的写作约束。
 
-Markdown 由 `markdownlint-cli2` 检查，行宽规则 `MD013` 关闭，避免中文长句和表格被机械折行；`pnpm lint` 已包含 Markdown 检查。
+Markdown 由 `markdownlint-cli2` 检查，行宽规则 `MD013` 关闭，避免中文长句和表格被机械折行；`pnpm lint` 已包含 Markdown 检查。检查范围是手写文档：`prompts`、`stories` 等运行期导出保留模型实际看到的字面格式（例如 `[种族]:`），不按 Markdown 链接语法校验。
 
 → 参见：[AI TRPG 知识库](README.md)
 

@@ -4,7 +4,7 @@
 >
 > 场景图、角色与物品数值、能力声明以同目录 `bell-monastery.ts` 为准，本文只写它表达不出来的东西：剧情意图、验收口径与删除条件。
 
-内容版本 `dark-fantasy.v13`，`contentKey` 为 `bell-monastery`。测试世界使用独立的小型 `TEST_WORLD`，不随本剧本变化。
+内容版本 `dark-fantasy.v15`，`contentKey` 为 `bell-monastery`。测试世界使用独立的小型 `TEST_WORLD`，不随本剧本变化。
 
 ## 背景
 
@@ -41,7 +41,7 @@
 | 通道拒绝 / 幂等 | 无 `open_passage` 能力或无未开启边 | 整份计划被拒，场景图不变；对已开启的边再次提交也被拒 |
 | 逃出后报告 | 山道 stage 回合 | 报告进 world memory，world 据此裁决是否 `end_game` |
 | 玩家移动 | `player-move` | 只能沿连接移动；事件写入公共消息与环境记忆 |
-| 默认玩家死亡 | 无名者 HP 归零 | 写 `game_completed`，`status=completed`，后续行动被拒 |
+| 默认玩家死亡 | 无名者 HP 归零 | 只写 `death` 公共事件与 world memory，不写 `game_completed`；`status` 保持 `active`，收尾留给 world 回合 |
 | 动物语言 | NPC 沟通动作 | 同族清晰沟通，对非同族只发本族叫声 |
 | 狗的反应 | 挥击奥德里克后推进煤渣 | 煤渣据战斗记忆与 profile 自主决定反应，不是硬触发器；犬用 `brawl`（撕咬）反击 |
 | 坏运气报信 | 冲突后推进坏运气 | 移动到地窖并报信；是否要两轮由计划顺序与动作上限决定 |

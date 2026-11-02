@@ -4,7 +4,6 @@ import { allowedActionKinds } from "../actions";
 import { appendPublicMessage, bumpGameVersion } from "../apply/messages";
 import { resolveActorByNameInWorld, resolveEquippedItems } from "../apply/queries";
 import type { Executor, ResolvedCall, WorldRow } from "../apply/types";
-import { MAX_MIND_LENGTH } from "../constants";
 import { GameError } from "../errors";
 import { renderCall } from "../observation-text";
 import { appendDirectObservation } from "../observations";
@@ -23,18 +22,17 @@ export function buildCallTool(): ToolDefinition {
     type: "function",
     function: {
       name: "call",
-      description:
-        "把一次跨场景传音加入计划：必须用目标的真名指定目标，不能使用 @名字、#编号 或 id；目标必须不在当前场景，且目标和行动者都必须拥有 call 能力。只有目标能听见。传音不会自动暴露发起人；若想让对方知道你是谁，请把自称写进 message。",
+      description: "把一次跨场景传音加入计划：只有目标能听见。",
       parameters: {
         type: "object",
         properties: {
           mind: {
             type: "string",
-            description: `第一人称内心独白，说明为什么这样说，控制在 ${MAX_MIND_LENGTH} 字以内`,
+            description: "第一人称内心独白，说明为什么这样说",
           },
           targetActorName: {
             type: "string",
-            description: "目标的真名（不是 @名字、#编号 或 id）",
+            description: "目标的真名（不在当前场景、具备远程通讯能力；不是引用或 id）",
           },
           message: { type: "string", description: "你要说出的内容" },
         },

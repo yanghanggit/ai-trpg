@@ -69,7 +69,7 @@ describe("turn round budgets", () => {
   it("按任务提示正常规划时，探查、全部写动作与提交能装进一轮", () => {
     // world：look_stage + 全部写动作 + submit_world_plan
     expect(DEFAULT_WORLD_MAX_ROUNDS).toBeGreaterThanOrEqual(MAX_WORLD_ACTIONS_PER_TURN + 2);
-    // stage：look_stage + submit_environment + open_passage + 两条通知
+    // stage：submit_environment + open_passage + 两条通知
     expect(DEFAULT_STAGE_MAX_ROUNDS).toBeGreaterThanOrEqual(MAX_STAGE_NOTIFICATIONS_PER_TURN + 3);
   });
 });

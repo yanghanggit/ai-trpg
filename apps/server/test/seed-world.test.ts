@@ -219,7 +219,7 @@ describe("dark fantasy seed world", () => {
     expect(profile).toContain("有且只有三种收尾");
     const prompt = buildWorldSystemPrompt(BELL_MONASTERY_WORLD);
     expect(prompt).toContain("## 世界设定");
-    expect(prompt).toContain("主角倒下时你会收到通知");
+    expect(prompt).toContain("主角倒下只是通知");
   });
 
   it("puts animal language rules in profiles, not in global rules", () => {

@@ -3,7 +3,6 @@ import type { ToolDefinition } from "../../llm/types";
 import { type AddressLookup, actionRef } from "../addressing";
 import { appendPublicMessage, bumpGameVersion } from "../apply/messages";
 import type { ActorWithStageRow, Executor, ResolvedSay } from "../apply/types";
-import { MAX_MIND_LENGTH } from "../constants";
 import { GameError } from "../errors";
 import { appendCommunicationObservations, appendStageMemory } from "../observations";
 import { assertNoSystemReference } from "../text-guard";
@@ -20,7 +19,7 @@ export function buildSayTool(targets: readonly string[]): ToolDefinition {
         properties: {
           mind: {
             type: "string",
-            description: `第一人称内心独白，说明为什么这样说，控制在 ${MAX_MIND_LENGTH} 字以内`,
+            description: "第一人称内心独白，说明为什么这样说",
           },
           targetActorHandle: {
             type: "string",

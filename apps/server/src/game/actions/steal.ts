@@ -17,7 +17,7 @@ export function buildStealTool(targetActorHandles: readonly string[]): ToolDefin
     function: {
       name: "steal",
       description:
-        "把一次窃取加入计划：从同场景的一个角色身上取走一件物品。目标还活着时只能拿走背包里的东西，已经穿戴在身上的拿不走；目标死亡（尸体）时什么都能拿走。先用 observe_actor 查看对方携带的物品。只有发起者与目标会知道。",
+        "把一次窃取加入计划：从同场景目标身上取走一件物品。活人只能拿背包，尸体什么都能拿；只有发起者与目标知道。",
       parameters: {
         type: "object",
         properties: {

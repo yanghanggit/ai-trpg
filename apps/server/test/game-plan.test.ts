@@ -22,8 +22,8 @@ import {
   describeObservedActor,
   describeSelf,
   describeStats,
+  parseEndGame,
 } from "../src/game/plan";
-import { parseEndGame } from "../src/game/world-plan";
 
 describe("action authorization", () => {
   it("权限报错直接写实体的名字", () => {
@@ -249,7 +249,7 @@ describe("action parsers", () => {
 });
 
 describe("world action parsers", () => {
-  it("end_game 的结局标签由 world 自己命名，只要非空且不过长", () => {
+  it("end_game 的结局标签由 world 自己命名，只要非空", () => {
     expect(parseEndGame({ outcome: "逃出修道院", message: "门在身后合上了。" })).toEqual({
       kind: "end_game",
       outcome: "逃出修道院",
@@ -257,9 +257,6 @@ describe("world action parsers", () => {
     });
     expect(() => parseEndGame({ message: "门在身后合上了。" })).toThrow(/outcome/);
     expect(() => parseEndGame({ outcome: "", message: "门在身后合上了。" })).toThrow(/outcome/);
-    expect(() => parseEndGame({ outcome: "长".repeat(25), message: "门在身后合上了。" })).toThrow(
-      /outcome/,
-    );
   });
 });
 

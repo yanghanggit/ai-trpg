@@ -12,7 +12,7 @@ stage 不是 actor，也不是完整 GM：没有 HP、位置、行动槽与自�
 
 stage 与 actor 共用 `agent_memories` 表，以 `owner_type=stage` 标识。它能看到本场景内所有事件：公开与私密沟通、actor 进出、攻击 / 窃取 / 给予 / 拾取 / 使用、等待、死亡与游戏结束、自己造成的环境变化。
 
-它有意的例外是 `look_stage`：可以主动查看任意场景的静态状态（environment、角色名单、陈列物品、可交互锚点），但这条口子不包含其他场景的事件与记忆。它看不到其他场景的事件，也看不到 actor 的内部 `mind`。看到私密事件不改变 actor 的可见性：其他 actor 是否知道 whisper 仍由原行动范围决定。
+它没有跨场景的查看入口：每个 stage 只读自己的静态状态，其他场景的信息只能经 world 中转。它看不到其他场景的事件，也看不到 actor 的内部 `mind`。看到私密事件不改变 actor 的可见性：其他 actor 是否知道 whisper 仍由原行动范围决定。
 
 ## Environment
 
@@ -29,7 +29,7 @@ environment 是拉取模型：stage 更新后不推送，actor 下一次 plan �
 `stages.anchors` 是场景内可见、可被角色操作的位置或部位（如“锁孔”“门闩”）的完整快照。它和 environment 一样由 stage 回合维护、由 actor pull：
 
 - 每个锚点只有 `label` 与可选的 `description`，不承载效果、后果或机制；实际结算仍由 item effect / stage / world 完成；
-- `label` 场景内唯一，数量、长度都有上限；写入时与世界面文本同样拒绝角色名字与 `@`/`#` 引用；
+- `label` 场景内唯一，数量有上限；写入时与世界面文本同样拒绝角色名字与 `@`/`#` 引用；
 - `actor` 的 `use` 只能从当前场景的锚点枚举里选 `targetAnchor`，不再接受自由文本位置描述；解析时重新校验，已移除的锚点会被拒绝；
 - 锚点变化产生 `anchor_change` 公共事件并进入 stage memory，不直接写 actor memory；actor 下一回合 pull 到新列表。
 
@@ -47,17 +47,17 @@ environment 是拉取模型：stage 更新后不推送，actor 下一次 plan �
 
 stage 回合与 actor 回合平行，但不共享 actor plan：读状态与 stage memory → 组装环境、同场景角色、场景物品、可去场景、未开启通道与场景事件 → agent loop 推理 → 用 `open_passage` / `notify_world` 加入计划 → 用 `submit_environment` 提交 environment 与锚点 → 短事务内校验、按序执行、递增版本、写公共事件。
 
-两个 GM 都是**写入即快照**：每加入一个动作就刷新一次计划快照，模型忘记调用终止工具或轮次用尽时，已暂存的动作仍会落账。轮数上限按「定位 + 全部写动作 + 一次纠偏」配置；回合结果里的 `loopSuccess` 只表示模型是否显式提交过计划。
+两个 GM 都是**写入即快照**：每加入一个动作就刷新一次计划快照，模型忘记调用终止工具或轮次用尽时，已暂存的动作仍会落账。轮数上限按「全部写动作 + 一次纠偏」配置；回合结果里的 `loopSuccess` 只表示模型是否显式提交过计划。
 
 `StagePlan` 与 `ActorPlan` / `WorldPlan` 同构，都是 `{ actions: [...] }` 的有序列表：environment/锚点至多一条、通道至多一条、通知至多 `MAX_STAGE_NOTIFICATIONS_PER_TURN` 条，开始写库前全部校验完。额度只约束会写库的动作，且写进 stage 的任务文本，模型不必靠试错发现上限。
 
-每个场景都必须声明 `submit_environment`，内容校验会拒绝缺少它的内容；`open_passage` / `notify_world` 按设定额外声明。
+每个场景都必须声明 `submit_environment`，内容校验会拒绝缺少它的内容；`open_passage` / `notify_world` 按设定额外声明。没有变化时也提交当前快照，不能省略；引擎按内容判断是否真的产生事件。
 
 `notify_world` 写入的是 **stage 报告**，不是世界事实，也不是系统指令：它进入 world memory，由 world 回合裁决。stage 不应直接结束游戏，也不应修改其他场景。通道与通知是两件事：开门只改本场景出边，不向 world 报告；只有跨场景 / 世界级后果才报告，判断必须来自本场景已有的信息。
 
 ## 事件
 
-刷新 environment 产生 `environment_change`，刷新锚点产生 `anchor_change`（`stage_id` 指向该场景、`source_actor_id` 为空），打开通道产生 `passage_change`；三者都进 stage memory 与公共事件流，但不写 actor memory——actor 下一次 plan 读当前 environment、锚点与可去场景也自然更新。
+environment 或锚点实际变化才产生 `environment_change` / `anchor_change`（`stage_id` 指向该场景、`source_actor_id` 为空）；提交相同快照只结束回合，不写事件。打开通道产生 `passage_change`。三者都进 stage memory 与公共事件流，但不写 actor memory——actor 下一次 plan 读当前 environment、锚点与可去场景也自然更新。
 
 `passage_change` 只写起点场景的 stage memory，对面场景与 world 都不因此获得记忆。`notify_world` 不产生公共事件，只写 world memory 并在 stage memory 留一条通知记录；world 用 `notify_stage` 下发裁决，stage 下一回合读取 directive。actor 行动产生的场景事件同样进入 stage memory，移动分别写起点与终点两个 stage。
 

@@ -13,8 +13,7 @@ export function buildPickupTool(availableItemNames: readonly string[] = []): Too
     type: "function",
     function: {
       name: "pickup",
-      description:
-        "把一次拾取加入计划：拾起当前场景中的一件物品，放进自己的背包。物品名来自 look_stage。",
+      description: "把一次拾取加入计划：拾起当前场景中的一件物品，放进自己的背包。",
       parameters: {
         type: "object",
         properties: {

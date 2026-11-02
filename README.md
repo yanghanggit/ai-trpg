@@ -58,7 +58,7 @@ pnpm dev
 | `pnpm db:migrate`     | 应用数据库迁移                                                |
 | `pnpm db:check`       | 检查数据库连接与基础设施表                                    |
 | `pnpm db:reset --yes` | 清空登记过的开发表                                            |
-| `pnpm db:demo`        | 迁移 + 重置 + 黑暗奇幻 demo 数据                              |
+| `pnpm db:demo`        | 迁移 + 重置 + 示例 demo 数据                                  |
 | `pnpm build`          | 生产构建（服务端 + Web）                                      |
 | `pnpm screenshot`     | 截图前端页面（需先启动 dev，依赖本机 Chrome）                 |
 | `pnpm clean:dev`      | 清理开发期临时目录，默认只预览，加 `--yes` 才删               |

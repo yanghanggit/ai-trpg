@@ -3,7 +3,6 @@ import type { ToolDefinition } from "../../llm/types";
 import { type AddressLookup, stripNameRef } from "../addressing";
 import { resolveActorItem } from "../apply/queries";
 import type { ActorWithStageRow, Executor, ResolvedUse } from "../apply/types";
-import { MAX_STAGE_ANCHOR_LABEL_LENGTH } from "../constants";
 import { GameError } from "../errors";
 import { applyItemEffect, hasItemEffectHandler } from "../item-effects";
 import { equippedSlotOf } from "../items";
@@ -41,7 +40,7 @@ export function buildUseTool(
     function: {
       name: "use",
       description:
-        "把一次使用道具加入计划：使用一件背在身上、没穿戴的物品，作用于一个角色或当前场景。物品只声明 effect；use 只负责选择物品与目标并分派。targetActorHandle 与 targetStageName 二选一。正装备在槽里的物品不能使用：武器用 strike 出手，其余先 unequip。",
+        "把一次使用道具加入计划：使用一件没穿戴的物品，作用于一个角色或当前场景（二选一）。",
       parameters: {
         type: "object",
         properties: {
@@ -57,15 +56,14 @@ export function buildUseTool(
           },
           targetStageName: {
             type: "string",
-            description: "道具作用的场景；当前只允许所在场景",
+            description: "道具作用的场景",
             enum: [currentStageName],
           },
           ...(stageAnchors.length > 0
             ? {
                 targetAnchor: {
                   type: "string",
-                  description:
-                    "当前场景的可交互锚点；只用于 targetStageName。必须从枚举中选择，不能自己写位置描述。",
+                  description: "当前场景的可交互锚点（仅配合 targetStageName）",
                   enum: [...stageAnchors],
                 },
               }
@@ -89,12 +87,6 @@ export function parseUse(args: Record<string, unknown>): UseAction {
   }
   if ((targetActorHandle.length === 0) === (targetStageName.length === 0)) {
     throw new GameError("invalid_action", "use 需要 targetActorHandle 或 targetStageName 二选一");
-  }
-  if (targetAnchor.length > MAX_STAGE_ANCHOR_LABEL_LENGTH) {
-    throw new GameError(
-      "invalid_action",
-      `targetAnchor 不能超过 ${MAX_STAGE_ANCHOR_LABEL_LENGTH} 个字符`,
-    );
   }
   if (targetAnchor.length > 0 && targetStageName.length === 0) {
     throw new GameError("invalid_action", "targetAnchor 只能与 targetStageName 一起使用");
@@ -125,12 +117,6 @@ export async function resolveUse(
     );
   }
   const targetAnchor = action.targetAnchor?.trim();
-  if (targetAnchor && targetAnchor.length > MAX_STAGE_ANCHOR_LABEL_LENGTH) {
-    throw new GameError(
-      "invalid_action",
-      `targetAnchor 不能超过 ${MAX_STAGE_ANCHOR_LABEL_LENGTH} 个字符`,
-    );
-  }
   if (targetAnchor && action.targetStageName === undefined) {
     throw new GameError("invalid_action", "targetAnchor 只能与 targetStageName 一起使用");
   }

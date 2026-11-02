@@ -15,23 +15,8 @@ export const MAX_WORLD_ACTIONS_PER_TURN = 3;
 /** 词缀 agent 一次执行最多记录几条可见后果。 */
 export const MAX_AFFIX_EFFECTS = 2;
 
-/** 词缀后果文案上限；目标体验与旁人可见两段各自受限。 */
-export const MAX_AFFIX_EFFECT_LENGTH = 160;
-
 /** 一个场景最多保留的可交互锚点数。 */
 export const MAX_STAGE_ANCHORS = 8;
-
-/** 单个锚点标签的最大长度。 */
-export const MAX_STAGE_ANCHOR_LABEL_LENGTH = 24;
-
-/** 单个锚点描述的最大长度。 */
-export const MAX_STAGE_ANCHOR_DESCRIPTION_LENGTH = 120;
-
-/** stage 发给 world 的单条通知最大长度。 */
-export const MAX_WORLD_NOTIFICATION_LENGTH = 500;
-
-/** world 发给 stage 的单条指令最大长度。 */
-export const MAX_WORLD_DIRECTIVE_LENGTH = 1000;
 
 /** 未指定时的 NPC loop 最大轮数。 */
 export const DEFAULT_NPC_MAX_ROUNDS = 4;
@@ -43,10 +28,10 @@ export const DEFAULT_NPC_MAX_ROUNDS = 4;
 export const DEFAULT_LLM_ERROR_RETRIES = 2;
 
 /**
- * stage 小 GM 的轮数上限：look_stage + environment + open_passage + 两条通知，再加一次纠偏。
+ * stage 小 GM 的轮数上限：environment + open_passage + 两条通知，再加一次纠偏。
  * 与动作上限绑在一起，保证「按任务提示正常规划」在结构上能完成一轮。
  */
-export const DEFAULT_STAGE_MAX_ROUNDS = MAX_STAGE_NOTIFICATIONS_PER_TURN + 4;
+export const DEFAULT_STAGE_MAX_ROUNDS = MAX_STAGE_NOTIFICATIONS_PER_TURN + 3;
 
 /** world 的轮数上限：一次定位 + 全部写动作 + 提交 + 一次纠偏余量。 */
 export const DEFAULT_WORLD_MAX_ROUNDS = MAX_WORLD_ACTIONS_PER_TURN + 3;
@@ -54,29 +39,8 @@ export const DEFAULT_WORLD_MAX_ROUNDS = MAX_WORLD_ACTIONS_PER_TURN + 3;
 /** 外观推理 loop 的最大轮数。 */
 export const DEFAULT_APPEARANCE_MAX_ROUNDS = 3;
 
-/** 一次外观快照的最大字符数。 */
-export const MAX_APPEARANCE_LENGTH = 300;
-
 /** 掉落推理 loop 的最大轮数；只有一个终止工具，留一次纠偏。 */
 export const DEFAULT_DROP_MAX_ROUNDS = 3;
-
-/** 一具尸体一轮最多掉落的材料条数。 */
-export const MAX_DROP_MATERIALS = 2;
-
-/** 掉落材料名的最大字符数。 */
-export const MAX_MATERIAL_NAME_LENGTH = 20;
-
-/** 掉落材料描述的最大字符数。 */
-export const MAX_MATERIAL_DESCRIPTION_LENGTH = 120;
-
-/** 单条掉落材料的数量上限。 */
-export const MAX_MATERIAL_COUNT = 10;
-
-/** 结局标签的最大字符数：world 自己命名的短标签。 */
-export const MAX_OUTCOME_LENGTH = 24;
-
-/** 沟通类动作的 mind（第一人称内心独白）建议长度上限。 */
-export const MAX_MIND_LENGTH = 60;
 
 /** agent memory 中使用的稳定 kind 值。 */
 export const MEMORY_KINDS = {

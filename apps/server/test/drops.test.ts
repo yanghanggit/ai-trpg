@@ -58,7 +58,7 @@ class MaterialDropService implements ChatCompletionService {
 }
 
 describe("drop materials parser", () => {
-  it("只接受非空、不超长、不重复的材料，空数组是合法结果", () => {
+  it("只接受非空、不重复的材料，空数组是合法结果", () => {
     expect(parseDrops({ items: [] })).toEqual([]);
     expect(
       parseDrops({
@@ -70,15 +70,11 @@ describe("drop materials parser", () => {
     ).toBe(6);
   });
 
-  it("拒绝超量、重名、空名、超长与非法数量", () => {
+  it("拒绝超量、重名、空名与非法数量", () => {
     const valid = { name: "骨片", description: "碎得只剩边角。" };
     expect(() => parseDrops({ items: [valid, valid, valid] })).toThrow(/最多/);
     expect(() => parseDrops({ items: [valid, { ...valid }] })).toThrow(/重复/);
     expect(() => parseDrops({ items: [{ ...valid, name: "  " }] })).toThrow(/材料名/);
-    expect(() => parseDrops({ items: [{ ...valid, name: "长".repeat(21) }] })).toThrow(/材料名/);
-    expect(() => parseDrops({ items: [{ ...valid, description: "长".repeat(121) }] })).toThrow(
-      /描述/,
-    );
     expect(() => parseDrops({ items: [{ ...valid, count: 0 }] })).toThrow(/数量/);
     expect(() => parseDrops({ items: [{ ...valid, count: 2.5 }] })).toThrow(/数量/);
     expect(() => parseDrops({ items: [{ ...valid, count: 11 }] })).toThrow(/数量/);

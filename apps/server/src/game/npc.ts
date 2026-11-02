@@ -103,6 +103,19 @@ export function buildActorTurnInput(state: GameState, current: ActorWithStage): 
   const targets = others.map((actor) => address(actor.id).token);
   const allowed = allowedActionKinds(current.actor.actions, equippedItemActions(current.actor));
   const actionList = allowed.map((kind) => `${kind}（${ACTION_SUMMARIES[kind]}）`).join("、");
+  // 已穿戴物品不能 use 是动作自身的约束；用哪个动作替代属于流程，放在任务提示词。
+  const useAlternatives = [
+    ...(allowed.includes("strike") ? ["武器用 strike"] : []),
+    ...(allowed.includes("unequip")
+      ? [allowed.includes("strike") ? "其余先 unequip" : "先 unequip"]
+      : []),
+  ];
+  const useFlowHint = allowed.includes("use")
+    ? `已穿戴的物品不能用 use${useAlternatives.length > 0 ? `；${useAlternatives.join("；")}` : ""}。`
+    : "";
+  const callHint = allowed.includes("call")
+    ? "传音不会自动暴露你是谁；想让对方知道，就把自称写进 message。"
+    : "";
   // 侦察与偷窃同生共死：不偷东西的角色只看姓名与穿戴，不提供背包细节。
   const canObserve = canObserveActorItems(current.actor);
   const toolHint = canObserve
@@ -154,7 +167,7 @@ export function buildActorTurnInput(state: GameState, current: ActorWithStage): 
 
 ## 场景
 ${current.stage.name}
-${renderStageEnvironmentForActor(state, current.stage, current)}
+${renderStageEnvironmentForActor(state, current)}
 
 ## 你的状态
 ${current.actor.name}（你的引用：${selfHandle}）| HP ${current.actor.hp}/${current.actor.stats.maxHp}
@@ -183,7 +196,7 @@ ${teleportLines}`
 
 # 本轮任务
 
-根据当前环境与自己的记忆决定行动。名单里已列出同场景他人身上穿戴的装备；${toolHint}需要多项信息时，可以一次返回多个只读工具调用，也可以分多轮调用。${knowledgeHint}${identityHint}你能使用的行动工具：${actionList}。本轮只能提交 ${MAX_ACTIONS_PER_TURN} 个行动：说话、移动、动手都各占一个回合，需要连着做就分几个回合。最后调用 submit_plan 提交。${readOnlyHint}`;
+根据当前环境与自己的记忆决定行动。名单里已列出同场景他人身上穿戴的装备；${toolHint}需要多项信息时，可以一次返回多个只读工具调用，也可以分多轮调用。${knowledgeHint}${identityHint}你能使用的行动工具：${actionList}。${useFlowHint}${callHint}本轮只能提交 ${MAX_ACTIONS_PER_TURN} 个行动：说话、移动、动手都各占一个回合，需要连着做就分几个回合。最后调用 submit_plan 提交。${readOnlyHint}`;
 }
 
 /** 把动作加入本轮计划；条数上限在这里就告诉模型，避免提交后才被拒绝。 */
@@ -252,7 +265,7 @@ export async function runNpcTurn(
   const teleportTargets = teleportTargetsFor(state, current.actor, current.stage).map(
     (stage) => stage.name,
   );
-  const lookTool = buildActorLookTool(current.stage.name);
+  const lookTool = buildActorLookTool();
   const selfTool = buildSelfInfoTool();
   // 侦察是偷窃的前置：只有能 steal 的角色才注入 observe_actor，与任务提示词同一判断。
   const observeTool = canObserveActorItems(current.actor)
@@ -355,10 +368,7 @@ export async function runNpcTurn(
       submitTool,
     ],
     handlers: {
-      [lookTool.function.name]: (args) => {
-        const stageName = typeof args.stageName === "string" ? args.stageName : "";
-        return describeStageForActor(state, stageName, current);
-      },
+      [lookTool.function.name]: () => describeStageForActor(state, current),
       [selfTool.function.name]: () => describeSelf(current.actor),
       ...(observeTool
         ? {
