@@ -10,7 +10,7 @@ PostgreSQL 是游戏状态的唯一真相。`agent:game` 从数据库读取状�
 - **签名**：`actor_signatures` 只存稳定形态 `form`（`[种族]:描述`）。每个 actor 同时只有一条 `ended_at is null` 的签名；伪装 / 变身会开一条新签名并封上旧的。actor 不再持有任何视觉字段。
 - **外观**：`appearances` 是 append-only 渲染记录，每行有 `text`（最终渲染值）、`input`（生成输入快照）、`source` 与 `superseded_at`。每个签名同时只有一条 `superseded_at is null` 的当前记录；历史行不覆盖、不删除。
 - **物品**：`items` 依附角色，`stage_items` 依附场景，两者字段相同、都不记录穿戴状态；按 `name` 定位，因此同一持有者内名字唯一。`kind` 是自由文本，新增大类不需要迁移。
-- **签名称呼**：`actor_signature_names` 存「观察者 × 签名 → 当前名字」。名字不要求是真名，可以是称号、误认或听来的叫法；同一个签名再次写入会覆盖旧名字。名字按签名记录，换签名即失去旧称呼。它不做名字抽取，也不区分真名与别名。
+- **签名称呼**：`actor_signature_names` 存「观察者 × 签名 → 当前名字」；每个观察者对每个签名只有一个当前值，再次写入覆盖。名字按签名记录，换签名即失去旧称呼；它不做名字抽取。
 - **消息与记忆**：`game_messages` 是公共事件流（`sequence` 追加、带可见性），供客户端增量拉取与审计，没有 session 表；`agent_memories` + `agent_memory_messages` 是 actor / stage / world 各自的私有上下文，压缩摘要与被压缩的旧消息都留在 memory 里形成可回述的树。两者不能合并：`mind` 只进 memory。
 - **向量**：`vector_documents` 用 `collection` 隔离世界内容、`embedding_model` 隔离模型；只装公共知识，不进私有 memory，也不承载剧情秘密。
 
