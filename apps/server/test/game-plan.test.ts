@@ -10,6 +10,7 @@ import { buildPickupTool, parsePickup } from "../src/game/actions/pickup";
 import { buildSayTool, parseSay } from "../src/game/actions/say";
 import { buildStealTool, parseSteal } from "../src/game/actions/steal";
 import { buildStrikeTool, parseStrike } from "../src/game/actions/strike";
+import { buildTeleportTool, parseTeleport } from "../src/game/actions/teleport";
 import { buildUnequipTool, parseUnequip } from "../src/game/actions/unequip";
 import { buildUseTool, parseUse, usableItemNames } from "../src/game/actions/use";
 import { buildWaitTool, parseWait } from "../src/game/actions/wait";
@@ -53,6 +54,10 @@ describe("action tools", () => {
       "message",
     ]);
     expect(buildMoveTool(stages).function.parameters.required).toEqual(["targetStageName"]);
+    expect(buildTeleportTool().function.parameters.required).toEqual(["targetStageName"]);
+    expect(buildTeleportTool().function.parameters.properties).not.toMatchObject({
+      targetStageName: { enum: expect.anything() },
+    });
     expect(buildWaitTool().function.parameters.required).toEqual([]);
     expect(buildStrikeTool(targets).function.parameters.required).toEqual(["targetActorHandle"]);
     expect(buildBrawlTool(targets).function.parameters.required).toEqual(["targetActorHandle"]);
@@ -168,6 +173,11 @@ describe("action parsers", () => {
       kind: "move",
       targetStageName: "断钟中殿",
     });
+    expect(parseTeleport({ targetStageName: " 断钟中殿 " })).toEqual({
+      kind: "teleport",
+      targetStageName: "断钟中殿",
+    });
+    expect(() => parseTeleport({ targetStageName: "#12" })).toThrow(/真名/);
     expect(parseWait()).toEqual({ kind: "wait" });
     // strike 不再接收物品名：武器由 weapon 槽决定。
     expect(parseStrike({ targetActorHandle: " 提灯修士 ", itemName: "裂齿短刃" })).toEqual({

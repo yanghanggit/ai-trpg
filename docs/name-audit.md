@@ -32,4 +32,4 @@ compact 摘要也会在落账前走这套白名单：摘要里出现观察者未
 - 允许任意名字意味着模型可以把真名直接设成称呼；审计只能检查“引擎有没有使用观察者没用过的真名”，不能证明角色真的知道真名。
 - 审计只读：它不改变回合结果，也不把发现写回 actor 记忆。
 
-→ 参见：[信息披露](information-disclosure.md)、[Actor 记忆](actor-actions-memory.md)、[数据库](database.md)
+→ 参见：[信息披露](information-disclosure.md)、[Actor 行动与记忆](actor-actions-memory.md)、[数据库](database.md)

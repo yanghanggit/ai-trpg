@@ -197,7 +197,7 @@ export type PlayerMoveInput = {
 };
 
 export type PlayerTeleportInput = {
-  /** 目标场景 id 或名字；必须是 actor 去过的场景。 */
+  /** 目标场景 id 或真名；actor 是否知道由调用方负责，服务端只校验存在与禁传。 */
   targetStageRef: string;
 };
 

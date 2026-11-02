@@ -26,6 +26,16 @@ import type {
 
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const SIGNATURE_HANDLE_PATTERN = /^#([1-9]\d*)$/;
+const STAGE_HANDLE_PATTERN = /^#([1-9]\d*)$/;
+
+/** 场景 ref：id、名字或实体编号；编号与签名共用实体序号，按调用上下文区分。 */
+function stageRefCondition(ref: string) {
+  const handle = STAGE_HANDLE_PATTERN.exec(ref);
+  if (handle) {
+    return eq(stages.seq, Number(handle[1]));
+  }
+  return UUID_PATTERN.test(ref) ? eq(stages.id, ref) : eq(stages.name, ref);
+}
 
 export type SignatureRow = typeof actorSignatures.$inferSelect;
 export type AppearanceRow = typeof appearances.$inferSelect;
@@ -282,15 +292,10 @@ export async function resolveAdjacentStage(
   const [target] = await executor
     .select()
     .from(stages)
-    .where(
-      and(
-        eq(stages.worldId, world.id),
-        UUID_PATTERN.test(ref) ? eq(stages.id, ref) : eq(stages.name, ref),
-      ),
-    )
+    .where(and(eq(stages.worldId, world.id), stageRefCondition(ref)))
     .limit(1);
   if (!target) {
-    throw new GameError("invalid_action", `目标场景不存在（需要 id 或名字）: ${ref}`);
+    throw new GameError("invalid_action", `目标场景不存在（需要 id、名字或 #编号）: ${ref}`);
   }
   const [connection] = await executor
     .select()
@@ -336,7 +341,7 @@ export async function resolveActorByNameInWorld(
   return row;
 }
 
-/** 在世界内按 id 或名字找场景；用于 teleport 这类非邻接目标。 */
+/** 在世界内按 id、名字或实体编号找场景；用于 teleport 这类非邻接目标。 */
 export async function findStageInWorld(
   executor: Executor,
   worldId: string,
@@ -346,12 +351,7 @@ export async function findStageInWorld(
   const [row] = await executor
     .select()
     .from(stages)
-    .where(
-      and(
-        eq(stages.worldId, worldId),
-        UUID_PATTERN.test(value) ? eq(stages.id, value) : eq(stages.name, value),
-      ),
-    )
+    .where(and(eq(stages.worldId, worldId), stageRefCondition(value)))
     .limit(1);
   return row;
 }

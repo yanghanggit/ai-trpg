@@ -81,7 +81,7 @@
 
 物品效果是声明式的，故事特有的判断写在词缀或描述里，不为单个故事新增引擎分支。武器要能被用来挥击，就在物品上声明 `actions: ["strike"]` 并确保它有 `damage` 效果；内容校验会拒绝其它组合。任何不可逆的结果都要有来源与报告者：谁造成了它，谁有权收尾。
 
-→ 参见：[Stage 小 GM](stage.md)、[Actor 记忆与行动](actor-actions-memory.md)、[物品](items.md)、[词缀](affixes.md)
+→ 参见：[Stage 小 GM](stage.md)、[Actor 行动与记忆](actor-actions-memory.md)、[物品](items.md)、[词缀](affixes.md)
 
 ## 版本与验收
 

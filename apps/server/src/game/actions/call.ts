@@ -121,5 +121,5 @@ export async function applyCall(
     renderCall(targetStage, { target: { id: target.id }, message: resolved.action.message }),
     trace,
   );
-  return `# 行动结果\n你把话传到了${targetStage.name}：${resolved.action.message}`;
+  return `# 行动结果\n你把话传到了对方那里：${resolved.action.message}`;
 }

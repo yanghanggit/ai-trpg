@@ -99,9 +99,11 @@ describe.skipIf(!testDatabaseUrl)("cross-stage call", () => {
       true,
     );
     expect(scribe?.messages.some((message) => message.content.includes("守烬人"))).toBe(false);
-    expect(
-      keeper?.messages.some((message) => message.content.includes("你把话传到了断钟中殿")),
-    ).toBe(true);
+    const feedback = keeper?.messages.find((message) =>
+      message.content.includes("你把话传到了对方那里"),
+    );
+    expect(feedback?.content).not.toBeUndefined();
+    expect(feedback?.content).not.toContain("断钟中殿");
     expect(monk?.messages.some((message) => message.content.includes("隔空对你说话"))).toBe(false);
   });
 
@@ -157,9 +159,12 @@ describe.skipIf(!testDatabaseUrl)("cross-stage call", () => {
     );
     const memories = await getGameMemories(handle.db, created.game.id);
     const keeper = memories.find((memory) => memory.name === "守烬人");
-    const feedback = keeper?.messages.find((message) => message.content.includes("你把话传到了"));
+    const feedback = keeper?.messages.find((message) =>
+      message.content.includes("你把话传到了对方那里"),
+    );
     expect(feedback?.content).toContain("我是守烬人。听得到吗？");
     expect(feedback?.content).not.toContain("我是@守烬人");
+    expect(feedback?.content).not.toContain("断钟中殿");
   });
 
   it("rejects @ references and same-stage targets", async () => {

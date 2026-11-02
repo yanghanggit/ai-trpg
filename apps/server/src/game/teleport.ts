@@ -1,6 +1,6 @@
 import type { ActorState, GameState, StageState } from "./types";
 
-/** 这个 actor 去过的场景 id；只用于传送与地图，不参与普通移动权限。 */
+/** 这个 actor 去过的场景 id；用于已访问候选、地图与 `get_visited_stages`，不参与普通移动权限。 */
 export function visitedStageIds(state: GameState, actorId: string): Set<string> {
   return new Set(
     state.visits.filter((visit) => visit.actorId === actorId).map((visit) => visit.stageId),
@@ -8,12 +8,11 @@ export function visitedStageIds(state: GameState, actorId: string): Set<string> 
 }
 
 /**
- * actor 当前可传送的目标。
+ * 已去过、未被禁传的候选场景，只用于提示与地图，不是传送权限。
  *
- * 条件是「去过 + 目标未被 teleport_blocked + 自己不在被禁传的场景」。
- * 没有边或路径概念：teleport 一次直接跳到一个已访问节点。
+ * teleport 的规则是「知道目标真名」，不要求去过；这个列表只是已知场景的一部分。
  */
-export function teleportTargetsFor(
+export function visitedTeleportTargetsFor(
   state: GameState,
   actor: ActorState,
   stage: StageState | undefined,

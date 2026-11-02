@@ -1,5 +1,4 @@
 import { randomUUID } from "node:crypto";
-import { and, eq } from "drizzle-orm";
 import { stageVisits } from "../../db/schema";
 import type { Executor } from "../apply/types";
 
@@ -25,17 +24,4 @@ export async function recordStageVisit(
       target: [stageVisits.actorId, stageVisits.stageId],
       set: { lastVisitedAt: now },
     });
-}
-
-export async function hasStageVisit(
-  executor: Executor,
-  actorId: string,
-  stageId: string,
-): Promise<boolean> {
-  const [row] = await executor
-    .select({ id: stageVisits.id })
-    .from(stageVisits)
-    .where(and(eq(stageVisits.actorId, actorId), eq(stageVisits.stageId, stageId)))
-    .limit(1);
-  return row !== undefined;
 }

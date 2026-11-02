@@ -8,23 +8,21 @@ import { GameError } from "../errors";
 import { renderAction, renderEnvironmentChange, withAppearances } from "../observation-text";
 import { appendCustomStageObservation, appendStageMemory } from "../observations";
 import { moveActorToStage } from "../persistence/actors";
-import { hasStageVisit, recordStageVisit } from "../persistence/visits";
+import { recordStageVisit } from "../persistence/visits";
 import type { TeleportAction } from "../types";
 
-export function buildTeleportTool(stageNames: readonly string[]): ToolDefinition {
+export function buildTeleportTool(): ToolDefinition {
   return {
     type: "function",
     function: {
       name: "teleport",
-      description:
-        "传送到一个你去过、且未被禁传的场景。一次跳跃，不沿路径移动，也不产生中间场景的观察。",
+      description: "传送到一个你知道真名的场景；一次跳跃，不沿路径移动，也不产生中间场景的观察。",
       parameters: {
         type: "object",
         properties: {
           targetStageName: {
             type: "string",
-            description: "要传送到的已访问场景；只能从本工具给出的列表里选择",
-            ...(stageNames.length > 0 ? { enum: [...stageNames] } : {}),
+            description: "目标场景的真名；只能是你已经知道的场景名",
           },
         },
         required: ["targetStageName"],
@@ -39,14 +37,17 @@ export function parseTeleport(args: Record<string, unknown>): TeleportAction {
   if (targetStageName.length === 0) {
     throw new GameError("invalid_action", "teleport 需要非空 targetStageName");
   }
-  return { kind: "teleport", targetStageName: stripNameRef(targetStageName) };
+  const target = stripNameRef(targetStageName);
+  if (target.startsWith("#")) {
+    throw new GameError("invalid_action", "teleport 需要目标场景的真名，不能用 #编号");
+  }
+  return { kind: "teleport", targetStageName: target };
 }
 
 export async function resolveTeleport(
   executor: Executor,
   world: WorldRow,
   stage: ResolvedTeleport["stage"],
-  actorId: string,
   action: TeleportAction,
 ): Promise<ResolvedTeleport> {
   const targetStage = await findStageInWorld(executor, world.id, action.targetStageName);
@@ -61,9 +62,6 @@ export async function resolveTeleport(
   }
   if (targetStage.teleportBlocked) {
     throw new GameError("invalid_action", `目标场景禁止传送: ${targetStage.name}`);
-  }
-  if (!(await hasStageVisit(executor, actorId, targetStage.id))) {
-    throw new GameError("invalid_action", `你没有去过 ${targetStage.name}`);
   }
   return { kind: "teleport", action, stage, targetStage };
 }

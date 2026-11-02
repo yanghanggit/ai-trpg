@@ -8,7 +8,7 @@
 
 - **world** 全知全部场景：全部场景的 profile、environment、陈列物品，以及全部 actor 的名字与所在场景；不读 actor 的 profile、开局简报与记忆，也不看 actor 外观与背包。它的 profile 与收尾条件只属于控制面，actor 与 stage 只拿到世界设定与全局规则。
 - **stage** 只全知本场景：自己的 profile、environment、场景物品、未开启通道、本场景事件，以及在场 actor 的名字、外观与携带物；它没有跨场景查看入口，其他场景的信息只能经 world 中转。
-- **actor** 只知道自己的设定与记忆，以及当前场景的 environment、陈列物品与在场角色；他者的完整背包只对具备 `steal` 的角色开放。
+- **actor** 只知道自己的设定与记忆，以及当前场景的 environment、陈列物品与在场角色；NPC 任务提示词里，相邻但从未到访的场景只以 `#实体序号` 出现，进入后记入 `stage_visits`，可再用 `get_visited_stages` 回看；他者的完整背包只对具备 `steal` 的角色开放。
 - **item** 的名字、大类与描述是公共标签，不做 actor 级隔离；它在哪里、在谁身上仍由观察范围决定。
 
 两条推论：
@@ -18,7 +18,7 @@
 
 推理端的仲裁 agent（如词缀）不属于四个实体：没有记忆与观察者视角，只做一次增量判定。
 
-→ 参见：[术语表](glossary.md)、[Stage 小 GM](stage.md)、[物品](items.md)、[Actor 记忆与行动](actor-actions-memory.md)
+→ 参见：[术语表](glossary.md)、[Stage 小 GM](stage.md)、[物品](items.md)、[Actor 行动与记忆](actor-actions-memory.md)
 
 ## 下行披露
 
@@ -32,11 +32,11 @@
 
 世界面文本在写入时统一守卫，actor 读取 environment 时再按观察者渲染一次；控制面保留真名与稳定 id。玩家台词进入 actor→actor 通道前先过玩家对话审核。
 
-→ 参见：[名字审计](name-audit.md)、[玩家对话审核](dialogue-audit.md)、[Actor 记忆与行动](actor-actions-memory.md)
+→ 参见：[名字审计](name-audit.md)、[玩家对话审核](dialogue-audit.md)、[Actor 行动与记忆](actor-actions-memory.md)
 
 ## actor 与场景
 
-actor 只感知当前场景；**可达**只认当前场景的开放相邻边。记忆、公共知识检索与他人转述只构成「可知」，不授予通行权。
+actor 只感知当前场景；普通移动的**可达**只认当前场景的开放相邻边。`teleport` 是例外：只要目标场景的真名已知，就可以直接传送。记忆、公共知识检索与他人转述只构成「可知」，不授予普通移动通行权。
 
 → 参见：[传送](teleport.md)、[公共知识检索](rag.md)、[架构与契约](architecture.md)
 
@@ -44,6 +44,6 @@ actor 只感知当前场景；**可达**只认当前场景的开放相邻边。�
 
 - **事实与机制**：stage / world 知道钥匙与锁孔吻合、通道是唯一出口，但引擎不阻止它们把未发现的事实写成可见线索。
 - **隐藏通道与秘密地点**：开放通道对所有在场 actor 可见，没有 per-actor 的通道可见性。
-- **地点知识**：没有 `stage_knowledge`；传闻只存在记忆里，引擎不从台词抽取地点事实。
+- **地点知识**：没有 `stage_knowledge`；未到访场景名只在内容或台词里偶然出现，不进入结构化知识。
 
 → 参见：[Seed 内容编写原则](seed-authoring.md)

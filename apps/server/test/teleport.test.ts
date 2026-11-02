@@ -13,7 +13,7 @@ import {
   takeActorControl,
 } from "../src/game";
 import { buildActorTurnInput } from "../src/game/npc";
-import { teleportTargetsFor } from "../src/game/teleport";
+import { visitedTeleportTargetsFor } from "../src/game/teleport";
 import type { World } from "../src/game/types";
 import { TEST_WORLD } from "./test-world";
 
@@ -58,7 +58,7 @@ describe.skipIf(!testDatabaseUrl)("teleport", () => {
     return created;
   };
 
-  it("records the starting stage and creates no teleport target until another stage is visited", async () => {
+  it("records the starting stage and no visited candidates until another stage is visited", async () => {
     const created = await createGameWith("传送初始测试局", teleportWorld());
     const state = await getGameState(handle.db, created.game.slug);
     const keeper = state.world.stages
@@ -75,21 +75,31 @@ describe.skipIf(!testDatabaseUrl)("teleport", () => {
     expect(
       state.visits.filter((visit) => visit.actorId === keeper.id).map((v) => v.stageId),
     ).toEqual([gate.id]);
-    expect(teleportTargetsFor(state, keeper, gate)).toEqual([]);
+    expect(visitedTeleportTargetsFor(state, keeper, gate)).toEqual([]);
 
     const view = await getActorView(handle.db, created.game.slug, "守烬人");
     expect(view.visitedStages).toEqual([{ stageId: gate.id, name: "灰烬门廊" }]);
     expect(view.teleportTargets).toEqual([]);
   });
 
-  it("rejects a stage that has not been visited", async () => {
-    const created = await createGameWith("传送未访问测试局", teleportWorld());
-    await expect(
-      playerTeleport(handle.db, created.game.slug, "守烬人", { targetStageRef: "断钟中殿" }),
-    ).rejects.toThrow(/没有去过/);
+  it("teleports by true name even before visiting the target", async () => {
+    const created = await createGameWith("传送真名测试局", teleportWorld());
+    const result = await playerTeleport(handle.db, created.game.slug, "守烬人", {
+      targetStageRef: "断钟中殿",
+    });
+    expect(result.ok).toBe(true);
 
     const state = await getGameState(handle.db, created.game.slug);
-    expect(state.game.version).toBe(0);
+    const keeper = state.world.stages
+      .flatMap((stage) => stage.actors)
+      .find((actor) => actor.name === "守烬人");
+    const nave = state.world.stages.find((stage) => stage.key === "nave");
+    if (!keeper || !nave) {
+      throw new Error("缺少测试数据");
+    }
+    expect(nave.actors.some((actor) => actor.id === keeper.id)).toBe(true);
+    expect(state.visits.filter((visit) => visit.actorId === keeper.id)).toHaveLength(2);
+    expect(state.messages.at(-1)?.kind).toBe("teleport");
   });
 
   it("teleports to a visited, unblocked stage and records the arrival", async () => {
@@ -105,10 +115,10 @@ describe.skipIf(!testDatabaseUrl)("teleport", () => {
     if (!keeper || !gate || !nave) {
       throw new Error("缺少测试数据");
     }
-    expect(teleportTargetsFor(before, keeper, nave)).toEqual([gate]);
-    expect(buildActorTurnInput(before, { actor: keeper, stage: nave })).toContain(
-      "可传送至（已去过且未禁传）",
-    );
+    expect(visitedTeleportTargetsFor(before, keeper, nave)).toEqual([gate]);
+    const input = buildActorTurnInput(before, { actor: keeper, stage: nave });
+    expect(input).toContain("可传送（已知真名即可；已去过且未禁传的如下）");
+    expect(input).toContain("@灰烬门廊");
 
     const result = await playerTeleport(handle.db, created.game.slug, "守烬人", {
       targetStageRef: "灰烬门廊",

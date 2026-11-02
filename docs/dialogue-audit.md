@@ -42,4 +42,4 @@
 
 HTTP 接入后，客户端只需要处理两种结果：内容违规的 422 与审核不可用的 503。响应带理由、类别与 audit id，客户端展示理由即可；不要把它写成世界内事件。
 
-→ 参见：[信息披露](information-disclosure.md)、[Actor 记忆与行动](actor-actions-memory.md)、[术语表](glossary.md)
+→ 参见：[信息披露](information-disclosure.md)、[Actor 行动与记忆](actor-actions-memory.md)、[术语表](glossary.md)

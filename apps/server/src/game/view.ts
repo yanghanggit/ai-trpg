@@ -1,10 +1,10 @@
 import type { Database } from "../db/pool";
 import { adjacentStages, findActorByName } from "./actors";
-import { addressLookupFor, refOf } from "./addressing";
+import { addressLookupFor, handleOf, refOf } from "./addressing";
 import { MEMORY_KINDS } from "./constants";
 import { getMemoryState } from "./memory";
 import { getGameState } from "./service";
-import { teleportTargetsFor } from "./teleport";
+import { visitedTeleportTargetsFor } from "./teleport";
 import type { SignatureNameState } from "./types";
 
 /**
@@ -32,7 +32,8 @@ export type ViewerScene = {
   environment: string;
   items: { name: string; kind: string; description: string }[];
   actors: ViewerAddress[];
-  exits: { stageId: string; name: string }[];
+  /** 出口同时给真实场景名与 #实体序号，客户端可自行决定遮蔽。 */
+  exits: { stageId: string; name: string; ref: string }[];
 };
 
 export type ViewerLogEntry = {
@@ -62,9 +63,9 @@ export type ActorView = {
   signatureNames: SignatureNameState[];
   /** 这个角色实际感知到的记忆，按发生顺序。 */
   log: ViewerLogEntry[];
-  /** 去过的场景（地图/记忆用）；不表示现在可传送。 */
+  /** 去过的场景（地图/记忆用）；不等于完整可传送列表。 */
   visitedStages: { stageId: string; name: string }[];
-  /** 当前可传送目标；只有去过且未被 teleport_blocked 的场景。 */
+  /** 已去过且未被 teleport_blocked 的候选；不是完整的可传送集合。 */
   teleportTargets: { stageId: string; name: string }[];
 };
 
@@ -117,7 +118,7 @@ export async function getActorView(
       const visited = stageById.get(visit.stageId);
       return visited ? [{ stageId: visited.id, name: visited.name }] : [];
     });
-  const teleportTargets = teleportTargetsFor(state, actor, stage).map((target) => ({
+  const teleportTargets = visitedTeleportTargetsFor(state, actor, stage).map((target) => ({
     stageId: target.id,
     name: target.name,
   }));
@@ -167,6 +168,7 @@ export async function getActorView(
       exits: adjacentStages(state, stage.id).map((exit) => ({
         stageId: exit.id,
         name: exit.name,
+        ref: handleOf(exit.seq),
       })),
     },
     signatureNames: state.signatureNames.filter((row) => row.observerActorId === actor.id),

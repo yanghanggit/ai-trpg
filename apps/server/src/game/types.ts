@@ -292,7 +292,7 @@ export type MoveAction = {
   targetStageName: string;
 };
 
-/** 传送到一个去过、且未被 teleport_blocked 的场景；一次一跳，不沿路径移动。 */
+/** 传送到一个知道真名、且未被 teleport_blocked 的场景；一次一跳，不沿路径移动。 */
 export type TeleportAction = {
   kind: "teleport";
   targetStageName: string;
@@ -525,7 +525,7 @@ export type ActorState = {
 
 export type StageState = {
   id: string;
-  /** 本局内唯一的排序号；身份仍用 id。 */
+  /** 本局内唯一的实体序号；未访问场景的 #seq 句柄由它派生。 */
   seq: number;
   /** 世界内稳定 key；旧数据缺失时回退到 name。 */
   key: string;
@@ -659,7 +659,7 @@ export type GameState = {
   messages: MessageState[];
   /** 本局全部签名称呼（god view）；渲染层按观察者过滤后才进提示词。 */
   signatureNames: SignatureNameState[];
-  /** 访问历史；只用于传送与地图，不参与普通移动权限。 */
+  /** 访问历史；用于地图、已访问候选与查看，不参与普通移动权限。 */
   visits: StageVisitState[];
 };
 

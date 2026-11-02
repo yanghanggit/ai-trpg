@@ -122,7 +122,7 @@ export const stages = pgTable(
   "stages",
   {
     id: uuid("id").primaryKey(),
-    /** 本局内唯一的排序号；身份仍用 id。 */
+    /** 本局内唯一的实体序号；未访问场景的 #seq 句柄由它派生。 */
     seq: integer("seq").notNull().default(0),
     worldId: uuid("world_id")
       .notNull()
@@ -139,7 +139,10 @@ export const stages = pgTable(
     ordinal: integer("ordinal").notNull().default(0),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },
-  (table) => [uniqueIndex("stages_world_name_unique").on(table.worldId, table.name)],
+  (table) => [
+    uniqueIndex("stages_world_name_unique").on(table.worldId, table.name),
+    uniqueIndex("stages_world_seq_unique").on(table.worldId, table.seq),
+  ],
 );
 
 export const stageConnections = pgTable(
@@ -192,7 +195,7 @@ export const actors = pgTable("actors", {
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
 });
 
-/** actor 去过哪些场景；用于 teleport 目标与地图，不参与普通 move 权限。 */
+/** actor 去过哪些场景；用于地图、已访问候选与查看，不参与普通 move 权限。 */
 export const stageVisits = pgTable(
   "stage_visits",
   {

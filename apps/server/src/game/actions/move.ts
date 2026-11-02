@@ -22,7 +22,7 @@ export function buildMoveTool(stageNames: readonly string[]): ToolDefinition {
         properties: {
           targetStageName: {
             type: "string",
-            description: "要前往的相邻场景名",
+            description: "要前往的相邻场景：@名字 或 #编号",
             ...(stageNames.length > 0 ? { enum: [...stageNames] } : {}),
           },
         },

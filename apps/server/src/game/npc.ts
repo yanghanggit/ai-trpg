@@ -28,12 +28,7 @@ import { buildUnequipTool, parseUnequip } from "./actions/unequip";
 import { buildUseTool, parseUse, usableItemNames } from "./actions/use";
 import { buildWaitTool, parseWait } from "./actions/wait";
 import { buildWhisperTool, parseWhisper } from "./actions/whisper";
-import {
-  type ActorWithStage,
-  adjacentStageNames,
-  findActorByName,
-  otherActorsInStage,
-} from "./actors";
+import { type ActorWithStage, findActorByName, otherActorsInStage } from "./actors";
 import { addressLookupFor, handleOf, refOf } from "./addressing";
 import { applyActorPlan } from "./apply";
 import { isAlive } from "./apply/queries";
@@ -47,23 +42,26 @@ import { GameError } from "./errors";
 import { equippedItemActions, isWearable } from "./items";
 import { loadAgentMemory } from "./memory";
 import {
+  adjacentStageRefsForActor,
   buildActorLookTool,
   buildKnowledgeTool,
   buildObserveActorTool,
   buildRecognizeIdentityTool,
   buildSelfInfoTool,
   buildSubmitPlanTool,
+  buildVisitedStagesTool,
   describeEquipmentBrief,
   describeKnowledgeResults,
   describeObservedActor,
   describeSelf,
   describeStageAnchors,
   describeStageForActor,
+  describeVisitedStages,
   parseRecognizeIdentity,
   renderStageEnvironmentForActor,
 } from "./plan";
 import { getGameState } from "./service";
-import { teleportTargetsFor } from "./teleport";
+import { visitedTeleportTargetsFor } from "./teleport";
 import type {
   ActionKind,
   ActorAction,
@@ -96,7 +94,7 @@ function canObserveActorItems(actor: Pick<ActorState, "actions">): boolean {
 
 /** 构造 actor 本轮的公开环境与任务说明；NPC 与探针共用。 */
 export function buildActorTurnInput(state: GameState, current: ActorWithStage): string {
-  const moves = adjacentStageNames(state, current.stage.id);
+  const moves = adjacentStageRefsForActor(state, current);
   const others = otherActorsInStage(current.stage, current.actor.id);
   const address = addressLookupFor(state, current.actor, current.stage);
   const selfHandle = address(current.actor.id).token;
@@ -125,9 +123,10 @@ export function buildActorTurnInput(state: GameState, current: ActorWithStage): 
     "look_stage",
     "get_self",
     ...(canObserve ? ["observe_actor"] : []),
+    "get_visited_stages",
     "query",
     "recognize_identity",
-  ].join("、")} 不占计划。look_stage 只能看本场景。`;
+  ].join("、")} 不占计划。look_stage 只能看本场景；get_visited_stages 可以回看自己去过的地方。`;
   const actorLines =
     others.length === 0
       ? "无"
@@ -146,9 +145,9 @@ export function buildActorTurnInput(state: GameState, current: ActorWithStage): 
           .join("\n");
   const anchorLines = describeStageAnchors(current.stage.anchors);
   const targetLines = targets.length === 0 ? "无" : targets.join("、");
-  const moveLines = moves.length === 0 ? "无" : moves.map((name) => `@${name}`).join("、");
+  const moveLines = moves.length === 0 ? "无" : moves.join("、");
   const canTeleport = current.actor.actions.includes("teleport");
-  const teleportTargets = teleportTargetsFor(state, current.actor, current.stage);
+  const teleportTargets = visitedTeleportTargetsFor(state, current.actor, current.stage);
   const teleportLines =
     teleportTargets.length === 0
       ? "无"
@@ -189,7 +188,7 @@ ${moveLines}
 ${
   canTeleport
     ? `
-## 可传送至（已去过且未禁传）
+## 可传送（已知真名即可；已去过且未禁传的如下）
 ${teleportLines}`
     : ""
 }
@@ -245,7 +244,7 @@ export async function runNpcTurn(
     contentVersion: state.game.contentVersion,
   });
 
-  const stageNames = adjacentStageNames(state, current.stage.id);
+  const stageRefs = adjacentStageRefsForActor(state, current);
   const otherActors = otherActorsInStage(current.stage, current.actor.id);
   const address = addressLookupFor(state, current.actor, current.stage);
   // 目标不区分存活：唯一的存活要求是行动者自己，由行动入口统一把关。
@@ -262,11 +261,9 @@ export async function runNpcTurn(
   const knowledgeTool = buildKnowledgeTool();
   const knowledgeProvider = options.knowledgeProvider ?? new TransformersEmbeddingProvider();
 
-  const teleportTargets = teleportTargetsFor(state, current.actor, current.stage).map(
-    (stage) => stage.name,
-  );
   const lookTool = buildActorLookTool();
   const selfTool = buildSelfInfoTool();
+  const visitedStagesTool = buildVisitedStagesTool();
   // 侦察是偷窃的前置：只有能 steal 的角色才注入 observe_actor，与任务提示词同一判断。
   const observeTool = canObserveActorItems(current.actor)
     ? buildObserveActorTool(targets)
@@ -283,8 +280,8 @@ export async function runNpcTurn(
     whisper: buildWhisperTool(targets),
     announce: buildAnnounceTool(),
     call: buildCallTool(),
-    move: buildMoveTool(stageNames.map((name) => `@${name}`)),
-    teleport: buildTeleportTool(teleportTargets.map((name) => `@${name}`)),
+    move: buildMoveTool(stageRefs),
+    teleport: buildTeleportTool(),
     wait: buildWaitTool(),
     strike: buildStrikeTool(targets),
     brawl: buildBrawlTool(targets),
@@ -361,6 +358,7 @@ export async function runNpcTurn(
     tools: [
       lookTool,
       selfTool,
+      visitedStagesTool,
       ...(observeTool ? [observeTool] : []),
       knowledgeTool,
       recognizeTool,
@@ -370,6 +368,8 @@ export async function runNpcTurn(
     handlers: {
       [lookTool.function.name]: () => describeStageForActor(state, current),
       [selfTool.function.name]: () => describeSelf(current.actor),
+      [visitedStagesTool.function.name]: () =>
+        describeVisitedStages(state, current.actor.id, current.stage.id),
       ...(observeTool
         ? {
             [observeTool.function.name]: (args: Record<string, unknown>) => {

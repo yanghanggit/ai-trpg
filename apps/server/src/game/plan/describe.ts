@@ -1,7 +1,12 @@
-import { type ActorWithStage, adjacentStageNames, findStageByName } from "../actors";
-import { type AddressLookup, addressLookupFor, refOf } from "../addressing";
+import {
+  type ActorWithStage,
+  adjacentStageNames,
+  adjacentStages,
+  findStageByName,
+} from "../actors";
+import { type AddressLookup, addressLookupFor, handleOf, refOf } from "../addressing";
 import { isAlive } from "../apply/queries";
-import { teleportTargetsFor } from "../teleport";
+import { visitedStageIds, visitedTeleportTargetsFor } from "../teleport";
 import { sanitizeActorFacingText } from "../text-guard";
 import type { ActorState, GameState, ItemState, StageAnchor, StageState } from "../types";
 import { EQUIPMENT_SLOT_LABELS, EQUIPMENT_SLOTS } from "../types";
@@ -122,13 +127,25 @@ function describeStageAnchorsSection(anchors: readonly StageAnchor[]): string {
   return anchors.length === 0 ? "可交互：无" : `可交互：\n${describeStageAnchors(anchors)}`;
 }
 
+/**
+ * actor 视角的可去方向：去过的场景写名字，没去过的只给实体编号。
+ *
+ * 场景名不是 actor 的默认知识；进入场景后由 `stage_visits` 永久记住。
+ */
+export function adjacentStageRefsForActor(state: GameState, current: ActorWithStage): string[] {
+  const visited = visitedStageIds(state, current.actor.id);
+  return adjacentStages(state, current.stage.id).map((stage) =>
+    visited.has(stage.id) ? `@${stage.name}` : handleOf(stage.seq),
+  );
+}
+
 /** actor 视角的场景视图：只读当前场景，名字走观察者相对的引用。 */
 export function describeStageForActor(state: GameState, current: ActorWithStage): string {
   const stage = current.stage;
   const address = addressLookupFor(state, current.actor, stage);
-  const moves = adjacentStageNames(state, stage.id);
+  const moves = adjacentStageRefsForActor(state, current);
   const canTeleport = current.actor.actions.includes("teleport");
-  const teleportLines = teleportTargetsFor(state, current.actor, stage)
+  const teleportLines = visitedTeleportTargetsFor(state, current.actor, stage)
     .map((candidate) => `@${candidate.name}`)
     .join("、");
   const actors =
@@ -146,12 +163,31 @@ ${renderStageEnvironmentForActor(state, current)}
 角色：${actors}
 物品：${describeStageItems(stage)}
 ${describeStageAnchorsSection(stage.anchors)}
-可去：${moves.length === 0 ? "无" : moves.map((name) => `@${name}`).join("、")}${
+可去：${moves.length === 0 ? "无" : moves.join("、")}${
     canTeleport
       ? `
-可传送：${teleportLines.length === 0 ? "无" : teleportLines}`
+可传送（已知真名即可；已去过且未禁传）：${teleportLines.length === 0 ? "无" : teleportLines}`
       : ""
   }`;
+}
+
+/** 去过哪些场景；按首次到访顺序，名称只来自已访问的 stage。 */
+export function describeVisitedStages(
+  state: GameState,
+  actorId: string,
+  currentStageId?: string,
+): string {
+  const byId = new Map(state.world.stages.map((stage) => [stage.id, stage]));
+  const lines = state.visits
+    .filter((visit) => visit.actorId === actorId)
+    .flatMap((visit) => {
+      const stage = byId.get(visit.stageId);
+      if (!stage) {
+        return [];
+      }
+      return [`${stage.name}${stage.id === currentStageId ? "（当前）" : ""}`];
+    });
+  return `# 你去过的场景（按首次到访）\n${lines.length === 0 ? "无" : lines.join("\n")}`;
 }
 
 /** world 视角：可查看任意场景，名字与 environment 原样输出。 */

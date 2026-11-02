@@ -45,6 +45,7 @@ describe.skipIf(!testDatabaseUrl)("actor view", () => {
     expect(view.scene?.exits.map((exit) => exit.name).sort()).toEqual(
       ["地窖", "焚尸房", "铁闸门"].sort(),
     );
+    expect(view.scene?.exits.every((exit) => /^#\d+$/.test(exit.ref))).toBe(true);
 
     const self = view.scene?.actors.find((actor) => actor.self);
     expect(self?.actorId).toBe(view.viewer.actorId);
