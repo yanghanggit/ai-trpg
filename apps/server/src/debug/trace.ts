@@ -567,6 +567,22 @@ export async function gcTrace(options: TraceGcOptions): Promise<TraceGcResult> {
   return result;
 }
 
+/** 用足够的反引号包住原始文本，避免 prompt 里的标题与列表被当成外层 Markdown。 */
+function markdownFence(value: string, language = "text"): string {
+  const runs = value.match(/`+/g) ?? [];
+  const longest = runs.reduce((max, run) => Math.max(max, run.length), 0);
+  const fence = "`".repeat(Math.max(3, longest + 1));
+  return `${fence}${language}\n${value.replace(/\n+$/, "")}\n${fence}`;
+}
+
+/** 外层小节标题统一留出空行，原始内容交给 fence。 */
+function pushSection(out: string[], heading: string, body?: string): void {
+  out.push("", heading, "");
+  if (body !== undefined) {
+    out.push(body);
+  }
+}
+
 /** 一轮事件的人读视图：派生自同一份 JSONL，允许按需落盘审阅。 */
 export function renderTurnText(events: readonly TraceLine[]): string {
   const first = events[0];
@@ -576,6 +592,7 @@ export function renderTurnText(events: readonly TraceLine[]): string {
   const start = events.find((line) => line.event === "turn_start");
   const out: string[] = [
     `# ${start?.event === "turn_start" ? start.label : first.turnKind} · ${first.turnKind} · ${first.at}`,
+    "",
     `game: ${first.gameSlug} (${first.gameId})  turn: ${first.turnId}`,
   ];
   if (start?.event === "turn_start") {
@@ -588,28 +605,49 @@ export function renderTurnText(events: readonly TraceLine[]): string {
     }
   }
 
+  let planIndex = 0;
+  let appliedIndex = 0;
+  let rejectedIndex = 0;
+  let nameLeakIndex = 0;
+  let nameAuditIndex = 0;
+  let observationIndex = 0;
+  let phaseIndex = 0;
+
   for (const line of events) {
     switch (line.event) {
       case "turn_start":
         break;
       case "llm_call": {
         const attempt = line.attempt === undefined ? "" : `（第 ${line.attempt} 次尝试）`;
-        out.push("", `## 第 ${line.round} 轮 LLM 请求${attempt}`, settingsText(line.settings));
-        out.push(`tools: ${line.tools.map((tool) => tool.function.name).join(", ") || "无"}`);
-        if (line.inputMessage.length > 0) {
-          out.push("", "### 本轮任务提示词", line.inputMessage);
-        }
         out.push(
           "",
-          "### 上下文消息",
-          getBufferString(line.messages, {
-            systemPrefix: "system",
-            humanPrefix: "human",
-            aiPrefix: "ai",
-            toolPrefix: "tool",
-            renderToolCalls: true,
-          }),
+          `## 第 ${line.round} 轮 LLM 请求${attempt}`,
+          "",
+          settingsText(line.settings),
+          "",
+          `tools: ${line.tools.map((tool) => tool.function.name).join(", ") || "无"}`,
         );
+        pushSection(
+          out,
+          `### 第 ${line.round} 轮上下文消息`,
+          markdownFence(
+            getBufferString(line.messages, {
+              systemPrefix: "system",
+              humanPrefix: "human",
+              aiPrefix: "ai",
+              toolPrefix: "tool",
+              renderToolCalls: true,
+              separator: "\n\n---\n\n",
+            }),
+          ),
+        );
+        if (line.inputMessage.length > 0) {
+          pushSection(
+            out,
+            `### 第 ${line.round} 轮任务提示词（追加在队尾）`,
+            markdownFence(line.inputMessage),
+          );
+        }
         break;
       }
       case "llm_result": {
@@ -624,47 +662,88 @@ export function renderTurnText(events: readonly TraceLine[]): string {
             ? undefined
             : `ctx ${Math.round(line.contextUsageRatio * 100)}%`,
         ].filter(Boolean);
-        out.push("", `## 第 ${line.round} 轮 LLM 响应${attempt}`, parts.join(" | "));
+        out.push("", `## 第 ${line.round} 轮 LLM 响应${attempt}`, "", parts.join(" | "));
         if (line.error) {
-          out.push(
-            `! 错误: [${line.error.kind}] ${line.error.message}${line.error.retryable ? "（可重试）" : ""}`,
+          pushSection(
+            out,
+            `### 第 ${line.round} 轮错误${attempt}`,
+            markdownFence(
+              `[${line.error.kind}] ${line.error.message}${line.error.retryable ? "（可重试）" : ""}`,
+            ),
           );
         }
         if (line.content) {
-          out.push("", line.content);
+          pushSection(
+            out,
+            `### 第 ${line.round} 轮响应正文${attempt}`,
+            markdownFence(line.content),
+          );
         }
         if (line.reasoningContent) {
-          out.push("", "### 推理", line.reasoningContent);
+          pushSection(
+            out,
+            `### 第 ${line.round} 轮推理${attempt}`,
+            markdownFence(line.reasoningContent),
+          );
         }
-        for (const call of line.toolCalls ?? []) {
-          out.push(`[tool_call] ${call.function.name} ${call.function.arguments}`);
+        if ((line.toolCalls ?? []).length > 0) {
+          pushSection(
+            out,
+            `### 第 ${line.round} 轮工具调用${attempt}`,
+            markdownFence(
+              (line.toolCalls ?? [])
+                .map((call) => `${call.function.name} ${call.function.arguments}`)
+                .join("\n"),
+              "json",
+            ),
+          );
         }
         break;
       }
       case "plan":
-        out.push("", "## 计划", JSON.stringify(line.actions, null, 2));
+        pushSection(
+          out,
+          `## 计划 · ${++planIndex}`,
+          markdownFence(JSON.stringify(line.actions, null, 2), "json"),
+        );
         break;
       case "applied":
-        out.push("", `## 落账 · ${line.actionKind}`, line.feedback ?? "");
+        pushSection(
+          out,
+          `## 落账 · ${line.actionKind} · ${++appliedIndex}`,
+          markdownFence(line.feedback ?? ""),
+        );
         break;
       case "rejected":
-        out.push("", "## 被拒", `${line.code}: ${line.reason}`);
+        pushSection(
+          out,
+          `## 被拒 · ${++rejectedIndex}`,
+          markdownFence(`${line.code}: ${line.reason}`),
+        );
         break;
       case "name_leak":
-        out.push(
-          "",
-          "## 名字泄漏",
-          `[${line.severity}] ${line.observerName} · #${line.messageSequence} ${line.messageKind ?? line.messageType}${line.part === "tool_calls" ? "（toolCalls）" : ""}${line.communicationKind ? ` · ${line.communicationKind}` : ""}${line.inDialogue ? " · 台词内" : ""}`,
-          `真名「${line.matchedName}」${line.form === "reference" ? "（@引用）" : ""}`,
-          line.excerpt,
+        pushSection(
+          out,
+          `## 名字泄漏 · ${++nameLeakIndex}`,
+          markdownFence(
+            [
+              `[${line.severity}] ${line.observerName} · #${line.messageSequence} ${line.messageKind ?? line.messageType}${line.part === "tool_calls" ? "（toolCalls）" : ""}${line.communicationKind ? ` · ${line.communicationKind}` : ""}${line.inDialogue ? " · 台词内" : ""}`,
+              `真名「${line.matchedName}」${line.form === "reference" ? "（@引用）" : ""}`,
+              line.excerpt,
+            ].join("\n"),
+          ),
         );
         break;
       case "name_audit_alert":
-        out.push(
-          "",
-          "## 名字审计结构告警",
-          `[${line.code}] ${line.observerName} · #${line.messageSequence} ${line.messageKind ?? line.messageType}`,
-          `${line.detail}${line.missing.length > 0 ? `（缺少：${line.missing.join("、")}）` : ""}`,
+        pushSection(
+          out,
+          `## 名字审计结构告警 · ${++nameAuditIndex}`,
+          markdownFence(
+            [
+              `[${line.code}] ${line.observerName} · #${line.messageSequence} ${line.messageKind ?? line.messageType}`,
+              `${line.detail}${line.missing.length > 0 ? `（缺少：${line.missing.join("、")}）` : ""}`,
+            ].join("\n"),
+          ),
         );
         break;
       case "observed": {
@@ -675,32 +754,80 @@ export function renderTurnText(events: readonly TraceLine[]): string {
         ]
           .filter(Boolean)
           .join(" · ");
-        out.push("", "## 观察", header);
+        pushSection(out, `## 观察 · ${++observationIndex}`, header);
         if (line.content) {
-          out.push(line.content);
+          out.push("", markdownFence(line.content));
         }
-        for (const recipient of line.recipients ?? []) {
-          out.push("", `→ ${recipient.actorName}`, recipient.content);
+        for (const [index, recipient] of (line.recipients ?? []).entries()) {
+          pushSection(
+            out,
+            `### 收件人 · ${observationIndex}.${index + 1} · ${recipient.actorName}`,
+            markdownFence(recipient.content),
+          );
         }
         break;
       }
       case "phase":
-        out.push(
-          "",
-          "## 子阶段",
-          `${line.name}: ${line.status}${line.actorName ? ` (${line.actorName})` : ""}${phaseDetailText(line.detail)}`,
+        pushSection(
+          out,
+          `## 子阶段 · ${++phaseIndex}`,
+          markdownFence(
+            `${line.name}: ${line.status}${line.actorName ? ` (${line.actorName})` : ""}${phaseDetailText(line.detail)}`,
+          ),
         );
         break;
       case "turn_end":
         out.push(
           "",
           "## 结束",
+          "",
           `ok: ${line.ok}${line.loopSuccess === undefined ? "" : ` | loop: ${line.loopSuccess}`}`,
         );
         break;
     }
   }
   return `${out.join("\n")}\n`;
+}
+
+/**
+ * 把一轮轨迹拆成「总览 + 每个 request/response 一个 Markdown」。
+ *
+ * 轮次文件只放该次 LLM 调用的请求与响应；计划、落账、观察等结果放总览，
+ * 避免一次请求文件被后续事件撑成大杂烩。
+ */
+export function renderTurnFiles(events: readonly TraceLine[]): { name: string; text: string }[] {
+  const opening = events.find((line) => line.event === "turn_start");
+  const rounds = new Map<string, TraceLine[]>();
+  for (const line of events) {
+    if (line.event !== "llm_call" && line.event !== "llm_result") {
+      continue;
+    }
+    const key = `${line.round}:${line.attempt ?? 1}`;
+    const group = rounds.get(key) ?? [];
+    group.push(line);
+    rounds.set(key, group);
+  }
+
+  const files: { name: string; text: string }[] = [
+    {
+      name: "00-turn.md",
+      text: renderTurnText(
+        events.filter((line) => line.event !== "llm_call" && line.event !== "llm_result"),
+      ),
+    },
+  ];
+  for (const [index, group] of [...rounds.values()].entries()) {
+    const first = group[0];
+    if (!first || (first.event !== "llm_call" && first.event !== "llm_result")) {
+      continue;
+    }
+    const attempt = first.attempt ?? 1;
+    const suffix = attempt > 1 ? `-attempt-${String(attempt).padStart(2, "0")}` : "";
+    const name = `${String(index + 1).padStart(2, "0")}-round-${String(first.round).padStart(2, "0")}${suffix}-request-response.md`;
+    const roundEvents = opening ? [opening, ...group] : group;
+    files.push({ name, text: renderTurnText(roundEvents) });
+  }
+  return files;
 }
 
 /** 子阶段 detail 展开；人读视图里要能看出落账了几条、为什么没落。 */

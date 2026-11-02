@@ -9,6 +9,8 @@ export type BufferStringOptions = {
   toolPrefix?: string;
   /** 是否把 AI 消息的 tool_calls 一并渲染出来。 */
   renderToolCalls?: boolean;
+  /** 消息之间的分隔符；默认单换行，审阅视图可传更明显的分隔。 */
+  separator?: string;
 };
 
 function formatToolCalls(toolCalls: readonly ToolCall[] | undefined): string {
@@ -30,6 +32,7 @@ export function getBufferString(
     aiPrefix = "AI",
     toolPrefix = "Tool",
     renderToolCalls = false,
+    separator = "\n",
   } = options;
 
   return messages
@@ -60,5 +63,5 @@ export function getBufferString(
 
       return `${role}: ${content}`;
     })
-    .join("\n");
+    .join(separator);
 }

@@ -6,7 +6,7 @@
  */
 
 import { mkdir, readFile, writeFile } from "node:fs/promises";
-import { dirname, resolve } from "node:path";
+import { dirname, join, resolve } from "node:path";
 import { parseArgs } from "node:util";
 import pino from "pino";
 import { getContentPack } from "../seeds";
@@ -27,6 +27,7 @@ import {
   gcTrace,
   listTurns,
   readTurn,
+  renderTurnFiles,
   renderTurnText,
   tailEvents,
   traceSchema,
@@ -209,7 +210,7 @@ function usage(): void {
       "agent-game trace stats [--game <gameId|slug>] [--since <YYYYMMDD>]",
       "agent-game trace schema（事件目录与轨迹根目录）",
       "agent-game trace gc --before <YYYYMMDD> [--game <gameId|slug>] [--delete] [--dry-run]（默认压缩归档为 .jsonl.gz）",
-      "agent-game trace render (--turn <turnId> | --latest) [--game <gameId|slug>] [--out <path>]（人读视图，可落盘）",
+      "agent-game trace render (--turn <turnId> | --latest) [--game <gameId|slug>] [--out <dir|file.md>]（目录：每轮 request/response 一个文件；.md：合并视图）",
     ],
   });
 }
@@ -911,6 +912,26 @@ async function main(): Promise<void> {
       const text = renderTurnText(events);
       const out = typeof values.out === "string" ? values.out.trim() : "";
       const target = out.length > 0 ? resolve(out) : undefined;
+      if (target && !target.endsWith(".md")) {
+        const files = renderTurnFiles(events);
+        await mkdir(target, { recursive: true });
+        const written: string[] = [];
+        for (const file of files) {
+          const filePath = join(target, file.name);
+          await mkdir(dirname(filePath), { recursive: true });
+          await writeFile(filePath, file.text, "utf8");
+          written.push(filePath);
+        }
+        emit({
+          ok: true,
+          action: "trace",
+          sub,
+          turnId,
+          path: target,
+          files: written,
+        });
+        return;
+      }
       if (target) {
         await mkdir(dirname(target), { recursive: true });
         await writeFile(target, text, "utf8");

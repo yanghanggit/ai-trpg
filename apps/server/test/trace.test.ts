@@ -7,6 +7,7 @@ import {
   gcTrace,
   listTurns,
   readTurn,
+  renderTurnFiles,
   renderTurnText,
   tailEvents,
   traceEnabled,
@@ -75,7 +76,10 @@ describe("trace", () => {
       },
       tools: [],
       inputMessage: "本轮任务",
-      messages: [],
+      messages: [
+        { type: "system", content: "系统提示" },
+        { type: "human", content: "记忆消息" },
+      ],
     });
     await traceEvent(first, {
       event: "llm_result",
@@ -142,13 +146,28 @@ describe("trace", () => {
     const rendered = renderTurnText(events);
     expect(rendered).toContain("## 第 1 轮 LLM 请求");
     expect(rendered).toContain("model: test");
-    expect(rendered).toContain("## 上下文消息");
+    expect(rendered).toContain("### 第 1 轮上下文消息");
+    expect(rendered).toContain("system: 系统提示\n\n---\n\nhuman: 记忆消息");
+    expect(rendered).toContain("### 第 1 轮任务提示词（追加在队尾）");
+    expect(rendered.indexOf("### 第 1 轮上下文消息")).toBeLessThan(
+      rendered.indexOf("### 第 1 轮任务提示词"),
+    );
     expect(rendered).toContain("## 计划");
     expect(rendered).toContain("## 被拒");
     expect(rendered).toContain("## 子阶段");
     expect(rendered).toContain("death: failed (煤渣)");
     expect(rendered).toContain("reason: 事务冲突");
     expect(rendered).toContain("## 结束");
+
+    const files = renderTurnFiles(events);
+    expect(files.map((file) => file.name)).toEqual([
+      "00-turn.md",
+      "01-round-01-request-response.md",
+    ]);
+    expect(files[0]?.text).toContain("## 计划");
+    expect(files[0]?.text).not.toContain("## 第 1 轮 LLM 请求");
+    expect(files[1]?.text).toContain("## 第 1 轮 LLM 请求");
+    expect(files[1]?.text).not.toContain("## 计划");
 
     const stats = await traceStats({ gameSlug: GAME.slug });
     expect(stats.turns).toBe(2);
