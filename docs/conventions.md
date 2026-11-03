@@ -2,55 +2,51 @@
 
 ## 总则
 
-- 单一事实源：契约来自生成流程，端口来自 `@ai-trpg/shared`，文档约定只写一处。
+- 单一事实源：契约来自生成流程，端口来自 `@ai-trpg/shared`。
 - 无聊但可靠：优先标准方案，不提前引入状态库、UI 库、SSR、WebSocket。
 - 明确失败：端口冲突、契约缺失、环境变量非法都直接报错，不静默兜底。
-- 能强制就不靠自觉：规则尽量由 Biome、`tsc`、守卫脚本或测试保证。
+- 能强制就不靠自觉：规则交给 Biome、`tsc`、守卫脚本或测试，不在文档里复刻。
 
 ## 目录与依赖
 
-服务端按职责分 `routes`、`plugins`、`db`、`game`、`llm`、`deepseek`；客户端按 `pages`、`features`、`api` 分层。`api` 不依赖 `features` 或 `pages`，`features` 之间不互相依赖；需要共享时下沉到 `api` 或更基础的 feature。
-
-服务端路由不直接读 `process.env`，统一通过 `buildApp` 注入；密钥由 provider 客户端自己读取，不传给业务层。
+服务端分 `routes`、`plugins`、`db`、`game`、`llm`、`deepseek`，客户端分 `pages`、`features`、`api`。依赖单向：`api` 不依赖 `features` 与 `pages`，`features` 之间不互相依赖，需要共享时下沉。路由不直接读 `process.env`，由 `buildApp` 注入；密钥只由 provider 客户端读取，不传业务层。
 
 → 参见：[架构与契约](architecture.md)
 
 ## 命名
 
-按角色区分文件名，每个角色只有一套规则：服务端与共享包用后端 / 库生态的 kebab-case；客户端用 React 生态的组件 PascalCase、hook 与工具函数 camelCase；测试跟随被测模块。共享包同时被两端引用，因此统一 kebab-case。
-
-禁止同一角色出现两种写法，例如服务端同时存在 `error-handler.ts` 与 `errorHandler.ts`。分区与例外写在 `biome.json`，不在文档里复刻。
+服务端与共享包用 kebab-case，客户端组件 PascalCase、hook 与工具函数 camelCase，测试跟随被测模块的大小写，位置见下文「测试」。同一角色只允许一种写法，例如服务端不得同时存在 `error-handler.ts` 与 `errorHandler.ts`；分区与例外归 `biome.json`。
 
 ## API 字段
 
-JSON 字段统一 camelCase，包括嵌套对象、路径参数与查询参数；全栈 TypeScript，不存在跨语言映射，也不引入全局转换中间件。错误码是稳定枚举值而非字段名，可保持 snake_case。
+JSON 字段统一 camelCase，含嵌套对象、路径参数与查询参数；全栈 TypeScript，不做跨语言映射与全局转换。错误码是稳定枚举，保持 snake_case。
 
 ## 生成物与敏感文件
 
-`openapi.json` 与 `schema.d.ts` 由 `pnpm gen:api` 生成，不入库、不手改；`.env` 不入库，仓库根 `.env.example` 是唯一示例；端口默认值只写在 `shared`，由 `pnpm check:ports` 守卫。
+生成物由 `pnpm gen:api` 产出，不手改；`.env` 不入库，示例只有仓库根 `.env.example`。
 
 ## 运行期目录
 
-不使用点号前缀：过程轨迹放 `logs/trace`，运行时 system prompt 导出放 `prompts`，世界快照放 `worlds`，故事总结放 `stories`，页面截图放 `screenshots`，生成的图片放 `images`。都 gitignore 内容、只保留 `.gitkeep`，避免把 prompt、回复、状态、故事或截图误提交。
+运行期产物不用点号前缀，全部 gitignore 内容、只留 `.gitkeep`：轨迹 `logs/trace`、system prompt 导出 `prompts`、世界快照 `worlds`、故事总结 `stories`、截图 `screenshots`、生成图片 `images`。目的是不让 prompt、回复、状态与截图误提交。
 
 → 参见：[LLM 基础组件](llm.md)
 
 ## 测试
 
-服务端用 `app.inject()`，不监听真实端口；Web 用 Testing Library 与 jsdom，通过 stub `fetch` 模拟服务端。每个失败路径至少一个用例；新增纯函数优先补单测。接口变多后再引入 MSW。
+服务端用 `app.inject()`，不监听真实端口。每个失败路径至少一个用例，新增纯函数优先补单测。
 
-契约生成不需要先启动服务端；路由改动后必须重新运行 `pnpm gen:api`，否则客户端类型仍是旧的。
+服务端用例集中在 `apps/server/test/`，不与 `src/` 同级：它们多是跨模块集成与架构边界守卫，没有唯一的被测文件。共享 fixture 用同目录的具名 helper，不带 `.test` 后缀，避免被当作用例收集。平铺到翻找成本明显上升时按 `src/` 子目录分组，不改回同级。
 
 ## 注释与文档
 
-代码是唯一事实源。注释只回答「为什么在这里」与「怎么用」，不复述行为、不记录讨论过程。设计取舍写进 `docs/`，并遵守知识库根节点的写作约束。
+代码是唯一事实源；注释只回答「为什么在这里」「怎么用」，不复述行为、不记录讨论过程。设计取舍写进 `docs/`，遵守知识库的写作约束。
 
-Markdown 由 `markdownlint-cli2` 检查，行宽规则 `MD013` 关闭，避免中文长句和表格被机械折行；`pnpm lint` 已包含 Markdown 检查。检查范围是手写文档：`prompts`、`stories` 等运行期导出保留模型实际看到的字面格式（例如 `[种族]:`），不按 Markdown 链接语法校验。
+Markdown 检查只覆盖手写文档：`prompts`、`stories` 等运行期导出保留模型看到的字面格式（例如 `[种族]:`），不按 Markdown 语法校验。
 
-→ 参见：[AI TRPG 知识库](README.md)
+→ 参见：[引擎知识库](README.md)
 
 ## 数据库
 
-表与列 snake_case，API 与 TypeScript 内部字段 camelCase，只在数据库边界转换。迁移是唯一建表路径：schema 在服务端代码里，SQL 由 Drizzle Kit 生成并入库；开发期不做旧数据搬运，改形状后直接重置重刷，当前只保留一个 baseline。
+表与列 snake_case，API 与 TypeScript 内部字段 camelCase，只在数据库边界转换。迁移是唯一建表路径：schema 在服务端代码里，SQL 由 Drizzle Kit 生成并入库，不手改。开发期不做旧数据搬运，改形状后直接重置重刷，只保留一份 baseline。
 
 → 参见：[数据库](database.md)
