@@ -4,7 +4,7 @@ import { dirname, join, resolve } from "node:path";
 /**
  * 从当前目录向上找到仓库根（以 `pnpm-workspace.yaml` 为标记）。
  *
- * 运行期目录（worlds / stories / prompts / logs / images）都相对它定位，
+ * 运行期目录（logs / images）都相对它定位，
  * 避免脚本从 `apps/server` 或仓库根启动时落到不同位置。
  */
 export function findRepoRoot(start = process.cwd()): string {

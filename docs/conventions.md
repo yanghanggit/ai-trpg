@@ -27,7 +27,12 @@ JSON 字段统一 camelCase，含嵌套对象、路径参数与查询参数；�
 
 ## 运行期目录
 
-运行期产物不用点号前缀，全部 gitignore 内容、只留 `.gitkeep`：轨迹 `logs/trace`、system prompt 导出 `prompts`、世界快照 `worlds`、故事总结 `stories`、截图 `screenshots`、生成图片 `images`。目的是不让 prompt、回复、状态与截图误提交。
+仓库根只放三类东西：工作区（`apps` / `packages` / `scripts` / `docs`）、工作区配置与说明文件、运行期产物根。
+
+- `logs/`：所有过程留痕与调试渲染，按产物类型分一级子目录（轨迹、记忆、prompt、快照、故事、截图、手工 e2e）。全部 gitignore，只保留 `logs/.gitkeep`。
+- `images/`：可被业务消费的生成资产库；它是运行时数据，不是调试输出。
+
+新增运行期输出先放进 `logs/` 的现有子目录；只有像 `images/` 一样会被业务消费的资产才单列根目录。不新增其他根级运行期目录，也不把运行期产物混进 `apps` / `packages`。
 
 → 参见：[LLM 基础组件](llm.md)
 
@@ -41,7 +46,7 @@ JSON 字段统一 camelCase，含嵌套对象、路径参数与查询参数；�
 
 代码是唯一事实源；注释只回答「为什么在这里」「怎么用」，不复述行为、不记录讨论过程。设计取舍写进 `docs/`，遵守知识库的写作约束。
 
-Markdown 检查只覆盖手写文档：`prompts`、`stories` 等运行期导出保留模型看到的字面格式（例如 `[种族]:`），不按 Markdown 语法校验。
+Markdown 检查只覆盖手写文档：`logs/` 下的导出保留模型看到的字面格式（例如 `[种族]:`），不按 Markdown 语法校验。
 
 → 参见：[引擎知识库](README.md)
 

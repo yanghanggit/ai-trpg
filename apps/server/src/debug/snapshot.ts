@@ -2,7 +2,7 @@
  * 开发期世界快照存储。
  *
  * 一份快照是一个完整、自足的状态切片：读取任意一份即可继续推进，不依赖进程内记忆。
- * 目录按 `worlds/<user>/<game>/<snapshotId>/` 组织，人类可读，供 agent 与开发者审阅。
+ * 目录按 `logs/worlds/<user>/<game>/<snapshotId>/` 组织，人类可读，供 agent 与开发者审阅。
  * 数据库是权威状态源；快照是提交后的只读投影，不是写入源。
  *
  * 写入采用「临时目录 → 原子 rename」：动作失败不会留下半份快照。
@@ -139,7 +139,7 @@ export function snapshotsRoot(root?: string): string {
   if (process.env.WORLDS_DIR) {
     return resolve(process.env.WORLDS_DIR);
   }
-  return join(findRepoRoot(), "worlds");
+  return join(findRepoRoot(), "logs", "worlds");
 }
 
 function snapshotPath(root: string, user: string, game: string, snapshotId: string): string {

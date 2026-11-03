@@ -1,14 +1,14 @@
 /**
- * 清理开发期临时产物：prompts / worlds / stories / logs / screenshots / images。
+ * 清理开发期临时产物：logs/ 下的各类留痕与渲染结果，以及 images 与本地缓存。
  *
- * 这些目录只存调试输出（system prompt 导出、世界快照、故事总结、LLM 留痕、截图、生成图片），
- * 都被 gitignore 忽略，随时可以重新生成。脚本默认只预览，加 --yes 才真的删；
- * 目录本身与 .gitkeep 占位保留。
+ * 这些目录只存可重新生成的输出，都被 gitignore 忽略。脚本默认只预览，加 --yes 才真的删；
+ * 根目录的 .gitkeep 占位保留。
  *
- *   pnpm clean:dev                       # 预览将删除的内容
- *   pnpm clean:dev --yes                 # 真的删
- *   pnpm clean:dev --only prompts,logs   # 只清指定目录
- *   pnpm clean:dev --list                # 只列出可清目录
+ *   pnpm clean:dev                  # 预览将删除的内容
+ *   pnpm clean:dev --yes            # 真的删
+ *   pnpm clean:dev --only logs      # 只清 logs/ 下的全部内容
+ *   pnpm clean:dev --only prompts   # 只清某一类
+ *   pnpm clean:dev --list           # 只列出可清目录
  */
 import { existsSync } from "node:fs";
 import { mkdir, readdir, rm, stat } from "node:fs/promises";
@@ -22,17 +22,18 @@ type Target = {
 };
 
 /** 会被清空的开发期目录；都在 .gitignore 里，删掉不损失源码。 */
+const LOG_TARGETS: readonly Target[] = [
+  { name: "trace", path: "logs/trace", description: "LLM 过程轨迹" },
+  { name: "memories", path: "logs/memories", description: "记忆导出" },
+  { name: "prompts", path: "logs/prompts", description: "system prompt 导出" },
+  { name: "worlds", path: "logs/worlds", description: "世界快照" },
+  { name: "stories", path: "logs/stories", description: "故事总结" },
+  { name: "screenshots", path: "logs/screenshots", description: "页面截图" },
+  { name: "e2e", path: "logs/e2e", description: "手工 e2e 留痕" },
+];
+
 const TARGETS: readonly Target[] = [
-  { name: "prompts", path: "prompts", description: "运行时 system prompt 导出" },
-  { name: "worlds", path: "worlds", description: "世界快照（snapshot 导出）" },
-  { name: "stories", path: "stories", description: "故事总结导出" },
-  { name: "logs", path: "logs", description: "LLM 对话留痕" },
-  {
-    name: "server-logs",
-    path: "apps/server/logs",
-    description: "从 apps/server 启动时写的 LLM 留痕",
-  },
-  { name: "screenshots", path: "screenshots", description: "Playwright 截图" },
+  ...LOG_TARGETS,
   { name: "images", path: "images", description: "生成的图片资产" },
   {
     name: "cache",
@@ -40,6 +41,9 @@ const TARGETS: readonly Target[] = [
     description: "Transformers.js 模型缓存（会重新下载）",
   },
 ];
+
+/** `--only logs` 展开为 logs/ 下的全部类别。 */
+const LOG_GROUP = "logs";
 
 type ParsedArgs = {
   names: string[];
@@ -163,15 +167,21 @@ function selectTargets(names: readonly string[]): Target[] {
   if (names.length === 0) {
     return [...TARGETS];
   }
-  return names.map((name) => {
+  const selected: Target[] = [];
+  for (const name of names) {
+    if (name === LOG_GROUP) {
+      selected.push(...LOG_TARGETS);
+      continue;
+    }
     const target = TARGETS.find((candidate) => candidate.name === name);
     if (!target) {
       throw new Error(
-        `未知目录: ${name}（可用: ${TARGETS.map((candidate) => candidate.name).join(", ")}）`,
+        `未知目录: ${name}（可用: ${[...TARGETS.map((candidate) => candidate.name), LOG_GROUP].join(", ")}）`,
       );
     }
-    return target;
-  });
+    selected.push(target);
+  }
+  return [...new Map(selected.map((target) => [target.name, target])).values()];
 }
 
 async function main(): Promise<void> {
@@ -184,6 +194,9 @@ async function main(): Promise<void> {
     for (const target of TARGETS) {
       console.log(`  ${target.name.padEnd(13)} ${target.path.padEnd(22)} ${target.description}`);
     }
+    console.log(
+      `  ${LOG_GROUP.padEnd(13)} ${"logs/".padEnd(22)} logs/ 下的全部类别（${LOG_TARGETS.map((target) => target.name).join(" / ")}）`,
+    );
     return;
   }
 

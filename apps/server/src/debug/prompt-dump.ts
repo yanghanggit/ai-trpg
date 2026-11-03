@@ -29,7 +29,7 @@ export type PromptDumpInput = {
   worldAgentPrompt?: string;
 };
 
-/** 导出根目录：`PROMPTS_DIR` > `<repo>/prompts`。 */
+/** 导出根目录：`PROMPTS_DIR` > `<repo>/logs/prompts`。 */
 export function promptsRoot(root?: string): string {
   if (root !== undefined) {
     return join(root);
@@ -38,7 +38,7 @@ export function promptsRoot(root?: string): string {
   if (overridden) {
     return join(overridden);
   }
-  return join(findRepoRoot(), "prompts");
+  return join(findRepoRoot(), "logs", "prompts");
 }
 
 export function safeFileName(value: string): string {

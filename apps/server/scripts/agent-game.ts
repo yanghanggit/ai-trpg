@@ -13,6 +13,7 @@ import { getContentPack } from "../seeds";
 import { readContentPackFile } from "../src/content-pack";
 import { openDatabase } from "../src/db/connect";
 import type { Database } from "../src/db/pool";
+import { dumpMemory } from "../src/debug/memory-dump";
 import {
   findLatestSnapshot,
   type JsonValue,
@@ -41,8 +42,12 @@ import {
   compactMemory,
   createGame,
   getGameState,
+  getMemoryState,
   isAlive,
+  isMemoryOwnerType,
   listPlayerControlledActorIds,
+  MEMORY_OWNER_TYPES,
+  type MemoryOwnerType,
   playerAnnounce,
   playerBrawl,
   playerCall,
@@ -62,6 +67,7 @@ import {
   refreshAppearances,
   releaseActorControl,
   renderNameLeakReport,
+  resolveMemoryOwner,
   runAppearanceTurn,
   runNpcTurn,
   runProbe,
@@ -177,6 +183,9 @@ function usage(): void {
       "agent-game world --game <gameId|slug>",
       "agent-game probe --game <gameId|slug> --actor <actorName> --message <text>",
       "agent-game probe --game <gameId|slug> --stage <stageId|stageName> --message <text>",
+      "agent-game memory --game <gameId|slug> --actor <actorName> [--out <dir|file.md>]",
+      "agent-game memory --game <gameId|slug> --stage <stageId|stageName> [--out <dir|file.md>]",
+      "agent-game memory --game <gameId|slug> --owner <actor|stage|world> [--name <ref>] [--out <dir|file.md>]（--owner actor/stage 需要 --name）",
       "agent-game take-control --game <gameId|slug> --actor <actorName>",
       "agent-game release-control --game <gameId|slug> --actor <actorName>",
       "agent-game player-say --game <gameId|slug> --actor <actorName> --target <actorName> --message <text> [--reason <text>]",
@@ -839,6 +848,50 @@ async function main(): Promise<void> {
       runProbe(db, gameRef, { service: DEEPSEEK_SERVICE, target, message }),
     );
     emit({ ok: true, action: "probe", ...result });
+    return;
+  }
+
+  if (command === "memory") {
+    if (typeof values.game !== "string") {
+      throw new Error("memory 需要 --game");
+    }
+    const actorRef = typeof values.actor === "string" ? values.actor : undefined;
+    const stageRef = typeof values.stage === "string" ? values.stage : undefined;
+    const ownerRaw = typeof values.owner === "string" ? values.owner : undefined;
+    if ([actorRef, stageRef, ownerRaw].filter((value) => value !== undefined).length !== 1) {
+      throw new Error(
+        "memory 需要 --actor、--stage 或 --owner <actor|stage|world> 三者之一；--owner actor/stage 还需 --name",
+      );
+    }
+    let ownerType: MemoryOwnerType;
+    let ownerRef: string | undefined;
+    if (actorRef !== undefined) {
+      ownerType = "actor";
+      ownerRef = actorRef;
+    } else if (stageRef !== undefined) {
+      ownerType = "stage";
+      ownerRef = stageRef;
+    } else {
+      if (ownerRaw === undefined || !isMemoryOwnerType(ownerRaw)) {
+        throw new Error(`--owner 只接受 ${MEMORY_OWNER_TYPES.join(" / ")}`);
+      }
+      ownerType = ownerRaw;
+      ownerRef = typeof values.name === "string" ? values.name : undefined;
+    }
+
+    const gameRef = values.game;
+    const out = typeof values.out === "string" ? values.out : undefined;
+    const result = await withDatabase(async (db) => {
+      const state = await getGameState(db, gameRef);
+      const owner = resolveMemoryOwner(state, ownerType, ownerRef);
+      const memory = await getMemoryState(db, state.game.id, owner.ownerType, owner.ownerId);
+      if (!memory) {
+        throw new Error(`缺少 memory: ${owner.ownerType} ${owner.name}`);
+      }
+      const path = await dumpMemory({ game: state.game, memory }, out === undefined ? {} : { out });
+      return { owner, path, messages: memory.messages.length };
+    });
+    emit({ ok: true, action: "memory", ...result });
     return;
   }
 

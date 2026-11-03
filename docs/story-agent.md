@@ -12,7 +12,7 @@
 
 游戏可在任意状态运行，`completed` 只意味着故事可能有明确结局。CLI 输出 JSON，包含 slug、状态、故事正文、轮数、读取的 memory 列表与文件路径。
 
-文件写到 `stories/<时间戳>_<slug>.md`，目录内容 gitignore；同名不覆盖，追加序号。`STORIES_DIR` 可改写目录，测试默认写临时目录。
+文件写到 `logs/stories/`，目录内容 gitignore；同名不覆盖，追加序号。测试默认写临时目录。
 
 ## 叙事约束
 

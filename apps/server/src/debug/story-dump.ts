@@ -1,7 +1,7 @@
 /**
  * 开发期故事总结导出。
  *
- * story agent 本身只读；CLI 在拿到结果后把故事写到 `stories/`，
+ * story agent 本身只读；CLI 在拿到结果后把故事写到 `logs/stories/`，
  * 便于设计者直接阅读与比较。目录内容被 gitignore。
  */
 
@@ -26,7 +26,7 @@ export type StoryDumpInput = {
   now?: Date;
 };
 
-/** 导出根目录：`STORIES_DIR` > `<repo>/stories`。 */
+/** 导出根目录：`STORIES_DIR` > `<repo>/logs/stories`。 */
 export function storiesRoot(root?: string): string {
   if (root !== undefined) {
     return join(root);
@@ -35,7 +35,7 @@ export function storiesRoot(root?: string): string {
   if (overridden) {
     return join(overridden);
   }
-  return join(findRepoRoot(), "stories");
+  return join(findRepoRoot(), "logs", "stories");
 }
 
 function uniqueFile(root: string, base: string): string {

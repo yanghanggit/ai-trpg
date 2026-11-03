@@ -568,7 +568,7 @@ export async function gcTrace(options: TraceGcOptions): Promise<TraceGcResult> {
 }
 
 /** 用足够的反引号包住原始文本，避免 prompt 里的标题与列表被当成外层 Markdown。 */
-function markdownFence(value: string, language = "text"): string {
+export function markdownFence(value: string, language = "text"): string {
   const runs = value.match(/`+/g) ?? [];
   const longest = runs.reduce((max, run) => Math.max(max, run.length), 0);
   const fence = "`".repeat(Math.max(3, longest + 1));

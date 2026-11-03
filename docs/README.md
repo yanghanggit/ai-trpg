@@ -44,7 +44,7 @@
 | 文档                                     | 内容                                          |
 | ---------------------------------------- | --------------------------------------------- |
 | [架构与契约](architecture.md)            | 包职责、契约链、请求生命周期、端口与环境      |
-| [开发规范](conventions.md)               | 目录依赖、文件命名、API 字段、数据库与测试    |
+| [开发规范](conventions.md)               | 根目录与运行期产物、依赖、命名、字段与测试    |
 | [LLM 基础组件](llm.md)                   | provider 分层、失败模型、agent loop 与重试    |
 | [图像生成基建](image-generation.md)      | 图像 provider 分层、资产边界与失败模型        |
 | [后台作业队列](background-jobs.md)       | 队列选型、worker 租约、串行键与接入边界       |
@@ -62,6 +62,6 @@
 | [传送](teleport.md)                      | 访问历史、禁传状态与一次一跳的传送规则        |
 | [Agent 探针](probe.md)                   | 只读上下文探针、无副作用问答与目标边界        |
 | [故事整理 Agent](story-agent.md)         | 任意时刻的只读故事总结与上下文串联验证        |
-| [开发期 Agent 工作流](debug-workflow.md) | 快照驱动推进、过程轨迹、HTTP 走查与共同边界   |
+| [开发期 Agent 工作流](debug-workflow.md) | 快照驱动推进、过程轨迹、记忆导出、HTTP 走查   |
 | [数据驱动目标](data-driven.md)           | 框架与内容隔离、当前缺口、未来内容层目标      |
 | [Seed 内容编写原则](seed-authoring.md)   | 内容归属判断、分层写作、保密与验收            |

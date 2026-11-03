@@ -25,7 +25,7 @@
 - **demo 用户与 `app_meta`**：独立 fixture，只记录 `{ version: 1, fixture: "demo-user" }`，不写故事名。
 - **CLI 建局**：必须显式给内容来源，没有默认故事；RAG 同理，建局不会自动 ingest。
 - **测试**：主要用例使用独立的 `TEST_WORLD`，演示 seed 的回归单独存在。
-- **导出产物**：`prompts/` 是从内容生成的调试旁路，gitignore；数据库仍是运行时唯一真相。
+- **导出产物**：`logs/prompts/` 是从内容生成的调试旁路，gitignore；数据库仍是运行时唯一真相。
 
 `item.effect` 是声明式可序列化效果，`strike` / `use` 只按 `type` 分派；物品还能声明 `actions`，把 `strike` 这类动作借给穿戴它的角色；stage 报告是报告、不是世界事实；world 不直接替 stage 写 environment，只下发 directive。
 

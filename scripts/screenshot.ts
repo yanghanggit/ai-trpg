@@ -7,7 +7,7 @@
  * 这里走 CDP（DevTools 协议），用 Node 内置的 fetch + WebSocket，不依赖 puppeteer。
  *
  * 默认地址取本机 en0 的局域网 IP + Vite dev 端口（端口来自 @ai-trpg/shared / .env）。
- * 输出默认落到仓库根 `screenshots/`（已 gitignore）。依赖本机 Chrome / Chromium。
+ * 输出默认落到 `logs/screenshots/`（已 gitignore）。依赖本机 Chrome / Chromium。
  */
 import { spawn } from "node:child_process";
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
@@ -47,7 +47,7 @@ const USAGE = `用真实浏览器给页面截图：导航 → 等待 → （可�
 
   [路径]             页面路径，默认 /
   --base <url>       显式指定地址，默认 ${defaultBase}
-  --out <file>       输出文件，默认 screenshots/<路径末段>-<宽>x<高>.png
+  --out <file>       输出文件，默认 logs/screenshots/<路径末段>-<宽>x<高>.png
   --size <宽x高>     视口尺寸，默认 ${DEFAULT_SIZE}
   --click <文本>     截图前点一下这个按钮（按 aria-label 或按钮文字匹配）
                      用 | 分隔可连点多下，如：--click "立即重试|确定"
@@ -183,7 +183,7 @@ function detectLanHost(): string {
 
 function defaultOut(target: string, size: string): string {
   const slug = target.split("?")[0]?.split("/").filter(Boolean).pop() ?? "index";
-  return join(repoRoot, "screenshots", `${slug}-${size}.png`);
+  return join(repoRoot, "logs", "screenshots", `${slug}-${size}.png`);
 }
 
 /** Chrome 把实际调试端口写在这里（用 `--remote-debugging-port=0` 就不必猜端口）。 */

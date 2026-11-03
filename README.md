@@ -78,7 +78,7 @@ pnpm dev
 
 **后台作业**：`pnpm job` 查看队列，`pnpm job:worker` 消费作业；HTTP 接入前都是独立工具，设计与边界见 `docs/background-jobs.md`。
 
-**截图**：`pnpm screenshot` 默认输出 `screenshots/index-1280x900.png`，可用 `--size`、`--base`、`--click` 覆盖；脚本走 CDP 并等待 React 挂载，找不到 Chrome 时用 `CHROME_PATH` 指定。
+**截图**：`pnpm screenshot` 默认输出 `logs/screenshots/index-1280x900.png`，可用 `--size`、`--base`、`--click` 覆盖；脚本走 CDP 并等待 React 挂载，找不到 Chrome 时用 `CHROME_PATH` 指定。
 
 **pi 扩展**：`.pi/extensions/` 在 pi 启动时自动加载，提供 `deepseek_search`、`deepseek_fetch`、`vision`，读取 pi 进程环境中的 `DEEPSEEK_API_KEY`。密钥只在根 `.env` 时，用 `set -a; source .env; set +a; pi` 启动；改完扩展要重启 pi。
 

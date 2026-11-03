@@ -15,25 +15,9 @@ packages/api-client/src/schema.d.ts
 # 测试与覆盖率
 coverage
 
-# 截图输出（保留目录占位）
-screenshots/*
-!screenshots/.gitkeep
-
-# 开发期世界快照（保留目录占位）
-**/worlds/*
-!**/worlds/.gitkeep
-
 # LLM 调试落盘（保留目录占位）
 **/logs/*
 !**/logs/.gitkeep
-
-# 运行时 system prompt 导出（保留目录占位）
-**/prompts/*
-!**/prompts/.gitkeep
-
-# 开发期故事总结（保留目录占位）
-**/stories/*
-!**/stories/.gitkeep
 
 # 生成的图片资产（保留目录占位）
 **/images/*
