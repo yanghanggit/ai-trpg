@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { BELL_MONASTERY_KNOWLEDGE, BELL_MONASTERY_WORLD } from "../seeds/dark-fantasy";
 import { resolveAppearance } from "../src/game/form";
 import { buildWorldSystemPrompt } from "../src/game/memory";
-import { parseWorldContent } from "../src/game/world-content";
+import { parseWorldContent } from "../src/game/parse-world-content";
 
 const { stages } = BELL_MONASTERY_WORLD;
 

@@ -1,8 +1,8 @@
 /**
- * 内容包的输入形状：`createGame` 在一个事务里把它物化为数据库行，之后以数据库为唯一真相。
+ * 世界定义：建局时读一次、物化成数据库行，之后以数据库为唯一真相。
  *
- * 这里只放「建局时才读一次」的定义；运行时的状态形状在 `types.ts`。两份 shape 里有同名概念
- * （场景、角色、物品），但内容侧用 `key` 引用彼此，状态侧用 id。
+ * 与运行时的 `WorldState` / `StageState` / `ActorState` 是两份 shape：定义侧用 `key` 引用彼此，
+ * 状态侧用 id。校验在 `parse-world-content.ts`。
  */
 
 import type { Stats } from "./attributes";
@@ -145,12 +145,4 @@ export type ItemDefinition = {
   actions?: readonly ActionKind[];
   /** 材料来源；只有 `material` 可以声明，其它大类声明会被内容校验拒绝。 */
   source?: string;
-};
-
-/** `createGame` 的输入；`world` 只在创建时读取，之后以数据库状态为准。 */
-export type CreateGameInput = {
-  username: string;
-  name?: string;
-  slug?: string;
-  world: World;
 };

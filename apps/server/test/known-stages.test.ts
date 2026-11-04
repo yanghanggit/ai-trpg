@@ -12,9 +12,9 @@ import {
   playerMove,
   takeActorControl,
 } from "../src/game";
-import type { World } from "../src/game/content";
 import { buildActorTurnInput } from "../src/game/npc";
 import { describeKnownStages } from "../src/game/plan";
+import type { World } from "../src/game/world-definition";
 import { TEST_WORLD } from "./test-world";
 
 const testDatabaseUrl = process.env.TEST_DATABASE_URL?.trim();

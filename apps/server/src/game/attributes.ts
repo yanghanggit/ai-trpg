@@ -1,3 +1,5 @@
+import { z } from "zod";
+
 /**
  * 角色与物品共用的唯一属性结构。
  *
@@ -15,6 +17,19 @@ export { STAT_KEYS };
 
 type StatKey = (typeof STAT_KEYS)[number];
 export type Stats = Record<StatKey, number>;
+
+/**
+ * 同一条 `STAT_KEYS` 派生的内容校验形状：未写出的字段补 0，运行时总是完整 `Stats`。
+ * 新增属性只改 `STAT_KEYS`，校验不会漏在外面。
+ */
+export const statsSchema = z.object({
+  maxHp: z.number().default(0),
+  strength: z.number().default(0),
+  wisdom: z.number().default(0),
+  agility: z.number().default(0),
+  damage: z.number().default(0),
+  block: z.number().default(0),
+} satisfies Record<StatKey, z.ZodDefault<z.ZodNumber>>);
 
 /** 全 0 属性；归一化与聚合的起点。 */
 export const EMPTY_STATS: Stats = {

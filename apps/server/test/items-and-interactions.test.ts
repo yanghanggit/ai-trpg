@@ -1,7 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { DEMO_USER } from "../src/db/demo-fixture";
-import type { World } from "../src/game/content";
+import type { World } from "../src/game/world-definition";
 import { TEST_WORLD } from "./test-world";
 import "../src/db/env";
 import { type DatabaseHandle, openDatabase } from "../src/db/connect";

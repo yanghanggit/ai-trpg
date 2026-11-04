@@ -1,5 +1,5 @@
-import type { World } from "../src/game/content";
 import { formatForm } from "../src/game/form";
+import type { World } from "../src/game/world-definition";
 
 /**
  * 测试专用的小型世界；不随演示剧情变化。

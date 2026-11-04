@@ -18,7 +18,6 @@ import { buildAffixSystemPrompt } from "./affixes";
 import type { Executor } from "./apply/types";
 import { toStats } from "./attributes";
 import { buildCompactSystemPrompt } from "./compact";
-import type { Actor, CreateGameInput, ItemDefinition, Stage, World } from "./content";
 import { buildDialogueAuditSystemPrompt } from "./dialogue-audit";
 import { buildDropSystemPrompt } from "./drops";
 import { assertEdgeShape } from "./edges";
@@ -32,6 +31,7 @@ import {
   createStageMemory,
   createWorldMemory,
 } from "./memory";
+import { parseWorldContent } from "./parse-world-content";
 import { recordAppearance } from "./persistence/appearances";
 import { allocateEntitySeq } from "./persistence/entity-seq";
 import { recordKnownStage } from "./persistence/known-stages";
@@ -41,10 +41,18 @@ import { recordStageVisit } from "./persistence/visits";
 import { getGameState } from "./read/game-state";
 import { buildStorySystemPrompt } from "./story";
 import type { GameState } from "./types";
-import { parseWorldContent } from "./world-content";
+import type { Actor, ItemDefinition, Stage, World } from "./world-definition";
 
 type PromptDump = { name: string; prompt: string };
 type ActorRef = { actorId: string; signatureId: string; name: string };
+
+/** `createGame` 的输入；`world` 只在创建时读取，之后以数据库状态为准。 */
+export type CreateGameInput = {
+  username: string;
+  name?: string;
+  slug?: string;
+  world: World;
+};
 
 function slugify(value: string): string {
   return value

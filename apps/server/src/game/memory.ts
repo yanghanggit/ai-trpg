@@ -4,7 +4,7 @@ import type { Database } from "../db/pool";
 import { agentMemories, agentMemoryMessages, type JsonValue } from "../db/schema";
 import type { ChatMessage, ToolCall } from "../llm/types";
 import { MEMORY_KINDS } from "./constants";
-import type { Actor, Stage, World } from "./content";
+import type { Actor, Stage, World } from "./world-definition";
 
 /** agent memory 的一条消息；`type` 与 LLM 的 ChatMessage 对应。 */
 export type AgentMemoryMessageState = {

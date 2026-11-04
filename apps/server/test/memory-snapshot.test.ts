@@ -13,7 +13,7 @@ import {
   runNpcTurn,
   takeActorControl,
 } from "../src/game";
-import type { World } from "../src/game/content";
+import type { World } from "../src/game/world-definition";
 import { ChatCompletionResult, type ChatCompletionService } from "../src/llm";
 import { TEST_WORLD } from "./test-world";
 

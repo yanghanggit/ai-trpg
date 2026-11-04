@@ -20,8 +20,8 @@ import {
   runStory,
   snapshotGame,
 } from "../../../game";
-import type { World } from "../../../game/content";
-import { parseWorldContent } from "../../../game/world-content";
+import { parseWorldContent } from "../../../game/parse-world-content";
+import type { World } from "../../../game/world-definition";
 import { gameOption, optionalOption, requiredOption } from "../args";
 import { addCommand } from "../command";
 import type { CommandContext } from "../context";
