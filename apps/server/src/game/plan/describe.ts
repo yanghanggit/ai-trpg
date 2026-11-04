@@ -171,7 +171,12 @@ ${describeStageAnchorsSection(stage.anchors)}
   }`;
 }
 
-/** 去过哪些场景；按首次到访顺序，名称只来自已访问的 stage。 */
+/**
+ * 去过哪些场景；按首次到访顺序，名称只来自已访问的 stage。
+ *
+ * 顺序直接沿用 `state.visits` 的排序（同一时刻并列时已按场景序号兜底），
+ * 这里不再重排，避免两处排序规则漂移。
+ */
 export function describeVisitedStages(
   state: GameState,
   actorId: string,

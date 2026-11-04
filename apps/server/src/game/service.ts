@@ -37,6 +37,7 @@ import { recordAppearance } from "./persistence/appearances";
 import { allocateEntitySeq } from "./persistence/entity-seq";
 import { listSignatureNames, upsertSignatureName } from "./persistence/signature-names";
 import { insertSignature, listCurrentSignatureViews } from "./persistence/signatures";
+import { recordStageVisit } from "./persistence/visits";
 import { buildStorySystemPrompt } from "./story";
 import type {
   ActorState,
@@ -151,12 +152,22 @@ export async function getGameState(db: Database, ref: string): Promise<GameState
           .where(and(eq(stageVisits.gameId, game.id), inArray(stageVisits.actorId, actorIds)))
           .orderBy(asc(stageVisits.firstVisitedAt));
 
-  const visits: StageVisitState[] = visitRows.map((visit) => ({
-    actorId: visit.actorId,
-    stageId: visit.stageId,
-    firstVisitedAt: visit.firstVisitedAt.toISOString(),
-    lastVisitedAt: visit.lastVisitedAt.toISOString(),
-  }));
+  // 同一回合的多次到达共享同一个 `now`，只按时间排序会让并列项顺序不稳定；
+  // 并列时按场景序号（world 内的 ordinal）兜底，保证读出的顺序可复现。
+  const stageOrdinal = new Map(stageRows.map((stage) => [stage.id, stage.ordinal]));
+  const visits: StageVisitState[] = visitRows
+    .map((visit) => ({
+      actorId: visit.actorId,
+      stageId: visit.stageId,
+      firstVisitedAt: visit.firstVisitedAt.toISOString(),
+      lastVisitedAt: visit.lastVisitedAt.toISOString(),
+    }))
+    .sort(
+      (left, right) =>
+        left.firstVisitedAt.localeCompare(right.firstVisitedAt) ||
+        (stageOrdinal.get(left.stageId) ?? 0) - (stageOrdinal.get(right.stageId) ?? 0) ||
+        left.actorId.localeCompare(right.actorId),
+    );
 
   const itemRows =
     actorIds.length === 0
@@ -489,6 +500,8 @@ export async function createGame(
       });
     }
 
+    // 建局是一次写入：外观与起始到访共享同一个时间戳，免得同一批数据出现先后差异。
+    const now = new Date();
     const actorRefs = new Map<string, { actorId: string; signatureId: string; name: string }>();
     for (const actor of input.world.actors) {
       const actorStageId = stageIds.get(actor.stageKey);
@@ -535,7 +548,7 @@ export async function createGame(
           form: actor.signature.form,
           fallback: !actor.signature.appearance?.trim(),
         },
-        now: new Date(),
+        now,
       });
       actorRefs.set(actor.key, { actorId, signatureId, name: actor.name });
 
@@ -579,12 +592,8 @@ export async function createGame(
         },
         actorPrompt,
       );
-      await tx.insert(stageVisits).values({
-        id: randomUUID(),
-        gameId,
-        actorId,
-        stageId: actorStageId,
-      });
+      // 开局即在起始场景：起点算一次到访，起点名字从一开始就是 actor 的知识。
+      await recordStageVisit(tx, gameId, actorId, actorStageId, now);
     }
 
     // 开局名字绑定：观察者与对象都用内容 key 引用，落库时变成 actor / 签名 id。

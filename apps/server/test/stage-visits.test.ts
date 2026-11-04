@@ -6,7 +6,9 @@ import { resetDomainData, seedDemoData } from "../src/db/maintenance";
 import { runMigrations } from "../src/db/migrate";
 import { createGame, getGameState, playerMove, takeActorControl } from "../src/game";
 import { buildActorTurnInput } from "../src/game/npc";
+import { recordStageVisit } from "../src/game/persistence/visits";
 import { buildVisitedStagesTool, describeVisitedStages } from "../src/game/plan";
+import type { World } from "../src/game/types";
 import { TEST_WORLD } from "./test-world";
 
 const testDatabaseUrl = process.env.TEST_DATABASE_URL?.trim();
@@ -67,5 +69,55 @@ describe.skipIf(!testDatabaseUrl)("stage visits", () => {
     expect(describeVisitedStages(after, movedKeeper.id, movedNave.id)).toContain(
       "断钟中殿（当前）",
     );
+  });
+
+  it("orders visits that share a timestamp by stage ordinal", async () => {
+    // 同一回合的多次到达共享同一个 now；并列时要按场景序号兜底，顺序才可复现。
+    const world: World = {
+      ...TEST_WORLD,
+      contentVersion: "test-visits-order.v1",
+      stages: [
+        ...TEST_WORLD.stages,
+        {
+          key: "crypt",
+          name: "灰烬地窖",
+          profile: "中殿地下的石室，墙上刻满了谁都不再读的名单。",
+          actions: ["submit_environment", "notify_world"],
+          environment: "台阶上积着灰，墙角的旧蜡还在慢慢淌。",
+        },
+      ],
+      connections: [...TEST_WORLD.connections, { from: "gate", to: "crypt" }],
+    };
+    const created = await createGame(handle.db, {
+      username: DEMO_USER.username,
+      name: "访问顺序测试局",
+      world,
+    });
+    await takeActorControl(handle.db, created.game.slug, "守烬人");
+
+    const state = await getGameState(handle.db, created.game.slug);
+    const stageId = (key: string) => {
+      const stage = state.world.stages.find((candidate) => candidate.key === key);
+      if (!stage) {
+        throw new Error(`缺少场景: ${key}`);
+      }
+      return stage.id;
+    };
+    const keeper = state.world.stages
+      .flatMap((stage) => stage.actors)
+      .find((actor) => actor.name === "守烬人");
+    if (!keeper) {
+      throw new Error("缺少测试数据");
+    }
+
+    // 倒序写入同一时刻：读取顺序应来自场景序号，而不是写入先后。
+    const sameNow = new Date(Date.now() + 60_000);
+    await recordStageVisit(handle.db, state.game.id, keeper.id, stageId("crypt"), sameNow);
+    await recordStageVisit(handle.db, state.game.id, keeper.id, stageId("nave"), sameNow);
+
+    const after = await getGameState(handle.db, created.game.slug);
+    expect(
+      after.visits.filter((visit) => visit.actorId === keeper.id).map((v) => v.stageId),
+    ).toEqual([stageId("gate"), stageId("nave"), stageId("crypt")]);
   });
 });

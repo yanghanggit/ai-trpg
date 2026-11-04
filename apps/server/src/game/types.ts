@@ -649,7 +649,13 @@ export type WorldState = {
   connections: ConnectionState[];
 };
 
-/** actor 去过哪些场景；只用于传送与地图，不参与普通移动权限。 */
+/**
+ * actor 去过哪些场景：名字知识的账本，不是通行证。
+ *
+ * 建局时起点算一次到访，之后每次 move / teleport 到达都记一条（同一场景只刷新
+ * `lastVisitedAt`）。它只影响地图、方向名显示、`get_visited_stages` 与传送候选提示；
+ * move 的权限在邻接边、teleport 的权限在「知道真名」上，两者都不来自这里。
+ */
 export type StageVisitState = {
   actorId: string;
   stageId: string;
@@ -676,7 +682,10 @@ export type GameState = {
   messages: MessageState[];
   /** 本局全部签名称呼（god view）；渲染层按观察者过滤后才进提示词。 */
   signatureNames: SignatureNameState[];
-  /** 访问历史；用于地图、已访问候选与查看，不参与普通移动权限。 */
+  /**
+   * 访问历史，按 `firstVisitedAt` 升序；同一时刻并列时按场景序号兜底（可复现）。
+   * 用于地图、已访问候选与查看，不参与普通移动权限。
+   */
   visits: StageVisitState[];
 };
 
