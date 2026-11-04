@@ -53,7 +53,7 @@ const STATS = { maxHp: 10, strength: 4, wisdom: 2, agility: 3, damage: 5, block:
 describe("campaign setting block", () => {
   it("包含世界名、战役设定与本任务用途", () => {
     const block = buildCampaignSettingBlock(WORLD, { purpose: "只用于保持术语一致。" });
-    expect(block).toContain("## 游戏设定");
+    expect(block).toContain("## 战役设定");
     expect(block).toContain(TEST_WORLD.worldName);
     expect(block).toContain(TEST_WORLD.campaignSetting);
     expect(block).toContain("只用于保持术语一致。");
@@ -102,7 +102,7 @@ describe("runtime agents carry the campaign setting", () => {
     if (!actor || !stage) {
       throw new Error("TEST_WORLD 缺少 actor 或 stage");
     }
-    const world = { id: "world-1", ...WORLD, systemRules: TEST_WORLD.systemRules };
+    const world = { id: "world-1", ...WORLD, globalRules: TEST_WORLD.globalRules };
 
     expect(buildActorSystemPrompt(world, { ...actor, form: actor.signature.form })).toContain(
       TEST_WORLD.campaignSetting,
@@ -113,7 +113,7 @@ describe("runtime agents carry the campaign setting", () => {
         ...WORLD,
         worldName: TEST_WORLD.worldName,
         profile: TEST_WORLD.profile,
-        systemRules: TEST_WORLD.systemRules,
+        globalRules: TEST_WORLD.globalRules,
       }),
     ).toContain(TEST_WORLD.campaignSetting);
   });

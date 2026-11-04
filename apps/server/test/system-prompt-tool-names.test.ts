@@ -25,7 +25,7 @@ function systemPrompts(world: World): { name: string; prompt: string }[] {
   const campaign = {
     name: world.worldName,
     campaignSetting: world.campaignSetting,
-    systemRules: world.systemRules,
+    globalRules: world.globalRules,
   };
   return [
     { name: `world:${world.worldName}`, prompt: buildWorldSystemPrompt(world) },
@@ -65,7 +65,7 @@ describe("prompt material stays free of tool names", () => {
   });
 
   it("keeps global rules free of tool names", () => {
-    const rules = BELL_MONASTERY_WORLD.systemRules;
+    const rules = BELL_MONASTERY_WORLD.globalRules;
     expect(rules).not.toContain("end_game");
     expect(rules).not.toContain("notify_stage");
   });

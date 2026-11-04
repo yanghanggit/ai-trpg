@@ -108,7 +108,7 @@ export type World = {
   /** 世界的自我设定：本剧本里它是什么、负责什么、什么算收束。 */
   profile: string;
   campaignSetting: string;
-  systemRules: string;
+  globalRules: string;
   stages: readonly Stage[];
   connections: readonly Connection[];
   actors: readonly Actor[];
@@ -626,7 +626,7 @@ export type WorldState = {
   profile: string;
   contentKey: string;
   campaignSetting: string;
-  systemRules: string;
+  globalRules: string;
   actions: WorldActionKind[];
   stages: StageState[];
   connections: ConnectionState[];

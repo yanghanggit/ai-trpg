@@ -110,7 +110,7 @@ export const worlds = pgTable(
     contentKey: text("content_key").notNull(),
     profile: text("profile").notNull(),
     campaignSetting: text("campaign_setting").notNull(),
-    systemRules: text("system_rules").notNull(),
+    globalRules: text("global_rules").notNull(),
     actions: jsonb("actions").$type<WorldActionKind[]>().notNull().default([]),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),

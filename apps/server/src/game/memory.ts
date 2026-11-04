@@ -80,14 +80,14 @@ function toRow(memoryId: string, sequence: number, message: ChatMessage) {
 }
 
 export function buildActorSystemPrompt(
-  world: { id: string; name: string; campaignSetting: string; systemRules: string },
+  world: { id: string; name: string; campaignSetting: string; globalRules: string },
   actor: Pick<Actor, "name" | "profile"> & { form: string },
 ): string {
   return `# ${actor.name}
 
 你扮演角色: ${actor.name}
 
-## 游戏设定
+## 战役设定
 
 ${world.campaignSetting}
 
@@ -101,7 +101,7 @@ ${actor.form}
 
 ## 全局规则
 
-${world.systemRules}`;
+${world.globalRules}`;
 }
 
 export function buildActorOpeningBriefing(briefing: string): string {
@@ -113,14 +113,14 @@ ${briefing}`;
 }
 
 export function buildStageSystemPrompt(
-  world: { name: string; campaignSetting: string; systemRules: string },
+  world: { name: string; campaignSetting: string; globalRules: string },
   stage: Pick<Stage, "name" | "profile">,
 ): string {
   return `# ${stage.name}
 
 你扮演场景: ${stage.name}
 
-## 游戏设定
+## 战役设定
 
 ${world.campaignSetting}
 
@@ -137,17 +137,17 @@ ${stage.profile}
 
 ## 全局规则
 
-${world.systemRules}`;
+${world.globalRules}`;
 }
 
 export function buildWorldSystemPrompt(
-  world: Pick<World, "worldName" | "profile" | "campaignSetting" | "systemRules">,
+  world: Pick<World, "worldName" | "profile" | "campaignSetting" | "globalRules">,
 ): string {
   return `# ${world.worldName}
 
 你扮演世界: ${world.worldName}
 
-## 游戏设定
+## 战役设定
 
 ${world.campaignSetting}
 
@@ -163,7 +163,7 @@ ${world.profile}
 
 ## 全局规则
 
-${world.systemRules}`;
+${world.globalRules}`;
 }
 
 async function createMemory(
@@ -249,7 +249,7 @@ export async function createStageMemory(
 export async function createWorldMemory(
   executor: Executor,
   gameId: string,
-  world: Pick<World, "worldName" | "campaignSetting" | "systemRules"> & { id: string },
+  world: Pick<World, "worldName" | "campaignSetting" | "globalRules"> & { id: string },
   systemPrompt: string,
 ): Promise<MemoryRow> {
   return createMemory(

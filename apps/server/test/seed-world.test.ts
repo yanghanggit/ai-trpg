@@ -223,7 +223,7 @@ describe("dark fantasy seed world", () => {
   });
 
   it("puts animal language rules in profiles, not in global rules", () => {
-    const rules = BELL_MONASTERY_WORLD.systemRules;
+    const rules = BELL_MONASTERY_WORLD.globalRules;
     expect(rules).not.toContain("种族语言与发声");
     expect(rules).not.toContain("动物只能与同族");
     expect(rules).not.toContain("鼠王对非同族");

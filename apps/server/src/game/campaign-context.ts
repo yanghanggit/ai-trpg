@@ -1,5 +1,5 @@
 /**
- * 运行时 agent 的游戏设定注入。
+ * 运行时 agent 的战役设定注入。
  *
  * 分层与 `dialogue-audit` 一致：system prompt 只放固定的职责与判定口径，
  * 每局不同的世界设定作为**任务上下文**下发——它是约束产出的数据，不是系统策略。
@@ -19,12 +19,12 @@ export type CampaignSettingBlockOptions = {
   purpose: string;
 };
 
-/** 组装「游戏设定」任务块：世界名 + 战役设定 + 本任务的用途说明。 */
+/** 组装「战役设定」任务块：世界名 + 战役设定 + 本任务的用途说明。 */
 export function buildCampaignSettingBlock(
   world: CampaignContextWorld,
   options: CampaignSettingBlockOptions,
 ): string {
-  return `## 游戏设定
+  return `## 战役设定
 
 世界：${world.name}
 

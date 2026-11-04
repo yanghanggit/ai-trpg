@@ -139,7 +139,7 @@ const worldSchema = z
     worldName: z.string().min(1),
     profile: z.string().min(1),
     campaignSetting: z.string(),
-    systemRules: z.string(),
+    globalRules: z.string(),
     stages: z.array(stageSchema).min(1),
     connections: z.array(
       z.object({

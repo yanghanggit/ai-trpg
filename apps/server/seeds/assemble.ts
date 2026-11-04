@@ -1,20 +1,16 @@
 import type { World } from "../src/game/types";
-
-/** 战役级、跨剧本不变的文本；只有 system prompt 性质的内容，没有状态。 */
-export type Campaign = {
-  campaignSetting: string;
-  systemRules: string;
-};
+import { GLOBAL_RULES } from "./system-rules";
 
 /**
  * 一个剧本 = 战役下的一个故事切片。
  *
- * 它**不能**写 `campaignSetting` / `systemRules`：这两段只来自战役文件，
- * 由 `assembleWorld()` 统一补上，所以“不可变”是类型层面的，而不是靠约定。
+ * 它**不能**写 `campaignSetting` / `globalRules`：前者只来自战役文件，后者是
+ * 所有战役共用的框架文本，由 `assembleWorld()` 统一补上，所以“不可变”是类型
+ * 层面的，而不是靠约定。
  */
-export type Script = Omit<World, "campaignSetting" | "systemRules">;
+export type Script = Omit<World, "campaignSetting" | "globalRules">;
 
-/** 把战役文本套到剧本上，得到运行时使用的 World；剧本是唯一的变化点。 */
-export function assembleWorld(campaign: Campaign, script: Script): World {
-  return { ...campaign, ...script };
+/** 把世界观与全局规则套到剧本上，得到运行时使用的 World；剧本是唯一的变化点。 */
+export function assembleWorld(campaignSetting: string, script: Script): World {
+  return { campaignSetting, globalRules: GLOBAL_RULES, ...script };
 }

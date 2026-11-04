@@ -63,7 +63,7 @@ pnpm dev
 | `pnpm screenshot`     | 截图前端页面（需先启动 dev，依赖本机 Chrome）                 |
 | `pnpm clean:dev`      | 清理开发期临时目录，默认只预览，加 `--yes` 才删               |
 | `pnpm smoke:deepseek` | 真实调用 DeepSeek 的冒烟测试（需要 key，可能产生费用）        |
-| `pnpm image`          | 图像生成基建 CLI；生成、编辑、批量与资产列表                  |
+| `pnpm image`          | 图像生成 CLI；generate/edit/batch/list/show/models/check      |
 | `pnpm job`            | 后台作业队列 CLI；列表、快照与等待                            |
 | `pnpm job:worker`     | 消费持久作业队列；需先注册业务作业                            |
 | `pnpm smoke:jobs`     | 作业队列冒烟测试；使用 TEST_DATABASE_URL，不依赖 HTTP/业务    |
@@ -74,7 +74,7 @@ pnpm dev
 
 **Agent CLI**：`agent:game` 直连 PostgreSQL、`agent:api` 一次调用发一次 HTTP 请求；子命令以 `--help` 为准，边界见 `docs/debug-workflow.md`。
 
-**图像生成**：`pnpm image` 是独立 CLI，不启动服务端或数据库；设计与边界见 `docs/image-generation.md`，子命令以 `--help` 为准。
+**图像生成**：`pnpm image` 是独立 CLI，不启动服务端或数据库。stdout 只放结果：默认人类可读摘要，加 `--json` 输出稳定结构供 agent 消费；失败时 stdout 为空，错误以 `{ ok: false, error }` 写到 stderr（与日志同级）。退出码 0 成功、1 失败。设计与边界见 `docs/image-generation.md`，子命令以 `--help` 为准。
 
 **后台作业**：`pnpm job` 查看队列，`pnpm job:worker` 消费作业；HTTP 接入前都是独立工具，设计与边界见 `docs/background-jobs.md`。
 

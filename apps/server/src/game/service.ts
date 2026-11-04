@@ -300,7 +300,7 @@ export async function getGameState(db: Database, ref: string): Promise<GameState
       contentKey: worldRow.contentKey,
       profile: worldRow.profile,
       campaignSetting: worldRow.campaignSetting,
-      systemRules: worldRow.systemRules,
+      globalRules: worldRow.globalRules,
       actions: worldRow.actions,
       stages: stageState,
       connections,
@@ -366,7 +366,7 @@ export async function createGame(
       contentKey: input.world.contentKey,
       profile: input.world.profile,
       campaignSetting: input.world.campaignSetting,
-      systemRules: input.world.systemRules,
+      globalRules: input.world.globalRules,
       actions: [...input.world.actions],
     });
     await createWorldMemory(
@@ -376,7 +376,7 @@ export async function createGame(
         id: worldId,
         worldName: input.world.worldName,
         campaignSetting: input.world.campaignSetting,
-        systemRules: input.world.systemRules,
+        globalRules: input.world.globalRules,
       },
       worldPrompt,
     );
@@ -406,7 +406,7 @@ export async function createGame(
         {
           name: input.world.worldName,
           campaignSetting: input.world.campaignSetting,
-          systemRules: input.world.systemRules,
+          globalRules: input.world.globalRules,
         },
         stage,
       );
@@ -554,7 +554,7 @@ export async function createGame(
           id: worldId,
           name: input.world.worldName,
           campaignSetting: input.world.campaignSetting,
-          systemRules: input.world.systemRules,
+          globalRules: input.world.globalRules,
         },
         { name: actor.name, profile: actor.profile, form: actor.signature.form },
       );

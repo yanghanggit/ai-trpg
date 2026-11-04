@@ -16,6 +16,12 @@
 
 → 参见：[LLM 基础组件](llm.md)
 
+## CLI
+
+`apps/server/scripts/image.ts` 是这套基建目前唯一的命令行入口：commander 装配子命令，每个子命令 = 一段 help 文案 + 一份 zod 参数 schema + 一个执行函数，新增命令只加一个描述符；参数校验、`--json` 判定与退出码在装配层统一处理，命令体只负责「入参 → 服务层调用 → 输出」。
+
+stdout 只放结果：默认是人类可读摘要，加 `--json` 输出 `{ ok, ... }` 信封。失败时 stdout 为空，错误以 `{ ok: false, error }` 写到 stderr（`ImageGenError` 额外带 `kind`、`statusCode`、`retryable`、`details`），调用方始终只解析一份 JSON；退出码 0 成功、1 失败。CLI 只是调用方之一：它不改写 provider 边界，也不把生成引入 HTTP 契约。
+
 ## 资产
 
 raw 文件与 meta 成对存在，filename 是唯一键，目录按运行期约定放置。meta 记录可复现的生成溯源，但不写入本地输入文件的 data URL——否则 meta 会随输入体积膨胀，并可能泄露不该落盘的字节。扩展名以产物实际字节与响应头为准，避免声明格式与文件内容不符。
