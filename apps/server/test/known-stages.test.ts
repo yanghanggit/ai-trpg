@@ -9,6 +9,7 @@ import {
   getActorView,
   getGameState,
   learnStageName,
+  loadAgentMemory,
   playerMove,
   takeActorControl,
 } from "../src/game";
@@ -194,6 +195,15 @@ describe.skipIf(!testDatabaseUrl)("known stages", () => {
     ]);
     expect(after.messages).toHaveLength(before.messages.length);
     expect(buildActorTurnInput(after, { actor: keeper, stage: gate })).toContain("@断钟中殿");
+
+    // 授予同时留下「编号 → 名字」的认知：旧路线里的 #序号 才有据可查。
+    const memory = await loadAgentMemory(handle.db, created.game.id, "actor", keeper.id);
+    const binding = (memory?.messages ?? []).filter(
+      (message) => (message.metadata as { kind?: string } | undefined)?.kind === "learned_stage",
+    );
+    expect(binding).toHaveLength(1);
+    // 计划最后一条记忆会带落账后的状态，所以只认前半句。
+    expect(binding[0]?.content).toContain(`# 认知\n你把 #${nave.seq} 认作「断钟中殿」。`);
 
     // 重复授予幂等：不写库、不 bump 版本。
     const again = await learnStageName(handle.db, created.game.slug, "守烬人", nave.name);

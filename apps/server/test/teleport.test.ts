@@ -8,6 +8,7 @@ import {
   createGame,
   getActorView,
   getGameState,
+  learnStageName,
   playerMove,
   playerTeleport,
   takeActorControl,
@@ -82,8 +83,9 @@ describe.skipIf(!testDatabaseUrl)("teleport", () => {
     expect(view.teleportTargets).toEqual([]);
   });
 
-  it("teleports by true name even before visiting the target", async () => {
+  it("teleports to a name it knows but has never visited", async () => {
     const created = await createGameWith("传送真名测试局", teleportWorld());
+    await learnStageName(handle.db, created.game.slug, "守烬人", "断钟中殿");
     const result = await playerTeleport(handle.db, created.game.slug, "守烬人", {
       targetStageRef: "断钟中殿",
     });
@@ -100,6 +102,13 @@ describe.skipIf(!testDatabaseUrl)("teleport", () => {
     expect(nave.actors.some((actor) => actor.id === keeper.id)).toBe(true);
     expect(state.visits.filter((visit) => visit.actorId === keeper.id)).toHaveLength(2);
     expect(state.messages.at(-1)?.kind).toBe("teleport");
+  });
+
+  it("refuses a stage the actor neither visited nor knows", async () => {
+    const created = await createGameWith("传送未知场景测试局", teleportWorld());
+    await expect(
+      playerTeleport(handle.db, created.game.slug, "守烬人", { targetStageRef: "断钟中殿" }),
+    ).rejects.toThrow(/你还没听说过这个场景/);
   });
 
   it("teleports to a visited, unblocked stage and records the arrival", async () => {

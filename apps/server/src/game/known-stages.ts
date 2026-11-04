@@ -1,11 +1,10 @@
 import type { Database } from "../db/pool";
-import { findActorByRef, requireStageName } from "./actors";
-import { bumpGameVersion } from "./apply/messages";
+import { findActorByRef, requireStageName, stageOfActor } from "./actors";
+import { applyActorPlan } from "./apply";
 import { GameError } from "./errors";
-import { lockGameRow } from "./persistence/games";
-import { recordKnownStage } from "./persistence/known-stages";
 import { getGameStateSlice } from "./read/game-state";
 import { knownStageIds } from "./teleport";
+import type { ActorState, GameStateSlice, StageState } from "./types";
 
 export type LearnedStage = {
   actorId: string;
@@ -19,14 +18,14 @@ export type LearnedStage = {
 };
 
 /**
- * 让 actor 知道一个场景的真名；不占回合、不产生公共事件。
+ * 场景知识的授予：认一个场景真名，写 `known_stages` 并留一条「编号 → 名字」的认知。
  *
  * 只接受真名：望远镜、地图这类玩法给的就是名字，`#序号` 不是知识也不该被授予。
- *
- * 这里自带事务与版本推进，是「不占回合」的独立入口（开发期 CLI 用）。
- * 将来的鸟瞰 / 望远镜发生在回合里，应当在回合事务中直接调用 `recordKnownStage`，
- * 与那次状态写入同生共死，不要嵌套调用这个函数。
  * 当前场景名始终可见，不需要记录，所以直接拒绝，避免知识表里堆无意义行。
+ *
+ * 写入走计划通道（`ActorPlan.learnedStages`），和记名字、回忆路线同一个事务：
+ * 授予与这次落账同生共死，版本由计划 bump 一次。这里只是不要求玩家接管的入口，
+ * 供开发期 CLI 与测试使用；回合内的望远镜应当把场景 id 放进计划，不要另开事务。
  */
 export async function learnStageName(
   db: Database,
@@ -36,48 +35,44 @@ export async function learnStageName(
 ): Promise<LearnedStage> {
   const state = await getGameStateSlice(db, gameRef);
   const actor = findActorByRef(state, actorRef);
-  const stage = requireStageName(state, stageRef);
-  const current = state.world.stages.find((candidate) =>
-    candidate.actors.some((entry) => entry.id === actor.id),
-  );
-  if (current?.id === stage.id) {
-    throw new GameError("invalid_action", `当前场景名始终可见，不需要记录: ${stage.name}`);
-  }
-
-  const created = !knownStageIds(state, actor.id).has(stage.id);
-  let version = state.game.version;
-  if (created) {
-    const now = new Date();
-    version += 1;
-    await db.transaction(async (tx) => {
-      const locked = await lockGameRow(tx, state.game.id);
-      if (!locked) {
-        throw new GameError("not_found", `游戏不存在: ${gameRef}`);
-      }
-      if (locked.status !== "active") {
-        throw new GameError("invalid_action", `游戏已结束，不能再授予场景知识: ${gameRef}`);
-      }
-      await recordKnownStage(
-        tx,
-        {
-          gameId: state.game.id,
-          actorId: actor.id,
-          stageId: stage.id,
-          source: "runtime",
-          learnedStageId: current?.id ?? null,
-        },
-        now,
-      );
-      await bumpGameVersion(tx, state.game.id, now);
-    });
-  }
-
-  return {
+  const stage = resolveLearnableStage(state, actor, stageRef);
+  const result = {
     actorId: actor.id,
     actorName: actor.name,
     stageId: stage.id,
     stageName: stage.name,
-    created,
-    version,
   };
+  if (knownStageIds(state, actor.id).has(stage.id)) {
+    return { ...result, created: false, version: state.game.version };
+  }
+  const turn = await applyActorPlan(
+    db,
+    state.game.id,
+    actor.id,
+    { actions: [], learnedStages: [stage.id] },
+    true,
+  );
+  if (!turn.ok) {
+    throw new GameError("invalid_action", turn.rejection ?? "授予被拒绝");
+  }
+  const after = await getGameStateSlice(db, gameRef);
+  return { ...result, created: true, version: after.game.version };
+}
+
+/**
+ * 把引用解析成「可以授予的场景」：必须是真名、不能是当前场景。
+ *
+ * 授予入口与玩家命令共用这一份判断，免得两处各写一遍允许什么。
+ */
+export function resolveLearnableStage(
+  state: GameStateSlice,
+  actor: ActorState,
+  ref: string,
+): StageState {
+  const stage = requireStageName(state, ref);
+  const { stage: current } = stageOfActor(state, actor.id);
+  if (current.id === stage.id) {
+    throw new GameError("invalid_action", `当前场景名始终可见，不需要记录: ${stage.name}`);
+  }
+  return stage;
 }

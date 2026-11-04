@@ -81,6 +81,7 @@ const LOG_KINDS = new Set<string>([
   MEMORY_KINDS.planFailed,
   MEMORY_KINDS.identityUpdate,
   MEMORY_KINDS.routeRecall,
+  MEMORY_KINDS.learnedStage,
   MEMORY_KINDS.compactedMemory,
 ]);
 

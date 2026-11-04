@@ -4,9 +4,11 @@ import { parseCall } from "./actions/call";
 import { findActorByName, findActorByRef, stageOfActor } from "./actors";
 import { addressLookupFor, handleOf } from "./addressing";
 import { type ApplyActorPlanOptions, applyActorPlan } from "./apply";
+import { MEMORY_KINDS } from "./constants";
 import { isPlayerControlled } from "./control";
 import { auditPlayerDialogue, dialogueContextFor, isDialogueAction } from "./dialogue-audit";
 import { DialogueBlockedError, GameError } from "./errors";
+import { resolveLearnableStage } from "./known-stages";
 import { parseSignatureName } from "./plan";
 import { getGameStateSlice, readTurnDelivery } from "./read/game-state";
 import { type RouteQuestion, resolveRouteQuestion } from "./route";
@@ -59,6 +61,20 @@ async function applyPlayerPlan(
   return applyPlayerPlanOnState(db, state, findActorByRef(state, actorRef), plan, options);
 }
 
+/** 没有动作的计划用认知类别做轨迹标签；顺序与落账顺序一致。 */
+function extraLabel(plan: ActorPlan): string {
+  if ((plan.identities?.length ?? 0) > 0) {
+    return MEMORY_KINDS.identityUpdate;
+  }
+  if ((plan.routes?.length ?? 0) > 0) {
+    return MEMORY_KINDS.routeRecall;
+  }
+  if ((plan.learnedStages?.length ?? 0) > 0) {
+    return MEMORY_KINDS.learnedStage;
+  }
+  return "empty_plan";
+}
+
 /**
  * 已装载状态上的计划执行。
  *
@@ -81,9 +97,7 @@ async function applyPlayerPlanOnState(
   const trace = createTurnTrace({ game: state.game, turnKind: "player" });
   await traceEvent(trace, {
     event: "turn_start",
-    label:
-      plan.actions[0]?.kind ??
-      ((plan.identities?.length ?? 0) > 0 ? "identity_update" : "route_recall"),
+    label: plan.actions[0]?.kind ?? extraLabel(plan),
     actorId: actor.id,
     actorName: actor.name,
     stageId: stage.id,
@@ -441,6 +455,23 @@ export async function playerRecognizeIdentity(
     identities: [{ handle: handleOf(target.signature.seq), name: parseSignatureName(input.name) }],
   };
   return applyPlayerPlanOnState(db, state, actor, plan);
+}
+
+/** 玩家替自己控制的角色认下一个场景真名；只有真名，`#序号` 不是知识。 */
+export type PlayerLearnStageInput = {
+  stageRef: string;
+};
+
+export async function playerLearnStage(
+  db: Database,
+  gameRef: string,
+  actorRef: string,
+  input: PlayerLearnStageInput,
+): Promise<ActorTurnResult> {
+  const state = await getGameStateSlice(db, gameRef);
+  const actor = findActorByRef(state, actorRef);
+  const stage = resolveLearnableStage(state, actor, input.stageRef);
+  return applyPlayerPlanOnState(db, state, actor, { actions: [], learnedStages: [stage.id] });
 }
 
 /** 玩家替自己控制的角色回忆一条路线；结论只进自己的认知，不占行动名额。 */

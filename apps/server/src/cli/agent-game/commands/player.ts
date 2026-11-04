@@ -11,12 +11,12 @@ import { DEEPSEEK_SERVICE } from "../../../deepseek";
 import {
   findActorByRef,
   getGameStateSlice,
-  learnStageName,
   playerAnnounce,
   playerBrawl,
   playerCall,
   playerEquip,
   playerGive,
+  playerLearnStage,
   playerMove,
   playerPickup,
   playerRecallRoute,
@@ -470,22 +470,17 @@ export function registerPlayerCommands(program: Command, ctx: CommandContext): v
   });
 
   addCommand(program, ctx, {
-    name: "learn-stage",
+    name: "player-learn-stage",
     group: GROUP,
-    summary: "开发期：让 actor 知道某个场景的真名（不占回合、不写公共事件）",
+    summary: "认下一个场景真名（需接管；写知识 + 认知，不占行动名额）",
     options: [gameOption(), actorOption(), requiredOption("--stage <name>", "场景真名（@名字）")],
     schema: z.object({ ...gameAndActor, stage: nonEmptyText("--stage") }),
-    run: async (input, ctx) => {
-      const learned = await ctx.db((db) =>
-        learnStageName(db, input.game, input.actor, input.stage),
-      );
-      return {
-        actor: { id: learned.actorId, name: learned.actorName },
-        stage: { id: learned.stageId, name: learned.stageName },
-        created: learned.created,
-        version: learned.version,
-      };
-    },
+    run: async (input, ctx) =>
+      turnOutput(
+        await ctx.db((db) =>
+          playerLearnStage(db, input.game, input.actor, { stageRef: input.stage }),
+        ),
+      ),
   });
 
   addCommand(program, ctx, {

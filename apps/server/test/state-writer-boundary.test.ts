@@ -16,9 +16,9 @@ const STATE_WRITERS: readonly { name: string; allowed: readonly string[] }[] = [
   { name: "recordAppearance", allowed: ["appearance.ts", "create-game.ts"] },
   { name: "openPassage", allowed: ["stage.ts"] },
   { name: "completeGame", allowed: ["world.ts"] },
-  // 场景知识没有「拥有的回合」：内容建局时授予，将来由鸟瞰 / 望远镜这类机制追加。
-  // 这里登记写入原语本身，新增调用点要在清单里显式加文件。
-  { name: "recordKnownStage", allowed: ["create-game.ts", "known-stages.ts"] },
+  // 场景知识两条路径：内容建局时授予（create-game），运行时由计划事务落账
+  // （apply/index.ts，`ActorPlan.learnedStages`）。新增调用点要在这里显式加文件。
+  { name: "recordKnownStage", allowed: ["create-game.ts", "apply/index.ts"] },
 ];
 
 function listTsFiles(dir: string, prefix = ""): string[] {

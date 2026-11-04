@@ -2,7 +2,7 @@ import type { TraceContext } from "../../debug/trace";
 import type { ToolDefinition } from "../../llm/types";
 import { mentionOf, stripNameRef } from "../addressing";
 import { appendPublicMessage, bumpGameVersion } from "../apply/messages";
-import { findStageInWorld } from "../apply/queries";
+import { findStageInWorld, isStageKnownToActor } from "../apply/queries";
 import type { ActorWithStageRow, Executor, ResolvedTeleport, WorldRow } from "../apply/types";
 import { GameError } from "../errors";
 import { renderAction, renderEnvironmentChange, withAppearances } from "../observation-text";
@@ -16,13 +16,14 @@ export function buildTeleportTool(): ToolDefinition {
     type: "function",
     function: {
       name: "teleport",
-      description: "传送到一个你知道真名的场景；一次跳跃，不沿路径移动，也不产生中间场景的观察。",
+      description:
+        "传送到一个你去过、或知道真名的场景；一次跳跃，不沿路径移动，也不产生中间场景的观察。",
       parameters: {
         type: "object",
         properties: {
           targetStageName: {
             type: "string",
-            description: "目标场景的真名；只能是你已经知道的场景名",
+            description: "目标场景的真名；必须是你去过或已经知道的场景",
           },
         },
         required: ["targetStageName"],
@@ -48,6 +49,7 @@ export async function resolveTeleport(
   executor: Executor,
   world: WorldRow,
   stage: ResolvedTeleport["stage"],
+  actorId: string,
   action: TeleportAction,
 ): Promise<ResolvedTeleport> {
   const targetStage = await findStageInWorld(executor, world.id, action.targetStageName);
@@ -62,6 +64,15 @@ export async function resolveTeleport(
   }
   if (targetStage.teleportBlocked) {
     throw new GameError("invalid_action", `目标场景禁止传送: ${targetStage.name}`);
+  }
+  // 底层约束：要么去过，要么知道真名；名字在散文或公共知识里出现过不算。
+  const known = await isStageKnownToActor(executor, {
+    gameId: world.gameId,
+    actorId,
+    stageId: targetStage.id,
+  });
+  if (!known) {
+    throw new GameError("invalid_action", `你还没听说过这个场景: ${targetStage.name}`);
   }
   return { kind: "teleport", action, stage, targetStage };
 }

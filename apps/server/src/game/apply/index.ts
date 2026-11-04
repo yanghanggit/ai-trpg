@@ -1,3 +1,4 @@
+import assert from "node:assert/strict";
 import { and, eq } from "drizzle-orm";
 import type { Database } from "../../db/pool";
 import { actors, games, stages, worlds } from "../../db/schema";
@@ -28,6 +29,7 @@ import type { DialogueJudge } from "../dialogue-audit";
 import { GameError } from "../errors";
 import { appendMemoryMessages, loadAgentMemory } from "../memory";
 import { auditTurnNameLeaks, nameAuditEnabled, nameAuditSince } from "../name-audit";
+import { recordKnownStage } from "../persistence/known-stages";
 import { upsertSignatureName } from "../persistence/signature-names";
 import { describeRoute } from "../route";
 import { sanitizeActorFacingText } from "../text-guard";
@@ -230,11 +232,11 @@ export async function applyActorPlan(
       ]);
     };
 
-    const plannedRoutes = plan?.routes?.length ?? 0;
-    if (
-      !plan ||
-      (plan.actions.length === 0 && (plan.identities?.length ?? 0) === 0 && plannedRoutes === 0)
-    ) {
+    const plannedExtras =
+      (plan?.identities?.length ?? 0) +
+      (plan?.routes?.length ?? 0) +
+      (plan?.learnedStages?.length ?? 0);
+    if (!plan || (plan.actions.length === 0 && plannedExtras === 0)) {
       await appendMemoryResult("# 行动结果\n本轮没有提交有效行动计划，状态未改变。", {
         kind: MEMORY_KINDS.planFailed,
         loopSuccess,
@@ -340,25 +342,60 @@ export async function applyActorPlan(
         metadata: { kind: MEMORY_KINDS.identityUpdate },
       });
     }
-    // 认知更新写进了状态（`signatureNames` 在 GameState 里），却没有任何动作替它推动版本；
+    // 认知三类（认识场景 / 回忆路线）共用一次窄读。必须在写入授予之前读：
+    // 回合内工具都按「回合开始的知识」回话，这样记忆与工具回话才不会对不上。
+    const knowledge =
+      resolved.routes.length > 0 || resolved.learnedStages.length > 0
+        ? await loadRouteWorld(tx, {
+            gameId,
+            worldId: world.id,
+            actorId,
+            currentStageId: actorRow.stage.id,
+          })
+        : undefined;
+
+    // 认识到场景真名：写 `known_stages` 并留一条绑定认知，旧路线里的 #序号 才有据可查。
+    // 已经知道的场景不重复写，也不重复记。
+    let learned = false;
+    if (knowledge) {
+      const stageById = new Map(knowledge.stages.map((stage) => [stage.id, stage]));
+      for (const stageId of resolved.learnedStages) {
+        if (knowledge.known.has(stageId)) {
+          continue;
+        }
+        const stage = stageById.get(stageId);
+        assert(stage, `授予的场景不存在: ${stageId}`);
+        await recordKnownStage(
+          tx,
+          {
+            gameId,
+            actorId,
+            stageId,
+            source: "runtime",
+            learnedStageId: actorRow.stage.id,
+          },
+          now,
+        );
+        learned = true;
+        pendingMemory.push({
+          content: `# 认知\n你把 #${stage.seq} 认作「${stage.name}」。`,
+          metadata: { kind: MEMORY_KINDS.learnedStage },
+        });
+      }
+    }
+
+    // 认知写进状态的部分（`signatureNames`、`known_stages`）没有动作替它推动版本；
     // 只有认知的空手计划必须自己 bump，否则这次写入对 `expectedVersion` 是隐形的。
-    // 有计划内动作时版本已经动过，不重复计一次。
-    if (resolved.identities.length > 0 && resolved.actions.length === 0) {
+    // 有计划内动作时版本已经动过，不重复计一次；纯记忆的路线不在 GameState 里，不算。
+    if ((resolved.identities.length > 0 || learned) && resolved.actions.length === 0) {
       await bumpGameVersion(tx, gameId, now);
     }
 
-    // 路线回忆只写自己的记忆：与动作同事务，重算一遍再写，不采信模型或调用方转述的文本。
-    // 记忆不在 GameState 里，所以这条路径不动版本号；状态本身没有变化。
-    if (resolved.routes.length > 0) {
-      const routeWorld = await loadRouteWorld(tx, {
-        gameId,
-        worldId: world.id,
-        actorId,
-        currentStageId: actorRow.stage.id,
-      });
+    // 路线回忆只写自己的记忆：与动作同事务，引擎重算，不采信模型或调用方转述的文本。
+    if (knowledge) {
       for (const route of resolved.routes) {
         pendingMemory.push({
-          content: `# 认知\n${describeRoute(routeWorld, route)}`,
+          content: `# 认知\n${describeRoute(knowledge, route)}`,
           metadata: { kind: MEMORY_KINDS.routeRecall },
         });
       }

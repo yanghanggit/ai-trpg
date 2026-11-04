@@ -40,6 +40,7 @@ export type ResolvedPlan = {
   actions: ResolvedAction[];
   identities: ResolvedIdentity[];
   routes: RouteQuery[];
+  learnedStages: string[];
 };
 
 export type PublicMessage = {

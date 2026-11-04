@@ -293,6 +293,8 @@ export type ActorPlan = {
   identities?: IdentityBinding[];
   /** 路线回忆：同样是自己的认知，端点必须是已解析的场景 id。 */
   routes?: RouteQuery[];
+  /** 认识到场景真名：写进 `known_stages` 并留一条认知，id 由引擎按真名解析。 */
+  learnedStages?: string[];
 };
 
 /** stage 小 GM 的一轮仲裁计划：按提交顺序更新 environment 或向 world 发通知。 */

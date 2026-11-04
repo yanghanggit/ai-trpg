@@ -93,7 +93,7 @@ export async function resolvePlan(
         break;
       }
       case "teleport": {
-        const teleport = await resolveTeleport(executor, world, stage, action);
+        const teleport = await resolveTeleport(executor, world, stage, actorRow.actor.id, action);
         resolved.push(teleport);
         stage = teleport.targetStage;
         break;
@@ -196,5 +196,10 @@ export async function resolvePlan(
     });
   }
 
-  return { actions: resolved, identities, routes: plan.routes ?? [] };
+  return {
+    actions: resolved,
+    identities,
+    routes: plan.routes ?? [],
+    learnedStages: plan.learnedStages ?? [],
+  };
 }

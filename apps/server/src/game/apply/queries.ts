@@ -400,6 +400,44 @@ export async function loadRouteWorld(
   return { stages: stageRows, connections: edges, known };
 }
 
+/**
+ * 目标场景是否在 actor 的知识账上：到访 ∪ 听说。
+ *
+ * 这是传送的底层约束：不是「引擎相信调用方」，而是这个 actor 确实知道这个地方。
+ * 与 `knownStageIds` 同一份语义，只是走一次窄查询，不装配状态。
+ */
+export async function isStageKnownToActor(
+  executor: Executor,
+  input: { gameId: string; actorId: string; stageId: string },
+): Promise<boolean> {
+  const [visit] = await executor
+    .select({ id: stageVisits.id })
+    .from(stageVisits)
+    .where(
+      and(
+        eq(stageVisits.gameId, input.gameId),
+        eq(stageVisits.actorId, input.actorId),
+        eq(stageVisits.stageId, input.stageId),
+      ),
+    )
+    .limit(1);
+  if (visit) {
+    return true;
+  }
+  const [learned] = await executor
+    .select({ id: knownStages.id })
+    .from(knownStages)
+    .where(
+      and(
+        eq(knownStages.gameId, input.gameId),
+        eq(knownStages.actorId, input.actorId),
+        eq(knownStages.stageId, input.stageId),
+      ),
+    )
+    .limit(1);
+  return learned !== undefined;
+}
+
 /** 物品转移后同一 actor 不能出现重名物品。 */
 export async function assertItemNameFree(
   executor: Executor,

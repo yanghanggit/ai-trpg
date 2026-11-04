@@ -49,7 +49,7 @@ describe("agent-game CLI", () => {
     }
     expect(result.stdout).toContain("player-recognize-identity");
     expect(result.stdout).toContain("ask-route");
-    expect(result.stdout).toContain("learn-stage");
+    expect(result.stdout).toContain("player-learn-stage");
     expect(result.stdout).toContain("known-stages");
   });
 
