@@ -12,9 +12,9 @@ import {
   playerTeleport,
   takeActorControl,
 } from "../src/game";
+import type { World } from "../src/game/content";
 import { buildActorTurnInput } from "../src/game/npc";
 import { visitedTeleportTargetsFor } from "../src/game/teleport";
-import type { World } from "../src/game/types";
 import { TEST_WORLD } from "./test-world";
 
 const testDatabaseUrl = process.env.TEST_DATABASE_URL?.trim();

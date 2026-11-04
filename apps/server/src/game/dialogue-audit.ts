@@ -3,15 +3,17 @@ import { z } from "zod";
 import type { Database } from "../db/pool";
 import { DEEPSEEK_MODEL_FLASH, DEEPSEEK_SERVICE } from "../deepseek";
 import { ChatCompletionRequest, type ChatCompletionService, type ToolDefinition } from "../llm";
-import { insertDialogueBlock } from "./persistence/dialogue-blocks";
+import {
+  type DialogueActionKind,
+  type DialogueCategory,
+  type DialogueFailureKind,
+  insertDialogueBlock,
+} from "./persistence/dialogue-blocks";
 import type {
   ActorAction,
   ActorState,
   AnnounceAction,
   CallAction,
-  DialogueActionKind,
-  DialogueCategory,
-  DialogueFailureKind,
   GameStateSlice,
   SayAction,
   WhisperAction,

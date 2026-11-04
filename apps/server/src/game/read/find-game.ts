@@ -23,12 +23,13 @@ export function isUuidShaped(ref: string): boolean {
 
 /** 读取的公共入口：slug 或 UUID 定位一局；slug 跨用户不唯一时要求使用 id。 */
 export async function findGame(db: Reader, ref: string): Promise<GameRow | undefined> {
-  const bySlug = await db.select().from(games).where(eq(games.slug, ref)).limit(2);
-  if (bySlug.length > 1) {
+  // 多取一行：slug 只按 owner 唯一，跨用户可能重名，重名时要求调用方改用 id。
+  const slugMatches = await db.select().from(games).where(eq(games.slug, ref)).limit(2);
+  if (slugMatches.length > 1) {
     throw new GameError("invalid_action", `游戏 slug 不唯一，请使用 id: ${ref}`);
   }
-  if (bySlug[0]) {
-    return bySlug[0];
+  if (slugMatches[0]) {
+    return slugMatches[0];
   }
   if (!isUuidShaped(ref)) {
     return undefined;

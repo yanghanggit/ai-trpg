@@ -2,8 +2,9 @@ import type { Database } from "../db/pool";
 import { type TraceContext, traceEvent } from "../debug/trace";
 import type { Logger } from "../logging";
 import { MEMORY_KINDS } from "./constants";
+import type { AgentMemoryMessageState, AgentMemoryState } from "./memory";
 import { loadNameAuditInput } from "./persistence/name-audit";
-import type { AgentMemoryMessageState, AgentMemoryState, CommunicationKind } from "./types";
+import type { CommunicationKind } from "./types";
 
 /**
  * actor 记忆的名字泄漏审计。

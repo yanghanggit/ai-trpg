@@ -10,11 +10,12 @@ import {
 import { allActors, findActorByName, findStage } from "./actors";
 import { MEMORY_KINDS } from "./constants";
 import { GameError } from "./errors";
+import type { AgentMemoryState } from "./memory";
 import { appendMemoryMessages, loadAgentMemory, type MemoryOwnerType } from "./memory";
 import { findNameLeaks, type NameAuditInput } from "./name-audit";
 import { loadNameAuditInput } from "./persistence/name-audit";
 import { getGameStateSlice } from "./read/game-state";
-import type { AgentMemoryState, GameStateSlice } from "./types";
+import type { GameStateSlice } from "./types";
 import { type WorldConstitution, worldFunctionSystemPrompt } from "./world-function";
 
 /** 手动 compact 的目标；actor/stage 用名称或 id，world 不需要名称。 */

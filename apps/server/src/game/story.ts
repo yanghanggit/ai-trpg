@@ -5,9 +5,10 @@ import type { ToolDefinition } from "../llm/types";
 import { findActorByName, findStage } from "./actors";
 import { DEFAULT_LLM_ERROR_RETRIES } from "./constants";
 import { GameError } from "./errors";
+import type { AgentMemoryMessageState, AgentMemoryState } from "./memory";
 import { getGameMemories } from "./memory";
 import { getGameState } from "./read/game-state";
-import type { AgentMemoryMessageState, AgentMemoryState, GameState } from "./types";
+import type { GameState } from "./types";
 import { type WorldConstitution, worldFunctionSystemPrompt } from "./world-function";
 
 export type StoryOptions = {

@@ -1,11 +1,12 @@
 import { describe, expect, it } from "vitest";
 import { BELL_MONASTERY_WORLD } from "../seeds/dark-fantasy";
+import type { World } from "../src/game/content";
 import {
   buildActorSystemPrompt,
   buildStageSystemPrompt,
   buildWorldSystemPrompt,
 } from "../src/game/memory";
-import { WORLD_FUNCTION_TYPES, type World } from "../src/game/types";
+import { WORLD_FUNCTION_TYPES } from "../src/game/types";
 import { buildWorldFunctionPrompt } from "../src/game/world-function";
 import { TEST_WORLD } from "./test-world";
 

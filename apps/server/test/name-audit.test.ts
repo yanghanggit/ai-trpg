@@ -23,8 +23,8 @@ import {
   takeActorControl,
 } from "../src/game";
 import { MEMORY_KINDS } from "../src/game/constants";
+import type { AgentMemoryMessageState, AgentMemoryState } from "../src/game/memory";
 import type { NameAuditInput } from "../src/game/name-audit";
-import type { AgentMemoryMessageState, AgentMemoryState } from "../src/game/types";
 import { ChatCompletionResult, type ChatCompletionService, type ToolCall } from "../src/llm";
 import { allowAllDialogue } from "./test-dialogue-judge";
 

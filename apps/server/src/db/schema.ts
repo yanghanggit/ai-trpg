@@ -14,12 +14,11 @@ import {
   vector,
 } from "drizzle-orm/pg-core";
 import type { Stats } from "../game/attributes";
+import type { DialogueActionKind, DialogueCategory } from "../game/persistence/dialogue-blocks";
 import type {
   ActionKind,
   Affix,
   AppearanceInput,
-  DialogueActionKind,
-  DialogueCategory,
   EquipmentSlots,
   ItemEffect,
   ItemKind,
@@ -66,6 +65,7 @@ export const games = pgTable(
     ownerId: uuid("owner_id")
       .notNull()
       .references(() => users.id, { onDelete: "cascade" }),
+    /** 对外引用名：URL / CLI 里代替 id 的短名，仅在同一 owner 内唯一。 */
     slug: text("slug").notNull(),
     name: text("name").notNull(),
     status: text("status").notNull().default("active"),

@@ -8,8 +8,39 @@
  */
 
 import { type Address, type AddressLookup, appearanceLine, mentionOf } from "./addressing";
-import { MEMORY_KINDS } from "./constants";
-import type { ActionKind, CommunicationKind, ItemEventKind, ObservationMetadata } from "./types";
+import { MEMORY_KINDS, type MemoryKind } from "./constants";
+import type { ActionKind, CommunicationKind, ItemEventKind, MessageVisibility } from "./types";
+
+/**
+ * 观察类记忆消息的 metadata。
+ *
+ * 观察回答「谁看到了什么」，因此只带当事人与场景标识，不带规则数值：
+ * 剩余生命这类数值只写进公共消息、舞台记忆与当事人自己的观察文本。
+ */
+export type ObservationMetadata = {
+  /** 记忆类别，取 `MEMORY_KINDS` 里的观察类值。 */
+  kind: MemoryKind;
+  /** 原始事件的可见范围；沟通观察会写，供快照阅读。 */
+  visibility?: MessageVisibility;
+  /** 沟通观察的具体事件类型：say / whisper / announce / call。 */
+  communicationKind?: CommunicationKind;
+  /** 沟通观察里真正说出口的台词；供审计定位，渲染时仍以 content 为准。 */
+  dialogue?: string;
+  stageId?: string;
+  actorId?: string;
+  sourceActorId?: string;
+  attackerActorId?: string;
+  targetActorId?: string;
+  itemName?: string;
+  targetStageId?: string;
+  targetStageName?: string;
+  targetAnchor?: string;
+};
+
+/** stage 自己记忆里的场景事件：`kind` 与 `stageId` 由写入方固定，调用方只说明事件类别。 */
+export type StageEventMetadata = Omit<ObservationMetadata, "kind" | "visibility" | "stageId"> & {
+  eventKind: string;
+};
 
 /**
  * 观察对象的最小投影：只带 id。

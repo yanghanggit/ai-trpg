@@ -1,7 +1,20 @@
 import { randomUUID } from "node:crypto";
 import type { Database } from "../../db/pool";
 import { dialogueBlocks } from "../../db/schema";
-import type { DialogueActionKind, DialogueCategory } from "../types";
+
+/** 玩家对话审核覆盖四种说话动作；call 也按台词审核。 */
+export type DialogueActionKind = "say" | "whisper" | "announce" | "call";
+
+/** 审核拒绝的类别；允许时为空。 */
+export type DialogueCategory = "immersion_break" | "out_of_world" | "prohibited" | "other";
+
+/** 审核失败的技术原因；内容违规不属于 failure。 */
+export type DialogueFailureKind =
+  | "timeout"
+  | "connection"
+  | "api"
+  | "invalid_verdict"
+  | "judge_error";
 
 export type DialogueBlockInput = {
   gameId: string;

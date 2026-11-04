@@ -22,7 +22,7 @@ import {
   resolveMemoryOwner,
   takeActorControl,
 } from "../src/game";
-import type { AgentMemoryState } from "../src/game/types";
+import type { AgentMemoryState } from "../src/game/memory";
 import { TEST_WORLD } from "./test-world";
 
 const actorMemory: AgentMemoryState = {

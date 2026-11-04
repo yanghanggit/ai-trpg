@@ -18,6 +18,7 @@ import { buildAffixSystemPrompt } from "./affixes";
 import type { Executor } from "./apply/types";
 import { toStats } from "./attributes";
 import { buildCompactSystemPrompt } from "./compact";
+import type { Actor, CreateGameInput, ItemDefinition, Stage, World } from "./content";
 import { buildDialogueAuditSystemPrompt } from "./dialogue-audit";
 import { buildDropSystemPrompt } from "./drops";
 import { assertEdgeShape } from "./edges";
@@ -38,7 +39,7 @@ import { insertSignature } from "./persistence/signatures";
 import { recordStageVisit } from "./persistence/visits";
 import { getGameState } from "./read/game-state";
 import { buildStorySystemPrompt } from "./story";
-import type { Actor, CreateGameInput, GameState, ItemDefinition, Stage, World } from "./types";
+import type { GameState } from "./types";
 import { parseWorldContent } from "./world-content";
 
 type PromptDump = { name: string; prompt: string };

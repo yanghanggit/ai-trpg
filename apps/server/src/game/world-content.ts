@@ -1,9 +1,10 @@
 import { z } from "zod";
 import { ACTION_KINDS } from "./actions";
 import { MAX_STAGE_ANCHORS } from "./constants";
+import type { World } from "./content";
 import { isValidForm } from "./form";
 import { findTextLeaks } from "./text-guard";
-import type { StageActionKind, World, WorldActionKind } from "./types";
+import type { StageActionKind, WorldActionKind } from "./types";
 import { WORLD_FUNCTION_TYPES, type WorldFunctionType } from "./types";
 
 /** 十二个动作直接复用运行时清单，避免新增动作时漏改。 */

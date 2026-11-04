@@ -4,7 +4,28 @@ import type { Database } from "../db/pool";
 import { agentMemories, agentMemoryMessages, type JsonValue } from "../db/schema";
 import type { ChatMessage, ToolCall } from "../llm/types";
 import { MEMORY_KINDS } from "./constants";
-import type { Actor, AgentMemoryMessageState, AgentMemoryState, Stage, World } from "./types";
+import type { Actor, Stage, World } from "./content";
+
+/** agent memory 的一条消息；`type` 与 LLM 的 ChatMessage 对应。 */
+export type AgentMemoryMessageState = {
+  sequence: number;
+  type: "system" | "human" | "ai" | "tool";
+  content: string;
+  toolCallId?: string;
+  toolCalls?: unknown;
+  metadata?: unknown;
+  createdAt: string;
+};
+
+/** 一个 owner（actor / stage / world）的记忆快照；`contextUsageRatio` 是压缩前的使用率。 */
+export type AgentMemoryState = {
+  id: string;
+  ownerType: string;
+  ownerId: string;
+  name: string;
+  contextUsageRatio: number;
+  messages: AgentMemoryMessageState[];
+};
 
 type Executor = Pick<Database, "select" | "insert" | "update">;
 type MemoryRow = typeof agentMemories.$inferSelect;

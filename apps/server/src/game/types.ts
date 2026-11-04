@@ -1,11 +1,9 @@
 import type { ChatMessage, ToolDefinition } from "../llm/types";
 import type { Stats } from "./attributes";
-import type { MemoryKind } from "./constants";
 
 /** 公共消息的可见范围：场景公开或仅当事人可见。 */
 export type MessageVisibility = "stage" | "private";
 
-/** 初始裸体形态：种族 + 外观描述；不含衣物与装备。 */
 /** 物品大类；每个大类对应一个运行时子类。 */
 export type ItemKind =
   | "weapon"
@@ -96,10 +94,6 @@ export const EQUIPMENT_SLOT_KINDS: Record<EquipmentSlot, readonly ItemKind[]> = 
   accessory: ["accessory"],
 };
 
-/**
- * 创建游戏时的初始内容定义；`createGame` 在一个事务里把它物化为数据库行，
- * 之后以数据库为唯一真相。
- */
 /** 世界职能：世界级单例，有宪法与自己的一份口径，没有 memory。 */
 export const WORLD_FUNCTION_TYPES = [
   "drops",
@@ -114,38 +108,6 @@ export type WorldFunctionType = (typeof WORLD_FUNCTION_TYPES)[number];
 /** 每份世界职能在本世界的口径；由内容提供，随 World 快照落库。 */
 export type WorldFunctionProfiles = Record<WorldFunctionType, string>;
 
-export type World = {
-  contentVersion: string;
-  /** 稳定内容标识（剧本 slug）：知识库 collection 用它寻址，改展示名不会断链。 */
-  contentKey: string;
-  worldName: string;
-  /** 世界的自我设定：本剧本里它是什么、负责什么、什么算收束。 */
-  profile: string;
-  campaignSetting: string;
-  globalRules: string;
-  /** 世界职能各自的世界口径；内容侧必填，运行时只读。 */
-  worldFunctions: WorldFunctionProfiles;
-  stages: readonly Stage[];
-  connections: readonly Connection[];
-  actors: readonly Actor[];
-  /** 开局时已经建立的名字绑定：观察者与对象都用 `Actor.key` 引用。 */
-  signatureNames?: readonly WorldSignatureName[];
-  /** 世界实体可用的动作；必须显式列出。 */
-  actions: readonly WorldActionKind[];
-};
-
-/**
- * 开局时就已建立的名字绑定。
- *
- * 等价于建局时替观察者执行一次 `recognize_identity`：`observer` 与 `subject` 用内容 key，
- * `name` 是观察者当前对这个签名的称呼；允许是真名、称号、误认或听来的叫法。
- */
-export type WorldSignatureName = {
-  observer: string;
-  subject: string;
-  name: string;
-};
-
 /**
  * 场景内的可交互锚点：actor 能明确指认的位置或部位。
  *
@@ -158,105 +120,13 @@ export type StageAnchor = {
   description?: string;
 };
 
-/** World 内的初始场景定义；`key` 仅在创建时用于连接与 actor 归属。 */
-export type Stage = {
-  key: string;
-  name: string;
-  profile: string;
-  environment: string;
-  /** 场景内可交互的锚点，创建后由 stage 回合维护。 */
-  anchors?: readonly StageAnchor[];
-  /** 暂放在场景中的物品；创建时物化为 `stage_items`。 */
-  items?: readonly ItemDefinition[];
-  /** 场景自身的能力清单；必须显式列出。 */
-  actions: readonly StageActionKind[];
-  /** 是否禁止 teleport 进出；普通 move 不受影响。 */
-  teleportBlocked?: boolean;
-};
-
 /** 场景边的通行状态；sealed 表示两侧在剧情上相连，但当前不能通过。 */
 export type PassageState = "open" | "sealed";
-
-/** 场景图的初始有向连接；两端引用 `Stage.key`，默认已通行。 */
-export type Connection = {
-  from: string;
-  to: string;
-  passage?: PassageState;
-};
-
-/**
- * World 内的初始 actor 定义。
- *
- * `signature` 是它开局时的形态与外观；`form` 必须写成 `种族:描述`，
- * 之后与装备、伤势一起渲染成 appearance。
- */
-export type Actor = {
-  /**
-   * 内容层稳定标识：连接、开场知识等引用角色时用它，不用展示名。
-   * 与 `Stage.key` / `ItemDefinition.key` 同义。
-   */
-  key: string;
-  stageKey: string;
-  name: string;
-  profile: string;
-  /**
-   * 本局开局注入给该角色的私有简报；只写入 actor memory，不进入 actors 表。
-   * 可以承载目标、任务、处境、约束与初始知识，不要求是目标列表。
-   */
-  openingBriefing?: string;
-  /** 开局签名：稳定形态 + 预制外观快照；外观省略时回退到 `form`。 */
-  signature: {
-    form: string;
-    appearance?: string;
-  };
-  /** 初始穿戴：槽位 → 物品名；物品本身不记录穿戴状态。 */
-  equipment?: EquipmentSlots;
-  /**
-   * 完整属性；`maxHp` / `strength` / `wisdom` / `agility` / `damage` / `block` 全部显式写出。
-   * 结算只读 `maxHp` / `damage` / `block`；力量 / 智慧 / 敏捷是保留属性，暂无读取点。
-   */
-  stats: Stats;
-  /** 初始当前生命；省略时等于 `stats.maxHp`。`hp` 为 0 就是尸体。 */
-  hp?: number;
-  /** 是否为默认玩家角色；主角死亡时只通知 world，收尾由 world 回合决定。 */
-  isDefaultPlayer?: boolean;
-  items: readonly ItemDefinition[];
-  /** 该角色能执行的行动；必须显式列出，不给默认值。 */
-  actions: readonly ActionKind[];
-};
 
 /** 词缀：短名字 + 一句自然语言规则；展示与提示词统一为 `[名字]内容`。 */
 export type Affix = {
   name: string;
   content: string;
-};
-
-/** Actor 的初始物品定义；创建后物化为 `items` 或 `stage_items` 行。 */
-export type ItemDefinition = {
-  /** 世界内稳定 key；行为与内容判定用它，不用展示名。 */
-  key: string;
-  name: string;
-  description: string;
-  kind: ItemKind;
-  count?: number;
-  /** 属性；可省略，未写出的字段按 0 归一。 */
-  stats?: Partial<Stats>;
-  /** 物品效果；必须显式声明，type 路由到 handler。 */
-  effect: ItemEffect;
-  /** 词缀；可省略，创建时归一化为空数组。 */
-  affixes?: readonly Affix[];
-  /** 物品能提供的动作；穿戴中才借给角色。可省略，创建时归一化为空数组。 */
-  actions?: readonly ActionKind[];
-  /** 材料来源；只有 `material` 可以声明，其它大类声明会被内容校验拒绝。 */
-  source?: string;
-};
-
-/** `createGame` 的输入；`world` 只在创建时读取，之后以数据库状态为准。 */
-export type CreateGameInput = {
-  username: string;
-  name?: string;
-  slug?: string;
-  world: World;
 };
 
 export type SayAction = {
@@ -288,20 +158,6 @@ export type CallAction = {
   targetActorName: string;
   message: string;
 };
-
-/** 玩家对话审核覆盖四种说话动作；call 也按台词审核。 */
-export type DialogueActionKind = "say" | "whisper" | "announce" | "call";
-
-/** 审核拒绝的类别；允许时为空。 */
-export type DialogueCategory = "immersion_break" | "out_of_world" | "prohibited" | "other";
-
-/** 审核失败的技术原因；内容违规不属于 failure。 */
-export type DialogueFailureKind =
-  | "timeout"
-  | "connection"
-  | "api"
-  | "invalid_verdict"
-  | "judge_error";
 
 export type MoveAction = {
   kind: "move";
@@ -581,56 +437,6 @@ export type PlayerState = {
   username: string;
   displayName: string;
   role: string;
-};
-
-export type AgentMemoryMessageState = {
-  sequence: number;
-  type: "system" | "human" | "ai" | "tool";
-  content: string;
-  toolCallId?: string;
-  toolCalls?: unknown;
-  metadata?: unknown;
-  createdAt: string;
-};
-
-/**
- * 观察类记忆消息的 metadata。
- *
- * 观察回答「谁看到了什么」，因此只带当事人与场景标识，不带规则数值：
- * 剩余生命这类数值只写进公共消息、舞台记忆与当事人自己的观察文本。
- */
-export type ObservationMetadata = {
-  /** 记忆类别，取 `MEMORY_KINDS` 里的观察类值。 */
-  kind: MemoryKind;
-  /** 原始事件的可见范围；沟通观察会写，供快照阅读。 */
-  visibility?: MessageVisibility;
-  /** 沟通观察的具体事件类型：say / whisper / announce / call。 */
-  communicationKind?: CommunicationKind;
-  /** 沟通观察里真正说出口的台词；供审计定位，渲染时仍以 content 为准。 */
-  dialogue?: string;
-  stageId?: string;
-  actorId?: string;
-  sourceActorId?: string;
-  attackerActorId?: string;
-  targetActorId?: string;
-  itemName?: string;
-  targetStageId?: string;
-  targetStageName?: string;
-  targetAnchor?: string;
-};
-
-/** stage 自己记忆里的场景事件：`kind` 与 `stageId` 由写入方固定，调用方只说明事件类别。 */
-export type StageEventMetadata = Omit<ObservationMetadata, "kind" | "visibility" | "stageId"> & {
-  eventKind: string;
-};
-
-export type AgentMemoryState = {
-  id: string;
-  ownerType: string;
-  ownerId: string;
-  name: string;
-  contextUsageRatio: number;
-  messages: AgentMemoryMessageState[];
 };
 
 /** 运行时 world 状态；由 worlds/stages/stage_connections 表水合得到。 */

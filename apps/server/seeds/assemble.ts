@@ -1,4 +1,5 @@
-import type { World, WorldFunctionProfiles } from "../src/game/types";
+import type { World } from "../src/game/content";
+import type { WorldFunctionProfiles } from "../src/game/types";
 import { GLOBAL_RULES } from "./system-rules";
 
 /**

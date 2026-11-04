@@ -11,7 +11,7 @@ import {
   playerCall,
   takeActorControl,
 } from "../src/game";
-import type { World } from "../src/game/types";
+import type { World } from "../src/game/content";
 import { allowAllDialogue } from "./test-dialogue-judge";
 import { TEST_WORLD } from "./test-world";
 

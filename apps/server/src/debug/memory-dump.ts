@@ -9,7 +9,7 @@
 import { existsSync } from "node:fs";
 import { mkdir, writeFile } from "node:fs/promises";
 import { dirname, join, resolve } from "node:path";
-import type { AgentMemoryMessageState, AgentMemoryState } from "../game/types";
+import type { AgentMemoryMessageState, AgentMemoryState } from "../game/memory";
 import { findRepoRoot } from "./paths";
 import { safeFileName, timestampName } from "./prompt-dump";
 import { markdownFence } from "./trace";

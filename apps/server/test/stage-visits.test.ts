@@ -5,10 +5,10 @@ import { DEMO_USER } from "../src/db/demo-fixture";
 import { resetDomainData, seedDemoData } from "../src/db/maintenance";
 import { runMigrations } from "../src/db/migrate";
 import { createGame, getGameState, playerMove, takeActorControl } from "../src/game";
+import type { World } from "../src/game/content";
 import { buildActorTurnInput } from "../src/game/npc";
 import { recordStageVisit } from "../src/game/persistence/visits";
 import { buildVisitedStagesTool, describeVisitedStages } from "../src/game/plan";
-import type { World } from "../src/game/types";
 import { TEST_WORLD } from "./test-world";
 
 const testDatabaseUrl = process.env.TEST_DATABASE_URL?.trim();

@@ -4,6 +4,7 @@ export * from "./appearance";
 export * from "./apply";
 export * from "./compact";
 export * from "./constants";
+export * from "./content";
 export * from "./control";
 export * from "./create-game";
 export * from "./death";

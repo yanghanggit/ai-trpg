@@ -17,6 +17,7 @@ import { listStageActorViews } from "./apply/queries";
 import type { ActorRow, Executor } from "./apply/types";
 import { MEMORY_KINDS } from "./constants";
 import { appendMemoryMessages, loadAgentMemory } from "./memory";
+import type { ObservationMetadata, StageEventMetadata } from "./observation-text";
 import {
   type Audience,
   type CommunicationObservation,
@@ -30,7 +31,6 @@ import {
 } from "./observation-text";
 import { listSignatureNames } from "./persistence/signature-names";
 import { assertWorldFaceText } from "./text-guard";
-import type { ObservationMetadata, StageEventMetadata } from "./types";
 
 /** 场景广播：场景内除发起者外的所有 actor。 */
 const STAGE_WIDE: Audience = { type: "stage" };
