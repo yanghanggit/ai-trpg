@@ -31,6 +31,7 @@ import { auditTurnNameLeaks, nameAuditEnabled, nameAuditSince } from "../name-au
 import { upsertSignatureName } from "../persistence/signature-names";
 import { sanitizeActorFacingText } from "../text-guard";
 import type { ActorPlan, CommunicationKind, DeathPhaseResult } from "../types";
+import { bumpGameVersion } from "./messages";
 import { isAlive, listStageActorRefs, stageAddressLookup } from "./queries";
 
 export * from "./queries";
@@ -333,6 +334,12 @@ export async function applyActorPlan(
         content: `# 认知\n你把 ${identity.handle} 记作「${identity.name}」。`,
         metadata: { kind: MEMORY_KINDS.identityUpdate },
       });
+    }
+    // 认知更新写进了状态（`signatureNames` 在 GameState 里），却没有任何动作替它推动版本；
+    // 只有认知的空手计划必须自己 bump，否则这次写入对 `expectedVersion` 是隐形的。
+    // 有计划内动作时版本已经动过，不重复计一次。
+    if (resolved.identities.length > 0 && resolved.actions.length === 0) {
+      await bumpGameVersion(tx, gameId, now);
     }
 
     // 一次计划的最后一条 memory 带落账后的状态；识名更新也算计划结果的一部分。

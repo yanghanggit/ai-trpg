@@ -490,6 +490,67 @@ describe.skipIf(!testDatabaseUrl)("names and addresses", () => {
     ).rejects.toThrow(/找不到唯一引用/);
   });
 
+  it("bumps the version for a name-only plan without adding a public message", async () => {
+    const created = await createGame(handle.db, {
+      username: DEMO_USER.username,
+      name: "认知版本测试局",
+      world: BELL_MONASTERY_WORLD,
+    });
+    await takeActorControl(handle.db, created.game.slug, "无名者");
+    await playerMove(handle.db, created.game.slug, "无名者", {
+      targetStageRef: "墓园",
+    });
+
+    const before = await getGameState(handle.db, created.game.slug);
+    const turn = await playerRecognizeIdentity(handle.db, created.game.slug, "无名者", {
+      targetActorRef: "奥德里克",
+      name: "灰衣人",
+    });
+    expect(turn.ok).toBe(true);
+
+    // 名字表在状态里，所以这是一次写：版本必须动，公共事件流不动。
+    const after = await getGameState(handle.db, created.game.slug);
+    expect(after.game.version).toBe(before.game.version + 1);
+    expect(Date.parse(after.game.updatedAt)).toBeGreaterThan(Date.parse(before.game.updatedAt));
+    expect(after.messages.length).toBe(before.messages.length);
+  });
+
+  it("counts one version bump when a plan carries both an action and a name", async () => {
+    const created = await createGame(handle.db, {
+      username: DEMO_USER.username,
+      name: "认知与动作同轮测试局",
+      world: BELL_MONASTERY_WORLD,
+    });
+    await takeActorControl(handle.db, created.game.slug, "无名者");
+    await playerMove(handle.db, created.game.slug, "无名者", {
+      targetStageRef: "墓园",
+    });
+
+    const { state, actor: nameless } = await actorByName(created.game.slug, handle, "无名者");
+    const odric = state.world.stages
+      .flatMap((stage) => stage.actors)
+      .find((candidate) => candidate.name === "奥德里克");
+    if (!odric) {
+      throw new Error("缺少奥德里克");
+    }
+
+    const plan: ActorPlan = {
+      actions: [{ kind: "wait" }],
+      identities: [{ handle: handleOf(odric.signature.seq), name: "灰衣人" }],
+    };
+    const turn = await applyActorPlan(handle.db, state.game.id, nameless.id, plan, true);
+    expect(turn.ok).toBe(true);
+
+    // 动作自己已经 bump 过了，认知更新不重复计一次。
+    const after = await getGameState(handle.db, created.game.slug);
+    expect(after.game.version).toBe(state.game.version + 1);
+    expect(
+      after.signatureNames.find(
+        (row) => row.observerActorId === nameless.id && row.signatureId === odric.signature.id,
+      ),
+    ).toMatchObject({ name: "灰衣人", source: "self" });
+  });
+
   it("stops using a name after a signature change, and restores on switch back", async () => {
     const created = await createGame(handle.db, {
       username: DEMO_USER.username,
