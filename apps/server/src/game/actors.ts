@@ -73,6 +73,24 @@ export function sealedStageNames(state: GameStateSlice, stageId: string): string
   });
 }
 
+/**
+ * god-view 解析：真名、`@真名` 或 `#签名序号` → actor。
+ *
+ * 玩家入口、开发期命令都用这一份；模型工具只拿得到 actor-facing 引用。
+ */
+export function findActorByRef(state: GameStateSlice, ref: string): ActorState {
+  const value = ref.trim();
+  if (value.startsWith("#")) {
+    const seq = Number(value.slice(1));
+    if (!Number.isInteger(seq) || seq <= 0) {
+      throw new GameError("not_found", `没有这个引用: ${value}`);
+    }
+    return findActorBySignatureSeq(state, seq).actor;
+  }
+  const name = value.startsWith("@") ? value.slice(1) : value;
+  return findActorByName(state, name).actor;
+}
+
 export function findStage(state: GameStateSlice, ref: string): StageState {
   const matches = state.world.stages.filter((stage) => stage.id === ref || stage.name === ref);
   if (matches.length === 0) {

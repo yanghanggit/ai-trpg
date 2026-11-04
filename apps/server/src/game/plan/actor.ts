@@ -93,13 +93,13 @@ ${lines.join("\n")}
 检索结果只是文本参考资料；公共知识不等于你亲眼所见，也不能据此知道角色秘密或当前状态。`;
 }
 
-/** 只读：让 NPC 能回看自己去过哪些场景，不占行动。 */
-export function buildVisitedStagesTool(): ToolDefinition {
+/** 只读：让 NPC 回看自己去过、以及只听过名字的场景，不占行动。 */
+export function buildKnownStagesTool(): ToolDefinition {
   return {
     type: "function",
     function: {
-      name: "get_visited_stages",
-      description: "查看你去过的场景。只读，不占行动。",
+      name: "get_known_stages",
+      description: "查看你知道的场景：去过的，以及只知道真名、还没去过的。只读，不占行动。",
       parameters: {
         type: "object",
         properties: {},

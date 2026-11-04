@@ -222,6 +222,37 @@ export const stageVisits = pgTable(
 );
 
 /**
+ * actor 只知名、未到访的场景。
+ *
+ * 到访由 `stage_visits` 隐含；这里只记「非到访方式得知」：内容声明、听说，以及将来的鸟瞰 / 望远镜。
+ * 读取时由 `knownStageIds` 合并两份，所以到达路径不需要再写第二张表。
+ */
+export const knownStages = pgTable(
+  "known_stages",
+  {
+    id: uuid("id").primaryKey(),
+    gameId: uuid("game_id")
+      .notNull()
+      .references(() => games.id, { onDelete: "cascade" }),
+    actorId: uuid("actor_id")
+      .notNull()
+      .references(() => actors.id, { onDelete: "cascade" }),
+    stageId: uuid("stage_id")
+      .notNull()
+      .references(() => stages.id, { onDelete: "cascade" }),
+    firstLearnedAt: timestamp("first_learned_at", { withTimezone: true }).notNull().defaultNow(),
+    /** 得知渠道：内容声明或运行时（台词、观察、鸟瞰、望远镜）。 */
+    source: text("source").notNull(),
+    /** 在哪个场景听说的；内容直接声明时为 null。 */
+    learnedStageId: uuid("learned_stage_id").references(() => stages.id, { onDelete: "set null" }),
+  },
+  (table) => [
+    uniqueIndex("known_stages_actor_stage_unique").on(table.actorId, table.stageId),
+    index("known_stages_game_actor_idx").on(table.gameId, table.actorId),
+  ],
+);
+
+/**
  * 一个 actor 可被看见的「签名」（signature）。
  *
  * 签名是观察者识别的单位：`form` 是稳定的形态描述（`种族:描述`），`appearance` 是此刻
@@ -572,6 +603,7 @@ export const schema = {
   stageConnections,
   actors,
   stageVisits,
+  knownStages,
   actorSignatures,
   actorSignatureNames,
   items,

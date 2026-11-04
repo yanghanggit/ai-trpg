@@ -6,7 +6,7 @@ import {
 } from "../actors";
 import { type AddressLookup, addressLookupFor, handleOf, refOf } from "../addressing";
 import { isAlive } from "../apply/queries";
-import { visitedStageIds, visitedTeleportTargetsFor } from "../teleport";
+import { knownStageIds, knownStagesForActor, visitedTeleportTargetsFor } from "../teleport";
 import { sanitizeActorFacingText } from "../text-guard";
 import type { ActorState, GameStateSlice, ItemState, StageAnchor, StageState } from "../types";
 import { EQUIPMENT_SLOT_LABELS, EQUIPMENT_SLOTS } from "../types";
@@ -131,17 +131,17 @@ function describeStageAnchorsSection(anchors: readonly StageAnchor[]): string {
 }
 
 /**
- * actor 视角的可去方向：去过的场景写名字，没去过的只给实体编号。
+ * actor 视角的可去方向：知道真名的写名字，不知道的只给实体编号。
  *
- * 场景名不是 actor 的默认知识；进入场景后由 `stage_visits` 永久记住。
+ * 知道名字有两种来源：到访过（`stage_visits`），或只是听说过（`known_stages`）。
  */
 export function adjacentStageRefsForActor(
   state: GameStateSlice,
   current: ActorWithStage,
 ): string[] {
-  const visited = visitedStageIds(state, current.actor.id);
+  const known = knownStageIds(state, current.actor.id);
   return adjacentStages(state, current.stage.id).map((stage) =>
-    visited.has(stage.id) ? `@${stage.name}` : handleOf(stage.seq),
+    known.has(stage.id) ? `@${stage.name}` : handleOf(stage.seq),
   );
 }
 
@@ -178,27 +178,28 @@ ${describeStageAnchorsSection(stage.anchors)}
 }
 
 /**
- * 去过哪些场景；按首次到访顺序，名称只来自已访问的 stage。
+ * 知道哪些场景，分两段：去过的与只知名、还没去过的。
  *
- * 顺序直接沿用 `state.visits` 的排序（同一时刻并列时已按场景序号兜底），
- * 这里不再重排，避免两处排序规则漂移。
+ * 顺序直接沿用 `state.visits` / `state.knownStages` 的排序（并列时已按场景序号兜底），
+ * 这里不再重排，避免两处排序规则漂移。到访过的场景即使也有知识行，只出现在第一段。
  */
-export function describeVisitedStages(
+export function describeKnownStages(
   state: GameStateSlice,
   actorId: string,
   currentStageId?: string,
 ): string {
-  const byId = new Map(state.world.stages.map((stage) => [stage.id, stage]));
-  const lines = state.visits
-    .filter((visit) => visit.actorId === actorId)
-    .flatMap((visit) => {
-      const stage = byId.get(visit.stageId);
-      if (!stage) {
-        return [];
-      }
-      return [`${stage.name}${stage.id === currentStageId ? "（当前）" : ""}`];
-    });
-  return `# 你去过的场景（按首次到访）\n${lines.length === 0 ? "无" : lines.join("\n")}`;
+  const { visited, learned } = knownStagesForActor(state, actorId);
+  const lines = (stages: StageState[]): string =>
+    stages.length === 0
+      ? "无"
+      : stages
+          .map((stage) => `${stage.name}${stage.id === currentStageId ? "（当前）" : ""}`)
+          .join("\n");
+  return `# 你知道的场景
+## 去过（按首次到访）
+${lines(visited)}
+## 只知道名字，还没去过
+${lines(learned)}`;
 }
 
 /** world 视角：可查看任意场景，名字与 environment 原样输出。 */

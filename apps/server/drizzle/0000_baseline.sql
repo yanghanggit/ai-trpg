@@ -175,6 +175,16 @@ CREATE TABLE "jobs" (
 	"updated_at" timestamp with time zone DEFAULT now() NOT NULL
 );
 --> statement-breakpoint
+CREATE TABLE "known_stages" (
+	"id" uuid PRIMARY KEY NOT NULL,
+	"game_id" uuid NOT NULL,
+	"actor_id" uuid NOT NULL,
+	"stage_id" uuid NOT NULL,
+	"first_learned_at" timestamp with time zone DEFAULT now() NOT NULL,
+	"source" text NOT NULL,
+	"learned_stage_id" uuid
+);
+--> statement-breakpoint
 CREATE TABLE "stage_connections" (
 	"id" uuid PRIMARY KEY NOT NULL,
 	"world_id" uuid NOT NULL,
@@ -289,6 +299,10 @@ ALTER TABLE "game_players" ADD CONSTRAINT "game_players_game_id_games_id_fk" FOR
 ALTER TABLE "game_players" ADD CONSTRAINT "game_players_user_id_users_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."users"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "games" ADD CONSTRAINT "games_owner_id_users_id_fk" FOREIGN KEY ("owner_id") REFERENCES "public"."users"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "items" ADD CONSTRAINT "items_actor_id_actors_id_fk" FOREIGN KEY ("actor_id") REFERENCES "public"."actors"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "known_stages" ADD CONSTRAINT "known_stages_game_id_games_id_fk" FOREIGN KEY ("game_id") REFERENCES "public"."games"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "known_stages" ADD CONSTRAINT "known_stages_actor_id_actors_id_fk" FOREIGN KEY ("actor_id") REFERENCES "public"."actors"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "known_stages" ADD CONSTRAINT "known_stages_stage_id_stages_id_fk" FOREIGN KEY ("stage_id") REFERENCES "public"."stages"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "known_stages" ADD CONSTRAINT "known_stages_learned_stage_id_stages_id_fk" FOREIGN KEY ("learned_stage_id") REFERENCES "public"."stages"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "stage_connections" ADD CONSTRAINT "stage_connections_world_id_worlds_id_fk" FOREIGN KEY ("world_id") REFERENCES "public"."worlds"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "stage_connections" ADD CONSTRAINT "stage_connections_from_stage_id_stages_id_fk" FOREIGN KEY ("from_stage_id") REFERENCES "public"."stages"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "stage_connections" ADD CONSTRAINT "stage_connections_to_stage_id_stages_id_fk" FOREIGN KEY ("to_stage_id") REFERENCES "public"."stages"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
@@ -317,6 +331,8 @@ CREATE INDEX "jobs_claim_idx" ON "jobs" USING btree ("queue","status","run_at","
 CREATE INDEX "jobs_status_created_idx" ON "jobs" USING btree ("status","created_at");--> statement-breakpoint
 CREATE INDEX "jobs_kind_idx" ON "jobs" USING btree ("kind");--> statement-breakpoint
 CREATE UNIQUE INDEX "jobs_active_serialization_unique" ON "jobs" USING btree ("queue","serialization_key") WHERE "jobs"."serialization_key" is not null and "jobs"."status" in ('pending', 'running');--> statement-breakpoint
+CREATE UNIQUE INDEX "known_stages_actor_stage_unique" ON "known_stages" USING btree ("actor_id","stage_id");--> statement-breakpoint
+CREATE INDEX "known_stages_game_actor_idx" ON "known_stages" USING btree ("game_id","actor_id");--> statement-breakpoint
 CREATE UNIQUE INDEX "stage_connections_world_edge_unique" ON "stage_connections" USING btree ("world_id","from_stage_id","to_stage_id");--> statement-breakpoint
 CREATE UNIQUE INDEX "stage_items_stage_name_unique" ON "stage_items" USING btree ("stage_id","name");--> statement-breakpoint
 CREATE UNIQUE INDEX "stage_visits_actor_stage_unique" ON "stage_visits" USING btree ("actor_id","stage_id");--> statement-breakpoint

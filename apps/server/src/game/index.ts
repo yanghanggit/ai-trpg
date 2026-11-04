@@ -11,6 +11,7 @@ export * from "./death";
 export * from "./drops";
 export * from "./end-game";
 export * from "./errors";
+export * from "./known-stages";
 export * from "./memory";
 export * from "./memory-owner";
 export * from "./name-audit";

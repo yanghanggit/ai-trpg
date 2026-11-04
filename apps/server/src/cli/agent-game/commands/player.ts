@@ -9,6 +9,9 @@ import type { Command } from "commander";
 import { z } from "zod";
 import { DEEPSEEK_SERVICE } from "../../../deepseek";
 import {
+  findActorByRef,
+  getGameStateSlice,
+  learnStageName,
   playerAnnounce,
   playerBrawl,
   playerCall,
@@ -28,6 +31,7 @@ import {
   releaseActorControl,
   takeActorControl,
 } from "../../../game";
+import { knownStagesForActor } from "../../../game/teleport";
 import type { ActorTurnResult } from "../../../game/types";
 import { EQUIPMENT_SLOTS } from "../../../game/types";
 import {
@@ -436,5 +440,45 @@ export function registerPlayerCommands(program: Command, ctx: CommandContext): v
           }),
         ),
       ),
+  });
+
+  addCommand(program, ctx, {
+    name: "learn-stage",
+    group: GROUP,
+    summary: "开发期：让 actor 知道某个场景的真名（不占回合、不写公共事件）",
+    options: [gameOption(), actorOption(), requiredOption("--stage <ref>", "stageId 或场景名")],
+    schema: z.object({ ...gameAndActor, stage: nonEmptyText("--stage") }),
+    run: async (input, ctx) => {
+      const learned = await ctx.db((db) =>
+        learnStageName(db, input.game, input.actor, input.stage),
+      );
+      return {
+        actor: { id: learned.actorId, name: learned.actorName },
+        stage: { id: learned.stageId, name: learned.stageName },
+        created: learned.created,
+        version: learned.version,
+      };
+    },
+  });
+
+  addCommand(program, ctx, {
+    name: "known-stages",
+    group: GROUP,
+    summary: "列出 actor 已知的场景：去过的 / 只知名的",
+    options: [gameOption(), actorOption()],
+    schema: controlInput,
+    run: async (input, ctx) =>
+      ctx.db(async (db) => {
+        const state = await getGameStateSlice(db, input.game);
+        const actor = findActorByRef(state, input.actor);
+        const { visited, learned } = knownStagesForActor(state, actor.id);
+        const brief = (stages: { id: string; name: string }[]) =>
+          stages.map((stage) => ({ stageId: stage.id, name: stage.name }));
+        return {
+          actor: { id: actor.id, name: actor.name },
+          visited: brief(visited),
+          learned: brief(learned),
+        };
+      }),
   });
 }

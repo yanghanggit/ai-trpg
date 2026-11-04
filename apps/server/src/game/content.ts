@@ -35,6 +35,8 @@ export type World = {
   actors: readonly Actor[];
   /** 开局时已经建立的名字绑定：观察者与对象都用 `Actor.key` 引用。 */
   signatureNames?: readonly WorldSignatureName[];
+  /** 开局就知道真名的场景：`actor` / `stage` 都用内容 key。 */
+  knownStages?: readonly WorldKnownStage[];
   /** 世界实体可用的动作；必须显式列出。 */
   actions: readonly WorldActionKind[];
 };
@@ -49,6 +51,16 @@ export type WorldSignatureName = {
   observer: string;
   subject: string;
   name: string;
+};
+
+/**
+ * 开局就知道真名的场景。
+ *
+ * 等价于「建局前听说过」：只影响地图、名字显示与提示词，不要求到访，也不扩传送候选。
+ */
+export type WorldKnownStage = {
+  actor: string;
+  stage: string;
 };
 
 /** World 内的初始场景定义；`key` 仅在创建时用于连接与 actor 归属。 */

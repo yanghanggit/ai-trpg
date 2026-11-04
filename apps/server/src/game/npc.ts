@@ -45,18 +45,18 @@ import {
   adjacentStageRefsForActor,
   buildActorLookTool,
   buildKnowledgeTool,
+  buildKnownStagesTool,
   buildObserveActorTool,
   buildRecognizeIdentityTool,
   buildSelfInfoTool,
   buildSubmitPlanTool,
-  buildVisitedStagesTool,
   describeEquipmentBrief,
   describeKnowledgeResults,
+  describeKnownStages,
   describeObservedActor,
   describeSelf,
   describeStageAnchors,
   describeStageForActor,
-  describeVisitedStages,
   parseRecognizeIdentity,
   renderStageEnvironmentForActor,
 } from "./plan";
@@ -123,10 +123,12 @@ export function buildActorTurnInput(state: GameStateSlice, current: ActorWithSta
     "look_stage",
     "get_self",
     ...(canObserve ? ["observe_actor"] : []),
-    "get_visited_stages",
+    "get_known_stages",
     "query",
     "recognize_identity",
-  ].join("、")} 不占计划。look_stage 只能看本场景；get_visited_stages 可以回看自己去过的地方。`;
+  ].join(
+    "、",
+  )} 不占计划。look_stage 只能看本场景；get_known_stages 可以回看你去过的，以及只听过名字的场景。`;
   const actorLines =
     others.length === 0
       ? "无"
@@ -263,7 +265,7 @@ export async function runNpcTurn(
 
   const lookTool = buildActorLookTool();
   const selfTool = buildSelfInfoTool();
-  const visitedStagesTool = buildVisitedStagesTool();
+  const knownStagesTool = buildKnownStagesTool();
   // 侦察是偷窃的前置：只有能 steal 的角色才注入 observe_actor，与任务提示词同一判断。
   const observeTool = canObserveActorItems(current.actor)
     ? buildObserveActorTool(targets)
@@ -358,7 +360,7 @@ export async function runNpcTurn(
     tools: [
       lookTool,
       selfTool,
-      visitedStagesTool,
+      knownStagesTool,
       ...(observeTool ? [observeTool] : []),
       knowledgeTool,
       recognizeTool,
@@ -368,8 +370,8 @@ export async function runNpcTurn(
     handlers: {
       [lookTool.function.name]: () => describeStageForActor(state, current),
       [selfTool.function.name]: () => describeSelf(current.actor),
-      [visitedStagesTool.function.name]: () =>
-        describeVisitedStages(state, current.actor.id, current.stage.id),
+      [knownStagesTool.function.name]: () =>
+        describeKnownStages(state, current.actor.id, current.stage.id),
       ...(observeTool
         ? {
             [observeTool.function.name]: (args: Record<string, unknown>) => {

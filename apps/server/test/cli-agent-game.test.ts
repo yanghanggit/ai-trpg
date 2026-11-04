@@ -48,6 +48,8 @@ describe("agent-game CLI", () => {
       expect(result.stdout).toContain(group);
     }
     expect(result.stdout).toContain("player-recognize-identity");
+    expect(result.stdout).toContain("learn-stage");
+    expect(result.stdout).toContain("known-stages");
   });
 
   it("-v 打印版本", async () => {

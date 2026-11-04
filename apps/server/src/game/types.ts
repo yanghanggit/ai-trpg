@@ -459,7 +459,7 @@ export type WorldState = {
  * actor 去过哪些场景：名字知识的账本，不是通行证。
  *
  * 建局时起点算一次到访，之后每次 move / teleport 到达都记一条（同一场景只刷新
- * `lastVisitedAt`）。它只影响地图、方向名显示、`get_visited_stages` 与传送候选提示；
+ * `lastVisitedAt`）。它只影响地图、方向名显示、已知场景查看与传送候选提示；
  * move 的权限在邻接边、teleport 的权限在「知道真名」上，两者都不来自这里。
  */
 export type StageVisitState = {
@@ -467,6 +467,22 @@ export type StageVisitState = {
   stageId: string;
   firstVisitedAt: string;
   lastVisitedAt: string;
+};
+
+/**
+ * actor 知道真名、但不是走到那里才知道的场景。
+ *
+ * 与 `StageVisitState` 互补：到访天然含名字知识，两份合起来才是「已知场景」
+ * （`knownStageIds`）。它只影响地图、方向名与提示词，不参与 move 权限，也不扩传送候选。
+ */
+export type KnownStageState = {
+  actorId: string;
+  stageId: string;
+  firstLearnedAt: string;
+  /** 得知渠道：`content`（开局内容）或 `runtime`（台词、观察，以及将来的鸟瞰 / 望远镜）。 */
+  source: string;
+  /** 在哪个场景听说的；内容直接声明时为 null。 */
+  learnedStageId: string | null;
 };
 
 export type GameState = {
@@ -493,6 +509,11 @@ export type GameState = {
    * 用于地图、已访问候选与查看，不参与普通移动权限。
    */
   visits: StageVisitState[];
+  /**
+   * 非到访得知的场景名，按 `firstLearnedAt` 升序（并列规则同 `visits`）。
+   * 到访过的场景可能也在这里——先听说、后走到；地图按 `visits ∪ knownStages` 取已知。
+   */
+  knownStages: KnownStageState[];
 };
 
 /**

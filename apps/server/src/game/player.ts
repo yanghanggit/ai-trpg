@@ -1,7 +1,7 @@
 import type { Database } from "../db/pool";
 import { createTurnTrace, traceEvent } from "../debug/trace";
 import { parseCall } from "./actions/call";
-import { findActorByName, findActorBySignatureSeq } from "./actors";
+import { findActorByName, findActorByRef } from "./actors";
 import { addressLookupFor, handleOf } from "./addressing";
 import { type ApplyActorPlanOptions, applyActorPlan } from "./apply";
 import { isPlayerControlled } from "./control";
@@ -18,23 +18,6 @@ import type {
   GameStateSlice,
   StageState,
 } from "./types";
-
-/**
- * 玩家入口是 god view：可以用真名或签名引用指定目标。
- * 这里只负责把 god-view 输入解析成 actor；真正进入 apply 前还会换成 actor-facing 引用。
- */
-function findActorByRef(state: GameStateSlice, ref: string): ActorState {
-  const value = ref.trim();
-  if (value.startsWith("#")) {
-    const seq = Number(value.slice(1));
-    if (!Number.isInteger(seq) || seq <= 0) {
-      throw new GameError("not_found", `没有这个引用: ${value}`);
-    }
-    return findActorBySignatureSeq(state, seq).actor;
-  }
-  const name = value.startsWith("@") ? value.slice(1) : value;
-  return findActorByName(state, name).actor;
-}
 
 /**
  * 玩家入口是 god view，可以用真名 / 引用指定目标；但进入 apply 前必须

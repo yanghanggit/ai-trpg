@@ -23,6 +23,11 @@ const signatureNameSchema = z
   .min(1)
   .refine((value) => !/[@#\p{Cc}]/u.test(value), "名字不能包含 @、# 或控制字符");
 
+const worldKnownStageSchema = z.strictObject({
+  actor: z.string().min(1),
+  stage: z.string().min(1),
+});
+
 const worldSignatureNameSchema = z.strictObject({
   observer: z.string().min(1),
   subject: z.string().min(1),
@@ -158,6 +163,7 @@ const worldSchema = z
     ),
     actors: z.array(actorSchema),
     signatureNames: z.array(worldSignatureNameSchema).optional(),
+    knownStages: z.array(worldKnownStageSchema).optional(),
     actions: z.array(worldActionSchema),
   })
   .superRefine((value, ctx) => {

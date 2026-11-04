@@ -4,7 +4,7 @@ import { addressLookupFor, handleOf, refOf } from "./addressing";
 import { MEMORY_KINDS } from "./constants";
 import { getMemoryState } from "./memory";
 import { getGameStateSlice } from "./read/game-state";
-import { visitedTeleportTargetsFor } from "./teleport";
+import { knownStagesForActor, visitedTeleportTargetsFor } from "./teleport";
 import type { SignatureNameState } from "./types";
 
 /**
@@ -65,6 +65,8 @@ export type ActorView = {
   log: ViewerLogEntry[];
   /** 去过的场景（地图/记忆用）；不等于完整可传送列表。 */
   visitedStages: { stageId: string; name: string }[];
+  /** 知道真名、还没去过的场景（地图用）；去过的那部分在 `visitedStages`。 */
+  unvisitedKnownStages: { stageId: string; name: string }[];
   /** 已去过且未被 teleport_blocked 的候选；不是完整的可传送集合。 */
   teleportTargets: { stageId: string; name: string }[];
 };
@@ -111,13 +113,9 @@ export async function getActorView(
     };
   });
 
-  const stageById = new Map(state.world.stages.map((candidate) => [candidate.id, candidate]));
-  const visitedStages = state.visits
-    .filter((visit) => visit.actorId === actor.id)
-    .flatMap((visit) => {
-      const visited = stageById.get(visit.stageId);
-      return visited ? [{ stageId: visited.id, name: visited.name }] : [];
-    });
+  const { visited, learned } = knownStagesForActor(state, actor.id);
+  const visitedStages = visited.map((stage) => ({ stageId: stage.id, name: stage.name }));
+  const unvisitedKnownStages = learned.map((stage) => ({ stageId: stage.id, name: stage.name }));
   const teleportTargets = visitedTeleportTargetsFor(state, actor, stage).map((target) => ({
     stageId: target.id,
     name: target.name,
@@ -174,6 +172,7 @@ export async function getActorView(
     signatureNames: state.signatureNames.filter((row) => row.observerActorId === actor.id),
     log,
     visitedStages,
+    unvisitedKnownStages,
     teleportTargets,
   };
 }

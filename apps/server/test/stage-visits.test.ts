@@ -8,7 +8,7 @@ import { createGame, getGameState, playerMove, takeActorControl } from "../src/g
 import type { World } from "../src/game/content";
 import { buildActorTurnInput } from "../src/game/npc";
 import { recordStageVisit } from "../src/game/persistence/visits";
-import { buildVisitedStagesTool, describeVisitedStages } from "../src/game/plan";
+import { buildKnownStagesTool, describeKnownStages } from "../src/game/plan";
 import { TEST_WORLD } from "./test-world";
 
 const testDatabaseUrl = process.env.TEST_DATABASE_URL?.trim();
@@ -46,9 +46,9 @@ describe.skipIf(!testDatabaseUrl)("stage visits", () => {
     expect(buildActorTurnInput(before, { actor: keeper, stage: gate })).toContain(`#${nave.seq}`);
     expect(buildActorTurnInput(before, { actor: keeper, stage: gate })).not.toContain("断钟中殿");
 
-    expect(describeVisitedStages(before, keeper.id, gate.id)).toContain("灰烬门廊（当前）");
-    expect(describeVisitedStages(before, keeper.id, gate.id)).not.toContain("断钟中殿");
-    expect(buildVisitedStagesTool().function.name).toBe("get_visited_stages");
+    expect(describeKnownStages(before, keeper.id, gate.id)).toContain("灰烬门廊（当前）");
+    expect(describeKnownStages(before, keeper.id, gate.id)).not.toContain("断钟中殿");
+    expect(buildKnownStagesTool().function.name).toBe("get_known_stages");
 
     const moved = await playerMove(handle.db, created.game.slug, "守烬人", {
       targetStageRef: `#${nave.seq}`,
@@ -66,9 +66,7 @@ describe.skipIf(!testDatabaseUrl)("stage visits", () => {
     const input = buildActorTurnInput(after, { actor: movedKeeper, stage: movedNave });
     expect(input).toContain("@灰烬门廊");
     expect(input).not.toContain(`#${gate.seq}`);
-    expect(describeVisitedStages(after, movedKeeper.id, movedNave.id)).toContain(
-      "断钟中殿（当前）",
-    );
+    expect(describeKnownStages(after, movedKeeper.id, movedNave.id)).toContain("断钟中殿（当前）");
   });
 
   it("orders visits that share a timestamp by stage ordinal", async () => {

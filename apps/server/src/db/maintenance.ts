@@ -19,6 +19,7 @@ export const DOMAIN_TABLES = [
   "appearances",
   "items",
   "stage_items",
+  "known_stages",
   "stage_visits",
   "actor_signatures",
   "actors",
