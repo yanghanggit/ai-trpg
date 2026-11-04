@@ -82,7 +82,7 @@ describe("dark fantasy seed world", () => {
       key: "gate-key",
       kind: "valuable",
     });
-    expect(keeper?.signature.form.startsWith("[人类]:")).toBe(true);
+    expect(keeper?.signature.form.startsWith("人类:")).toBe(true);
     expect(keeper?.hp).toBe(14);
     const defaultPlayers = BELL_MONASTERY_WORLD.actors
       .filter((actor) => actor.isDefaultPlayer)
@@ -94,7 +94,7 @@ describe("dark fantasy seed world", () => {
       kind: "valuable",
       effect: { type: "event" },
     });
-    expect(king?.signature.form.startsWith("[鼠]:")).toBe(true);
+    expect(king?.signature.form.startsWith("鼠:")).toBe(true);
     expect(king?.hp).toBeGreaterThan(keeper?.hp ?? 0);
     expect(king?.stats.damage).toBeGreaterThan(20);
     expect(king?.stats.block).toBeGreaterThan(king?.stats.damage ?? 0);
@@ -218,7 +218,7 @@ describe("dark fantasy seed world", () => {
     // 收束条件属于世界设定；全局规则只定边界，不重复具体玩法。
     expect(profile).toContain("有且只有三种收尾");
     const prompt = buildWorldSystemPrompt(BELL_MONASTERY_WORLD);
-    expect(prompt).toContain("## 世界设定");
+    expect(prompt).toContain("## 本局世界");
     expect(prompt).toContain("主角倒下只是通知");
   });
 

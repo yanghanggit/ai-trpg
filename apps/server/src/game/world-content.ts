@@ -120,8 +120,8 @@ const actorSchema = z.object({
   openingBriefing: z.string().optional(),
   equipment: equipmentSchema.optional(),
   signature: z.object({
-    /** 稳定形态，统一写成 `[种族]:描述`；它是辨认与外观推理的输入。 */
-    form: z.string().refine(isValidForm, "form 必须写成 [种族]:描述"),
+    /** 稳定形态，统一写成 `种族:描述`；它是辨认与外观推理的输入。 */
+    form: z.string().refine(isValidForm, "form 必须写成 种族:描述"),
     /** 预制外观快照；省略时回退到 form。 */
     appearance: z.string().optional(),
   }),

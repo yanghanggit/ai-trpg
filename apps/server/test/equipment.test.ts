@@ -257,7 +257,7 @@ describe.skipIf(!testDatabaseUrl)("equip and unequip actions", () => {
     expect(removed.ok).toBe(true);
     // 玩家路径没有规划 loop，只有这一次外观 loop。
     expect(service.calls).toBe(1);
-    expect(service.input).toContain("[人类]");
+    expect(service.input).toContain("人类:");
     expect(service.input).not.toContain("补丁斗篷");
 
     const state = await getGameState(handle.db, created.game.slug);

@@ -1,3 +1,4 @@
+import { existsSync } from "node:fs";
 import { mkdtemp, readFile, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -8,16 +9,11 @@ import {
   promptsRoot,
   safeFileName,
   timestampName,
-  worldPromptMarkdown,
 } from "../src/debug/prompt-dump";
 
 const input = {
-  world: {
-    name: "枯钟修道院",
-    contentVersion: "test.v1",
-    campaignSetting: "世界设定正文。",
-    systemRules: "全局规则正文。",
-  },
+  world: { name: "枯钟修道院", contentVersion: "test.v1" },
+  worldPrompt: "WORLD PROMPT",
   actorPrompts: [{ name: "奥德里克", prompt: "ACTOR PROMPT" }],
   stagePrompts: [{ name: "灰烬门廊", prompt: "STAGE PROMPT" }],
 };
@@ -38,8 +34,10 @@ describe("prompt dump", () => {
     process.env[PROMPTS_DIR_ENV] = root;
     const dir = await dumpSystemPrompts(input, { now: new Date("2026-10-23T12:34:56") });
 
-    expect(dir).toBe(join(root, "20261023_123456_枯钟修道院"));
-    expect(await readFile(join(dir as string, "world.md"), "utf8")).toContain("# 枯钟修道院");
+    expect(dir).toBe(join(root, "20261023_123456_枯钟修道院_test.v1"));
+    expect(await readFile(join(dir as string, "枯钟修道院.md"), "utf8")).toContain("WORLD PROMPT");
+    expect(existsSync(join(dir as string, "world.md"))).toBe(false);
+    expect(existsSync(join(dir as string, "world-agent.md"))).toBe(false);
     expect(await readFile(join(dir as string, "actors", "奥德里克.md"), "utf8")).toContain(
       "ACTOR PROMPT",
     );
@@ -67,9 +65,6 @@ describe("prompt dump", () => {
     expect(safeFileName("场景/奥德里克 的墓园")).toBe("场景_奥德里克_的墓园");
     expect(safeFileName("")).toBe("unnamed");
     expect(timestampName(new Date("2026-01-02T03:04:05"))).toBe("20260102_030405");
-    const markdown = worldPromptMarkdown(input.world);
-    expect(markdown).toContain("## 游戏设定\n\n世界设定正文。");
-    expect(markdown).toContain("## 全局规则\n\n全局规则正文。");
     expect(promptsRoot(root)).toBe(root);
   });
 });

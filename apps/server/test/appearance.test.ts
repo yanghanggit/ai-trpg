@@ -101,7 +101,7 @@ describe.skipIf(!testDatabaseUrl)("appearance fusion", () => {
     expect(result.itemName).toBeNull();
     expect(result.appearance).toBe("只穿旧衬衣，手背沾着新土。");
     expect(service.calls).toBe(1);
-    expect(service.observation).toContain("[人类]");
+    expect(service.observation).toContain("人类:");
     // 世界背景整段进输入，外观的语气、材质与时代都以它为准。
     expect(service.observation).toContain("这是一个架空的黑暗奇幻世界");
     expect(service.observation).not.toContain("补丁斗篷");
@@ -131,7 +131,7 @@ describe.skipIf(!testDatabaseUrl)("appearance fusion", () => {
     if (input?.version !== 1 || input.source === "seed") {
       throw new Error("缺少运行时外观输入快照");
     }
-    expect(input.context.form).toContain("[人类]");
+    expect(input.context.form).toContain("人类:");
     expect(input.context.dead).toBe(false);
     expect(input.context.worn.some(({ name }) => name === "补丁斗篷")).toBe(false);
     expect(input.prompt.inputMessage).toContain("外观更新");
@@ -142,7 +142,7 @@ describe.skipIf(!testDatabaseUrl)("appearance fusion", () => {
     const memories = await getGameMemories(handle.db, created.game.id);
     const keeperMemory = memories.find((memory) => memory.name === "奥德里克");
     const systemPrompt = keeperMemory?.messages.find((message) => message.type === "system");
-    expect(systemPrompt?.content).toContain("[人类]");
+    expect(systemPrompt?.content).toContain("人类:");
     expect(systemPrompt?.content).not.toContain("只穿旧衬衣");
   });
 

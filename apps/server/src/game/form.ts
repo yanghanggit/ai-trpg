@@ -1,14 +1,15 @@
 /**
  * 形态（form）是签名上唯一的稳定描述，也是系统提示词与外观推理的输入。
  *
- * 统一写法：`[种族]:描述`，例如 `[种族名]:整体形态…`。
+ * 统一写法：`种族:描述`，例如 `人类:整体形态…`。方括号是 Markdown 的链接引用定义语法，
+ * 导出成 .md 时会被判成未使用的引用，所以种族不加括号。
  * 种族是整体形态（具体种族由内容层定义），描述里应包含能锁定身份的标记部位。
  */
-export const FORM_PATTERN = /^\[[^\]\r\n]+\]:\S[^\r\n]*$/;
+export const FORM_PATTERN = /^[^:[\]\r\n]+:\S[^\r\n]*$/;
 
 /** 组装统一的形态写法；所有形态都从这里生成，避免格式散落。 */
 export function formatForm(race: string, description: string): string {
-  return `[${race}]:${description}`;
+  return `${race}:${description}`;
 }
 
 export function isValidForm(value: string): boolean {

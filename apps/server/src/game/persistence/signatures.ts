@@ -13,7 +13,7 @@ export type SignatureWrite = {
   id: string;
   seq: number;
   actorId: string;
-  /** 稳定形态，`[种族]:描述`。 */
+  /** 稳定形态，`种族:描述`。 */
   form: string;
   /** 新签名先以「已退场」插入，再由 `switchCurrentSignature` 启用，避免撞唯一索引。 */
   endedAt?: Date | null;

@@ -490,7 +490,7 @@ describe.skipIf(!testDatabaseUrl)("items and interactions", () => {
     expect(service.calls).toBe(1);
     expect(service.input).toContain("[松脂渗毛]火焰顺着毛根渗进去");
     expect(service.input).toContain("对多毛类生物额外造成武器伤害的一百倍");
-    expect(service.input).toContain("形态：[人类]:中等身量，右手虎口有一圈烫疤，指节被灯烟熏黄。");
+    expect(service.input).toContain("形态：人类:中等身量，右手虎口有一圈烫疤，指节被灯烟熏黄。");
     expect(service.input).toContain("外观：灰袍下摆浸着泥水，右手始终握着灯柄。");
     // 仲裁 agent 是控制面读者：目标用名字寻址，而不是出手者视角的引用。
     expect(service.input).toContain("目标：提灯修士");

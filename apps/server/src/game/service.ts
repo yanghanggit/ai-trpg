@@ -617,15 +617,10 @@ export async function createGame(
   });
 
   await dumpSystemPrompts({
-    world: {
-      name: input.world.worldName,
-      contentVersion: input.world.contentVersion,
-      campaignSetting: input.world.campaignSetting,
-      systemRules: input.world.systemRules,
-    },
+    world: { name: input.world.worldName, contentVersion: input.world.contentVersion },
+    worldPrompt,
     stagePrompts,
     actorPrompts,
-    worldAgentPrompt: worldPrompt,
     ...(options.logger ? { logger: options.logger } : {}),
   });
 

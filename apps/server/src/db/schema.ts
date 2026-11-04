@@ -221,7 +221,7 @@ export const stageVisits = pgTable(
 /**
  * 一个 actor 可被看见的「签名」（signature）。
  *
- * 签名是观察者识别的单位：`form` 是稳定的形态描述（`[种族]:描述`），`appearance` 是此刻
+ * 签名是观察者识别的单位：`form` 是稳定的形态描述（`种族:描述`），`appearance` 是此刻
  * 合成的样子。换装、受伤、死亡只改 `appearance`；伪装 / 变身会开一条新签名并把旧的
  * `ended_at` 封上，所以认识旧签名的人看到新签名时认不出他。同一 actor 同时最多一条
  * `ended_at is null` 的签名。
@@ -235,7 +235,7 @@ export const actorSignatures = pgTable(
     actorId: uuid("actor_id")
       .notNull()
       .references(() => actors.id, { onDelete: "cascade" }),
-    /** 稳定的形态描述，必须写成 `[种族]:描述`；换装不会改写它。 */
+    /** 稳定的形态描述，必须写成 `种族:描述`；换装不会改写它。 */
     form: text("form").notNull(),
     /** 签名退场时间；null 表示当前正在使用。 */
     endedAt: timestamp("ended_at", { withTimezone: true }),
@@ -246,10 +246,7 @@ export const actorSignatures = pgTable(
     uniqueIndex("actor_signatures_current_unique")
       .on(table.actorId)
       .where(sql`${table.endedAt} is null`),
-    check(
-      "actor_signatures_form_format",
-      sql`${table.form} ~ '^\\[[^\\]\\r\\n]+\\]:\\S[^\\r\\n]*$'`,
-    ),
+    check("actor_signatures_form_format", sql`${table.form} ~ '^[^:[\\]\\r\\n]+:\\S[^\\r\\n]*$'`),
   ],
 );
 

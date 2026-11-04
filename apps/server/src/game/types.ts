@@ -171,7 +171,7 @@ export type Connection = {
 /**
  * World 内的初始 actor 定义。
  *
- * `signature` 是它开局时的形态与外观；`form` 必须写成 `[种族]:描述`，
+ * `signature` 是它开局时的形态与外观；`form` 必须写成 `种族:描述`，
  * 之后与装备、伤势一起渲染成 appearance。
  */
 export type Actor = {
@@ -497,7 +497,7 @@ export type SignatureState = {
   id: string;
   /** 本局内唯一的排序号；观察者句柄由它派生（`#<seq>`）。 */
   seq: number;
-  /** 稳定形态，`[种族]:描述`；换装不改写它。 */
+  /** 稳定形态，`种族:描述`；换装不改写它。 */
   form: string;
 };
 

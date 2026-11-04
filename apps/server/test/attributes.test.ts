@@ -82,11 +82,13 @@ describe("equipment index", () => {
 describe("form", () => {
   const form = formatForm("人类", "皮肤灰白，关节干涩。");
 
-  it("requires the [race]:description shape", () => {
+  it("requires the race:description shape", () => {
     expect(formatForm("人类", "皮肤灰白，关节干涩。")).toBe(form);
     expect(isValidForm(form)).toBe(true);
-    expect(isValidForm("人类:皮肤灰白")).toBe(false);
-    expect(isValidForm("[人类] 皮肤灰白")).toBe(false);
+    expect(isValidForm("人类:皮肤灰白")).toBe(true);
+    expect(isValidForm("[人类]:皮肤灰白")).toBe(false);
+    expect(isValidForm("人类 皮肤灰白")).toBe(false);
+    expect(isValidForm("人类: 皮肤灰白")).toBe(false);
   });
 
   it("prefers explicit appearance and falls back to the form", () => {

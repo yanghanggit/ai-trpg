@@ -14,7 +14,7 @@
 
 ## 运行时 system prompt 导出
 
-建局成功后，服务层把本局实际使用的 system prompt 写到 `logs/prompts/`，含世界公共设定、world agent 与各 actor/stage 的 prompt。导出是旁路：失败只告警，数据库仍是唯一权威状态。
+建局成功后，服务层把本局实际使用的 system prompt 写到 `logs/prompts/`：world 与各 actor/stage 各一份，文件名取实体名、容器目录名带时间戳与内容版本，内容与记忆里的第一条逐字一致。导出是旁路：失败只告警，数据库仍是唯一权威状态。
 
 ## 过程轨迹
 

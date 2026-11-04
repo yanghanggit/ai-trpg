@@ -53,7 +53,7 @@ const STATS = { maxHp: 10, strength: 4, wisdom: 2, agility: 3, damage: 5, block:
 describe("campaign setting block", () => {
   it("包含世界名、战役设定与本任务用途", () => {
     const block = buildCampaignSettingBlock(WORLD, { purpose: "只用于保持术语一致。" });
-    expect(block).toContain("## 世界设定");
+    expect(block).toContain("## 游戏设定");
     expect(block).toContain(TEST_WORLD.worldName);
     expect(block).toContain(TEST_WORLD.campaignSetting);
     expect(block).toContain("只用于保持术语一致。");
