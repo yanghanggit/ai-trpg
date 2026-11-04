@@ -10,6 +10,24 @@ describe("world content validation", () => {
     expect("extra" in world).toBe(false);
   });
 
+  it("requires each world function prompt to carry the world constitution", () => {
+    const broken = {
+      ...TEST_WORLD,
+      functionAgents: TEST_WORLD.functionAgents.map((agent) =>
+        agent.fn === "story" ? { ...agent, systemPrompt: "## 职责\n\n写一段故事。\n" } : agent,
+      ),
+    };
+    expect(() => parseWorldContent(broken)).toThrow(/世界职能 agent 的宪法缺少/);
+  });
+
+  it("requires exactly one agent per world function", () => {
+    const broken = {
+      ...TEST_WORLD,
+      functionAgents: TEST_WORLD.functionAgents.slice(1),
+    };
+    expect(() => parseWorldContent(broken)).toThrow(/世界职能 agent 必须恰好一个/);
+  });
+
   it("accepts an optional opening briefing without changing the actor profile", () => {
     const world = parseWorldContent({
       ...TEST_WORLD,

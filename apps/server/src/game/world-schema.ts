@@ -5,7 +5,7 @@ import { MAX_STAGE_ANCHORS } from "./constants";
 import { isValidForm } from "./form";
 import { equipmentSchema, itemSchema } from "./item-schema";
 import type { StageActionKind, WorldActionKind } from "./types";
-import { WORLD_FUNCTION_TYPES, type WorldFunctionType } from "./types";
+import { WORLD_FUNCTION_TYPES } from "./types";
 
 /**
  * 世界定义的内容校验形状：场景、角色、连接与世界本身。
@@ -85,11 +85,12 @@ export const worldSchema = z.object({
   profile: z.string().min(1),
   campaignSetting: z.string(),
   globalRules: z.string(),
-  worldFunctions: z.object(
-    Object.fromEntries(WORLD_FUNCTION_TYPES.map((name) => [name, z.string().min(1)])) as Record<
-      WorldFunctionType,
-      z.ZodString
-    >,
+  /** 世界职能 agent：内容层在剧本构建时逐个定档，框架只校验不代劳。 */
+  functionAgents: z.array(
+    z.object({
+      fn: z.enum(WORLD_FUNCTION_TYPES),
+      systemPrompt: z.string().min(1),
+    }),
   ),
   stages: z.array(stageSchema).min(1),
   connections: z.array(

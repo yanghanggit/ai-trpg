@@ -18,7 +18,8 @@ export function buildStrikeTool(targetActorHandles: readonly string[]): ToolDefi
     type: "function",
     function: {
       name: "strike",
-      description: "把一次挥击加入计划：用 weapon 槽里装备的武器攻击同场景的一个角色。",
+      description:
+        "把一次挥击加入计划：用 weapon 槽里装备的武器攻击同场景的一个角色；不判定命中与闪避，伤害由结果直接结算。",
       parameters: {
         type: "object",
         properties: {

@@ -268,7 +268,7 @@ CREATE TABLE "worlds" (
 	"profile" text NOT NULL,
 	"campaign_setting" text NOT NULL,
 	"global_rules" text NOT NULL,
-	"world_functions" jsonb NOT NULL,
+	"function_agents" jsonb NOT NULL,
 	"actions" jsonb DEFAULT '[]'::jsonb NOT NULL,
 	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
 	"updated_at" timestamp with time zone DEFAULT now() NOT NULL

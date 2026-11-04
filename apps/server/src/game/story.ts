@@ -9,7 +9,7 @@ import type { AgentMemoryMessageState, AgentMemoryState } from "./memory";
 import { getGameMemories } from "./memory";
 import { getGameState } from "./read/game-state";
 import type { GameState } from "./types";
-import { type WorldConstitution, worldFunctionSystemPrompt } from "./world-function";
+import { type WorldConstitution, worldFunctionAgent } from "./world-function";
 
 export type StoryOptions = {
   service: ChatCompletionService;
@@ -175,7 +175,8 @@ function buildSubmitStoryTool(): ToolDefinition {
         properties: {
           story: {
             type: "string",
-            description: "一段完整、连贯的故事总结，不是分析报告或工具说明",
+            description:
+              "一段完整、连贯的故事正文，不是提纲或分析报告；叙事里不出现框架用语（场景、世界、系统、裁决、报告、工具、记忆）与 @名字、#编号。",
           },
         },
         required: ["story"],
@@ -184,9 +185,9 @@ function buildSubmitStoryTool(): ToolDefinition {
   };
 }
 
-/** 故事整理的宪法：世界宪法 + 本职能的叙事契约。 */
+/** 故事整理的宪法：建局时装配好的完整文本。 */
 export function buildStorySystemPrompt(world: WorldConstitution): string {
-  return worldFunctionSystemPrompt(world, "story", STORY_SYSTEM_PROMPT);
+  return worldFunctionAgent(world, "story").systemPrompt;
 }
 
 export function buildStoryInput(state: GameState, memories: readonly AgentMemoryState[]): string {
@@ -202,32 +203,17 @@ export function buildStoryInput(state: GameState, memories: readonly AgentMemory
 
 游戏可能仍在进行，也可能已经结束；只根据当前已经发生的记忆和事件写作，不要虚构尚未发生的结局。
 
-# 工作顺序
+# 本轮任务
+
+写一段完整、连贯的故事：开头、发展、冲突与当前阶段的收束，能解释关键角色为什么行动；保留关键因果、关系、物品、地点与结局。
 
 1. list_memories；
 2. 对每一个 world / stage / actor 调用 read_memory；如果摘要不足以理解关键因果，可用 includeArchived 展开归档；
 3. read_events；
 4. 综合所有视角，调用 submit_story。
 
-不要跳过任何实体，不要把单个角色的误解当作客观事实，不要编造未出现的事件。`;
+只使用工具返回的记忆与事件。把场景通知与世界裁决改写成故事里实际发生的事，不要解释“谁向谁报告、谁如何裁决”；不要跳过任何实体，不要把单个角色的误解当作客观事实，不要编造未出现的事件。`;
 }
-
-const STORY_SYSTEM_PROMPT = `你是本局游戏的叙事整理者，不是世界内角色，也不属于任何一个 actor / stage / world。
-
-你的任务是把本局所有实体的私有记忆与事件流整理成一段完整、连贯的故事。游戏可能仍在进行，也可能已经结束；只写已经发生的内容，不要虚构尚未发生的结局。故事应有清楚的开头、发展、冲突与当前阶段的收束，能解释关键角色为什么行动。
-
-你必须遵守：
-- 只使用工具返回的记忆和事件；
-- 综合不同实体的视角，区分客观事件、角色认知与误解：同一实体在不同记忆里的身份、称谓与意图可能不同，那是各自的认知，不是矛盾；不要把某个角色的错误称谓当成事实，也不要让叙述替角色知道它没被告知的名字；
-- 保留关键因果、关系、物品、地点和结局；
-- 不编造未出现的事实，不补充未经记忆支持的心理活动；
-- 最终通过 submit_story 提交一段故事，而不是提交提纲。
-
-最终故事必须是故事内叙事，不是开发报告：
-- 禁止出现“场景”“世界”“系统”“裁决”“报告”“工具”“记忆”“memory”“stage”“actor”“测试目标”等元语言；
-- 禁止使用 @名字、#编号 这类系统引用；叙述时用世界内的自然称呼；
-- 把场景/世界的通知与裁决改写成故事世界中实际发生的事件，不要解释“谁向谁报告、谁如何裁决”；
-- 不解释机制、不逐条复述事件，只写读者能读到的一段连贯故事。`;
 
 export async function runStory(
   db: Parameters<typeof getGameMemories>[0],

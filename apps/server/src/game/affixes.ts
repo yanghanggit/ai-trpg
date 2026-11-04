@@ -20,7 +20,7 @@ import { loadActorItem } from "./persistence/items";
 import { loadWorldByGame } from "./persistence/worlds";
 import { getGameStateSlice } from "./read/game-state";
 import type { Affix } from "./types";
-import { buildWorldFunctionPrompt, type WorldConstitution } from "./world-function";
+import { type WorldConstitution, worldFunctionAgent } from "./world-function";
 
 type AffixOperation =
   | { kind: "damage"; targetActorHandle: string; amount: number; reason: string }
@@ -47,9 +47,9 @@ function statsText(stats: Stats): string {
  * 词缀判定是开放式的：效果由词缀文本决定，所以只给事实与判定口径，不枚举效果类型。
  * 设定注入与信息边界见 `docs/agents.md`、`docs/information-disclosure.md`，词缀语义见 `docs/affixes.md`。
  */
-/** 词缀判定的宪法：只有世界与本职能口径，机制在本轮任务里。 */
+/** 词缀判定的宪法：建局时装配好的完整文本。 */
 export function buildAffixSystemPrompt(world: WorldConstitution): string {
-  return buildWorldFunctionPrompt(world, "affixes");
+  return worldFunctionAgent(world, "affixes").systemPrompt;
 }
 
 export function buildAffixPrompt(input: {

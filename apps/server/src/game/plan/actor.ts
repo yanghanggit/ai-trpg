@@ -8,7 +8,8 @@ export function buildSelfInfoTool(): ToolDefinition {
     type: "function",
     function: {
       name: "get_self",
-      description: "查看自己的外观、stats、存活状态、穿戴槽与全部物品。只读。",
+      description:
+        "查看自己的外观、stats、存活状态、穿戴槽与全部物品。stats 与物品上的数值只有 hp / max_hp、damage、block：damage 是基础伤害，block 直接抵扣受到的伤害。只读。",
       parameters: {
         type: "object",
         properties: {},
@@ -55,7 +56,7 @@ export function buildKnowledgeTool(): ToolDefinition {
     function: {
       name: "query",
       description:
-        "检索当前世界的公共知识库：任何进入该世界的人都可能知道的固定事实。只读，可多次调用，不占行动。",
+        "检索当前世界的公共知识库：任何进入该世界的人都可能知道的固定事实。公共事实由它供给，不由角色编造；推断、意见与猜测仍是扮演的合法部分。只读，可多次调用，不占行动。",
       parameters: {
         type: "object",
         properties: {

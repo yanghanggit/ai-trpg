@@ -26,7 +26,7 @@ import type {
   StageActionKind,
   StageAnchor,
   WorldActionKind,
-  WorldFunctionProfiles,
+  WorldFunctionAgents,
 } from "../game/types";
 import type { JobStatus } from "../jobs/types";
 import { EMBEDDING_DIMENSIONS } from "../rag/constants";
@@ -112,8 +112,8 @@ export const worlds = pgTable(
     profile: text("profile").notNull(),
     campaignSetting: text("campaign_setting").notNull(),
     globalRules: text("global_rules").notNull(),
-    /** 世界职能各自的世界口径；内容侧必填，随局快照。 */
-    worldFunctions: jsonb("world_functions").$type<WorldFunctionProfiles>().notNull(),
+    /** 开局定档的世界职能 agent；与 global_rules 一样是快照。 */
+    functionAgents: jsonb("function_agents").$type<WorldFunctionAgents>().notNull(),
     actions: jsonb("actions").$type<WorldActionKind[]>().notNull().default([]),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),

@@ -1,5 +1,5 @@
 {
-  "id": "1c0ee44c-3256-4470-84e5-edf21d22892b",
+  "id": "2ced208e-8eaa-4d21-8358-b0c0afb66724",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "version": "7",
   "dialect": "postgresql",
@@ -2737,8 +2737,8 @@
           "primaryKey": false,
           "notNull": true
         },
-        "world_functions": {
-          "name": "world_functions",
+        "function_agents": {
+          "name": "function_agents",
           "type": "jsonb",
           "primaryKey": false,
           "notNull": true

@@ -84,10 +84,10 @@ describe.skipIf(!testDatabaseUrl)("memory compaction", () => {
     expect(service.inputs.every((input) => input.includes("## 记忆主体"))).toBe(true);
     expect(service.inputs.every((input) => input.includes("## 待压缩记忆"))).toBe(true);
     expect(service.inputs.every((input) => input.includes("## 输出"))).toBe(true);
-    expect(service.systemPrompts.every((prompt) => prompt.includes("## 契约"))).toBe(true);
     expect(service.systemPrompts.every((prompt) => prompt.includes("## 本职能"))).toBe(true);
-    expect(service.systemPrompts.every((prompt) => prompt.includes("## 保留"))).toBe(true);
-    expect(service.systemPrompts.every((prompt) => prompt.includes("## 输出"))).toBe(true);
+    expect(service.systemPrompts.every((prompt) => !prompt.includes("## 契约"))).toBe(true);
+    // 压缩宪法由内容层定档：测试世界给的是同构的通用文本，只断言结构与注入。
+    expect(service.systemPrompts.every((prompt) => prompt.includes("## 职责"))).toBe(true);
     // 压缩结果会回灌成长期记忆，所以每次压缩的宪法都要带该局的战役设定；任务提示词只放本轮内容。
     expect(
       service.systemPrompts.every((prompt) => prompt.includes(TEST_WORLD.campaignSetting)),

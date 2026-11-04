@@ -13,7 +13,7 @@ import { addActorMaterials, type MaterialDrop } from "./persistence/items";
 import { getGameStateSlice, readTurnDelivery } from "./read/game-state";
 import { assertWorldFaceText } from "./text-guard";
 import type { ActorState, StageState, TurnDelivery } from "./types";
-import { buildWorldFunctionPrompt, type WorldConstitution } from "./world-function";
+import { type WorldConstitution, worldFunctionAgent } from "./world-function";
 
 /** 一具尸体一轮最多掉落的材料条数；属于掉落阶段，不是全局上限。 */
 const MAX_DROP_MATERIALS = 2;
@@ -133,9 +133,9 @@ export function parseDrops(
  * 世界设定是任务上下文：材料会变成公共物品名并被玩家反复引用，必须使用该世界
  * 自己的材质、工艺与叫法，不能靠模型的世界外常识补全。
  */
-/** 掉落裁决的宪法：只有世界与本职能口径，机制在本轮任务里。 */
+/** 掉落裁决的宪法：建局时装配好的完整文本。 */
 export function buildDropSystemPrompt(world: WorldConstitution): string {
-  return buildWorldFunctionPrompt(world, "drops");
+  return worldFunctionAgent(world, "drops").systemPrompt;
 }
 
 export function buildDropTurnInput(actor: ActorState, stage: StageState): string {

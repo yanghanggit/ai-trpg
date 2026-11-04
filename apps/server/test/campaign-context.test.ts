@@ -9,7 +9,6 @@ import {
 } from "../src/game/memory";
 import { buildStoryInput } from "../src/game/story";
 import type { ActorState, GameState, StageState } from "../src/game/types";
-import { buildWorldFunctionPrompt } from "../src/game/world-function";
 import { TEST_WORLD } from "./test-world";
 
 /**
@@ -25,7 +24,7 @@ const WORLD = {
   name: TEST_WORLD.worldName,
   campaignSetting: TEST_WORLD.campaignSetting,
   globalRules: TEST_WORLD.globalRules,
-  worldFunctions: TEST_WORLD.worldFunctions,
+  functionAgents: TEST_WORLD.functionAgents,
 };
 
 const ACTOR = {
@@ -53,12 +52,11 @@ const GAME_STATE = {
 const STATS = { maxHp: 10, strength: 4, wisdom: 2, agility: 3, damage: 5, block: 1 };
 
 describe("runtime agents carry the campaign setting", () => {
-  it("世界职能的宪法携带设定、规则与自己的口径", () => {
+  it("世界职能 agent 的宪法携带设定、规则与自己的口径", () => {
     for (const fn of ["drops", "affixes", "story", "compact", "dialogueAudit"] as const) {
-      const prompt = buildWorldFunctionPrompt(WORLD, fn);
+      const prompt = WORLD.functionAgents.find((agent) => agent.fn === fn)?.systemPrompt ?? "";
       expect(prompt).toContain(TEST_WORLD.campaignSetting);
       expect(prompt).toContain(TEST_WORLD.globalRules);
-      expect(prompt).toContain(TEST_WORLD.worldFunctions[fn]);
     }
   });
 

@@ -14,11 +14,12 @@ export function buildSubmitEnvironmentTool(): ToolDefinition {
         properties: {
           environment: {
             type: "string",
-            description: "更新后的完整 environment 快照；省略表示本轮不修改。",
+            description:
+              "更新后的完整 environment 快照；只写此刻可被观察到的状态，不含角色名、角色行动与系统引用（@ / #编号）；省略表示本轮不修改。",
           },
           anchors: {
             type: "array",
-            description: `完整锚点快照；最多 ${MAX_STAGE_ANCHORS} 个，标签场景内唯一；省略表示不修改，空数组表示全部移除。`,
+            description: `完整锚点快照；最多 ${MAX_STAGE_ANCHORS} 个，标签场景内唯一；省略表示不修改，空数组表示全部移除。只列角色此刻能直接作用的点：装饰、氛围与通向别处的路径都不是锚点，也不写效果与后果。`,
             items: {
               type: "object",
               properties: {
@@ -76,7 +77,7 @@ export function buildNotifyWorldTool(): ToolDefinition {
     type: "function",
     function: {
       name: "notify_world",
-      description: `把一条需要世界知晓的场景报告加入本轮计划。`,
+      description: `把一条需要世界知晓的场景报告加入本轮计划。报告只写本场景已发生的事实与需要裁决的问题，不写裁决、结论与后果；状态描述、担忧与请求知情都不是事实，不要报。`,
       parameters: {
         type: "object",
         properties: {

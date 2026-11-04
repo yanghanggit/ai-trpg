@@ -14,12 +14,8 @@ import {
 } from "../db/schema";
 import { dumpSystemPrompts } from "../debug/prompt-dump";
 import type { Logger } from "../logging";
-import { buildAffixSystemPrompt } from "./affixes";
 import type { Executor } from "./apply/types";
 import { toStats } from "./attributes";
-import { buildCompactSystemPrompt } from "./compact";
-import { buildDialogueAuditSystemPrompt } from "./dialogue-audit";
-import { buildDropSystemPrompt } from "./drops";
 import { assertEdgeShape } from "./edges";
 import { GameError } from "./errors";
 import { resolveAppearance } from "./form";
@@ -39,8 +35,7 @@ import { upsertSignatureName } from "./persistence/signature-names";
 import { insertSignature } from "./persistence/signatures";
 import { recordStageVisit } from "./persistence/visits";
 import { getGameState } from "./read/game-state";
-import { buildStorySystemPrompt } from "./story";
-import type { GameState } from "./types";
+import type { GameState, WorldFunctionType } from "./types";
 import type { Actor, ItemDefinition, Stage, World } from "./world-definition";
 
 type PromptDump = { name: string; prompt: string };
@@ -390,16 +385,17 @@ async function bindKnownStages(
   }
 }
 
-/** 世界职能系统的真实入口：与运行时同一份拼装，导出才不会是另写的副本。 */
-function buildFunctionPrompts(world: World): PromptDump[] {
-  const constitution = { name: world.worldName, ...world };
-  return [
-    { name: "drops", prompt: buildDropSystemPrompt(constitution) },
-    { name: "affixes", prompt: buildAffixSystemPrompt(constitution) },
-    { name: "story", prompt: buildStorySystemPrompt(constitution) },
-    { name: "compact", prompt: buildCompactSystemPrompt(constitution) },
-    { name: "dialogue-audit", prompt: buildDialogueAuditSystemPrompt(constitution) },
-  ];
+/** 文件名沿用职能的中文短名之外的习惯写法：dialogueAudit 落到 dialogue-audit。 */
+function dumpFileName(fn: WorldFunctionType): string {
+  return fn === "dialogueAudit" ? "dialogue-audit" : fn;
+}
+
+/** 世界职能 agent 的宪法在建局前已定档，导出只取那一份，不再重算。 */
+function buildFunctionAgentPrompts(world: World): PromptDump[] {
+  return world.functionAgents.map((agent) => ({
+    name: dumpFileName(agent.fn),
+    prompt: agent.systemPrompt,
+  }));
 }
 
 /** 创建一局游戏及初始 world、stage、actor、item 与 memory。 */
@@ -445,7 +441,7 @@ export async function createGame(
       profile: world.profile,
       campaignSetting: world.campaignSetting,
       globalRules: world.globalRules,
-      worldFunctions: world.worldFunctions,
+      functionAgents: world.functionAgents,
       actions: [...world.actions],
     });
     await createWorldMemory(
@@ -488,7 +484,7 @@ export async function createGame(
   await dumpSystemPrompts({
     world: { name: world.worldName, contentVersion: world.contentVersion },
     worldPrompt,
-    functionPrompts: buildFunctionPrompts(world),
+    functionAgentPrompts: buildFunctionAgentPrompts(world),
     stagePrompts,
     actorPrompts,
     ...(options.logger ? { logger: options.logger } : {}),

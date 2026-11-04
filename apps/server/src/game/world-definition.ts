@@ -16,7 +16,7 @@ import type {
   StageActionKind,
   StageAnchor,
   WorldActionKind,
-  WorldFunctionProfiles,
+  WorldFunctionAgents,
 } from "./types";
 
 export type World = {
@@ -28,8 +28,12 @@ export type World = {
   profile: string;
   campaignSetting: string;
   globalRules: string;
-  /** 世界职能各自的世界口径；内容侧必填，运行时只读。 */
-  worldFunctions: WorldFunctionProfiles;
+  /**
+   * 世界职能 agent，建局前在内容层定档、之后直接使用。
+   *
+   * 与 `globalRules` 一样属于开局快照：改代码或内容不影响已存在的局。
+   */
+  functionAgents: WorldFunctionAgents;
   stages: readonly Stage[];
   connections: readonly Connection[];
   actors: readonly Actor[];

@@ -1,5 +1,6 @@
 import type { z } from "zod";
 import { findTextLeaks } from "./text-guard";
+import { WORLD_FUNCTION_TYPES } from "./types";
 import type { World } from "./world-definition";
 
 /**
@@ -9,6 +10,8 @@ import type { World } from "./world-definition";
  * 由 `parse-world-content.ts` 在解析时统一执行。
  */
 export function checkWorldInvariants(world: World, ctx: z.RefinementCtx): void {
+  // 职能宪法由内容层定档，但框架要确认它真的带上了这一局的设定与规则。
+  checkFunctionPrompts(world, ctx);
   // 名字就是名字：角色与场景在 world 内全局唯一，且不能带系统标记字符。
   checkEntityNamesUnique(world, ctx);
   const actorNames = world.actors.map((actor) => actor.name);
@@ -103,6 +106,46 @@ function checkEntityNamesUnique(
         code: "custom",
         message: `名字重复: ${name}（${kinds.join(" / ")}）`,
         path: ["actors"],
+      });
+    }
+  }
+}
+
+/**
+ * 世界职能 agent 是内容层定档的成品，框架只确认它真的带上了这一局的设定与规则。
+ *
+ * 排版由内容负责；这里守的是「宪法必须吃世界设定」——否则材质名与术语会退回
+ * 模型的世界外常识，而下游看不出题材越界。
+ */
+function checkFunctionPrompts(world: World, ctx: z.RefinementCtx): void {
+  const seen = new Map<string, number>();
+  for (const agent of world.functionAgents) {
+    seen.set(agent.fn, (seen.get(agent.fn) ?? 0) + 1);
+  }
+  for (const fn of WORLD_FUNCTION_TYPES) {
+    const count = seen.get(fn) ?? 0;
+    if (count !== 1) {
+      ctx.addIssue({
+        code: "custom",
+        message: `世界职能 agent 必须恰好一个: ${fn}（当前 ${count} 个）`,
+        path: ["functionAgents"],
+      });
+    }
+  }
+  for (const agent of world.functionAgents) {
+    const fn = agent.fn;
+    const prompt = agent.systemPrompt;
+    const missing = [
+      prompt.includes("## 职责") ? null : "职责",
+      prompt.includes(world.campaignSetting) ? null : "战役设定",
+      prompt.includes(world.globalRules) ? null : "全局规则",
+      prompt.includes("## 本职能") ? null : "本职能",
+    ].filter((item): item is string => item !== null);
+    if (missing.length > 0) {
+      ctx.addIssue({
+        code: "custom",
+        message: `世界职能 agent 的宪法缺少 ${missing.join("、")}: ${fn}`,
+        path: ["functionAgents"],
       });
     }
   }

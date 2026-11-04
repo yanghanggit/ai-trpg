@@ -105,8 +105,19 @@ export const WORLD_FUNCTION_TYPES = [
 
 export type WorldFunctionType = (typeof WORLD_FUNCTION_TYPES)[number];
 
-/** 每份世界职能在本世界的口径；由内容提供，随 World 快照落库。 */
-export type WorldFunctionProfiles = Record<WorldFunctionType, string>;
+/**
+ * 一个世界职能 agent。
+ *
+ * 它今天只由一份 system prompt 定义：口径、职责与不可协商的约束都在那段文本里，
+ * 建局时定档、随局存库，运行时原样作为 system prompt 使用。
+ */
+export type WorldFunctionAgent = {
+  fn: WorldFunctionType;
+  systemPrompt: string;
+};
+
+/** 定档顺序即列表顺序；每个职能一个 agent，查表按 `fn`。 */
+export type WorldFunctionAgents = readonly WorldFunctionAgent[];
 
 /**
  * 场景内的可交互锚点：actor 能明确指认的位置或部位。
@@ -459,7 +470,8 @@ export type WorldState = {
   contentKey: string;
   campaignSetting: string;
   globalRules: string;
-  worldFunctions: WorldFunctionProfiles;
+  /** 开局时定档的世界职能 agent；运行时直接使用，不再拼接。 */
+  functionAgents: WorldFunctionAgents;
   actions: WorldActionKind[];
   stages: StageState[];
   connections: ConnectionState[];

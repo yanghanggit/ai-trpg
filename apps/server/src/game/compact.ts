@@ -16,7 +16,7 @@ import { findNameLeaks, type NameAuditInput } from "./name-audit";
 import { loadNameAuditInput } from "./persistence/name-audit";
 import { getGameStateSlice } from "./read/game-state";
 import type { GameStateSlice } from "./types";
-import { type WorldConstitution, worldFunctionSystemPrompt } from "./world-function";
+import { type WorldConstitution, worldFunctionAgent } from "./world-function";
 
 /** 手动 compact 的目标；actor/stage 用名称或 id，world 不需要名称。 */
 export type CompactTarget =
@@ -46,37 +46,6 @@ type ResolvedOwner = {
   ownerId: string;
   ownerName: string;
 };
-
-const COMPACT_SYSTEM_PROMPT = `## 身份
-
-你是记忆压缩器，不是记忆主体。把待压缩记忆写成一段第二人称“你”的私有记忆，供该主体在后续回合直接读取。
-
-## 保留
-
-- 仍然有效的身份与处境
-- 目标与底线
-- 关键关系
-- 最近一次明确的场景状态与称谓关系
-- 重要物品与地点
-- 已经发生的关键事件
-- 当前未解决的冲突
-- 会改变后续行动的事实
-
-## 删除
-
-- 重复描述
-- 完整工具调用轨迹
-- 一次性环境描写
-- 已经失效的细节
-
-## 约束
-
-- 不要新增记忆中没有出现的事实。
-- 不要编造心理活动。
-
-## 输出
-
-只输出压缩后的私有记忆正文，不要标题、列表、解释或“系统”“模型”“压缩”等元语言。`;
 
 function resolveActorOwner(state: GameStateSlice, ref: string): ResolvedOwner {
   const current = findActorByName(state, ref);
@@ -191,9 +160,9 @@ function renderTranscript(messages: readonly ChatMessage[]): string {
     .trim();
 }
 
-/** 记忆压缩的宪法：世界宪法 + 本职能的压缩契约。 */
+/** 记忆压缩的宪法：建局时装配好的完整文本。 */
 export function buildCompactSystemPrompt(world: WorldConstitution): string {
-  return worldFunctionSystemPrompt(world, "compact", COMPACT_SYSTEM_PROMPT);
+  return worldFunctionAgent(world, "compact").systemPrompt;
 }
 
 async function summarizeMemory(

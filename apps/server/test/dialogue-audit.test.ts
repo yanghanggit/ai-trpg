@@ -3,6 +3,8 @@ import Fastify from "fastify";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import "../src/db/env";
 import { BELL_MONASTERY_WORLD } from "../seeds/dark-fantasy";
+import { renderWorldFunctionAgent } from "../seeds/dark-fantasy/agents";
+import { DIALOGUE_AUDIT_AGENT } from "../seeds/dark-fantasy/agents/dialogue-audit";
 import { type DatabaseHandle, openDatabase } from "../src/db/connect";
 import { DEMO_USER } from "../src/db/demo-fixture";
 import { resetDomainData, seedDemoData } from "../src/db/maintenance";
@@ -37,13 +39,12 @@ const AUDIT_WORLD = {
   name: "枯钟修道院的故事",
   campaignSetting: "黑暗奇幻世界。",
   globalRules: "角色只能沿场景连接移动。",
-  worldFunctions: {
-    drops: "尸体留下骨与蜡。",
-    affixes: "词缀后果用锈与灰的语汇。",
-    story: "用克制的第三人称过去时讲述。",
-    compact: "保住修道院的专名。",
-    dialogueAudit: "允许黑暗与暴力。",
-  },
+  functionAgents: [DIALOGUE_AUDIT_AGENT].map((spec) =>
+    renderWorldFunctionAgent(spec, {
+      campaignSetting: "黑暗奇幻世界。",
+      globalRules: "角色只能沿场景连接移动。",
+    }),
+  ),
 };
 
 const AUDIT_INPUT = {
@@ -299,7 +300,7 @@ describe("deepseek dialogue judge", () => {
     });
   });
 
-  it("carries the world constitution in the system prompt", async () => {
+  it("carries the assembled world constitution in the system prompt", async () => {
     let captured: Parameters<ChatCompletionService["complete"]>[0] | undefined;
     const service: ChatCompletionService = {
       async complete(request) {
@@ -314,16 +315,14 @@ describe("deepseek dialogue judge", () => {
       },
     };
 
-    await createDeepSeekDialogueJudge(service)({
-      ...AUDIT_INPUT,
-      world: { ...AUDIT_WORLD, campaignSetting: "独特世界设定：没有现代科技。" },
-    });
+    await createDeepSeekDialogueJudge(service)(AUDIT_INPUT);
 
     const system = captured?.messages.find((message) => message.type === "system");
     const human = captured?.messages.find((message) => message.type === "human");
-    expect(system?.content).toContain("独特世界设定");
-    expect(system?.content).toContain(AUDIT_WORLD.worldFunctions.dialogueAudit);
-    expect(human?.content).not.toContain("独特世界设定");
+    // 宪法在装配期定稿：运行时原样取用，不改写、不拼接。
+    expect(system?.content).toBe(AUDIT_WORLD.functionAgents[0]?.systemPrompt);
+    expect(system?.content).toContain(AUDIT_WORLD.campaignSetting);
+    expect(human?.content).not.toContain(AUDIT_WORLD.campaignSetting);
     expect(human?.content).toContain("待审台词");
   });
 

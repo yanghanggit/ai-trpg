@@ -164,7 +164,7 @@ export function buildActorTurnInput(state: GameStateSlice, current: ActorWithSta
   // 只有名单里还有 `#编号` 时才提醒起名；已有名字也可以按 # 重新记录来更新称呼。
   const unknownTargets = targets.filter((token) => token.startsWith("#"));
   const identityHint =
-    "`@名字` 与 `#编号` 都可作为行动对象，但都不能说出口，也不能从 `#编号` 推断真名。名字只是你当前对这个签名的称呼，可以是称号、误认或听来的叫法，不必是真名。use 的 targetAnchor 只能从当前场景的「可交互锚点」里选，不能自己写位置描述。" +
+    "`@名字` 与 `#编号` 都可作为行动对象，但都不能说出口。use 的 targetAnchor 只能从当前场景的「可交互锚点」里选，不能自己写位置描述。" +
     (unknownTargets.length === 0
       ? ""
       : "名单里还有 `#编号`：可以用 recognize_identity 把它记成你认得的称呼；需要改名时对同一个编号再记一次（不占行动名额）。");

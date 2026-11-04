@@ -178,7 +178,7 @@ describe.skipIf(!testDatabaseUrl)("world agent", () => {
     ).toBe(false);
   });
 
-  it("rejects a world directive that names an actor", async () => {
+  it("lets a world directive name an actor", async () => {
     const created = await createGame(handle.db, {
       username: DEMO_USER.username,
       name: "世界下推名字测试局",
@@ -191,33 +191,36 @@ describe.skipIf(!testDatabaseUrl)("world agent", () => {
         call("submit_world_plan", {}),
       ]),
     });
-    expect(result.ok).toBe(false);
+    expect(result.ok).toBe(true);
 
+    // stage 与 world 一样对名字全知：裁决里的角色名照原样写进 stage memory。
     const memories = await getGameMemories(handle.db, created.game.id);
-    const worldMemory = memories.find((memory) => memory.ownerType === "world");
-    expect(
-      worldMemory?.messages.some((message) => message.content.includes("不能包含角色名")),
-    ).toBe(true);
     const gate = memories.find((memory) => memory.name === "灰烬门廊");
-    expect(gate?.messages.some((message) => message.content.includes("守烬人把门"))).toBe(false);
+    expect(gate?.messages.some((message) => message.content.includes("守烬人把门打开了。"))).toBe(
+      true,
+    );
   });
 
-  it("rejects an ending that names an actor", async () => {
+  it("lets an ending name an actor", async () => {
     const created = await createGame(handle.db, {
       username: DEMO_USER.username,
       name: "结局名字测试局",
       world: TEST_WORLD,
     });
 
+    // 结局文案只写 `game_messages`，不进任何 agent 的记忆或上下文，因此不必拦名字。
     const result = await runWorldTurn(handle.db, created.game.slug, {
       service: new ScriptedService([
         call("end_game", { outcome: "escaped", message: "守烬人走出了门廊。" }),
         call("submit_world_plan", {}),
       ]),
     });
-    expect(result.ok).toBe(false);
+    expect(result.ok).toBe(true);
     const state = await getGameState(handle.db, created.game.slug);
-    expect(state.game.status).toBe("active");
+    expect(state.game.status).toBe("completed");
+    expect(state.messages.some((message) => message.content.includes("守烬人走出了门廊"))).toBe(
+      true,
+    );
   });
 
   it("主角死亡只通知 world，收尾与结局标签由 world 给出", async () => {

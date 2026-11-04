@@ -83,13 +83,14 @@ export function buildStageTurnInput(state: GameStateSlice, stage: StageState): s
       ? [
           "根据当前环境与本场景记忆，提交本场景的完整 environment 与可交互锚点；没有变化也要原样提交，不能省略；相同快照不会重复写事件。",
           "只有已落账的动作结果改变了场景（物品移动、破坏或出现新的可作用点）才改写；台词、打算、观察与原地等待都不算。",
+          "只读工具的观察不是场景变化：角色携带的物品不属于 environment，也不因此新增锚点。",
           "本轮只有台词、观察或原地等待时，environment 与 anchors 必须原样提交，不得新增描写。",
         ]
       : []),
     ...(canOpen ? ["打开未开启的通道用 open_passage；它不通知世界，也不改变对面场景。"] : []),
     ...(canNotify
       ? [
-          "需要向世界报告时用 notify_world（判断标准见「场景职责」），写清发生了什么与需要裁决什么；只更新 environment 不会让世界知道。本场景设定明确要求报告世界的事实，必须使用 notify_world。",
+          "需要向世界报告时用 notify_world，写清发生了什么与需要裁决什么；只更新 environment 不会让世界知道。本场景设定明确要求报告世界的事实，必须使用 notify_world。",
         ]
       : []),
     ...(canSubmit
@@ -99,7 +100,6 @@ export function buildStageTurnInput(state: GameStateSlice, stage: StageState): s
         ]
       : []),
     "只读工具（observe_actor）可以多次调用，不占额度；本轮会写库的动作最多：environment/anchors 一次、通道一条、world 通知两条。",
-    "规则见「场景职责」。",
   ];
 
   return `# 当前场景

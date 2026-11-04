@@ -7,7 +7,6 @@ import {
 } from "../src/game/memory";
 import { WORLD_FUNCTION_TYPES } from "../src/game/types";
 import type { World } from "../src/game/world-definition";
-import { buildWorldFunctionPrompt } from "../src/game/world-function";
 import { TEST_WORLD } from "./test-world";
 
 /**
@@ -45,7 +44,7 @@ function systemPrompts(world: World): { name: string; prompt: string }[] {
     // 世界职能的宪法同样由内容注入（战役设定 + 全局规则 + 自己的口径）。
     ...WORLD_FUNCTION_TYPES.map((fn) => ({
       name: `function:${fn}`,
-      prompt: buildWorldFunctionPrompt({ name: world.worldName, ...world }, fn),
+      prompt: world.functionAgents.find((agent) => agent.fn === fn)?.systemPrompt ?? "",
     })),
     // openingBriefing 不是 system prompt，但同样是内容注入的固定文本。
     ...world.actors.flatMap((actor) =>

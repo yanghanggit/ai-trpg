@@ -291,7 +291,7 @@ function assembleState(rows: StateRows): GameStateSlice {
       profile: rows.world.profile,
       campaignSetting: rows.world.campaignSetting,
       globalRules: rows.world.globalRules,
-      worldFunctions: rows.world.worldFunctions,
+      functionAgents: rows.world.functionAgents,
       actions: rows.world.actions,
       stages,
       connections,

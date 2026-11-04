@@ -1,4 +1,5 @@
 import { formatForm } from "../src/game/form";
+import type { WorldFunctionAgents, WorldFunctionType } from "../src/game/types";
 import type { World } from "../src/game/world-definition";
 
 /**
@@ -6,20 +7,53 @@ import type { World } from "../src/game/world-definition";
  *
  * 能力清单和种子一样逐角色显式写出，便于断言“谁能做什么”。
  */
+const TEST_CAMPAIGN_SETTING = "这是一个用于验证服务层行为的封闭测试世界。";
+const TEST_GLOBAL_RULES = "角色只能沿场景连接移动；行动结果由服务层结算。";
+
+const TEST_WORLD_FUNCTIONS = {
+  drops: "尸体留下的材料用灰烬与旧蜡的语汇。",
+  affixes: "词缀后果用灰烬、旧蜡与铜锈的语汇。",
+  story: "用克制的第三人称过去时讲述。",
+  compact: "压缩时保住灰烬门廊与断钟中殿的原样。",
+  dialogueAudit: "这个测试世界允许克制的暴力；现代器物按出界处理。",
+};
+
+/** 测试世界的职能 agent：与生产同构（身份 → 职责 → 设定 → 规则 → 口径），文本留给测试。 */
+function renderTestAgents(): WorldFunctionAgents {
+  return (Object.entries(TEST_WORLD_FUNCTIONS) as [WorldFunctionType, string][]).map(
+    ([fn, profile]) => ({
+      fn,
+      systemPrompt: `# ${fn}
+
+你是这个世界的一项职能：${fn}。
+
+## 职责
+
+测试职能。
+
+## 战役设定
+
+${TEST_CAMPAIGN_SETTING}
+
+## 全局规则
+
+${TEST_GLOBAL_RULES}
+
+## 本职能
+
+${profile}`,
+    }),
+  );
+}
+
 export const TEST_WORLD: World = {
   contentVersion: "test-world.v1",
   contentKey: "test-world",
   worldName: "灰烬测试局",
   profile: "一个封闭的测试世界：故事在门廊与中殿之间收束，没有别的出口。",
-  campaignSetting: "这是一个用于验证服务层行为的封闭测试世界。",
-  globalRules: "角色只能沿场景连接移动；行动结果由服务层结算。",
-  worldFunctions: {
-    drops: "尸体留下的材料用灰烬与旧蜡的语汇。",
-    affixes: "词缀后果用灰烬、旧蜡与铜锈的语汇。",
-    story: "用克制的第三人称过去时讲述。",
-    compact: "压缩时保住灰烬门廊与断钟中殿的原样。",
-    dialogueAudit: "这个测试世界允许克制的暴力；现代器物按出界处理。",
-  },
+  campaignSetting: TEST_CAMPAIGN_SETTING,
+  globalRules: TEST_GLOBAL_RULES,
+  functionAgents: renderTestAgents(),
   stages: [
     {
       key: "gate",
