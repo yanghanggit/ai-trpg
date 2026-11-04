@@ -15,14 +15,14 @@ import { appendCustomStageObservation } from "./observations";
 import { setActorEquipment } from "./persistence/actors";
 import { recordAppearance } from "./persistence/appearances";
 import { lockGameRow } from "./persistence/games";
-import { getGameState } from "./service";
+import { getGameStateSlice, readTurnDelivery } from "./service";
 import { assertWorldFaceText } from "./text-guard";
 import {
   type ActorState,
   type AppearanceWornItem,
   EQUIPMENT_SLOT_LABELS,
   type EquipmentSlot,
-  type GameState,
+  type TurnDelivery,
 } from "./types";
 
 export type AppearanceTurnOptions = {
@@ -44,10 +44,9 @@ export type AppearanceTurnOptions = {
   broadcast?: boolean;
 };
 
-export type AppearanceTurnResult = {
+export type AppearanceTurnResult = TurnDelivery & {
   ok: boolean;
   appearance: string | null;
-  state: GameState;
 };
 
 export type EquipmentResult = AppearanceTurnResult & {
@@ -204,7 +203,7 @@ export async function runAppearanceTurn(
   actorRef: string,
   options: AppearanceTurnOptions,
 ): Promise<AppearanceTurnResult> {
-  const state = await getGameState(db, gameRef);
+  const state = await getGameStateSlice(db, gameRef);
   if (state.game.status !== "active") {
     throw new GameError("invalid_state", `游戏已结束: ${state.game.status}`);
   }
@@ -271,7 +270,7 @@ export async function runAppearanceTurn(
   });
 
   if (!loop.success || submitted === null) {
-    return { ok: false, appearance: null, state: await getGameState(db, state.game.id) };
+    return { ...(await readTurnDelivery(db, state.game.id)), ok: false, appearance: null };
   }
   const appearance = submitted;
 
@@ -328,7 +327,7 @@ export async function runAppearanceTurn(
   return {
     ok: true,
     appearance,
-    state: await getGameState(db, state.game.id),
+    ...(await readTurnDelivery(db, state.game.id)),
   };
 }
 
@@ -343,7 +342,7 @@ export async function setEquipmentSlot(
   itemName: string | null,
   options: AppearanceTurnOptions,
 ): Promise<EquipmentResult> {
-  const state = await getGameState(db, gameRef);
+  const state = await getGameStateSlice(db, gameRef);
   if (state.game.status !== "active") {
     throw new GameError("invalid_state", `游戏已结束: ${state.game.status}`);
   }

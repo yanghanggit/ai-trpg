@@ -1,7 +1,7 @@
 import { findActorByName, findStage } from "./actors";
 import { GameError } from "./errors";
 import type { MemoryOwnerType } from "./memory";
-import type { GameState } from "./types";
+import type { GameStateSlice } from "./types";
 
 /**
  * 记忆实体（拥有独立 memory 的实体 agent）的稳定集合。
@@ -32,7 +32,7 @@ export function isMemoryOwnerType(value: string): value is MemoryOwnerType {
  * world 是一局唯一，不需要 name。
  */
 export function resolveMemoryOwner(
-  state: GameState,
+  state: GameStateSlice,
   ownerType: MemoryOwnerType,
   ref?: string,
 ): MemoryOwnerRef {

@@ -1,9 +1,8 @@
 import { and, eq } from "drizzle-orm";
 import type { Database } from "../db/pool";
 import { actorControls } from "../db/schema";
-import { findActorByName } from "./actors";
 import { GameError } from "./errors";
-import { getGameState } from "./service";
+import { getGameMeta, resolveActorIdByName } from "./service";
 
 export type ActorControl = typeof actorControls.$inferSelect;
 
@@ -13,22 +12,23 @@ export async function takeActorControl(
   gameRef: string,
   actorRef: string,
 ): Promise<ActorControl> {
-  const state = await getGameState(db, gameRef);
-  const actor = findActorByName(state, actorRef).actor;
+  // 接管只需要两个 id；不要为此装配整个世界与事件流。
+  const game = await getGameMeta(db, gameRef);
+  const actor = await resolveActorIdByName(db, game.id, actorRef);
 
   const [control] = await db
     .insert(actorControls)
     .values({
       actorId: actor.id,
-      gameId: state.game.id,
-      playerId: state.player.id,
+      gameId: game.id,
+      playerId: game.playerId,
       controllerType: "player",
     })
     .onConflictDoUpdate({
       target: actorControls.actorId,
       set: {
-        gameId: state.game.id,
-        playerId: state.player.id,
+        gameId: game.id,
+        playerId: game.playerId,
         controllerType: "player",
         updatedAt: new Date(),
       },
@@ -46,8 +46,8 @@ export async function releaseActorControl(
   gameRef: string,
   actorRef: string,
 ): Promise<void> {
-  const state = await getGameState(db, gameRef);
-  const actor = findActorByName(state, actorRef).actor;
+  const game = await getGameMeta(db, gameRef);
+  const actor = await resolveActorIdByName(db, game.id, actorRef);
   await db.delete(actorControls).where(eq(actorControls.actorId, actor.id));
 }
 

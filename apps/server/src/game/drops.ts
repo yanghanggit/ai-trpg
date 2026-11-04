@@ -10,9 +10,9 @@ import { GameError } from "./errors";
 import { appendStageMemory } from "./observations";
 import { lockGameRow } from "./persistence/games";
 import { addActorMaterials, type MaterialDrop } from "./persistence/items";
-import { getGameState } from "./service";
+import { getGameStateSlice, readTurnDelivery } from "./service";
 import { assertWorldFaceText } from "./text-guard";
-import type { ActorState, GameState, StageState } from "./types";
+import type { ActorState, StageState, TurnDelivery } from "./types";
 import { buildWorldFunctionPrompt, type WorldConstitution } from "./world-function";
 
 /** 一具尸体一轮最多掉落的材料条数；属于掉落阶段，不是全局上限。 */
@@ -29,11 +29,10 @@ export type DropTurnOptions = {
   trace?: Parameters<typeof agentLoop>[0]["trace"];
 };
 
-export type DropTurnResult = {
+export type DropTurnResult = TurnDelivery & {
   ok: boolean;
   /** 真正留在尸体上的材料名；模型返回空数组时也是 `ok`。 */
   dropped: string[];
-  state: GameState;
 };
 
 /** 掉落推理只有这一个终止工具。 */
@@ -176,7 +175,7 @@ export async function runDropTurn(
   actorRef: string,
   options: DropTurnOptions,
 ): Promise<DropTurnResult> {
-  const state = await getGameState(db, gameRef);
+  const state = await getGameStateSlice(db, gameRef);
   if (state.game.status !== "active") {
     throw new GameError("invalid_state", `游戏已结束: ${state.game.status}`);
   }
@@ -218,7 +217,7 @@ export async function runDropTurn(
   });
 
   if (!loop.success || submitted.materials === null) {
-    return { ok: false, dropped: [], state: await getGameState(db, state.game.id) };
+    return { ...(await readTurnDelivery(db, state.game.id)), ok: false, dropped: [] };
   }
   const dropped = submitted.materials;
   let written: string[] = [];
@@ -253,6 +252,6 @@ export async function runDropTurn(
   return {
     ok: true,
     dropped: written,
-    state: await getGameState(db, state.game.id),
+    ...(await readTurnDelivery(db, state.game.id)),
   };
 }

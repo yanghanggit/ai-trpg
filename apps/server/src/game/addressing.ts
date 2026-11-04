@@ -1,4 +1,4 @@
-import type { ActorState, GameState, StageState } from "./types";
+import type { ActorState, GameStateSlice, StageState } from "./types";
 
 /**
  * 观察者相对的引用：把签名渲染成 `@名字` 或 `#12`，并带上外观。
@@ -135,15 +135,41 @@ export function subjectsOf(stage: StageState): Map<string, AddressSubject> {
   );
 }
 
-/** 观察者当前给各签名的名字；名字只按签名 id 绑定。 */
-function signatureNamesOf(state: GameState, observerActorId: string): Map<string, string> {
-  const names = new Map<string, string>();
+/**
+ * 每份状态快照的「观察者 → 签名 id → 称呼」索引。
+ *
+ * 一轮渲染里 `addressLookupFor` 会被调用多次（回合输入、look 工具、view 各一次），
+ * 每次都全表扫 `signatureNames` 是纯浪费。索引挂在 state 对象上，随快照回收。
+ */
+const nameIndexCache = new WeakMap<GameStateSlice, Map<string, Map<string, string>>>();
+
+/** 没有任何称呼的观察者共享这一份；调用方只读。 */
+const EMPTY_NAMES: ReadonlyMap<string, string> = new Map<string, string>();
+
+function nameIndex(state: GameStateSlice): Map<string, Map<string, string>> {
+  const cached = nameIndexCache.get(state);
+  if (cached) {
+    return cached;
+  }
+  const index = new Map<string, Map<string, string>>();
   for (const row of state.signatureNames) {
-    if (row.observerActorId === observerActorId) {
+    const names = index.get(row.observerActorId);
+    if (names) {
       names.set(row.signatureId, row.name);
+    } else {
+      index.set(row.observerActorId, new Map([[row.signatureId, row.name]]));
     }
   }
-  return names;
+  nameIndexCache.set(state, index);
+  return index;
+}
+
+/** 观察者当前给各签名的名字；名字只按签名 id 绑定。 */
+function signatureNamesOf(
+  state: GameStateSlice,
+  observerActorId: string,
+): ReadonlyMap<string, string> {
+  return nameIndex(state).get(observerActorId) ?? EMPTY_NAMES;
 }
 
 /**
@@ -152,7 +178,7 @@ function signatureNamesOf(state: GameState, observerActorId: string): Map<string
  * 自己的引用固定为「你」，名字是自己的真名，不占用名字表。
  */
 export function addressLookupFor(
-  state: GameState,
+  state: GameStateSlice,
   observer: ActorState,
   stage: StageState,
 ): AddressLookup {

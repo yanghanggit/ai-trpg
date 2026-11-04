@@ -26,9 +26,9 @@ import {
   parseEndGame,
   parseNotifyStage,
 } from "./plan";
-import { getGameState } from "./service";
+import { getGameStateSlice, readTurnDelivery } from "./service";
 import { findTextLeaks } from "./text-guard";
-import type { GameState, WorldAction, WorldPlan, WorldTurnResult } from "./types";
+import type { GameStateSlice, WorldAction, WorldPlan, WorldTurnResult } from "./types";
 import { appendStageDirective } from "./world-events";
 
 export type WorldTurnOptions = {
@@ -38,7 +38,7 @@ export type WorldTurnOptions = {
 };
 
 /** 构造 world 本轮的全局观察；stage report 在 world memory 中。 */
-export function buildWorldTurnInput(state: GameState): string {
+export function buildWorldTurnInput(state: GameStateSlice): string {
   const stageLines = state.world.stages
     .map((stage) => {
       const actors =
@@ -210,7 +210,7 @@ export async function runWorldTurn(
   gameRef: string,
   options: WorldTurnOptions,
 ): Promise<WorldTurnResult> {
-  const state = await getGameState(db, gameRef);
+  const state = await getGameStateSlice(db, gameRef);
   if (state.game.status !== "active") {
     throw new GameError("invalid_state", `游戏已结束: ${state.game.status}`);
   }
@@ -296,9 +296,9 @@ export async function runWorldTurn(
   await traceEvent(trace, { event: "turn_end", ok, loopSuccess: loop.success });
 
   return {
+    ...(await readTurnDelivery(db, state.game.id)),
     ok,
     plan,
     loopSuccess: loop.success,
-    state: await getGameState(db, state.game.id),
   };
 }

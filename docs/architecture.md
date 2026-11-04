@@ -3,7 +3,7 @@
 ## 包职责
 
 - `@ai-trpg/server`：路由、校验、事务与业务规则；`game` 服务层承载 game 聚合，状态真相在 PostgreSQL。
-- `@ai-trpg/web`：页面、交互与服务端状态缓存。
+- `@ai-trpg/web`：页面与交互。
 - `@ai-trpg/api-client`：契约层，生成的类型、`openapi-fetch` 客户端与错误适配。
 - `@ai-trpg/shared`：跨端稳定事实，只放服务名、API 版本、默认端口。
 
@@ -11,7 +11,7 @@
 
 目标拓扑是「客户端 ⇄ 业务服务端 ⇄ PostgreSQL」。`agent:game` 与 HTTP 路由复用同一 `game` 服务层；服务端不保留跨请求的权威世界对象。
 
-服务端内部再分一层：**玩法模块不写 SQL**。动作、物品效果、stage / world 回合、死亡与外观只调用 `game/persistence/` 的具名读写原语；解析动作的只读查询在 `game/apply/queries.ts`，事务边界在 `game/apply/index.ts`，建局与整局读取在 `game/service.ts`。`test/persistence-boundary.test.ts` 用源码扫描守住这条边界。
+服务端内部再分一层：**玩法模块不写 SQL**。动作、物品效果、stage / world 回合、死亡与外观只调用 `game/persistence/` 的具名读写原语；解析动作的只读查询在 `game/apply/queries.ts`，事务边界在 `game/apply/index.ts`，建局与状态读取在 `game/service.ts`。`test/persistence-boundary.test.ts` 用源码扫描守住这条边界。
 
 → 参见：[开发规范](conventions.md)
 
@@ -20,6 +20,10 @@
 路由里的 Zod schema 是唯一契约源：导出 OpenAPI 3.1，再用 `openapi-typescript` 生成客户端类型，交给 `openapi-fetch` 消费。生成是离线的——构建 Fastify 实例后直接导出文档，不监听端口、不发网络请求，CI 与全新 clone 都不需要先起服务端。生成物不入库；`dev`、`typecheck`、`build` 都先确保它们存在。
 
 只有声明了 response schema 的路由才进入契约。新增路由漏写 response 属于服务端缺陷，不在客户端补类型。
+
+契约的形状服务于一条约束：**状态不缓存**。控制游戏流程一律基于最近一次 GET 的响应，回合结果因此自带活状态切片；写请求带 `expectedVersion`，冲突即重取；条件请求只用于省带宽，不用于复用旧状态。公共事件流是另一回事：它只读、只追加，不参与判定，客户端可以临时缓存用于显示，按游标分段拉取即可。
+
+→ 参见：[数据库](database.md)（状态读取分层）
 
 → 参见：[根 README](../README.md)
 

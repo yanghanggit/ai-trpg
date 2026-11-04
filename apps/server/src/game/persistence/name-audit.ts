@@ -3,12 +3,11 @@ import type { Database } from "../../db/pool";
 import { actorSignatures } from "../../db/schema";
 import { getGameMemories } from "../memory";
 import type { NameAuditActor, NameAuditInput } from "../name-audit";
-import { getGameState } from "../service";
-import { listSignatureNames } from "./signature-names";
+import { getGameStateSlice } from "../service";
 
 /** 从数据库装载名字审计输入；只读。 */
 export async function loadNameAuditInput(db: Database, gameId: string): Promise<NameAuditInput> {
-  const state = await getGameState(db, gameId);
+  const state = await getGameStateSlice(db, gameId);
   const resolvedGameId = state.game.id;
   const actors: NameAuditActor[] = state.world.stages.flatMap((stage) =>
     stage.actors.map((actor) => ({
@@ -32,7 +31,8 @@ export async function loadNameAuditInput(db: Database, gameId: string): Promise<
       actorId: actor.id,
     });
   }
-  const signatureNames = (await listSignatureNames(db, resolvedGameId)).map((row) => ({
+  // 签名称呼已经在水合时读进 state，不再为审计重复查一次。
+  const signatureNames = state.signatureNames.map((row) => ({
     observerActorId: row.observerActorId,
     signatureId: row.signatureId,
     name: row.name,

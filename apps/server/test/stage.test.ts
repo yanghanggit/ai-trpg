@@ -11,6 +11,7 @@ import {
   createGame,
   getGameMemories,
   getGameState,
+  listGameMessages,
   playerMove,
   playerWhisper,
   releaseActorControl,
@@ -231,7 +232,8 @@ describe.skipIf(!testDatabaseUrl)("stage mini-GM", () => {
     expect(result.state.world.stages.find((stage) => stage.name === "灰烬门廊")?.environment).toBe(
       environment,
     );
-    expect(result.state.messages.at(-1)).toMatchObject({
+    const lastMessage = (await listGameMessages(handle.db, created.game.id)).at(-1);
+    expect(lastMessage).toMatchObject({
       kind: "environment_change",
       stageId: result.state.world.stages.find((stage) => stage.name === "灰烬门廊")?.id,
     });
@@ -303,7 +305,8 @@ describe.skipIf(!testDatabaseUrl)("stage mini-GM", () => {
     expect(result.state.world.stages.find((stage) => stage.name === "灰烬门廊")?.anchors).toEqual(
       anchors,
     );
-    expect(result.state.messages.at(-1)).toMatchObject({
+    const lastMessage = (await listGameMessages(handle.db, created.game.id)).at(-1);
+    expect(lastMessage).toMatchObject({
       kind: "anchor_change",
       stageId: result.state.world.stages.find((stage) => stage.name === "灰烬门廊")?.id,
     });

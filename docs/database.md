@@ -24,6 +24,18 @@ PostgreSQL 是游戏状态的唯一真相。`agent:game` 从数据库读取状�
 
 → 参见：[物品](items.md)、[外观](appearance.md)
 
+## 状态读取分层
+
+真相在 PG，读取按用途分三层，能取小的就不取大的：
+
+- **窄查询**（`getGameMeta`、`resolveActorIdByName`）：只取 id / status / 版本号，不装配世界。
+- **活状态切片**（`getGameStateSlice`）：世界与角色的运行时状态，不含公共事件流；判定、渲染与回合输入走这层。
+- **整局状态**（`getGameState`）：切片加事件流全量，只在需要整份读取的控制面用（快照、故事整理、导出）。
+
+`GameStateSlice` 就是 `GameState` 去掉 `messages`：需要完整状态的地方可以直接传切片，反过来不行。事件流随对局线性增长，所以回合结果按同一份契约交付——切片加一个 `messageCursor`，调用方拿它当 `afterSequence` 增量拉。派生索引（到访集合、签名称呼）按快照记在 `WeakMap` 里，随 state 一起回收，不跨请求。
+
+→ 参见：[架构](architecture.md)（状态不缓存，事件流可临时缓存）
+
 ## 回合与事务
 
 actor、stage、world 三条链路共用同一个节奏：读状态与 memory → 事务外跑 agent loop → 用行锁与版本号在短事务里按计划顺序落账。区别只在计划形状与能力清单。

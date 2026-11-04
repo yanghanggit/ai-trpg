@@ -8,21 +8,22 @@ import { isPlayerControlled } from "./control";
 import { auditPlayerDialogue, dialogueContextFor, isDialogueAction } from "./dialogue-audit";
 import { DialogueBlockedError, GameError } from "./errors";
 import { parseSignatureName } from "./plan";
-import { getGameState } from "./service";
+import { getGameStateSlice, readTurnDelivery } from "./service";
 import type {
   ActorAction,
   ActorPlan,
   ActorState,
   ActorTurnResult,
   EquipmentSlot,
-  GameState,
+  GameStateSlice,
+  StageState,
 } from "./types";
 
 /**
  * 玩家入口是 god view：可以用真名或签名引用指定目标。
  * 这里只负责把 god-view 输入解析成 actor；真正进入 apply 前还会换成 actor-facing 引用。
  */
-function findActorByRef(state: GameState, ref: string): ActorState {
+function findActorByRef(state: GameStateSlice, ref: string): ActorState {
   const value = ref.trim();
   if (value.startsWith("#")) {
     const seq = Number(value.slice(1));
@@ -40,9 +41,9 @@ function findActorByRef(state: GameState, ref: string): ActorState {
  * 换成该 actor 当前地址表发出的 actor-facing 引用，后续只走签名 / 当前名字入口。
  */
 function normalizePlayerTargets(
-  state: GameState,
+  state: GameStateSlice,
   actor: ActorState,
-  stage: GameState["world"]["stages"][number],
+  stage: StageState,
   plan: ActorPlan,
 ): ActorPlan {
   const address = addressLookupFor(state, actor, stage);
@@ -70,9 +71,23 @@ async function applyPlayerPlan(
   plan: ActorPlan,
   options: ApplyActorPlanOptions = {},
 ): Promise<ActorTurnResult> {
-  const state = await getGameState(db, gameRef);
-  const actor = findActorByRef(state, actorRef);
+  const state = await getGameStateSlice(db, gameRef);
+  return applyPlayerPlanOnState(db, state, findActorByRef(state, actorRef), plan, options);
+}
 
+/**
+ * 已装载状态上的计划执行。
+ *
+ * 需要先看状态再决定计划的入口（例如改称呼要先解析目标）复用这一层，
+ * 避免为同一份状态装配两遍。
+ */
+async function applyPlayerPlanOnState(
+  db: Database,
+  state: GameStateSlice,
+  actor: ActorState,
+  plan: ActorPlan,
+  options: ApplyActorPlanOptions = {},
+): Promise<ActorTurnResult> {
   if (!(await isPlayerControlled(db, state.game.id, actor.id))) {
     throw new GameError("invalid_action", `actor 未被玩家接管: ${actor.name}`);
   }
@@ -139,10 +154,10 @@ async function applyPlayerPlan(
   }
 
   return {
+    ...(await readTurnDelivery(db, state.game.id)),
     ok: true,
     plan,
     loopSuccess: true,
-    state: await getGameState(db, state.game.id),
     ...(result.death ? { death: result.death } : {}),
   };
 }
@@ -436,13 +451,14 @@ export async function playerRecognizeIdentity(
   actorRef: string,
   input: PlayerRecognizeInput,
 ): Promise<ActorTurnResult> {
-  const state = await getGameState(db, gameRef);
+  const state = await getGameStateSlice(db, gameRef);
+  const actor = findActorByRef(state, actorRef);
   const target = findActorByRef(state, input.targetActorRef);
   const plan: ActorPlan = {
     actions: [],
     identities: [{ handle: handleOf(target.signature.seq), name: parseSignatureName(input.name) }],
   };
-  return applyPlayerPlan(db, gameRef, actorRef, plan);
+  return applyPlayerPlanOnState(db, state, actor, plan);
 }
 
 export async function playerUse(

@@ -57,12 +57,16 @@ const appearanceInput = z
     message: "appearance 需要 --actor <actorName>，或使用 --all",
   });
 
+/**
+ * 回合输出不内联整份事件流：只给活状态与游标，需要事件时用 `messages --after <cursor>`。
+ */
 function npcOutput(result: ActorTurnResult): Record<string, unknown> {
   return {
     ok: result.ok,
     plan: result.plan,
     loopSuccess: result.loopSuccess,
     state: result.state,
+    messageCursor: result.messageCursor,
     ...(result.death === undefined ? {} : { death: result.death }),
   };
 }
@@ -73,6 +77,7 @@ function stageOutput(result: StageTurnResult): Record<string, unknown> {
     plan: result.plan,
     loopSuccess: result.loopSuccess,
     state: result.state,
+    messageCursor: result.messageCursor,
   };
 }
 
@@ -82,6 +87,7 @@ function worldOutput(result: WorldTurnResult): Record<string, unknown> {
     plan: result.plan,
     loopSuccess: result.loopSuccess,
     state: result.state,
+    messageCursor: result.messageCursor,
   };
 }
 

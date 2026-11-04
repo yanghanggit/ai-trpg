@@ -18,7 +18,7 @@ import { loadActorByNameInStage, loadActorWithStage } from "./persistence/actors
 import { lockGameRow } from "./persistence/games";
 import { loadActorItem } from "./persistence/items";
 import { loadWorldByGame } from "./persistence/worlds";
-import { getGameState } from "./service";
+import { getGameStateSlice } from "./service";
 import type { Affix } from "./types";
 import { buildWorldFunctionPrompt, type WorldConstitution } from "./world-function";
 
@@ -190,7 +190,7 @@ async function evaluateAffix(
   if (!service) {
     return { evaluation: { kind: "noop", reason: "未配置 LLM service" } };
   }
-  const state = await getGameState(db, gameId);
+  const state = await getGameStateSlice(db, gameId);
   if (state.game.status !== "active") {
     return { evaluation: { kind: "noop", reason: "游戏已结束" } };
   }

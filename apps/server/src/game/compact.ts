@@ -13,8 +13,8 @@ import { GameError } from "./errors";
 import { appendMemoryMessages, loadAgentMemory, type MemoryOwnerType } from "./memory";
 import { findNameLeaks, type NameAuditInput } from "./name-audit";
 import { loadNameAuditInput } from "./persistence/name-audit";
-import { getGameState } from "./service";
-import type { AgentMemoryState, GameState } from "./types";
+import { getGameStateSlice } from "./service";
+import type { AgentMemoryState, GameStateSlice } from "./types";
 import { type WorldConstitution, worldFunctionSystemPrompt } from "./world-function";
 
 /** 手动 compact 的目标；actor/stage 用名称或 id，world 不需要名称。 */
@@ -77,21 +77,21 @@ const COMPACT_SYSTEM_PROMPT = `## 身份
 
 只输出压缩后的私有记忆正文，不要标题、列表、解释或“系统”“模型”“压缩”等元语言。`;
 
-function resolveActorOwner(state: GameState, ref: string): ResolvedOwner {
+function resolveActorOwner(state: GameStateSlice, ref: string): ResolvedOwner {
   const current = findActorByName(state, ref);
   return { ownerType: "actor", ownerId: current.actor.id, ownerName: current.actor.name };
 }
 
-function resolveStageOwner(state: GameState, ref: string): ResolvedOwner {
+function resolveStageOwner(state: GameStateSlice, ref: string): ResolvedOwner {
   const stage = findStage(state, ref);
   return { ownerType: "stage", ownerId: stage.id, ownerName: stage.name };
 }
 
-function resolveWorldOwner(state: GameState): ResolvedOwner {
+function resolveWorldOwner(state: GameStateSlice): ResolvedOwner {
   return { ownerType: "world", ownerId: state.world.id, ownerName: state.world.name };
 }
 
-function resolveTarget(state: GameState, target: CompactTarget): ResolvedOwner {
+function resolveTarget(state: GameStateSlice, target: CompactTarget): ResolvedOwner {
   switch (target.ownerType) {
     case "actor":
       return resolveActorOwner(state, target.ref);
@@ -102,7 +102,7 @@ function resolveTarget(state: GameState, target: CompactTarget): ResolvedOwner {
   }
 }
 
-function resolveAllOwners(state: GameState): ResolvedOwner[] {
+function resolveAllOwners(state: GameStateSlice): ResolvedOwner[] {
   return [
     resolveWorldOwner(state),
     ...state.world.stages.map((stage) => ({
@@ -339,7 +339,7 @@ export async function compactMemory(
   target: CompactTarget,
   options: CompactMemoryOptions,
 ): Promise<CompactMemoryResult> {
-  const state = await getGameState(db, gameRef);
+  const state = await getGameStateSlice(db, gameRef);
   const owner = resolveTarget(state, target);
   const auditInput =
     owner.ownerType === "actor" ? await loadNameAuditInput(db, state.game.id) : undefined;
@@ -351,7 +351,7 @@ export async function compactAllMemories(
   gameRef: string,
   options: CompactMemoryOptions,
 ): Promise<CompactMemoryResult[]> {
-  const state = await getGameState(db, gameRef);
+  const state = await getGameStateSlice(db, gameRef);
   const auditInput = await loadNameAuditInput(db, state.game.id);
   const results: CompactMemoryResult[] = [];
   for (const owner of resolveAllOwners(state)) {

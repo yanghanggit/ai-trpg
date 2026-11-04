@@ -3,7 +3,7 @@ import { adjacentStages, findActorByName } from "./actors";
 import { addressLookupFor, handleOf, refOf } from "./addressing";
 import { MEMORY_KINDS } from "./constants";
 import { getMemoryState } from "./memory";
-import { getGameState } from "./service";
+import { getGameStateSlice } from "./service";
 import { visitedTeleportTargetsFor } from "./teleport";
 import type { SignatureNameState } from "./types";
 
@@ -94,7 +94,7 @@ export async function getActorView(
   gameRef: string,
   actorRef: string,
 ): Promise<ActorView> {
-  const state = await getGameState(db, gameRef);
+  const state = await getGameStateSlice(db, gameRef);
   const { actor, stage } = findActorByName(state, actorRef);
   const memory = await getMemoryState(db, state.game.id, "actor", actor.id);
   const address = addressLookupFor(state, actor, stage);

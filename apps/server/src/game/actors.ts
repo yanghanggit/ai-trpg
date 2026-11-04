@@ -1,13 +1,14 @@
+import assert from "node:assert/strict";
 import { buildEdgeIndex, openNeighborIds, sealedNeighborIds } from "./edges";
 import { GameError } from "./errors";
-import type { ActorState, GameState, StageState } from "./types";
+import type { ActorState, GameStateSlice, StageState } from "./types";
 
 export type ActorWithStage = {
   actor: ActorState;
   stage: StageState;
 };
 
-export function allActors(state: GameState): ActorWithStage[] {
+export function allActors(state: GameStateSlice): ActorWithStage[] {
   return state.world.stages.flatMap((stage) => stage.actors.map((actor) => ({ actor, stage })));
 }
 
@@ -17,7 +18,7 @@ export function allActors(state: GameState): ActorWithStage[] {
  */
 
 /** 按真名定位；名字重复时直接拒绝，不退回 id 或编号。 */
-export function findActorByName(state: GameState, name: string): ActorWithStage {
+export function findActorByName(state: GameStateSlice, name: string): ActorWithStage {
   const matches = allActors(state).filter(({ actor }) => actor.name === name);
   if (matches.length === 0) {
     throw new GameError("not_found", `actor 不存在: ${name}`);
@@ -25,11 +26,13 @@ export function findActorByName(state: GameState, name: string): ActorWithStage 
   if (matches.length > 1) {
     throw new GameError("invalid_action", `actor 名称不唯一: ${name}`);
   }
-  return matches[0] as ActorWithStage;
+  const [match] = matches;
+  assert(match, `actor 定位结果为空: ${name}`);
+  return match;
 }
 
 /** 按签名序号定位；只用于玩家 god-view 的 `#编号` 入口。 */
-export function findActorBySignatureSeq(state: GameState, seq: number): ActorWithStage {
+export function findActorBySignatureSeq(state: GameStateSlice, seq: number): ActorWithStage {
   const matches = allActors(state).filter(({ actor }) => actor.signature.seq === seq);
   if (matches.length === 0) {
     throw new GameError("not_found", `签名不存在: #${seq}`);
@@ -37,7 +40,9 @@ export function findActorBySignatureSeq(state: GameState, seq: number): ActorWit
   if (matches.length > 1) {
     throw new GameError("invalid_state", `签名序号不唯一: #${seq}`);
   }
-  return matches[0] as ActorWithStage;
+  const [match] = matches;
+  assert(match, `签名定位结果为空: #${seq}`);
+  return match;
 }
 
 export function otherActorsInStage(stage: StageState, actorId: string): ActorState[] {
@@ -45,7 +50,7 @@ export function otherActorsInStage(stage: StageState, actorId: string): ActorSta
 }
 
 /** 只走已通行的边。 */
-export function adjacentStages(state: GameState, stageId: string): StageState[] {
+export function adjacentStages(state: GameStateSlice, stageId: string): StageState[] {
   const byId = new Map(state.world.stages.map((stage) => [stage.id, stage]));
   const edges = buildEdgeIndex(state.world.connections);
   return openNeighborIds(edges, stageId)
@@ -54,12 +59,12 @@ export function adjacentStages(state: GameState, stageId: string): StageState[] 
 }
 
 /** 返回从指定场景可直接到达的场景名。 */
-export function adjacentStageNames(state: GameState, stageId: string): string[] {
+export function adjacentStageNames(state: GameStateSlice, stageId: string): string[] {
   return adjacentStages(state, stageId).map((stage) => stage.name);
 }
 
 /** 剧情上相连、但当前不可通过的场景；供 stage 小 GM 判断能否 open_passage。 */
-export function sealedStageNames(state: GameState, stageId: string): string[] {
+export function sealedStageNames(state: GameStateSlice, stageId: string): string[] {
   const byId = new Map(state.world.stages.map((stage) => [stage.id, stage]));
   const edges = buildEdgeIndex(state.world.connections);
   return sealedNeighborIds(edges, stageId).flatMap((id) => {
@@ -68,7 +73,7 @@ export function sealedStageNames(state: GameState, stageId: string): string[] {
   });
 }
 
-export function findStage(state: GameState, ref: string): StageState {
+export function findStage(state: GameStateSlice, ref: string): StageState {
   const matches = state.world.stages.filter((stage) => stage.id === ref || stage.name === ref);
   if (matches.length === 0) {
     throw new GameError("not_found", `场景不存在: ${ref}`);
@@ -76,9 +81,11 @@ export function findStage(state: GameState, ref: string): StageState {
   if (matches.length > 1) {
     throw new GameError("invalid_action", `场景名称不唯一，请使用 id: ${ref}`);
   }
-  return matches[0] as StageState;
+  const [match] = matches;
+  assert(match, `场景定位结果为空: ${ref}`);
+  return match;
 }
 
-export function findStageByName(state: GameState, name: string): StageState | undefined {
+export function findStageByName(state: GameStateSlice, name: string): StageState | undefined {
   return state.world.stages.find((stage) => stage.name === name);
 }

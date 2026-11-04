@@ -11,7 +11,15 @@ import { CONTENT_PACKS, getContentPack } from "../../../../seeds";
 import { readContentPackFile } from "../../../content-pack";
 import { dumpStory } from "../../../debug/story-dump";
 import { DEEPSEEK_SERVICE } from "../../../deepseek";
-import { createGame, getGameState, runStory, snapshotGame } from "../../../game";
+import {
+  createGame,
+  getGameMeta,
+  getGameState,
+  latestMessageSequence,
+  listGameMessages,
+  runStory,
+  snapshotGame,
+} from "../../../game";
 import type { World } from "../../../game/types";
 import { parseWorldContent } from "../../../game/world-content";
 import { gameOption, optionalOption, requiredOption } from "../args";
@@ -109,6 +117,32 @@ export function registerGameCommands(program: Command, ctx: CommandContext): voi
     options: [gameOption()],
     schema: z.object({ game: z.string() }),
     run: async (input, ctx) => ({ state: await ctx.db((db) => getGameState(db, input.game)) }),
+  });
+
+  addCommand(program, ctx, {
+    name: "messages",
+    group: GROUP,
+    summary: "按序号增量读公共事件流",
+    options: [
+      gameOption(),
+      optionalOption("--after <sequence>", "只读序号大于它的消息，默认从头"),
+      optionalOption("--limit <count>", "单次条数上限"),
+    ],
+    schema: z.object({
+      game: z.string(),
+      after: z.coerce.number().int().min(0).optional(),
+      limit: z.coerce.number().int().min(1).optional(),
+    }),
+    run: async (input, ctx) =>
+      ctx.db(async (db) => {
+        // 只要事件流：用窄读拿 gameId，不装配世界。
+        const game = await getGameMeta(db, input.game);
+        const [messages, messageCursor] = await Promise.all([
+          listGameMessages(db, game.id, { afterSequence: input.after, limit: input.limit }),
+          latestMessageSequence(db, game.id),
+        ]);
+        return { messages, messageCursor };
+      }),
   });
 
   addCommand(program, ctx, {

@@ -1,5 +1,6 @@
+import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
-import { and, asc, eq, inArray } from "drizzle-orm";
+import { and, asc, eq, gt, inArray, max } from "drizzle-orm";
 import type { Database } from "../db/pool";
 import {
   actors,
@@ -44,6 +45,7 @@ import type {
   ConnectionState,
   CreateGameInput,
   GameState,
+  GameStateSlice,
   ItemState,
   MessageState,
   MessageVisibility,
@@ -89,49 +91,60 @@ function iso(value: Date): string {
   return value.toISOString();
 }
 
-/** 读取一局游戏的完整状态；游戏不存在时抛出 GameError。 */
+/** 读取一局游戏的完整状态（含公共事件流）；游戏不存在时抛出 GameError。 */
 export async function getGameState(db: Database, ref: string): Promise<GameState> {
+  const slice = await getGameStateSlice(db, ref);
+  return { ...slice, messages: await listGameMessages(db, slice.game.id) };
+}
+
+/**
+ * 读取活状态：world、stages、actors、items、visits 与签名称呼，不含公共事件流。
+ *
+ * 判定与提示词渲染只依赖这些字段；公共事件流交给控制面单独取，长局的读取代价才不会
+ * 随事件数增长。内部查询的依赖只有 5 层，所以按层并发，不必 12 条串行。
+ */
+export async function getGameStateSlice(db: Database, ref: string): Promise<GameStateSlice> {
   const game = await findGame(db, ref);
   if (!game) {
     throw new GameError("not_found", `游戏不存在: ${ref}`);
   }
 
-  const [playerRow] = await db
-    .select({
-      id: gamePlayers.id,
-      userId: gamePlayers.userId,
-      role: gamePlayers.role,
-      username: users.username,
-      displayName: users.displayName,
-    })
-    .from(gamePlayers)
-    .innerJoin(users, eq(gamePlayers.userId, users.id))
-    .where(eq(gamePlayers.gameId, game.id))
-    .limit(1);
+  const [[playerRow], [worldRow]] = await Promise.all([
+    db
+      .select({
+        id: gamePlayers.id,
+        userId: gamePlayers.userId,
+        role: gamePlayers.role,
+        username: users.username,
+        displayName: users.displayName,
+      })
+      .from(gamePlayers)
+      .innerJoin(users, eq(gamePlayers.userId, users.id))
+      .where(eq(gamePlayers.gameId, game.id))
+      .limit(1),
+    db.select().from(worlds).where(eq(worlds.gameId, game.id)).limit(1),
+  ]);
   if (!playerRow) {
     throw new GameError("invalid_state", `游戏缺少 player: ${game.id}`);
   }
-
-  const [worldRow] = await db.select().from(worlds).where(eq(worlds.gameId, game.id)).limit(1);
   if (!worldRow) {
     throw new GameError("invalid_state", `游戏缺少 world: ${game.id}`);
   }
 
-  const stageRows = await db
-    .select()
-    .from(stages)
-    .where(eq(stages.worldId, worldRow.id))
-    .orderBy(asc(stages.ordinal), asc(stages.createdAt));
+  const [stageRows, connectionRows, signatureNameRows] = await Promise.all([
+    db
+      .select()
+      .from(stages)
+      .where(eq(stages.worldId, worldRow.id))
+      .orderBy(asc(stages.ordinal), asc(stages.createdAt)),
+    db
+      .select()
+      .from(stageConnections)
+      .where(eq(stageConnections.worldId, worldRow.id))
+      .orderBy(asc(stageConnections.createdAt)),
+    listSignatureNames(db, game.id),
+  ]);
   const stageIds = stageRows.map((stage) => stage.id);
-
-  const connectionRows =
-    stageIds.length === 0
-      ? []
-      : await db
-          .select()
-          .from(stageConnections)
-          .where(eq(stageConnections.worldId, worldRow.id))
-          .orderBy(asc(stageConnections.createdAt));
 
   const actorRows =
     stageIds.length === 0
@@ -143,18 +156,38 @@ export async function getGameState(db: Database, ref: string): Promise<GameState
           .orderBy(asc(actors.seq));
   const actorIds = actorRows.map((actor) => actor.id);
 
-  const visitRows =
+  const [visitRows, itemRows, signatureViews, stageItemRows] = await Promise.all([
     actorIds.length === 0
       ? []
-      : await db
+      : db
           .select()
           .from(stageVisits)
           .where(and(eq(stageVisits.gameId, game.id), inArray(stageVisits.actorId, actorIds)))
-          .orderBy(asc(stageVisits.firstVisitedAt));
+          .orderBy(asc(stageVisits.firstVisitedAt)),
+    actorIds.length === 0
+      ? []
+      : db.select().from(items).where(inArray(items.actorId, actorIds)).orderBy(asc(items.seq)),
+    // 每个 actor 当前只有一条签名；外观由该签名的当前渲染行提供。
+    listCurrentSignatureViews(db, actorIds),
+    stageIds.length === 0
+      ? []
+      : db
+          .select()
+          .from(stageItems)
+          .where(inArray(stageItems.stageId, stageIds))
+          .orderBy(asc(stageItems.seq)),
+  ]);
 
   // 同一回合的多次到达共享同一个 `now`，只按时间排序会让并列项顺序不稳定；
   // 并列时按场景序号（world 内的 ordinal）兜底，保证读出的顺序可复现。
   const stageOrdinal = new Map(stageRows.map((stage) => [stage.id, stage.ordinal]));
+  const ordinalOf = (stageId: string): number => {
+    const ordinal = stageOrdinal.get(stageId);
+    // 到访记录由外键指向 stages，actor 又属于本 world，所以这里不可能缺失；
+    // 真缺失说明数据被改坏，宁可当场炸，也不排序成 0 悄悄混进列表开头。
+    assert(ordinal !== undefined, `访问历史指向了本局之外的场景: ${stageId}`);
+    return ordinal;
+  };
   const visits: StageVisitState[] = visitRows
     .map((visit) => ({
       actorId: visit.actorId,
@@ -165,21 +198,10 @@ export async function getGameState(db: Database, ref: string): Promise<GameState
     .sort(
       (left, right) =>
         left.firstVisitedAt.localeCompare(right.firstVisitedAt) ||
-        (stageOrdinal.get(left.stageId) ?? 0) - (stageOrdinal.get(right.stageId) ?? 0) ||
+        ordinalOf(left.stageId) - ordinalOf(right.stageId) ||
         left.actorId.localeCompare(right.actorId),
     );
 
-  const itemRows =
-    actorIds.length === 0
-      ? []
-      : await db
-          .select()
-          .from(items)
-          .where(inArray(items.actorId, actorIds))
-          .orderBy(asc(items.seq));
-
-  // 每个 actor 当前只有一条签名；外观由该签名的当前渲染行提供。
-  const signatureViews = await listCurrentSignatureViews(db, actorIds);
   const signatureByActor = new Map(
     signatureViews.map(({ signature, appearance }) => [
       signature.actorId,
@@ -187,27 +209,12 @@ export async function getGameState(db: Database, ref: string): Promise<GameState
     ]),
   );
 
-  const stageItemRows =
-    stageIds.length === 0
-      ? []
-      : await db
-          .select()
-          .from(stageItems)
-          .where(inArray(stageItems.stageId, stageIds))
-          .orderBy(asc(stageItems.seq));
-
   const itemsByStage = new Map<string, ItemState[]>();
   for (const item of stageItemRows) {
     const list = itemsByStage.get(item.stageId) ?? [];
     list.push(toItemState(item));
     itemsByStage.set(item.stageId, list);
   }
-
-  const messageRows = await db
-    .select()
-    .from(gameMessages)
-    .where(eq(gameMessages.gameId, game.id))
-    .orderBy(asc(gameMessages.sequence));
 
   const itemsByActor = new Map<string, ItemState[]>();
   for (const item of itemRows) {
@@ -275,25 +282,12 @@ export async function getGameState(db: Database, ref: string): Promise<GameState
     role: playerRow.role,
   };
 
-  const signatureNameRows = await listSignatureNames(db, game.id);
   const signatureNames: SignatureNameState[] = signatureNameRows.map((row) => ({
     observerActorId: row.observerActorId,
     signatureId: row.signatureId,
     name: row.name,
     source: row.source,
     learnedStageId: row.learnedStageId,
-  }));
-
-  const messages: MessageState[] = messageRows.map((message) => ({
-    id: message.id,
-    sequence: message.sequence,
-    kind: message.kind,
-    stageId: message.stageId,
-    sourceActorId: message.sourceActorId,
-    targetActorId: message.targetActorId,
-    visibility: message.visibility as MessageVisibility,
-    content: message.content,
-    createdAt: iso(message.createdAt),
   }));
 
   return {
@@ -323,10 +317,136 @@ export async function getGameState(db: Database, ref: string): Promise<GameState
       stages: stageState,
       connections,
     },
-    messages,
     signatureNames,
-    visits,
+    visits: visits,
   };
+}
+
+export type GameMessageQuery = {
+  /** 只取序号大于它的消息；用于增量推进。 */
+  afterSequence?: number;
+  /** 单次上限，按 `sequence` 升序取前 N 条。 */
+  limit?: number;
+};
+
+/**
+ * 公共事件流；按 `sequence` 升序，可选择增量与条数上限。
+ *
+ * 控制面才需要它：回合交付、快照、事件回顾。判定路径读 `getGameStateSlice`。
+ */
+export async function listGameMessages(
+  db: Database,
+  gameId: string,
+  query: GameMessageQuery = {},
+): Promise<MessageState[]> {
+  const conditions = [eq(gameMessages.gameId, gameId)];
+  if (query.afterSequence !== undefined) {
+    conditions.push(gt(gameMessages.sequence, query.afterSequence));
+  }
+  const select = db
+    .select()
+    .from(gameMessages)
+    .where(and(...conditions))
+    .orderBy(asc(gameMessages.sequence));
+  const rows = query.limit === undefined ? await select : await select.limit(query.limit);
+  return rows.map((message) => ({
+    id: message.id,
+    sequence: message.sequence,
+    kind: message.kind,
+    stageId: message.stageId,
+    sourceActorId: message.sourceActorId,
+    targetActorId: message.targetActorId,
+    visibility: message.visibility as MessageVisibility,
+    content: message.content,
+    createdAt: iso(message.createdAt),
+  }));
+}
+
+/** 公共事件流当前的最大 `sequence`；空事件流为 0。 */
+export async function latestMessageSequence(db: Database, gameId: string): Promise<number> {
+  const [row] = await db
+    .select({ sequence: max(gameMessages.sequence) })
+    .from(gameMessages)
+    .where(eq(gameMessages.gameId, gameId));
+  // `max()` 在空表上返回 null，这里不是错误：只是还没有任何公共事件。
+  return row?.sequence ?? 0;
+}
+
+/**
+ * 回合结束时的交付：活状态切片 + 事件流游标，两条查询互不依赖，一起发。
+ *
+ * 状态与游标各自独立成形，调用方拿游标按 `afterSequence` 增量拉本回合的事件流。
+ */
+export async function readTurnDelivery(
+  db: Database,
+  gameId: string,
+): Promise<{ state: GameStateSlice; messageCursor: number }> {
+  const [state, messageCursor] = await Promise.all([
+    getGameStateSlice(db, gameId),
+    latestMessageSequence(db, gameId),
+  ]);
+  return { state, messageCursor };
+}
+
+export type GameMeta = {
+  id: string;
+  slug: string;
+  status: string;
+  contentVersion: string;
+  version: number;
+  playerId: string;
+};
+
+/** 只读游戏与玩家 id 的最小信息；给控制类调用方用，不装配世界。 */
+export async function getGameMeta(db: Database, ref: string): Promise<GameMeta> {
+  const game = await findGame(db, ref);
+  if (!game) {
+    throw new GameError("not_found", `游戏不存在: ${ref}`);
+  }
+  const [playerRow] = await db
+    .select({ id: gamePlayers.id })
+    .from(gamePlayers)
+    .where(eq(gamePlayers.gameId, game.id))
+    .limit(1);
+  if (!playerRow) {
+    throw new GameError("invalid_state", `游戏缺少 player: ${game.id}`);
+  }
+  return {
+    id: game.id,
+    slug: game.slug,
+    status: game.status,
+    contentVersion: game.contentVersion,
+    version: game.version,
+    playerId: playerRow.id,
+  };
+}
+
+/**
+ * 按 actor 真名解析 id 与所在场景；不装配 world。
+ *
+ * 语义与 `findActorByName` 一致：名字重复直接拒绝，不退回 id 或编号。
+ */
+export async function resolveActorIdByName(
+  db: Database,
+  gameId: string,
+  name: string,
+): Promise<{ id: string; name: string; stageId: string; seq: number }> {
+  const rows = await db
+    .select({ id: actors.id, name: actors.name, stageId: actors.stageId, seq: actors.seq })
+    .from(actors)
+    .innerJoin(stages, eq(actors.stageId, stages.id))
+    .innerJoin(worlds, eq(stages.worldId, worlds.id))
+    .where(and(eq(worlds.gameId, gameId), eq(actors.name, name)))
+    .limit(2);
+  if (rows.length === 0) {
+    throw new GameError("not_found", `actor 不存在: ${name}`);
+  }
+  if (rows.length > 1) {
+    throw new GameError("invalid_action", `actor 名称不唯一: ${name}`);
+  }
+  const [row] = rows;
+  assert(row, `actor 定位结果为空: ${name}`);
+  return row;
 }
 
 /** 创建一局游戏及初始 world、stage、actor、item 与 memory。 */

@@ -60,7 +60,7 @@ import {
   parseRecognizeIdentity,
   renderStageEnvironmentForActor,
 } from "./plan";
-import { getGameState } from "./service";
+import { getGameStateSlice, readTurnDelivery } from "./service";
 import { visitedTeleportTargetsFor } from "./teleport";
 import type {
   ActionKind,
@@ -68,7 +68,7 @@ import type {
   ActorPlan,
   ActorState,
   ActorTurnResult,
-  GameState,
+  GameStateSlice,
 } from "./types";
 import { EQUIPMENT_SLOTS } from "./types";
 
@@ -93,7 +93,7 @@ function canObserveActorItems(actor: Pick<ActorState, "actions">): boolean {
 }
 
 /** 构造 actor 本轮的公开环境与任务说明；NPC 与探针共用。 */
-export function buildActorTurnInput(state: GameState, current: ActorWithStage): string {
+export function buildActorTurnInput(state: GameStateSlice, current: ActorWithStage): string {
   const moves = adjacentStageRefsForActor(state, current);
   const others = otherActorsInStage(current.stage, current.actor.id);
   const address = addressLookupFor(state, current.actor, current.stage);
@@ -216,7 +216,7 @@ export async function runNpcTurn(
   actorRef: string,
   options: NpcTurnOptions,
 ): Promise<ActorTurnResult> {
-  const state = await getGameState(db, gameRef);
+  const state = await getGameStateSlice(db, gameRef);
   if (state.game.status !== "active") {
     throw new GameError("invalid_state", `游戏已结束: ${state.game.status}`);
   }
@@ -447,10 +447,10 @@ export async function runNpcTurn(
   });
 
   return {
+    ...(await readTurnDelivery(db, state.game.id)),
     ok: applied.ok,
     plan: submitted,
     loopSuccess: loop.success,
-    state: await getGameState(db, state.game.id),
     ...(applied.death ? { death: applied.death } : {}),
   };
 }

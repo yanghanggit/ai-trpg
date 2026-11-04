@@ -8,7 +8,7 @@ import { type AddressLookup, addressLookupFor, handleOf, refOf } from "../addres
 import { isAlive } from "../apply/queries";
 import { visitedStageIds, visitedTeleportTargetsFor } from "../teleport";
 import { sanitizeActorFacingText } from "../text-guard";
-import type { ActorState, GameState, ItemState, StageAnchor, StageState } from "../types";
+import type { ActorState, GameStateSlice, ItemState, StageAnchor, StageState } from "../types";
 import { EQUIPMENT_SLOT_LABELS, EQUIPMENT_SLOTS } from "../types";
 
 /** 场景锚点的统一渲染：stage 与 actor 都看同一份公开列表。 */
@@ -102,7 +102,10 @@ ${describeItems(actor)}`;
  * 回合初始输入与 `look_stage` 共用：environment 是拉取入口，读取时按观察者再脱敏
  * 一次，不能只依赖写入守卫（建局数据与历史数据都可能绕过守卫）。
  */
-export function renderStageEnvironmentForActor(state: GameState, current: ActorWithStage): string {
+export function renderStageEnvironmentForActor(
+  state: GameStateSlice,
+  current: ActorWithStage,
+): string {
   const stage = current.stage;
   const address = addressLookupFor(state, current.actor, stage);
   const otherActorNames = state.world.stages
@@ -132,7 +135,10 @@ function describeStageAnchorsSection(anchors: readonly StageAnchor[]): string {
  *
  * 场景名不是 actor 的默认知识；进入场景后由 `stage_visits` 永久记住。
  */
-export function adjacentStageRefsForActor(state: GameState, current: ActorWithStage): string[] {
+export function adjacentStageRefsForActor(
+  state: GameStateSlice,
+  current: ActorWithStage,
+): string[] {
   const visited = visitedStageIds(state, current.actor.id);
   return adjacentStages(state, current.stage.id).map((stage) =>
     visited.has(stage.id) ? `@${stage.name}` : handleOf(stage.seq),
@@ -140,7 +146,7 @@ export function adjacentStageRefsForActor(state: GameState, current: ActorWithSt
 }
 
 /** actor 视角的场景视图：只读当前场景，名字走观察者相对的引用。 */
-export function describeStageForActor(state: GameState, current: ActorWithStage): string {
+export function describeStageForActor(state: GameStateSlice, current: ActorWithStage): string {
   const stage = current.stage;
   const address = addressLookupFor(state, current.actor, stage);
   const moves = adjacentStageRefsForActor(state, current);
@@ -178,7 +184,7 @@ ${describeStageAnchorsSection(stage.anchors)}
  * 这里不再重排，避免两处排序规则漂移。
  */
 export function describeVisitedStages(
-  state: GameState,
+  state: GameStateSlice,
   actorId: string,
   currentStageId?: string,
 ): string {
@@ -196,7 +202,7 @@ export function describeVisitedStages(
 }
 
 /** world 视角：可查看任意场景，名字与 environment 原样输出。 */
-export function describeStageForWorld(state: GameState, stageName: string): string {
+export function describeStageForWorld(state: GameStateSlice, stageName: string): string {
   const stage = findStageByName(state, stageName);
   if (!stage) {
     return `错误：场景不存在 ${stageName}`;

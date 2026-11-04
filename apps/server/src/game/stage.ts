@@ -37,10 +37,10 @@ import {
   parseOpenPassage,
   parseWorldNotification,
 } from "./plan";
-import { getGameState } from "./service";
+import { getGameStateSlice, readTurnDelivery } from "./service";
 import { assertWorldFaceText } from "./text-guard";
 import type {
-  GameState,
+  GameStateSlice,
   StageAction,
   StageAnchor,
   StagePlan,
@@ -56,7 +56,7 @@ export type StageTurnOptions = {
 };
 
 /** 构造 stage 小 GM 本轮的当前场景观察；仲裁与探针共用。 */
-export function buildStageTurnInput(state: GameState, stage: StageState): string {
+export function buildStageTurnInput(state: GameStateSlice, stage: StageState): string {
   const moves = adjacentStageNames(state, stage.id);
   const sealed = sealedStageNames(state, stage.id);
   const canSubmit = stage.actions.includes("submit_environment");
@@ -429,7 +429,7 @@ export async function runStageTurn(
   stageRef: string,
   options: StageTurnOptions,
 ): Promise<StageTurnResult> {
-  const state = await getGameState(db, gameRef);
+  const state = await getGameStateSlice(db, gameRef);
   if (state.game.status !== "active") {
     throw new GameError("invalid_state", `游戏已结束: ${state.game.status}`);
   }
@@ -568,9 +568,9 @@ export async function runStageTurn(
   await traceEvent(trace, { event: "turn_end", ok, loopSuccess: loop.success });
 
   return {
+    ...(await readTurnDelivery(db, state.game.id)),
     ok,
     plan: submitted,
     loopSuccess: loop.success,
-    state: await getGameState(db, state.game.id),
   };
 }

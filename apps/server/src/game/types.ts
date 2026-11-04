@@ -689,6 +689,15 @@ export type GameState = {
   visits: StageVisitState[];
 };
 
+/**
+ * 不带宽公共事件流的活状态。
+ *
+ * 判定与渲染只需要 world / stages / actors / items / visits / 签名称呼；
+ * 公共事件流（`messages`）只服务控制面（回合交付、快照、故事整理）。
+ * 内部读路径用这个切片，不要为了拿一个 id 去装配事件流。
+ */
+export type GameStateSlice = Omit<GameState, "messages">;
+
 /** 一条签名称呼：观察者当前把某个签名叫作什么；名字不要求是真名。 */
 export type SignatureNameState = {
   observerActorId: string;
@@ -722,25 +731,34 @@ export type DeathPhaseResult = {
   dropFailed: string[];
 };
 
-export type ActorTurnResult = {
+/**
+ * 回合结果的交付形状：活状态切片 + 公共事件流游标。
+ *
+ * 事件流不再随结果整份下发——它随对局线性增长。调用方用 `messageCursor` 作为
+ * `afterSequence` 增量拉取本回合产生的事件（`listGameMessages`），需要整份再显式取。
+ */
+export type TurnDelivery = {
+  state: GameStateSlice;
+  /** 回合结束时公共事件流里最大的 `sequence`；没有事件时为 0。 */
+  messageCursor: number;
+};
+
+export type ActorTurnResult = TurnDelivery & {
   ok: boolean;
   plan: ActorPlan | null;
   loopSuccess: boolean;
-  state: GameState;
   /** 本次行动之后死亡阶段的结果；失败不回滚这次行动，但要让上层看得见。 */
   death?: DeathPhaseResult;
 };
 
-export type StageTurnResult = {
+export type StageTurnResult = TurnDelivery & {
   ok: boolean;
   plan: StagePlan | null;
   loopSuccess: boolean;
-  state: GameState;
 };
 
-export type WorldTurnResult = {
+export type WorldTurnResult = TurnDelivery & {
   ok: boolean;
   plan: WorldPlan | null;
   loopSuccess: boolean;
-  state: GameState;
 };

@@ -1,8 +1,8 @@
 import type { ToolDefinition } from "../../llm/types";
 import { GameError } from "../errors";
-import type { GameState, WorldAction } from "../types";
+import type { GameStateSlice, WorldAction } from "../types";
 
-export function buildLookTool(state: GameState): ToolDefinition {
+export function buildLookTool(state: GameStateSlice): ToolDefinition {
   return {
     type: "function",
     function: {

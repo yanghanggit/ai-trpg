@@ -6,7 +6,7 @@ import {
   saveSnapshot,
 } from "../debug/snapshot";
 import { getGameMemories } from "./memory";
-import { getGameState } from "./service";
+import { getGameStateSlice, listGameMessages } from "./service";
 
 function memoryFileName(name: string): string {
   return name.replace(/[/\\\0:*?"<>|]/g, "_").replace(/^\.+$/, "_") || "actor";
@@ -23,10 +23,13 @@ export async function snapshotGame(
   gameRef: string,
   options: GameSnapshotOptions = {},
 ) {
-  const state = await getGameState(db, gameRef);
+  // 快照是控制面：活状态与公共事件流各自取，事件流可以单独分页。
+  const slice = await getGameStateSlice(db, gameRef);
+  const messages = await listGameMessages(db, slice.game.id);
+  const state = { ...slice, messages };
   const memories = await getGameMemories(db, state.game.id);
   const now = options.now ?? new Date();
-  const session: SessionEvent[] = state.messages.map((message) => ({
+  const session: SessionEvent[] = messages.map((message) => ({
     sequence: message.sequence,
     type: `message.${message.kind}`,
     at: message.createdAt,

@@ -12,7 +12,7 @@ import type {
   DialogueActionKind,
   DialogueCategory,
   DialogueFailureKind,
-  GameState,
+  GameStateSlice,
   SayAction,
   WhisperAction,
 } from "./types";
@@ -318,7 +318,7 @@ export async function auditPlayerDialogue(
 
 /** 供玩家入口使用的上下文构造；目标 id 由调用方预解析。 */
 export function dialogueContextFor(
-  state: GameState,
+  state: GameStateSlice,
   actor: ActorState,
   stageName: string,
   action: SayAction | WhisperAction | AnnounceAction | CallAction,

@@ -53,7 +53,7 @@
 | [信息披露](information-disclosure.md)    | 四类实体的全知边界、认知隔离与下行披露           |
 | [名字审计](name-audit.md)                | actor 记忆的真名泄漏检查、CLI 与回合级 trace     |
 | [玩家对话审核](dialogue-audit.md)        | 玩家台词的无状态审核、失败关闭与被拒记录         |
-| [数据库](database.md)                    | PostgreSQL 状态源、表与不变式、死亡、迁移        |
+| [数据库](database.md)                    | PostgreSQL 状态源、表与不变式、读取分层、迁移    |
 | [公共知识检索](rag.md)                   | 知识边界、向量存储、query 工具与评测基线         |
 | [Actor 记忆](actor-actions-memory.md)    | actor 控制、行动事实、过程轨迹与接管             |
 | [外观](appearance.md)                    | 形态、穿戴、外观推理、来源快照与换装入口         |

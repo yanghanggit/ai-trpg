@@ -11,6 +11,7 @@ import {
   DEFAULT_WORLD_MAX_ROUNDS,
   getGameMemories,
   getGameState,
+  listGameMessages,
   MAX_STAGE_NOTIFICATIONS_PER_TURN,
   MAX_WORLD_ACTIONS_PER_TURN,
   runStageTurn,
@@ -140,7 +141,8 @@ describe.skipIf(!testDatabaseUrl)("world agent", () => {
     expect(result.ok).toBe(true);
     expect(result.state.game.status).toBe("completed");
     expect(result.state.game.outcome).toBe("escaped");
-    expect(result.state.messages.some((message) => message.kind === "game_completed")).toBe(true);
+    const messages = await listGameMessages(handle.db, created.game.id);
+    expect(messages.some((message) => message.kind === "game_completed")).toBe(true);
 
     const memories = await getGameMemories(handle.db, created.game.id);
     const gate = memories.find((memory) => memory.name === "灰烬门廊");
@@ -249,7 +251,8 @@ describe.skipIf(!testDatabaseUrl)("world agent", () => {
     expect(result.ok).toBe(true);
     expect(result.state.game.status).toBe("completed");
     expect(result.state.game.outcome).toBe("主角陨落");
-    expect(result.state.messages.some((message) => message.kind === "game_completed")).toBe(true);
+    const messages = await listGameMessages(handle.db, created.game.id);
+    expect(messages.some((message) => message.kind === "game_completed")).toBe(true);
   });
 
   it("rejects an end_game without an outcome and keeps the game active", async () => {
@@ -339,7 +342,8 @@ describe.skipIf(!testDatabaseUrl)("world agent", () => {
     expect(result.ok).toBe(true);
     expect(result.plan?.actions.map((action) => action.kind)).toEqual(["notify_stage", "end_game"]);
     expect(result.state.game.status).toBe("completed");
-    expect(result.state.messages.some((message) => message.kind === "game_completed")).toBe(true);
+    const messages = await listGameMessages(handle.db, created.game.id);
+    expect(messages.some((message) => message.kind === "game_completed")).toBe(true);
 
     const memories = await getGameMemories(handle.db, created.game.id);
     const gate = memories.find((memory) => memory.name === "灰烬门廊");

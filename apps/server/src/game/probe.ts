@@ -3,7 +3,7 @@ import { ChatCompletionRequest, type ChatCompletionService, type ChatMessage } f
 import { findActorByName, findStage } from "./actors";
 import { GameError } from "./errors";
 import { loadAgentMemory } from "./memory";
-import { getGameState } from "./service";
+import { getGameStateSlice } from "./service";
 
 export type ProbeTarget = { type: "actor"; actorRef: string } | { type: "stage"; stageRef: string };
 
@@ -40,7 +40,7 @@ export async function runProbe(
   gameRef: string,
   options: ProbeOptions,
 ): Promise<ProbeResult> {
-  const state = await getGameState(db, gameRef);
+  const state = await getGameStateSlice(db, gameRef);
   const question = options.message.trim();
   if (question.length === 0) {
     throw new GameError("invalid_action", "探针问题不能为空");
