@@ -20,6 +20,7 @@ export * from "./probe";
 export * from "./read/game-messages";
 export * from "./read/game-meta";
 export * from "./read/game-state";
+export * from "./route";
 export * from "./snapshot";
 export * from "./stage";
 export * from "./story";

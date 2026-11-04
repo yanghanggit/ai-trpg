@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { stripNameRef } from "./addressing";
 import { buildEdgeIndex, openNeighborIds, sealedNeighborIds } from "./edges";
 import { GameError } from "./errors";
 import type { ActorState, GameStateSlice, StageState } from "./types";
@@ -42,6 +43,20 @@ export function findActorBySignatureSeq(state: GameStateSlice, seq: number): Act
   }
   const [match] = matches;
   assert(match, `签名定位结果为空: #${seq}`);
+  return match;
+}
+
+/** 从 actor 定位他所在的场景；同一 actor 出现在两个场景是状态错误。 */
+export function stageOfActor(state: GameStateSlice, actorId: string): ActorWithStage {
+  const matches = allActors(state).filter(({ actor }) => actor.id === actorId);
+  if (matches.length === 0) {
+    throw new GameError("invalid_state", `actor 不属于任何场景: ${actorId}`);
+  }
+  if (matches.length > 1) {
+    throw new GameError("invalid_state", `actor 同时出现在多个场景: ${actorId}`);
+  }
+  const [match] = matches;
+  assert(match, `actor 场景定位结果为空: ${actorId}`);
   return match;
 }
 
@@ -89,6 +104,36 @@ export function findActorByRef(state: GameStateSlice, ref: string): ActorState {
   }
   const name = value.startsWith("@") ? value.slice(1) : value;
   return findActorByName(state, name).actor;
+}
+
+/**
+ * 必须按场景真名定位：`@名字` 可以带，`#序号` 与 id 一律拒绝。
+ *
+ * 「能指名」是种权利而不是便利：`#序号` 只表示看得见、还没命名的站位，一旦允许它
+ * 充当名字，路过的站位就会倒过来变成地名知识。问路的端点与授予场景知识都走这里；
+ * 移动的目标不走——走向一扇看得见的门本来就只需要编号。
+ */
+export function requireStageName(state: GameStateSlice, ref: string): StageState {
+  const name = stripNameRef(ref.trim());
+  if (name.length === 0) {
+    throw new GameError("invalid_action", "场景名不能为空");
+  }
+  if (name.startsWith("#")) {
+    throw new GameError(
+      "invalid_action",
+      `必须用场景真名指定；#序号 只是看得见但还没命名的站位: ${name}`,
+    );
+  }
+  const matches = state.world.stages.filter((stage) => stage.name === name);
+  if (matches.length === 0) {
+    throw new GameError("not_found", `场景不存在: ${name}`);
+  }
+  if (matches.length > 1) {
+    throw new GameError("invalid_action", `场景名称不唯一: ${name}`);
+  }
+  const [match] = matches;
+  assert(match, `场景定位结果为空: ${name}`);
+  return match;
 }
 
 export function findStage(state: GameStateSlice, ref: string): StageState {

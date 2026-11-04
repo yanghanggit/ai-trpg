@@ -9,6 +9,7 @@ import type {
   MessageVisibility,
   MoveAction,
   PickupAction,
+  RouteQuery,
   SayAction,
   StealAction,
   StrikeAction,
@@ -38,6 +39,7 @@ export type ResolvedIdentity = {
 export type ResolvedPlan = {
   actions: ResolvedAction[];
   identities: ResolvedIdentity[];
+  routes: RouteQuery[];
 };
 
 export type PublicMessage = {

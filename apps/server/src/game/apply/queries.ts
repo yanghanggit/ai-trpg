@@ -4,15 +4,18 @@ import {
   actors,
   appearances,
   items,
+  knownStages,
   stageConnections,
   stageItems,
   stages,
+  stageVisits,
   worlds,
 } from "../../db/schema";
 import { type AddressLookup, makeAddressLookup, stripNameRef } from "../addressing";
 import { addStats, type Stats } from "../attributes";
 import { GameError } from "../errors";
 import { signatureNamesFor } from "../persistence/signature-names";
+import type { RouteWorld } from "../route";
 import { EQUIPMENT_SLOTS } from "../types";
 import type {
   ActorRow,
@@ -354,6 +357,47 @@ export async function findStageInWorld(
     .where(and(eq(stages.worldId, worldId), stageRefCondition(value)))
     .limit(1);
   return row;
+}
+
+/**
+ * 路线回忆需要的最小图：场景、边、以及观察者知道真名的场景。
+ *
+ * `apply` 里装配整份状态太重，这里只读这四张表的最小列，与 `getGameState` 的三层读互不依赖。
+ */
+export async function loadRouteWorld(
+  executor: Executor,
+  input: { gameId: string; worldId: string; actorId: string; currentStageId: string },
+): Promise<RouteWorld> {
+  const [stageRows, edges, visits, learned] = await Promise.all([
+    executor
+      .select({
+        id: stages.id,
+        seq: stages.seq,
+        name: stages.name,
+        ordinal: stages.ordinal,
+      })
+      .from(stages)
+      .where(eq(stages.worldId, input.worldId)),
+    executor
+      .select({
+        fromStageId: stageConnections.fromStageId,
+        toStageId: stageConnections.toStageId,
+        passage: stageConnections.passage,
+      })
+      .from(stageConnections)
+      .where(eq(stageConnections.worldId, input.worldId)),
+    executor
+      .select({ stageId: stageVisits.stageId })
+      .from(stageVisits)
+      .where(and(eq(stageVisits.gameId, input.gameId), eq(stageVisits.actorId, input.actorId))),
+    executor
+      .select({ stageId: knownStages.stageId })
+      .from(knownStages)
+      .where(and(eq(knownStages.gameId, input.gameId), eq(knownStages.actorId, input.actorId))),
+  ]);
+  const known = new Set([...visits, ...learned].map((row) => row.stageId));
+  known.add(input.currentStageId);
+  return { stages: stageRows, connections: edges, known };
 }
 
 /** 物品转移后同一 actor 不能出现重名物品。 */

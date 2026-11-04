@@ -52,6 +52,7 @@ export const MEMORY_KINDS = {
   stageObservation: "stage_observation",
   actionFeedback: "action_feedback",
   identityUpdate: "identity_update",
+  routeRecall: "route_recall",
   actionRejected: "action_rejected",
   planFailed: "plan_failed",
   environmentObservation: "environment_observation",

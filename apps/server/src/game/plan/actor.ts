@@ -1,6 +1,7 @@
 import type { ToolDefinition } from "../../llm/types";
 import type { RagSearchResult } from "../../rag";
 import { GameError } from "../errors";
+import type { RouteQuestion } from "../route";
 
 export function buildSelfInfoTool(): ToolDefinition {
   return {
@@ -176,6 +177,46 @@ export function buildRecognizeIdentityTool(handles: readonly string[]): ToolDefi
       },
     },
   };
+}
+
+/**
+ * 回忆从 A 到 B 怎么走。
+ *
+ * 只读，但结论会在计划落账时写进自己的记忆，所以它不是纯粹的查询工具。
+ * 端点只能是知道真名的场景，见 `route.ts` 的规划规则。
+ */
+export function buildRecallRouteTool(stageRefs: readonly string[]): ToolDefinition {
+  const candidates = stageRefs.length > 0 ? { enum: [...stageRefs] } : {};
+  return {
+    type: "function",
+    function: {
+      name: "recall_route",
+      description: `回忆从 A 到 B 怎么走，结论会写进你自己的记忆（不占行动名额）。
+
+起点与终点必须是你知道名字的场景（用名字，不能用 #序号——#序号 只是路上看得见、还没命名的站位）；中间站可以是不认识的地方，会写成 #序号。能走通就给整条路线；走不通时把断处标成 →[封着]→，可能给出多条。`,
+      parameters: {
+        type: "object",
+        properties: {
+          from: {
+            type: "string",
+            description: "起点场景名：@名字；省略表示你当前所在的场景。不接受 #序号",
+            ...candidates,
+          },
+          to: { type: "string", description: "终点场景名：@名字。不接受 #序号", ...candidates },
+        },
+        required: ["to"],
+      },
+    },
+  };
+}
+
+export function parseRecallRoute(args: Record<string, unknown>): RouteQuestion {
+  const to = typeof args.to === "string" ? args.to.trim() : "";
+  if (to.length === 0) {
+    throw new GameError("invalid_action", "recall_route 需要非空 to");
+  }
+  const from = typeof args.from === "string" ? args.from.trim() : "";
+  return { ...(from.length > 0 ? { fromStageRef: from } : {}), toStageRef: to };
 }
 
 /** 签名的当前名字；模型与玩家入口共用同一套格式校验。 */

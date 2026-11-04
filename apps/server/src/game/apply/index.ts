@@ -29,10 +29,11 @@ import { GameError } from "../errors";
 import { appendMemoryMessages, loadAgentMemory } from "../memory";
 import { auditTurnNameLeaks, nameAuditEnabled, nameAuditSince } from "../name-audit";
 import { upsertSignatureName } from "../persistence/signature-names";
+import { describeRoute } from "../route";
 import { sanitizeActorFacingText } from "../text-guard";
 import type { ActorPlan, CommunicationKind, DeathPhaseResult } from "../types";
 import { bumpGameVersion } from "./messages";
-import { isAlive, listStageActorRefs, stageAddressLookup } from "./queries";
+import { isAlive, listStageActorRefs, loadRouteWorld, stageAddressLookup } from "./queries";
 
 export * from "./queries";
 
@@ -229,7 +230,11 @@ export async function applyActorPlan(
       ]);
     };
 
-    if (!plan || (plan.actions.length === 0 && (plan.identities?.length ?? 0) === 0)) {
+    const plannedRoutes = plan?.routes?.length ?? 0;
+    if (
+      !plan ||
+      (plan.actions.length === 0 && (plan.identities?.length ?? 0) === 0 && plannedRoutes === 0)
+    ) {
       await appendMemoryResult("# 行动结果\n本轮没有提交有效行动计划，状态未改变。", {
         kind: MEMORY_KINDS.planFailed,
         loopSuccess,
@@ -340,6 +345,23 @@ export async function applyActorPlan(
     // 有计划内动作时版本已经动过，不重复计一次。
     if (resolved.identities.length > 0 && resolved.actions.length === 0) {
       await bumpGameVersion(tx, gameId, now);
+    }
+
+    // 路线回忆只写自己的记忆：与动作同事务，重算一遍再写，不采信模型或调用方转述的文本。
+    // 记忆不在 GameState 里，所以这条路径不动版本号；状态本身没有变化。
+    if (resolved.routes.length > 0) {
+      const routeWorld = await loadRouteWorld(tx, {
+        gameId,
+        worldId: world.id,
+        actorId,
+        currentStageId: actorRow.stage.id,
+      });
+      for (const route of resolved.routes) {
+        pendingMemory.push({
+          content: `# 认知\n${describeRoute(routeWorld, route)}`,
+          metadata: { kind: MEMORY_KINDS.routeRecall },
+        });
+      }
     }
 
     // 一次计划的最后一条 memory 带落账后的状态；识名更新也算计划结果的一部分。

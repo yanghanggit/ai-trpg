@@ -1,7 +1,7 @@
 import type { Database } from "../db/pool";
 import { createTurnTrace, traceEvent } from "../debug/trace";
 import { parseCall } from "./actions/call";
-import { findActorByName, findActorByRef } from "./actors";
+import { findActorByName, findActorByRef, stageOfActor } from "./actors";
 import { addressLookupFor, handleOf } from "./addressing";
 import { type ApplyActorPlanOptions, applyActorPlan } from "./apply";
 import { isPlayerControlled } from "./control";
@@ -9,6 +9,7 @@ import { auditPlayerDialogue, dialogueContextFor, isDialogueAction } from "./dia
 import { DialogueBlockedError, GameError } from "./errors";
 import { parseSignatureName } from "./plan";
 import { getGameStateSlice, readTurnDelivery } from "./read/game-state";
+import { type RouteQuestion, resolveRouteQuestion } from "./route";
 import type {
   ActorAction,
   ActorPlan,
@@ -75,20 +76,18 @@ async function applyPlayerPlanOnState(
     throw new GameError("invalid_action", `actor 未被玩家接管: ${actor.name}`);
   }
 
-  const stage = state.world.stages.find((candidate) =>
-    candidate.actors.some((entry) => entry.id === actor.id),
-  );
-  if (!stage) {
-    throw new GameError("invalid_state", `actor 不属于任何场景: ${actor.name}`);
-  }
+  const { stage } = stageOfActor(state, actor.id);
   plan = normalizePlayerTargets(state, actor, stage, plan);
   const trace = createTurnTrace({ game: state.game, turnKind: "player" });
   await traceEvent(trace, {
     event: "turn_start",
-    label: plan.actions[0]?.kind ?? "identity_update",
+    label:
+      plan.actions[0]?.kind ??
+      ((plan.identities?.length ?? 0) > 0 ? "identity_update" : "route_recall"),
     actorId: actor.id,
     actorName: actor.name,
-    ...(stage ? { stageId: stage.id, stageName: stage.name } : {}),
+    stageId: stage.id,
+    stageName: stage.name,
     contentVersion: state.game.contentVersion,
   });
   const dialogue = plan.actions.find(isDialogueAction);
@@ -442,6 +441,19 @@ export async function playerRecognizeIdentity(
     identities: [{ handle: handleOf(target.signature.seq), name: parseSignatureName(input.name) }],
   };
   return applyPlayerPlanOnState(db, state, actor, plan);
+}
+
+/** 玩家替自己控制的角色回忆一条路线；结论只进自己的认知，不占行动名额。 */
+export async function playerRecallRoute(
+  db: Database,
+  gameRef: string,
+  actorRef: string,
+  input: RouteQuestion,
+): Promise<ActorTurnResult> {
+  const state = await getGameStateSlice(db, gameRef);
+  const actor = findActorByRef(state, actorRef);
+  const query = resolveRouteQuestion(state, stageOfActor(state, actor.id), input);
+  return applyPlayerPlanOnState(db, state, actor, { actions: [], routes: [query] });
 }
 
 export async function playerUse(

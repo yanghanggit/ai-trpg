@@ -19,6 +19,7 @@ import {
   playerGive,
   playerMove,
   playerPickup,
+  playerRecallRoute,
   playerRecognizeIdentity,
   playerSay,
   playerSteal,
@@ -443,10 +444,36 @@ export function registerPlayerCommands(program: Command, ctx: CommandContext): v
   });
 
   addCommand(program, ctx, {
+    name: "ask-route",
+    group: GROUP,
+    summary: "回忆从 A 到 B 怎么走（只写自己的认知，不占行动）",
+    options: [
+      gameOption(),
+      actorOption(),
+      optionalOption("--from <name>", "起点场景名：@名字，省略则用当前场景"),
+      requiredOption("--to <name>", "终点场景名：@名字（不接受 #序号）"),
+    ],
+    schema: z.object({
+      ...gameAndActor,
+      from: z.string().optional(),
+      to: nonEmptyText("--to"),
+    }),
+    run: async (input, ctx) =>
+      turnOutput(
+        await ctx.db((db) =>
+          playerRecallRoute(db, input.game, input.actor, {
+            ...(input.from === undefined ? {} : { fromStageRef: input.from }),
+            toStageRef: input.to,
+          }),
+        ),
+      ),
+  });
+
+  addCommand(program, ctx, {
     name: "learn-stage",
     group: GROUP,
     summary: "开发期：让 actor 知道某个场景的真名（不占回合、不写公共事件）",
-    options: [gameOption(), actorOption(), requiredOption("--stage <ref>", "stageId 或场景名")],
+    options: [gameOption(), actorOption(), requiredOption("--stage <name>", "场景真名（@名字）")],
     schema: z.object({ ...gameAndActor, stage: nonEmptyText("--stage") }),
     run: async (input, ctx) => {
       const learned = await ctx.db((db) =>

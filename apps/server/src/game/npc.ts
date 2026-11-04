@@ -47,6 +47,7 @@ import {
   buildKnowledgeTool,
   buildKnownStagesTool,
   buildObserveActorTool,
+  buildRecallRouteTool,
   buildRecognizeIdentityTool,
   buildSelfInfoTool,
   buildSubmitPlanTool,
@@ -57,11 +58,13 @@ import {
   describeSelf,
   describeStageAnchors,
   describeStageForActor,
+  parseRecallRoute,
   parseRecognizeIdentity,
   renderStageEnvironmentForActor,
 } from "./plan";
 import { getGameStateSlice, readTurnDelivery } from "./read/game-state";
-import { visitedTeleportTargetsFor } from "./teleport";
+import { describeRoute, type RouteWorld, resolveRouteQuestion, routeWorldFromState } from "./route";
+import { knownStagesForActor, visitedTeleportTargetsFor } from "./teleport";
 import type {
   ActionKind,
   ActorAction,
@@ -69,6 +72,7 @@ import type {
   ActorState,
   ActorTurnResult,
   GameStateSlice,
+  RouteQuery,
 } from "./types";
 import { EQUIPMENT_SLOTS } from "./types";
 
@@ -124,11 +128,12 @@ export function buildActorTurnInput(state: GameStateSlice, current: ActorWithSta
     "get_self",
     ...(canObserve ? ["observe_actor"] : []),
     "get_known_stages",
+    "recall_route",
     "query",
     "recognize_identity",
   ].join(
     "、",
-  )} 不占计划。look_stage 只能看本场景；get_known_stages 可以回看你去过的，以及只听过名字的场景。`;
+  )} 不占计划。look_stage 只能看本场景；get_known_stages 可以回看你去过的，以及只听过名字的场景；recall_route 顺着场景连接回一条路线，结论会进你的认知。`;
   const actorLines =
     others.length === 0
       ? "无"
@@ -266,6 +271,10 @@ export async function runNpcTurn(
   const lookTool = buildActorLookTool();
   const selfTool = buildSelfInfoTool();
   const knownStagesTool = buildKnownStagesTool();
+  const knownStages = knownStagesForActor(state, current.actor.id);
+  const routeTool = buildRecallRouteTool(
+    [...knownStages.visited, ...knownStages.learned].map((stage) => `@${stage.name}`),
+  );
   // 侦察是偷窃的前置：只有能 steal 的角色才注入 observe_actor，与任务提示词同一判断。
   const observeTool = canObserveActorItems(current.actor)
     ? buildObserveActorTool(targets)
@@ -320,6 +329,9 @@ export async function runNpcTurn(
   const allowed = allowedActionKinds(current.actor.actions, equippedItemActions(current.actor));
   const actions: ActorAction[] = [];
   const identities: { handle: string; name: string }[] = [];
+  const routes: RouteQuery[] = [];
+  let routeWorld: RouteWorld | undefined;
+  const routeWorldOnce = () => (routeWorld ??= routeWorldFromState(state, current));
   let submitted: ActorPlan | null = null;
 
   const ensureOpen = () => {
@@ -361,6 +373,7 @@ export async function runNpcTurn(
       lookTool,
       selfTool,
       knownStagesTool,
+      routeTool,
       ...(observeTool ? [observeTool] : []),
       knowledgeTool,
       recognizeTool,
@@ -406,14 +419,27 @@ export async function runNpcTurn(
         return describeKnowledgeResults(keywords, results);
       },
       ...actionHandlers,
+      [routeTool.function.name]: (args) => {
+        ensureOpen();
+        const query = resolveRouteQuestion(state, current, parseRecallRoute(args));
+        // 一轮里同一条问题只记一次：重复调用只回话，不重复写记忆。
+        const known = routes.some(
+          (item) => item.fromStageId === query.fromStageId && item.toStageId === query.toStageId,
+        );
+        if (!known) {
+          routes.push(query);
+        }
+        return `# 路线\n${describeRoute(routeWorldOnce(), query)}`;
+      },
       [recognizeTool.function.name]: (args) => addIdentity(args),
       [submitTool.function.name]: () => {
-        if (actions.length === 0 && identities.length === 0) {
+        if (actions.length === 0 && identities.length === 0 && routes.length === 0) {
           throw new GameError("invalid_action", "计划中没有行动");
         }
         submitted = {
           actions: actions.map((action) => ({ ...action })),
           ...(identities.length > 0 ? { identities: identities.map((item) => ({ ...item })) } : {}),
+          ...(routes.length > 0 ? { routes: routes.map((item) => ({ ...item })) } : {}),
         };
         return "计划已提交";
       },

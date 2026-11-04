@@ -280,11 +280,19 @@ export type IdentityBinding = {
   name: string;
 };
 
+/** 回忆路线：端点 id 由引擎解析后写入；结论只进自己的记忆。 */
+export type RouteQuery = {
+  fromStageId: string;
+  toStageId: string;
+};
+
 /** 一轮计划：按提交顺序执行的动作列表；条数上限由 `MAX_ACTIONS_PER_TURN` 约束。 */
 export type ActorPlan = {
   actions: ActorAction[];
   /** 认知更新：与动作同事务落账，但不产生公共事件、不占行动名额。 */
   identities?: IdentityBinding[];
+  /** 路线回忆：同样是自己的认知，端点必须是已解析的场景 id。 */
+  routes?: RouteQuery[];
 };
 
 /** stage 小 GM 的一轮仲裁计划：按提交顺序更新 environment 或向 world 发通知。 */

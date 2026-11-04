@@ -1,5 +1,5 @@
 import type { Database } from "../db/pool";
-import { findActorByRef, findStage } from "./actors";
+import { findActorByRef, requireStageName } from "./actors";
 import { bumpGameVersion } from "./apply/messages";
 import { GameError } from "./errors";
 import { lockGameRow } from "./persistence/games";
@@ -21,6 +21,8 @@ export type LearnedStage = {
 /**
  * 让 actor 知道一个场景的真名；不占回合、不产生公共事件。
  *
+ * 只接受真名：望远镜、地图这类玩法给的就是名字，`#序号` 不是知识也不该被授予。
+ *
  * 这里自带事务与版本推进，是「不占回合」的独立入口（开发期 CLI 用）。
  * 将来的鸟瞰 / 望远镜发生在回合里，应当在回合事务中直接调用 `recordKnownStage`，
  * 与那次状态写入同生共死，不要嵌套调用这个函数。
@@ -34,7 +36,7 @@ export async function learnStageName(
 ): Promise<LearnedStage> {
   const state = await getGameStateSlice(db, gameRef);
   const actor = findActorByRef(state, actorRef);
-  const stage = findStage(state, stageRef);
+  const stage = requireStageName(state, stageRef);
   const current = state.world.stages.find((candidate) =>
     candidate.actors.some((entry) => entry.id === actor.id),
   );

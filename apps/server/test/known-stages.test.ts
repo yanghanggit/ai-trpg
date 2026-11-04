@@ -196,12 +196,33 @@ describe.skipIf(!testDatabaseUrl)("known stages", () => {
     expect(buildActorTurnInput(after, { actor: keeper, stage: gate })).toContain("@断钟中殿");
 
     // 重复授予幂等：不写库、不 bump 版本。
-    const again = await learnStageName(handle.db, created.game.slug, "守烬人", nave.id);
+    const again = await learnStageName(handle.db, created.game.slug, "守烬人", nave.name);
     expect(again.created).toBe(false);
     expect(again.version).toBe(after.game.version);
     const state = await getGameState(handle.db, created.game.slug);
     expect(state.knownStages).toHaveLength(1);
     expect(state.game.version).toBe(after.game.version);
+  });
+
+  it("grants only real stage names, never a handle or id", async () => {
+    const created = await createGame(handle.db, {
+      username: DEMO_USER.username,
+      name: "场景知识授予口测试局",
+      world: { ...TEST_WORLD, contentVersion: "test-known-stages-name-only.v1" },
+    });
+    const state = await getGameState(handle.db, created.game.slug);
+    const nave = state.world.stages.find((stage) => stage.name === "断钟中殿");
+    if (!nave) {
+      throw new Error("缺少断钟中殿");
+    }
+
+    // 望远镜 / 地图给的是名字：编号与 id 都不构成知识，也不能当授予的入口。
+    await expect(
+      learnStageName(handle.db, created.game.slug, "守烬人", `#${nave.seq}`),
+    ).rejects.toThrow(/必须用场景真名/);
+    await expect(learnStageName(handle.db, created.game.slug, "守烬人", nave.id)).rejects.toThrow(
+      /必须用场景真名|场景不存在/,
+    );
   });
 
   it("rejects granting the current stage or an unknown stage", async () => {

@@ -196,5 +196,5 @@ export async function resolvePlan(
     });
   }
 
-  return { actions: resolved, identities };
+  return { actions: resolved, identities, routes: plan.routes ?? [] };
 }
