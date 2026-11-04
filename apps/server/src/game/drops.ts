@@ -10,7 +10,7 @@ import { GameError } from "./errors";
 import { appendStageMemory } from "./observations";
 import { lockGameRow } from "./persistence/games";
 import { addActorMaterials, type MaterialDrop } from "./persistence/items";
-import { getGameStateSlice, readTurnDelivery } from "./service";
+import { getGameStateSlice, readTurnDelivery } from "./read/game-state";
 import { assertWorldFaceText } from "./text-guard";
 import type { ActorState, StageState, TurnDelivery } from "./types";
 import { buildWorldFunctionPrompt, type WorldConstitution } from "./world-function";

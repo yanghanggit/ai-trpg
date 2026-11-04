@@ -15,7 +15,7 @@ import { appendCustomStageObservation } from "./observations";
 import { setActorEquipment } from "./persistence/actors";
 import { recordAppearance } from "./persistence/appearances";
 import { lockGameRow } from "./persistence/games";
-import { getGameStateSlice, readTurnDelivery } from "./service";
+import { getGameStateSlice, readTurnDelivery } from "./read/game-state";
 import { assertWorldFaceText } from "./text-guard";
 import {
   type ActorState,

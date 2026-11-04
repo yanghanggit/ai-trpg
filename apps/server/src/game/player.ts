@@ -8,7 +8,7 @@ import { isPlayerControlled } from "./control";
 import { auditPlayerDialogue, dialogueContextFor, isDialogueAction } from "./dialogue-audit";
 import { DialogueBlockedError, GameError } from "./errors";
 import { parseSignatureName } from "./plan";
-import { getGameStateSlice, readTurnDelivery } from "./service";
+import { getGameStateSlice, readTurnDelivery } from "./read/game-state";
 import type {
   ActorAction,
   ActorPlan,

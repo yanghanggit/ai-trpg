@@ -18,7 +18,7 @@ import { loadActorByNameInStage, loadActorWithStage } from "./persistence/actors
 import { lockGameRow } from "./persistence/games";
 import { loadActorItem } from "./persistence/items";
 import { loadWorldByGame } from "./persistence/worlds";
-import { getGameStateSlice } from "./service";
+import { getGameStateSlice } from "./read/game-state";
 import type { Affix } from "./types";
 import { buildWorldFunctionPrompt, type WorldConstitution } from "./world-function";
 

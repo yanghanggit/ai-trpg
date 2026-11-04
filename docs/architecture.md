@@ -11,7 +11,7 @@
 
 目标拓扑是「客户端 ⇄ 业务服务端 ⇄ PostgreSQL」。`agent:game` 与 HTTP 路由复用同一 `game` 服务层；服务端不保留跨请求的权威世界对象。
 
-服务端内部再分一层：**玩法模块不写 SQL**。动作、物品效果、stage / world 回合、死亡与外观只调用 `game/persistence/` 的具名读写原语；解析动作的只读查询在 `game/apply/queries.ts`，事务边界在 `game/apply/index.ts`，建局与状态读取在 `game/service.ts`。`test/persistence-boundary.test.ts` 用源码扫描守住这条边界。
+服务端内部再分一层：**玩法模块不写 SQL**。动作、物品效果、stage / world 回合、死亡与外观只调用 `game/persistence/` 的具名读写原语；解析动作的只读查询在 `game/apply/queries.ts`，事务边界在 `game/apply/index.ts`，建局在 `game/create-game.ts`，状态与事件流的读取在 `game/read/`。`test/persistence-boundary.test.ts` 用源码扫描守住这条边界。
 
 → 参见：[开发规范](conventions.md)
 

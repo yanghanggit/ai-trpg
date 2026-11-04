@@ -3,7 +3,7 @@ import { ChatCompletionRequest, type ChatCompletionService, type ChatMessage } f
 import { findActorByName, findStage } from "./actors";
 import { GameError } from "./errors";
 import { loadAgentMemory } from "./memory";
-import { getGameStateSlice } from "./service";
+import { getGameStateSlice } from "./read/game-state";
 
 export type ProbeTarget = { type: "actor"; actorRef: string } | { type: "stage"; stageRef: string };
 

@@ -6,7 +6,7 @@ import { findActorByName, findStage } from "./actors";
 import { DEFAULT_LLM_ERROR_RETRIES } from "./constants";
 import { GameError } from "./errors";
 import { getGameMemories } from "./memory";
-import { getGameState } from "./service";
+import { getGameState } from "./read/game-state";
 import type { AgentMemoryMessageState, AgentMemoryState, GameState } from "./types";
 import { type WorldConstitution, worldFunctionSystemPrompt } from "./world-function";
 

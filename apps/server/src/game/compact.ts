@@ -13,7 +13,7 @@ import { GameError } from "./errors";
 import { appendMemoryMessages, loadAgentMemory, type MemoryOwnerType } from "./memory";
 import { findNameLeaks, type NameAuditInput } from "./name-audit";
 import { loadNameAuditInput } from "./persistence/name-audit";
-import { getGameStateSlice } from "./service";
+import { getGameStateSlice } from "./read/game-state";
 import type { AgentMemoryState, GameStateSlice } from "./types";
 import { type WorldConstitution, worldFunctionSystemPrompt } from "./world-function";
 

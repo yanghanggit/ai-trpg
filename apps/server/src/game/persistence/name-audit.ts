@@ -3,7 +3,7 @@ import type { Database } from "../../db/pool";
 import { actorSignatures } from "../../db/schema";
 import { getGameMemories } from "../memory";
 import type { NameAuditActor, NameAuditInput } from "../name-audit";
-import { getGameStateSlice } from "../service";
+import { getGameStateSlice } from "../read/game-state";
 
 /** 从数据库装载名字审计输入；只读。 */
 export async function loadNameAuditInput(db: Database, gameId: string): Promise<NameAuditInput> {

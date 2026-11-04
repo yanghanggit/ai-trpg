@@ -13,7 +13,7 @@ const GAME_DIR = fileURLToPath(new URL("../src/game", import.meta.url));
  */
 const STATE_WRITERS: readonly { name: string; allowed: readonly string[] }[] = [
   { name: "setStageEnvironment", allowed: ["stage.ts"] },
-  { name: "recordAppearance", allowed: ["appearance.ts", "service.ts"] },
+  { name: "recordAppearance", allowed: ["appearance.ts", "create-game.ts"] },
   { name: "openPassage", allowed: ["stage.ts"] },
   { name: "completeGame", allowed: ["world.ts"] },
 ];

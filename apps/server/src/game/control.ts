@@ -2,7 +2,7 @@ import { and, eq } from "drizzle-orm";
 import type { Database } from "../db/pool";
 import { actorControls } from "../db/schema";
 import { GameError } from "./errors";
-import { getGameMeta, resolveActorIdByName } from "./service";
+import { getGameMeta, resolveActorIdByName } from "./read/game-meta";
 
 export type ActorControl = typeof actorControls.$inferSelect;
 

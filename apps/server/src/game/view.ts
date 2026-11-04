@@ -3,7 +3,7 @@ import { adjacentStages, findActorByName } from "./actors";
 import { addressLookupFor, handleOf, refOf } from "./addressing";
 import { MEMORY_KINDS } from "./constants";
 import { getMemoryState } from "./memory";
-import { getGameStateSlice } from "./service";
+import { getGameStateSlice } from "./read/game-state";
 import { visitedTeleportTargetsFor } from "./teleport";
 import type { SignatureNameState } from "./types";
 

@@ -1,3 +1,4 @@
+import { randomUUID } from "node:crypto";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import "../src/db/env";
 import { type DatabaseHandle, openDatabase } from "../src/db/connect";
@@ -14,9 +15,26 @@ import {
   resolveActorIdByName,
   takeActorControl,
 } from "../src/game";
+import { isUuidShaped } from "../src/game/read/find-game";
 import { TEST_WORLD } from "./test-world";
 
 const testDatabaseUrl = process.env.TEST_DATABASE_URL?.trim();
+
+describe("uuid 形状判断", () => {
+  it("accepts every shape Postgres accepts as a uuid literal", () => {
+    expect(isUuidShaped("123e4567-e89b-42d3-a456-426614174000")).toBe(true);
+    expect(isUuidShaped("123e4567-e89b-72d3-a456-426614174000")).toBe(true); // v7
+    expect(isUuidShaped("00000000-0000-0000-0000-000000000000")).toBe(true); // nil
+    expect(isUuidShaped("123E4567-E89B-42D3-A456-426614174000")).toBe(true); // 大写
+  });
+
+  it("rejects strings that are not id-shaped", () => {
+    expect(isUuidShaped("")).toBe(false);
+    expect(isUuidShaped("灰烬门廊")).toBe(false);
+    expect(isUuidShaped("not-a-uuid-or-slug")).toBe(false);
+    expect(isUuidShaped("123e4567-e89b-42d3-a456-42661417400")).toBe(false); // 少一位
+  });
+});
 
 describe.skipIf(!testDatabaseUrl)("game state reads", () => {
   let handle: DatabaseHandle;
@@ -91,6 +109,21 @@ describe.skipIf(!testDatabaseUrl)("game state reads", () => {
     });
     expect(turnMessages.map((message) => message.kind)).toEqual(["move"]);
     expect(turnMessages.at(-1)?.sequence).toBe(result.messageCursor);
+  });
+
+  it("resolves a game by id and reports malformed refs as not found", async () => {
+    const slug = await createGameWith("按 id 读取测试局");
+    const full = await getGameState(handle.db, slug);
+
+    // slug 打空后走 id 分支；大小写不影响形状判断，Postgres 的 uuid 也不区分大小写。
+    expect((await getGameState(handle.db, full.game.id)).game.id).toBe(full.game.id);
+    expect((await getGameState(handle.db, full.game.id.toUpperCase())).game.id).toBe(full.game.id);
+    expect((await getGameMeta(handle.db, full.game.id)).slug).toBe(slug);
+
+    // 形状不像 uuid、slug 也不存在：应当是 not_found，而不是 Postgres 的 uuid 解析错误。
+    await expect(getGameState(handle.db, "not-a-uuid-or-slug")).rejects.toThrow(/游戏不存在/);
+    // 形状合法但库里没有：同样是 not_found。
+    await expect(getGameState(handle.db, randomUUID())).rejects.toThrow(/游戏不存在/);
   });
 
   it("reads game meta and resolves actor ids without assembling the world", async () => {

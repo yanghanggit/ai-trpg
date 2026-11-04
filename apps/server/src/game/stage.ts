@@ -37,7 +37,7 @@ import {
   parseOpenPassage,
   parseWorldNotification,
 } from "./plan";
-import { getGameStateSlice, readTurnDelivery } from "./service";
+import { getGameStateSlice, readTurnDelivery } from "./read/game-state";
 import { assertWorldFaceText } from "./text-guard";
 import type {
   GameStateSlice,

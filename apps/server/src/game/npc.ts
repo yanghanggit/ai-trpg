@@ -60,7 +60,7 @@ import {
   parseRecognizeIdentity,
   renderStageEnvironmentForActor,
 } from "./plan";
-import { getGameStateSlice, readTurnDelivery } from "./service";
+import { getGameStateSlice, readTurnDelivery } from "./read/game-state";
 import { visitedTeleportTargetsFor } from "./teleport";
 import type {
   ActionKind,

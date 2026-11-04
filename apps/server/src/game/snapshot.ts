@@ -6,7 +6,8 @@ import {
   saveSnapshot,
 } from "../debug/snapshot";
 import { getGameMemories } from "./memory";
-import { getGameStateSlice, listGameMessages } from "./service";
+import { listGameMessages } from "./read/game-messages";
+import { getGameStateSlice } from "./read/game-state";
 
 function memoryFileName(name: string): string {
   return name.replace(/[/\\\0:*?"<>|]/g, "_").replace(/^\.+$/, "_") || "actor";

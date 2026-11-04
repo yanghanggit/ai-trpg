@@ -26,7 +26,7 @@ import {
   parseEndGame,
   parseNotifyStage,
 } from "./plan";
-import { getGameStateSlice, readTurnDelivery } from "./service";
+import { getGameStateSlice, readTurnDelivery } from "./read/game-state";
 import { findTextLeaks } from "./text-guard";
 import type { GameStateSlice, WorldAction, WorldPlan, WorldTurnResult } from "./types";
 import { appendStageDirective } from "./world-events";
