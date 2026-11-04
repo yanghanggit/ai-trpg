@@ -49,6 +49,7 @@
   "devDependencies": {
     "@types/node": "^22.20.5",
     "@types/pg": "^8.23.1",
+    "commander": "^15.0.0",
     "drizzle-kit": "^0.31.11",
     "pino": "^10.4.0",
     "tsup": "^9.0.0",
