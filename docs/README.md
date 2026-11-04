@@ -46,7 +46,7 @@
 | [架构与契约](architecture.md)            | 包职责、契约链、请求生命周期、端口与环境         |
 | [开发规范](conventions.md)               | 根目录与运行期产物、依赖、命名、字段、CLI 与测试 |
 | [LLM 基础组件](llm.md)                   | provider 分层、循环与批量、错误与重试            |
-| [Agent 与工具](agents.md)                | 世界面三类、框架工具、prompt 分层与设定注入      |
+| [Agent 与工具](agents.md)                | 记忆实体、旁路、世界职能、框架工具、prompt 分层  |
 | [图像生成基建](image-generation.md)      | 图像 provider 分层、资产边界与失败模型           |
 | [后台作业队列](background-jobs.md)       | 队列选型、worker 租约、串行键与接入边界          |
 | [术语表](glossary.md)                    | 名字、签名称呼、引用、签名与两个面               |

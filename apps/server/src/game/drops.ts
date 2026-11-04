@@ -5,7 +5,6 @@ import type { ChatCompletionService } from "../llm/protocol";
 import type { ToolDefinition } from "../llm/types";
 import { findActorByName } from "./actors";
 import { bumpGameVersion } from "./apply/messages";
-import { buildCampaignSettingBlock, type CampaignContextWorld } from "./campaign-context";
 import { DEFAULT_DROP_MAX_ROUNDS, DEFAULT_LLM_ERROR_RETRIES } from "./constants";
 import { GameError } from "./errors";
 import { appendStageMemory } from "./observations";
@@ -14,6 +13,7 @@ import { addActorMaterials, type MaterialDrop } from "./persistence/items";
 import { getGameState } from "./service";
 import { assertWorldFaceText } from "./text-guard";
 import type { ActorState, GameState, StageState } from "./types";
+import { buildWorldFunctionPrompt, type WorldConstitution } from "./world-function";
 
 /** 一具尸体一轮最多掉落的材料条数；属于掉落阶段，不是全局上限。 */
 const MAX_DROP_MATERIALS = 2;
@@ -134,21 +134,15 @@ export function parseDrops(
  * 世界设定是任务上下文：材料会变成公共物品名并被玩家反复引用，必须使用该世界
  * 自己的材质、工艺与叫法，不能靠模型的世界外常识补全。
  */
-export function buildDropTurnInput(
-  actor: ActorState,
-  stage: StageState,
-  world: CampaignContextWorld,
-): string {
-  const campaign = buildCampaignSettingBlock(world, {
-    purpose:
-      "材料名与描述必须使用这个世界自己的材质、工艺与叫法，不引入现实专名、现代工业制品或设定之外的事物。",
-  });
+/** 掉落裁决的宪法：只有世界与本职能口径，机制在本轮任务里。 */
+export function buildDropSystemPrompt(world: WorldConstitution): string {
+  return buildWorldFunctionPrompt(world, "drops");
+}
 
+export function buildDropTurnInput(actor: ActorState, stage: StageState): string {
   return `# 尸体掉落
 
 ${actor.name}刚刚死亡。
-
-${campaign}
 
 ## 形态
 
@@ -201,8 +195,8 @@ export async function runDropTurn(
   );
   const loop = await agentLoop({
     name: actor.name,
-    inputMessage: buildDropTurnInput(actor, stage, state.world),
-    messages: [],
+    inputMessage: buildDropTurnInput(actor, stage),
+    messages: [{ type: "system", content: buildDropSystemPrompt(state.world) }],
     mutateMessages: false,
     tools: [tool],
     handlers: {

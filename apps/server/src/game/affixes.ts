@@ -8,7 +8,6 @@ import type { Logger } from "../logging";
 import { isAlive, stageAddressLookup } from "./apply/queries";
 import type { Executor } from "./apply/types";
 import { STAT_KEYS, type Stats } from "./attributes";
-import { buildCampaignSettingBlock, type CampaignContextWorld } from "./campaign-context";
 import { MAX_AFFIX_EFFECTS, MEMORY_KINDS } from "./constants";
 import { GameError } from "./errors";
 import { runIncrementalPhase } from "./incremental";
@@ -21,6 +20,7 @@ import { loadActorItem } from "./persistence/items";
 import { loadWorldByGame } from "./persistence/worlds";
 import { getGameState } from "./service";
 import type { Affix } from "./types";
+import { buildWorldFunctionPrompt, type WorldConstitution } from "./world-function";
 
 type AffixOperation =
   | { kind: "damage"; targetActorHandle: string; amount: number; reason: string }
@@ -47,8 +47,12 @@ function statsText(stats: Stats): string {
  * 词缀判定是开放式的：效果由词缀文本决定，所以只给事实与判定口径，不枚举效果类型。
  * 设定注入与信息边界见 `docs/agents.md`、`docs/information-disclosure.md`，词缀语义见 `docs/affixes.md`。
  */
+/** 词缀判定的宪法：只有世界与本职能口径，机制在本轮任务里。 */
+export function buildAffixSystemPrompt(world: WorldConstitution): string {
+  return buildWorldFunctionPrompt(world, "affixes");
+}
+
 export function buildAffixPrompt(input: {
-  world: CampaignContextWorld;
   actorName: string;
   actorStats: Stats;
   itemName: string;
@@ -71,14 +75,7 @@ export function buildAffixPrompt(input: {
     input.targetHp ? `HP：${input.targetHp}` : "",
   ].filter((line) => line.length > 0);
 
-  const campaign = buildCampaignSettingBlock(input.world, {
-    purpose:
-      "词缀的判定理由与可见后果必须使用这个世界的语汇与因果，不引入现实专名、现代科技或设定之外的事物。",
-  });
-
   return `# 词缀任务
-
-${campaign}
 
 默认效果已结算，但不代表词缀生效：是否生效由你判定，并用工具落账。
 
@@ -234,7 +231,6 @@ async function evaluateAffix(
   const loop = await agentLoop({
     name: `${item.name}词缀`,
     inputMessage: buildAffixPrompt({
-      world: state.world,
       actorName: actor.name,
       actorStats: actor.stats,
       itemName: item.name,
@@ -254,7 +250,7 @@ async function evaluateAffix(
       ...(target ? { targetBlock: target.stats.block } : {}),
       ...(target ? { targetHp: `${target.hp}/${target.stats.maxHp}` } : {}),
     }),
-    messages: [],
+    messages: [{ type: "system", content: buildAffixSystemPrompt(state.world) }],
     tools: [tools.damage, tools.record, tools.submit],
     handlers: {
       [tools.damage.function.name]: (args) => {

@@ -13,6 +13,13 @@ export const TEST_WORLD: World = {
   profile: "一个封闭的测试世界：故事在门廊与中殿之间收束，没有别的出口。",
   campaignSetting: "这是一个用于验证服务层行为的封闭测试世界。",
   globalRules: "角色只能沿场景连接移动；行动结果由服务层结算。",
+  worldFunctions: {
+    drops: "尸体留下的材料用灰烬与旧蜡的语汇。",
+    affixes: "词缀后果用灰烬、旧蜡与铜锈的语汇。",
+    story: "用克制的第三人称过去时讲述。",
+    compact: "压缩时保住灰烬门廊与断钟中殿的原样。",
+    dialogueAudit: "这个测试世界允许克制的暴力；现代器物按出界处理。",
+  },
   stages: [
     {
       key: "gate",

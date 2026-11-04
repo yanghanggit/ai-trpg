@@ -84,11 +84,15 @@ describe.skipIf(!testDatabaseUrl)("memory compaction", () => {
     expect(service.inputs.every((input) => input.includes("## 记忆主体"))).toBe(true);
     expect(service.inputs.every((input) => input.includes("## 待压缩记忆"))).toBe(true);
     expect(service.inputs.every((input) => input.includes("## 输出"))).toBe(true);
-    expect(service.systemPrompts.every((prompt) => prompt.startsWith("# 记忆压缩器"))).toBe(true);
+    expect(service.systemPrompts.every((prompt) => prompt.includes("## 契约"))).toBe(true);
+    expect(service.systemPrompts.every((prompt) => prompt.includes("## 本职能"))).toBe(true);
     expect(service.systemPrompts.every((prompt) => prompt.includes("## 保留"))).toBe(true);
     expect(service.systemPrompts.every((prompt) => prompt.includes("## 输出"))).toBe(true);
-    // 压缩结果会回灌成长期记忆，所以每次压缩都要带该局的战役设定。
-    expect(service.inputs.every((input) => input.includes(TEST_WORLD.campaignSetting))).toBe(true);
+    // 压缩结果会回灌成长期记忆，所以每次压缩的宪法都要带该局的战役设定；任务提示词只放本轮内容。
+    expect(
+      service.systemPrompts.every((prompt) => prompt.includes(TEST_WORLD.campaignSetting)),
+    ).toBe(true);
+    expect(service.inputs.every((input) => !input.includes(TEST_WORLD.campaignSetting))).toBe(true);
 
     const after = await getGameMemories(handle.db, created.game.id);
     for (const memory of after) {

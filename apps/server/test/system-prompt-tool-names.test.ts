@@ -5,7 +5,8 @@ import {
   buildStageSystemPrompt,
   buildWorldSystemPrompt,
 } from "../src/game/memory";
-import type { World } from "../src/game/types";
+import { WORLD_FUNCTION_TYPES, type World } from "../src/game/types";
+import { buildWorldFunctionPrompt } from "../src/game/world-function";
 import { TEST_WORLD } from "./test-world";
 
 /**
@@ -39,6 +40,11 @@ function systemPrompts(world: World): { name: string; prompt: string }[] {
         { ...campaign, id: "00000000-0000-4000-8000-000000000000" },
         { name: actor.name, profile: actor.profile, form: actor.signature.form },
       ),
+    })),
+    // 世界职能的宪法同样由内容注入（战役设定 + 全局规则 + 自己的口径）。
+    ...WORLD_FUNCTION_TYPES.map((fn) => ({
+      name: `function:${fn}`,
+      prompt: buildWorldFunctionPrompt({ name: world.worldName, ...world }, fn),
     })),
     // openingBriefing 不是 system prompt，但同样是内容注入的固定文本。
     ...world.actors.flatMap((actor) =>

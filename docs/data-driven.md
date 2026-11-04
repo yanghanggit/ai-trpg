@@ -6,7 +6,7 @@
 
 `World`、`Stage`、`Actor`、`ItemDefinition` 是内容定义；`WorldState`、`StageState`、`ActorState`、`ItemState` 是运行时状态。故事文本、角色关系、场景图、物品、能力与使用描述由内容输入提供，不写进 `game` 服务。内容输入的单位是**内容包** `{ world, knowledge }`：`seeds/` 只是内置内容包的一个 provider，外部 JSON 走同一个契约。
 
-术语上，一个 `World` 就是一局故事的世界，基本等于一个剧本；跨剧本共用的大世界观是**战役设定**，剧本不能覆盖它。全局规则另属一层：它描述的是引擎已有的事实（三类实体、名字与引用、hp / damage / block、场景跳跃、知识来源），所有战役共用，只有一个所有者。
+术语上，一个 `World` 就是一局故事的世界，基本等于一个剧本；跨剧本共用的是**战役内容**：战役设定（题材与边界）与世界职能口径（掉落、词缀、故事、压缩、对话审核各自在本题材下的规矩与口味），剧本不能覆盖它们，只能按条覆盖职能口径。全局规则另属一层：它描述的是引擎已有的事实（三类实体、名字与引用、hp / damage / block、场景跳跃、知识来源），所有战役共用，只有一个所有者。
 
 框架层保持内容无关：数据库 schema、领域类型、prompt 组装、动作结算、stage / world 能力都不含具体故事知识；场景与角色能做什么由内容里的 `actions` 声明，运行时以数据库为准。
 
@@ -14,7 +14,7 @@
 
 → 参见：[Agent 与工具](agents.md)
 
-内容集中在 `seeds/dark-fantasy/`：`campaign.ts` 只写跨剧本的世界观，全局规则在 `seeds/system-rules.ts`，每个剧本一个文件，知识库与检索评测集同目录 1:1 绑定，`index.ts` 用 `assembleWorld()` 拼成 `World`，最后由 `seeds/index.ts` 注册为 `ContentPack`。
+内容集中在 `seeds/dark-fantasy/`：`campaign.ts` 写跨剧本的世界观，`functions.ts` 写各世界职能的口径，全局规则在 `seeds/system-rules.ts`，每个剧本一个文件，知识库与检索评测集同目录 1:1 绑定，`index.ts` 用 `assembleWorld()` 拼成 `World`，最后由 `seeds/index.ts` 注册为 `ContentPack`。
 
 ## 隔离边界
 
@@ -22,6 +22,7 @@
 - **内容校验**：`parseContentPack` 校验内容包，`parseWorldContent` 校验世界内容，缺能力、缺 key、类型错误直接拒绝；所有场景必须声明 `submit_environment`。
 - **prompt 里没有故事样例，也没有工具名**：身份、设定与全局规则来自 `World` 字段，但不写工具名——工具会改名，内容不该跟着改；写法细则按层级放：动作规则在工具描述，流程在任务提示词，长期约束在 system prompt。守卫见「检查方法」。
 - **结束条件**：只有 world 能 `end_game`，`outcome` 由它自己命名，框架不枚举；主角死亡也只是一条通知 world 的事实。收束判据属于内容：通用判断规则在全局规则里，本剧本对世界与收束的理解在 world 的 `profile`。
+- **职能口径可以下放，判定程序不行**：世界职能的口径归内容（可以写「这类世界允许黑暗与暴力」），类别枚举、参数与平台级禁令留在代码——否则改一份 seeds 就能改写审核器。
 - **demo 用户与 `app_meta`**：独立 fixture，只记录 `{ version: 1, fixture: "demo-user" }`，不写故事名。
 - **CLI 建局**：必须显式给内容来源，没有默认故事；RAG 同理，建局不会自动 ingest。
 - **测试**：主要用例使用独立的 `TEST_WORLD`，演示 seed 的回归单独存在。

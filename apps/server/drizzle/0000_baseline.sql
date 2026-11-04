@@ -26,7 +26,7 @@ CREATE TABLE "actor_signatures" (
 	"form" text NOT NULL,
 	"ended_at" timestamp with time zone,
 	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
-	CONSTRAINT "actor_signatures_form_format" CHECK ("actor_signatures"."form" ~ '^\[[^\]\r\n]+\]:\S[^\r\n]*$')
+	CONSTRAINT "actor_signatures_form_format" CHECK ("actor_signatures"."form" ~ '^[^:[\]\r\n]+:\S[^\r\n]*$')
 );
 --> statement-breakpoint
 CREATE TABLE "actors" (
@@ -257,7 +257,8 @@ CREATE TABLE "worlds" (
 	"content_key" text NOT NULL,
 	"profile" text NOT NULL,
 	"campaign_setting" text NOT NULL,
-	"system_rules" text NOT NULL,
+	"global_rules" text NOT NULL,
+	"world_functions" jsonb NOT NULL,
 	"actions" jsonb DEFAULT '[]'::jsonb NOT NULL,
 	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
 	"updated_at" timestamp with time zone DEFAULT now() NOT NULL
@@ -321,6 +322,7 @@ CREATE UNIQUE INDEX "stage_items_stage_name_unique" ON "stage_items" USING btree
 CREATE UNIQUE INDEX "stage_visits_actor_stage_unique" ON "stage_visits" USING btree ("actor_id","stage_id");--> statement-breakpoint
 CREATE INDEX "stage_visits_game_actor_idx" ON "stage_visits" USING btree ("game_id","actor_id");--> statement-breakpoint
 CREATE UNIQUE INDEX "stages_world_name_unique" ON "stages" USING btree ("world_id","name");--> statement-breakpoint
+CREATE UNIQUE INDEX "stages_world_seq_unique" ON "stages" USING btree ("world_id","seq");--> statement-breakpoint
 CREATE UNIQUE INDEX "vector_documents_collection_hash_unique" ON "vector_documents" USING btree ("collection","content_hash");--> statement-breakpoint
 CREATE INDEX "vector_documents_collection_idx" ON "vector_documents" USING btree ("collection");--> statement-breakpoint
 CREATE INDEX "vector_documents_collection_model_idx" ON "vector_documents" USING btree ("collection","embedding_model");--> statement-breakpoint

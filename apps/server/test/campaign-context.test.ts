@@ -1,6 +1,5 @@
 import { describe, expect, it } from "vitest";
 import { buildAffixPrompt } from "../src/game/affixes";
-import { buildCampaignSettingBlock } from "../src/game/campaign-context";
 import { buildCompactionInput } from "../src/game/compact";
 import { buildDropTurnInput } from "../src/game/drops";
 import {
@@ -10,20 +9,23 @@ import {
 } from "../src/game/memory";
 import { buildStoryInput } from "../src/game/story";
 import type { ActorState, GameState, StageState } from "../src/game/types";
+import { buildWorldFunctionPrompt } from "../src/game/world-function";
 import { TEST_WORLD } from "./test-world";
 
 /**
- * 运行时 agent 的世界设定注入。
+ * 运行时 agent 的世界宪法注入。
  *
- * 约束：凡是会产出世界面文本或改写长期记忆的运行时 agent，都必须把该局的
- * campaignSetting 拿到手。带 memory 的 actor / stage / world（以及复用其
- * memory 的外观与探针）由 system prompt 携带；无 memory 或自建 system 的
- * 掉落 / 词缀 / 故事 / 压缩按任务上下文注入。
+ * 约束一：凡是会产出世界面文本或改写长期记忆的运行时 agent，都必须拿到该局的
+ * campaignSetting 与 globalRules——带 memory 的实体由 system prompt 携带，世界职能
+ * 由各自的宪法携带。
+ * 约束二：世界职能的任务提示词只放本轮事实，内容一律不进任务层。
  */
 
 const WORLD = {
   name: TEST_WORLD.worldName,
   campaignSetting: TEST_WORLD.campaignSetting,
+  globalRules: TEST_WORLD.globalRules,
+  worldFunctions: TEST_WORLD.worldFunctions,
 };
 
 const ACTOR = {
@@ -50,25 +52,23 @@ const GAME_STATE = {
 
 const STATS = { maxHp: 10, strength: 4, wisdom: 2, agility: 3, damage: 5, block: 1 };
 
-describe("campaign setting block", () => {
-  it("包含世界名、战役设定与本任务用途", () => {
-    const block = buildCampaignSettingBlock(WORLD, { purpose: "只用于保持术语一致。" });
-    expect(block).toContain("## 战役设定");
-    expect(block).toContain(TEST_WORLD.worldName);
-    expect(block).toContain(TEST_WORLD.campaignSetting);
-    expect(block).toContain("只用于保持术语一致。");
-  });
-});
-
 describe("runtime agents carry the campaign setting", () => {
-  it("掉落推理", () => {
-    const prompt = buildDropTurnInput(ACTOR, STAGE, WORLD);
-    expect(prompt).toContain(TEST_WORLD.campaignSetting);
+  it("世界职能的宪法携带设定、规则与自己的口径", () => {
+    for (const fn of ["drops", "affixes", "story", "compact", "dialogueAudit"] as const) {
+      const prompt = buildWorldFunctionPrompt(WORLD, fn);
+      expect(prompt).toContain(TEST_WORLD.campaignSetting);
+      expect(prompt).toContain(TEST_WORLD.globalRules);
+      expect(prompt).toContain(TEST_WORLD.worldFunctions[fn]);
+    }
+  });
+
+  it("掉落任务提示词只放本轮事实", () => {
+    const prompt = buildDropTurnInput(ACTOR, STAGE);
+    expect(prompt).not.toContain(TEST_WORLD.campaignSetting);
   });
 
   it("词缀结算", () => {
     const prompt = buildAffixPrompt({
-      world: WORLD,
       actorName: "守烬人",
       actorStats: STATS,
       itemName: "裂齿短刃",
@@ -79,21 +79,17 @@ describe("runtime agents carry the campaign setting", () => {
       terminalToolName: "submit_affix",
       stageName: "灰烬门廊",
     });
-    expect(prompt).toContain(TEST_WORLD.campaignSetting);
+    expect(prompt).not.toContain(TEST_WORLD.campaignSetting);
   });
 
-  it("故事整理", () => {
-    const prompt = buildStoryInput(GAME_STATE, []);
-    expect(prompt).toContain(TEST_WORLD.campaignSetting);
-  });
-
-  it("记忆压缩", () => {
-    const prompt = buildCompactionInput(
-      { ownerType: "actor", ownerId: "actor-1", ownerName: "守烬人" },
-      "[human] 一条待压缩的记忆。",
-      WORLD,
-    );
-    expect(prompt).toContain(TEST_WORLD.campaignSetting);
+  it("故事整理与记忆压缩的任务提示词只放本轮事实", () => {
+    expect(buildStoryInput(GAME_STATE, [])).not.toContain(TEST_WORLD.campaignSetting);
+    expect(
+      buildCompactionInput(
+        { ownerType: "actor", ownerId: "actor-1", ownerName: "守烬人" },
+        "[human] 一条待压缩的记忆。",
+      ),
+    ).not.toContain(TEST_WORLD.campaignSetting);
   });
 
   it("带 memory 的 actor / stage / world 由 system prompt 自带设定", () => {

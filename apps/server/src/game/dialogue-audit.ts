@@ -16,6 +16,7 @@ import type {
   SayAction,
   WhisperAction,
 } from "./types";
+import { type WorldConstitution, worldFunctionSystemPrompt } from "./world-function";
 
 /** 审核判断的是“这句话能不能进入游戏”，不是角色是否知道它。 */
 export type DialogueAuditRequest = {
@@ -23,8 +24,7 @@ export type DialogueAuditRequest = {
   message: string;
   actorName: string;
   stageName: string;
-  worldName: string;
-  campaignSetting: string;
+  world: WorldConstitution;
 };
 
 export type DialogueVerdict = {
@@ -55,8 +55,7 @@ export type DialogueContext = {
   message: string;
   actorName: string;
   stageName: string;
-  worldName: string;
-  campaignSetting: string;
+  world: WorldConstitution;
 };
 
 export const DIALOGUE_AUDIT_TIMEOUT_MS = 10_000;
@@ -113,7 +112,7 @@ const VERDICT_TOOL: ToolDefinition = {
   },
 };
 
-const SYSTEM_PROMPT = `你是角色扮演对话的审核器，服务于一局具体的虚构世界。任务消息会提供该世界的背景与风格；判断“破坏沉浸”与“跳出世界观”时，以这份设定为首要依据，而不是套用泛化的现实常识。
+const AUDIT_CONTRACT = `你是角色扮演对话的审核器。判断“破坏沉浸”与“跳出世界观”时，以上面的战役设定与本职能口径为首要依据，而不是套用泛化的现实常识。
 
 平台级禁止内容不受世界观豁免：即使设定允许黑暗、暴力或粗口，未成年人性内容、仇恨与歧视、骚扰、真实世界的违法操作指导、鼓励或指导现实自残等仍然拒绝。
 
@@ -131,17 +130,17 @@ const SYSTEM_PROMPT = `你是角色扮演对话的审核器，服务于一局具
 
 判断原则：
 - 现实文化作为母题被转译进世界是允许的；直接照搬现实专名、现代科技、现实人物或事件，才算 out_of_world。
-- 该世界设定内的虚构暴力、粗口与黑暗题材，不因“不安全”而拒绝。
 - 只在明确违规时拒绝；不确定时放行，避免误杀正常角色扮演。
 - reason 用简体中文，一句话，直接说明原因；允许时也写一句简短理由。
 - 只调用 submit_dialogue_verdict，不要输出其他内容。`;
 
+/** 玩家对话审核的宪法：世界宪法 + 本职能的审核契约（类别与平台底线在契约里）。 */
+export function buildDialogueAuditSystemPrompt(world: WorldConstitution): string {
+  return worldFunctionSystemPrompt(world, "dialogueAudit", AUDIT_CONTRACT);
+}
+
 function buildAuditMessage(input: DialogueAuditRequest): string {
   return [
-    `世界：${input.worldName}`,
-    "世界背景与风格（判断沉浸与出界的首要依据）：",
-    input.campaignSetting,
-    "",
     `待审动作：${input.actionKind}`,
     `角色：${input.actorName}`,
     `场景：${input.stageName}`,
@@ -160,7 +159,7 @@ export function createDeepSeekDialogueJudge(
       label: "dialogue-audit",
       inputMessage: `dialogue-audit:${input.actionKind}`,
       messages: [
-        { type: "system", content: SYSTEM_PROMPT },
+        { type: "system", content: buildDialogueAuditSystemPrompt(input.world) },
         { type: "human", content: buildAuditMessage(input) },
       ],
       model: DEEPSEEK_MODEL_FLASH,
@@ -247,8 +246,7 @@ export async function auditPlayerDialogue(
       message: context.message,
       actorName: context.actorName,
       stageName: context.stageName,
-      worldName: context.worldName,
-      campaignSetting: context.campaignSetting,
+      world: context.world,
     });
   } catch (error) {
     const failureKind: DialogueFailureKind =
@@ -335,7 +333,6 @@ export function dialogueContextFor(
     message: action.message,
     actorName: actor.name,
     stageName,
-    worldName: state.world.name,
-    campaignSetting: state.world.campaignSetting,
+    world: state.world,
   };
 }

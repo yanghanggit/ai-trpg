@@ -8,7 +8,6 @@ import {
   getBufferString,
 } from "../llm";
 import { allActors, findActorByName, findStage } from "./actors";
-import { buildCampaignSettingBlock, type CampaignContextWorld } from "./campaign-context";
 import { MEMORY_KINDS } from "./constants";
 import { GameError } from "./errors";
 import { appendMemoryMessages, loadAgentMemory, type MemoryOwnerType } from "./memory";
@@ -16,6 +15,7 @@ import { findNameLeaks, type NameAuditInput } from "./name-audit";
 import { loadNameAuditInput } from "./persistence/name-audit";
 import { getGameState } from "./service";
 import type { AgentMemoryState, GameState } from "./types";
+import { type WorldConstitution, worldFunctionSystemPrompt } from "./world-function";
 
 /** 手动 compact 的目标；actor/stage 用名称或 id，world 不需要名称。 */
 export type CompactTarget =
@@ -46,9 +46,7 @@ type ResolvedOwner = {
   ownerName: string;
 };
 
-const COMPACT_SYSTEM_PROMPT = `# 记忆压缩器
-
-## 身份
+const COMPACT_SYSTEM_PROMPT = `## 身份
 
 你是记忆压缩器，不是记忆主体。把待压缩记忆写成一段第二人称“你”的私有记忆，供该主体在后续回合直接读取。
 
@@ -162,23 +160,13 @@ function assertActorSummaryKnown(
  * 压缩任务也要带上世界设定：压缩结果会成为该主体后续所有回合的长期记忆，
  * 专名、称谓与人称必须在压缩后仍然一致。
  */
-export function buildCompactionInput(
-  owner: ResolvedOwner,
-  transcript: string,
-  world: CampaignContextWorld,
-): string {
-  const campaign = buildCampaignSettingBlock(world, {
-    purpose: "压缩时保持专名、称谓与人称一致；不得据此新增记忆里没有的事实。",
-  });
-
+export function buildCompactionInput(owner: ResolvedOwner, transcript: string): string {
   return `# 记忆压缩任务
 
 ## 记忆主体
 
 - 名称：${owner.ownerName}
 - 类型：${owner.ownerType}
-
-${campaign}
 
 ## 待压缩记忆
 
@@ -202,11 +190,16 @@ function renderTranscript(messages: readonly ChatMessage[]): string {
     .trim();
 }
 
+/** 记忆压缩的宪法：世界宪法 + 本职能的压缩契约。 */
+export function buildCompactSystemPrompt(world: WorldConstitution): string {
+  return worldFunctionSystemPrompt(world, "compact", COMPACT_SYSTEM_PROMPT);
+}
+
 async function summarizeMemory(
   owner: ResolvedOwner,
   messages: readonly ChatMessage[],
   service: ChatCompletionService,
-  world: CampaignContextWorld,
+  world: WorldConstitution,
 ): Promise<string> {
   const transcript = renderTranscript(messages.slice(1));
   if (transcript.trim().length === 0) {
@@ -215,8 +208,8 @@ async function summarizeMemory(
   const result = await service.complete(
     new ChatCompletionRequest({
       label: `compact:${owner.ownerType}:${owner.ownerName}`,
-      inputMessage: buildCompactionInput(owner, transcript, world),
-      messages: [{ type: "system", content: COMPACT_SYSTEM_PROMPT }],
+      inputMessage: buildCompactionInput(owner, transcript),
+      messages: [{ type: "system", content: buildCompactSystemPrompt(world) }],
     }),
   );
   if (result.error) {
@@ -244,7 +237,7 @@ function validateMinRatio(minRatio: number | undefined): void {
 async function compactResolvedMemory(
   db: Database,
   gameId: string,
-  world: CampaignContextWorld,
+  world: WorldConstitution,
   owner: ResolvedOwner,
   options: CompactMemoryOptions,
   auditInput?: NameAuditInput,

@@ -26,6 +26,7 @@ const CORPSE_APPEARANCE = "他仰面倒在石阶上，灰袍翻起一角，指�
 /** 按本轮可用工具分别提交尸体外观或掉落材料的假服务。 */
 class MaterialDropService implements ChatCompletionService {
   inputs: string[] = [];
+  systemPrompts: string[] = [];
 
   constructor(
     private readonly materials: unknown,
@@ -34,6 +35,7 @@ class MaterialDropService implements ChatCompletionService {
 
   async complete(request: Parameters<ChatCompletionService["complete"]>[0]) {
     this.inputs.push(request.inputMessage);
+    this.systemPrompts.push(request.messages[0]?.content ?? "");
     const toolNames = (request.tools ?? []).map((tool) => tool.function.name);
     const dropping = toolNames.includes("drop_materials");
     const toolCalls = [
@@ -131,12 +133,17 @@ describe.skipIf(!testDatabaseUrl)("death drops", () => {
     expect(hit.death?.settled).toEqual(["提灯修士"]);
     expect(hit.death?.dropped).toEqual([{ actorName: "提灯修士", items: ["浸血的灰袍碎片"] }]);
     expect(hit.death?.dropFailed).toEqual([]);
-    // 掉落推理自带该局的战役设定：材料名与描述不会靠模型的世界外常识补全。
+    // 掉落推理的宪法自带该局设定与自己的口径；任务提示词只放本轮事实。
     expect(
-      service.inputs.some(
-        (input) => input.includes("尸体掉落") && input.includes(TEST_WORLD.campaignSetting),
+      service.systemPrompts.some(
+        (prompt) =>
+          prompt.includes(TEST_WORLD.campaignSetting) &&
+          prompt.includes(TEST_WORLD.worldFunctions.drops),
       ),
     ).toBe(true);
+    const dropInputs = service.inputs.filter((input) => input.includes("尸体掉落"));
+    expect(dropInputs.length).toBeGreaterThan(0);
+    expect(dropInputs.every((input) => !input.includes(TEST_WORLD.campaignSetting))).toBe(true);
 
     const state = await getGameState(handle.db, created.game.slug);
     const gate = state.world.stages.find((stage) => stage.name === "灰烬门廊");

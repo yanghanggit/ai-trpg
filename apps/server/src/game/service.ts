@@ -16,7 +16,11 @@ import {
 } from "../db/schema";
 import { dumpSystemPrompts } from "../debug/prompt-dump";
 import type { Logger } from "../logging";
+import { buildAffixSystemPrompt } from "./affixes";
 import { toStats } from "./attributes";
+import { buildCompactSystemPrompt } from "./compact";
+import { buildDialogueAuditSystemPrompt } from "./dialogue-audit";
+import { buildDropSystemPrompt } from "./drops";
 import { assertEdgeShape } from "./edges";
 import { GameError } from "./errors";
 import { resolveAppearance } from "./form";
@@ -33,6 +37,7 @@ import { recordAppearance } from "./persistence/appearances";
 import { allocateEntitySeq } from "./persistence/entity-seq";
 import { listSignatureNames, upsertSignatureName } from "./persistence/signature-names";
 import { insertSignature, listCurrentSignatureViews } from "./persistence/signatures";
+import { buildStorySystemPrompt } from "./story";
 import type {
   ActorState,
   ConnectionState,
@@ -45,6 +50,7 @@ import type {
   SignatureNameState,
   StageState,
   StageVisitState,
+  World,
 } from "./types";
 import { parseWorldContent } from "./world-content";
 
@@ -301,6 +307,7 @@ export async function getGameState(db: Database, ref: string): Promise<GameState
       profile: worldRow.profile,
       campaignSetting: worldRow.campaignSetting,
       globalRules: worldRow.globalRules,
+      worldFunctions: worldRow.worldFunctions,
       actions: worldRow.actions,
       stages: stageState,
       connections,
@@ -367,6 +374,7 @@ export async function createGame(
       profile: input.world.profile,
       campaignSetting: input.world.campaignSetting,
       globalRules: input.world.globalRules,
+      worldFunctions: input.world.worldFunctions,
       actions: [...input.world.actions],
     });
     await createWorldMemory(
@@ -616,9 +624,22 @@ export async function createGame(
     }
   });
 
+  /** 世界职能系统的真实入口：与运行时同一份拼装，导出才不会是另写的副本。 */
+  function buildFunctionPrompts(world: World): { name: string; prompt: string }[] {
+    const constitution = { name: world.worldName, ...world };
+    return [
+      { name: "drops", prompt: buildDropSystemPrompt(constitution) },
+      { name: "affixes", prompt: buildAffixSystemPrompt(constitution) },
+      { name: "story", prompt: buildStorySystemPrompt(constitution) },
+      { name: "compact", prompt: buildCompactSystemPrompt(constitution) },
+      { name: "dialogue-audit", prompt: buildDialogueAuditSystemPrompt(constitution) },
+    ];
+  }
+
   await dumpSystemPrompts({
     world: { name: input.world.worldName, contentVersion: input.world.contentVersion },
     worldPrompt,
+    functionPrompts: buildFunctionPrompts(input.world),
     stagePrompts,
     actorPrompts,
     ...(options.logger ? { logger: options.logger } : {}),

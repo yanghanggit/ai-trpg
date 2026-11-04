@@ -24,6 +24,7 @@ class StoryService implements ChatCompletionService {
   calls = 0;
   tools: string[] = [];
   inputs: string[] = [];
+  systemPrompts: string[] = [];
 
   constructor(script: ToolCall[][]) {
     this.script = [...script];
@@ -33,6 +34,7 @@ class StoryService implements ChatCompletionService {
     this.calls += 1;
     this.tools = request.tools?.map((tool) => tool.function.name) ?? [];
     this.inputs.push(request.inputMessage);
+    this.systemPrompts.push(request.messages[0]?.content ?? "");
     const toolCalls = this.script.shift();
     if (!toolCalls) {
       throw new Error("story 脚本已耗尽");
@@ -92,8 +94,10 @@ describe.skipIf(!testDatabaseUrl)("game story", () => {
     expect(result.memoriesRead).toHaveLength(6);
     expect(result.eventsRead).toBe(true);
     expect(result.rounds).toBe(9);
-    // 故事整理也带该局的战役设定：称谓与意象靠它对齐，但不作为事实来源。
-    expect(service.inputs[0]).toContain(TEST_WORLD.campaignSetting);
+    // 故事整理的宪法带该局设定与自己的口径；任务提示词只放本轮事实。
+    expect(service.systemPrompts[0]).toContain(TEST_WORLD.campaignSetting);
+    expect(service.systemPrompts[0]).toContain(TEST_WORLD.worldFunctions.story);
+    expect(service.inputs[0]).not.toContain(TEST_WORLD.campaignSetting);
     expect(service.tools).toEqual(
       expect.arrayContaining(["list_memories", "read_memory", "read_events", "submit_story"]),
     );

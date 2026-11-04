@@ -35,6 +35,7 @@ describe("appearance input", () => {
 /** 只提交一个外观，并记录本次看到的外观观察。 */
 class AppearanceService implements ChatCompletionService {
   observation = "";
+  systemPrompt = "";
   calls = 0;
 
   constructor(private readonly appearance: string) {}
@@ -42,6 +43,7 @@ class AppearanceService implements ChatCompletionService {
   async complete(request: Parameters<ChatCompletionService["complete"]>[0]) {
     this.calls += 1;
     this.observation = request.inputMessage;
+    this.systemPrompt = request.messages[0]?.content ?? "";
     const toolCalls: ToolCall[] = [
       {
         id: randomUUID(),
@@ -102,8 +104,9 @@ describe.skipIf(!testDatabaseUrl)("appearance fusion", () => {
     expect(result.appearance).toBe("只穿旧衬衣，手背沾着新土。");
     expect(service.calls).toBe(1);
     expect(service.observation).toContain("人类:");
-    // 世界背景整段进输入，外观的语气、材质与时代都以它为准。
-    expect(service.observation).toContain("这是一个架空的黑暗奇幻世界");
+    // 战役设定在 actor 的宪法里，任务输入不重复下发。
+    expect(service.systemPrompt).toContain("这是一个架空的黑暗奇幻世界");
+    expect(service.observation).not.toContain("这是一个架空的黑暗奇幻世界");
     expect(service.observation).not.toContain("补丁斗篷");
 
     const state = await getGameState(handle.db, created.game.slug);

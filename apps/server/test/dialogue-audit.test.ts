@@ -33,13 +33,25 @@ import { registerErrorHandler } from "../src/plugins/error-handler";
 
 const testDatabaseUrl = process.env.TEST_DATABASE_URL?.trim();
 
+const AUDIT_WORLD = {
+  name: "枯钟修道院的故事",
+  campaignSetting: "黑暗奇幻世界。",
+  globalRules: "角色只能沿场景连接移动。",
+  worldFunctions: {
+    drops: "尸体留下骨与蜡。",
+    affixes: "词缀后果用锈与灰的语汇。",
+    story: "用克制的第三人称过去时讲述。",
+    compact: "保住修道院的专名。",
+    dialogueAudit: "允许黑暗与暴力。",
+  },
+};
+
 const AUDIT_INPUT = {
   actionKind: "say" as const,
   message: "测试台词。",
   actorName: "奥德里克",
   stageName: "墓园",
-  worldName: "枯钟修道院的故事",
-  campaignSetting: "黑暗奇幻世界。",
+  world: AUDIT_WORLD,
 };
 
 function toolCall(args: Record<string, unknown>): ToolCall {
@@ -287,7 +299,7 @@ describe("deepseek dialogue judge", () => {
     });
   });
 
-  it("uses the world setting as task context rather than system policy", async () => {
+  it("carries the world constitution in the system prompt", async () => {
     let captured: Parameters<ChatCompletionService["complete"]>[0] | undefined;
     const service: ChatCompletionService = {
       async complete(request) {
@@ -304,14 +316,15 @@ describe("deepseek dialogue judge", () => {
 
     await createDeepSeekDialogueJudge(service)({
       ...AUDIT_INPUT,
-      campaignSetting: "独特世界设定：没有现代科技。",
+      world: { ...AUDIT_WORLD, campaignSetting: "独特世界设定：没有现代科技。" },
     });
 
     const system = captured?.messages.find((message) => message.type === "system");
     const human = captured?.messages.find((message) => message.type === "human");
-    expect(system?.content).not.toContain("独特世界设定");
-    expect(human?.content).toContain("世界背景与风格");
-    expect(human?.content).toContain("独特世界设定");
+    expect(system?.content).toContain("独特世界设定");
+    expect(system?.content).toContain(AUDIT_WORLD.worldFunctions.dialogueAudit);
+    expect(human?.content).not.toContain("独特世界设定");
+    expect(human?.content).toContain("待审台词");
   });
 
   it("normalizes a blocked verdict without categories to other", async () => {

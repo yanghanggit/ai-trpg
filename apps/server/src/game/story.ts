@@ -3,12 +3,12 @@ import { agentLoop } from "../llm/agent-loop";
 import type { ChatCompletionService } from "../llm/protocol";
 import type { ToolDefinition } from "../llm/types";
 import { findActorByName, findStage } from "./actors";
-import { buildCampaignSettingBlock } from "./campaign-context";
 import { DEFAULT_LLM_ERROR_RETRIES } from "./constants";
 import { GameError } from "./errors";
 import { getGameMemories } from "./memory";
 import { getGameState } from "./service";
 import type { AgentMemoryMessageState, AgentMemoryState, GameState } from "./types";
+import { type WorldConstitution, worldFunctionSystemPrompt } from "./world-function";
 
 export type StoryOptions = {
   service: ChatCompletionService;
@@ -183,12 +183,12 @@ function buildSubmitStoryTool(): ToolDefinition {
   };
 }
 
-export function buildStoryInput(state: GameState, memories: readonly AgentMemoryState[]): string {
-  const campaign = buildCampaignSettingBlock(state.world, {
-    purpose:
-      "故事里的称谓、专名与意象应与之一致；它不是本局已发生事实的来源，事实仍只来自记忆与事件流。",
-  });
+/** 故事整理的宪法：世界宪法 + 本职能的叙事契约。 */
+export function buildStorySystemPrompt(world: WorldConstitution): string {
+  return worldFunctionSystemPrompt(world, "story", STORY_SYSTEM_PROMPT);
+}
 
+export function buildStoryInput(state: GameState, memories: readonly AgentMemoryState[]): string {
   return `# 当前游戏
 
 - 游戏：${state.game.name}
@@ -196,8 +196,6 @@ export function buildStoryInput(state: GameState, memories: readonly AgentMemory
 - 状态：${state.game.status}
 - 内容版本：${state.game.contentVersion}
 - 版本号：${state.game.version}
-
-${campaign}
 
 本局共有 ${memories.length} 个实体记忆。请先调用 list_memories，再读取每一个实体，最后读取事件流并提交故事。
 
@@ -256,7 +254,7 @@ export async function runStory(
   const loop = await agentLoop({
     name: "story",
     inputMessage: buildStoryInput(state, memories),
-    messages: [{ type: "system", content: STORY_SYSTEM_PROMPT }],
+    messages: [{ type: "system", content: buildStorySystemPrompt(state.world) }],
     tools: [listTool, readTool, eventsTool, submitTool],
     terminalTools: [submitTool],
     maxRounds: options.maxRounds ?? DEFAULT_STORY_MAX_ROUNDS,

@@ -136,7 +136,6 @@ export type AppearanceBuildInput = {
 
 export function buildAppearanceTurnInput(
   actor: ActorState,
-  campaignSetting: string,
   dead = false,
   brief?: string,
   requestBrief = false,
@@ -169,12 +168,6 @@ export function buildAppearanceTurnInput(
   const inputMessage = `# 外观更新
 
 你要为${actor.name}重新推理“当前可见外观”。
-
-## 世界背景
-
-以下设定决定外观的材质、时代与审美；它只是背景，不是本轮任务。
-
-${campaignSetting}
 
 ## 形态
 
@@ -239,7 +232,6 @@ export async function runAppearanceTurn(
     (briefTool ? DEFAULT_APPEARANCE_MAX_ROUNDS + 1 : DEFAULT_APPEARANCE_MAX_ROUNDS);
   const built = buildAppearanceTurnInput(
     actor,
-    state.world.campaignSetting,
     dead,
     providedBrief ?? undefined,
     options.requestBrief,

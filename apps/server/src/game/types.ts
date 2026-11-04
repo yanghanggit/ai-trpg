@@ -100,6 +100,20 @@ export const EQUIPMENT_SLOT_KINDS: Record<EquipmentSlot, readonly ItemKind[]> = 
  * 创建游戏时的初始内容定义；`createGame` 在一个事务里把它物化为数据库行，
  * 之后以数据库为唯一真相。
  */
+/** 世界职能：世界级单例，有宪法与自己的一份口径，没有 memory。 */
+export const WORLD_FUNCTION_TYPES = [
+  "drops",
+  "affixes",
+  "story",
+  "compact",
+  "dialogueAudit",
+] as const;
+
+export type WorldFunctionType = (typeof WORLD_FUNCTION_TYPES)[number];
+
+/** 每份世界职能在本世界的口径；由内容提供，随 World 快照落库。 */
+export type WorldFunctionProfiles = Record<WorldFunctionType, string>;
+
 export type World = {
   contentVersion: string;
   /** 稳定内容标识（剧本 slug）：知识库 collection 用它寻址，改展示名不会断链。 */
@@ -109,6 +123,8 @@ export type World = {
   profile: string;
   campaignSetting: string;
   globalRules: string;
+  /** 世界职能各自的世界口径；内容侧必填，运行时只读。 */
+  worldFunctions: WorldFunctionProfiles;
   stages: readonly Stage[];
   connections: readonly Connection[];
   actors: readonly Actor[];
@@ -627,6 +643,7 @@ export type WorldState = {
   contentKey: string;
   campaignSetting: string;
   globalRules: string;
+  worldFunctions: WorldFunctionProfiles;
   actions: WorldActionKind[];
   stages: StageState[];
   connections: ConnectionState[];

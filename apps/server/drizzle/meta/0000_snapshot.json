@@ -1,5 +1,5 @@
 {
-  "id": "95a17b75-d404-402c-9316-1d21c52c1a71",
+  "id": "8b3ab2c4-85a7-47b3-bbe4-291ba7528b2c",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "version": "7",
   "dialect": "postgresql",
@@ -359,7 +359,7 @@
       "checkConstraints": {
         "actor_signatures_form_format": {
           "name": "actor_signatures_form_format",
-          "value": "\"actor_signatures\".\"form\" ~ '^\\[[^\\]\\r\\n]+\\]:\\S[^\\r\\n]*$'"
+          "value": "\"actor_signatures\".\"form\" ~ '^[^:[\\]\\r\\n]+:\\S[^\\r\\n]*$'"
         }
       },
       "isRLSEnabled": false
@@ -2273,6 +2273,27 @@
           "concurrently": false,
           "method": "btree",
           "with": {}
+        },
+        "stages_world_seq_unique": {
+          "name": "stages_world_seq_unique",
+          "columns": [
+            {
+              "expression": "world_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "seq",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
         }
       },
       "foreignKeys": {
@@ -2558,9 +2579,15 @@
           "primaryKey": false,
           "notNull": true
         },
-        "system_rules": {
-          "name": "system_rules",
+        "global_rules": {
+          "name": "global_rules",
           "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "world_functions": {
+          "name": "world_functions",
+          "type": "jsonb",
           "primaryKey": false,
           "notNull": true
         },

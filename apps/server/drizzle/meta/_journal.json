@@ -5,29 +5,8 @@
     {
       "idx": 0,
       "version": "7",
-      "when": 1793595952476,
+      "when": 1793768452491,
       "tag": "0000_baseline",
-      "breakpoints": true
-    },
-    {
-      "idx": 1,
-      "version": "7",
-      "when": 1793620709162,
-      "tag": "0001_clean_gorilla_man",
-      "breakpoints": true
-    },
-    {
-      "idx": 2,
-      "version": "7",
-      "when": 1793765771322,
-      "tag": "0002_right_lady_deathstrike",
-      "breakpoints": true
-    },
-    {
-      "idx": 3,
-      "version": "7",
-      "when": 1793767103941,
-      "tag": "0003_rename_global_rules",
       "breakpoints": true
     }
   ]

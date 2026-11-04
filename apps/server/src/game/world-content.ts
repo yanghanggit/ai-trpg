@@ -4,6 +4,7 @@ import { MAX_STAGE_ANCHORS } from "./constants";
 import { isValidForm } from "./form";
 import { findTextLeaks } from "./text-guard";
 import type { StageActionKind, World, WorldActionKind } from "./types";
+import { WORLD_FUNCTION_TYPES, type WorldFunctionType } from "./types";
 
 /** 十二个动作直接复用运行时清单，避免新增动作时漏改。 */
 const actionKindSchema = z.enum(ACTION_KINDS);
@@ -140,6 +141,12 @@ const worldSchema = z
     profile: z.string().min(1),
     campaignSetting: z.string(),
     globalRules: z.string(),
+    worldFunctions: z.object(
+      Object.fromEntries(WORLD_FUNCTION_TYPES.map((name) => [name, z.string().min(1)])) as Record<
+        WorldFunctionType,
+        z.ZodString
+      >,
+    ),
     stages: z.array(stageSchema).min(1),
     connections: z.array(
       z.object({

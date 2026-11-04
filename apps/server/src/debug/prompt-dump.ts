@@ -20,6 +20,8 @@ export type PromptDumpInput = {
   /** 世界名做文件名（与 actor / stage 一致）；内容版本进容器目录名。 */
   world: { name: string; contentVersion: string };
   worldPrompt: string;
+  /** 世界职能的宪法：每份都是独立的 system prompt，没有 memory。 */
+  functionPrompts: readonly { name: string; prompt: string }[];
   actorPrompts: readonly { name: string; prompt: string }[];
   stagePrompts: readonly { name: string; prompt: string }[];
 };
@@ -81,6 +83,7 @@ export async function dumpSystemPrompts(
     const dir = join(root, container);
     await mkdir(join(dir, "actors"), { recursive: true });
     await mkdir(join(dir, "stages"), { recursive: true });
+    await mkdir(join(dir, "functions"), { recursive: true });
 
     await writeFile(
       join(dir, `${safeFileName(input.world.name)}.md`),
@@ -88,6 +91,13 @@ export async function dumpSystemPrompts(
 `,
       "utf8",
     );
+    for (const fn of input.functionPrompts) {
+      await writeFile(
+        join(dir, "functions", `${safeFileName(fn.name)}.md`),
+        `${fn.prompt}\n`,
+        "utf8",
+      );
+    }
     for (const stage of input.stagePrompts) {
       await writeFile(
         join(dir, "stages", `${safeFileName(stage.name)}.md`),
