@@ -1,6 +1,6 @@
 # 玩家对话审核
 
-结论：玩家接管的 `say` / `whisper` / `announce` / `call` 在写库前经过一个**无状态审核 agent**。只有审核明确放行的台词才进入游戏；内容违规或审核不可用都不执行动作，并留下一条被拒记录。
+结论：玩家接管的 `say` / `whisper` / `announce` / `call` 在写库前经过一个**世界职能**：没有实体身份、不留 memory，只做一次裁定。只有审核明确放行的台词才进入游戏；内容违规或审核不可用都不执行动作，并留下一条被拒记录。
 
 ## 边界
 
@@ -16,7 +16,7 @@
 
 ## 审核器
 
-审核器是一次 completion + 一个提交工具，不是 agent loop，也没有任何 agent 记忆：
+审核器是一次 completion + 一个提交工具，不是 agent loop，也不留 memory：
 
 - 每次调用重新构造 system prompt 与任务消息，不读取 actor memory、历史对话或上一次判定；
 - 输入只有待审台词、动作类别、角色展示名、场景展示名、世界名与该世界的 campaign setting；
@@ -42,4 +42,4 @@
 
 HTTP 接入后，客户端只需要处理两种结果：内容违规的 422 与审核不可用的 503。响应带理由、类别与 audit id，客户端展示理由即可；不要把它写成世界内事件。
 
-→ 参见：[信息披露](information-disclosure.md)、[Actor 行动与记忆](actor-actions-memory.md)、[术语表](glossary.md)
+→ 参见：[信息披露](information-disclosure.md)、[Actor 行动与记忆](actor-actions-memory.md)、[术语表](glossary.md)、[Agent 与工具](agents.md)

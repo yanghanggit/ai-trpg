@@ -1,4 +1,4 @@
-# 故事整理 Agent
+# 故事整理
 
 `story` 是一个只读的叙事整理 agent：在任意时刻读取全部 actor / stage / world 的私有 memory 与公共事件流，输出一段当前故事。它不是世界内角色，不写 memory、不改变游戏状态、不写 `game_messages`。
 

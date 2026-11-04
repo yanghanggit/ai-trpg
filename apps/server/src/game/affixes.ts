@@ -1,31 +1,41 @@
 import { randomUUID } from "node:crypto";
-import type { Database } from "../../db/pool";
-import type { TraceContext } from "../../debug/trace";
-import { agentLoop } from "../../llm/agent-loop";
-import type { ChatCompletionService } from "../../llm/protocol";
-import type { ToolDefinition } from "../../llm/types";
-import type { Logger } from "../../logging";
-import { isAlive, stageAddressLookup } from "../apply/queries";
-import type { Executor } from "../apply/types";
-import { STAT_KEYS, type Stats } from "../attributes";
-import { buildCampaignSettingBlock, type CampaignContextWorld } from "../campaign-context";
-import { MAX_AFFIX_EFFECTS, MEMORY_KINDS } from "../constants";
-import { GameError } from "../errors";
-import { runIncrementalPhase } from "../incremental";
-import { appendMemoryMessages, loadAgentMemory } from "../memory";
-import { appendStageMemory } from "../observations";
-import { loadActorByNameInStage, loadActorWithStage } from "../persistence/actors";
-import { lockGameRow } from "../persistence/games";
-import { loadActorItem } from "../persistence/items";
-import { loadWorldByGame } from "../persistence/worlds";
-import { getGameState } from "../service";
-import type { Affix } from "../types";
-import { applyDamage } from "./damage";
-import type { AffixRequest } from "./types";
+import type { Database } from "../db/pool";
+import type { TraceContext } from "../debug/trace";
+import { agentLoop } from "../llm/agent-loop";
+import type { ChatCompletionService } from "../llm/protocol";
+import type { ToolDefinition } from "../llm/types";
+import type { Logger } from "../logging";
+import { isAlive, stageAddressLookup } from "./apply/queries";
+import type { Executor } from "./apply/types";
+import { STAT_KEYS, type Stats } from "./attributes";
+import { buildCampaignSettingBlock, type CampaignContextWorld } from "./campaign-context";
+import { MAX_AFFIX_EFFECTS, MEMORY_KINDS } from "./constants";
+import { GameError } from "./errors";
+import { runIncrementalPhase } from "./incremental";
+import { applyDamage } from "./item-effects/damage";
+import { appendMemoryMessages, loadAgentMemory } from "./memory";
+import { appendStageMemory } from "./observations";
+import { loadActorByNameInStage, loadActorWithStage } from "./persistence/actors";
+import { lockGameRow } from "./persistence/games";
+import { loadActorItem } from "./persistence/items";
+import { loadWorldByGame } from "./persistence/worlds";
+import { getGameState } from "./service";
+import type { Affix } from "./types";
 
 type AffixOperation =
   | { kind: "damage"; targetActorHandle: string; amount: number; reason: string }
   | { kind: "effect"; targetActorHandle: string; witnessText: string };
+
+/** 默认 effect 完成后交给词缀系统的输入。 */
+export type AffixRequest = {
+  actorId: string;
+  itemId: string;
+  actionKind: "strike" | "brawl" | "use";
+  targetActorId?: string;
+  targetStageId?: string;
+  targetAnchor?: string;
+  defaultFeedback: string;
+};
 
 /** 属性渲染成 `damage 8、block 2`；未用到的字段不出现，全 0 写“无”。 */
 function statsText(stats: Stats): string {
@@ -34,18 +44,8 @@ function statsText(stats: Stats): string {
 }
 
 /**
- * 词缀任务的提示词。
- *
- * 词缀是自然语言规则，可由 agent-loop 做任意事；伤害只是当前已注册的其中一种效果。
- * 所以这里只给事实（持有者、物品、目标）与判定口径，不预设效果类型，也不写死工具名：
- * 字段级细则（人称、条数上限）留在工具描述里，这里只写判定与结算规则。
- *
- * 世界设定同样进任务上下文：词缀产生的可见后果会写进场景记忆，
- * 不能靠模型的世界外常识补全。
- *
- * 仲裁 agent 没有记忆与观察者视角，读的是控制面事实（角色名、外观、数值）；
- * 它不写 actor 记忆中的他人信息：第三人称可见事实只写进场景记忆，由 actor 下次 pull；
- * 数值后果经伤害通道写回出手者自己的行动反馈，目标只以出手者已知的引用出现。
+ * 词缀判定是开放式的：效果由词缀文本决定，所以只给事实与判定口径，不枚举效果类型。
+ * 设定注入与信息边界见 `docs/agents.md`、`docs/information-disclosure.md`，词缀语义见 `docs/affixes.md`。
  */
 export function buildAffixPrompt(input: {
   world: CampaignContextWorld;
@@ -80,7 +80,7 @@ export function buildAffixPrompt(input: {
 
 ${campaign}
 
-默认效果已结算（见下），不代表词缀生效；词缀是否生效由你判定并用工具落账。
+默认效果已结算，但不代表词缀生效：是否生效由你判定，并用工具落账。
 
 ## 默认效果
 ${input.defaultFeedback}
@@ -97,13 +97,10 @@ ${targetFacts.join("\n")}
 
 ## 规则
 
-1. 按语义读词缀的对象、条件、效果与比例，用目标的名字、种族、外观与当前状态判定；同义或上下位表述都算成立，不按字面排除。
-2. 条件成立才执行；不成立或工具表达不了该效果时，只结束任务，不附加词缀以外的后果。
-3. 数值取物品自身的字段换算，与默认效果无关；程度留有余地时按特征强弱小幅增减。
-4. 数值后果用 damage_target，可见后果用 record_effect；只写第三人称可见的事实，不写第二人称体验、数值、机制或心理。
-5. 目标已经倒下时，追加伤害没有意义，但可见后果仍要记录：尸体照样会变。
-6. 写出的可见文本里不要出现角色真名；用“目标”“那个生物”这类外观与身份指代。
-7. 最后用 ${input.terminalToolName} 结束，即使什么都没做。`;
+- **判定**：按语义读词缀的对象、条件、效果与比例，以上方事实判定；同义、上下位都算成立。不成立或工具表达不了 → 什么都不做，不加词缀以外的后果。
+- **数值**：物品字段换算，走 damage_target；不叠加默认效果；程度含糊时按特征强弱小幅增减。
+- **可见后果**：走 record_effect；不写数值、机制、心理与真名，用“目标”指代；目标倒下也照写。
+- **收尾**：无论是否落账，必调 ${input.terminalToolName}。`;
 }
 
 function buildTools(targetNames: readonly string[]): {
@@ -342,8 +339,7 @@ async function evaluateAffix(
 /**
  * 落账判定结果，返回真正生效的条数。
  *
- * 约束：追加伤害必须让出手者知道，因此反馈写进出手者记忆；文本由 applyDamage
- * 按出手者的 address 渲染，目标只会是 @已知名 或 #编号。
+ * 约束：结果只写进出手者自己的记忆——目标的感知是延迟的（见 `docs/affixes.md`）。
  */
 async function settleAffix(
   db: Database,

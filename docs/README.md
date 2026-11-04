@@ -41,27 +41,28 @@
 
 ## 索引
 
-| 文档                                     | 内容                                          |
-| ---------------------------------------- | --------------------------------------------- |
-| [架构与契约](architecture.md)            | 包职责、契约链、请求生命周期、端口与环境      |
-| [开发规范](conventions.md)               | 根目录与运行期产物、依赖、字段、CLI 与测试    |
-| [LLM 基础组件](llm.md)                   | provider 分层、失败模型、agent loop 与重试    |
-| [图像生成基建](image-generation.md)      | 图像 provider 分层、资产边界与失败模型        |
-| [后台作业队列](background-jobs.md)       | 队列选型、worker 租约、串行键与接入边界       |
-| [术语表](glossary.md)                    | 名字、签名称呼、引用、签名与两个面            |
-| [信息披露](information-disclosure.md)    | 四类实体的全知边界、认知隔离与下行披露        |
-| [名字审计](name-audit.md)                | actor 记忆的真名泄漏检查、CLI 与回合级 trace  |
-| [玩家对话审核](dialogue-audit.md)        | 玩家台词的无状态审核、失败关闭与被拒记录      |
-| [数据库](database.md)                    | PostgreSQL 状态源、表与不变式、死亡、迁移     |
-| [公共知识检索](rag.md)                   | 知识边界、向量存储、query 工具与评测基线      |
-| [Actor 记忆](actor-actions-memory.md)    | actor 控制、行动事实、过程轨迹与接管          |
-| [外观](appearance.md)                    | 形态、穿戴、外观推理、来源快照与换装入口      |
-| [物品](items.md)                         | 大类语义、可见性通道、转移与偷取条件          |
-| [词缀](affixes.md)                       | 宿主、两段结算、工具表达与叙事去向            |
-| [Stage 小 GM](stage.md)                  | 场景实体、场景记忆、环境仲裁与显式推动        |
-| [传送](teleport.md)                      | 访问历史、禁传状态与一次一跳的传送规则        |
-| [Agent 探针](probe.md)                   | 只读上下文探针、无副作用问答与目标边界        |
-| [故事整理 Agent](story-agent.md)         | 任意时刻的只读故事总结与上下文串联验证        |
-| [开发期 Agent 工作流](debug-workflow.md) | 快照驱动推进、过程轨迹、记忆导出、HTTP 走查   |
-| [数据驱动目标](data-driven.md)           | 框架与内容隔离、当前缺口、未来内容层目标      |
-| [Seed 内容编写原则](seed-authoring.md)   | 内容归属判断、分层写作、保密与验收            |
+| 文档                                     | 内容                                             |
+| ---------------------------------------- | ------------------------------------------------ |
+| [架构与契约](architecture.md)            | 包职责、契约链、请求生命周期、端口与环境         |
+| [开发规范](conventions.md)               | 根目录与运行期产物、依赖、命名、字段、CLI 与测试 |
+| [LLM 基础组件](llm.md)                   | provider 分层、循环与批量、错误与重试            |
+| [Agent 与工具](agents.md)                | 世界面三类、框架工具、prompt 分层与设定注入      |
+| [图像生成基建](image-generation.md)      | 图像 provider 分层、资产边界与失败模型           |
+| [后台作业队列](background-jobs.md)       | 队列选型、worker 租约、串行键与接入边界          |
+| [术语表](glossary.md)                    | 名字、签名称呼、引用、签名与两个面               |
+| [信息披露](information-disclosure.md)    | 四类实体的全知边界、认知隔离与下行披露           |
+| [名字审计](name-audit.md)                | actor 记忆的真名泄漏检查、CLI 与回合级 trace     |
+| [玩家对话审核](dialogue-audit.md)        | 玩家台词的无状态审核、失败关闭与被拒记录         |
+| [数据库](database.md)                    | PostgreSQL 状态源、表与不变式、死亡、迁移        |
+| [公共知识检索](rag.md)                   | 知识边界、向量存储、query 工具与评测基线         |
+| [Actor 记忆](actor-actions-memory.md)    | actor 控制、行动事实、过程轨迹与接管             |
+| [外观](appearance.md)                    | 形态、穿戴、外观推理、来源快照与换装入口         |
+| [物品](items.md)                         | 大类语义、可见性通道、转移与偷取条件             |
+| [词缀](affixes.md)                       | 宿主、两段结算、工具表达与叙事去向               |
+| [Stage 小 GM](stage.md)                  | 场景实体、场景记忆、环境仲裁与显式推动           |
+| [传送](teleport.md)                      | 访问历史、禁传状态与一次一跳的传送规则           |
+| [Agent 探针](probe.md)                   | 只读上下文探针、无副作用问答与目标边界           |
+| [故事整理](story.md)                     | 任意时刻的只读故事总结与上下文串联验证           |
+| [开发期 Agent 工作流](debug-workflow.md) | 快照驱动推进、过程轨迹、记忆导出、HTTP 走查      |
+| [数据驱动目标](data-driven.md)           | 框架与内容隔离、当前缺口、未来内容层目标         |
+| [Seed 内容编写原则](seed-authoring.md)   | 内容归属判断、分层写作、保密与验收               |

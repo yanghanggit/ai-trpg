@@ -1,8 +1,8 @@
 import { describe, expect, it } from "vitest";
+import { buildAffixPrompt } from "../src/game/affixes";
 import { buildCampaignSettingBlock } from "../src/game/campaign-context";
 import { buildCompactionInput } from "../src/game/compact";
 import { buildDropTurnInput } from "../src/game/drops";
-import { buildAffixPrompt } from "../src/game/item-effects/affix-agent";
 import {
   buildActorSystemPrompt,
   buildStageSystemPrompt,

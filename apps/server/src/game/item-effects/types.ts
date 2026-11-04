@@ -1,5 +1,4 @@
 import type { TraceContext } from "../../debug/trace";
-import type { ChatCompletionService } from "../../llm";
 import type { AddressLookup } from "../addressing";
 import type { ActorRow, ActorWithStageRow, Executor, ItemRow, StageRow } from "../apply/types";
 import type { ItemEffect } from "../types";
@@ -26,18 +25,3 @@ export type ItemEffectContext = {
 };
 
 export type ItemEffectHandler = (context: ItemEffectContext) => Promise<string>;
-
-/** 默认 effect 完成后，需要交给补充 affix agent 的上下文。 */
-export type AffixRequest = {
-  actorId: string;
-  itemId: string;
-  actionKind: "strike" | "brawl" | "use";
-  targetActorId?: string;
-  targetStageId?: string;
-  targetAnchor?: string;
-  defaultFeedback: string;
-};
-
-export type AffixAgentOptions = {
-  service: ChatCompletionService;
-};

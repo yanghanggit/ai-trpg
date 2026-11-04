@@ -12,7 +12,7 @@
 
 内容无关不等于内容缺席：`campaignSetting` 必须进每个会推理的运行时 agent。
 
-→ 参见：[LLM 基础组件](llm.md)
+→ 参见：[Agent 与工具](agents.md)
 
 内容集中在 `seeds/dark-fantasy/`：`campaign.ts` 是不可变的战役文本，每个剧本一个文件，知识库与检索评测集同目录 1:1 绑定，`index.ts` 用 `assembleWorld()` 拼成 `World`，最后由 `seeds/index.ts` 注册为 `ContentPack`。
 

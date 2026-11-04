@@ -1,14 +1,9 @@
 import type { ActorState, GameState, StageState } from "./types";
 
 /**
- * 观察者相对的引用（address）。
+ * 观察者相对的引用：把签名渲染成 `@名字` 或 `#12`，并带上外观。
  *
- * 每个观察者给每个签名最多一个当前名字；名字不要求是真名：
- *
- * - `@名字`：你已经给这个签名起了名字；
- * - `#12`：你还没有名字，只能靠编号与外观辨认。
- *
- * 名字可能是真名、称号或误认；系统不区分。两者都是系统标记，不得出现在台词里。
+ * 这里只做渲染，不判断可见范围；命名与认知归属见 `docs/glossary.md`、`docs/information-disclosure.md`。
  */
 
 export type Address = {
@@ -75,9 +70,7 @@ export function mentionOf(address: Address): string {
 }
 
 /**
- * 观察末尾的外观行：有名字时写 `@名字（外观）`，没有名字时写 `#12 外观：…`。
- *
- * 外观是辨认依据；名字可能是误认，两者一起写进记忆更稳。自己的外观不重复成行。
+ * 观察末尾的外观行：名字可能是误认，外观更稳，两者一起写；自己的外观不重复成行。
  */
 export function appearanceLine(address: Address): string | null {
   if (address.isSelf || address.appearance.length === 0) {

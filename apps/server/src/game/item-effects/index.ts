@@ -26,9 +26,4 @@ export async function applyItemEffect(context: ItemEffectContext): Promise<strin
   return handler(context);
 }
 
-export type {
-  AffixAgentOptions,
-  AffixRequest,
-  ItemEffectContext,
-  ItemEffectHandler,
-} from "./types";
+export type { ItemEffectContext, ItemEffectHandler } from "./types";

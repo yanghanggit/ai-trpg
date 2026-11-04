@@ -4,10 +4,10 @@ import type { MemoryOwnerType } from "./memory";
 import type { GameState } from "./types";
 
 /**
- * 记忆所有者的稳定集合。
+ * 记忆实体（拥有独立 memory 的实体 agent）的稳定集合。
  *
- * 目前只有 actor / stage / world 三类 agent 携带 memory；新增携带记忆的实体的
- * 同时在这里登记，调试入口（记忆导出、compact）就不必各自维护一份清单。
+ * 目前只有 actor / stage / world 三类；新增记忆实体的同时在这里登记，
+ * 调试入口（记忆导出、compact）就不必各自维护一份清单。
  */
 export const MEMORY_OWNER_TYPES = [
   "actor",
