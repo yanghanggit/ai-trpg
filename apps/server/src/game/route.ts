@@ -1,9 +1,8 @@
 import assert from "node:assert/strict";
-import { type ActorWithStage, requireStageName } from "./actors";
+import { type ActorWithStage, resolveStageName } from "./actors";
 import { buildEdgeIndex, type EdgeIndex, type StageEdge } from "./edges";
-import { GameError } from "./errors";
-import { knownStageIds } from "./teleport";
-import type { ConnectionState, GameStateSlice, RouteQuery, StageState } from "./types";
+import { visitedStageIds } from "./teleport";
+import type { ConnectionState, GameStateSlice, RouteFailure, RouteQuery } from "./types";
 
 /**
  * 路线回忆：从 A 到 B 怎么走，结论写进 actor 自己的记忆。
@@ -11,11 +10,11 @@ import type { ConnectionState, GameStateSlice, RouteQuery, StageState } from "./
  * 回答始终是一条链，而不是「能不能到」的判定：能走通就写出整条路线；走不通就把链拉到
  * 断点、在断处标 `→[封着]→`。换一条路能到就照实给那一条。
  *
- * 端点必须是知道真名的场景（`#序号` 不行）；中间站不要求认识——不认识的场景用
- * `#实体序号` 顶上，和「看得见的出口」是同一种写法。
+ * 端点只要求是能解析到的场景真名（`#序号` 不行），不要求到访；链上没走过的场景一律
+ * 用 `#实体序号` 顶上，和「看得见的出口」是同一种写法。
  */
 
-/** 路线里的一个场景：只需要名字与序号，`#序号` 用于观察者还不认识的场景。 */
+/** 路线里的一个场景：只需要名字与序号，`#序号` 用于观察者还没走过的场景。 */
 export type RouteNode = {
   id: string;
   seq: number;
@@ -23,12 +22,12 @@ export type RouteNode = {
   ordinal: number;
 };
 
-/** 路线只需要场景、边与「认识哪些场景」；`apply` 阶段按这三样窄读，不必装配整份状态。 */
+/** 路线只需要场景、边与「走过哪些场景」；`apply` 阶段按这三样窄读，不必装配整份状态。 */
 export type RouteWorld = {
   stages: readonly RouteNode[];
   connections: readonly Pick<ConnectionState, "fromStageId" | "toStageId" | "passage">[];
-  /** 观察者知道真名的场景（到访 ∪ 听说）；当前场景始终算在内。 */
-  known: ReadonlySet<string>;
+  /** 观察者走过的场景（到访 ∪ 当前场景）；链上其余位置写成 `#序号`。 */
+  visited: ReadonlySet<string>;
 };
 
 /** 问题本身：引用由模型或玩家给，id 由引擎解析后写入计划。 */
@@ -38,49 +37,58 @@ export type RouteQuestion = {
   toStageRef: string;
 };
 
+/** 解析结果：要么拿到两个端点 id，要么记一次「寻路失败」进认知。 */
+export type RouteResolution =
+  | { ok: true; query: RouteQuery }
+  | { ok: false; failure: RouteFailure };
+
 export function routeWorldFromState(state: GameStateSlice, current: ActorWithStage): RouteWorld {
-  const known = new Set(knownStageIds(state, current.actor.id));
-  known.add(current.stage.id);
+  const visited = new Set(visitedStageIds(state, current.actor.id));
+  visited.add(current.stage.id);
   return {
     stages: state.world.stages.map(({ id, seq, name, ordinal }) => ({ id, seq, name, ordinal })),
     connections: state.world.connections,
-    known,
+    visited,
   };
 }
 
 /**
- * 把引用解析成端点 id，并检查「知道真名」。
+ * 把引用解析成端点 id。
  *
- * 端点只能是场景名：`#序号` 只是路上看得见、还没命名的站位，不能被拿来问路——
- * 否则「路上看到的东西」就倒过来变成了「可以指名的地方」。解析失败只用调用方给的
- * 引用回话，拒绝信息本身不透露任何地形。
+ * 只做输入判定：名字必须是能解析到场景的真名（`#序号` 不是名字）。**不查知识账**——
+ * 问路是推理，不是位移；端点是不是自己去过，只影响链上写名字还是写 `#序号`。
+ *
+ * 解析不到时给出 `RouteFailure` 而不是抛错：这次回忆的结论就是「无法寻路」，
+ * 和走不通一样要进自己的记忆。
  */
 export function resolveRouteQuestion(
   state: GameStateSlice,
   current: ActorWithStage,
   question: RouteQuestion,
-): RouteQuery {
+): RouteResolution {
+  const to = resolveStageName(state, question.toStageRef);
+  const fromRef = question.fromStageRef;
   const from =
-    question.fromStageRef === undefined
-      ? current.stage
-      : resolveKnownStage(state, current, question.fromStageRef);
-  const to = resolveKnownStage(state, current, question.toStageRef);
-  return { fromStageId: from.id, toStageId: to.id };
-}
-
-function resolveKnownStage(
-  state: GameStateSlice,
-  current: ActorWithStage,
-  ref: string,
-): StageState {
-  const stage = requireStageName(state, ref);
-  if (stage.id === current.stage.id) {
-    return stage;
+    fromRef === undefined
+      ? { ok: true as const, stage: current.stage }
+      : resolveStageName(state, fromRef);
+  if (!to.ok) {
+    return {
+      ok: false,
+      failure: {
+        ...(from.ok ? { fromStageId: from.stage.id } : { fromStageRef: fromRef }),
+        toStageRef: question.toStageRef,
+        reason: to.reason,
+      },
+    };
   }
-  if (!knownStageIds(state, current.actor.id).has(stage.id)) {
-    throw new GameError("invalid_action", `你还没听说过这个场景: ${stage.name}`);
+  if (!from.ok) {
+    return {
+      ok: false,
+      failure: { fromStageRef: fromRef, toStageRef: question.toStageRef, reason: from.reason },
+    };
   }
-  return stage;
+  return { ok: true, query: { fromStageId: from.stage.id, toStageId: to.stage.id } };
 }
 
 /** 一次 BFS 的结果：到各节点的距离与前驱，足够还原任意一条路径。 */
@@ -160,13 +168,13 @@ function reverseIndex(world: RouteWorld): EdgeIndex {
 /** 走不通时最多报几条断点：多到能说明「哪几条路都断了」，又不至于把整张图倒出来。 */
 const MAX_BREAKS = 3;
 
-/** 链上的场景按观察者认知渲染：知道真名写名字，否则写 `#序号`。 */
+/** 链上的场景按观察者认知渲染：走过的写名字，否则写 `#序号`。 */
 function renderChain(nodes: Map<string, RouteNode>, world: RouteWorld, path: readonly string[]) {
   return path
     .map((id) => {
       const node = nodes.get(id);
       assert(node, `场景索引缺少节点: ${id}`);
-      return world.known.has(id) ? node.name : `#${node.seq}`;
+      return world.visited.has(id) ? node.name : `#${node.seq}`;
     })
     .join(" → ");
 }
@@ -256,4 +264,28 @@ export function describeRoute(world: RouteWorld, query: RouteQuery): string {
     return `${title}\n${renderSealedChain(nodes, world, before, [firstStopped.toStageId], false)}`;
   }
   return `${title}\n没有能走通的路。`;
+}
+
+/**
+ * 寻路失败的认知：只回述 actor 自己写的地名与固定原因，不透露地形。
+ *
+ * 写成一句和路线同构的短句（「从X出发，无法寻路：…」），模型在下一轮就能直接把
+ * 这句话当成“这条路我认不出来”来用，不必再从工具回话里反推。
+ */
+export function describeRouteFailure(world: RouteWorld, failure: RouteFailure): string {
+  const byId = new Map(world.stages.map((stage) => [stage.id, stage]));
+  const from = failure.fromStageId === undefined ? undefined : byId.get(failure.fromStageId);
+  const failingFrom = failure.fromStageId === undefined;
+  const ref = failingFrom ? (failure.fromStageRef ?? "") : failure.toStageRef;
+  const subject = failingFrom ? "起点" : "终点";
+  const detail =
+    failure.reason === "handle_ref"
+      ? `「${ref}」不是场景名，#序号 只是看得见、还没命名的站位`
+      : failure.reason === "ambiguous"
+        ? `「${ref}」对应多个场景，说不清是哪一个`
+        : failure.reason === "empty"
+          ? `没有写${subject}`
+          : `没有叫「${ref}」的场景`;
+  const prefix = from ? `从${from.name}出发，` : "";
+  return `${prefix}无法寻路：${detail}。`;
 }

@@ -9,7 +9,6 @@ import { runMigrations } from "../src/db/migrate";
 import {
   createGame,
   getGameState,
-  learnStageName,
   loadAgentMemory,
   playerMove,
   playerRecallRoute,
@@ -57,14 +56,14 @@ class RecallRouteService implements ChatCompletionService {
 }
 
 /**
- * 只关心图形状的小世界：前 `knownFrom` 个场景算已知，其余算没听过名字。
- * 默认全部已知，断言里就只剩路线本身；少给几个用来覆盖 `#序号` 的渲染。
+ * 只关心图形状的小世界：前 `visitedCount` 个场景算走过，其余只给 `#序号`。
+ * 默认一个都没走过（开局只在 s0），全部走过时断言里就只剩路线本身。
  */
 function graphWorld(
   version: string,
   stageNames: readonly string[],
   edges: readonly { from: number; to: number; sealed?: boolean }[],
-  knownFrom = 0,
+  visitedCount = 0,
 ): World {
   const template = TEST_WORLD.stages[0];
   if (!template) {
@@ -83,7 +82,9 @@ function graphWorld(
       }
       return { from, to, ...(edge.sealed ? { passage: "sealed" as const } : {}) };
     }),
-    knownStages: keys.slice(0, knownFrom).map((key) => ({ actor: "ember-keeper", stage: key })),
+    visitedStages: keys
+      .slice(0, visitedCount)
+      .map((key) => ({ actor: "ember-keeper", stage: key })),
     actors: TEST_WORLD.actors.map((actor) => ({ ...actor, stageKey: "s0" })),
   };
 }
@@ -112,10 +113,8 @@ describe.skipIf(!testDatabaseUrl)("route recall", () => {
     await handle.pool.end();
   });
 
-  it("routes through open edges between known stages", async () => {
+  it("routes through open edges between named stages", async () => {
     const slug = await newGame(handle, "回想路线测试局");
-    await learnStageName(handle.db, slug, "无名者", "墓园");
-    await learnStageName(handle.db, slug, "无名者", "地窖");
 
     const turn = await playerRecallRoute(handle.db, slug, "无名者", {
       fromStageRef: "墓园",
@@ -143,7 +142,6 @@ describe.skipIf(!testDatabaseUrl)("route recall", () => {
 
   it("keeps the game version and the public message stream untouched", async () => {
     const slug = await newGame(handle, "路线不改版本测试局");
-    await learnStageName(handle.db, slug, "无名者", "墓园");
     await playerMove(handle.db, slug, "无名者", { targetStageRef: "墓园" });
     const before = await getGameState(handle.db, slug);
 
@@ -158,7 +156,7 @@ describe.skipIf(!testDatabaseUrl)("route recall", () => {
     expect(after.messages.length).toBe(before.messages.length);
   });
 
-  it("refuses #序号 as an endpoint: handles are waypoints, not names", async () => {
+  it("records a failure memory when the endpoint is a handle, not a name", async () => {
     const slug = await newGame(handle, "路线编号端点测试局");
     const state = await getGameState(handle.db, slug);
     const crypt = state.world.stages.find((stage) => stage.name === "棺材");
@@ -166,24 +164,33 @@ describe.skipIf(!testDatabaseUrl)("route recall", () => {
       throw new Error("缺少棺材");
     }
 
-    // 编号永远不是名字：哪怕它已经出现在记忆里的路线链上。
-    await expect(
-      playerRecallRoute(handle.db, slug, "无名者", { toStageRef: `#${crypt.seq}` }),
-    ).rejects.toThrow(/必须用场景真名/);
+    // 编号永远不是名字：这次回忆的结论就是「无法寻路」，并写进自己的记忆。
+    const turn = await playerRecallRoute(handle.db, slug, "无名者", {
+      toStageRef: `#${crypt.seq}`,
+    });
+    expect(turn.ok).toBe(true);
+
+    const recall = await recallMemory(handle, slug, "无名者");
+    expect(recall.at(-1)).toContain("无法寻路");
+    expect(recall.at(-1)).toContain("不是场景名");
   });
 
-  it("refuses a stage the actor has never heard of", async () => {
+  it("records a failure memory when no stage has that name", async () => {
     const slug = await newGame(handle, "路线未知场景测试局");
 
-    await expect(
-      playerRecallRoute(handle.db, slug, "无名者", { toStageRef: "焚尸房" }),
-    ).rejects.toThrow(/你还没听说过这个场景/);
+    const turn = await playerRecallRoute(handle.db, slug, "无名者", {
+      toStageRef: "根本没有这个地方",
+    });
+    expect(turn.ok).toBe(true);
+
+    const recall = await recallMemory(handle, slug, "无名者");
+    expect(recall.at(-1)).toContain("无法寻路：没有叫「根本没有这个地方」的场景");
   });
 
-  it("plans through the middle by its handle when the name is unknown", async () => {
+  it("writes walked waypoints by name and untouched ones by handle", async () => {
     const slug = await newGame(handle, "路线未知中段测试局");
-    // 棺材 → 墓园 → 焚尸房 是通的，但无名者没有墓园的知识。
-    await learnStageName(handle.db, slug, "无名者", "焚尸房");
+    // 棺材 → 墓园 → 焚尸房 是通的；走过墓园之后，它才在链上有名字。
+    await playerMove(handle.db, slug, "无名者", { targetStageRef: "墓园" });
 
     const turn = await playerRecallRoute(handle.db, slug, "无名者", {
       fromStageRef: "棺材",
@@ -192,24 +199,8 @@ describe.skipIf(!testDatabaseUrl)("route recall", () => {
     expect(turn.ok).toBe(true);
 
     const recall = await recallMemory(handle, slug, "无名者");
-    // 不认识的中间站用实体序号顶上；真名仍然不出现。
-    expect(recall.at(-1)).toMatch(/从棺材到焚尸房：\n棺材 → #\d+ → 焚尸房（2 步）/);
-    expect(recall.at(-1)).not.toContain("墓园");
-  });
-
-  it("reports a sealed door instead of inventing a path", async () => {
-    const slug = await newGame(handle, "路线封门测试局");
-    await learnStageName(handle.db, slug, "无名者", "铁闸门");
-    await learnStageName(handle.db, slug, "无名者", "山道");
-
-    await playerRecallRoute(handle.db, slug, "无名者", {
-      fromStageRef: "铁闸门",
-      toStageRef: "山道",
-    });
-
-    // 断处直接标在链上：不认识的站位给 #序号，封着的门写在两段之间。
-    const recall = await recallMemory(handle, slug, "无名者");
-    expect(recall.at(-1)).toContain("从铁闸门到山道：\n铁闸门 →[封着]→ 山道");
+    // 走过的中间站写名字；没到访的终点只有实体序号，真名只出现在标题里。
+    expect(recall.at(-1)).toMatch(/从棺材到焚尸房：\n棺材 → 墓园 → #\d+（2 步）/);
   });
 
   it("is a plan-level recall the model can trigger without spending its action", async () => {
@@ -220,7 +211,6 @@ describe.skipIf(!testDatabaseUrl)("route recall", () => {
       world: BELL_MONASTERY_WORLD,
     });
     const slug = created.game.slug;
-    await learnStageName(handle.db, slug, "无名者", "墓园");
 
     const turn = await runNpcTurn(handle.db, slug, "无名者", {
       service: new RecallRouteService("墓园"),
@@ -230,7 +220,35 @@ describe.skipIf(!testDatabaseUrl)("route recall", () => {
     expect(turn.plan?.routes).toHaveLength(1);
 
     const recall = await recallMemory(handle, slug, "无名者");
-    expect(recall.at(-1)).toContain("从棺材到墓园：\n棺材 → 墓园（1 步）");
+    // 墓园没走过：标题回述问题里的名字，链上只有实体序号。
+    expect(recall.at(-1)).toMatch(/从棺材到墓园：\n棺材 → #\d+（1 步）/);
+  });
+
+  it("records a failed recall when the model asks for a name that resolves to nothing", async () => {
+    // NPC 记错地名：工具当轮返回「无法寻路」，这次回忆也进记忆。
+    const created = await createGame(handle.db, {
+      username: DEMO_USER.username,
+      name: "路线工具失败测试局",
+      world: BELL_MONASTERY_WORLD,
+    });
+    const slug = created.game.slug;
+
+    const turn = await runNpcTurn(handle.db, slug, "无名者", {
+      service: new RecallRouteService("根本没有这个地方"),
+    });
+    expect(turn.ok).toBe(true);
+    expect(turn.plan?.actions).toEqual([]);
+    expect(turn.plan?.routes).toBeUndefined();
+    expect(turn.plan?.routeFailures).toEqual([
+      {
+        fromStageId: expect.any(String),
+        toStageRef: "根本没有这个地方",
+        reason: "unknown_stage",
+      },
+    ]);
+
+    const recall = await recallMemory(handle, slug, "无名者");
+    expect(recall.at(-1)).toContain("无法寻路：没有叫「根本没有这个地方」的场景");
   });
 
   it("takes an open detour when the direct edge is sealed", async () => {
@@ -331,7 +349,7 @@ describe.skipIf(!testDatabaseUrl)("route recall", () => {
     expect(recall.at(-1)).toContain("从甲地到丙地：\n没有能走通的路");
   });
 
-  it("keeps writing #序号 for stages whose names the actor never learned", async () => {
+  it("keeps writing #序号 for stages the actor has never walked", async () => {
     const slug = await newGraphGame(
       handle,
       graphWorld(
@@ -373,7 +391,10 @@ async function recallMemory(
   }
   const memory = await loadAgentMemory(handle.db, state.game.id, "actor", actor.id);
   return (memory?.messages ?? [])
-    .filter((message) => kindOf(message.metadata) === "route_recall")
+    .filter((message) => {
+      const kind = kindOf(message.metadata);
+      return kind === "route_recall" || kind === "route_failed";
+    })
     .map((message) => message.content);
 }
 

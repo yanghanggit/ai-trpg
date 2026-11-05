@@ -6,7 +6,6 @@ import {
   gamePlayers,
   type games,
   items,
-  knownStages,
   stageConnections,
   stageItems,
   stages,
@@ -24,7 +23,6 @@ import type {
   GameState,
   GameStateSlice,
   ItemState,
-  KnownStageState,
   PlayerState,
   SignatureNameState,
   StageState,
@@ -46,7 +44,6 @@ type StageRow = typeof stages.$inferSelect;
 type ConnectionRow = typeof stageConnections.$inferSelect;
 type ActorRow = typeof actors.$inferSelect;
 type VisitRow = typeof stageVisits.$inferSelect;
-type KnownStageRow = typeof knownStages.$inferSelect;
 type ItemRow = typeof items.$inferSelect;
 type StageItemRow = typeof stageItems.$inferSelect;
 type SignatureView = Awaited<ReturnType<typeof listCurrentSignatureViews>>[number];
@@ -61,7 +58,6 @@ type StateRows = {
   connections: ConnectionRow[];
   actors: ActorRow[];
   visits: VisitRow[];
-  knownStages: KnownStageRow[];
   items: ItemRow[];
   signatures: SignatureView[];
   stageItems: StageItemRow[];
@@ -133,7 +129,7 @@ export async function getGameStateSlice(db: Database, ref: string): Promise<Game
           .orderBy(asc(actors.seq));
   const actorIds = actorRows.map((actor) => actor.id);
 
-  const [visitRows, knownStageRows, itemRows, signatureViews, stageItemRows] = await Promise.all([
+  const [visitRows, itemRows, signatureViews, stageItemRows] = await Promise.all([
     actorIds.length === 0
       ? []
       : db
@@ -141,13 +137,6 @@ export async function getGameStateSlice(db: Database, ref: string): Promise<Game
           .from(stageVisits)
           .where(and(eq(stageVisits.gameId, game.id), inArray(stageVisits.actorId, actorIds)))
           .orderBy(asc(stageVisits.firstVisitedAt)),
-    actorIds.length === 0
-      ? []
-      : db
-          .select()
-          .from(knownStages)
-          .where(and(eq(knownStages.gameId, game.id), inArray(knownStages.actorId, actorIds)))
-          .orderBy(asc(knownStages.firstLearnedAt)),
     actorIds.length === 0
       ? []
       : db.select().from(items).where(inArray(items.actorId, actorIds)).orderBy(asc(items.seq)),
@@ -170,7 +159,6 @@ export async function getGameStateSlice(db: Database, ref: string): Promise<Game
     connections: connectionRows,
     actors: actorRows,
     visits: visitRows,
-    knownStages: knownStageRows,
     items: itemRows,
     signatures: signatureViews,
     stageItems: stageItemRows,
@@ -315,7 +303,6 @@ function assembleState(rows: StateRows): GameStateSlice {
     },
     signatureNames,
     visits,
-    knownStages: assembleKnownStages(rows.stages, rows.knownStages),
   };
 }
 
@@ -343,34 +330,6 @@ function assembleVisits(stages: readonly StageRow[], rows: readonly VisitRow[]):
     .sort(
       (left, right) =>
         left.firstVisitedAt.localeCompare(right.firstVisitedAt) ||
-        ordinalOf(left.stageId) - ordinalOf(right.stageId) ||
-        left.actorId.localeCompare(right.actorId),
-    );
-}
-
-/** 非到访得知的场景名；与 `assembleVisits` 同一套并列兜底规则。 */
-function assembleKnownStages(
-  stages: readonly StageRow[],
-  rows: readonly KnownStageRow[],
-): KnownStageState[] {
-  const stageOrdinal = new Map(stages.map((stage) => [stage.id, stage.ordinal]));
-  const ordinalOf = (stageId: string): number => {
-    const ordinal = stageOrdinal.get(stageId);
-    // 与到访同理：外键保证场景属于本 world，缺失说明数据被改坏。
-    assert(ordinal !== undefined, `场景知识指向了本局之外的场景: ${stageId}`);
-    return ordinal;
-  };
-  return rows
-    .map((row) => ({
-      actorId: row.actorId,
-      stageId: row.stageId,
-      firstLearnedAt: row.firstLearnedAt.toISOString(),
-      source: row.source,
-      learnedStageId: row.learnedStageId,
-    }))
-    .sort(
-      (left, right) =>
-        left.firstLearnedAt.localeCompare(right.firstLearnedAt) ||
         ordinalOf(left.stageId) - ordinalOf(right.stageId) ||
         left.actorId.localeCompare(right.actorId),
     );

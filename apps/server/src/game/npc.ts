@@ -45,19 +45,19 @@ import {
   adjacentStageRefsForActor,
   buildActorLookTool,
   buildKnowledgeTool,
-  buildKnownStagesTool,
   buildObserveActorTool,
   buildRecallRouteTool,
   buildRecognizeIdentityTool,
   buildSelfInfoTool,
   buildSubmitPlanTool,
+  buildVisitedStagesTool,
   describeEquipmentBrief,
   describeKnowledgeResults,
-  describeKnownStages,
   describeObservedActor,
   describeSelf,
   describeStageAnchors,
   describeStageForActor,
+  describeVisitedStages,
   parseRecallRoute,
   parseRecognizeIdentity,
   renderStageEnvironmentForActor,
@@ -66,8 +66,14 @@ import {
 } from "./plan";
 import { getGameStateSlice, readTurnDelivery } from "./read/game-state";
 import { handleOf, isHandleRef } from "./reference";
-import { describeRoute, type RouteWorld, resolveRouteQuestion, routeWorldFromState } from "./route";
-import { knownStagesForActor, visitedTeleportTargetsFor } from "./teleport";
+import {
+  describeRoute,
+  describeRouteFailure,
+  type RouteWorld,
+  resolveRouteQuestion,
+  routeWorldFromState,
+} from "./route";
+import { visitedTeleportTargetsFor } from "./teleport";
 import type {
   ActionKind,
   ActorAction,
@@ -75,6 +81,7 @@ import type {
   ActorState,
   ActorTurnResult,
   GameStateSlice,
+  RouteFailure,
   RouteQuery,
 } from "./types";
 import { EQUIPMENT_SLOTS } from "./types";
@@ -132,13 +139,13 @@ export function buildActorTurnInput(state: GameStateSlice, current: ActorWithSta
     "look_stage",
     "get_self",
     ...(canObserve ? ["observe_actor"] : []),
-    "get_known_stages",
+    "get_visited_stages",
     "recall_route",
     "query",
     "recognize_identity",
   ].join(
     "、",
-  )} 不占计划。look_stage 只能看本场景；get_known_stages 可以回看你去过的，以及只听过名字的场景；recall_route 顺着场景连接回一条路线，结论会进你的认知。`;
+  )} 不占计划。look_stage 只能看本场景；get_visited_stages 可以回看你走过的场景；recall_route 顺着场景连接回一条路线，结论会进你的认知（地名写错时会记成「无法寻路」）。`;
   const actorLines =
     others.length === 0
       ? "无"
@@ -194,7 +201,7 @@ ${remembered.join("、")}`
 ${
   canTeleport
     ? `
-## 可传送（已知真名即可；已去过且未禁传的如下）
+## 可传送（写对真名即可；下列是去过的、未禁传的）
 ${teleportLines}`
     : ""
 }
@@ -269,11 +276,8 @@ export async function runNpcTurn(
 
   const lookTool = buildActorLookTool();
   const selfTool = buildSelfInfoTool();
-  const knownStagesTool = buildKnownStagesTool();
-  const knownStages = knownStagesForActor(state, current.actor.id);
-  const routeTool = buildRecallRouteTool(
-    [...knownStages.visited, ...knownStages.learned].map((stage) => stage.name),
-  );
+  const visitedStagesTool = buildVisitedStagesTool();
+  const routeTool = buildRecallRouteTool();
   // 侦察是偷窃的前置：只有能 steal 的角色才注入 observe_actor，与任务提示词同一判断。
   const observeTool = canObserveActorItems(current.actor)
     ? buildObserveActorTool(targets)
@@ -332,6 +336,7 @@ export async function runNpcTurn(
   const actions: ActorAction[] = [];
   const identities: { handle: string; name: string }[] = [];
   const routes: RouteQuery[] = [];
+  const routeFailures: RouteFailure[] = [];
   let routeWorld: RouteWorld | undefined;
   const routeWorldOnce = () => (routeWorld ??= routeWorldFromState(state, current));
   let submitted: ActorPlan | null = null;
@@ -416,7 +421,7 @@ export async function runNpcTurn(
     tools: [
       lookTool,
       selfTool,
-      knownStagesTool,
+      visitedStagesTool,
       routeTool,
       ...(observeTool ? [observeTool] : []),
       knowledgeTool,
@@ -427,8 +432,8 @@ export async function runNpcTurn(
     handlers: {
       [lookTool.function.name]: () => describeStageForActor(state, current),
       [selfTool.function.name]: () => describeSelf(current.actor),
-      [knownStagesTool.function.name]: () =>
-        describeKnownStages(state, current.actor.id, current.stage.id),
+      [visitedStagesTool.function.name]: () =>
+        describeVisitedStages(state, current.actor.id, current.stage.id),
       ...(observeTool
         ? {
             [observeTool.function.name]: (args: Record<string, unknown>) => {
@@ -465,25 +470,48 @@ export async function runNpcTurn(
       ...actionHandlers,
       [routeTool.function.name]: (args) => {
         ensureOpen();
-        const query = resolveRouteQuestion(state, current, parseRecallRoute(args));
+        const resolution = resolveRouteQuestion(state, current, parseRecallRoute(args));
+        if (!resolution.ok) {
+          // 失败的回忆也要进认知：同一轮内同一句问题只记一次。
+          const { failure } = resolution;
+          const duplicate = routeFailures.some(
+            (item) =>
+              item.toStageRef === failure.toStageRef &&
+              item.fromStageId === failure.fromStageId &&
+              item.fromStageRef === failure.fromStageRef,
+          );
+          if (!duplicate) {
+            routeFailures.push(failure);
+          }
+          return `# 路线\n${describeRouteFailure(routeWorldOnce(), failure)}`;
+        }
+        const { query } = resolution;
         // 一轮里同一条问题只记一次：重复调用只回话，不重复写记忆。
-        const known = routes.some(
+        const duplicate = routes.some(
           (item) => item.fromStageId === query.fromStageId && item.toStageId === query.toStageId,
         );
-        if (!known) {
+        if (!duplicate) {
           routes.push(query);
         }
         return `# 路线\n${describeRoute(routeWorldOnce(), query)}`;
       },
       [recognizeTool.function.name]: (args) => addIdentity(args),
       [submitTool.function.name]: () => {
-        if (actions.length === 0 && identities.length === 0 && routes.length === 0) {
+        if (
+          actions.length === 0 &&
+          identities.length === 0 &&
+          routes.length === 0 &&
+          routeFailures.length === 0
+        ) {
           throw new GameError("invalid_action", "计划中没有行动");
         }
         submitted = {
           actions: actions.map((action) => ({ ...action })),
           ...(identities.length > 0 ? { identities: identities.map((item) => ({ ...item })) } : {}),
           ...(routes.length > 0 ? { routes: routes.map((item) => ({ ...item })) } : {}),
+          ...(routeFailures.length > 0
+            ? { routeFailures: routeFailures.map((item) => ({ ...item })) }
+            : {}),
         };
         return "计划已提交";
       },

@@ -4,7 +4,6 @@ import {
   actors,
   appearances,
   items,
-  knownStages,
   stageConnections,
   stageItems,
   stages,
@@ -398,15 +397,15 @@ export async function findStageByNameInWorld(
 }
 
 /**
- * 路线回忆需要的最小图：场景、边、以及观察者知道真名的场景。
+ * 路线回忆需要的最小图：场景、边、以及观察者走过去哪些地方。
  *
- * `apply` 里装配整份状态太重，这里只读这四张表的最小列，与 `getGameState` 的三层读互不依赖。
+ * `apply` 里装配整份状态太重，这里只读三张表的最小列，与 `getGameState` 的三层读互不依赖。
  */
 export async function loadRouteWorld(
   executor: Executor,
   input: { gameId: string; worldId: string; actorId: string; currentStageId: string },
 ): Promise<RouteWorld> {
-  const [stageRows, edges, visits, learned] = await Promise.all([
+  const [stageRows, edges, visits] = await Promise.all([
     executor
       .select({
         id: stages.id,
@@ -428,50 +427,8 @@ export async function loadRouteWorld(
       .select({ stageId: stageVisits.stageId })
       .from(stageVisits)
       .where(and(eq(stageVisits.gameId, input.gameId), eq(stageVisits.actorId, input.actorId))),
-    executor
-      .select({ stageId: knownStages.stageId })
-      .from(knownStages)
-      .where(and(eq(knownStages.gameId, input.gameId), eq(knownStages.actorId, input.actorId))),
   ]);
-  const known = new Set([...visits, ...learned].map((row) => row.stageId));
-  known.add(input.currentStageId);
-  return { stages: stageRows, connections: edges, known };
-}
-
-/**
- * 目标场景是否在 actor 的知识账上：到访 ∪ 听说。
- *
- * 这是传送的底层约束：不是「引擎相信调用方」，而是这个 actor 确实知道这个地方。
- * 与 `knownStageIds` 同一份语义，只是走一次窄查询，不装配状态。
- */
-export async function isStageKnownToActor(
-  executor: Executor,
-  input: { gameId: string; actorId: string; stageId: string },
-): Promise<boolean> {
-  const [visit] = await executor
-    .select({ id: stageVisits.id })
-    .from(stageVisits)
-    .where(
-      and(
-        eq(stageVisits.gameId, input.gameId),
-        eq(stageVisits.actorId, input.actorId),
-        eq(stageVisits.stageId, input.stageId),
-      ),
-    )
-    .limit(1);
-  if (visit) {
-    return true;
-  }
-  const [learned] = await executor
-    .select({ id: knownStages.id })
-    .from(knownStages)
-    .where(
-      and(
-        eq(knownStages.gameId, input.gameId),
-        eq(knownStages.actorId, input.actorId),
-        eq(knownStages.stageId, input.stageId),
-      ),
-    )
-    .limit(1);
-  return learned !== undefined;
+  const visited = new Set(visits.map((row) => row.stageId));
+  visited.add(input.currentStageId);
+  return { stages: stageRows, connections: edges, visited };
 }

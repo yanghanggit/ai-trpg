@@ -30,7 +30,6 @@ import {
 import { parseWorldContent } from "./parse-world-content";
 import { recordAppearance } from "./persistence/appearances";
 import { allocateEntitySeq } from "./persistence/entity-seq";
-import { recordKnownStage } from "./persistence/known-stages";
 import { upsertSignatureName } from "./persistence/signature-names";
 import { insertSignature } from "./persistence/signatures";
 import { recordStageVisit } from "./persistence/visits";
@@ -386,44 +385,6 @@ async function bindSignatureNames(
   }
 }
 
-/**
- * 开局「听说过某些场景」：内容用 key 引用，落库时变成 actor / stage id。
- *
- * 与 `signatureNames` 同一套路；重复声明只保留第一次，不报错。
- */
-async function bindKnownStages(
-  tx: Executor,
-  input: {
-    gameId: string;
-    world: World;
-    stageIds: Map<string, string>;
-    actorRefs: Map<string, ActorRef>;
-    now: Date;
-  },
-): Promise<void> {
-  for (const entry of input.world.knownStages ?? []) {
-    const actorRef = input.actorRefs.get(entry.actor);
-    const stageId = input.stageIds.get(entry.stage);
-    if (!actorRef) {
-      throw new GameError("invalid_state", `knownStages 引用了不存在的 actor: ${entry.actor}`);
-    }
-    if (!stageId) {
-      throw new GameError("invalid_state", `knownStages 引用了不存在的场景: ${entry.stage}`);
-    }
-    await recordKnownStage(
-      tx,
-      {
-        gameId: input.gameId,
-        actorId: actorRef.actorId,
-        stageId,
-        source: "content",
-        learnedStageId: null,
-      },
-      input.now,
-    );
-  }
-}
-
 /** 文件名沿用职能的中文短名之外的习惯写法：dialogueAudit 落到 dialogue-audit。 */
 function dumpFileName(fn: WorldFunctionType): string {
   return fn === "dialogueAudit" ? "dialogue-audit" : fn;
@@ -511,13 +472,6 @@ export async function createGame(
     });
     actorPrompts.push(...actors.prompts);
     await bindSignatureNames(tx, { gameId, world, actorRefs: actors.actorRefs });
-    await bindKnownStages(tx, {
-      gameId,
-      world,
-      stageIds: stages.stageIds,
-      actorRefs: actors.actorRefs,
-      now: new Date(),
-    });
     await bindVisitedStages(tx, {
       gameId,
       world,

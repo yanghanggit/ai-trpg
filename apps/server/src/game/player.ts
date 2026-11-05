@@ -9,7 +9,6 @@ import { MEMORY_KINDS } from "./constants";
 import { isPlayerControlled } from "./control";
 import { auditPlayerDialogue, dialogueContextFor, isDialogueAction } from "./dialogue-audit";
 import { DialogueBlockedError, GameError } from "./errors";
-import { resolveLearnableStage } from "./known-stages";
 import { parseSignatureName } from "./plan";
 import { getGameStateSlice, readTurnDelivery } from "./read/game-state";
 import { handleOf } from "./reference";
@@ -71,8 +70,8 @@ function extraLabel(plan: ActorPlan): string {
   if ((plan.routes?.length ?? 0) > 0) {
     return MEMORY_KINDS.routeRecall;
   }
-  if ((plan.learnedStages?.length ?? 0) > 0) {
-    return MEMORY_KINDS.learnedStage;
+  if ((plan.routeFailures?.length ?? 0) > 0) {
+    return MEMORY_KINDS.routeFailed;
   }
   return "empty_plan";
 }
@@ -468,23 +467,6 @@ export async function playerRecognizeIdentity(
   return applyPlayerPlanOnState(db, state, actor, plan);
 }
 
-/** 玩家替自己控制的角色认下一个场景真名；只有真名，`#序号` 不是知识。 */
-export type PlayerLearnStageInput = {
-  stageRef: string;
-};
-
-export async function playerLearnStage(
-  db: Database,
-  gameRef: string,
-  actorRef: string,
-  input: PlayerLearnStageInput,
-): Promise<ActorTurnResult> {
-  const state = await getGameStateSlice(db, gameRef);
-  const actor = findActorByRef(state, actorRef);
-  const stage = resolveLearnableStage(state, actor, input.stageRef);
-  return applyPlayerPlanOnState(db, state, actor, { actions: [], learnedStages: [stage.id] });
-}
-
 /** 玩家替自己控制的角色回忆一条路线；结论只进自己的认知，不占行动名额。 */
 export async function playerRecallRoute(
   db: Database,
@@ -494,8 +476,12 @@ export async function playerRecallRoute(
 ): Promise<ActorTurnResult> {
   const state = await getGameStateSlice(db, gameRef);
   const actor = findActorByRef(state, actorRef);
-  const query = resolveRouteQuestion(state, stageOfActor(state, actor.id), input);
-  return applyPlayerPlanOnState(db, state, actor, { actions: [], routes: [query] });
+  const resolution = resolveRouteQuestion(state, stageOfActor(state, actor.id), input);
+  // 地名对不上也是一次回忆的结论：落成「无法寻路」的认知，而不是把整个回合判成失败。
+  const plan: ActorPlan = resolution.ok
+    ? { actions: [], routes: [resolution.query] }
+    : { actions: [], routeFailures: [resolution.failure] };
+  return applyPlayerPlanOnState(db, state, actor, plan);
 }
 
 export async function playerUse(

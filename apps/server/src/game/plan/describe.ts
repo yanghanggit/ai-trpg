@@ -8,12 +8,7 @@ import {
 import { type AddressLookup, addressLookupFor, refOf } from "../addressing";
 import { isAlive } from "../apply/queries";
 import { handleOf } from "../reference";
-import {
-  knownStageIds,
-  knownStagesForActor,
-  visitedStageIds,
-  visitedTeleportTargetsFor,
-} from "../teleport";
+import { visitedStageIds, visitedStagesForActor, visitedTeleportTargetsFor } from "../teleport";
 import { sanitizeActorFacingText } from "../text-guard";
 import type { ActorState, GameStateSlice, ItemState, StageAnchorState, StageState } from "../types";
 import { EQUIPMENT_SLOT_LABELS, EQUIPMENT_SLOTS } from "../types";
@@ -139,17 +134,18 @@ function describeStageAnchorsSection(anchors: readonly StageAnchorState[]): stri
 }
 
 /**
- * actor 视角的可去方向：知道真名的写名字，不知道的只给实体编号。
+ * actor 视角的可去方向：去过的写名字，没走过的只给实体编号。
  *
- * 知道名字有两种来源：到访过（`stage_visits`），或只是听说过（`known_stages`）。
+ * 名字只来自到访（`stage_visits`）：没走过的场景就是 `#序号`，即使离开场简报里
+ * 或别人嘴里听过这个名字——文本不构成结构化的地名知识。
  */
 export function adjacentStageRefsForActor(
   state: GameStateSlice,
   current: ActorWithStage,
 ): string[] {
-  const known = knownStageIds(state, current.actor.id);
+  const visited = visitedStageIds(state, current.actor.id);
   return adjacentStages(state, current.stage.id).map((stage) =>
-    known.has(stage.id) ? stage.name : handleOf(stage.seq),
+    visited.has(stage.id) ? stage.name : handleOf(stage.seq),
   );
 }
 
@@ -157,7 +153,7 @@ export function adjacentStageRefsForActor(
  * 封着、但自己去过的出口：记忆里的一道门。
  *
  * 到访是记忆，不是通行证。去过的地方即使现在过不去，也认得出它在哪儿；
- * 只听说过名字不算——墙里的门要靠自己走过一次才记得。
+ * 没走过的门连名字都不知道，自然也无从记得。
  */
 export function sealedVisitedStagesForActor(
   state: GameStateSlice,
@@ -203,34 +199,29 @@ ${describeStageAnchorsSection(stage.anchors)}
   }${
     canTeleport
       ? `
-可传送（已知真名即可；已去过且未禁传）：${teleportLines.length === 0 ? "无" : teleportLines}`
+可传送（写对真名即可；下列是去过的、未禁传）：${teleportLines.length === 0 ? "无" : teleportLines}`
       : ""
   }`;
 }
 
 /**
- * 知道哪些场景，分两段：去过的与只知名、还没去过的。
- *
- * 顺序直接沿用 `state.visits` / `state.knownStages` 的排序（并列时已按场景序号兜底），
- * 这里不再重排，避免两处排序规则漂移。到访过的场景即使也有知识行，只出现在第一段。
+ * 去过哪些场景。顺序直接沿用 `state.visits`（并列时已按场景序号兜底），
+ * 这里不再重排，避开两处排序规则漂移。
  */
-export function describeKnownStages(
+export function describeVisitedStages(
   state: GameStateSlice,
   actorId: string,
   currentStageId?: string,
 ): string {
-  const { visited, learned } = knownStagesForActor(state, actorId);
-  const lines = (stages: StageState[]): string =>
-    stages.length === 0
+  const visited = visitedStagesForActor(state, actorId);
+  const lines =
+    visited.length === 0
       ? "无"
-      : stages
+      : visited
           .map((stage) => `${stage.name}${stage.id === currentStageId ? "（当前）" : ""}`)
           .join("\n");
-  return `# 你知道的场景
-## 去过（按首次到访）
-${lines(visited)}
-## 只知道名字，还没去过
-${lines(learned)}`;
+  return `# 你去过的场景
+${lines}`;
 }
 
 /** world 视角：可查看任意场景，名字与 environment 原样输出。 */

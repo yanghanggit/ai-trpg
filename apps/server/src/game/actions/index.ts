@@ -26,7 +26,7 @@ export const ACTION_SUMMARIES: Record<ActionKind, string> = {
   announce: "向当前场景公开说话",
   call: "用真名向另一个有传音能力的角色传话",
   move: "移动到相邻场景",
-  teleport: "传送到知道真名的场景",
+  teleport: "传送到真名对应的场景",
   wait: "留在原地",
   strike: "用装备的武器攻击同场景目标",
   brawl: "用身体与同场景目标肉搏",

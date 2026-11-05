@@ -16,7 +16,6 @@ import {
   playerCall,
   playerEquip,
   playerGive,
-  playerLearnStage,
   playerMove,
   playerPickup,
   playerRecallRoute,
@@ -32,7 +31,7 @@ import {
   releaseActorControl,
   takeActorControl,
 } from "../../../game";
-import { knownStagesForActor } from "../../../game/teleport";
+import { visitedStagesForActor } from "../../../game/teleport";
 import type { ActorTurnResult } from "../../../game/types";
 import { EQUIPMENT_SLOTS } from "../../../game/types";
 import {
@@ -484,36 +483,21 @@ export function registerPlayerCommands(program: Command, ctx: CommandContext): v
   });
 
   addCommand(program, ctx, {
-    name: "player-learn-stage",
+    name: "visited-stages",
     group: GROUP,
-    summary: "认下一个场景真名（需接管；写知识 + 认知，不占行动名额）",
-    options: [gameOption(), actorOption(), requiredOption("--stage <name>", "场景真名")],
-    schema: z.object({ ...gameAndActor, stage: nonEmptyText("--stage") }),
-    run: async (input, ctx) =>
-      turnOutput(
-        await ctx.db((db) =>
-          playerLearnStage(db, input.game, input.actor, { stageRef: input.stage }),
-        ),
-      ),
-  });
-
-  addCommand(program, ctx, {
-    name: "known-stages",
-    group: GROUP,
-    summary: "列出 actor 已知的场景：去过的 / 只知名的",
+    summary: "列出 actor 去过的场景",
     options: [gameOption(), actorOption()],
     schema: controlInput,
     run: async (input, ctx) =>
       ctx.db(async (db) => {
         const state = await getGameStateSlice(db, input.game);
         const actor = findActorByRef(state, input.actor);
-        const { visited, learned } = knownStagesForActor(state, actor.id);
-        const brief = (stages: { id: string; name: string }[]) =>
-          stages.map((stage) => ({ stageId: stage.id, name: stage.name }));
         return {
           actor: { id: actor.id, name: actor.name },
-          visited: brief(visited),
-          learned: brief(learned),
+          visited: visitedStagesForActor(state, actor.id).map((stage) => ({
+            stageId: stage.id,
+            name: stage.name,
+          })),
         };
       }),
   });

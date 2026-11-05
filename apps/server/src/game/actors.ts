@@ -110,33 +110,57 @@ export function findActorByRef(state: GameStateSlice, ref: string): ActorState {
 }
 
 /**
- * 必须按场景真名定位：`#序号` 与 id 一律拒绝。
+ * 按场景真名定位：`#序号` 与 id 一律不算名字。
  *
  * 「能指名」是种权利而不是便利：`#序号` 只表示看得见、还没命名的站位，一旦允许它
- * 充当名字，路过的站位就会倒过来变成地名知识。问路的端点与授予场景知识都走这里；
+ * 充当名字，路过的站位就会倒过来变成地名知识。问路的端点走这里；
  * 移动的目标不走——走向一扇看得见的门本来就只需要编号。
  */
-export function requireStageName(state: GameStateSlice, ref: string): StageState {
+export type StageNameResolution =
+  | { ok: true; stage: StageState }
+  | { ok: false; reason: "empty" | "handle_ref" | "unknown_stage" | "ambiguous" };
+
+/** 非抛错版本：调用方要把「解析不到」当结果回话（例如问路）时使用。 */
+export function resolveStageName(state: GameStateSlice, ref: string): StageNameResolution {
   const name = stripNameRef(ref.trim());
   if (name.length === 0) {
-    throw new GameError("invalid_action", "场景名不能为空");
+    return { ok: false, reason: "empty" };
   }
   if (isHandleRef(name)) {
-    throw new GameError(
-      "invalid_action",
-      `必须用场景真名指定；#序号 只是看得见但还没命名的站位: ${name}`,
-    );
+    return { ok: false, reason: "handle_ref" };
   }
   const matches = state.world.stages.filter((stage) => stage.name === name);
   if (matches.length === 0) {
-    throw new GameError("not_found", `场景不存在: ${name}`);
+    return { ok: false, reason: "unknown_stage" };
   }
   if (matches.length > 1) {
-    throw new GameError("invalid_action", `场景名称不唯一: ${name}`);
+    return { ok: false, reason: "ambiguous" };
   }
   const [match] = matches;
   assert(match, `场景定位结果为空: ${name}`);
-  return match;
+  return { ok: true, stage: match };
+}
+
+/** 必须按场景真名定位：`#序号` 与 id 一律拒绝；解析失败抛 `GameError`。 */
+export function requireStageName(state: GameStateSlice, ref: string): StageState {
+  const name = stripNameRef(ref.trim());
+  const resolved = resolveStageName(state, ref);
+  if (resolved.ok) {
+    return resolved.stage;
+  }
+  switch (resolved.reason) {
+    case "empty":
+      throw new GameError("invalid_action", "场景名不能为空");
+    case "handle_ref":
+      throw new GameError(
+        "invalid_action",
+        `必须用场景真名指定；#序号 只是看得见但还没命名的站位: ${name}`,
+      );
+    case "ambiguous":
+      throw new GameError("invalid_action", `场景名称不唯一: ${name}`);
+    case "unknown_stage":
+      throw new GameError("not_found", `场景不存在: ${name}`);
+  }
 }
 
 export function findStage(state: GameStateSlice, ref: string): StageState {

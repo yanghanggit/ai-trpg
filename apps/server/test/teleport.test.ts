@@ -8,7 +8,6 @@ import {
   createGame,
   getActorView,
   getGameState,
-  learnStageName,
   playerMove,
   playerTeleport,
   takeActorControl,
@@ -83,9 +82,8 @@ describe.skipIf(!testDatabaseUrl)("teleport", () => {
     expect(view.teleportTargets).toEqual([]);
   });
 
-  it("teleports to a name it knows but has never visited", async () => {
+  it("teleports to any stage whose name resolves, even without a visit", async () => {
     const created = await createGameWith("传送真名测试局", teleportWorld());
-    await learnStageName(handle.db, created.game.slug, "守烬人", "断钟中殿");
     const result = await playerTeleport(handle.db, created.game.slug, "守烬人", {
       targetStageRef: "断钟中殿",
     });
@@ -104,7 +102,7 @@ describe.skipIf(!testDatabaseUrl)("teleport", () => {
     expect(state.messages.at(-1)?.kind).toBe("teleport");
   });
 
-  it("only accepts a stage name: #编号 is not knowledge", async () => {
+  it("only accepts a stage name: #编号 is not a name", async () => {
     const created = await createGameWith("传送编号测试局", teleportWorld());
     const state = await getGameState(handle.db, created.game.slug);
     const nave = state.world.stages.find((stage) => stage.key === "nave");
@@ -118,11 +116,11 @@ describe.skipIf(!testDatabaseUrl)("teleport", () => {
     ).rejects.toThrow(/真名/);
   });
 
-  it("refuses a stage the actor neither visited nor knows", async () => {
+  it("refuses a name that resolves to no stage", async () => {
     const created = await createGameWith("传送未知场景测试局", teleportWorld());
     await expect(
-      playerTeleport(handle.db, created.game.slug, "守烬人", { targetStageRef: "断钟中殿" }),
-    ).rejects.toThrow(/你还没听说过这个场景/);
+      playerTeleport(handle.db, created.game.slug, "守烬人", { targetStageRef: "没有这个地方" }),
+    ).rejects.toThrow(/目标场景不存在/);
   });
 
   it("teleports to a visited, unblocked stage and records the arrival", async () => {
@@ -140,7 +138,7 @@ describe.skipIf(!testDatabaseUrl)("teleport", () => {
     }
     expect(visitedTeleportTargetsFor(before, keeper, nave)).toEqual([gate]);
     const input = buildActorTurnInput(before, { actor: keeper, stage: nave });
-    expect(input).toContain("可传送（已知真名即可；已去过且未禁传的如下）");
+    expect(input).toContain("可传送（写对真名即可；下列是去过的、未禁传的）");
     expect(input).toContain("灰烬门廊");
 
     const result = await playerTeleport(handle.db, created.game.slug, "守烬人", {

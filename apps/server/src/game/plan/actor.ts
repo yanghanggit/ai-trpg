@@ -95,13 +95,13 @@ ${lines.join("\n")}
 检索结果只是文本参考资料；公共知识不等于你亲眼所见，也不能据此知道角色秘密或当前状态。`;
 }
 
-/** 只读：让 NPC 回看自己去过、以及只听过名字的场景，不占行动。 */
-export function buildKnownStagesTool(): ToolDefinition {
+/** 只读：让 NPC 回看自己去过的场景，不占行动。 */
+export function buildVisitedStagesTool(): ToolDefinition {
   return {
     type: "function",
     function: {
-      name: "get_known_stages",
-      description: "查看你知道的场景：去过的，以及只知道真名、还没去过的。只读，不占行动。",
+      name: "get_visited_stages",
+      description: "查看你去过的场景（含当前场景）。只读，不占行动。",
       parameters: {
         type: "object",
         properties: {},
@@ -184,26 +184,25 @@ export function buildRecognizeIdentityTool(handles: readonly string[]): ToolDefi
  * 回忆从 A 到 B 怎么走。
  *
  * 只读，但结论会在计划落账时写进自己的记忆，所以它不是纯粹的查询工具。
- * 端点只能是知道真名的场景，见 `route.ts` 的规划规则。
+ * 端点只要求是能解析到的真名，不要求去过：地名写错时整次回忆记为「无法寻路」。
+ * 候选不做成 enum——地名可以来自任何地方，服务端按名字解析，解析不到就是一次失败。
  */
-export function buildRecallRouteTool(stageRefs: readonly string[]): ToolDefinition {
-  const candidates = stageRefs.length > 0 ? { enum: [...stageRefs] } : {};
+export function buildRecallRouteTool(): ToolDefinition {
   return {
     type: "function",
     function: {
       name: "recall_route",
       description: `回忆从 A 到 B 怎么走，结论会写进你自己的记忆（不占行动名额）。
 
-起点与终点必须是你知道名字的场景（用名字，不能用 #序号——#序号 只是路上看得见、还没命名的站位）；中间站可以是不认识的地方，会写成 #序号。能走通就给整条路线；走不通时把断处标成 →[封着]→，可能给出多条。`,
+起点与终点都写场景真名，不能用 #序号（#序号 只是路上看得见、还没命名的站位）；中间站可以是不认识的地方，会写成 #序号。能走通就给整条路线；走不通时把断处标成 →[封着]→，可能给出多条。地名写错（没有这个场景）时，这次回忆会被记成「无法寻路」。`,
       parameters: {
         type: "object",
         properties: {
           from: {
             type: "string",
             description: "起点场景名；省略表示你当前所在的场景。不接受 #序号",
-            ...candidates,
           },
-          to: { type: "string", description: "终点场景名。不接受 #序号", ...candidates },
+          to: { type: "string", description: "终点场景名。不接受 #序号" },
         },
         required: ["to"],
       },

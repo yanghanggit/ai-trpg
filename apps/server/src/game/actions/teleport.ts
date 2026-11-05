@@ -2,7 +2,7 @@ import type { TraceContext } from "../../debug/trace";
 import type { ToolDefinition } from "../../llm/types";
 import { mentionOf } from "../addressing";
 import { appendPublicMessage, bumpGameVersion } from "../apply/messages";
-import { findStageByNameInWorld, isStageKnownToActor } from "../apply/queries";
+import { findStageByNameInWorld } from "../apply/queries";
 import type { ActorWithStageRow, Executor, ResolvedTeleport, WorldRow } from "../apply/types";
 import { GameError } from "../errors";
 import { renderAction, renderEnvironmentChange, withAppearances } from "../observation-text";
@@ -18,13 +18,13 @@ export function buildTeleportTool(): ToolDefinition {
     function: {
       name: "teleport",
       description:
-        "传送到一个你去过、或知道真名的场景；一次跳跃，不沿路径移动，也不产生中间场景的观察。",
+        "传送到一个场景；写它的真名（不能用 #编号）。一次跳跃，不沿路径移动，也不产生中间场景的观察。",
       parameters: {
         type: "object",
         properties: {
           targetStageName: {
             type: "string",
-            description: "目标场景的真名；必须是你去过或已经知道的场景",
+            description: "目标场景的真名；服务端按名字解析场景",
           },
         },
         required: ["targetStageName"],
@@ -33,6 +33,12 @@ export function buildTeleportTool(): ToolDefinition {
   };
 }
 
+/**
+ * 传送只需要真名能对应到一个场景：不查知识账，也不要求去过。
+ *
+ * 只做输入判定：`#序号` 不是名字；目标必须存在、不是当前场景、两端都未禁传。
+ * “知道真名”不是权限——说得出名字就能去，提示词里的候选列表只是一份省事清单。
+ */
 export function parseTeleport(args: Record<string, unknown>): TeleportAction {
   const targetStageName =
     typeof args.targetStageName === "string" ? args.targetStageName.trim() : "";
@@ -50,7 +56,6 @@ export async function resolveTeleport(
   executor: Executor,
   world: WorldRow,
   stage: ResolvedTeleport["stage"],
-  actorId: string,
   action: TeleportAction,
 ): Promise<ResolvedTeleport> {
   // 只认真名：编号与 id 都不是「知道这个地方」的证据。
@@ -66,15 +71,6 @@ export async function resolveTeleport(
   }
   if (targetStage.teleportBlocked) {
     throw new GameError("invalid_action", `目标场景禁止传送: ${targetStage.name}`);
-  }
-  // 底层约束：要么去过，要么知道真名；名字在散文或公共知识里出现过不算。
-  const known = await isStageKnownToActor(executor, {
-    gameId: world.gameId,
-    actorId,
-    stageId: targetStage.id,
-  });
-  if (!known) {
-    throw new GameError("invalid_action", `你还没听说过这个场景: ${targetStage.name}`);
   }
   return { kind: "teleport", action, stage, targetStage };
 }

@@ -179,7 +179,7 @@ export type MoveAction = {
   targetStageName: string;
 };
 
-/** 传送到一个知道真名、且未被 teleport_blocked 的场景；一次一跳，不沿路径移动。 */
+/** 传送到一个真名能解析到、且未被 teleport_blocked 的场景；一次一跳，不沿路径移动。 */
 export type TeleportAction = {
   kind: "teleport";
   targetStageName: string;
@@ -301,6 +301,22 @@ export type RouteQuery = {
   toStageId: string;
 };
 
+/**
+ * 一次失败的路线回忆：端点真名解析不到场景。
+ *
+ * 只存结构（起点 id 或原始引用、终点原始引用、失败类别），文案由引擎在落账时渲染——
+ * 记忆里不接模型转述的整句文本。
+ */
+export type RouteFailure = {
+  /** 起点已解析时是场景 id；起点自己就解析失败时为 undefined。 */
+  fromStageId?: string;
+  /** 起点原始引用；只在起点解析失败时有值。 */
+  fromStageRef?: string;
+  toStageRef: string;
+  /** 解析失败的原因，只用于选择一句固定文案，不透露地形。 */
+  reason: "empty" | "handle_ref" | "unknown_stage" | "ambiguous";
+};
+
 /** 一轮计划：按提交顺序执行的动作列表；条数上限由 `MAX_ACTIONS_PER_TURN` 约束。 */
 export type ActorPlan = {
   actions: ActorAction[];
@@ -308,8 +324,8 @@ export type ActorPlan = {
   identities?: IdentityBinding[];
   /** 路线回忆：同样是自己的认知，端点必须是已解析的场景 id。 */
   routes?: RouteQuery[];
-  /** 认识到场景真名：写进 `known_stages` 并留一条认知，id 由引擎按真名解析。 */
-  learnedStages?: string[];
+  /** 失败的路线回忆：终点真名查不到场景，留一条“寻路失败”的认知。 */
+  routeFailures?: RouteFailure[];
 };
 
 /** stage 小 GM 的一轮仲裁计划：按提交顺序更新 environment 或向 world 发通知。 */
@@ -481,34 +497,17 @@ export type WorldState = {
 };
 
 /**
- * actor 去过哪些场景：名字知识的账本，不是通行证。
+ * actor 去过哪些场景：场景认知的唯一账本，不是通行证。
  *
  * 建局时起点算一次到访，之后每次 move / teleport 到达都记一条（同一场景只刷新
- * `lastVisitedAt`）。它只影响地图、方向名显示、已知场景查看与传送候选提示；
- * move 的权限在邻接边、teleport 的权限在「知道真名」上，两者都不来自这里。
+ * `lastVisitedAt`）。名字认知只来自到访：没走过的场景对 actor 而言只有 `#序号`。
+ * 它只影响地图、方向名显示与查看；move 的权限在邻接边，teleport 只要求真名能对应到场景。
  */
 export type StageVisitState = {
   actorId: string;
   stageId: string;
   firstVisitedAt: string;
   lastVisitedAt: string;
-};
-
-/**
- * actor 知道真名、但不是走到那里才知道的场景。
- *
- * 与 `StageVisitState` 互补：到访天然含名字知识，两份合起来才是「已知场景」
- * （`knownStageIds`）。它只买名字：除地图与方向名，`teleport` 也认它——只知道真名就够
- * 跳过去（不参与 `move` 权限，也不进传送的提示列表；提示只列去过的地方）。
- */
-export type KnownStageState = {
-  actorId: string;
-  stageId: string;
-  firstLearnedAt: string;
-  /** 得知渠道：`content`（开局内容）或 `runtime`（台词、观察，以及将来的鸟瞰 / 望远镜）。 */
-  source: string;
-  /** 在哪个场景听说的；内容直接声明时为 null。 */
-  learnedStageId: string | null;
 };
 
 export type GameState = {
@@ -535,11 +534,6 @@ export type GameState = {
    * 用于地图、已访问候选与查看，不参与普通移动权限。
    */
   visits: StageVisitState[];
-  /**
-   * 非到访得知的场景名，按 `firstLearnedAt` 升序（并列规则同 `visits`）。
-   * 到访过的场景可能也在这里——先听说、后走到；地图按 `visits ∪ knownStages` 取已知。
-   */
-  knownStages: KnownStageState[];
 };
 
 /**
