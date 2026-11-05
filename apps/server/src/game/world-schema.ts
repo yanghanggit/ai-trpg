@@ -21,6 +21,9 @@ const stageActionSchema = z.enum([
   "submit_environment",
   "notify_world",
   "open_passage",
+  "add_anchor",
+  "remove_anchor",
+  "update_anchor",
 ] satisfies readonly StageActionKind[]);
 const worldActionSchema = z.enum(["notify_stage", "end_game"] satisfies readonly WorldActionKind[]);
 /** 内容层给开局关系指定的当前称呼；必须显式写出，不接受隐藏的真名默认值。 */

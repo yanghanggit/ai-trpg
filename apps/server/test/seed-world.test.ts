@@ -200,15 +200,33 @@ describe("dark fantasy seed world", () => {
         expect(item.actions).not.toContain("notify_world");
       }
     }
-    expect(stage("gate").actions).toEqual(["submit_environment", "open_passage"]);
-    expect(stage("mountain-path").actions).toEqual(["submit_environment", "notify_world"]);
+    expect(stage("gate").actions).toEqual([
+      "submit_environment",
+      "open_passage",
+      "add_anchor",
+      "remove_anchor",
+      "update_anchor",
+    ]);
+    expect(stage("mountain-path").actions).toEqual([
+      "submit_environment",
+      "notify_world",
+      "add_anchor",
+      "remove_anchor",
+      "update_anchor",
+    ]);
     expect(stage("graveyard").anchors).toEqual([
       { key: "lock", label: "锁孔", description: "铁闸门上被干蜡塞住的锁孔。" },
     ]);
     expect(stage("gate").anchors).toEqual([
       { key: "lock", label: "锁孔", description: "铁闸门上被干蜡塞住的锁孔。" },
     ]);
-    expect(stage("cellar").actions).toEqual(["submit_environment", "notify_world"]);
+    expect(stage("cellar").actions).toEqual([
+      "submit_environment",
+      "notify_world",
+      "add_anchor",
+      "remove_anchor",
+      "update_anchor",
+    ]);
     expect(stage("cellar").anchors).toEqual([
       { key: "nest", label: "鼠窝", description: "地窖尽头由骨渣、破布和啃断的钥匙串堆成的鼠窝。" },
     ]);

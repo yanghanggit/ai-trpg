@@ -18,6 +18,9 @@ export const MAX_AFFIX_EFFECTS = 2;
 /** 一个场景最多保留的可交互锚点数。 */
 export const MAX_STAGE_ANCHORS = 8;
 
+/** 一轮 stage 最多进行的锚点增删改条数：锚点变化是场景级事实，一轮一改。 */
+export const MAX_STAGE_ANCHOR_WRITES_PER_TURN = 1;
+
 /** 未指定时的 NPC loop 最大轮数。 */
 export const DEFAULT_NPC_MAX_ROUNDS = 4;
 
@@ -28,10 +31,11 @@ export const DEFAULT_NPC_MAX_ROUNDS = 4;
 export const DEFAULT_LLM_ERROR_RETRIES = 2;
 
 /**
- * stage 小 GM 的轮数上限：environment + open_passage + 两条通知 + submit_stage_plan，
- * 再加一次纠偏。与动作上限绑在一起，保证「按任务提示正常规划」在结构上能完成一轮。
+ * stage 小 GM 的轮数上限：environment + 锚点一次 + open_passage + 两条通知 +
+ * submit_stage_plan，再加一次纠偏。与动作上限绑在一起，保证「按任务提示正常规划」
+ * 在结构上能完成一轮。
  */
-export const DEFAULT_STAGE_MAX_ROUNDS = MAX_STAGE_NOTIFICATIONS_PER_TURN + 4;
+export const DEFAULT_STAGE_MAX_ROUNDS = MAX_STAGE_NOTIFICATIONS_PER_TURN + 5;
 
 /** world 的轮数上限：一次定位 + 全部写动作 + 提交 + 一次纠偏余量。 */
 export const DEFAULT_WORLD_MAX_ROUNDS = MAX_WORLD_ACTIONS_PER_TURN + 3;

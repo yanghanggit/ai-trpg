@@ -45,6 +45,110 @@ export function buildSubmitStagePlanTool(): ToolDefinition {
   };
 }
 
+export function buildAddAnchorTool(): ToolDefinition {
+  return {
+    type: "function",
+    function: {
+      name: "add_anchor",
+      description:
+        "新增一个可交互锚点；标签场景内唯一，描述可选。锚点只是可供性，不承载效果与后果。",
+      parameters: {
+        type: "object",
+        properties: {
+          label: { type: "string", description: "锚点短标签" },
+          description: { type: "string", description: "可选的可观察细节" },
+        },
+        required: ["label"],
+      },
+    },
+  };
+}
+
+export function buildRemoveAnchorTool(availableAnchors: readonly string[]): ToolDefinition {
+  return {
+    type: "function",
+    function: {
+      name: "remove_anchor",
+      description: "移除一个可交互锚点；它上面的物品会一起移除。",
+      parameters: {
+        type: "object",
+        properties: {
+          targetAnchor: {
+            type: "string",
+            description: "要移除的锚点标签",
+            ...(availableAnchors.length > 0 ? { enum: [...availableAnchors] } : {}),
+          },
+        },
+        required: ["targetAnchor"],
+      },
+    },
+  };
+}
+
+export function buildUpdateAnchorTool(availableAnchors: readonly string[]): ToolDefinition {
+  return {
+    type: "function",
+    function: {
+      name: "update_anchor",
+      description:
+        "改写一个可交互锚点：提交它的完整文本，省略 description 表示没有描述；改标签不影响挂在上面的物品。",
+      parameters: {
+        type: "object",
+        properties: {
+          targetAnchor: {
+            type: "string",
+            description: "要改写的锚点当前标签",
+            ...(availableAnchors.length > 0 ? { enum: [...availableAnchors] } : {}),
+          },
+          label: { type: "string", description: "改写后的标签" },
+          description: { type: "string", description: "改写后的可观察细节；省略表示没有描述" },
+        },
+        required: ["targetAnchor", "label"],
+      },
+    },
+  };
+}
+
+/** 解析新增锚点；文本语义在 applyStagePlan 里统一校验。 */
+export function parseAddAnchor(args: Record<string, unknown>): StageAction {
+  const label = typeof args.label === "string" ? args.label.trim() : "";
+  if (label.length === 0) {
+    throw new GameError("invalid_action", "add_anchor 需要非空 label");
+  }
+  const description = typeof args.description === "string" ? args.description.trim() : "";
+  return {
+    kind: "add_anchor",
+    label,
+    ...(description.length > 0 ? { description } : {}),
+  };
+}
+
+export function parseRemoveAnchor(args: Record<string, unknown>): StageAction {
+  const targetAnchor = typeof args.targetAnchor === "string" ? args.targetAnchor.trim() : "";
+  if (targetAnchor.length === 0) {
+    throw new GameError("invalid_action", "remove_anchor 需要非空 targetAnchor");
+  }
+  return { kind: "remove_anchor", targetAnchor };
+}
+
+export function parseUpdateAnchor(args: Record<string, unknown>): StageAction {
+  const targetAnchor = typeof args.targetAnchor === "string" ? args.targetAnchor.trim() : "";
+  const label = typeof args.label === "string" ? args.label.trim() : "";
+  if (targetAnchor.length === 0) {
+    throw new GameError("invalid_action", "update_anchor 需要非空 targetAnchor");
+  }
+  if (label.length === 0) {
+    throw new GameError("invalid_action", "update_anchor 需要非空 label");
+  }
+  const description = typeof args.description === "string" ? args.description.trim() : "";
+  return {
+    kind: "update_anchor",
+    targetAnchor,
+    label,
+    ...(description.length > 0 ? { description } : {}),
+  };
+}
+
 /** 把一条需要世界知晓的场景报告加入本轮计划。 */
 export function buildNotifyWorldTool(): ToolDefinition {
   return {

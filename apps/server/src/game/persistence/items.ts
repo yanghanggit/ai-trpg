@@ -27,6 +27,19 @@ export async function listStageItems(
     .orderBy(asc(stageItems.seq));
 }
 
+/** 移除锚点上的全部物品；返回被移除的行数。 */
+export async function deleteStageItemsByAnchor(
+  executor: Executor,
+  stageId: string,
+  anchorKey: string,
+): Promise<number> {
+  const removed = await executor
+    .delete(stageItems)
+    .where(and(eq(stageItems.stageId, stageId), eq(stageItems.anchorKey, anchorKey)))
+    .returning({ id: stageItems.id });
+  return removed.length;
+}
+
 /** 读某个 actor 名下的某件物品（按稳定 id，不按名字）。 */
 export async function loadActorItem(
   executor: Executor,

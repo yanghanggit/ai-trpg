@@ -30,6 +30,24 @@ export async function listStagesOfWorld(executor: Executor, worldId: string): Pr
   return executor.select().from(stages).where(eq(stages.worldId, worldId));
 }
 
+/** 写入完整的锚点列表；增删改由 stage 回合校验后整体覆盖。 */
+export async function setStageAnchors(
+  executor: Executor,
+  stageId: string,
+  anchors: readonly { key: string; label: string; description?: string }[],
+): Promise<void> {
+  await executor
+    .update(stages)
+    .set({
+      anchors: anchors.map((anchor) => ({
+        key: anchor.key,
+        label: anchor.label,
+        ...(anchor.description === undefined ? {} : { description: anchor.description }),
+      })),
+    })
+    .where(eq(stages.id, stageId));
+}
+
 /** 场景的写操作；stage 回合只调用这里，不直接拼 SQL。 */
 export async function setStageEnvironment(
   executor: Executor,

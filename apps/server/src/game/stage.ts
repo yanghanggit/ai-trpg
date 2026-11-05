@@ -9,6 +9,8 @@ import { isAlive, listActorNamesInWorld } from "./apply/queries";
 import {
   DEFAULT_LLM_ERROR_RETRIES,
   DEFAULT_STAGE_MAX_ROUNDS,
+  MAX_STAGE_ANCHOR_WRITES_PER_TURN,
+  MAX_STAGE_ANCHORS,
   MAX_STAGE_NOTIFICATIONS_PER_TURN,
   MEMORY_KINDS,
 } from "./constants";
@@ -17,18 +19,30 @@ import { appendMemoryMessages, ensureStageOpeningSnapshot, loadAgentMemory } fro
 import { appendStageMemory } from "./observations";
 import { isPassageSealed, openPassage } from "./persistence/edges";
 import { lockGameRow } from "./persistence/games";
-import { listStagesOfWorld, loadStageInWorld, setStageEnvironment } from "./persistence/stages";
+import { deleteStageItemsByAnchor, listStageItems } from "./persistence/items";
+import {
+  listStagesOfWorld,
+  loadStageInWorld,
+  setStageAnchors,
+  setStageEnvironment,
+} from "./persistence/stages";
 import { loadWorldByGame } from "./persistence/worlds";
 import {
+  buildAddAnchorTool,
   buildNotifyWorldTool,
   buildObserveActorTool,
   buildOpenPassageTool,
+  buildRemoveAnchorTool,
   buildSubmitEnvironmentTool,
   buildSubmitStagePlanTool,
+  buildUpdateAnchorTool,
   describeObservedActor,
   describeStageAnchors,
+  parseAddAnchor,
   parseEnvironment,
   parseOpenPassage,
+  parseRemoveAnchor,
+  parseUpdateAnchor,
   parseWorldNotification,
 } from "./plan";
 import { getGameStateSlice, readTurnDelivery } from "./read/game-state";
@@ -49,6 +63,14 @@ export function buildStageTurnInput(state: GameStateSlice, stage: StageState): s
   const canSubmit = stage.actions.includes("submit_environment");
   const canOpen = stage.actions.includes("open_passage");
   const canNotify = stage.actions.includes("notify_world");
+  const canAddAnchor = stage.actions.includes("add_anchor");
+  const canRemoveAnchor = stage.actions.includes("remove_anchor");
+  const canUpdateAnchor = stage.actions.includes("update_anchor");
+  const anchorTools = [
+    ...(canAddAnchor ? ["add_anchor"] : []),
+    ...(canRemoveAnchor ? ["remove_anchor"] : []),
+    ...(canUpdateAnchor ? ["update_anchor"] : []),
+  ];
   const actorLines =
     stage.actors.length === 0
       ? "无"
@@ -69,7 +91,12 @@ export function buildStageTurnInput(state: GameStateSlice, stage: StageState): s
           "environment 是完整快照，不是差异；同一轮多次提交时后一次覆盖前一次。",
         ]
       : []),
-    "可交互锚点由内容层固定，本轮不提交、也不能修改；它们只是可供性，不是状态。",
+    ...(anchorTools.length > 0
+      ? [
+          `锚点是场景的可供性，可由你调整：${anchorTools.join(" / ")}。标签场景内唯一，总数有上限；移除锚点会连同其上的物品一起移除；改标签不影响挂在上面的物品。`,
+          "锚点不承载效果与后果；某个锚点要怎么才算可用（例如必须先完成某件事），写在本场景设定里，由你裁决。",
+        ]
+      : ["可交互锚点由内容层固定，本轮不提交、也不能修改；它们只是可供性，不是状态。"]),
     ...(canOpen ? ["打开未开启的通道用 open_passage；它不通知世界，也不改变对面场景。"] : []),
     ...(canNotify
       ? [
@@ -77,7 +104,7 @@ export function buildStageTurnInput(state: GameStateSlice, stage: StageState): s
         ]
       : []),
     "本轮结束时调用 submit_stage_plan 提交计划；没有改动就提交空计划。",
-    "只读工具（observe_actor）可以多次调用，不占额度；本轮会写库的动作最多：environment 一次、通道一条、world 通知两条。",
+    "只读工具（observe_actor）可以多次调用，不占额度；本轮会写库的动作最多：environment 一次、锚点一次、通道一条、world 通知两条。",
   ];
 
   return `# 当前场景
@@ -108,6 +135,107 @@ ${taskLines.join("\n")}`;
 
 function assertEnvironmentHasNoLeaks(environment: string, actorNames: readonly string[]): void {
   assertWorldFaceText(environment, actorNames, "environment");
+}
+
+type StoredAnchor = { key: string; label: string; description?: string };
+type AnchorWrite = Extract<StageAction, { kind: "add_anchor" | "remove_anchor" | "update_anchor" }>;
+
+function isAnchorWrite(action: StageAction): action is AnchorWrite {
+  return (
+    action.kind === "add_anchor" ||
+    action.kind === "remove_anchor" ||
+    action.kind === "update_anchor"
+  );
+}
+
+function anchorText(text: string, actorNames: readonly string[], what: string): string {
+  const value = text.trim();
+  if (value.length === 0) {
+    throw new GameError("invalid_action", `${what} 不能为空。`);
+  }
+  if (/[\r\n]/.test(value)) {
+    throw new GameError("invalid_action", `${what} 不能换行。`);
+  }
+  assertWorldFaceText(value, actorNames, what);
+  return value;
+}
+
+function describeStoredAnchors(anchors: readonly StoredAnchor[]): string {
+  return anchors.length === 0
+    ? "无"
+    : anchors
+        .map((anchor) =>
+          anchor.description ? `- ${anchor.label}：${anchor.description}` : `- ${anchor.label}`,
+        )
+        .join("\n");
+}
+
+/**
+ * 纯计算：校验一条锚点变更并返回新列表与摘要。物品挂在锚点的 key 上：
+ * 改写标签不换 key，移除锚点则连带移除它上面的物品。
+ */
+function computeAnchorChange(
+  current: readonly StoredAnchor[],
+  itemsByAnchor: ReadonlyMap<string, readonly string[]>,
+  action: AnchorWrite,
+  actorNames: readonly string[],
+): { anchors: StoredAnchor[]; summary: string; removedAnchorKey?: string } {
+  const anchors = current.map((anchor) => ({ ...anchor }));
+  if (action.kind === "add_anchor") {
+    if (anchors.length >= MAX_STAGE_ANCHORS) {
+      throw new GameError("invalid_action", `锚点最多 ${MAX_STAGE_ANCHORS} 个。`);
+    }
+    const label = anchorText(action.label, actorNames, "锚点 label");
+    if (anchors.some((anchor) => anchor.label === label)) {
+      throw new GameError("invalid_action", `锚点 label 重复：${label}。`);
+    }
+    const description =
+      action.description === undefined
+        ? undefined
+        : anchorText(action.description, actorNames, "锚点 description");
+    anchors.push({
+      key: randomUUID(),
+      label,
+      ...(description === undefined ? {} : { description }),
+    });
+    return { anchors, summary: `新增：${label}` };
+  }
+
+  const index = anchors.findIndex((anchor) => anchor.label === action.targetAnchor);
+  const target = anchors[index];
+  if (!target) {
+    throw new GameError("invalid_action", `当前场景没有这个可交互锚点: ${action.targetAnchor}`);
+  }
+  if (action.kind === "remove_anchor") {
+    const removedItems = itemsByAnchor.get(target.key) ?? [];
+    anchors.splice(index, 1);
+    return {
+      anchors,
+      summary:
+        removedItems.length === 0
+          ? `移除：${target.label}`
+          : `移除：${target.label}（带走 ${removedItems.join("、")}）`,
+      removedAnchorKey: target.key,
+    };
+  }
+
+  const label = anchorText(action.label, actorNames, "锚点 label");
+  if (anchors.some((anchor, currentIndex) => currentIndex !== index && anchor.label === label)) {
+    throw new GameError("invalid_action", `锚点 label 重复：${label}。`);
+  }
+  const description =
+    action.description === undefined
+      ? undefined
+      : anchorText(action.description, actorNames, "锚点 description");
+  anchors[index] = {
+    key: target.key,
+    label,
+    ...(description === undefined ? {} : { description }),
+  };
+  return {
+    anchors,
+    summary: target.label === label ? `更新：${label}` : `更新：${target.label} → ${label}`,
+  };
 }
 
 /** 计划非法时写入 stage memory 并返回 false；数据库错误继续抛出。 */
@@ -177,6 +305,7 @@ export async function applyStagePlan(
     const passages = plan.actions.flatMap((action) =>
       action.kind === "open_passage" ? [action.targetStageName] : [],
     );
+    const anchorWrites = plan.actions.filter(isAnchorWrite);
     if (environments.length > 1) {
       return reject("本轮最多一次 environment 更新。", MEMORY_KINDS.actionRejected);
     }
@@ -194,6 +323,50 @@ export async function applyStagePlan(
     }
     if (passages.length > 0 && !stageActions.includes("open_passage")) {
       return reject("通道变更被拒绝：本场景没有 open_passage 能力。", MEMORY_KINDS.actionRejected);
+    }
+    if (anchorWrites.length > MAX_STAGE_ANCHOR_WRITES_PER_TURN) {
+      return reject(
+        `本轮最多调整 ${MAX_STAGE_ANCHOR_WRITES_PER_TURN} 个锚点。`,
+        MEMORY_KINDS.actionRejected,
+      );
+    }
+    for (const action of anchorWrites) {
+      if (!stageActions.includes(action.kind)) {
+        return reject(
+          `锚点变更被拒绝：本场景没有 ${action.kind} 能力。`,
+          MEMORY_KINDS.actionRejected,
+        );
+      }
+    }
+    let anchorChange: {
+      action: AnchorWrite;
+      anchors: StoredAnchor[];
+      summary: string;
+      removedAnchorKey?: string;
+    } | null = null;
+    if (anchorWrites.length > 0 && anchorWrites[0]) {
+      const stored: StoredAnchor[] = stage.anchors.map((anchor) => ({
+        key: anchor.key,
+        label: anchor.label,
+        ...(anchor.description === undefined ? {} : { description: anchor.description }),
+      }));
+      const itemsByAnchor = new Map<string, string[]>();
+      for (const item of await listStageItems(tx, stage.id)) {
+        const list = itemsByAnchor.get(item.anchorKey) ?? [];
+        list.push(item.name);
+        itemsByAnchor.set(item.anchorKey, list);
+      }
+      try {
+        anchorChange = {
+          action: anchorWrites[0],
+          ...computeAnchorChange(stored, itemsByAnchor, anchorWrites[0], actorNames),
+        };
+      } catch (error) {
+        if (!(error instanceof GameError)) {
+          throw error;
+        }
+        return reject(`锚点变更被拒绝：${error.message}`, MEMORY_KINDS.actionRejected);
+      }
     }
 
     const stagesOfWorld = await listStagesOfWorld(tx, world.id);
@@ -277,6 +450,37 @@ export async function applyStagePlan(
         continue;
       }
 
+      if (
+        action.kind === "add_anchor" ||
+        action.kind === "remove_anchor" ||
+        action.kind === "update_anchor"
+      ) {
+        if (!anchorChange || anchorChange.action !== action) {
+          throw new GameError("invalid_state", "锚点变更没有通过校验");
+        }
+        if (anchorChange.removedAnchorKey !== undefined) {
+          await deleteStageItemsByAnchor(tx, stage.id, anchorChange.removedAnchorKey);
+        }
+        await setStageAnchors(tx, stage.id, anchorChange.anchors);
+        const content = `${stage.name}的可交互点发生了变化。\n${anchorChange.summary}\n${describeStoredAnchors(anchorChange.anchors)}`;
+        await appendPublicMessage(tx, gameId, null, {
+          kind: "anchor_change",
+          stageId: stage.id,
+          visibility: "stage",
+          content,
+        });
+        await appendStageMemory(
+          tx,
+          gameId,
+          stage.id,
+          `# 场景事件\n${content}`,
+          { eventKind: "anchor_change" },
+          trace,
+        );
+        await traceEvent(trace, { event: "applied", actionKind: action.kind, feedback: content });
+        continue;
+      }
+
       await appendWorldNotification(tx, gameId, world.id, stage, action.notification, trace);
       await appendStageMemory(
         tx,
@@ -332,10 +536,17 @@ export async function runStageTurn(
   const canNotify = stage.actions.includes("notify_world");
   const sealed = sealedStageNames(state, stage.id);
   const canOpen = stage.actions.includes("open_passage") && sealed.length > 0;
+  const canAddAnchor = stage.actions.includes("add_anchor");
+  const canRemoveAnchor = stage.actions.includes("remove_anchor");
+  const canUpdateAnchor = stage.actions.includes("update_anchor");
   const submitTool = buildSubmitEnvironmentTool();
   const planTool = buildSubmitStagePlanTool();
   const notifyTool = buildNotifyWorldTool();
   const openTool = buildOpenPassageTool(sealed);
+  const anchorLabels = stage.anchors.map((anchor) => anchor.label);
+  const addAnchorTool = buildAddAnchorTool();
+  const removeAnchorTool = buildRemoveAnchorTool(anchorLabels);
+  const updateAnchorTool = buildUpdateAnchorTool(anchorLabels);
   const actions: StageAction[] = [];
   let submitted: StagePlan | null = null;
 
@@ -344,6 +555,18 @@ export async function runStageTurn(
     const plan = { actions: actions.map((action) => ({ ...action })) };
     submitted = plan;
     return plan;
+  };
+
+  /** 锚点一轮只调一次：超出额度在工具层就给反馈，不浪费一个回合。 */
+  const pushAnchor = (action: StageAction): void => {
+    if (actions.filter(isAnchorWrite).length >= MAX_STAGE_ANCHOR_WRITES_PER_TURN) {
+      throw new GameError(
+        "invalid_action",
+        `本轮最多调整 ${MAX_STAGE_ANCHOR_WRITES_PER_TURN} 个锚点`,
+      );
+    }
+    actions.push(action);
+    submit();
   };
 
   const loop = await agentLoop({
@@ -355,6 +578,9 @@ export async function runStageTurn(
       ...(canSubmit ? [submitTool] : []),
       ...(canNotify ? [notifyTool] : []),
       ...(canOpen ? [openTool] : []),
+      ...(canAddAnchor ? [addAnchorTool] : []),
+      ...(canRemoveAnchor ? [removeAnchorTool] : []),
+      ...(canUpdateAnchor ? [updateAnchorTool] : []),
       planTool,
     ],
     handlers: {
@@ -411,6 +637,30 @@ export async function runStageTurn(
               actions.push(parseOpenPassage(args));
               submit();
               return "通道开启已加入本轮计划";
+            },
+          }
+        : {}),
+      ...(canAddAnchor
+        ? {
+            [addAnchorTool.function.name]: (args: Record<string, unknown>) => {
+              pushAnchor(parseAddAnchor(args));
+              return "锚点已加入本轮计划";
+            },
+          }
+        : {}),
+      ...(canRemoveAnchor
+        ? {
+            [removeAnchorTool.function.name]: (args: Record<string, unknown>) => {
+              pushAnchor(parseRemoveAnchor(args));
+              return "锚点移除已加入本轮计划";
+            },
+          }
+        : {}),
+      ...(canUpdateAnchor
+        ? {
+            [updateAnchorTool.function.name]: (args: Record<string, unknown>) => {
+              pushAnchor(parseUpdateAnchor(args));
+              return "锚点更新已加入本轮计划";
             },
           }
         : {}),

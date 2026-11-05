@@ -280,7 +280,10 @@ export type ItemEventKind = Extract<ActionKind, "steal" | "give" | "pickup" | "u
 export type StageAction =
   | { kind: "submit_environment"; environment: string }
   | { kind: "notify_world"; notification: string }
-  | { kind: "open_passage"; targetStageName: string };
+  | { kind: "open_passage"; targetStageName: string }
+  | { kind: "add_anchor"; label: string; description?: string }
+  | { kind: "remove_anchor"; targetAnchor: string }
+  | { kind: "update_anchor"; targetAnchor: string; label: string; description?: string };
 
 /** 场景作为小 GM 能执行的动作；能力清单成员，由 `StageAction` 派生。 */
 export type StageActionKind = StageAction["kind"];
