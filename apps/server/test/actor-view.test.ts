@@ -46,6 +46,10 @@ describe.skipIf(!testDatabaseUrl)("actor view", () => {
       ["地窖", "焚尸房", "铁闸门"].sort(),
     );
     expect(view.scene?.exits.every((exit) => /^#\d+$/.test(exit.ref))).toBe(true);
+    // 锚点是公共标签，不走观察者遮蔽。
+    expect(view.scene?.anchors).toEqual([
+      { label: "锁孔", description: "铁闸门上被干蜡塞住的锁孔。" },
+    ]);
 
     const self = view.scene?.actors.find((actor) => actor.self);
     expect(self?.actorId).toBe(view.viewer.actorId);

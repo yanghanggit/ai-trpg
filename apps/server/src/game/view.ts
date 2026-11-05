@@ -8,7 +8,13 @@ import { getMemoryState } from "./memory";
 import { getGameStateSlice } from "./read/game-state";
 import { handleOf } from "./reference";
 import { knownStagesForActor, visitedTeleportTargetsFor } from "./teleport";
-import type { GameStateSlice, PassageState, SignatureNameState } from "./types";
+import type {
+  GameStateSlice,
+  PassageState,
+  SignatureNameState,
+  StageAnchor,
+  StageState,
+} from "./types";
 
 /**
  * 客户端用的「世界面」投影。
@@ -34,6 +40,8 @@ export type ViewerScene = {
   name: string;
   environment: string;
   items: { name: string; kind: string; description: string }[];
+  /** 公共标签，不做观察者遮蔽。 */
+  anchors: StageAnchor[];
   actors: ViewerAddress[];
   /** 出口同时给真实场景名与 #实体序号，客户端可自行决定遮蔽。 */
   exits: { stageId: string; name: string; ref: string }[];
@@ -100,6 +108,13 @@ const LOG_KINDS = new Set<string>([
   MEMORY_KINDS.learnedStage,
   MEMORY_KINDS.compactedMemory,
 ]);
+
+function anchorsOf(stage: Pick<StageState, "anchors">): StageAnchor[] {
+  return stage.anchors.map((anchor) => ({
+    label: anchor.label,
+    ...(anchor.description === undefined ? {} : { description: anchor.description }),
+  }));
+}
 
 function memoryKind(metadata: unknown): string {
   if (typeof metadata !== "object" || metadata === null) {
@@ -174,6 +189,7 @@ export async function getActorView(
         kind: item.kind,
         description: item.description,
       })),
+      anchors: anchorsOf(stage),
       actors,
       exits: adjacentStages(state, stage.id).map((exit) => ({
         stageId: exit.id,
@@ -284,10 +300,7 @@ export async function getStageView(
       id: stage.id,
       name: stage.name,
       environment: stage.environment,
-      anchors: stage.anchors.map((anchor) => ({
-        label: anchor.label,
-        ...(anchor.description === undefined ? {} : { description: anchor.description }),
-      })),
+      anchors: anchorsOf(stage),
       items: stage.items.map((item) => ({
         name: item.name,
         kind: item.kind,

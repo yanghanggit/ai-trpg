@@ -95,15 +95,9 @@ class SubmitThenNotifyService implements ChatCompletionService {
 
 class CapturingWaitService implements ChatCompletionService {
   inputMessage = "";
-  useAnchorEnum: string[] | undefined;
 
   async complete(request: Parameters<ChatCompletionService["complete"]>[0]) {
     this.inputMessage = request.inputMessage;
-    const use = request.tools?.find((tool) => tool.function.name === "use");
-    const properties = use?.function.parameters.properties as
-      | Record<string, { enum?: string[] }>
-      | undefined;
-    this.useAnchorEnum = properties?.targetAnchor?.enum;
     const toolCalls: ToolCall[] = [
       {
         id: randomUUID(),
