@@ -193,9 +193,9 @@ describe("dark fantasy seed world", () => {
     expect(actionsOf("无名者")).toContain("steal");
     expect(actionsOf("奥德里克")).not.toContain("steal");
 
-    // 所有场景都必须能更新 environment；向 world 报告的只有山道、地窖与钟窖，
+    // 所有场景都必须能更新 environment；向 world 报告的只有山道与钟窖，
     // 能改变连通性的只有铁闸门与地窖。
-    const reporting = new Set(["mountain-path", "cellar", "bell-crypt"]);
+    const reporting = new Set(["mountain-path", "bell-crypt"]);
     for (const item of stages) {
       expect(item.actions).toContain("submit_environment");
       if (!reporting.has(item.key)) {
@@ -224,7 +224,6 @@ describe("dark fantasy seed world", () => {
     ]);
     expect(stage("cellar").actions).toEqual([
       "submit_environment",
-      "notify_world",
       "open_passage",
       "add_anchor",
       "remove_anchor",
@@ -330,7 +329,7 @@ describe("dark fantasy seed world", () => {
     ]);
     const king = BELL_MONASTERY_WORLD.actors.find((actor) => actor.name === "鼠王");
     expect(king?.openingBriefing).toContain("记得后墙的祭坛后面还有一处地方");
-    expect(king?.openingBriefing).toContain("现在那道门封着");
+    expect(king?.openingBriefing).toContain("门现在封着，你过不去");
   });
 
   it("keeps the public knowledge base free of actor secrets", () => {
