@@ -79,13 +79,17 @@ export function adjacentStageNames(state: GameStateSlice, stageId: string): stri
 }
 
 /** 剧情上相连、但当前不可通过的场景；供 stage 小 GM 判断能否 open_passage。 */
-export function sealedStageNames(state: GameStateSlice, stageId: string): string[] {
+export function sealedStages(state: GameStateSlice, stageId: string): StageState[] {
   const byId = new Map(state.world.stages.map((stage) => [stage.id, stage]));
   const edges = buildEdgeIndex(state.world.connections);
   return sealedNeighborIds(edges, stageId).flatMap((id) => {
     const stage = byId.get(id);
-    return stage ? [stage.name] : [];
+    return stage ? [stage] : [];
   });
+}
+
+export function sealedStageNames(state: GameStateSlice, stageId: string): string[] {
+  return sealedStages(state, stageId).map((stage) => stage.name);
 }
 
 /**

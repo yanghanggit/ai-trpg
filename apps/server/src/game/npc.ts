@@ -61,6 +61,7 @@ import {
   parseRecallRoute,
   parseRecognizeIdentity,
   renderStageEnvironmentForActor,
+  sealedVisitedStageRefsForActor,
   stageItemNames,
 } from "./plan";
 import { getGameStateSlice, readTurnDelivery } from "./read/game-state";
@@ -101,6 +102,8 @@ function canObserveActorItems(actor: Pick<ActorState, "actions">): boolean {
 /** 构造 actor 本轮的公开环境与任务说明；NPC 与探针共用。 */
 export function buildActorTurnInput(state: GameStateSlice, current: ActorWithStage): string {
   const moves = adjacentStageRefsForActor(state, current);
+  // 去过、但现在封着的出口：记忆里的一道门。它不能走，只是认得出来。
+  const remembered = sealedVisitedStageRefsForActor(state, current);
   const others = otherActorsInStage(current.stage, current.actor.id);
   const address = addressLookupFor(state, current.actor, current.stage);
   const selfHandle = address(current.actor.id).token;
@@ -182,7 +185,12 @@ ${anchorLines}
 ${targetLines}
 
 ## 可移动至
-${moveLines}
+${moveLines}${
+  remembered.length === 0
+    ? ""
+    : `\n\n## 记得封着的出口（认得出，但过不去）
+${remembered.join("、")}`
+}
 ${
   canTeleport
     ? `

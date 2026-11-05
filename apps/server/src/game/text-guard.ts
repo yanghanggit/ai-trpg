@@ -17,7 +17,7 @@ import {
  * 不再有一种「带标记的引用」需要单独拦。
  */
 
-export type TextLeakCode = "handle" | "actor_name";
+export type TextLeakCode = "handle" | "actor_name" | "stage_name";
 
 export type TextLeak = {
   code: TextLeakCode;
@@ -38,6 +38,7 @@ function escapeRegExp(value: string): string {
  * 找出文本里不应出现在世界面的内容。
  *
  * 场景名、道具名是公共标签，出现在自然叙述里合法；这里只拦编号与角色本名。
+ * 场景名的泄漏与否要看连通性，单独走 `findStageNameLeaks`。
  */
 export function findTextLeaks(
   text: string,
@@ -60,6 +61,23 @@ export function findTextLeaks(
     }
   }
   return [...found.values()];
+}
+
+/**
+ * 场景名泄漏：相邻场景的真名能不能写进可观察文本，取决于那条边通没通。
+ *
+ * 「北面的门缠着三圈铁链」这种话本身就是环境；但一句话就把还没打通、演员根本不知道
+ * 存在的场景点出来，等于替演员做了发现。所以 environment / 锚点文本只能点名
+ * 「从本场景走得到的场景」，本场景自己的名字与写作者显式放行的名单不受限制。
+ */
+export function findStageNameLeaks(
+  text: string,
+  stageNames: readonly string[],
+  allowed: ReadonlySet<string>,
+): TextLeak[] {
+  return stageNames
+    .filter((name) => name.length > 0 && !allowed.has(name) && text.includes(name))
+    .map((name) => ({ code: "stage_name" as const, token: name }));
 }
 
 /** 台词与叙述里不能出现编号：模型或玩家照抄引用会污染世界面。 */
@@ -88,6 +106,35 @@ export function assertWorldFaceText(
     throw new GameError(
       "invalid_action",
       `${label} 不能包含角色名或编号引用: ${leaks.map((leak) => leak.token).join("、")}`,
+    );
+  }
+}
+
+/**
+ * 场景侧写入守卫：在角色名 / 编号之外，再拦住「演员本来不知道的场景名」。
+ *
+ * 只能点名「从本场景走得到的场景」；未通的边对面叫什么，得靠发现与对话浮出来，
+ * 不能由环境文本替演员宣布。
+ */
+export function assertStageFacingText(
+  text: string,
+  input: {
+    actorNames: readonly string[];
+    stageNames: readonly string[];
+    visibleStageNames: ReadonlySet<string>;
+    label: string;
+  },
+): void {
+  const leaks = [
+    ...findTextLeaks(text, input.actorNames),
+    ...findStageNameLeaks(text, input.stageNames, input.visibleStageNames),
+  ];
+  if (leaks.length > 0) {
+    throw new GameError(
+      "invalid_action",
+      `${input.label} 不能包含角色名、编号引用或尚未打通的场景名: ${leaks
+        .map((leak) => leak.token)
+        .join("、")}`,
     );
   }
 }

@@ -1,6 +1,6 @@
 import type { z } from "zod";
 import { NAME_MARKER_PATTERN } from "./reference";
-import { findTextLeaks } from "./text-guard";
+import { findStageNameLeaks, findTextLeaks } from "./text-guard";
 import { WORLD_FUNCTION_TYPES } from "./types";
 import type { World } from "./world-definition";
 
@@ -16,13 +16,40 @@ export function checkWorldInvariants(world: World, ctx: z.RefinementCtx): void {
   // 名字就是名字：角色与场景在 world 内全局唯一，且不能带系统标记字符。
   checkEntityNamesUnique(world, ctx);
   const actorNames = world.actors.map((actor) => actor.name);
+  const stageNames = world.stages.map((stage) => stage.name);
+  // 环境文本只能点名「从本场景走得到的场景」；未通的通道对面叫什么，要靠发现与对话浮出来。
+  const visibleStageNames = (stageKey: string): Set<string> => {
+    const visible = new Set<string>();
+    for (const stage of world.stages) {
+      if (stage.key === stageKey) {
+        visible.add(stage.name);
+      }
+    }
+    for (const connection of world.connections) {
+      if (connection.passage !== undefined && connection.passage !== "open") {
+        continue;
+      }
+      if (connection.from === stageKey || connection.to === stageKey) {
+        const neighbor = world.stages.find(
+          (stage) => stage.key === (connection.from === stageKey ? connection.to : connection.from),
+        );
+        if (neighbor) {
+          visible.add(neighbor.name);
+        }
+      }
+    }
+    return visible;
+  };
   world.stages.forEach((stage, index) => {
     checkEntityName(stage.name, ["stages", index, "name"], ctx);
-    const leaks = findTextLeaks(stage.environment, actorNames);
+    const leaks = [
+      ...findTextLeaks(stage.environment, actorNames),
+      ...findStageNameLeaks(stage.environment, stageNames, visibleStageNames(stage.key)),
+    ];
     if (leaks.length > 0) {
       ctx.addIssue({
         code: "custom",
-        message: `environment 不能包含角色名或编号引用: ${leaks
+        message: `environment 不能包含角色名、编号引用或尚未打通的场景名: ${leaks
           .map((leak) => leak.token)
           .join("、")}`,
         path: ["stages", index, "environment"],

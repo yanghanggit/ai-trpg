@@ -498,7 +498,8 @@ export type StageVisitState = {
  * actor 知道真名、但不是走到那里才知道的场景。
  *
  * 与 `StageVisitState` 互补：到访天然含名字知识，两份合起来才是「已知场景」
- * （`knownStageIds`）。它只影响地图、方向名与提示词，不参与 move 权限，也不扩传送候选。
+ * （`knownStageIds`）。它只买名字：除地图与方向名，`teleport` 也认它——只知道真名就够
+ * 跳过去（不参与 `move` 权限，也不进传送的提示列表；提示只列去过的地方）。
  */
 export type KnownStageState = {
   actorId: string;

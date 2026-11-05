@@ -104,6 +104,20 @@ describe.skipIf(!testDatabaseUrl)("teleport", () => {
     expect(state.messages.at(-1)?.kind).toBe("teleport");
   });
 
+  it("only accepts a stage name: #编号 is not knowledge", async () => {
+    const created = await createGameWith("传送编号测试局", teleportWorld());
+    const state = await getGameState(handle.db, created.game.slug);
+    const nave = state.world.stages.find((stage) => stage.key === "nave");
+    if (!nave) {
+      throw new Error("缺少测试数据");
+    }
+    await expect(
+      playerTeleport(handle.db, created.game.slug, "守烬人", {
+        targetStageRef: `#${nave.seq}`,
+      }),
+    ).rejects.toThrow(/真名/);
+  });
+
   it("refuses a stage the actor neither visited nor knows", async () => {
     const created = await createGameWith("传送未知场景测试局", teleportWorld());
     await expect(

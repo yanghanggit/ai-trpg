@@ -1,6 +1,7 @@
 import type { Database } from "../db/pool";
 import { createTurnTrace, traceEvent } from "../debug/trace";
 import { parseCall } from "./actions/call";
+import { parseTeleport } from "./actions/teleport";
 import { findActorByName, findActorByRef, stageOfActor } from "./actors";
 import { addressLookupFor } from "./addressing";
 import { type ApplyActorPlanOptions, applyActorPlan } from "./apply";
@@ -212,7 +213,7 @@ export type PlayerMoveInput = {
 };
 
 export type PlayerTeleportInput = {
-  /** 目标场景 id 或真名；actor 是否知道由调用方负责，服务端只校验存在与禁传。 */
+  /** 目标场景的真名；`#编号` 与 id 都不接受，服务端另校验「这个 actor 知道这个真名」。 */
   targetStageRef: string;
 };
 
@@ -337,7 +338,8 @@ export async function playerTeleport(
   actorRef: string,
   input: PlayerTeleportInput,
 ): Promise<ActorTurnResult> {
-  const action: ActorAction = { kind: "teleport", targetStageName: input.targetStageRef };
+  // 玩家入口与模型工具共用同一份参数校验：`#编号` 在这里就该被拒。
+  const action: ActorAction = parseTeleport({ targetStageName: input.targetStageRef });
   return applyPlayerAction(db, gameRef, actorRef, action);
 }
 

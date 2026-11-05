@@ -41,6 +41,11 @@ const worldKnownStageSchema = z.strictObject({
   stage: z.string().min(1),
 });
 
+const worldVisitedStageSchema = z.strictObject({
+  actor: z.string().min(1),
+  stage: z.string().min(1),
+});
+
 const worldSignatureNameSchema = z.strictObject({
   observer: z.string().min(1),
   subject: z.string().min(1),
@@ -113,5 +118,6 @@ export const worldSchema = z.object({
   actors: z.array(actorSchema),
   signatureNames: z.array(worldSignatureNameSchema).optional(),
   knownStages: z.array(worldKnownStageSchema).optional(),
+  visitedStages: z.array(worldVisitedStageSchema).optional(),
   actions: z.array(worldActionSchema),
 });

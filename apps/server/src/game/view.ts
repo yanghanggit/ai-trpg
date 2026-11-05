@@ -5,6 +5,7 @@ import { isAlive } from "./apply/queries";
 import { MEMORY_KINDS } from "./constants";
 import { buildEdgeIndex } from "./edges";
 import { getMemoryState } from "./memory";
+import { sealedVisitedStagesForActor } from "./plan";
 import { getGameStateSlice } from "./read/game-state";
 import { handleOf } from "./reference";
 import { knownStagesForActor, visitedTeleportTargetsFor } from "./teleport";
@@ -48,6 +49,8 @@ export type ViewerScene = {
   actors: ViewerAddress[];
   /** 出口同时给真实场景名与 #实体序号，客户端可自行决定遮蔽。 */
   exits: { stageId: string; name: string; ref: string }[];
+  /** 去过、但现在封着的出口：认得出名字，但过不去。不是可移动目标。 */
+  sealedExits: { stageId: string; name: string }[];
 };
 
 export type ViewerLogEntry = {
@@ -199,6 +202,10 @@ export async function getActorView(
         stageId: exit.id,
         name: exit.name,
         ref: handleOf(exit.seq),
+      })),
+      sealedExits: sealedVisitedStagesForActor(state, { actor, stage }).map((sealed) => ({
+        stageId: sealed.id,
+        name: sealed.name,
       })),
     },
     signatureNames: state.signatureNames.filter((row) => row.observerActorId === actor.id),

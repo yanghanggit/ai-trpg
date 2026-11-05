@@ -5,7 +5,15 @@ import { type DatabaseHandle, openDatabase } from "../src/db/connect";
 import { DEMO_USER } from "../src/db/demo-fixture";
 import { resetDomainData, seedDemoData } from "../src/db/maintenance";
 import { runMigrations } from "../src/db/migrate";
-import { createGame, getActorView, playerMove, takeActorControl } from "../src/game";
+import {
+  buildActorTurnInput,
+  createGame,
+  findActorByName,
+  getActorView,
+  getGameState,
+  playerMove,
+  takeActorControl,
+} from "../src/game";
 
 const testDatabaseUrl = process.env.TEST_DATABASE_URL?.trim();
 
@@ -123,5 +131,33 @@ describe.skipIf(!testDatabaseUrl)("actor view", () => {
     expect(view.scene?.anchors.flatMap((anchor) => anchor.items).map((item) => item.name)).toEqual([
       "松脂火把",
     ]);
+  });
+  it("让去过钟窖的鼠王认得那道封着的门，别人看不见", async () => {
+    const created = await createGame(handle.db, {
+      username: DEMO_USER.username,
+      name: "封着出口的记性测试局",
+      world: BELL_MONASTERY_WORLD,
+    });
+    const slug = created.game.slug;
+    await takeActorControl(handle.db, slug, "无名者");
+    await playerMove(handle.db, slug, "无名者", { targetStageRef: "墓园" });
+    await playerMove(handle.db, slug, "无名者", { targetStageRef: "地窖" });
+
+    // 鼠王从钟窖里钻出来过：它记得那道门，所以看得到名字，但仍然过不去。
+    const king = await getActorView(handle.db, slug, "鼠王");
+    expect(king.scene?.sealedExits.map((exit) => exit.name)).toEqual(["钟窖"]);
+    expect(king.scene?.exits.map((exit) => exit.name)).not.toContain("钟窖");
+
+    // 主角没去过：钟窖对它连「封着的出口」都不是。
+    const player = await getActorView(handle.db, slug, "无名者");
+    expect(player.scene?.sealedExits).toEqual([]);
+
+    const state = await getGameState(handle.db, slug);
+    const kingPrompt = buildActorTurnInput(state, findActorByName(state, "鼠王"));
+    expect(kingPrompt).toContain("记得封着的出口");
+    expect(kingPrompt).toContain("钟窖");
+    const playerPrompt = buildActorTurnInput(state, findActorByName(state, "无名者"));
+    expect(playerPrompt).not.toContain("记得封着的出口");
+    expect(playerPrompt).not.toContain("钟窖");
   });
 });

@@ -2,7 +2,7 @@ import type { TraceContext } from "../../debug/trace";
 import type { ToolDefinition } from "../../llm/types";
 import { mentionOf } from "../addressing";
 import { appendPublicMessage, bumpGameVersion } from "../apply/messages";
-import { findStageInWorld, isStageKnownToActor } from "../apply/queries";
+import { findStageByNameInWorld, isStageKnownToActor } from "../apply/queries";
 import type { ActorWithStageRow, Executor, ResolvedTeleport, WorldRow } from "../apply/types";
 import { GameError } from "../errors";
 import { renderAction, renderEnvironmentChange, withAppearances } from "../observation-text";
@@ -53,7 +53,8 @@ export async function resolveTeleport(
   actorId: string,
   action: TeleportAction,
 ): Promise<ResolvedTeleport> {
-  const targetStage = await findStageInWorld(executor, world.id, action.targetStageName);
+  // 只认真名：编号与 id 都不是「知道这个地方」的证据。
+  const targetStage = await findStageByNameInWorld(executor, world.id, action.targetStageName);
   if (!targetStage) {
     throw new GameError("invalid_action", `目标场景不存在: ${action.targetStageName}`);
   }

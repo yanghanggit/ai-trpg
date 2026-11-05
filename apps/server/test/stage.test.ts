@@ -232,6 +232,78 @@ describe.skipIf(!testDatabaseUrl)("stage mini-GM", () => {
     expect(capturing.inputMessage).toContain(environment);
   });
 
+  it("只在环境里点名走得到的场景，不替演员说出还没打通的通道对面", async () => {
+    const created = await createGame(handle.db, {
+      username: DEMO_USER.username,
+      name: "环境场景名守卫测试局",
+      world: {
+        ...TEST_WORLD,
+        contentVersion: "test-stage-name-guard.v1",
+        stages: [
+          ...TEST_WORLD.stages.map((stage) =>
+            stage.key === "gate"
+              ? { ...stage, actions: [...stage.actions, "open_passage" as const] }
+              : stage,
+          ),
+          {
+            key: "vault",
+            name: "封着的后室",
+            profile: "门廊后面还没打通的一间小屋。",
+            actions: ["submit_environment" as const],
+            environment: "没有光。",
+          },
+        ],
+        connections: [
+          ...TEST_WORLD.connections,
+          { from: "gate", to: "vault", passage: "sealed" as const },
+        ],
+      },
+    });
+    const slug = created.game.slug;
+    const leaked = "门廊尽头的墙后还有一间封着的后室。";
+    const rejected = await runStageTurn(handle.db, slug, "灰烬门廊", {
+      service: new ScriptedStageService([leaked]),
+    });
+    expect(rejected.ok).toBe(false);
+    expect(
+      rejected.state.world.stages.find((stage) => stage.name === "灰烬门廊")?.environment,
+    ).toBe(TEST_WORLD.stages.find((stage) => stage.name === "灰烬门廊")?.environment);
+    const memories = await getGameMemories(handle.db, created.game.id);
+    const gate = memories.find((memory) => memory.name === "灰烬门廊");
+    expect(gate?.messages.some((message) => message.content.includes("尚未打通的场景名"))).toBe(
+      true,
+    );
+
+    // 走得到的邻居照旧可以点名：那是演员抬头就能看见的地方。
+    const allowed = "断钟中殿那边传来铜锈味，门廊里只剩冷灰。";
+    const accepted = await runStageTurn(handle.db, slug, "灰烬门廊", {
+      service: new ScriptedStageService([allowed]),
+    });
+    expect(accepted.ok).toBe(true);
+    expect(
+      accepted.state.world.stages.find((stage) => stage.name === "灰烬门廊")?.environment,
+    ).toBe(allowed);
+
+    // 本轮就要打开的那条通道，同一轮里就可以点名：守卫看的是「本轮结束后走不走得到」。
+    const gateStage = accepted.state.world.stages.find((stage) => stage.name === "灰烬门廊");
+    if (!gateStage) {
+      throw new Error("缺少灰烬门廊");
+    }
+    const opened = await applyStagePlan(
+      handle.db,
+      created.game.id,
+      gateStage.id,
+      {
+        actions: [
+          { kind: "open_passage", targetStageName: "封着的后室" },
+          { kind: "submit_environment", environment: "门廊尽头的墙裂开，封着的后室露了出来。" },
+        ],
+      },
+      true,
+    );
+    expect(opened).toBe(true);
+  });
+
   it("提交相同环境快照时不写事件", async () => {
     const created = await createGame(handle.db, {
       username: DEMO_USER.username,

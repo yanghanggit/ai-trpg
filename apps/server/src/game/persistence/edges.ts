@@ -1,5 +1,5 @@
-import { and, eq } from "drizzle-orm";
-import { stageConnections } from "../../db/schema";
+import { and, eq, inArray, or } from "drizzle-orm";
+import { stageConnections, stages } from "../../db/schema";
 import type { Executor } from "../apply/types";
 
 /**
@@ -49,4 +49,46 @@ export async function isPassageSealed(
     )
     .limit(1);
   return row !== undefined;
+}
+
+/**
+ * 从某个场景「走得到」的场景名：开着出入边的对面。
+ *
+ * 这是环境文本唯一被允许点名的场景集合；`sealed` 边两侧彼此看不见名字，
+ * 否则一句环境描写就等于替演员完成了发现。
+ */
+export async function listOpenNeighborStageNames(
+  executor: Executor,
+  worldId: string,
+  stageId: string,
+): Promise<string[]> {
+  const rows = await executor
+    .select({
+      fromStageId: stageConnections.fromStageId,
+      toStageId: stageConnections.toStageId,
+    })
+    .from(stageConnections)
+    .where(
+      and(
+        eq(stageConnections.worldId, worldId),
+        eq(stageConnections.passage, "open"),
+        or(eq(stageConnections.fromStageId, stageId), eq(stageConnections.toStageId, stageId)),
+      ),
+    );
+  const neighborIds = [
+    ...new Set(
+      rows.flatMap((row) => [
+        ...(row.fromStageId === stageId ? [] : [row.fromStageId]),
+        ...(row.toStageId === stageId ? [] : [row.toStageId]),
+      ]),
+    ),
+  ];
+  if (neighborIds.length === 0) {
+    return [];
+  }
+  const neighbors = await executor
+    .select({ name: stages.name })
+    .from(stages)
+    .where(inArray(stages.id, neighborIds));
+  return neighbors.map((neighbor) => neighbor.name);
 }

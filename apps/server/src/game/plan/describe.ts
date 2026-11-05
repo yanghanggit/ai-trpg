@@ -3,11 +3,17 @@ import {
   adjacentStageNames,
   adjacentStages,
   findStageByName,
+  sealedStages,
 } from "../actors";
 import { type AddressLookup, addressLookupFor, refOf } from "../addressing";
 import { isAlive } from "../apply/queries";
 import { handleOf } from "../reference";
-import { knownStageIds, knownStagesForActor, visitedTeleportTargetsFor } from "../teleport";
+import {
+  knownStageIds,
+  knownStagesForActor,
+  visitedStageIds,
+  visitedTeleportTargetsFor,
+} from "../teleport";
 import { sanitizeActorFacingText } from "../text-guard";
 import type { ActorState, GameStateSlice, ItemState, StageAnchorState, StageState } from "../types";
 import { EQUIPMENT_SLOT_LABELS, EQUIPMENT_SLOTS } from "../types";
@@ -147,11 +153,33 @@ export function adjacentStageRefsForActor(
   );
 }
 
+/**
+ * 封着、但自己去过的出口：记忆里的一道门。
+ *
+ * 到访是记忆，不是通行证。去过的地方即使现在过不去，也认得出它在哪儿；
+ * 只听说过名字不算——墙里的门要靠自己走过一次才记得。
+ */
+export function sealedVisitedStagesForActor(
+  state: GameStateSlice,
+  current: ActorWithStage,
+): StageState[] {
+  const visited = visitedStageIds(state, current.actor.id);
+  return sealedStages(state, current.stage.id).filter((stage) => visited.has(stage.id));
+}
+
+export function sealedVisitedStageRefsForActor(
+  state: GameStateSlice,
+  current: ActorWithStage,
+): string[] {
+  return sealedVisitedStagesForActor(state, current).map((stage) => stage.name);
+}
+
 /** actor 视角的场景视图：只读当前场景，名字走观察者相对的引用。 */
 export function describeStageForActor(state: GameStateSlice, current: ActorWithStage): string {
   const stage = current.stage;
   const address = addressLookupFor(state, current.actor, stage);
   const moves = adjacentStageRefsForActor(state, current);
+  const remembered = sealedVisitedStageRefsForActor(state, current);
   const canTeleport = current.actor.actions.includes("teleport");
   const teleportLines = visitedTeleportTargetsFor(state, current.actor, stage)
     .map((candidate) => candidate.name)
@@ -171,6 +199,8 @@ ${renderStageEnvironmentForActor(state, current)}
 角色：${actors}
 ${describeStageAnchorsSection(stage.anchors)}
 可去：${moves.length === 0 ? "无" : moves.join("、")}${
+    remembered.length === 0 ? "" : `\n记得封着：${remembered.join("、")}`
+  }${
     canTeleport
       ? `
 可传送（已知真名即可；已去过且未禁传）：${teleportLines.length === 0 ? "无" : teleportLines}`

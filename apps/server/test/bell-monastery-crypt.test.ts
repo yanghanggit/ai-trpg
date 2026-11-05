@@ -1,5 +1,4 @@
 import { randomUUID } from "node:crypto";
-import { eq } from "drizzle-orm";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { BELL_MONASTERY_WORLD } from "../seeds/dark-fantasy";
 import { DEMO_USER } from "../src/db/demo-fixture";
@@ -7,7 +6,6 @@ import "../src/db/env";
 import { type DatabaseHandle, openDatabase } from "../src/db/connect";
 import { resetDomainData, seedDemoData } from "../src/db/maintenance";
 import { runMigrations } from "../src/db/migrate";
-import { actors } from "../src/db/schema";
 import {
   createGame,
   getGameMemories,
@@ -49,7 +47,7 @@ class ScriptedService implements ChatCompletionService {
   }
 }
 
-describe.skipIf(!testDatabaseUrl)("bell monastery nest ending", () => {
+describe.skipIf(!testDatabaseUrl)("bell monastery crypt ending", () => {
   let handle: DatabaseHandle;
 
   beforeAll(async () => {
@@ -63,10 +61,10 @@ describe.skipIf(!testDatabaseUrl)("bell monastery nest ending", () => {
     await handle.pool.end();
   });
 
-  it("uses the rat king's flint on the nest, reports it, and lets the world end the game", async () => {
+  it("puts the rat king's clapper back on the altar, opens the crypt, and lets the crypt end the game", async () => {
     const created = await createGame(handle.db, {
       username: DEMO_USER.username,
-      name: "鼠窝收束测试局",
+      name: "钟窖收束测试局",
       world: BELL_MONASTERY_WORLD,
     });
     const slug = created.game.slug;
@@ -74,37 +72,52 @@ describe.skipIf(!testDatabaseUrl)("bell monastery nest ending", () => {
     await playerMove(handle.db, slug, "无名者", { targetStageRef: "墓园" });
     await playerMove(handle.db, slug, "无名者", { targetStageRef: "地窖" });
 
-    // 燧石是鼠王随身收着的 valuable，不是身体材料；活着也能偷。
+    // 钟舌是鼠王随身收着的 valuable，不是身体材料；活着也能偷。
     const stolen = await playerSteal(handle.db, slug, "无名者", {
       targetActorRef: "鼠王",
-      itemName: "窝里的燧石",
+      itemName: "旧钟的钟舌",
     });
     expect(stolen.ok).toBe(true);
 
+    // 对祭坛使用钟舌：use 只写场景事件，开门的决定留给地窖的 stage 回合。
     const used = await playerUse(handle.db, slug, "无名者", {
       targetStageName: "地窖",
-      itemName: "窝里的燧石",
-      targetAnchor: "鼠窝",
+      itemName: "旧钟的钟舌",
+      targetAnchor: "祭坛",
     });
     expect(used.ok).toBe(true);
-
     const afterUse = await getGameState(handle.db, slug);
-    expect(afterUse.messages.some((message) => message.content.includes("鼠窝"))).toBe(true);
+    expect(afterUse.messages.some((message) => message.content.includes("祭坛"))).toBe(true);
     const memoriesAfterUse = await getGameMemories(handle.db, created.game.id);
     const cellarMemory = memoriesAfterUse.find((memory) => memory.name === "地窖");
-    expect(cellarMemory?.messages.some((message) => message.content.includes("鼠窝"))).toBe(true);
+    expect(cellarMemory?.messages.some((message) => message.content.includes("祭坛"))).toBe(true);
 
-    // 模拟鼠王已经倒下；真正收束仍由 world 回合裁决。
-    const king = afterUse.world.stages
-      .flatMap((stage) => stage.actors)
-      .find((actor) => actor.name === "鼠王");
-    if (!king) {
-      throw new Error("缺少鼠王");
-    }
-    await handle.db.update(actors).set({ hp: 0 }).where(eq(actors.id, king.id));
+    // 地窖的小 GM 看到钟舌归位，才把后墙的通道打开。
+    const opened = await runStageTurn(handle.db, slug, "地窖", {
+      service: new ScriptedService([
+        call("open_passage", { targetStageName: "钟窖" }),
+        call("submit_stage_plan", {}),
+      ]),
+    });
+    expect(opened.ok).toBe(true);
+    expect(opened.plan?.actions).toEqual([{ kind: "open_passage", targetStageName: "钟窖" }]);
 
-    const notification = "地窖的鼠窝被燧石点着，鼠王已经倒下，黑疖病的源头正在燃烧。";
-    const reported = await runStageTurn(handle.db, slug, "地窖", {
+    const afterOpen = await getGameState(handle.db, slug);
+    const cellar = afterOpen.world.stages.find((stage) => stage.name === "地窖");
+    const crypt = afterOpen.world.stages.find((stage) => stage.name === "钟窖");
+    expect(
+      afterOpen.world.connections.find(
+        (connection) => connection.fromStageId === cellar?.id && connection.toStageId === crypt?.id,
+      )?.passage,
+    ).toBe("open");
+
+    const moved = await playerMove(handle.db, slug, "无名者", { targetStageRef: "钟窖" });
+    expect(moved.ok).toBe(true);
+
+    // 收束报告由钟窖自己发出：源头压在它这里，别处报不了。
+    const notification =
+      "钟舌归位后地窖后墙裂开，钟窖露了出来；钟腹底下压着最早病死的人，黑疖病的源头就在这里。";
+    const reported = await runStageTurn(handle.db, slug, "钟窖", {
       service: new ScriptedService([
         call("notify_world", { content: notification }),
         call("submit_stage_plan", {}),
@@ -122,13 +135,18 @@ describe.skipIf(!testDatabaseUrl)("bell monastery nest ending", () => {
     const ended = await runWorldTurn(handle.db, slug, {
       service: new ScriptedService([
         call("end_game", {
-          outcome: "鼠窝焚毁",
-          message: "地窖深处的火吞掉了旧巢，黑疖病的源头终于断了。",
+          outcome: "钟窖被打开",
+          message: "铜钟被掀开，压在底下的人终于被人看见；黑疖病的源头跟着见了光。",
         }),
         call("submit_world_plan", {}),
       ]),
     });
     expect(ended.ok).toBe(true);
     expect(ended.state.game.status).toBe("completed");
+    // 收尾只看钟窖：鼠王到最后一刻都还活着。
+    const king = ended.state.world.stages
+      .flatMap((stage) => stage.actors)
+      .find((actor) => actor.name === "鼠王");
+    expect(king?.hp).toBeGreaterThan(0);
   });
 });

@@ -346,7 +346,8 @@ export async function resolveAdjacentStage(
     )
     .limit(1);
   if (!connection) {
-    throw new GameError("invalid_action", `没有从 ${stage.name} 到 ${target.name} 的通道`);
+    // 回显调用方给的引用，不回显解析出的真名：`#7` 不该被翻译成那个地方的名字。
+    throw new GameError("invalid_action", `没有从 ${stage.name} 到 ${ref} 的通道`);
   }
   return target;
 }
@@ -377,17 +378,21 @@ export async function resolveActorByNameInWorld(
   return row;
 }
 
-/** 在世界内按 id、名字或实体编号找场景；用于 teleport 这类非邻接目标。 */
-export async function findStageInWorld(
+/**
+ * 只按真名定位场景。
+ *
+ * 传送只认名字：`#编号` 是「看得见还没命名」的站位，id 是控制面身份，两者都不该
+ * 变成传送地址——否则知识门槛会被一个编号绕过去，拒绝文案也会把名字泄出来。
+ */
+export async function findStageByNameInWorld(
   executor: Executor,
   worldId: string,
-  ref: string,
+  name: string,
 ): Promise<StageRow | undefined> {
-  const value = stripNameRef(ref.trim());
   const [row] = await executor
     .select()
     .from(stages)
-    .where(and(eq(stages.worldId, worldId), stageRefCondition(value)))
+    .where(and(eq(stages.worldId, worldId), eq(stages.name, stripNameRef(name.trim()))))
     .limit(1);
   return row;
 }

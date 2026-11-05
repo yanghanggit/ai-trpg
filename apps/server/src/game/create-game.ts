@@ -321,6 +321,34 @@ async function insertActor(
 }
 
 /** 开局名字绑定：观察者与对象都用内容 key 引用，落库时变成 actor / 签名 id。 */
+/**
+ * 开局前就去过的场景：写一条到访，和真实走到那里一模一样。
+ *
+ * 它只影响记忆（认得出这道门、名字可用），不参与 move 权限；`sealed` 边该过不去还是过不去。
+ */
+async function bindVisitedStages(
+  tx: Executor,
+  input: {
+    gameId: string;
+    world: World;
+    stageIds: Map<string, string>;
+    actorRefs: Map<string, ActorRef>;
+    now: Date;
+  },
+): Promise<void> {
+  for (const entry of input.world.visitedStages ?? []) {
+    const actorRef = input.actorRefs.get(entry.actor);
+    const stageId = input.stageIds.get(entry.stage);
+    if (!actorRef) {
+      throw new GameError("invalid_state", `visitedStages 引用了不存在的 actor: ${entry.actor}`);
+    }
+    if (!stageId) {
+      throw new GameError("invalid_state", `visitedStages 引用了不存在的场景: ${entry.stage}`);
+    }
+    await recordStageVisit(tx, input.gameId, actorRef.actorId, stageId, input.now);
+  }
+}
+
 async function bindSignatureNames(
   tx: Executor,
   input: { gameId: string; world: World; actorRefs: Map<string, ActorRef> },
@@ -484,6 +512,13 @@ export async function createGame(
     actorPrompts.push(...actors.prompts);
     await bindSignatureNames(tx, { gameId, world, actorRefs: actors.actorRefs });
     await bindKnownStages(tx, {
+      gameId,
+      world,
+      stageIds: stages.stageIds,
+      actorRefs: actors.actorRefs,
+      now: new Date(),
+    });
+    await bindVisitedStages(tx, {
       gameId,
       world,
       stageIds: stages.stageIds,

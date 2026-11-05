@@ -15,11 +15,12 @@ function stage(key: string) {
 }
 
 describe("dark fantasy seed world", () => {
-  it("keeps the six-stage monastery story", () => {
+  it("keeps the seven-stage monastery story", () => {
     expect(stages.map((item) => item.name)).toEqual([
       "墓园",
       "棺材",
       "地窖",
+      "钟窖",
       "焚尸房",
       "铁闸门",
       "山道",
@@ -90,9 +91,9 @@ describe("dark fantasy seed world", () => {
       .filter((actor) => actor.isDefaultPlayer)
       .map((actor) => actor.name);
     expect(defaultPlayers).toEqual(["无名者"]);
-    // 鼠王随身收着一块可偷的燧石：valuable + event，不是身体材料。
-    expect(king?.items.find((item) => item.name === "窝里的燧石")).toMatchObject({
-      key: "rat-king-flint",
+    // 鼠王随身收着旧钟的钟舌：valuable + event，不是身体材料。
+    expect(king?.items.find((item) => item.name === "旧钟的钟舌")).toMatchObject({
+      key: "rat-king-clapper",
       kind: "valuable",
       effect: { type: "event" },
     });
@@ -192,11 +193,12 @@ describe("dark fantasy seed world", () => {
     expect(actionsOf("无名者")).toContain("steal");
     expect(actionsOf("奥德里克")).not.toContain("steal");
 
-    // 所有场景都必须能更新 environment；只有山道能向 world 报告，
-    // 只有铁闸门能改变与门外的连通性。
+    // 所有场景都必须能更新 environment；向 world 报告的只有山道、地窖与钟窖，
+    // 能改变连通性的只有铁闸门与地窖。
+    const reporting = new Set(["mountain-path", "cellar", "bell-crypt"]);
     for (const item of stages) {
       expect(item.actions).toContain("submit_environment");
-      if (item.key !== "mountain-path" && item.key !== "cellar") {
+      if (!reporting.has(item.key)) {
         expect(item.actions).not.toContain("notify_world");
       }
     }
@@ -223,12 +225,25 @@ describe("dark fantasy seed world", () => {
     expect(stage("cellar").actions).toEqual([
       "submit_environment",
       "notify_world",
+      "open_passage",
       "add_anchor",
       "remove_anchor",
       "update_anchor",
     ]);
     expect(stage("cellar").anchors).toEqual([
-      { key: "nest", label: "鼠窝", description: "地窖尽头由骨渣、破布和啃断的钥匙串堆成的鼠窝。" },
+      {
+        key: "altar",
+        label: "祭坛",
+        description: "地窖后墙前的矮石台，台面刻着钟形纹，正中一道铜舌粗细的凹槽。",
+      },
+    ]);
+    // 钟窖才是向 world 报告源头的地方。
+    expect(stage("bell-crypt").actions).toEqual([
+      "submit_environment",
+      "notify_world",
+      "add_anchor",
+      "remove_anchor",
+      "update_anchor",
     ]);
     expect(BELL_MONASTERY_WORLD.actions).toEqual(["notify_stage", "end_game"]);
   });
@@ -308,6 +323,16 @@ describe("dark fantasy seed world", () => {
     }
   });
 
+  it("lets the rat king remember the crypt it came out of", () => {
+    // 只有鼠王去过钟窖：到访是记忆，不是通行证。
+    expect(BELL_MONASTERY_WORLD.visitedStages).toEqual([
+      { actor: "rat-king", stage: "bell-crypt" },
+    ]);
+    const king = BELL_MONASTERY_WORLD.actors.find((actor) => actor.name === "鼠王");
+    expect(king?.openingBriefing).toContain("记得后墙的祭坛后面还有一处地方");
+    expect(king?.openingBriefing).toContain("现在那道门封着");
+  });
+
   it("keeps the public knowledge base free of actor secrets", () => {
     const text = Object.values(BELL_MONASTERY_KNOWLEDGE).flat().join("\n");
     for (const actor of BELL_MONASTERY_WORLD.actors) {
@@ -318,7 +343,7 @@ describe("dark fantasy seed world", () => {
     }
   });
 
-  it("connects the graveyard, coffin, cellar, crematorium, gate and mountain path", () => {
+  it("connects the graveyard, coffin, cellar, bell crypt, crematorium, gate and mountain path", () => {
     const edges = new Set(
       BELL_MONASTERY_WORLD.connections.map((connection) => `${connection.from}->${connection.to}`),
     );
@@ -327,6 +352,8 @@ describe("dark fantasy seed world", () => {
         "coffin->graveyard",
         "graveyard->cellar",
         "cellar->graveyard",
+        "cellar->bell-crypt",
+        "bell-crypt->cellar",
         "graveyard->crematorium",
         "crematorium->graveyard",
         "graveyard->gate",
@@ -334,6 +361,32 @@ describe("dark fantasy seed world", () => {
         "gate->mountain-path",
       ].sort(),
     );
+  });
+
+  it("keeps the bell crypt sealed behind the cellar's altar", () => {
+    const entrance = BELL_MONASTERY_WORLD.connections.find(
+      (connection) => connection.from === "cellar" && connection.to === "bell-crypt",
+    );
+    expect(entrance?.passage).toBe("sealed");
+    // 只能出、不能从别处进：回到修道院仍要走地窖。
+    expect(
+      BELL_MONASTERY_WORLD.connections
+        .filter((connection) => connection.to === "bell-crypt")
+        .map((connection) => connection.from),
+    ).toEqual(["cellar"]);
+    expect(
+      BELL_MONASTERY_WORLD.connections.some(
+        (connection) => connection.from === "bell-crypt" && connection.to === "cellar",
+      ),
+    ).toBe(true);
+    // 发现与触发都写在地窖的 GM 文本里：祭坛、钟舌、后墙；可观察文本不先把钟窖说出来。
+    expect(stage("cellar").profile).toContain("钟形纹");
+    expect(stage("cellar").profile).toContain("钟舌");
+    expect(stage("cellar").environment).not.toContain("钟窖");
+    // 密室的存在不靠环境文本铺垫：地窖只看得见一座空着凹槽的祭坛。
+    expect(stage("cellar").environment).toContain("凹槽空着");
+    expect(stage("bell-crypt").environment).toContain("钟形花纹");
+    expect(stage("bell-crypt").environment).toContain("尸骸");
   });
 
   it("keeps the way out sealed until the gate stage opens it", () => {

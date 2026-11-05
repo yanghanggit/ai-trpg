@@ -17,7 +17,7 @@ import {
 import { GameError } from "./errors";
 import { appendMemoryMessages, ensureStageOpeningSnapshot, loadAgentMemory } from "./memory";
 import { appendStageMemory } from "./observations";
-import { isPassageSealed, openPassage } from "./persistence/edges";
+import { isPassageSealed, listOpenNeighborStageNames, openPassage } from "./persistence/edges";
 import { lockGameRow } from "./persistence/games";
 import { deleteStageItemsByAnchor, listStageItems } from "./persistence/items";
 import {
@@ -46,7 +46,7 @@ import {
   parseWorldNotification,
 } from "./plan";
 import { getGameStateSlice, readTurnDelivery } from "./read/game-state";
-import { assertWorldFaceText } from "./text-guard";
+import { assertStageFacingText } from "./text-guard";
 import type { GameStateSlice, StageAction, StagePlan, StageState, StageTurnResult } from "./types";
 import { appendWorldNotification } from "./world-events";
 
@@ -87,6 +87,7 @@ export function buildStageTurnInput(state: GameStateSlice, stage: StageState): s
     ...(canSubmit
       ? [
           "environment 是本场景此刻可被观察到的状态：只有本轮已落账的动作结果真的改变了场景（物品移动、破坏、出现新的可作用点）才提交完整快照；台词、打算、观察与原地等待都不算。",
+          "environment 是演员看得见的东西：不能写角色名或 #编号，也不要替演员说出未打通的通道对面是哪里——那是要他们自己发现、问到的事。",
           "没有变化就不要提交 environment；只读工具的观察不是场景变化，角色携带的物品也不属于 environment。",
           "environment 是完整快照，不是差异；同一轮多次提交时后一次覆盖前一次。",
         ]
@@ -133,8 +134,18 @@ ${sealedLines}
 ${taskLines.join("\n")}`;
 }
 
-function assertEnvironmentHasNoLeaks(environment: string, actorNames: readonly string[]): void {
-  assertWorldFaceText(environment, actorNames, "environment");
+/**
+ * environment / 锚点文本的写入守卫：角色名、编号，以及「还没打通的场景名」。
+ *
+ * 演员能看见的只有从本场景走得到的地方；未开启通道对面叫什么，要靠发现和对话浮出来，
+ * 不能由一句环境描写替你宣布。允许点名的集合在写入时现查，跟着通道开合一起变。
+ */
+function stageFacingGuard(input: {
+  actorNames: readonly string[];
+  stageNames: readonly string[];
+  visibleStageNames: ReadonlySet<string>;
+}) {
+  return (text: string, label: string): void => assertStageFacingText(text, { ...input, label });
 }
 
 type StoredAnchor = { key: string; label: string; description?: string };
@@ -148,7 +159,11 @@ function isAnchorWrite(action: StageAction): action is AnchorWrite {
   );
 }
 
-function anchorText(text: string, actorNames: readonly string[], what: string): string {
+function anchorText(
+  text: string,
+  guard: (text: string, label: string) => void,
+  what: string,
+): string {
   const value = text.trim();
   if (value.length === 0) {
     throw new GameError("invalid_action", `${what} 不能为空。`);
@@ -156,7 +171,7 @@ function anchorText(text: string, actorNames: readonly string[], what: string): 
   if (/[\r\n]/.test(value)) {
     throw new GameError("invalid_action", `${what} 不能换行。`);
   }
-  assertWorldFaceText(value, actorNames, what);
+  guard(value, what);
   return value;
 }
 
@@ -178,21 +193,21 @@ function computeAnchorChange(
   current: readonly StoredAnchor[],
   itemsByAnchor: ReadonlyMap<string, readonly string[]>,
   action: AnchorWrite,
-  actorNames: readonly string[],
+  guard: (text: string, label: string) => void,
 ): { anchors: StoredAnchor[]; summary: string; removedAnchorKey?: string } {
   const anchors = current.map((anchor) => ({ ...anchor }));
   if (action.kind === "add_anchor") {
     if (anchors.length >= MAX_STAGE_ANCHORS) {
       throw new GameError("invalid_action", `锚点最多 ${MAX_STAGE_ANCHORS} 个。`);
     }
-    const label = anchorText(action.label, actorNames, "锚点 label");
+    const label = anchorText(action.label, guard, "锚点 label");
     if (anchors.some((anchor) => anchor.label === label)) {
       throw new GameError("invalid_action", `锚点 label 重复：${label}。`);
     }
     const description =
       action.description === undefined
         ? undefined
-        : anchorText(action.description, actorNames, "锚点 description");
+        : anchorText(action.description, guard, "锚点 description");
     anchors.push({
       key: randomUUID(),
       label,
@@ -219,14 +234,14 @@ function computeAnchorChange(
     };
   }
 
-  const label = anchorText(action.label, actorNames, "锚点 label");
+  const label = anchorText(action.label, guard, "锚点 label");
   if (anchors.some((anchor, currentIndex) => currentIndex !== index && anchor.label === label)) {
     throw new GameError("invalid_action", `锚点 label 重复：${label}。`);
   }
   const description =
     action.description === undefined
       ? undefined
-      : anchorText(action.description, actorNames, "锚点 description");
+      : anchorText(action.description, guard, "锚点 description");
   anchors[index] = {
     key: target.key,
     label,
@@ -278,6 +293,7 @@ export async function applyStagePlan(
       });
     }
     const actorNames = (await listActorNamesInWorld(tx, world.id)).map((actor) => actor.name);
+    const stagesOfWorld = await listStagesOfWorld(tx, world.id);
     const stageActions = stage.actions;
 
     const reject = async (content: string, kind: string): Promise<false> => {
@@ -306,6 +322,17 @@ export async function applyStagePlan(
       action.kind === "open_passage" ? [action.targetStageName] : [],
     );
     const anchorWrites = plan.actions.filter(isAnchorWrite);
+    // 允许点名的场景：本场景自己的名字，加上开着的出入边对面，以及本轮就要打开的那条。
+    // 边表只有本 world 的十几行，跟着回合查一次比按需缓存更好读。
+    const guardStageFacing = stageFacingGuard({
+      actorNames,
+      stageNames: stagesOfWorld.map((candidate) => candidate.name),
+      visibleStageNames: new Set([
+        stage.name,
+        ...(await listOpenNeighborStageNames(tx, world.id, stage.id)),
+        ...passages,
+      ]),
+    });
     if (environments.length > 1) {
       return reject("本轮最多一次 environment 更新。", MEMORY_KINDS.actionRejected);
     }
@@ -359,7 +386,7 @@ export async function applyStagePlan(
       try {
         anchorChange = {
           action: anchorWrites[0],
-          ...computeAnchorChange(stored, itemsByAnchor, anchorWrites[0], actorNames),
+          ...computeAnchorChange(stored, itemsByAnchor, anchorWrites[0], guardStageFacing),
         };
       } catch (error) {
         if (!(error instanceof GameError)) {
@@ -369,7 +396,6 @@ export async function applyStagePlan(
       }
     }
 
-    const stagesOfWorld = await listStagesOfWorld(tx, world.id);
     const stageByName = new Map(stagesOfWorld.map((candidate) => [candidate.name, candidate]));
     for (const targetStageName of passages) {
       const target = stageByName.get(targetStageName);
@@ -385,7 +411,7 @@ export async function applyStagePlan(
     }
     for (const environment of environments) {
       try {
-        assertEnvironmentHasNoLeaks(environment, actorNames);
+        guardStageFacing(environment, "environment");
       } catch (error) {
         if (!(error instanceof GameError)) {
           throw error;

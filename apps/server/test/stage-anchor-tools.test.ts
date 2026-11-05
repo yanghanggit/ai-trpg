@@ -238,7 +238,7 @@ describe.skipIf(!testDatabaseUrl)("stage anchor tools", () => {
     let memory = (await getGameMemories(handle.db, created.game.id)).find(
       (item) => item.name === "灰烬门廊",
     );
-    expect(memory?.messages.at(-1)?.content).toContain("不能包含角色名或编号引用");
+    expect(memory?.messages.at(-1)?.content).toContain("不能包含角色名、编号引用");
 
     const state = await getGameState(handle.db, created.game.slug);
     const gate = stageByName(state, "灰烬门廊");
