@@ -196,7 +196,12 @@ describe("item observations", () => {
     target: OTHER,
   };
   const give: ItemObservation = { actor: ACTOR, itemName: "旧钥匙", event: "give", target: OTHER };
-  const pickup: ItemObservation = { actor: ACTOR, itemName: "旧钥匙", event: "pickup" };
+  const pickup: ItemObservation = {
+    actor: ACTOR,
+    itemName: "旧钥匙",
+    event: "pickup",
+    anchorLabel: "锁孔",
+  };
 
   it("私密事件只给当事人视角", () => {
     const view = renderItemEvent(STAGE, steal, OTHER.id);
@@ -228,7 +233,7 @@ describe("item observations", () => {
   it("拾取没有目标，也不带当事人视角", () => {
     const view = renderItemEvent(STAGE, pickup, "actor-3");
     expect(view.content).toBe(
-      withAppearances("# 场景动态\n守烬人拾取了旧钥匙。", ACTOR_APPEARANCE),
+      withAppearances("# 场景动态\n守烬人从锁孔上拾取了旧钥匙。", ACTOR_APPEARANCE),
     );
     expect(view.metadata.targetActorId).toBeUndefined();
   });

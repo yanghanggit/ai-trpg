@@ -48,7 +48,7 @@ describe.skipIf(!testDatabaseUrl)("actor view", () => {
     expect(view.scene?.exits.every((exit) => /^#\d+$/.test(exit.ref))).toBe(true);
     // 锚点是公共标签，不走观察者遮蔽。
     expect(view.scene?.anchors).toEqual([
-      { label: "锁孔", description: "铁闸门上被干蜡塞住的锁孔。" },
+      { key: "lock", label: "锁孔", description: "铁闸门上被干蜡塞住的锁孔。", items: [] },
     ]);
 
     const self = view.scene?.actors.find((actor) => actor.self);
@@ -120,6 +120,8 @@ describe.skipIf(!testDatabaseUrl)("actor view", () => {
     const view = await getActorView(handle.db, created.game.slug, "无名者");
     expect(view.scene?.name).toBe("焚尸房");
     // 内容里是 `松脂火把`，角色看到的就是这个名字本身。
-    expect(view.scene?.items.map((item) => item.name)).toEqual(["松脂火把"]);
+    expect(view.scene?.anchors.flatMap((anchor) => anchor.items).map((item) => item.name)).toEqual([
+      "松脂火把",
+    ]);
   });
 });

@@ -443,7 +443,9 @@ describe.skipIf(!testDatabaseUrl)("memory-driven NPC slice", () => {
     const pyre = created.world.stages.find((stage) => stage.name === "焚尸房");
     const coffin = created.world.stages.find((stage) => stage.name === "棺材");
     expect(pyre?.actors).toEqual([]);
-    expect(pyre?.items.map((item) => [item.name, item.kind])).toEqual([["松脂火把", "weapon"]]);
+    expect(
+      pyre?.anchors.flatMap((anchor) => anchor.items).map((item) => [item.name, item.kind]),
+    ).toEqual([["松脂火把", "weapon"]]);
     expect(coffin?.actors.map((actor) => actor.name)).toEqual(["无名者"]);
     // 建局不写开场消息：玩家从场景 environment 与角色自己的记忆里拼出开场。
     expect(created.messages).toEqual([]);

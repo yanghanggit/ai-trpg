@@ -18,7 +18,8 @@ export function checkWorldInvariants(world: World, ctx: z.RefinementCtx): void {
   const actorNames = world.actors.map((actor) => actor.name);
   world.stages.forEach((stage, index) => {
     checkEntityName(stage.name, ["stages", index, "name"], ctx);
-    checkItemNamesUnique(stage.items ?? [], ["stages", index, "items"], ctx);
+    const stageItems = (stage.anchors ?? []).flatMap((anchor) => anchor.items ?? []);
+    checkItemNamesUnique(stageItems, ["stages", index, "anchors"], ctx);
     const leaks = findTextLeaks(stage.environment, actorNames);
     if (leaks.length > 0) {
       ctx.addIssue({
@@ -37,7 +38,16 @@ export function checkWorldInvariants(world: World, ctx: z.RefinementCtx): void {
       });
     }
     const anchorLabels = new Set<string>();
+    const anchorKeys = new Set<string>();
     stage.anchors?.forEach((anchor, anchorIndex) => {
+      if (anchorKeys.has(anchor.key)) {
+        ctx.addIssue({
+          code: "custom",
+          message: `锚点 key 重复: ${anchor.key}`,
+          path: ["stages", index, "anchors", anchorIndex, "key"],
+        });
+      }
+      anchorKeys.add(anchor.key);
       if (anchorLabels.has(anchor.label)) {
         ctx.addIssue({
           code: "custom",

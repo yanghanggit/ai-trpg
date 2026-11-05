@@ -14,7 +14,7 @@ stage 与 actor 共用 `agent_memories` 表，以 `owner_type=stage` 标识。�
 
 它没有跨场景的查看入口：每个 stage 只读自己的静态状态，其他场景的信息只能经 world 中转。它看不到其他场景的事件，也看不到 actor 的内部 `mind`。看到私密事件不改变 actor 的可见性：其他 actor 是否知道 whisper 仍由原行动范围决定。
 
-记忆里的第一条 human 消息是**开局基线**（`stage_opening_snapshot`）：这个场景第一次被写记忆时的 environment 与锚点。事件可能早于第一次仲裁——actor 进出、拿取、说话都会写 stage memory——所以基线必须先于任何一条事件落账：事件日志回答得了「发生过什么」，回答不了「开局长什么样」，而压缩与快照回放要的正是后者。补写是惰性的：从未被写过的场景不付这条记忆，老局也不用迁移；现状仍只由回合输入拉取，不随每轮再拍快照，免得把 state 抄成一串会过期的记忆。
+记忆里的第一条 human 消息是**开局基线**（`stage_opening_snapshot`）：这个场景第一次被写记忆时的 environment、锚点及其上的物品。事件可能早于第一次仲裁——actor 进出、拿取、说话都会写 stage memory——所以基线必须先于任何一条事件落账：事件日志回答得了「发生过什么」，回答不了「开局长什么样」，而压缩与快照回放要的正是后者。补写是惰性的：从未被写过的场景不付这条记忆，老局也不用迁移；现状仍只由回合输入拉取，不随每轮再拍快照，免得把 state 抄成一串会过期的记忆。
 
 读取侧另有一份 stage 投影，日志类别由本场景的全知边界单独维护，不复用 actor 的：两边能收到的类别不同，共用一份白名单会让对方收不到的类别静默进来。
 
@@ -29,16 +29,17 @@ stage 与 actor 共用 `agent_memories` 表，以 `owner_type=stage` 标识。�
 
 environment 是拉取模型：stage 更新后不推送，actor 下一次 plan 与 `look_stage` 都读当时的 `stages.environment`，并按观察者渲染一次。
 
-「environment 与场景物品一致」目前**没有代码校验**：靠每轮任务文本里的物品清单与模型判断，不一致不报错，只会让 actor 读到过时的描述。
+「environment 与锚点及其物品一致」目前**没有代码校验**：靠每轮任务文本里的锚点清单与模型判断，不一致不报错，只会让 actor 读到过时的描述。
 
 ## 可交互锚点
 
-`stages.anchors` 是场景内可见、可被角色操作的位置或部位（如“锁孔”“门闩”）的完整快照。它在建局时由内容层赋予，运行时不改：stage 没有写锚点的工具，actor 也没有能让它增删改的动作。
+`stages.anchors` 是场景内可见、可被角色操作的位置或部位（如“锁孔”“门闩”），以及挂在上面的物品。它在建局时由内容层赋予，运行时不改：stage 没有写锚点的工具，actor 也没有能让它增删改的动作。
 
-- 每个锚点只有 `label` 与可选的 `description`，不承载效果、后果或机制；实际结算仍由 item effect / stage / world 完成；
-- `label` 场景内唯一，数量有上限；内容校验与 environment 一样拒绝角色名字与 `@`/`#` 引用；
+- 锚点有稳定的 `key`、场景内唯一的 `label`、可选的 `description`，以及一组挂在它上面的物品；物品不能脱离锚点存在，也没有独立的扁平列表；
+- 锚点与物品都是世界面文本，不承载效果、后果或机制；实际结算仍由 item effect / stage / world 完成；`label` 与 `description` 同样拒绝角色名字与 `@`/`#` 引用；
 - `actor` 的 `use` 只能从当前场景的锚点枚举里选 `targetAnchor`，解析时再校验一次；
-- 锚点不产生自己的事件，也不进 stage memory：列表不变，actor 每回合 pull 到的就是同一份。旧局里的 `anchor_change` 是运行时可写时期的记录，新局不再产生。
+- `pickup` 的物品名在场景内唯一，所以不用显式指锚点：引擎由物品反查它所在的锚点，反馈与观察写成“从某锚点上拾取”。物品被拿走，锚点留下（它是可供性，不是容器）；
+- 锚点列表本身不产生事件：锚点不变，actor 每回合 pull 到的就是同一份；变化的是锚点上的物品。旧局里的 `anchor_change` 是运行时可写时期的记录，新局不再产生。
 
 锚点是可供性，不是任务清单，也不是开关：它不承诺奖励或状态变化，锚点被使用、破坏或失效之后的局面由 environment 与 world 的裁决表达。纯装饰、已失效或根本不可操作的物体不应列为锚点——它们只属于 environment 的散文；若要表达“用掉一次就失效”，那是锚点状态化的独立机制，不靠改列表表达。
 
@@ -52,7 +53,7 @@ environment 是拉取模型：stage 更新后不推送，actor 下一次 plan �
 
 ## 回合
 
-stage 回合与 actor 回合平行，但不共享 actor plan：读状态与 stage memory → 组装环境、同场景角色、场景物品、可去场景、未开启通道与场景事件 → agent loop 推理 → 用 `submit_environment` 写环境、用 `open_passage` / `notify_world` 加动作 → 用 `submit_stage_plan` 结束本轮 → 短事务内校验、按序执行、递增版本、写公共事件。
+stage 回合与 actor 回合平行，但不共享 actor plan：读状态与 stage memory → 组装环境、同场景角色、锚点及其物品、可去场景、未开启通道与场景事件 → agent loop 推理 → 用 `submit_environment` 写环境、用 `open_passage` / `notify_world` 加动作 → 用 `submit_stage_plan` 结束本轮 → 短事务内校验、按序执行、递增版本、写公共事件。
 
 `submit_stage_plan` 是回合控制而不是场景能力：它常驻、不受 `stages.actions` 门控，空计划表示本轮无改动。`submit_environment` 是普通写动作，省略表示不改；动作顺序由模型决定，事件顺序随之。
 

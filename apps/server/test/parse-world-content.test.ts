@@ -128,14 +128,14 @@ describe("world content validation", () => {
         index === 0
           ? {
               ...stage,
-              anchors: [{ label: "  锁舌  ", description: "  门板内侧的铜锁舌。  " }],
+              anchors: [{ key: "latch", label: "  锁舌  ", description: "  门板内侧的铜锁舌。  " }],
             }
           : stage,
       ),
     };
     const parsed = parseWorldContent(world);
     expect(parsed.stages[0]?.anchors).toEqual([
-      { label: "锁舌", description: "门板内侧的铜锁舌。" },
+      { key: "latch", label: "锁舌", description: "门板内侧的铜锁舌。" },
     ]);
   });
 
@@ -144,7 +144,7 @@ describe("world content validation", () => {
       const world = {
         ...TEST_WORLD,
         stages: TEST_WORLD.stages.map((stage, index) =>
-          index === 0 ? { ...stage, anchors: [{ label }] } : stage,
+          index === 0 ? { ...stage, anchors: [{ key: "latch", label }] } : stage,
         ),
       };
       expect(() => parseWorldContent(world)).toThrow(/锚点不能包含/);
@@ -155,7 +155,15 @@ describe("world content validation", () => {
     const duplicate = {
       ...TEST_WORLD,
       stages: TEST_WORLD.stages.map((stage, index) =>
-        index === 0 ? { ...stage, anchors: [{ label: "门闩" }, { label: "门闩" }] } : stage,
+        index === 0
+          ? {
+              ...stage,
+              anchors: [
+                { key: "latch", label: "门闩" },
+                { key: "other", label: "门闩" },
+              ],
+            }
+          : stage,
       ),
     };
     expect(() => parseWorldContent(duplicate)).toThrow(/锚点标签重复/);
@@ -164,7 +172,7 @@ describe("world content validation", () => {
       ...TEST_WORLD,
       stages: TEST_WORLD.stages.map((stage, index) =>
         index === 0
-          ? { ...stage, anchors: [{ label: "门闩", effect: { type: "damage" } }] }
+          ? { ...stage, anchors: [{ key: "latch", label: "门闩", effect: { type: "damage" } }] }
           : stage,
       ),
     };

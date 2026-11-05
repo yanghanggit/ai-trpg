@@ -8,7 +8,7 @@ export function buildLookTool(state: GameStateSlice): ToolDefinition {
     function: {
       name: "look_stage",
       description:
-        "查看当前世界中某个场景的设定、环境、角色、场景物品、可交互锚点与可去方向。只读，可多次调用。",
+        "查看当前世界中某个场景的设定、环境、角色、可交互锚点及其上的物品与可去方向。只读，可多次调用。",
       parameters: {
         type: "object",
         properties: {

@@ -16,17 +16,20 @@ const PICKUP_WORLD = {
     stage.key === "gate"
       ? {
           ...stage,
-          items: [
-            {
-              key: "test-torch",
-              name: "测试火把",
-              description: "测试用的场景武器。",
-              kind: "weapon" as const,
-              count: 1,
-              stats: { damage: 7, block: 1 },
-              effect: { type: "damage" },
-            },
-          ],
+          anchors: (stage.anchors ?? []).map((anchor) => ({
+            ...anchor,
+            items: [
+              {
+                key: "test-torch",
+                name: "测试火把",
+                description: "测试用的场景武器。",
+                kind: "weapon" as const,
+                count: 1,
+                stats: { damage: 7, block: 1 },
+                effect: { type: "damage" },
+              },
+            ],
+          })),
         }
       : stage,
   ),
@@ -38,7 +41,7 @@ function entityRows(state: GameState): { key: string; seq: number }[] {
   ];
   for (const stage of state.world.stages) {
     rows.push({ key: `stage:${stage.name}`, seq: stage.seq });
-    for (const item of stage.items) {
+    for (const item of stage.anchors.flatMap((anchor) => anchor.items)) {
       rows.push({ key: `item:${item.name}`, seq: item.seq });
     }
     for (const actor of stage.actors) {
@@ -114,7 +117,7 @@ describe.skipIf(!testDatabaseUrl)("entity seq", () => {
 
     const before = await getGameState(handle.db, created.game.slug);
     const torchBefore = before.world.stages
-      .flatMap((stage) => stage.items)
+      .flatMap((stage) => stage.anchors.flatMap((anchor) => anchor.items))
       .find((item) => item.name === "测试火把");
     const picked = await playerPickup(handle.db, created.game.slug, "守烬人", {
       itemName: "测试火把",
@@ -129,7 +132,9 @@ describe.skipIf(!testDatabaseUrl)("entity seq", () => {
 
     expect(torch?.seq).toBe(torchBefore?.seq);
     expect(maxSeq(after)).toBe(maxSeq(before));
-    expect(after.world.stages.flatMap((stage) => stage.items)).toHaveLength(0);
+    expect(
+      after.world.stages.flatMap((stage) => stage.anchors.flatMap((anchor) => anchor.items)),
+    ).toHaveLength(0);
     const seqs = entityRows(after).map((row) => row.seq);
     expect(new Set(seqs).size).toBe(seqs.length);
   });

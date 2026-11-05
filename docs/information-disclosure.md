@@ -7,7 +7,7 @@
 “全知”只描述**世界状态**：
 
 - **world** 全知全部场景：全部场景的 profile、environment、陈列物品，以及全部 actor 的名字与所在场景；不读 actor 的 profile、开局简报与记忆，也不看 actor 外观与背包。它的 profile 与收尾条件只属于控制面，actor 与 stage 只拿到战役设定与全局规则。
-- **stage** 只全知本场景：自己的 profile、environment、场景物品、未开启通道、本场景事件，以及在场 actor 的名字、外观与携带物；它没有跨场景查看入口，其他场景的信息只能经 world 中转。
+- **stage** 只全知本场景：自己的 profile、environment、锚点及其上的物品、未开启通道、本场景事件，以及在场 actor 的名字、外观与携带物；它没有跨场景查看入口，其他场景的信息只能经 world 中转。
 - **actor** 只知道自己的设定与记忆，以及当前场景的 environment、陈列物品与在场角色；NPC 任务提示词里，相邻而不知道名字的场景只以 `#实体序号` 出现，到访记入 `stage_visits`、听说记入 `known_stages`，两者都能用 `get_known_stages` 回看；他者的完整背包只对具备 `steal` 的角色开放。
 - **item** 的名字、大类与描述是公共标签，不做 actor 级隔离；它在哪里、在谁身上仍由观察范围决定。
 

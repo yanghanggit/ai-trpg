@@ -199,17 +199,20 @@ const ITEM_WORLD = {
     stage.key === "gate"
       ? {
           ...stage,
-          items: [
-            {
-              key: "test-torch",
-              name: "测试火把",
-              description: "测试用的场景武器。",
-              kind: "weapon" as const,
-              count: 1,
-              stats: { damage: 7, block: 1 },
-              effect: { type: "damage" },
-            },
-          ],
+          anchors: (stage.anchors ?? []).map((anchor) => ({
+            ...anchor,
+            items: [
+              {
+                key: "test-torch",
+                name: "测试火把",
+                description: "测试用的场景武器。",
+                kind: "weapon" as const,
+                count: 1,
+                stats: { damage: 7, block: 1 },
+                effect: { type: "damage" },
+              },
+            ],
+          })),
         }
       : stage,
   ),
@@ -336,7 +339,7 @@ const SEALED_WORLD: World = {
       profile: "测试用铁闸门。",
       actions: ["submit_environment"] as const,
       environment: "门板上刻着鼠牙。",
-      anchors: [{ label: "锁孔", description: "门板中央的铜锁孔。" }],
+      anchors: [{ key: "keyhole", label: "锁孔", description: "门板中央的铜锁孔。" }],
     },
   ],
   connections: [
@@ -1071,7 +1074,7 @@ describe.skipIf(!testDatabaseUrl)("items and interactions", () => {
     const state = await getGameState(handle.db, created.game.slug);
     const gate = state.world.stages.find((stage) => stage.name === "灰烬门廊");
     const keeper = gate?.actors.find((actor) => actor.name === "守烬人");
-    expect(gate?.items).toEqual([]);
+    expect(gate?.anchors.flatMap((anchor) => anchor.items)).toEqual([]);
     const torch = keeper?.items.find((item) => item.name === "测试火把");
     expect(torch).toMatchObject({
       key: "test-torch",

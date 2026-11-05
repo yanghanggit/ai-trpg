@@ -137,6 +137,8 @@ export type ResolvedPickup = {
   action: PickupAction;
   stage: StageRow;
   stageItem: StageItemRow;
+  /** 物品所在的锚点标签；反馈与观察要写出「从哪儿取下」。 */
+  anchorLabel: string;
 };
 
 export type ResolvedUse = {

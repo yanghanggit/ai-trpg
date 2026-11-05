@@ -199,6 +199,7 @@ CREATE TABLE "stage_items" (
 	"seq" integer DEFAULT 0 NOT NULL,
 	"stage_id" uuid NOT NULL,
 	"key" text,
+	"anchor_key" text NOT NULL,
 	"name" text NOT NULL,
 	"description" text NOT NULL,
 	"kind" text NOT NULL,

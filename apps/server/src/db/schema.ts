@@ -24,7 +24,7 @@ import type {
   ItemKind,
   PassageState,
   StageActionKind,
-  StageAnchor,
+  StageAnchorState,
   WorldActionKind,
   WorldFunctionAgents,
 } from "../game/types";
@@ -135,7 +135,11 @@ export const stages = pgTable(
     name: text("name").notNull(),
     profile: text("profile").notNull(),
     environment: text("environment").notNull(),
-    anchors: jsonb("anchors").$type<StageAnchor[]>().notNull().default([]),
+    /** 只存身份与文本；物品在 `stage_items`，靠 `anchor_key` 挂回。 */
+    anchors: jsonb("anchors")
+      .$type<Pick<StageAnchorState, "key" | "label" | "description">[]>()
+      .notNull()
+      .default([]),
     actions: jsonb("actions").$type<StageActionKind[]>().notNull().default([]),
     /** 禁止 teleport 进出；普通 move 不受影响。 */
     teleportBlocked: boolean("teleport_blocked").notNull().default(false),
@@ -396,6 +400,8 @@ export const stageItems = pgTable(
       .notNull()
       .references(() => stages.id, { onDelete: "cascade" }),
     key: text("key"),
+    /** 承载这件物品的锚点：物品不能脱离锚点，key 由内容层声明。 */
+    anchorKey: text("anchor_key").notNull(),
     name: text("name").notNull(),
     description: text("description").notNull(),
     kind: text("kind").$type<ItemKind>().notNull(),

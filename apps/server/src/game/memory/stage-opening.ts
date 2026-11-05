@@ -1,5 +1,5 @@
 import { MEMORY_KINDS } from "../constants";
-import type { Stage } from "../world-definition";
+import { listStageItems } from "../persistence/items";
 import { buildStageOpeningSnapshot } from "./prompts";
 import { appendMemoryMessages } from "./store";
 import type { LoadedMemory, MemoryExecutor } from "./types";
@@ -17,15 +17,30 @@ export function hasStageOpeningSnapshot(memory: LoadedMemory): boolean {
 export async function ensureStageOpeningSnapshot(
   executor: MemoryExecutor,
   memory: LoadedMemory,
-  stage: Pick<Stage, "name" | "environment" | "anchors">,
+  stage: {
+    id: string;
+    name: string;
+    environment: string;
+    anchors: readonly { key: string; label: string; description?: string }[];
+  },
 ): Promise<boolean> {
   if (hasStageOpeningSnapshot(memory)) {
     return false;
   }
+  const itemsByAnchor = new Map<string, string[]>();
+  for (const item of await listStageItems(executor, stage.id)) {
+    const list = itemsByAnchor.get(item.anchorKey) ?? [];
+    list.push(item.name);
+    itemsByAnchor.set(item.anchorKey, list);
+  }
+  const anchors = stage.anchors.map((anchor) => ({
+    ...anchor,
+    items: (itemsByAnchor.get(anchor.key) ?? []).map((name) => ({ name })),
+  }));
   await appendMemoryMessages(executor, memory.row.id, [
     {
       type: "human",
-      content: buildStageOpeningSnapshot(stage),
+      content: buildStageOpeningSnapshot({ ...stage, anchors }),
       metadata: { kind: MEMORY_KINDS.stageOpeningSnapshot },
     },
   ]);

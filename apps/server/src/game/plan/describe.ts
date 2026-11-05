@@ -9,19 +9,30 @@ import { isAlive } from "../apply/queries";
 import { handleOf } from "../reference";
 import { knownStageIds, knownStagesForActor, visitedTeleportTargetsFor } from "../teleport";
 import { sanitizeActorFacingText } from "../text-guard";
-import type { ActorState, GameStateSlice, ItemState, StageAnchor, StageState } from "../types";
+import type { ActorState, GameStateSlice, ItemState, StageAnchorState, StageState } from "../types";
 import { EQUIPMENT_SLOT_LABELS, EQUIPMENT_SLOTS } from "../types";
 
-/** 场景锚点的统一渲染：stage 与 actor 都看同一份公开列表。 */
-export function describeStageAnchors(anchors: readonly StageAnchor[]): string {
+/** 场景锚点的统一渲染：stage 与 actor 都看同一份公开列表，物品作为子项挂在锚点下。 */
+export function describeStageAnchors(anchors: readonly StageAnchorState[]): string {
   if (anchors.length === 0) {
     return "无";
   }
   return anchors
-    .map((anchor) =>
-      anchor.description ? `- ${anchor.label}：${anchor.description}` : `- ${anchor.label}`,
-    )
+    .flatMap((anchor) => {
+      const head = anchor.description
+        ? `- ${anchor.label}：${anchor.description}`
+        : `- ${anchor.label}`;
+      const items = anchor.items.map(
+        (item) => `  - ${item.name}（${item.kind}${itemSourceNote(item)}）：${item.description}`,
+      );
+      return [head, ...items];
+    })
     .join("\n");
+}
+
+/** 场景里可拾取的物品名：物品挂在锚点上，顺序沿用锚点与物品的稳定序号。 */
+export function stageItemNames(stage: Pick<StageState, "anchors">): string[] {
+  return stage.anchors.flatMap((anchor) => anchor.items.map((item) => item.name));
 }
 
 /**
@@ -116,18 +127,8 @@ export function renderStageEnvironmentForActor(
   return sanitizeActorFacingText(stage.environment, stage.actors, address, otherActorNames);
 }
 
-/** 场景物品的公开描述；world 与 actor 两份视图共用。 */
-function describeStageItems(stage: StageState): string {
-  if (stage.items.length === 0) {
-    return "无";
-  }
-  return stage.items
-    .map((item) => `${item.name}（${item.kind}${itemSourceNote(item)}）：${item.description}`)
-    .join("；");
-}
-
-/** 锚点要带描述；只列标签会丢掉 use 需要的细节。 */
-function describeStageAnchorsSection(anchors: readonly StageAnchor[]): string {
+/** 锚点连物品一起给；只列标签会丢掉 use 与 pickup 需要的细节。 */
+function describeStageAnchorsSection(anchors: readonly StageAnchorState[]): string {
   return anchors.length === 0 ? "可交互：无" : `可交互：\n${describeStageAnchors(anchors)}`;
 }
 
@@ -168,7 +169,6 @@ export function describeStageForActor(state: GameStateSlice, current: ActorWithS
   return `场景：${stage.name}
 ${renderStageEnvironmentForActor(state, current)}
 角色：${actors}
-物品：${describeStageItems(stage)}
 ${describeStageAnchorsSection(stage.anchors)}
 可去：${moves.length === 0 ? "无" : moves.join("、")}${
     canTeleport
@@ -220,7 +220,6 @@ export function describeStageForWorld(state: GameStateSlice, stageName: string):
 ${stage.profile}
 ${stage.environment}
 角色：${actors}
-物品：${describeStageItems(stage)}
 ${describeStageAnchorsSection(stage.anchors)}
 可去：${moves.length === 0 ? "无" : moves.join("、")}`;
 }

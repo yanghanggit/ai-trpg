@@ -150,7 +150,7 @@ describe.skipIf(!testDatabaseUrl)("death drops", () => {
     const state = await getGameState(handle.db, created.game.slug);
     const gate = state.world.stages.find((stage) => stage.name === "灰烬门廊");
     // 材料在尸体背包里，不在场景里：因此不存在 pickup 这条路。
-    expect(gate?.items).toEqual([]);
+    expect(gate?.anchors.flatMap((anchor) => anchor.items)).toEqual([]);
     const corpse = gate?.actors.find((actor) => actor.name === "提灯修士");
     const material = corpse?.items.find((item) => item.name === "浸血的灰袍碎片");
     expect(material?.kind).toBe("material");

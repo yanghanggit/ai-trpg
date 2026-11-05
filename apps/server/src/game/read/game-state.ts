@@ -181,11 +181,24 @@ export async function getGameStateSlice(db: Database, ref: string): Promise<Game
 /** 行 → 状态；纯函数，不读库也不做业务判定。 */
 function assembleState(rows: StateRows): GameStateSlice {
   const visits = assembleVisits(rows.stages, rows.visits);
-  const itemsByStage = new Map<string, ItemState[]>();
+  // 场景物品挂在锚点上：按 (stage, anchorKey) 分组，读侧还原成树。
+  const itemsByAnchor = new Map<string, ItemState[]>();
   for (const item of rows.stageItems) {
-    const list = itemsByStage.get(item.stageId) ?? [];
+    const id = `${item.stageId}:${item.anchorKey}`;
+    const list = itemsByAnchor.get(id) ?? [];
     list.push(toItemState(item));
-    itemsByStage.set(item.stageId, list);
+    itemsByAnchor.set(id, list);
+  }
+  const anchorKeysByStage = new Map(
+    rows.stages.map((stage) => [stage.id, new Set(stage.anchors.map((anchor) => anchor.key))]),
+  );
+  for (const item of rows.stageItems) {
+    if (!anchorKeysByStage.get(item.stageId)?.has(item.anchorKey)) {
+      throw new GameError(
+        "invalid_state",
+        `场景物品 ${item.name} 挂在未声明的锚点上: ${item.anchorKey}`,
+      );
+    }
   }
 
   const itemsByActor = new Map<string, ItemState[]>();
@@ -238,11 +251,15 @@ function assembleState(rows: StateRows): GameStateSlice {
     name: stage.name,
     profile: stage.profile,
     environment: stage.environment,
-    anchors: stage.anchors,
+    anchors: stage.anchors.map((anchor) => ({
+      key: anchor.key,
+      label: anchor.label,
+      ...(anchor.description === undefined ? {} : { description: anchor.description }),
+      items: itemsByAnchor.get(`${stage.id}:${anchor.key}`) ?? [],
+    })),
     ordinal: stage.ordinal,
     teleportBlocked: stage.teleportBlocked,
     actors: actorsByStage.get(stage.id) ?? [],
-    items: itemsByStage.get(stage.id) ?? [],
     actions: stage.actions,
   }));
 

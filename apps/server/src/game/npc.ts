@@ -61,6 +61,7 @@ import {
   parseRecallRoute,
   parseRecognizeIdentity,
   renderStageEnvironmentForActor,
+  stageItemNames,
 } from "./plan";
 import { getGameStateSlice, readTurnDelivery } from "./read/game-state";
 import { handleOf, isHandleRef } from "./reference";
@@ -145,12 +146,6 @@ export function buildActorTurnInput(state: GameStateSlice, current: ActorWithSta
             return `${refOf(address(actor.id))}${dead}${worn.length === 0 ? "" : `｜${worn}`}`;
           })
           .join("\n");
-  const itemLines =
-    current.stage.items.length === 0
-      ? "无"
-      : current.stage.items
-          .map((item) => `${item.name}（${item.kind}）：${item.description}`)
-          .join("\n");
   const anchorLines = describeStageAnchors(current.stage.anchors);
   const targetLines = targets.length === 0 ? "无" : targets.join("、");
   const moveLines = moves.length === 0 ? "无" : moves.join("、");
@@ -179,9 +174,6 @@ ${current.actor.name}（你的引用：${selfHandle}）| HP ${current.actor.hp}/
 
 ## 同场景角色
 ${actorLines}
-
-## 场景物品
-${itemLines}
 
 ## 可交互锚点
 ${anchorLines}
@@ -297,7 +289,7 @@ export async function runNpcTurn(
     brawl: buildBrawlTool(targets),
     steal: buildStealTool(targets),
     give: buildGiveTool(targets),
-    pickup: buildPickupTool(current.stage.items.map((item) => item.name)),
+    pickup: buildPickupTool(stageItemNames(current.stage)),
     use: buildUseTool(
       availableUseItemNames,
       selfAndTargets,

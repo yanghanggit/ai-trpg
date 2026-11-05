@@ -5,11 +5,11 @@ PostgreSQL 是游戏状态的唯一真相。`agent:game` 从数据库读取状�
 ## 当前模型
 
 - **身份与对局**：`users` 不进入游戏状态；`games` 是聚合根，带状态、world 自己命名的 `outcome`、内容版本与并发版本号；`game_players` 是座位，v1 一局一个；`actor_controls` 表达玩家接管，不改 actor 本体，释放后同一 actor 恢复 NPC 驱动。
-- **世界与场景**：`worlds` 一局一个，`content_key` 锚定知识库 collection 而非展示名，`profile` 是世界的自我设定（它是什么、什么算收束），`function_agents` 存每个世界职能 agent 的完整 system prompt，运行时原样取用；`stages` 按 `ordinal` 保持稳定顺序，`environment` 是 stage 回合覆盖的环境快照，`anchors` 是建局时由内容层赋予、运行时不改的可交互锚点；`stage_connections` 是同一 world 内的**有向**边，单向靠「没有反向边」表达，运行时只能把已声明的边从封闭打开，不能新建边。world 是 game 的运行时子状态而非可复用模板：数据库存状态，目录 `logs/worlds/` 存开发期导出的快照。`stage_visits` 只记到访，`known_stages` 只记非到访得知的场景真名（来源与听说地点）；到访天然含名字知识，读取时合并两者，到达路径不写第二张表。
+- **世界与场景**：`worlds` 一局一个，`content_key` 锚定知识库 collection 而非展示名，`profile` 是世界的自我设定（它是什么、什么算收束），`function_agents` 存每个世界职能 agent 的完整 system prompt，运行时原样取用；`stages` 按 `ordinal` 保持稳定顺序，`environment` 是 stage 回合覆盖的环境快照，`anchors` 只存锚点的身份与文本，建局时由内容层赋予、运行时不改；`stage_connections` 是同一 world 内的**有向**边，单向靠「没有反向边」表达，运行时只能把已声明的边从封闭打开，不能新建边。world 是 game 的运行时子状态而非可复用模板：数据库存状态，目录 `logs/worlds/` 存开发期导出的快照。`stage_visits` 只记到访，`known_stages` 只记非到访得知的场景真名（来源与听说地点）；到访天然含名字知识，读取时合并两者，到达路径不写第二张表。
 - **角色**：`actors` 依附场景，带 `is_default_player` 与内容层稳定 `key`；`hp` 是可变运行时状态、独立成列，**`hp === 0` 就是死亡**，没有死亡状态列，`death_settled_at` 只是「死亡收尾跑过了吗」的处理标记；`stats` 恒定；视觉数据不在 actor 上，`equipment` 是「槽位 → 物品名」索引且每槽至多一件。
 - **签名**：`actor_signatures` 只存稳定形态 `form`（`种族:描述`）。每个 actor 同时只有一条 `ended_at is null` 的签名；伪装 / 变身会开一条新签名并封上旧的。actor 不再持有任何视觉字段。
 - **外观**：`appearances` 是 append-only 渲染记录，每行有 `text`（最终渲染值）、`input`（生成输入快照）、`source` 与 `superseded_at`。每个签名同时只有一条 `superseded_at is null` 的当前记录；历史行不覆盖、不删除。
-- **物品**：`items` 依附角色，`stage_items` 依附场景，两者字段相同、都不记录穿戴状态；按 `name` 定位，因此同一持有者内名字唯一。`kind` 是自由文本，新增大类不需要迁移。
+- **物品**：`items` 依附角色，`stage_items` 依附场景里的锚点（`anchor_key`），两者字段相同、都不记录穿戴状态；按 `name` 定位，因此同一持有者 / 同一场景内名字唯一。`kind` 是自由文本，新增大类不需要迁移。
 - **签名称呼**：`actor_signature_names` 存「观察者 × 签名 → 当前名字」；每个观察者对每个签名只有一个当前值，再次写入覆盖。名字按签名记录，换签名即失去旧称呼；它不做名字抽取。
 - **消息与记忆**：`game_messages` 是公共事件流（`sequence` 追加、带可见性），供客户端增量拉取与审计，没有 session 表；`agent_memories` + `agent_memory_messages` 是 actor / stage / world 各自的私有上下文，压缩摘要与被压缩的旧消息都留在 memory 里形成可回述的树。两者不能合并：`mind` 只进 memory。
 - **向量**：`vector_documents` 用 `collection` 隔离世界内容、`embedding_model` 隔离模型；只装公共知识，不进私有 memory，也不承载剧情秘密。

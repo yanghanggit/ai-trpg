@@ -1,5 +1,5 @@
 {
-  "id": "2ced208e-8eaa-4d21-8358-b0c0afb66724",
+  "id": "c038db98-274c-46b9-ad88-dd9cc5128f77",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "version": "7",
   "dialect": "postgresql",
@@ -2077,6 +2077,12 @@
           "type": "text",
           "primaryKey": false,
           "notNull": false
+        },
+        "anchor_key": {
+          "name": "anchor_key",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
         },
         "name": {
           "name": "name",

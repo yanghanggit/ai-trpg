@@ -46,21 +46,24 @@ const worldSignatureNameSchema = z.strictObject({
 
 const stageAnchorSchema = z
   .object({
+    key: z.string().trim().min(1),
     label: z.string().trim().min(1),
     description: z.string().trim().optional(),
+    items: z.array(itemSchema).optional(),
   })
   .strict();
 
-const stageSchema = z.object({
-  key: z.string().min(1),
-  name: z.string().min(1),
-  profile: z.string(),
-  environment: z.string(),
-  anchors: z.array(stageAnchorSchema).max(MAX_STAGE_ANCHORS).optional(),
-  items: z.array(itemSchema).optional(),
-  actions: z.array(stageActionSchema),
-  teleportBlocked: z.boolean().optional(),
-});
+const stageSchema = z
+  .object({
+    key: z.string().min(1),
+    name: z.string().min(1),
+    profile: z.string(),
+    environment: z.string(),
+    anchors: z.array(stageAnchorSchema).max(MAX_STAGE_ANCHORS).optional(),
+    actions: z.array(stageActionSchema),
+    teleportBlocked: z.boolean().optional(),
+  })
+  .strict();
 
 const actorSchema = z.object({
   key: z.string().min(1),

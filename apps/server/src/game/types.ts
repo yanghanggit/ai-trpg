@@ -124,11 +124,15 @@ export type WorldFunctionAgents = readonly WorldFunctionAgent[];
  *
  * 它只是可供性索引，不承载效果；`use` 只能从当前场景的锚点里选。
  */
-export type StageAnchor = {
+export type StageAnchorState = {
+  /** 本场景内的稳定标识：物品挂在它上面，改显示名不换 key。 */
+  key: string;
   /** 世界面短标签，场景内唯一。 */
   label: string;
   /** 可选的可观察细节；不写后果或机制。 */
   description?: string;
+  /** 挂在这个锚点上的场景物品，按实体序号排序。 */
+  items: ItemState[];
 };
 
 /** 场景边的通行状态；sealed 表示两侧在剧情上相连，但当前不能通过。 */
@@ -420,11 +424,10 @@ export type StageState = {
   name: string;
   profile: string;
   environment: string;
-  anchors: StageAnchor[];
+  anchors: StageAnchorState[];
   ordinal: number;
   teleportBlocked: boolean;
   actors: ActorState[];
-  items: ItemState[];
   actions: readonly StageActionKind[];
 };
 

@@ -23,15 +23,18 @@ const ITEM_WORLD: World = {
     stage.key === "gate"
       ? {
           ...stage,
-          items: [
-            {
-              key: "test-lantern",
-              name: "测试提灯",
-              description: "测试用的场景道具。",
-              kind: "equipment",
-              effect: { type: "event" },
-            },
-          ],
+          anchors: (stage.anchors ?? []).map((anchor) => ({
+            ...anchor,
+            items: [
+              {
+                key: "test-lantern",
+                name: "测试提灯",
+                description: "测试用的场景道具。",
+                kind: "equipment",
+                effect: { type: "event" },
+              },
+            ],
+          })),
         }
       : stage,
   ),
@@ -105,7 +108,7 @@ describe.skipIf(!testDatabaseUrl)("memory state snapshot", () => {
     expect(content).toContain("# 当时");
     expect(content).toContain("场景：断钟中殿");
     expect(content).toContain("在场：你、缄默抄经人");
-    expect(content).toContain("物品：无");
+    expect(content).toContain("可交互：无");
     expect(content).not.toContain("场景：灰烬门廊\n");
   });
 
@@ -121,7 +124,7 @@ describe.skipIf(!testDatabaseUrl)("memory state snapshot", () => {
     const { actor } = await actorByName(created.game.slug, "守烬人");
     const content = await lastMemory(created.game.id, actor.id);
     expect(content).toContain("# 当时");
-    expect(content).toContain("物品：测试提灯");
+    expect(content).toContain("可交互：门闩（测试提灯）");
   });
 
   it("attaches the same state snapshot to a rejected plan", async () => {

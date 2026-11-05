@@ -8,13 +8,7 @@ import { getMemoryState } from "./memory";
 import { getGameStateSlice } from "./read/game-state";
 import { handleOf } from "./reference";
 import { knownStagesForActor, visitedTeleportTargetsFor } from "./teleport";
-import type {
-  GameStateSlice,
-  PassageState,
-  SignatureNameState,
-  StageAnchor,
-  StageState,
-} from "./types";
+import type { GameStateSlice, PassageState, SignatureNameState, StageState } from "./types";
 
 /**
  * 客户端用的「世界面」投影。
@@ -35,13 +29,22 @@ export type ViewerAddress = {
   alive: boolean;
 };
 
+export type ViewerItem = { name: string; kind: string; description: string };
+
+/** 锚点连它承载的物品一起给；物品不再有独立的扁平列表。 */
+export type ViewerAnchor = {
+  key: string;
+  label: string;
+  description?: string;
+  items: ViewerItem[];
+};
+
 export type ViewerScene = {
   id: string;
   name: string;
   environment: string;
-  items: { name: string; kind: string; description: string }[];
   /** 公共标签，不做观察者遮蔽。 */
-  anchors: StageAnchor[];
+  anchors: ViewerAnchor[];
   actors: ViewerAddress[];
   /** 出口同时给真实场景名与 #实体序号，客户端可自行决定遮蔽。 */
   exits: { stageId: string; name: string; ref: string }[];
@@ -109,10 +112,16 @@ const LOG_KINDS = new Set<string>([
   MEMORY_KINDS.compactedMemory,
 ]);
 
-function anchorsOf(stage: Pick<StageState, "anchors">): StageAnchor[] {
+function anchorsOf(stage: Pick<StageState, "anchors">): ViewerAnchor[] {
   return stage.anchors.map((anchor) => ({
+    key: anchor.key,
     label: anchor.label,
     ...(anchor.description === undefined ? {} : { description: anchor.description }),
+    items: anchor.items.map((item) => ({
+      name: item.name,
+      kind: item.kind,
+      description: item.description,
+    })),
   }));
 }
 
@@ -184,11 +193,6 @@ export async function getActorView(
       id: stage.id,
       name: stage.name,
       environment: stage.environment,
-      items: stage.items.map((item) => ({
-        name: item.name,
-        kind: item.kind,
-        description: item.description,
-      })),
       anchors: anchorsOf(stage),
       actors,
       exits: adjacentStages(state, stage.id).map((exit) => ({
@@ -246,8 +250,7 @@ export type StageView = {
     id: string;
     name: string;
     environment: string;
-    anchors: { label: string; description?: string }[];
-    items: { name: string; kind: string; description: string }[];
+    anchors: ViewerAnchor[];
     actors: StageViewActor[];
     exits: StageViewExit[];
   };
@@ -301,11 +304,6 @@ export async function getStageView(
       name: stage.name,
       environment: stage.environment,
       anchors: anchorsOf(stage),
-      items: stage.items.map((item) => ({
-        name: item.name,
-        kind: item.kind,
-        description: item.description,
-      })),
       actors: stage.actors.map((actor) => ({
         actorId: actor.id,
         name: actor.name,

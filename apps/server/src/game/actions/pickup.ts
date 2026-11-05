@@ -13,13 +13,13 @@ export function buildPickupTool(availableItemNames: readonly string[] = []): Too
     type: "function",
     function: {
       name: "pickup",
-      description: "把一次拾取加入计划：拾起当前场景中的一件物品，放进自己的背包。",
+      description: "把一次拾取加入计划：从当前场景的锚点上取下一件物品，放进自己的背包。",
       parameters: {
         type: "object",
         properties: {
           itemName: {
             type: "string",
-            description: "要拾取的当前场景物品名",
+            description: "要拾取的、挂在当前场景锚点上的物品名",
             ...(availableItemNames.length > 0 ? { enum: [...availableItemNames] } : {}),
           },
         },
@@ -43,7 +43,14 @@ export async function resolvePickup(
   action: PickupAction,
 ): Promise<ResolvedPickup> {
   const stageItem = await resolveStageItem(executor, stage.id, action.itemName);
-  return { kind: "pickup", action, stage, stageItem };
+  const anchor = stage.anchors.find((candidate) => candidate.key === stageItem.anchorKey);
+  if (!anchor) {
+    throw new GameError(
+      "invalid_state",
+      `物品 ${stageItem.name} 没有可用的锚点: ${stageItem.anchorKey}`,
+    );
+  }
+  return { kind: "pickup", action, stage, stageItem, anchorLabel: anchor.label };
 }
 
 export async function applyPickup(
@@ -60,7 +67,7 @@ export async function applyPickup(
   await moveStageItemToActor(executor, stageItem, actor.id);
   await bumpGameVersion(executor, gameId, now);
 
-  const content = `${actor.name}拾取了${stageItem.name}。`;
+  const content = `${actor.name}从${resolved.anchorLabel}上拾取了${stageItem.name}。`;
   await appendPublicMessage(executor, gameId, actor.id, {
     kind: "pickup",
     stageId: resolved.stage.id,
@@ -75,6 +82,7 @@ export async function applyPickup(
       actor,
       itemName: stageItem.name,
       event: "pickup",
+      anchorLabel: resolved.anchorLabel,
     },
     trace,
   );
@@ -88,5 +96,5 @@ export async function applyPickup(
     },
     trace,
   );
-  return `# 行动结果\n你拾取了${stageItem.name}。`;
+  return `# 行动结果\n你从${resolved.anchorLabel}上拾取了${stageItem.name}。`;
 }

@@ -93,7 +93,7 @@ export type ItemObservation = { actor: ActorRef; itemName: string } & (
       targetStageName?: string;
       targetAnchor?: string;
     }
-  | { event: "pickup" }
+  | { event: "pickup"; anchorLabel: string }
 );
 
 /**
@@ -287,8 +287,11 @@ export function renderItemEvent(
       };
     case "pickup":
       return {
-        content: withAppearances(`# 场景动态\n${actorRef}拾取了${itemName}。`, [actorAddress]),
-        metadata,
+        content: withAppearances(
+          `# 场景动态\n${actorRef}从${observation.anchorLabel}上拾取了${itemName}。`,
+          [actorAddress],
+        ),
+        metadata: { ...metadata, targetAnchor: observation.anchorLabel },
       };
     case "use": {
       const where = observation.target

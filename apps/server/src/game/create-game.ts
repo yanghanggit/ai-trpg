@@ -90,7 +90,9 @@ function itemValues(item: ItemDefinition, seq: number) {
 function assertUniqueItemKeys(world: World): void {
   const seen = new Set<string>();
   const all = [
-    ...world.stages.flatMap((stage) => stage.items ?? []),
+    ...world.stages.flatMap((stage) =>
+      (stage.anchors ?? []).flatMap((anchor) => anchor.items ?? []),
+    ),
     ...world.actors.flatMap((actor) => actor.items),
   ];
   for (const item of all) {
@@ -146,10 +148,14 @@ async function createStages(
       { id: stageId, name: stage.name, profile: stage.profile },
       prompt,
     );
-    for (const item of stage.items ?? []) {
-      await tx
-        .insert(stageItems)
-        .values({ ...itemValues(item, await allocateEntitySeq(tx, gameId)), stageId });
+    for (const anchor of stage.anchors ?? []) {
+      for (const item of anchor.items ?? []) {
+        await tx.insert(stageItems).values({
+          ...itemValues(item, await allocateEntitySeq(tx, gameId)),
+          stageId,
+          anchorKey: anchor.key,
+        });
+      }
     }
   }
   return { stageIds, prompts };
@@ -171,7 +177,12 @@ async function insertStage(
     name: stage.name,
     profile: stage.profile,
     environment: stage.environment,
-    anchors: stage.anchors ? [...stage.anchors] : [],
+    // 锚点行只存身份与文本；物品在 stage_items，靠 anchor_key 挂回去。
+    anchors: (stage.anchors ?? []).map((anchor) => ({
+      key: anchor.key,
+      label: anchor.label,
+      ...(anchor.description === undefined ? {} : { description: anchor.description }),
+    })),
     actions: [...stage.actions],
     teleportBlocked: stage.teleportBlocked ?? false,
     ordinal,

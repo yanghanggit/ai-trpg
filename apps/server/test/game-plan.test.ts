@@ -22,8 +22,10 @@ import {
   describeItems,
   describeObservedActor,
   describeSelf,
+  describeStageAnchors,
   describeStats,
   parseEndGame,
+  stageItemNames,
 } from "../src/game/plan";
 
 describe("action authorization", () => {
@@ -352,5 +354,31 @@ describe("read-only descriptions", () => {
     };
     expect(describeItems(bag)).toContain("灰烬骨片（material，count 2，源自 提灯修士）");
     expect(describeItems(bag)).not.toContain("裂齿短刃（weapon，count 1，源自");
+  });
+});
+
+describe("stage anchors", () => {
+  it("把物品渲染在锚点下面，并给出可拾取名", () => {
+    const torch = toItemState({
+      id: "item-1",
+      seq: 7,
+      key: "torch",
+      name: "松脂火把",
+      description: "一支浸透松脂的火把。",
+      kind: "weapon",
+      count: 1,
+      stats: { maxHp: 0, strength: 0, wisdom: 0, agility: 0, damage: 8, block: 0 },
+      effect: { type: "damage" },
+    });
+    const anchors = [
+      { key: "corner", label: "墙角", description: "炉门旁的墙角。", items: [torch] },
+      { key: "lock", label: "锁孔", items: [] },
+    ];
+
+    const text = describeStageAnchors(anchors);
+    expect(text).toContain("- 墙角：炉门旁的墙角。");
+    expect(text).toContain("  - 松脂火把（weapon）：一支浸透松脂的火把。");
+    expect(text).toContain("- 锁孔");
+    expect(stageItemNames({ anchors })).toEqual(["松脂火把"]);
   });
 });

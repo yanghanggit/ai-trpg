@@ -36,16 +36,19 @@ const worldWithPickup = {
     stage.key === "gate"
       ? {
           ...stage,
-          items: [
-            {
-              key: "probe-lantern",
-              name: "测试提灯",
-              description: "一盏用于探针测试的提灯。",
-              kind: "valuable" as const,
-              count: 1,
-              effect: { type: "event" },
-            },
-          ],
+          anchors: (stage.anchors ?? []).map((anchor) => ({
+            ...anchor,
+            items: [
+              {
+                key: "probe-lantern",
+                name: "测试提灯",
+                description: "一盏用于探针测试的提灯。",
+                kind: "valuable" as const,
+                count: 1,
+                effect: { type: "event" },
+              },
+            ],
+          })),
         }
       : stage,
   ),
@@ -93,7 +96,9 @@ describe.skipIf(!testDatabaseUrl)("agent probe", () => {
     expect(service.request?.inputMessage).toContain("你现在记得自己刚刚做了什么吗？");
     expect(service.request?.inputMessage).not.toContain("## 场景物品");
     expect(
-      service.request?.messages.some((message) => message.content.includes("你拾取了测试提灯。")),
+      service.request?.messages.some((message) =>
+        message.content.includes("你从门闩上拾取了测试提灯。"),
+      ),
     ).toBe(true);
 
     const afterState = await getGameState(handle.db, slug);
@@ -132,7 +137,7 @@ describe.skipIf(!testDatabaseUrl)("agent probe", () => {
     expect(service.request?.inputMessage).not.toContain("## 场景物品");
     expect(
       service.request?.messages.some((message) =>
-        message.content.includes("守烬人拾取了测试提灯。"),
+        message.content.includes("守烬人从门闩上拾取了测试提灯。"),
       ),
     ).toBe(true);
 

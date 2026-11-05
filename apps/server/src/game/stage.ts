@@ -58,10 +58,6 @@ export function buildStageTurnInput(state: GameStateSlice, stage: StageState): s
               `${actor.name}：${actor.appearance.text}${isAlive(actor) ? "" : "（已死亡）"}`,
           )
           .join("\n");
-  const itemLines =
-    stage.items.length === 0
-      ? "无"
-      : stage.items.map((item) => `${item.name}（${item.kind}）：${item.description}`).join("\n");
   const anchorLines = describeStageAnchors(stage.anchors);
   const moveLines = moves.length === 0 ? "无" : moves.join("、");
   const sealedLines = sealed.length === 0 ? "无" : sealed.join("、");
@@ -95,9 +91,6 @@ ${stage.environment}
 
 ## 同场景角色
 ${actorLines}
-
-## 场景物品
-${itemLines}
 
 ## 可交互锚点
 ${anchorLines}

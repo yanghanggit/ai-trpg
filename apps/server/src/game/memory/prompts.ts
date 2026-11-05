@@ -34,15 +34,25 @@ ${briefing}`;
 }
 
 /**
- * 场景的开局基线：t0 的 environment 与锚点。不含在场角色——名单易变，且环境文本
- * 不允许出现角色名。
+ * 场景的开局基线：t0 的 environment、锚点与锚点上的物品。不含在场角色——名单易变，
+ * 且环境文本不允许出现角色名。
  */
-export function buildStageOpeningSnapshot(
-  stage: Pick<Stage, "name" | "environment" | "anchors">,
-): string {
-  const anchors = (stage.anchors ?? []).map((anchor) =>
-    anchor.description ? `- ${anchor.label}：${anchor.description}` : `- ${anchor.label}`,
-  );
+export function buildStageOpeningSnapshot(stage: {
+  name: string;
+  environment: string;
+  anchors: readonly {
+    label: string;
+    description?: string;
+    items: readonly { name: string }[];
+  }[];
+}): string {
+  const anchors = stage.anchors.map((anchor) => {
+    const head = anchor.description
+      ? `- ${anchor.label}：${anchor.description}`
+      : `- ${anchor.label}`;
+    const items = anchor.items.map((item) => item.name);
+    return items.length === 0 ? head : `${head}（${items.join("、")}）`;
+  });
   return `# 本局开局场景
 
 场景：${stage.name}

@@ -22,8 +22,10 @@ function storyTokens(): string[] {
   const tokens = new Set<string>([BELL_MONASTERY_WORLD.worldName]);
   for (const stage of BELL_MONASTERY_WORLD.stages) {
     tokens.add(stage.name);
-    for (const item of stage.items ?? []) {
-      tokens.add(item.name);
+    for (const anchor of stage.anchors ?? []) {
+      for (const item of anchor.items ?? []) {
+        tokens.add(item.name);
+      }
     }
   }
   for (const actor of BELL_MONASTERY_WORLD.actors) {

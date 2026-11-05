@@ -96,7 +96,7 @@ describe.skipIf(!testDatabaseUrl)("stage view", () => {
       ["铁闸门", "open"],
     ]);
     expect(graveyard.scene.anchors).toEqual([
-      { label: "锁孔", description: "铁闸门上被干蜡塞住的锁孔。" },
+      { key: "lock", label: "锁孔", description: "铁闸门上被干蜡塞住的锁孔。", items: [] },
     ]);
 
     // 铁闸门通往山道的边是 sealed：stage 自己就是开门的写入方，所以它要看到通行状态。

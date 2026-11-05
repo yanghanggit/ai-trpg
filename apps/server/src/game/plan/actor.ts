@@ -137,7 +137,7 @@ export function buildActorLookTool(): ToolDefinition {
     function: {
       name: "look_stage",
       description:
-        "重新查看你所在场景的环境、在场角色、场景物品、可交互锚点与可去方向。只读，可多次调用。",
+        "重新查看你所在场景的环境、在场角色、可交互锚点及其上的物品与可去方向。只读，可多次调用。",
       parameters: {
         type: "object",
         properties: {},

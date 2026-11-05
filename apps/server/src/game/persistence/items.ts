@@ -1,5 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { and, asc, eq, inArray } from "drizzle-orm";
+import type { Database } from "../../db/pool";
 import { items, stageItems } from "../../db/schema";
 import type { Executor, ItemRow, StageItemRow } from "../apply/types";
 import { toStats } from "../attributes";
@@ -15,7 +16,10 @@ const MATERIAL_EFFECT = { type: "none" } as const;
  */
 
 /** 读一个场景当前陈列的物品，按实体序号稳定排序。 */
-export async function listStageItems(executor: Executor, stageId: string): Promise<StageItemRow[]> {
+export async function listStageItems(
+  executor: Pick<Database, "select">,
+  stageId: string,
+): Promise<StageItemRow[]> {
   return executor
     .select()
     .from(stageItems)

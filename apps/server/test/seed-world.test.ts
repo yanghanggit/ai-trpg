@@ -46,8 +46,10 @@ describe("dark fantasy seed world", () => {
     expect(BELL_MONASTERY_WORLD.actors.filter((actor) => actor.stageKey === "cellar")).toHaveLength(
       1,
     );
-    expect(stage("crematorium").items?.map((item) => item.name)).toEqual(["松脂火把"]);
-    expect(stage("crematorium").items?.[0]).toMatchObject({
+    expect(stage("crematorium").anchors?.[0]?.items?.map((item) => item.name)).toEqual([
+      "松脂火把",
+    ]);
+    expect(stage("crematorium").anchors?.[0]?.items?.[0]).toMatchObject({
       key: "crematorium-torch",
       kind: "weapon",
       count: 1,
@@ -59,7 +61,7 @@ describe("dark fantasy seed world", () => {
         },
       ],
     });
-    expect(stage("gate").items ?? []).toEqual([]);
+    expect(stage("gate").anchors?.flatMap((anchor) => anchor.items ?? []) ?? []).toEqual([]);
   });
 
   it("gives the keeper the gate key and makes the rat king a lethal sleeper", () => {
@@ -170,7 +172,11 @@ describe("dark fantasy seed world", () => {
     const weaponActions = (itemName: string) => {
       const item = BELL_MONASTERY_WORLD.actors
         .flatMap((actor) => actor.items)
-        .concat(BELL_MONASTERY_WORLD.stages.flatMap((stage) => stage.items ?? []))
+        .concat(
+          BELL_MONASTERY_WORLD.stages.flatMap((stage) =>
+            (stage.anchors ?? []).flatMap((anchor) => anchor.items ?? []),
+          ),
+        )
         .find((candidate) => candidate.name === itemName);
       return [...(item?.actions ?? [])];
     };
@@ -197,14 +203,14 @@ describe("dark fantasy seed world", () => {
     expect(stage("gate").actions).toEqual(["submit_environment", "open_passage"]);
     expect(stage("mountain-path").actions).toEqual(["submit_environment", "notify_world"]);
     expect(stage("graveyard").anchors).toEqual([
-      { label: "锁孔", description: "铁闸门上被干蜡塞住的锁孔。" },
+      { key: "lock", label: "锁孔", description: "铁闸门上被干蜡塞住的锁孔。" },
     ]);
     expect(stage("gate").anchors).toEqual([
-      { label: "锁孔", description: "铁闸门上被干蜡塞住的锁孔。" },
+      { key: "lock", label: "锁孔", description: "铁闸门上被干蜡塞住的锁孔。" },
     ]);
     expect(stage("cellar").actions).toEqual(["submit_environment", "notify_world"]);
     expect(stage("cellar").anchors).toEqual([
-      { label: "鼠窝", description: "地窖尽头由骨渣、破布和啃断的钥匙串堆成的鼠窝。" },
+      { key: "nest", label: "鼠窝", description: "地窖尽头由骨渣、破布和啃断的钥匙串堆成的鼠窝。" },
     ]);
     expect(BELL_MONASTERY_WORLD.actions).toEqual(["notify_stage", "end_game"]);
   });
@@ -253,7 +259,7 @@ describe("dark fantasy seed world", () => {
       BELL_MONASTERY_WORLD.worldName,
       ...BELL_MONASTERY_WORLD.stages.flatMap((stage) => [
         stage.name,
-        ...(stage.items ?? []).map((item) => item.name),
+        ...(stage.anchors ?? []).flatMap((anchor) => (anchor.items ?? []).map((item) => item.name)),
       ]),
       ...BELL_MONASTERY_WORLD.actors.flatMap((actor) => [
         actor.name,

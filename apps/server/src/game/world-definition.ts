@@ -14,7 +14,6 @@ import type {
   ItemKind,
   PassageState,
   StageActionKind,
-  StageAnchor,
   WorldActionKind,
   WorldFunctionAgents,
 } from "./types";
@@ -67,16 +66,28 @@ export type WorldKnownStage = {
   stage: string;
 };
 
+/**
+ * 内容层的锚点定义：锚点承载物品，物品不能脱离锚点。
+ *
+ * `key` 是场景内稳定标识，改 `label` 不会让挂在上面的物品失联。
+ */
+export type StageAnchorDefinition = {
+  /** 场景内稳定标识；改 label 不会让挂在上面的物品失联。 */
+  key: string;
+  label: string;
+  description?: string;
+  /** 开局就摆在这个锚点上的物品；建局时物化为 `stage_items.anchor_key`。 */
+  items?: readonly ItemDefinition[];
+};
+
 /** World 内的初始场景定义；`key` 仅在创建时用于连接与 actor 归属。 */
 export type Stage = {
   key: string;
   name: string;
   profile: string;
   environment: string;
-  /** 场景内可交互的锚点，创建后由 stage 回合维护。 */
-  anchors?: readonly StageAnchor[];
-  /** 暂放在场景中的物品；创建时物化为 `stage_items`。 */
-  items?: readonly ItemDefinition[];
+  /** 场景内可交互的锚点；物品只能挂在锚点上。 */
+  anchors?: readonly StageAnchorDefinition[];
   /** 场景自身的能力清单；必须显式列出。 */
   actions: readonly StageActionKind[];
   /** 是否禁止 teleport 进出；普通 move 不受影响。 */
