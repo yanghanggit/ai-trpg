@@ -1,6 +1,6 @@
 import type { TraceContext } from "../../debug/trace";
 import type { ToolDefinition } from "../../llm/types";
-import { mentionOf, stripNameRef } from "../addressing";
+import { mentionOf } from "../addressing";
 import { appendPublicMessage, bumpGameVersion } from "../apply/messages";
 import { resolveAdjacentStage } from "../apply/queries";
 import type { ActorWithStageRow, Executor, ResolvedMove, WorldRow } from "../apply/types";
@@ -9,6 +9,7 @@ import { renderAction, renderEnvironmentChange, withAppearances } from "../obser
 import { appendCustomStageObservation, appendStageMemory } from "../observations";
 import { moveActorToStage } from "../persistence/actors";
 import { recordStageVisit } from "../persistence/visits";
+import { stripNameRef } from "../reference";
 import type { MoveAction } from "../types";
 
 export function buildMoveTool(stageNames: readonly string[]): ToolDefinition {
@@ -22,7 +23,7 @@ export function buildMoveTool(stageNames: readonly string[]): ToolDefinition {
         properties: {
           targetStageName: {
             type: "string",
-            description: "要前往的相邻场景：@名字 或 #编号",
+            description: "要前往的相邻场景：场景名 或 #编号",
             ...(stageNames.length > 0 ? { enum: [...stageNames] } : {}),
           },
         },

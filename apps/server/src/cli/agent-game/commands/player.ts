@@ -450,8 +450,8 @@ export function registerPlayerCommands(program: Command, ctx: CommandContext): v
     options: [
       gameOption(),
       actorOption(),
-      optionalOption("--from <name>", "起点场景名：@名字，省略则用当前场景"),
-      requiredOption("--to <name>", "终点场景名：@名字（不接受 #序号）"),
+      optionalOption("--from <name>", "起点场景名，省略则用当前场景"),
+      requiredOption("--to <name>", "终点场景名（不接受 #序号）"),
     ],
     schema: z.object({
       ...gameAndActor,
@@ -473,7 +473,7 @@ export function registerPlayerCommands(program: Command, ctx: CommandContext): v
     name: "player-learn-stage",
     group: GROUP,
     summary: "认下一个场景真名（需接管；写知识 + 认知，不占行动名额）",
-    options: [gameOption(), actorOption(), requiredOption("--stage <name>", "场景真名（@名字）")],
+    options: [gameOption(), actorOption(), requiredOption("--stage <name>", "场景真名")],
     schema: z.object({ ...gameAndActor, stage: nonEmptyText("--stage") }),
     run: async (input, ctx) =>
       turnOutput(

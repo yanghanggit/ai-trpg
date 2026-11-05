@@ -1,4 +1,4 @@
-import { and, eq, isNull } from "drizzle-orm";
+import { and, asc, eq, isNull } from "drizzle-orm";
 import {
   actorSignatures,
   actors,
@@ -11,10 +11,11 @@ import {
   stageVisits,
   worlds,
 } from "../../db/schema";
-import { type AddressLookup, makeAddressLookup, stripNameRef } from "../addressing";
+import { type AddressLookup, makeAddressLookup, withSelf } from "../addressing";
 import { addStats, type Stats } from "../attributes";
 import { GameError } from "../errors";
 import { signatureNamesFor } from "../persistence/signature-names";
+import { handleOf, isHandleRef, parseHandle, stripNameRef } from "../reference";
 import type { RouteWorld } from "../route";
 import { EQUIPMENT_SLOTS } from "../types";
 import type {
@@ -28,14 +29,12 @@ import type {
 } from "./types";
 
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-const SIGNATURE_HANDLE_PATTERN = /^#([1-9]\d*)$/;
-const STAGE_HANDLE_PATTERN = /^#([1-9]\d*)$/;
 
 /** 场景 ref：id、名字或实体编号；编号与签名共用实体序号，按调用上下文区分。 */
 function stageRefCondition(ref: string) {
-  const handle = STAGE_HANDLE_PATTERN.exec(ref);
-  if (handle) {
-    return eq(stages.seq, Number(handle[1]));
+  const seq = parseHandle(ref);
+  if (seq !== null) {
+    return eq(stages.seq, seq);
   }
   return UUID_PATTERN.test(ref) ? eq(stages.id, ref) : eq(stages.name, ref);
 }
@@ -74,11 +73,10 @@ export async function findSignatureByHandleInWorld(
   worldId: string,
   handle: string,
 ): Promise<ActorViewRow | undefined> {
-  const match = SIGNATURE_HANDLE_PATTERN.exec(handle);
-  if (!match) {
+  const seq = parseHandle(handle);
+  if (seq === null) {
     return undefined;
   }
-  const seq = Number(match[1]);
   const rows = await executor
     .select({ actor: actors, signature: actorSignatures, appearance: appearances })
     .from(actorSignatures)
@@ -111,11 +109,10 @@ export async function resolveSignatureInStage(
   stageId: string,
   handle: string,
 ): Promise<ActorViewRow | undefined> {
-  const match = SIGNATURE_HANDLE_PATTERN.exec(handle);
-  if (!match) {
+  const seq = parseHandle(handle);
+  if (seq === null) {
     return undefined;
   }
-  const seq = Number(match[1]);
   const views = await listStageActorViews(executor, stageId);
   const matches = views.filter((view) => view.signature.seq === seq);
   return matches.length === 1 ? matches[0] : undefined;
@@ -151,25 +148,22 @@ export async function stageAddressLookup(
     ),
     self ? [self.actor.name] : [],
   );
-  return (actorId) => {
-    if (self && actorId === observerId) {
-      return {
-        token: `@${self.actor.name}`,
+  return self
+    ? withSelf(base, {
+        id: self.actor.id,
+        name: self.actor.name,
         appearance: self.appearance.text,
-        isSelf: true,
-      };
-    }
-    return base(actorId);
-  };
+      })
+    : base;
 }
 
 /**
  * actor-facing 的唯一目标入口，只允许两条路：
  *
  * - `#编号`：在本场景按签名查，永远不需要先知道名字；
- * - `@名字`：查观察者当前给本场景签名起的名字；自己按真名匹配。
+ * - 名字：查观察者当前给本场景签名起的名字；自己按真名匹配。
  *
- * 裸名字与 id 属于控制面，不从这里进入。
+ * id 属于控制面，不从这里进入。名字就是地址，所以没有第二套写法。
  */
 export async function resolveVisibleActor(
   executor: Executor,
@@ -183,7 +177,7 @@ export async function resolveVisibleActor(
   const value = input.ref.trim();
 
   // 签名入口：#编号只按当前签名查，不需要先知道名字。
-  if (value.startsWith("#")) {
+  if (isHandleRef(value)) {
     const view = await resolveSignatureInStage(executor, input.stageId, value);
     if (!view) {
       throw new GameError("invalid_action", `当前场景内找不到这个编号: ${value}`);
@@ -191,10 +185,10 @@ export async function resolveVisibleActor(
     return view.actor;
   }
 
-  if (!value.startsWith("@")) {
-    throw new GameError("invalid_action", `引用必须使用 @名字 或 #编号: ${value}`);
+  const name = stripNameRef(value);
+  if (name.length === 0) {
+    throw new GameError("invalid_action", `引用不能为空: ${value}`);
   }
-  const name = value.slice(1);
   const [views, names] = await Promise.all([
     listStageActorViews(executor, input.stageId),
     signatureNamesFor(executor, input.gameId, input.observerId),
@@ -204,10 +198,19 @@ export async function resolveVisibleActor(
       ? view.actor.name === name
       : names.get(view.signature.id) === name,
   );
-  if (matches.length !== 1 || !matches[0]) {
-    throw new GameError("invalid_action", `当前场景内找不到唯一引用: ${value}`);
+  const [match] = matches;
+  if (matches.length > 1) {
+    // 同一个称呼指向多个对象：地址退化为编号，这里必须说清楚可以改用哪几个。
+    const candidates = matches.map((view) => handleOf(view.signature.seq)).join("、");
+    throw new GameError(
+      "invalid_action",
+      `「${name}」在当前场景里对应多个对象（${candidates}）；用编号指认其中一个: ${value}`,
+    );
   }
-  return matches[0].actor;
+  if (!match) {
+    throw new GameError("invalid_action", `当前场景内找不到这个引用: ${value}`);
+  }
+  return match.actor;
 }
 
 /** 本场景角色的 id 与名字；文本脱敏只需要这两项。 */
@@ -241,8 +244,17 @@ export async function resolveEquippedItems(
   executor: Executor,
   actor: ActorRow,
 ): Promise<ItemRow[]> {
-  const rows = await executor.select().from(items).where(eq(items.actorId, actor.id));
-  const byName = new Map(rows.map((row) => [row.name, row]));
+  const rows = await executor
+    .select()
+    .from(items)
+    .where(eq(items.actorId, actor.id))
+    .orderBy(asc(items.seq));
+  const byName = new Map<string, (typeof rows)[number]>();
+  for (const row of rows) {
+    if (!byName.has(row.name)) {
+      byName.set(row.name, row);
+    }
+  }
   return EQUIPMENT_SLOTS.flatMap((slot) => {
     const name = actor.equipment[slot];
     const item = name === undefined ? undefined : byName.get(name);
@@ -256,30 +268,44 @@ export async function resolveEquippedStats(executor: Executor, actor: ActorRow):
   return addStats(...worn.map((item) => item.stats));
 }
 
+/**
+ * 按名字取 actor 名下的一件物品。
+ *
+ * 一个名字在一个作用域里只有一行，由写入侧保证（等价的并入 `count`，不等价的拒绝）。
+ * 历史数据若仍有重复，取序号最早的那一行——名字是唯一的地址，读取不该因为脏数据
+ * 把整回合卡死。
+ */
 export async function resolveActorItem(
   executor: Executor,
   actorId: string,
   itemName: string,
 ): Promise<ItemRow> {
-  const rows = await executor.select().from(items).where(eq(items.actorId, actorId));
-  const matches = rows.filter((row) => row.name === itemName);
-  const [item] = matches;
-  if (matches.length !== 1 || !item) {
-    throw new GameError("invalid_action", `actor 没有唯一物品: ${itemName}`);
+  const [item] = await executor
+    .select()
+    .from(items)
+    .where(and(eq(items.actorId, actorId), eq(items.name, itemName)))
+    .orderBy(asc(items.seq))
+    .limit(1);
+  if (!item) {
+    throw new GameError("invalid_action", `actor 没有这件物品: ${itemName}`);
   }
   return item;
 }
 
+/** 场景陈列同理：名字唯一由写入侧保证，重复行取序号最早的一件。 */
 export async function resolveStageItem(
   executor: Executor,
   stageId: string,
   itemName: string,
 ): Promise<StageItemRow> {
-  const rows = await executor.select().from(stageItems).where(eq(stageItems.stageId, stageId));
-  const matches = rows.filter((row) => row.name === itemName);
-  const [item] = matches;
-  if (matches.length !== 1 || !item) {
-    throw new GameError("invalid_action", `场景内没有唯一物品: ${itemName}`);
+  const [item] = await executor
+    .select()
+    .from(stageItems)
+    .where(and(eq(stageItems.stageId, stageId), eq(stageItems.name, itemName)))
+    .orderBy(asc(stageItems.seq))
+    .limit(1);
+  if (!item) {
+    throw new GameError("invalid_action", `场景内没有这件物品: ${itemName}`);
   }
   return item;
 }
@@ -436,20 +462,4 @@ export async function isStageKnownToActor(
     )
     .limit(1);
   return learned !== undefined;
-}
-
-/** 物品转移后同一 actor 不能出现重名物品。 */
-export async function assertItemNameFree(
-  executor: Executor,
-  actorId: string,
-  itemName: string,
-): Promise<void> {
-  const [existing] = await executor
-    .select({ id: items.id })
-    .from(items)
-    .where(and(eq(items.actorId, actorId), eq(items.name, itemName)))
-    .limit(1);
-  if (existing) {
-    throw new GameError("invalid_action", `目标已持有同名物品: ${itemName}`);
-  }
 }

@@ -130,7 +130,7 @@ describe.skipIf(!testDatabaseUrl)("memory-driven NPC slice", () => {
           {
             kind: "say",
             mind: "先试探他。",
-            targetActorHandle: "@提灯修士",
+            targetActorHandle: "提灯修士",
             message: "你听见钟声了吗？",
           },
         ],
@@ -140,7 +140,7 @@ describe.skipIf(!testDatabaseUrl)("memory-driven NPC slice", () => {
           {
             kind: "whisper",
             mind: "不要让它继续响。",
-            targetActorHandle: "@守烬人",
+            targetActorHandle: "守烬人",
             message: "别回应它。",
           },
         ],
@@ -312,7 +312,7 @@ describe.skipIf(!testDatabaseUrl)("memory-driven NPC slice", () => {
     expect(corpseService.tools).toContain("query");
 
     const dogService = new ToolCaptureService();
-    await runNpcTurn(handle.db, created.game.slug, "煤渣", { service: dogService });
+    await runNpcTurn(handle.db, created.game.slug, "小狗“煤渣”", { service: dogService });
     expect(dogService.tools).toContain("query");
     expect(dogService.tools).not.toContain("observe_actor");
     expect(dogService.tools).not.toContain("equip");
@@ -322,7 +322,7 @@ describe.skipIf(!testDatabaseUrl)("memory-driven NPC slice", () => {
     expect(dogService.tools).toContain("brawl");
 
     const mouseService = new ToolCaptureService();
-    await runNpcTurn(handle.db, created.game.slug, "坏运气", { service: mouseService });
+    await runNpcTurn(handle.db, created.game.slug, "小鼠“坏运气”", { service: mouseService });
     expect(mouseService.tools).not.toContain("strike");
     // 幼崽不会战斗：身体动作也没有。
     expect(mouseService.tools).not.toContain("brawl");
@@ -398,7 +398,7 @@ describe.skipIf(!testDatabaseUrl)("memory-driven NPC slice", () => {
       name: "攻击测试局",
       world: TEST_WORLD,
     });
-    const service = new ScriptedNpcService([{ actions: [strikeAction("@提灯修士")] }]);
+    const service = new ScriptedNpcService([{ actions: [strikeAction("提灯修士")] }]);
 
     const result = await runNpcTurn(handle.db, created.game.slug, "守烬人", { service });
     expect(result.ok).toBe(true);
@@ -463,7 +463,7 @@ describe.skipIf(!testDatabaseUrl)("memory-driven NPC slice", () => {
       name: "死亡测试局",
       world,
     });
-    const service = new ScriptedNpcService([{ actions: [strikeAction("@提灯修士")] }]);
+    const service = new ScriptedNpcService([{ actions: [strikeAction("提灯修士")] }]);
 
     const result = await runNpcTurn(handle.db, created.game.slug, "守烬人", { service });
     expect(result.ok).toBe(true);
@@ -506,7 +506,7 @@ describe.skipIf(!testDatabaseUrl)("memory-driven NPC slice", () => {
       .find((actor) => actor.name === "提灯修士");
     expect(defaultPlayer?.isDefaultPlayer).toBe(true);
 
-    const service = new ScriptedNpcService([{ actions: [strikeAction("@提灯修士")] }]);
+    const service = new ScriptedNpcService([{ actions: [strikeAction("提灯修士")] }]);
     const result = await runNpcTurn(handle.db, created.game.slug, "守烬人", { service });
     expect(result.ok).toBe(true);
 
@@ -530,7 +530,7 @@ describe.skipIf(!testDatabaseUrl)("memory-driven NPC slice", () => {
           {
             kind: "say",
             mind: "到了中殿再问抄经人。",
-            targetActorHandle: "@缄默抄经人",
+            targetActorHandle: "缄默抄经人",
             message: "你看见钟摆了吗？",
           },
         ],
@@ -634,7 +634,7 @@ describe.skipIf(!testDatabaseUrl)("memory-driven NPC slice", () => {
           {
             kind: "say",
             mind: "这句给目标，但旁人也会听见。",
-            targetActorHandle: "@提灯修士",
+            targetActorHandle: "提灯修士",
             message: "只对你说。",
           },
         ],
@@ -644,13 +644,13 @@ describe.skipIf(!testDatabaseUrl)("memory-driven NPC slice", () => {
           {
             kind: "whisper",
             mind: "这句只给他听。",
-            targetActorHandle: "@提灯修士",
+            targetActorHandle: "提灯修士",
             message: "别回头。",
           },
         ],
       },
       {
-        actions: [strikeAction("@提灯修士")],
+        actions: [strikeAction("提灯修士")],
       },
     ]);
     const announced = await runNpcTurn(handle.db, game.game.slug, "守烬人", { service });
@@ -668,30 +668,30 @@ describe.skipIf(!testDatabaseUrl)("memory-driven NPC slice", () => {
     const scribe = memories.find((memory) => memory.name === "缄默抄经人");
     expect(
       observer?.messages.some((message) =>
-        message.content.includes("@守烬人公开说（场景：灰烬门廊）：灰里有人。"),
+        message.content.includes("守烬人公开说（场景：灰烬门廊）：灰里有人。"),
       ),
     ).toBe(true);
     expect(
       observer?.messages.some((message) =>
-        message.content.includes("@守烬人对@提灯修士说（场景：灰烬门廊）：只对你说。"),
+        message.content.includes("守烬人对提灯修士说（场景：灰烬门廊）：只对你说。"),
       ),
     ).toBe(true);
     expect(observer?.messages.some((message) => message.content.includes("别回头"))).toBe(false);
     expect(
       monk?.messages.some((message) =>
-        message.content.includes("@守烬人对你说（场景：灰烬门廊）：只对你说。"),
+        message.content.includes("守烬人对你说（场景：灰烬门廊）：只对你说。"),
       ),
     ).toBe(true);
     expect(
       monk?.messages.some((message) =>
-        message.content.includes("@守烬人对你耳语（场景：灰烬门廊）：别回头。"),
+        message.content.includes("守烬人对你耳语（场景：灰烬门廊）：别回头。"),
       ),
     ).toBe(true);
     expect(
-      observer?.messages.some((message) => message.content.includes("@守烬人对@提灯修士挥击")),
+      observer?.messages.some((message) => message.content.includes("守烬人对提灯修士挥击")),
     ).toBe(true);
     expect(
-      scribe?.messages.some((message) => message.content.includes("@守烬人对@提灯修士挥击")),
+      scribe?.messages.some((message) => message.content.includes("守烬人对提灯修士挥击")),
     ).toBe(false);
   });
 });

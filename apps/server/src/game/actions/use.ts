@@ -1,11 +1,12 @@
 import type { TraceContext } from "../../debug/trace";
 import type { ToolDefinition } from "../../llm/types";
-import { type AddressLookup, stripNameRef } from "../addressing";
+import type { AddressLookup } from "../addressing";
 import { resolveActorItem } from "../apply/queries";
 import type { ActorWithStageRow, Executor, ResolvedUse } from "../apply/types";
 import { GameError } from "../errors";
 import { applyItemEffect, hasItemEffectHandler } from "../item-effects";
 import { equippedSlotOf } from "../items";
+import { stripNameRef } from "../reference";
 
 import {
   EQUIPMENT_SLOT_LABELS,
@@ -51,7 +52,7 @@ export function buildUseTool(
           },
           targetActorHandle: {
             type: "string",
-            description: "道具作用的对象角色的引用（@名字 或 #编号）；可以是自己，也可以是尸体",
+            description: "道具作用的对象角色的引用（名字 或 #编号）；可以是自己，也可以是尸体",
             ...(targetActorHandles.length > 0 ? { enum: [...targetActorHandles] } : {}),
           },
           targetStageName: {

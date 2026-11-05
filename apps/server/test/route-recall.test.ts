@@ -118,8 +118,8 @@ describe.skipIf(!testDatabaseUrl)("route recall", () => {
     await learnStageName(handle.db, slug, "无名者", "地窖");
 
     const turn = await playerRecallRoute(handle.db, slug, "无名者", {
-      fromStageRef: "@墓园",
-      toStageRef: "@地窖",
+      fromStageRef: "墓园",
+      toStageRef: "地窖",
     });
     expect(turn.ok).toBe(true);
 
@@ -132,8 +132,8 @@ describe.skipIf(!testDatabaseUrl)("route recall", () => {
     const slug = await newGame(handle, "路线写记忆测试局");
 
     await playerRecallRoute(handle.db, slug, "无名者", {
-      fromStageRef: "@棺材",
-      toStageRef: "@棺材",
+      fromStageRef: "棺材",
+      toStageRef: "棺材",
     });
 
     const recall = await recallMemory(handle, slug, "无名者");
@@ -148,8 +148,8 @@ describe.skipIf(!testDatabaseUrl)("route recall", () => {
     const before = await getGameState(handle.db, slug);
 
     await playerRecallRoute(handle.db, slug, "无名者", {
-      fromStageRef: "@墓园",
-      toStageRef: "@墓园",
+      fromStageRef: "墓园",
+      toStageRef: "墓园",
     });
 
     // 路线只写自己的记忆：状态没有变，公共事件流也没有新消息。
@@ -176,7 +176,7 @@ describe.skipIf(!testDatabaseUrl)("route recall", () => {
     const slug = await newGame(handle, "路线未知场景测试局");
 
     await expect(
-      playerRecallRoute(handle.db, slug, "无名者", { toStageRef: "@焚尸房" }),
+      playerRecallRoute(handle.db, slug, "无名者", { toStageRef: "焚尸房" }),
     ).rejects.toThrow(/你还没听说过这个场景/);
   });
 
@@ -186,8 +186,8 @@ describe.skipIf(!testDatabaseUrl)("route recall", () => {
     await learnStageName(handle.db, slug, "无名者", "焚尸房");
 
     const turn = await playerRecallRoute(handle.db, slug, "无名者", {
-      fromStageRef: "@棺材",
-      toStageRef: "@焚尸房",
+      fromStageRef: "棺材",
+      toStageRef: "焚尸房",
     });
     expect(turn.ok).toBe(true);
 
@@ -203,8 +203,8 @@ describe.skipIf(!testDatabaseUrl)("route recall", () => {
     await learnStageName(handle.db, slug, "无名者", "山道");
 
     await playerRecallRoute(handle.db, slug, "无名者", {
-      fromStageRef: "@铁闸门",
-      toStageRef: "@山道",
+      fromStageRef: "铁闸门",
+      toStageRef: "山道",
     });
 
     // 断处直接标在链上：不认识的站位给 #序号，封着的门写在两段之间。
@@ -223,7 +223,7 @@ describe.skipIf(!testDatabaseUrl)("route recall", () => {
     await learnStageName(handle.db, slug, "无名者", "墓园");
 
     const turn = await runNpcTurn(handle.db, slug, "无名者", {
-      service: new RecallRouteService("@墓园"),
+      service: new RecallRouteService("墓园"),
     });
     expect(turn.ok).toBe(true);
     expect(turn.plan?.actions).toEqual([]);
@@ -250,8 +250,8 @@ describe.skipIf(!testDatabaseUrl)("route recall", () => {
     );
 
     const turn = await playerRecallRoute(handle.db, slug, "守烬人", {
-      fromStageRef: "@甲地",
-      toStageRef: "@乙地",
+      fromStageRef: "甲地",
+      toStageRef: "乙地",
     });
     expect(turn.ok).toBe(true);
 
@@ -277,8 +277,8 @@ describe.skipIf(!testDatabaseUrl)("route recall", () => {
     );
 
     await playerRecallRoute(handle.db, slug, "守烬人", {
-      fromStageRef: "@甲地",
-      toStageRef: "@乙地",
+      fromStageRef: "甲地",
+      toStageRef: "乙地",
     });
 
     const recall = await recallMemory(handle, slug, "守烬人");
@@ -306,8 +306,8 @@ describe.skipIf(!testDatabaseUrl)("route recall", () => {
     );
 
     await playerRecallRoute(handle.db, slug, "守烬人", {
-      fromStageRef: "@甲地",
-      toStageRef: "@丙地",
+      fromStageRef: "甲地",
+      toStageRef: "丙地",
     });
 
     const recall = await recallMemory(handle, slug, "守烬人");
@@ -323,8 +323,8 @@ describe.skipIf(!testDatabaseUrl)("route recall", () => {
     );
 
     await playerRecallRoute(handle.db, slug, "守烬人", {
-      fromStageRef: "@甲地",
-      toStageRef: "@丙地",
+      fromStageRef: "甲地",
+      toStageRef: "丙地",
     });
 
     const recall = await recallMemory(handle, slug, "守烬人");
@@ -347,8 +347,8 @@ describe.skipIf(!testDatabaseUrl)("route recall", () => {
     );
 
     await playerRecallRoute(handle.db, slug, "守烬人", {
-      fromStageRef: "@甲地",
-      toStageRef: "@乙地",
+      fromStageRef: "甲地",
+      toStageRef: "乙地",
     });
 
     const recall = await recallMemory(handle, slug, "守烬人");

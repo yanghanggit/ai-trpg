@@ -121,13 +121,13 @@ describe.skipIf(!testDatabaseUrl)("player takeover", () => {
     const monk = memories.find((memory) => memory.name === "提灯修士");
     const scribe = memories.find((memory) => memory.name === "缄默抄经人");
 
-    expect(keeper?.messages.some((message) => message.content.includes("你对@提灯修士说"))).toBe(
+    expect(keeper?.messages.some((message) => message.content.includes("你对提灯修士说"))).toBe(
       true,
     );
-    expect(monk?.messages.some((message) => message.content.includes("@守烬人对你说"))).toBe(true);
-    expect(
-      scribe?.messages.some((message) => message.content.includes("@守烬人对@提灯修士说")),
-    ).toBe(true);
+    expect(monk?.messages.some((message) => message.content.includes("守烬人对你说"))).toBe(true);
+    expect(scribe?.messages.some((message) => message.content.includes("守烬人对提灯修士说"))).toBe(
+      true,
+    );
 
     expect(monk?.messages.some((message) => message.content.includes("这是一句秘密。"))).toBe(true);
     expect(scribe?.messages.some((message) => message.content.includes("这是一句秘密。"))).toBe(
@@ -182,7 +182,7 @@ describe.skipIf(!testDatabaseUrl)("player takeover", () => {
     expect(attacked.ok).toBe(true);
     expect(attacked.plan?.actions[0]).toMatchObject({
       kind: "strike",
-      targetActorHandle: "@提灯修士",
+      targetActorHandle: "提灯修士",
     });
 
     const state = await getGameState(handle.db, game.game.slug);

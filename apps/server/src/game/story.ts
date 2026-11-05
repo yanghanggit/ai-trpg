@@ -176,7 +176,7 @@ function buildSubmitStoryTool(): ToolDefinition {
           story: {
             type: "string",
             description:
-              "一段完整、连贯的故事正文，不是提纲或分析报告；叙事里不出现框架用语（场景、世界、系统、裁决、报告、工具、记忆）与 @名字、#编号。",
+              "一段完整、连贯的故事正文，不是提纲或分析报告；叙事里不出现框架用语（场景、世界、系统、裁决、报告、工具、记忆）与编号引用。",
           },
         },
         required: ["story"],

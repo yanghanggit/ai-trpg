@@ -2,7 +2,7 @@ import type { Database } from "../db/pool";
 import { createTurnTrace, traceEvent } from "../debug/trace";
 import { parseCall } from "./actions/call";
 import { findActorByName, findActorByRef, stageOfActor } from "./actors";
-import { addressLookupFor, handleOf } from "./addressing";
+import { addressLookupFor } from "./addressing";
 import { type ApplyActorPlanOptions, applyActorPlan } from "./apply";
 import { MEMORY_KINDS } from "./constants";
 import { isPlayerControlled } from "./control";
@@ -11,6 +11,7 @@ import { DialogueBlockedError, GameError } from "./errors";
 import { resolveLearnableStage } from "./known-stages";
 import { parseSignatureName } from "./plan";
 import { getGameStateSlice, readTurnDelivery } from "./read/game-state";
+import { handleOf } from "./reference";
 import { type RouteQuestion, resolveRouteQuestion } from "./route";
 import type {
   ActorAction,
@@ -93,6 +94,16 @@ async function applyPlayerPlanOnState(
   }
 
   const { stage } = stageOfActor(state, actor.id);
+  // 台词审核要看目标是谁，必须用**玩家原本写的真名 / 编号**解析：
+  // 地址一归一成观察者称呼，就不再是真名了。
+  const dialogue = plan.actions.find(isDialogueAction);
+  const dialogueTarget = dialogue
+    ? dialogue.kind === "announce"
+      ? null
+      : dialogue.kind === "call"
+        ? findActorByName(state, dialogue.targetActorName).actor
+        : findActorByRef(state, dialogue.targetActorHandle)
+    : null;
   plan = normalizePlayerTargets(state, actor, stage, plan);
   const trace = createTurnTrace({ game: state.game, turnKind: "player" });
   await traceEvent(trace, {
@@ -104,17 +115,10 @@ async function applyPlayerPlanOnState(
     stageName: stage.name,
     contentVersion: state.game.contentVersion,
   });
-  const dialogue = plan.actions.find(isDialogueAction);
   if (dialogue) {
-    const target =
-      dialogue.kind === "announce"
-        ? null
-        : dialogue.kind === "call"
-          ? findActorByName(state, dialogue.targetActorName).actor
-          : findActorByRef(state, dialogue.targetActorHandle);
     const audit = await auditPlayerDialogue(
       db,
-      dialogueContextFor(state, actor, stage?.name ?? "", dialogue, target?.id ?? null),
+      dialogueContextFor(state, actor, stage?.name ?? "", dialogue, dialogueTarget?.id ?? null),
       options.judge,
     );
     await traceEvent(trace, {
@@ -203,7 +207,7 @@ export type PlayerCallInput = {
 };
 
 export type PlayerMoveInput = {
-  /** 场景 id 或名字；裸名不由服务端解析。 */
+  /** 场景 id、名字或 `#编号`。 */
   targetStageRef: string;
 };
 
@@ -435,7 +439,7 @@ export async function playerUnequip(
 
 /** 玩家替自己控制的角色记下一个名字；与模型侧的名字更新走同一份计划。 */
 export type PlayerRecognizeInput = {
-  /** 目标引用：真名、`@真名` 或 `#编号`；玩家入口仍走控制面。 */
+  /** 目标引用：真名或 `#编号`；玩家入口仍走控制面。 */
   targetActorRef: string;
   /** 角色当前想怎么称呼对方；不必是真名。 */
   name: string;

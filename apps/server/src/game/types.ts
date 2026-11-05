@@ -165,7 +165,7 @@ export type AnnounceAction = {
 export type CallAction = {
   kind: "call";
   mind: string;
-  /** 目标的真名；不接收 @名字、#编号 或 id。 */
+  /** 目标的真名；不接收 #编号 或 id。 */
   targetActorName: string;
   message: string;
 };

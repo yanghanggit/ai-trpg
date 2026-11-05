@@ -349,7 +349,7 @@ describe.skipIf(!testDatabaseUrl)("stage mini-GM", () => {
       throw new Error("缺少灰烬门廊");
     }
 
-    for (const label of ["守烬人的门闩", "@门闩", "#12 门闩"]) {
+    for (const label of ["守烬人的门闩", "#12 门闩"]) {
       const ok = await applyStagePlan(
         handle.db,
         created.game.id,
@@ -367,7 +367,7 @@ describe.skipIf(!testDatabaseUrl)("stage mini-GM", () => {
     const gateMemory = memories.find((memory) => memory.name === "灰烬门廊");
     expect(
       gateMemory?.messages.filter((message) => message.content.includes("锚点更新被拒绝")).length,
-    ).toBe(3);
+    ).toBe(2);
   });
 
   it("keeps notify_world calls that arrive after submit_environment", async () => {
@@ -462,7 +462,7 @@ describe.skipIf(!testDatabaseUrl)("stage mini-GM", () => {
         handle.db,
         before.game.id,
         gate.id,
-        { actions: [{ kind: "submit_environment", environment: " @12 站在门后。" }] },
+        { actions: [{ kind: "submit_environment", environment: " #12 站在门后。" }] },
         true,
       ),
     ).toBe(false);

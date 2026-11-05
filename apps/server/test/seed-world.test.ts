@@ -29,8 +29,8 @@ describe("dark fantasy seed world", () => {
     expect(BELL_MONASTERY_WORLD.actors.filter((actor) => actor.isDefaultPlayer)).toHaveLength(1);
     expect(BELL_MONASTERY_WORLD.actors.map((actor) => actor.name)).toEqual([
       "奥德里克",
-      "煤渣",
-      "坏运气",
+      "小狗“煤渣”",
+      "小鼠“坏运气”",
       "无名者",
       "鼠王",
     ]);
@@ -153,7 +153,7 @@ describe("dark fantasy seed world", () => {
     }
 
     // 动物不操作道具。
-    for (const animal of ["煤渣", "坏运气", "鼠王"]) {
+    for (const animal of ["小狗“煤渣”", "小鼠“坏运气”", "鼠王"]) {
       for (const action of [...ITEM_ACTIONS, "steal"]) {
         expect(actionsOf(animal)).not.toContain(action);
       }
@@ -163,10 +163,10 @@ describe("dark fantasy seed world", () => {
     for (const actor of BELL_MONASTERY_WORLD.actors) {
       expect(actionsOf(actor.name)).not.toContain("strike");
     }
-    for (const fighter of ["奥德里克", "无名者", "煤渣", "鼠王"]) {
+    for (const fighter of ["奥德里克", "无名者", "小狗“煤渣”", "鼠王"]) {
       expect(actionsOf(fighter)).toContain("brawl");
     }
-    expect(actionsOf("坏运气")).not.toContain("brawl");
+    expect(actionsOf("小鼠“坏运气”")).not.toContain("brawl");
     const weaponActions = (itemName: string) => {
       const item = BELL_MONASTERY_WORLD.actors
         .flatMap((actor) => actor.items)
@@ -228,8 +228,8 @@ describe("dark fantasy seed world", () => {
     expect(rules).not.toContain("动物只能与同族");
     expect(rules).not.toContain("鼠王对非同族");
 
-    const dog = BELL_MONASTERY_WORLD.actors.find((actor) => actor.name === "煤渣");
-    const pup = BELL_MONASTERY_WORLD.actors.find((actor) => actor.name === "坏运气");
+    const dog = BELL_MONASTERY_WORLD.actors.find((actor) => actor.name === "小狗“煤渣”");
+    const pup = BELL_MONASTERY_WORLD.actors.find((actor) => actor.name === "小鼠“坏运气”");
     const king = BELL_MONASTERY_WORLD.actors.find((actor) => actor.name === "鼠王");
     expect(dog?.profile).toContain("汪汪");
     expect(dog?.profile).toContain("内心独白不受叫声限制");

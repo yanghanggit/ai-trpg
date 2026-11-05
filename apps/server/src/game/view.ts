@@ -1,9 +1,10 @@
 import type { Database } from "../db/pool";
 import { adjacentStages, findActorByName } from "./actors";
-import { addressLookupFor, handleOf, refOf } from "./addressing";
+import { addressLookupFor, refOf } from "./addressing";
 import { MEMORY_KINDS } from "./constants";
 import { getMemoryState } from "./memory";
 import { getGameStateSlice } from "./read/game-state";
+import { handleOf } from "./reference";
 import { knownStagesForActor, visitedTeleportTargetsFor } from "./teleport";
 import type { SignatureNameState } from "./types";
 

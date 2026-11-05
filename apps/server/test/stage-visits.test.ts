@@ -64,7 +64,7 @@ describe.skipIf(!testDatabaseUrl)("stage visits", () => {
 
     expect(after.visits.filter((visit) => visit.actorId === keeper.id)).toHaveLength(2);
     const input = buildActorTurnInput(after, { actor: movedKeeper, stage: movedNave });
-    expect(input).toContain("@灰烬门廊");
+    expect(input).toContain("灰烬门廊");
     expect(input).not.toContain(`#${gate.seq}`);
     expect(describeKnownStages(after, movedKeeper.id, movedNave.id)).toContain("断钟中殿（当前）");
   });

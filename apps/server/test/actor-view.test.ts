@@ -39,8 +39,8 @@ describe.skipIf(!testDatabaseUrl)("actor view", () => {
     });
 
     // 煤渣认识奥德里克，但没见过无名者的名字。
-    const view = await getActorView(handle.db, created.game.slug, "煤渣");
-    expect(view.viewer.name).toBe("煤渣");
+    const view = await getActorView(handle.db, created.game.slug, "小狗“煤渣”");
+    expect(view.viewer.name).toBe("小狗“煤渣”");
     expect(view.scene?.name).toBe("墓园");
     expect(view.scene?.exits.map((exit) => exit.name).sort()).toEqual(
       ["地窖", "焚尸房", "铁闸门"].sort(),
@@ -50,11 +50,11 @@ describe.skipIf(!testDatabaseUrl)("actor view", () => {
     const self = view.scene?.actors.find((actor) => actor.self);
     expect(self?.actorId).toBe(view.viewer.actorId);
     expect(self?.label).toBe("你自己");
-    expect(self?.token).toBe("@煤渣");
+    expect(self?.token).toBe("小狗“煤渣”");
 
-    const odric = view.scene?.actors.find((actor) => actor.token === "@奥德里克");
+    const odric = view.scene?.actors.find((actor) => actor.token === "奥德里克");
     expect(odric?.label).toContain("奥德里克");
-    expect(odric?.token).toMatch(/^@\S+$/);
+    expect(odric?.token).toBe("奥德里克");
 
     const stranger = view.scene?.actors.find(
       (actor) => !actor.self && actor.label.includes("裹尸布"),

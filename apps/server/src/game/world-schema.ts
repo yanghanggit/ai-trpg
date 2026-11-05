@@ -4,6 +4,7 @@ import { statsSchema } from "./attributes";
 import { MAX_STAGE_ANCHORS } from "./constants";
 import { isValidForm } from "./form";
 import { equipmentSchema, itemSchema } from "./item-schema";
+import { NAME_MARKER_PATTERN } from "./reference";
 import type { StageActionKind, WorldActionKind } from "./types";
 import { WORLD_FUNCTION_TYPES } from "./types";
 
@@ -27,7 +28,10 @@ const signatureNameSchema = z
   .string()
   .trim()
   .min(1)
-  .refine((value) => !/[@#\p{Cc}]/u.test(value), "名字不能包含 @、# 或控制字符");
+  .refine(
+    (value) => !NAME_MARKER_PATTERN.test(value) && !/\p{Cc}/u.test(value),
+    "名字不能包含 @、# 或控制字符",
+  );
 
 const worldKnownStageSchema = z.strictObject({
   actor: z.string().min(1),

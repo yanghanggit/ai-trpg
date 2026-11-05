@@ -95,7 +95,7 @@ describe("trace", () => {
       event: "phase",
       name: "death",
       status: "failed",
-      actorName: "煤渣",
+      actorName: "小狗“煤渣”",
       detail: { reason: "事务冲突" },
     });
     await traceEvent(first, { event: "turn_end", ok: false, loopSuccess: true });
@@ -155,7 +155,7 @@ describe("trace", () => {
     expect(rendered).toContain("## 计划");
     expect(rendered).toContain("## 被拒");
     expect(rendered).toContain("## 子阶段");
-    expect(rendered).toContain("death: failed (煤渣)");
+    expect(rendered).toContain("death: failed (小狗“煤渣”)");
     expect(rendered).toContain("reason: 事务冲突");
     expect(rendered).toContain("## 结束");
 

@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
-import { stripNameRef } from "./addressing";
 import { buildEdgeIndex, openNeighborIds, sealedNeighborIds } from "./edges";
 import { GameError } from "./errors";
+import { isHandleRef, parseHandle, stripNameRef } from "./reference";
 import type { ActorState, GameStateSlice, StageState } from "./types";
 
 export type ActorWithStage = {
@@ -89,25 +89,24 @@ export function sealedStageNames(state: GameStateSlice, stageId: string): string
 }
 
 /**
- * god-view 解析：真名、`@真名` 或 `#签名序号` → actor。
+ * god-view 解析：真名、`@真名`（兼容旧写法）或 `#签名序号` → actor。
  *
  * 玩家入口、开发期命令都用这一份；模型工具只拿得到 actor-facing 引用。
  */
 export function findActorByRef(state: GameStateSlice, ref: string): ActorState {
   const value = ref.trim();
-  if (value.startsWith("#")) {
-    const seq = Number(value.slice(1));
-    if (!Number.isInteger(seq) || seq <= 0) {
+  if (isHandleRef(value)) {
+    const seq = parseHandle(value);
+    if (seq === null) {
       throw new GameError("not_found", `没有这个引用: ${value}`);
     }
     return findActorBySignatureSeq(state, seq).actor;
   }
-  const name = value.startsWith("@") ? value.slice(1) : value;
-  return findActorByName(state, name).actor;
+  return findActorByName(state, stripNameRef(value)).actor;
 }
 
 /**
- * 必须按场景真名定位：`@名字` 可以带，`#序号` 与 id 一律拒绝。
+ * 必须按场景真名定位：`#序号` 与 id 一律拒绝。
  *
  * 「能指名」是种权利而不是便利：`#序号` 只表示看得见、还没命名的站位，一旦允许它
  * 充当名字，路过的站位就会倒过来变成地名知识。问路的端点与授予场景知识都走这里；
@@ -118,7 +117,7 @@ export function requireStageName(state: GameStateSlice, ref: string): StageState
   if (name.length === 0) {
     throw new GameError("invalid_action", "场景名不能为空");
   }
-  if (name.startsWith("#")) {
+  if (isHandleRef(name)) {
     throw new GameError(
       "invalid_action",
       `必须用场景真名指定；#序号 只是看得见但还没命名的站位: ${name}`,

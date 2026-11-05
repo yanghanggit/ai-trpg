@@ -12,7 +12,7 @@
  */
 
 import { type TraceContext, traceEvent } from "../debug/trace";
-import { type AddressLookup, type AddressSubject, makeAddressLookup } from "./addressing";
+import { type AddressLookup, type AddressSubject, makeAddressLookup, withSelf } from "./addressing";
 import { listStageActorViews } from "./apply/queries";
 import type { ActorRow, Executor } from "./apply/types";
 import { MEMORY_KINDS } from "./constants";
@@ -88,15 +88,11 @@ async function writeObservations(
         .filter((row) => row.observerActorId === observer.id)
         .map((row) => [row.signatureId, row.name] as const),
     );
-    const base = makeAddressLookup(names, subjects, [observer.name]);
-    const address: AddressLookup = (actorId) =>
-      actorId === observer.id
-        ? {
-            token: `@${observer.name}`,
-            appearance: appearance.text,
-            isSelf: true,
-          }
-        : base(actorId);
+    const address = withSelf(makeAddressLookup(names, subjects, [observer.name]), {
+      id: observer.id,
+      name: observer.name,
+      appearance: appearance.text,
+    });
     const view = spec.render(observer.id, address);
     kind = String(view.metadata.kind);
     recipients.push({ actorId: observer.id, actorName: observer.name, content: view.content });

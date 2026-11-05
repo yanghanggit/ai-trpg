@@ -119,7 +119,6 @@ export type TraceEvent =
       matchedName: string;
       subjectActorIds: readonly string[];
       severity: "high" | "medium" | "low";
-      form: "reference" | "bare";
       communicationKind: "say" | "whisper" | "announce" | "call" | null;
       inDialogue: boolean;
       messageSequence: number;
@@ -728,7 +727,7 @@ export function renderTurnText(events: readonly TraceLine[]): string {
           markdownFence(
             [
               `[${line.severity}] ${line.observerName} · #${line.messageSequence} ${line.messageKind ?? line.messageType}${line.part === "tool_calls" ? "（toolCalls）" : ""}${line.communicationKind ? ` · ${line.communicationKind}` : ""}${line.inDialogue ? " · 台词内" : ""}`,
-              `真名「${line.matchedName}」${line.form === "reference" ? "（@引用）" : ""}`,
+              `真名「${line.matchedName}」`,
               line.excerpt,
             ].join("\n"),
           ),

@@ -29,7 +29,7 @@ import { buildUseTool, parseUse, usableItemNames } from "./actions/use";
 import { buildWaitTool, parseWait } from "./actions/wait";
 import { buildWhisperTool, parseWhisper } from "./actions/whisper";
 import { type ActorWithStage, findActorByName, otherActorsInStage } from "./actors";
-import { addressLookupFor, handleOf, refOf } from "./addressing";
+import { addressLookupFor, refOf } from "./addressing";
 import { applyActorPlan } from "./apply";
 import { isAlive } from "./apply/queries";
 import {
@@ -63,6 +63,7 @@ import {
   renderStageEnvironmentForActor,
 } from "./plan";
 import { getGameStateSlice, readTurnDelivery } from "./read/game-state";
+import { handleOf, isHandleRef } from "./reference";
 import { describeRoute, type RouteWorld, resolveRouteQuestion, routeWorldFromState } from "./route";
 import { knownStagesForActor, visitedTeleportTargetsFor } from "./teleport";
 import type {
@@ -156,15 +157,13 @@ export function buildActorTurnInput(state: GameStateSlice, current: ActorWithSta
   const canTeleport = current.actor.actions.includes("teleport");
   const teleportTargets = visitedTeleportTargetsFor(state, current.actor, current.stage);
   const teleportLines =
-    teleportTargets.length === 0
-      ? "无"
-      : teleportTargets.map((stage) => `@${stage.name}`).join("、");
+    teleportTargets.length === 0 ? "无" : teleportTargets.map((stage) => stage.name).join("、");
   const knowledgeHint =
     "当问题涉及任何进入该世界的人都可能观察、询问或从公开记载中得知的固定事实，而当前场景与记忆无法直接确认时，必须先调用 query 检索，再回答或行动；不要用常识补全，也不要把检索结果当成亲眼所见。query 只读、不占行动，不提供角色秘密或当前状态。";
   // 只有名单里还有 `#编号` 时才提醒起名；已有名字也可以按 # 重新记录来更新称呼。
-  const unknownTargets = targets.filter((token) => token.startsWith("#"));
+  const unknownTargets = targets.filter(isHandleRef);
   const identityHint =
-    "`@名字` 与 `#编号` 都可作为行动对象，但都不能说出口。use 的 targetAnchor 只能从当前场景的「可交互锚点」里选，不能自己写位置描述。" +
+    "行动对象写你对它的称呼（名单里的名字）；还不知道名字、或者两个人同名时写 `#编号`。编号是系统占位，绝不能说出口。use 的 targetAnchor 只能从当前场景的「可交互锚点」里选，不能自己写位置描述。" +
     (unknownTargets.length === 0
       ? ""
       : "名单里还有 `#编号`：可以用 recognize_identity 把它记成你认得的称呼；需要改名时对同一个编号再记一次（不占行动名额）。");
@@ -273,7 +272,7 @@ export async function runNpcTurn(
   const knownStagesTool = buildKnownStagesTool();
   const knownStages = knownStagesForActor(state, current.actor.id);
   const routeTool = buildRecallRouteTool(
-    [...knownStages.visited, ...knownStages.learned].map((stage) => `@${stage.name}`),
+    [...knownStages.visited, ...knownStages.learned].map((stage) => stage.name),
   );
   // 侦察是偷窃的前置：只有能 steal 的角色才注入 observe_actor，与任务提示词同一判断。
   const observeTool = canObserveActorItems(current.actor)
@@ -302,7 +301,7 @@ export async function runNpcTurn(
     use: buildUseTool(
       availableUseItemNames,
       selfAndTargets,
-      `@${current.stage.name}`,
+      current.stage.name,
       current.stage.anchors.map((anchor) => anchor.label),
     ),
     equip: buildEquipTool(wearableItemNames),
@@ -352,17 +351,59 @@ export async function runNpcTurn(
       ]),
     );
 
+  /**
+   * 同名不阻止，只回话。
+   *
+   * 名字是认知，重名是合法状态（两个卫兵我都叫「卫兵」）；但两个同形地址无法指认，
+   * 渲染时它们都会退回 `#编号`。这里只把这件事讲清楚，让模型当回合就能决定
+   * 「换个称呼」还是「以后用编号」——不替它决定，也不污染它的认知。
+   */
+  const describeNameCollision = (binding: { handle: string; name: string }): string => {
+    const observerNames = new Map(
+      state.signatureNames
+        .filter((row) => row.observerActorId === current.actor.id)
+        .map((row) => [row.signatureId, row.name] as const),
+    );
+    const handleToActor = new Map(
+      current.stage.actors.map((actor) => [handleOf(actor.signature.seq), actor] as const),
+    );
+    const target = handleToActor.get(binding.handle);
+    const clashes: string[] = [];
+    if (binding.name === current.actor.name) {
+      clashes.push(`「${binding.name}」是你自己的真名`);
+    }
+    for (const actor of current.stage.actors) {
+      if (actor.id === target?.id || actor.id === current.actor.id) {
+        continue;
+      }
+      if (observerNames.get(actor.signature.id) === binding.name) {
+        clashes.push(handleOf(actor.signature.seq));
+      }
+    }
+    for (const pending of identities) {
+      if (pending.handle !== binding.handle && pending.name === binding.name) {
+        clashes.push(pending.handle);
+      }
+    }
+    if (clashes.length === 0) {
+      return "";
+    }
+    const who = [...new Set(clashes)].join("、");
+    return `\n注意：${who} 也叫「${binding.name}」。同名会让地址退回编号，行动时用 #编号 指认；想用名字指认就给其中一个换个称呼。`;
+  };
+
   const addIdentity = (args: Record<string, unknown>) => {
     ensureOpen();
     const binding = parseRecognizeIdentity(args);
+    const note = describeNameCollision(binding);
     // 同一个编号重复记时后一次覆盖前一次：既不重复写记忆，也不用额外条数上限。
     const known = identities.find((existing) => existing.handle === binding.handle);
     if (known) {
       known.name = binding.name;
-      return `${binding.handle} 的名字已更新`;
+      return `${binding.handle} 的名字已更新${note}`;
     }
     identities.push(binding);
-    return "名字已加入计划";
+    return `名字已加入计划${note}`;
   };
 
   const loop = await agentLoop({

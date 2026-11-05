@@ -41,7 +41,7 @@ export async function resolvePlan(
 ): Promise<ResolvedPlan> {
   let stage: StageRow = actorRow.stage;
   const resolved: ResolvedAction[] = [];
-  // actor-facing 目标只走签名或观察者当前名字；裸名字、id、未命名的 @名字 都不命中。
+  // actor-facing 目标只走签名或观察者当前称呼；id 与未命名的名字都不命中。
   const visibleTarget = (ref: string) =>
     resolveVisibleActor(executor, {
       gameId: world.gameId,

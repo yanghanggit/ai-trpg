@@ -90,16 +90,15 @@ describe("name audit", () => {
       observerName: "煤渣",
       matchedName: "奥德里克",
       severity: "high",
-      form: "bare",
       part: "content",
       messageKind: MEMORY_KINDS.actionObservation,
     });
     expect(leaks[0]?.excerpt).toContain("奥德里克");
   });
 
-  it("flags an @reference as a reference and keeps it high severity", () => {
-    const leaks = findNameLeaks(baseInput([message("你对@奥德里克点头。")]));
-    expect(leaks[0]).toMatchObject({ matchedName: "奥德里克", form: "reference" });
+  it("flags a leaked true name and keeps it high severity", () => {
+    const leaks = findNameLeaks(baseInput([message("你对奥德里克点头。")]));
+    expect(leaks[0]).toMatchObject({ matchedName: "奥德里克", severity: "high" });
   });
 
   it("ignores names the observer has learned", () => {
@@ -423,7 +422,7 @@ describe.skipIf(!testDatabaseUrl)("name audit (database)", () => {
     await appendMemoryMessages(handle.db, memoryRow.row.id, [
       {
         type: "human",
-        content: "你想起坏运气在墓园里。",
+        content: "你想起小鼠“坏运气”在墓园里。",
         metadata: { kind: MEMORY_KINDS.actionObservation },
       },
     ]);
@@ -431,7 +430,7 @@ describe.skipIf(!testDatabaseUrl)("name audit (database)", () => {
 
   it("finds a leak injected into an actor memory", async () => {
     const created = await createMonasteryGame("名字审计注入测试局");
-    const cinder = await actorByName(created.game.slug, "煤渣");
+    const cinder = await actorByName(created.game.slug, "小狗“煤渣”");
 
     const clean = await auditGameNameLeaks(handle.db, created.game.slug);
     expect(clean.checked.actors).toBe(5);
@@ -440,11 +439,11 @@ describe.skipIf(!testDatabaseUrl)("name audit (database)", () => {
     await appendLeak(created.game.id, cinder.id);
     const report = await auditGameNameLeaks(handle.db, created.game.slug);
     const leak = report.leaks.find(
-      (candidate) => candidate.observerName === "煤渣" && candidate.matchedName === "坏运气",
+      (candidate) =>
+        candidate.observerName === "小狗“煤渣”" && candidate.matchedName === "小鼠“坏运气”",
     );
     expect(leak).toMatchObject({
       severity: "high",
-      form: "bare",
       part: "content",
       messageKind: MEMORY_KINDS.actionObservation,
     });
@@ -455,11 +454,13 @@ describe.skipIf(!testDatabaseUrl)("name audit (database)", () => {
     const report = await auditGameNameLeaks(handle.db, created.game.slug, { skipKinds: [] });
     // 坏运气认得鼠王，因此 profile 里出现「鼠王」不算越界。
     expect(
-      report.leaks.some((leak) => leak.observerName === "坏运气" && leak.matchedName === "鼠王"),
+      report.leaks.some(
+        (leak) => leak.observerName === "小鼠“坏运气”" && leak.matchedName === "鼠王",
+      ),
     ).toBe(false);
     expect(
       report.leaks.some(
-        (leak) => leak.observerName === "坏运气" && leak.matchedName === "奥德里克",
+        (leak) => leak.observerName === "小鼠“坏运气”" && leak.matchedName === "奥德里克",
       ),
     ).toBe(true);
   });
@@ -484,7 +485,8 @@ describe.skipIf(!testDatabaseUrl)("name audit (database)", () => {
 
     const report = await auditGameNameLeaks(handle.db, created.game.slug);
     const leak = report.leaks.find(
-      (candidate) => candidate.observerName === "坏运气" && candidate.matchedName === "奥德里克",
+      (candidate) =>
+        candidate.observerName === "小鼠“坏运气”" && candidate.matchedName === "奥德里克",
     );
     expect(leak).toMatchObject({
       communicationKind: "say",
@@ -493,7 +495,7 @@ describe.skipIf(!testDatabaseUrl)("name audit (database)", () => {
     });
 
     const memories = await getGameMemories(handle.db, created.game.id);
-    const badLuck = memories.find((memory) => memory.name === "坏运气");
+    const badLuck = memories.find((memory) => memory.name === "小鼠“坏运气”");
     const communication = badLuck?.messages.find((item) => {
       const metadata = item.metadata as Record<string, unknown> | undefined;
       return (
@@ -509,7 +511,7 @@ describe.skipIf(!testDatabaseUrl)("name audit (database)", () => {
 
   it("writes a warning when the runtime audit is enabled", async () => {
     const created = await createMonasteryGame("名字审计回合测试局");
-    const cinder = await actorByName(created.game.slug, "煤渣");
+    const cinder = await actorByName(created.game.slug, "小狗“煤渣”");
     await appendLeak(created.game.id, cinder.id);
 
     const warn = vi.fn();
@@ -528,15 +530,15 @@ describe.skipIf(!testDatabaseUrl)("name audit (database)", () => {
 
     const leakCall = warn.mock.calls.find(([label]) => label === "名字泄漏");
     expect(leakCall?.[1]).toMatchObject({
-      observerName: "煤渣",
-      matchedName: "坏运气",
+      observerName: "小狗“煤渣”",
+      matchedName: "小鼠“坏运气”",
       severity: "high",
     });
   });
 
   it("does not write warnings when the runtime audit is off", async () => {
     const created = await createMonasteryGame("名字审计关闭测试局");
-    const cinder = await actorByName(created.game.slug, "煤渣");
+    const cinder = await actorByName(created.game.slug, "小狗“煤渣”");
     await appendLeak(created.game.id, cinder.id);
 
     const warn = vi.fn();

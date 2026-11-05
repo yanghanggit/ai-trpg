@@ -11,6 +11,7 @@ import { appendStageMemory } from "./observations";
 import { lockGameRow } from "./persistence/games";
 import { addActorMaterials, type MaterialDrop } from "./persistence/items";
 import { getGameStateSlice, readTurnDelivery } from "./read/game-state";
+import { NAME_MARKER_PATTERN } from "./reference";
 import { assertWorldFaceText } from "./text-guard";
 import type { ActorState, StageState, TurnDelivery } from "./types";
 import { type WorldConstitution, worldFunctionAgent } from "./world-function";
@@ -113,6 +114,9 @@ export function parseDrops(
     if (description.length === 0) {
       throw new GameError("invalid_action", `材料描述不能为空: ${name}`);
     }
+    if (NAME_MARKER_PATTERN.test(name)) {
+      throw new GameError("invalid_action", `材料名 不能包含系统标记（@ / #）: ${name}`);
+    }
     assertWorldFaceText(name, actorNames, "材料名");
     assertWorldFaceText(description, actorNames, "材料描述");
     if (
@@ -159,7 +163,7 @@ ${stage.name}：${stage.environment}
 
 判断这具尸体在被搜刮之前留下什么可以被别人捡走的材料。只写尸体本身产生的、可以被别人搜走的实体残留，材质不限；不写衣物或生前持有的物品。
 
-材料名与描述不得含角色名或系统引用。
+材料名与描述不得含角色名或编号引用。
 
 不写它生前持有的武器、钥匙、信件或任何剧情物品；那些留在尸体背包里，不走掉落。不写心理、名字与规则，不解释推理过程。没有合理产物就提交空数组。完成后调用 drop_materials 提交。`;
 }

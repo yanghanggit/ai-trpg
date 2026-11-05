@@ -1,6 +1,7 @@
 import type { ToolDefinition } from "../../llm/types";
 import type { RagSearchResult } from "../../rag";
 import { GameError } from "../errors";
+import { NAME_MARKER_PATTERN, parseHandle } from "../reference";
 import type { RouteQuestion } from "../route";
 
 export function buildSelfInfoTool(): ToolDefinition {
@@ -24,8 +25,7 @@ export function buildObserveActorTool(
   availableTargetActorRefs: readonly string[],
   mode: "actor" | "stage" = "actor",
 ): ToolDefinition {
-  const targetDescription =
-    mode === "actor" ? "同场景角色的引用（@名字 或 #编号）" : "本场景角色名";
+  const targetDescription = mode === "actor" ? "同场景角色的引用（名字 或 #编号）" : "本场景角色名";
   return {
     type: "function",
     function: {
@@ -200,10 +200,10 @@ export function buildRecallRouteTool(stageRefs: readonly string[]): ToolDefiniti
         properties: {
           from: {
             type: "string",
-            description: "起点场景名：@名字；省略表示你当前所在的场景。不接受 #序号",
+            description: "起点场景名；省略表示你当前所在的场景。不接受 #序号",
             ...candidates,
           },
-          to: { type: "string", description: "终点场景名：@名字。不接受 #序号", ...candidates },
+          to: { type: "string", description: "终点场景名。不接受 #序号", ...candidates },
         },
         required: ["to"],
       },
@@ -226,7 +226,7 @@ export function parseSignatureName(raw: unknown): string {
   if (name.length === 0) {
     throw new GameError("invalid_action", "name 不能为空");
   }
-  if (/[@#\p{Cc}]/u.test(name)) {
+  if (NAME_MARKER_PATTERN.test(name) || /\p{Cc}/u.test(name)) {
     throw new GameError("invalid_action", "name 不能包含系统标记（@ 或 #）或控制字符");
   }
   return name;
@@ -237,7 +237,7 @@ export function parseRecognizeIdentity(args: Record<string, unknown>): {
   name: string;
 } {
   const handle = typeof args.handle === "string" ? args.handle.trim() : "";
-  if (!/^#\d+$/.test(handle)) {
+  if (parseHandle(handle) === null) {
     throw new GameError("invalid_action", "handle 必须是匿名编号，例如 #12");
   }
   return { handle, name: parseSignatureName(args.name) };

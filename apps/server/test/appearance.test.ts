@@ -20,10 +20,9 @@ import { ChatCompletionResult, type ChatCompletionService, type ToolCall } from 
 const testDatabaseUrl = process.env.TEST_DATABASE_URL?.trim();
 
 describe("appearance input", () => {
-  it("rejects system references and known actor names", () => {
+  it("rejects handles and known actor names", () => {
     expect(() => parseAppearance({ appearance: "裹尸布上沾着石灰。" })).not.toThrow();
-    expect(() => parseAppearance({ appearance: "@煤渣站在门口。" })).toThrow("系统引用");
-    expect(() => parseAppearance({ appearance: "#12 站在门口。" })).toThrow("系统引用");
+    expect(() => parseAppearance({ appearance: "#12 站在门口。" })).toThrow("编号引用");
     // 场景与道具的名字是公共标签，写进外观的描述本身不算泄漏。
     expect(() => parseAppearance({ appearance: "煤渣倒在门口。" })).not.toThrow();
     expect(() => parseAppearance({ appearance: "煤渣倒在门口。" }, ["煤渣"])).toThrow(
@@ -189,7 +188,7 @@ describe.skipIf(!testDatabaseUrl)("appearance fusion", () => {
       .find((actor) => actor.name === "奥德里克");
     const cinder = state.world.stages
       .flatMap((stage) => stage.actors)
-      .find((actor) => actor.name === "煤渣");
+      .find((actor) => actor.name === "小狗“煤渣”");
     if (!odric || !cinder) {
       throw new Error("缺少测试角色");
     }
@@ -209,7 +208,7 @@ describe.skipIf(!testDatabaseUrl)("appearance fusion", () => {
     await setEquipmentSlot(handle.db, created.game.slug, "奥德里克", "armor", null, { service });
 
     const memories = await getGameMemories(handle.db, created.game.id);
-    const latest = memories.find((memory) => memory.name === "煤渣")?.messages.at(-1);
+    const latest = memories.find((memory) => memory.name === "小狗“煤渣”")?.messages.at(-1);
     expect(latest?.content).toContain("斗篷下摆结着新泥，手背全是湿土。");
     expect(latest?.content).toContain(`#${odric.signature.seq}的可见外观变了`);
     expect(latest?.content).not.toContain("奥德里克");

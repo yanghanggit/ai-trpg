@@ -7,13 +7,14 @@ import type { Executor, ResolvedCall, WorldRow } from "../apply/types";
 import { GameError } from "../errors";
 import { renderCall } from "../observation-text";
 import { appendDirectObservation } from "../observations";
+import { isHandleRef, stripNameRef } from "../reference";
 import { assertNoSystemReference } from "../text-guard";
 import type { CallAction } from "../types";
 
 /**
  * 用目标的真名跨场景传话。
  *
- * 这是控制面/测试动作：目标必须写 `actors.name`，不接受 @名字、#编号 或 id。
+ * 这是控制面/测试动作：目标必须写 `actors.name`（真名），不接受 #编号 或 id。
  * 目标必须在其他场景，且双方都必须拥有 `call` 能力。只有目标听见；
  * 传音不在结构上携带发起人：来源身份只能由发起人自己写进 message。
  */
@@ -45,8 +46,9 @@ export function buildCallTool(): ToolDefinition {
 export function parseCall(args: Record<string, unknown>): CallAction {
   const mind = typeof args.mind === "string" ? args.mind.trim() : "";
   const message = typeof args.message === "string" ? args.message : "";
-  const targetActorName =
-    typeof args.targetActorName === "string" ? args.targetActorName.trim() : "";
+  const targetActorName = stripNameRef(
+    typeof args.targetActorName === "string" ? args.targetActorName.trim() : "",
+  );
   if (mind.length === 0) {
     throw new GameError("invalid_action", "call 需要非空 mind");
   }
@@ -57,8 +59,8 @@ export function parseCall(args: Record<string, unknown>): CallAction {
   if (targetActorName.length === 0) {
     throw new GameError("invalid_action", "call 需要非空 targetActorName");
   }
-  if (targetActorName.startsWith("@") || targetActorName.startsWith("#")) {
-    throw new GameError("invalid_action", "call 的目标必须使用真名，不能使用 @ 或 # 引用");
+  if (isHandleRef(targetActorName)) {
+    throw new GameError("invalid_action", "call 的目标必须使用真名，不能用编号占位");
   }
   return { kind: "call", mind, targetActorName, message };
 }
@@ -71,10 +73,14 @@ export async function resolveCall(
   action: CallAction,
 ): Promise<ResolvedCall> {
   assertNoSystemReference(action.message);
-  if (action.targetActorName.startsWith("@") || action.targetActorName.startsWith("#")) {
-    throw new GameError("invalid_action", "call 的目标必须使用真名，不能使用 @ 或 # 引用");
+  if (isHandleRef(action.targetActorName)) {
+    throw new GameError("invalid_action", "call 的目标必须使用真名，不能用编号占位");
   }
-  const target = await resolveActorByNameInWorld(executor, world.id, action.targetActorName);
+  const target = await resolveActorByNameInWorld(
+    executor,
+    world.id,
+    stripNameRef(action.targetActorName),
+  );
   if (target.actor.id === actorId) {
     throw new GameError("invalid_action", "call 的目标不能是自己");
   }

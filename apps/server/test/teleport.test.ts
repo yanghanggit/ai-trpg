@@ -127,7 +127,7 @@ describe.skipIf(!testDatabaseUrl)("teleport", () => {
     expect(visitedTeleportTargetsFor(before, keeper, nave)).toEqual([gate]);
     const input = buildActorTurnInput(before, { actor: keeper, stage: nave });
     expect(input).toContain("可传送（已知真名即可；已去过且未禁传的如下）");
-    expect(input).toContain("@灰烬门廊");
+    expect(input).toContain("灰烬门廊");
 
     const result = await playerTeleport(handle.db, created.game.slug, "守烬人", {
       targetStageRef: "灰烬门廊",

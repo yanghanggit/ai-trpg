@@ -104,7 +104,7 @@ describe.skipIf(!testDatabaseUrl)("memory state snapshot", () => {
     const content = await lastMemory(created.game.id, actor.id);
     expect(content).toContain("# 当时");
     expect(content).toContain("场景：断钟中殿");
-    expect(content).toContain("在场：你、@缄默抄经人");
+    expect(content).toContain("在场：你、缄默抄经人");
     expect(content).toContain("物品：无");
     expect(content).not.toContain("场景：灰烬门廊\n");
   });
@@ -140,7 +140,7 @@ describe.skipIf(!testDatabaseUrl)("memory state snapshot", () => {
     expect(content).toContain("# 行动结果\n行动被拒绝");
     expect(content).toContain("# 当时");
     expect(content).toContain("场景：灰烬门廊");
-    expect(content).toContain("在场：你、@提灯修士");
+    expect(content).toContain("在场：你、提灯修士");
   });
 
   it("gives an autonomous NPC the same state snapshot", async () => {
@@ -159,6 +159,6 @@ describe.skipIf(!testDatabaseUrl)("memory state snapshot", () => {
     expect(content).toContain("# 行动结果");
     expect(content).toContain("# 当时");
     expect(content).toContain("场景：灰烬门廊");
-    expect(content).toContain("在场：你、@提灯修士");
+    expect(content).toContain("在场：你、提灯修士");
   });
 });

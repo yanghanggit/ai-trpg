@@ -76,7 +76,7 @@ describe.skipIf(!testDatabaseUrl)("known stages", () => {
 
     // 只知道名字也算知道：相邻方向写名字，不再退化成实体编号。
     const input = buildActorTurnInput(state, { actor: keeper, stage: gate });
-    expect(input).toContain("@断钟中殿");
+    expect(input).toContain("断钟中殿");
     expect(input).not.toContain(`#${nave.seq}`);
 
     const view = await getActorView(handle.db, created.game.slug, "守烬人");
@@ -194,7 +194,7 @@ describe.skipIf(!testDatabaseUrl)("known stages", () => {
       },
     ]);
     expect(after.messages).toHaveLength(before.messages.length);
-    expect(buildActorTurnInput(after, { actor: keeper, stage: gate })).toContain("@断钟中殿");
+    expect(buildActorTurnInput(after, { actor: keeper, stage: gate })).toContain("断钟中殿");
 
     // 授予同时留下「编号 → 名字」的认知：旧路线里的 #序号 才有据可查。
     const memory = await loadAgentMemory(handle.db, created.game.id, "actor", keeper.id);

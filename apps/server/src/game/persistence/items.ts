@@ -4,61 +4,11 @@ import { items, stageItems } from "../../db/schema";
 import type { Executor, ItemRow, StageItemRow } from "../apply/types";
 import { toStats } from "../attributes";
 import { GameError } from "../errors";
+import { isSameItem } from "../item-identity";
 import { allocateEntitySeq } from "./entity-seq";
 
 /** 掉落只产 `material`：惰性效果、无属性，数量可堆叠。 */
 const MATERIAL_EFFECT = { type: "none" } as const;
-
-/** 递归按键排序的 JSON：jsonb 读回的键序不稳定，不能直接比较字符串。 */
-function stableJson(value: unknown): string {
-  if (Array.isArray(value)) {
-    return `[${value.map(stableJson).join(",")}]`;
-  }
-  if (value !== null && typeof value === "object") {
-    const entries = Object.entries(value as Record<string, unknown>).sort(([a], [b]) =>
-      a.localeCompare(b),
-    );
-    return `{${entries.map(([key, item]) => `${JSON.stringify(key)}:${stableJson(item)}`).join(",")}}`;
-  }
-  return JSON.stringify(value) ?? "null";
-}
-
-/**
- * 两件物品是否等价到可以并成一行。
- *
- * 只看会影响玩法与展示的字段；`seq`、`count`、归属不算。名字相同但描述、属性、
- * 效果或词缀不同的，是两件不同的东西，不能合并。
- */
-export function sameItemSignature(
-  a: {
-    kind: string;
-    name: string;
-    description: string;
-    stats: unknown;
-    effect: unknown;
-    affixes: unknown;
-    source: string | null;
-  },
-  b: {
-    kind: string;
-    name: string;
-    description: string;
-    stats: unknown;
-    effect: unknown;
-    affixes: unknown;
-    source: string | null;
-  },
-): boolean {
-  return (
-    a.kind === b.kind &&
-    a.name === b.name &&
-    a.description === b.description &&
-    a.source === b.source &&
-    stableJson(a.stats) === stableJson(b.stats) &&
-    stableJson(a.effect) === stableJson(b.effect) &&
-    stableJson(a.affixes) === stableJson(b.affixes)
-  );
-}
 
 /**
  * 物品与场景物品的读写操作：玩法层只表达「谁拿到什么」，不关心两张表怎么搬。
@@ -102,9 +52,9 @@ export async function moveStageItemToActor(
     .select()
     .from(items)
     .where(and(eq(items.actorId, actorId), eq(items.name, stageItem.name)))
-    .limit(2);
+    .limit(1);
   if (existing) {
-    if (!sameItemSignature(existing, stageItem)) {
+    if (!isSameItem(existing, stageItem)) {
       throw new GameError("invalid_action", `你已经有同名物品: ${stageItem.name}`);
     }
     await executor
@@ -133,13 +83,35 @@ export async function moveStageItemToActor(
   });
 }
 
-/** 物品在 actor 之间转移；`items.actor_id` 就是归属本身。 */
+/**
+ * 物品在 actor 之间转移；`items.actor_id` 就是归属本身。
+ *
+ * 与拾取同一条规则：一个作用域里一个名字只有一行。背包里已有同名物品时，
+ * 签名相同就并入 `count`（同一件东西的两份），签名不同说明是两件不同的东西，
+ * 直接拒绝——否则后到的那件永远排不到名字地址，等于拿不到。
+ */
 export async function transferItemToActor(
   executor: Executor,
-  itemId: string,
+  item: ItemRow,
   actorId: string,
 ): Promise<void> {
-  await executor.update(items).set({ actorId }).where(eq(items.id, itemId));
+  const [existing] = await executor
+    .select()
+    .from(items)
+    .where(and(eq(items.actorId, actorId), eq(items.name, item.name)))
+    .limit(1);
+  if (!existing) {
+    await executor.update(items).set({ actorId }).where(eq(items.id, item.id));
+    return;
+  }
+  if (!isSameItem(existing, item)) {
+    throw new GameError("invalid_action", `目标已经有同名的另一件物品: ${item.name}`);
+  }
+  await executor
+    .update(items)
+    .set({ count: existing.count + item.count })
+    .where(eq(items.id, existing.id));
+  await executor.delete(items).where(eq(items.id, item.id));
 }
 
 export type MaterialDrop = { name: string; description: string; count: number };
@@ -176,7 +148,12 @@ export async function addActorMaterials(
         ),
       ),
     );
-  const existingByName = new Map(existingRows.map((row) => [row.name, row]));
+  const existingByName = new Map<string, ItemRow>();
+  for (const row of [...existingRows].sort((a, b) => a.seq - b.seq)) {
+    if (!existingByName.has(row.name)) {
+      existingByName.set(row.name, row);
+    }
+  }
 
   for (const material of materials) {
     const existing = existingByName.get(material.name);
@@ -189,9 +166,10 @@ export async function addActorMaterials(
         stats: toStats({}),
         effect: MATERIAL_EFFECT,
         affixes: [],
+        actions: [],
         source,
       };
-      if (!sameItemSignature(existing, candidate)) {
+      if (!isSameItem(existing, candidate)) {
         skipped.push(material.name);
         continue;
       }

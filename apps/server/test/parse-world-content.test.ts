@@ -101,14 +101,24 @@ describe("world content validation", () => {
     expect(() => parseWorldContent(world)).toThrow(/environment 不能包含/);
   });
 
+  it("rejects duplicate item names within one scope", () => {
+    const world = {
+      ...TEST_WORLD,
+      actors: TEST_WORLD.actors.map((actor, index) =>
+        index === 0 ? { ...actor, items: [...actor.items, ...actor.items] } : actor,
+      ),
+    };
+    expect(() => parseWorldContent(world)).toThrow(/物品名重复/);
+  });
+
   it("rejects an environment with a system handle", () => {
     const world = {
       ...TEST_WORLD,
       stages: TEST_WORLD.stages.map((stage, index) =>
-        index === 0 ? { ...stage, environment: "@12 站在灰烬里。" } : stage,
+        index === 0 ? { ...stage, environment: "#12 站在灰烬里。" } : stage,
       ),
     };
-    expect(() => parseWorldContent(world)).toThrow(/系统引用/);
+    expect(() => parseWorldContent(world)).toThrow(/编号引用/);
   });
 
   it("accepts stage anchors and trims their labels", () => {
@@ -130,7 +140,7 @@ describe("world content validation", () => {
   });
 
   it("rejects anchors that leak actor names or system references", () => {
-    for (const label of ["守烬人的门闩", "@门闩", "#12 门闩"]) {
+    for (const label of ["守烬人的门闩", "#12 门闩"]) {
       const world = {
         ...TEST_WORLD,
         stages: TEST_WORLD.stages.map((stage, index) =>

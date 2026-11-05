@@ -1,4 +1,5 @@
 import type { z } from "zod";
+import { NAME_MARKER_PATTERN } from "./reference";
 import { findTextLeaks } from "./text-guard";
 import { WORLD_FUNCTION_TYPES } from "./types";
 import type { World } from "./world-definition";
@@ -17,14 +18,12 @@ export function checkWorldInvariants(world: World, ctx: z.RefinementCtx): void {
   const actorNames = world.actors.map((actor) => actor.name);
   world.stages.forEach((stage, index) => {
     checkEntityName(stage.name, ["stages", index, "name"], ctx);
-    stage.items?.forEach((item, itemIndex) => {
-      checkEntityName(item.name, ["stages", index, "items", itemIndex, "name"], ctx);
-    });
+    checkItemNamesUnique(stage.items ?? [], ["stages", index, "items"], ctx);
     const leaks = findTextLeaks(stage.environment, actorNames);
     if (leaks.length > 0) {
       ctx.addIssue({
         code: "custom",
-        message: `environment 不能包含角色名或系统引用（@ / #编号）: ${leaks
+        message: `environment 不能包含角色名或编号引用: ${leaks
           .map((leak) => leak.token)
           .join("、")}`,
         path: ["stages", index, "environment"],
@@ -54,7 +53,7 @@ export function checkWorldInvariants(world: World, ctx: z.RefinementCtx): void {
       if (anchorLeaks.length > 0) {
         ctx.addIssue({
           code: "custom",
-          message: `锚点不能包含角色名或系统引用（@ / #编号）: ${anchorLeaks
+          message: `锚点不能包含角色名或编号引用: ${anchorLeaks
             .map((leak) => leak.token)
             .join("、")}`,
           path: ["stages", index, "anchors", anchorIndex],
@@ -64,15 +63,13 @@ export function checkWorldInvariants(world: World, ctx: z.RefinementCtx): void {
   });
   world.actors.forEach((actor, index) => {
     checkEntityName(actor.name, ["actors", index, "name"], ctx);
-    actor.items.forEach((item, itemIndex) => {
-      checkEntityName(item.name, ["actors", index, "items", itemIndex, "name"], ctx);
-    });
+    checkItemNamesUnique(actor.items, ["actors", index, "items"], ctx);
   });
 }
 
-/** 名字里不能出现系统标记：`@` 是名字引用，`#` 是匿名编号，点号是旧前缀分隔符。 */
+/** 名字里不能出现系统标记：`#` 是地址，`@` 是旧版地址标记，点号是旧前缀分隔符。 */
 function checkEntityName(raw: string, path: (string | number)[], ctx: z.RefinementCtx): void {
-  if (/[@#\s.]/.test(raw)) {
+  if (NAME_MARKER_PATTERN.test(raw) || /[\s.]/.test(raw)) {
     ctx.addIssue({
       code: "custom",
       message: "名称不能包含 @、#、空白或 .",
@@ -82,7 +79,31 @@ function checkEntityName(raw: string, path: (string | number)[], ctx: z.Refineme
 }
 
 /**
- * 角色名与场景名在 world 内全局唯一；撞名会让 `@名字` 的引用产生歧义。
+ * 一个作用域（一个背包、一处场景陈列）里物品名唯一。
+ *
+ * 物品名就是地址，同名即无法指认；等价的多件是同一件东西的几份，用 `count` 表达。
+ */
+function checkItemNamesUnique(
+  items: readonly { name: string }[],
+  path: (string | number)[],
+  ctx: z.RefinementCtx,
+): void {
+  const seen = new Set<string>();
+  items.forEach((item, index) => {
+    checkEntityName(item.name, [...path, index, "name"], ctx);
+    if (seen.has(item.name)) {
+      ctx.addIssue({
+        code: "custom",
+        message: `同一个作用域里的物品名重复: ${item.name}（等价的多件请用 count）`,
+        path: [...path, index, "name"],
+      });
+    }
+    seen.add(item.name);
+  });
+}
+
+/**
+ * 角色名与场景名在 world 内全局唯一；撞名会让名字地址产生歧义。
  *
  * 道具按持有者 / 场景作用域唯一，不参与这条检查。
  */

@@ -23,7 +23,7 @@ export function buildWhisperTool(targets: readonly string[]): ToolDefinition {
           },
           targetActorHandle: {
             type: "string",
-            description: "当前场景内唯一的耳语对象：用 @名字 或 #编号 引用",
+            description: "当前场景内唯一的耳语对象：用同场景角色列表里的名字 或 #编号 引用",
             ...(targets.length > 0 ? { enum: [...targets] } : {}),
           },
           message: { type: "string", description: "你要说出的内容" },

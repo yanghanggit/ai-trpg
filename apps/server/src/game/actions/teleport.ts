@@ -1,6 +1,6 @@
 import type { TraceContext } from "../../debug/trace";
 import type { ToolDefinition } from "../../llm/types";
-import { mentionOf, stripNameRef } from "../addressing";
+import { mentionOf } from "../addressing";
 import { appendPublicMessage, bumpGameVersion } from "../apply/messages";
 import { findStageInWorld, isStageKnownToActor } from "../apply/queries";
 import type { ActorWithStageRow, Executor, ResolvedTeleport, WorldRow } from "../apply/types";
@@ -9,6 +9,7 @@ import { renderAction, renderEnvironmentChange, withAppearances } from "../obser
 import { appendCustomStageObservation, appendStageMemory } from "../observations";
 import { moveActorToStage } from "../persistence/actors";
 import { recordStageVisit } from "../persistence/visits";
+import { isHandleRef, stripNameRef } from "../reference";
 import type { TeleportAction } from "../types";
 
 export function buildTeleportTool(): ToolDefinition {
@@ -39,7 +40,7 @@ export function parseTeleport(args: Record<string, unknown>): TeleportAction {
     throw new GameError("invalid_action", "teleport 需要非空 targetStageName");
   }
   const target = stripNameRef(targetStageName);
-  if (target.startsWith("#")) {
+  if (isHandleRef(target)) {
     throw new GameError("invalid_action", "teleport 需要目标场景的真名，不能用 #编号");
   }
   return { kind: "teleport", targetStageName: target };

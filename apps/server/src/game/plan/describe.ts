@@ -4,8 +4,9 @@ import {
   adjacentStages,
   findStageByName,
 } from "../actors";
-import { type AddressLookup, addressLookupFor, handleOf, refOf } from "../addressing";
+import { type AddressLookup, addressLookupFor, refOf } from "../addressing";
 import { isAlive } from "../apply/queries";
+import { handleOf } from "../reference";
 import { knownStageIds, knownStagesForActor, visitedTeleportTargetsFor } from "../teleport";
 import { sanitizeActorFacingText } from "../text-guard";
 import type { ActorState, GameStateSlice, ItemState, StageAnchor, StageState } from "../types";
@@ -141,7 +142,7 @@ export function adjacentStageRefsForActor(
 ): string[] {
   const known = knownStageIds(state, current.actor.id);
   return adjacentStages(state, current.stage.id).map((stage) =>
-    known.has(stage.id) ? `@${stage.name}` : handleOf(stage.seq),
+    known.has(stage.id) ? stage.name : handleOf(stage.seq),
   );
 }
 
@@ -152,7 +153,7 @@ export function describeStageForActor(state: GameStateSlice, current: ActorWithS
   const moves = adjacentStageRefsForActor(state, current);
   const canTeleport = current.actor.actions.includes("teleport");
   const teleportLines = visitedTeleportTargetsFor(state, current.actor, stage)
-    .map((candidate) => `@${candidate.name}`)
+    .map((candidate) => candidate.name)
     .join("、");
   const actors =
     stage.actors.length === 0

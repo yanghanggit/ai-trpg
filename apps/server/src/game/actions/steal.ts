@@ -2,7 +2,7 @@ import type { TraceContext } from "../../debug/trace";
 import type { ToolDefinition } from "../../llm/types";
 import { type AddressLookup, actionRef } from "../addressing";
 import { appendPublicMessage, bumpGameVersion } from "../apply/messages";
-import { assertItemNameFree, assertNotSelf, isAlive, resolveActorItem } from "../apply/queries";
+import { assertNotSelf, isAlive, resolveActorItem } from "../apply/queries";
 import type { ActorWithStageRow, Executor, ResolvedSteal } from "../apply/types";
 import { GameError } from "../errors";
 import { withoutEquippedItem } from "../items";
@@ -23,7 +23,7 @@ export function buildStealTool(targetActorHandles: readonly string[]): ToolDefin
         properties: {
           targetActorHandle: {
             type: "string",
-            description: "被取走物品的同场景角色的引用（@名字 或 #编号）",
+            description: "被取走物品的同场景角色的引用（名字 或 #编号）",
             ...(targetActorHandles.length > 0 ? { enum: [...targetActorHandles] } : {}),
           },
           itemName: { type: "string", description: "要取走的物品名" },
@@ -76,8 +76,7 @@ export async function applySteal(
   const target = { id: resolved.target.id, name: resolved.target.name };
   const item = resolved.transferItem;
 
-  await assertItemNameFree(executor, thief.id, item.name);
-  await transferItemToActor(executor, item.id, thief.id);
+  await transferItemToActor(executor, item, thief.id);
   await setActorEquipment(
     executor,
     target.id,

@@ -2,7 +2,7 @@ import type { TraceContext } from "../../debug/trace";
 import type { ToolDefinition } from "../../llm/types";
 import { type AddressLookup, actionRef } from "../addressing";
 import { appendPublicMessage, bumpGameVersion } from "../apply/messages";
-import { assertItemNameFree, assertNotSelf, resolveActorItem } from "../apply/queries";
+import { assertNotSelf, resolveActorItem } from "../apply/queries";
 import type { ActorWithStageRow, Executor, ResolvedGive } from "../apply/types";
 import { GameError } from "../errors";
 import { withoutEquippedItem } from "../items";
@@ -23,7 +23,7 @@ export function buildGiveTool(targetActorHandles: readonly string[]): ToolDefini
         properties: {
           targetActorHandle: {
             type: "string",
-            description: "接收物品的同场景角色的引用（@名字 或 #编号）；尸体也可以",
+            description: "接收物品的同场景角色的引用（名字 或 #编号）；尸体也可以",
             ...(targetActorHandles.length > 0 ? { enum: [...targetActorHandles] } : {}),
           },
           itemName: {
@@ -73,8 +73,7 @@ export async function applyGive(
   const target = { id: resolved.target.id, name: resolved.target.name };
   const item = resolved.transferItem;
 
-  await assertItemNameFree(executor, target.id, item.name);
-  await transferItemToActor(executor, item.id, target.id);
+  await transferItemToActor(executor, item, target.id);
   await setActorEquipment(
     executor,
     giver.id,

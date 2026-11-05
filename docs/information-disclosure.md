@@ -24,7 +24,7 @@
 
 | 通道 | 允许 | 禁止 |
 | --- | --- | --- |
-| actor → actor | 当前称呼或外观交谈、转述 | `@名字`、`#编号` |
+| actor → actor | 当前称呼或外观交谈、转述 | `#编号` |
 | stage → actor | environment、观察与行动反馈，按观察者渲染 | 角色真名（作为叙述对象） |
 | world → stage | 世界裁决、跨场景变化，写进 stage memory | —（stage 对名字全知） |
 | world → player | 结局文案，只写 `game_messages` | —（不进任何 agent 的记忆与上下文） |

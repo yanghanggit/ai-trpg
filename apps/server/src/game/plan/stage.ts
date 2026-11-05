@@ -15,7 +15,7 @@ export function buildSubmitEnvironmentTool(): ToolDefinition {
           environment: {
             type: "string",
             description:
-              "更新后的完整 environment 快照；只写此刻可被观察到的状态，不含角色名、角色行动与系统引用（@ / #编号）；省略表示本轮不修改。",
+              "更新后的完整 environment 快照；只写此刻可被观察到的状态，不含角色名、角色行动与编号引用（#编号）；省略表示本轮不修改。",
           },
           anchors: {
             type: "array",

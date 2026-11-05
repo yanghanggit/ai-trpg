@@ -193,7 +193,7 @@ describe.skipIf(!testDatabaseUrl)("equip and unequip actions", () => {
     const state = await getGameState(handle.db, created.game.slug);
     const cinder = state.world.stages
       .flatMap((stage) => stage.actors)
-      .find((actor) => actor.name === "煤渣");
+      .find((actor) => actor.name === "小狗“煤渣”");
     const stage = state.world.stages.find((candidate) =>
       candidate.actors.some((actor) => actor.id === cinder?.id),
     );
@@ -223,7 +223,7 @@ describe.skipIf(!testDatabaseUrl)("equip and unequip actions", () => {
     const state = await getGameState(handle.db, created.game.slug);
     const cinder = state.world.stages
       .flatMap((candidate) => candidate.actors)
-      .find((actor) => actor.name === "煤渣");
+      .find((actor) => actor.name === "小狗“煤渣”");
     const stage = state.world.stages.find((candidate) =>
       candidate.actors.some((actor) => actor.id === cinder?.id),
     );
@@ -237,7 +237,7 @@ describe.skipIf(!testDatabaseUrl)("equip and unequip actions", () => {
     const memories = await getGameMemories(handle.db, created.game.id);
     const seen =
       memories
-        .find((memory) => memory.name === "煤渣")
+        .find((memory) => memory.name === "小狗“煤渣”")
         ?.messages.map((message) => message.content)
         .join("\n") ?? "";
     expect(seen).toContain("穿上了撬弯的棺钉（武器）");
@@ -271,7 +271,7 @@ describe.skipIf(!testDatabaseUrl)("equip and unequip actions", () => {
     const memories = await getGameMemories(handle.db, created.game.id);
     const seen =
       memories
-        .find((memory) => memory.name === "煤渣")
+        .find((memory) => memory.name === "小狗“煤渣”")
         ?.messages.map((message) => message.content)
         .join("\n") ?? "";
     expect(seen).toContain("只穿旧衬衣，腰间别着铁锹。");

@@ -1,18 +1,23 @@
+import { handleOf, isHandleRef } from "./reference";
 import type { ActorState, GameStateSlice, StageState } from "./types";
 
 /**
- * 观察者相对的引用：把签名渲染成 `@名字` 或 `#12`，并带上外观。
+ * 观察者相对的引用：有名字就写名字，没有（或分不开）就写 `#序号`，并带上外观。
  *
- * 这里只做渲染，不判断可见范围；命名与认知归属见 `docs/glossary.md`、`docs/information-disclosure.md`。
+ * 名字就是地址：观察者当前怎么称呼一个签名，就怎么写它。只有名字不能当地址时才退回编号，
+ * 见 `docs/glossary.md`、`docs/information-disclosure.md`。字符串语法（`#12`、旧版 `@`）
+ * 统一在 `reference.ts`，这里只负责观察者投影。
  */
 
 export type Address = {
-  /** 引用写法：`@名字` 或 `#12`；找不到主体时为空串。 */
+  /** 可提交的地址：观察者当前的称呼，或 `#12`；找不到主体时为空串。 */
   token: string;
   /** 当前签名的外观；句子不内联它，需要时由 `appearanceLine` 单独成行。 */
   appearance: string;
   /** 是否为观察者自己。 */
   isSelf: boolean;
+  /** 名字退回编号时保留观察者的称呼，只用于展示（`refOf`），不是可提交的地址。 */
+  knownName?: string;
 };
 
 /** 按 actorId 取该观察者视角下的引用。 */
@@ -25,33 +30,14 @@ export type AddressSubject = {
   appearance: string;
 };
 
-/**
- * 引用无法解析（对方不在本场景 / 无法观测）时的泛称。
- *
- * 唯一来源：脱敏与状态摘要也用它，别再各写一份字符串。
- */
+/** 引用无法解析（对方不在本场景）时的泛称：不可观测，也不编造外观。 */
 export const UNKNOWN_LABEL = "某个不在场者";
 
-/** 不知道名字时的匿名编号；与 actor / stage / item 共用本局实体序号。 */
-export function handleOf(signatureSeq: number): string {
-  return `#${signatureSeq}`;
-}
-
-/** 匿名编号的形状；台词里出现它说明模型把引用当成了名字。 */
-export const HANDLE_PATTERN = /#\d+/;
-
-/** 名字引用的标记：只用于检测 `@`，不负责解析名字边界。 */
-export const NAME_REF_PATTERN = /@\S*/;
-
-/** 参数归一：名字类参数允许带一个前导 `@`；`#编号` 与纯名字原样返回。 */
-export function stripNameRef(ref: string): string {
-  return ref.startsWith("@") ? ref.slice(1) : ref;
-}
-
 /**
- * 名单与工具结果的展示写法：`@名字（外观）` / `#12 外观：…`。
+ * 名单与工具结果的展示写法：`名字（外观）` / `#12 外观：…`。
  *
- * 只用于阅读，不是 token：可直接提交的地址永远是 `address.token`。
+ * 名字退回编号时，观察者的称呼附在后面（`#12 外观：…｜你的称呼：父亲`）——
+ * 那是认知，不是地址；能直接提交的永远是 `address.token`。
  */
 export function refOf(address: Address): string {
   if (address.isSelf) {
@@ -60,9 +46,12 @@ export function refOf(address: Address): string {
   if (address.token.length === 0) {
     return UNKNOWN_LABEL;
   }
-  return address.token.startsWith("@")
-    ? `${address.token}（${address.appearance}）`
-    : `${address.token} 外观：${address.appearance}`;
+  const described = isHandleRef(address.token)
+    ? `${address.token} 外观：${address.appearance}`
+    : `${address.token}（${address.appearance}）`;
+  return address.knownName === undefined
+    ? described
+    : `${described}｜你的称呼：${address.knownName}`;
 }
 
 /** 句子里的引用；自己写作「你」。 */
@@ -91,8 +80,10 @@ export function actionRef(address: Address): string {
 /**
  * 用「观察者当前给签名的名字」+「签名外观」拼出引用。
  *
- * 名字相同时不能生成两个相同的 `@名字`，这些主体退回 `#编号`；
- * `reservedNames` 用来把观察者自己的名字也算进冲突，避免和 `@自己` 撞车。
+ * 这里不判定任何可见性：主体表里有谁，就只渲染谁。名字重名时不能产出两个同形地址，
+ * 这些主体退回 `#编号`，但名字仍作为 `knownName` 保留——观察者确实认得他们，
+ * 只是这个称呼不能当地址用。`reservedNames` 把观察者自己的名字也算进冲突，
+ * 避免别人的称呼和 `自己` 撞车。
  */
 export function makeAddressLookup(
   names: ReadonlyMap<string, string>,
@@ -116,11 +107,14 @@ export function makeAddressLookup(
       return { token: "", appearance: "", isSelf: false };
     }
     const name = names.get(subject.signatureId);
-    const unique = name !== undefined && counts.get(name) === 1;
+    if (name !== undefined && counts.get(name) === 1) {
+      return { token: name, appearance: subject.appearance, isSelf: false };
+    }
     return {
-      token: unique ? `@${name}` : handleOf(subject.signatureSeq),
+      token: handleOf(subject.signatureSeq),
       appearance: subject.appearance,
       isSelf: false,
+      ...(name === undefined ? {} : { knownName: name }),
     };
   };
 }
@@ -137,6 +131,26 @@ export function subjectsOf(stage: StageState): Map<string, AddressSubject> {
       },
     ]),
   );
+}
+
+/** 观察者给自己与在场者拼引用所需的最小投影；不携带真名。 */
+export type AddressSelf = {
+  id: string;
+  name: string;
+  appearance: string;
+};
+
+/**
+ * 给 base 补上 self 语义：自己的地址固定是真名，`isSelf` 为 true。
+ *
+ * 必须与 `reservedNames: [self.name]` 成对使用——真名被自己占走，
+ * 别人的同名称呼才会退回 `#编号`。调用方不再自己判 `actorId === self.id`。
+ */
+export function withSelf(base: AddressLookup, self: AddressSelf): AddressLookup {
+  return (actorId) =>
+    actorId === self.id
+      ? { token: self.name, appearance: self.appearance, isSelf: true }
+      : base(actorId);
 }
 
 /**
@@ -176,27 +190,14 @@ function signatureNamesOf(
   return nameIndex(state).get(observerActorId) ?? EMPTY_NAMES;
 }
 
-/**
- * actor 视角的引用表：主体取本场景的全部角色。
- *
- * 自己的引用固定为「你」，名字是自己的真名，不占用名字表。
- */
+/** actor 视角的引用表：主体取本场景的全部角色。 */
 export function addressLookupFor(
   state: GameStateSlice,
   observer: ActorState,
   stage: StageState,
 ): AddressLookup {
-  const lookup = makeAddressLookup(signatureNamesOf(state, observer.id), subjectsOf(stage), [
-    observer.name,
-  ]);
-  return (actorId) => {
-    if (actorId === observer.id) {
-      return {
-        token: `@${observer.name}`,
-        appearance: observer.appearance.text,
-        isSelf: true,
-      };
-    }
-    return lookup(actorId);
-  };
+  return withSelf(
+    makeAddressLookup(signatureNamesOf(state, observer.id), subjectsOf(stage), [observer.name]),
+    { id: observer.id, name: observer.name, appearance: observer.appearance.text },
+  );
 }

@@ -60,7 +60,6 @@ export type NameAuditInput = {
 
 export type NameLeakScope = "ever" | "currentSignature";
 export type NameLeakSeverity = "high" | "medium" | "low";
-export type NameLeakForm = "reference" | "bare";
 export type NameLeakPart = "content" | "tool_calls";
 
 export type NameLeakOptions = {
@@ -91,7 +90,6 @@ export type NameLeak = {
   /** 真名对应的 actor；同名角色会有多个。 */
   subjectActorIds: string[];
   severity: NameLeakSeverity;
-  form: NameLeakForm;
   /** 沟通观察的事件类型；say / whisper / announce / call 才有。 */
   communicationKind: CommunicationKind | null;
   /** 命中位置是否落在该沟通观察结构化的 dialogue 字段内。 */
@@ -436,7 +434,6 @@ export function findNameAudit(
                   matchedName: group.name,
                   subjectActorIds: group.unknown.map((subject) => subject.id),
                   severity,
-                  form: index > 0 && text[index - 1] === "@" ? "reference" : "bare",
                   communicationKind,
                   inDialogue:
                     dialogue !== null &&
@@ -560,7 +557,7 @@ export function renderNameLeakReport(report: NameLeakReport): string {
       lines.push(
         "",
         `[${leak.severity}] ${leak.observerName} · #${leak.messageSequence} ${leak.messageKind ?? leak.messageType}${leak.part === "tool_calls" ? "（toolCalls）" : ""}${leak.communicationKind ? ` · ${leak.communicationKind}` : ""}${leak.inDialogue ? " · 台词内" : ""}`,
-        `真名「${leak.matchedName}」${leak.form === "reference" ? "（@引用）" : ""}`,
+        `真名「${leak.matchedName}」`,
         `  ${leak.excerpt}`,
       );
     }

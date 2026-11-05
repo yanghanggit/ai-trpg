@@ -163,18 +163,17 @@ describe.skipIf(!testDatabaseUrl)("cross-stage call", () => {
       message.content.includes("你把话传到了对方那里"),
     );
     expect(feedback?.content).toContain("我是守烬人。听得到吗？");
-    expect(feedback?.content).not.toContain("我是@守烬人");
     expect(feedback?.content).not.toContain("断钟中殿");
   });
 
-  it("rejects @ references and same-stage targets", async () => {
+  it("tolerates the legacy marker but rejects handles and same-stage targets", async () => {
     const created = await createControlledGame("跨场景传音拒绝测试局", callWorld());
     await expect(
       playerCall(
         handle.db,
         created.game.slug,
         "守烬人",
-        { targetActorName: "@缄默抄经人", message: "给我一个名字。" },
+        { targetActorName: "#12", message: "给我一个名字。" },
         { judge: allowAllDialogue },
       ),
     ).rejects.toThrow(/必须使用真名/);
@@ -192,6 +191,19 @@ describe.skipIf(!testDatabaseUrl)("cross-stage call", () => {
     const state = await getGameState(handle.db, created.game.slug);
     expect(state.game.version).toBe(0);
     expect(state.messages).toEqual([]);
+  });
+
+  it("tolerates the legacy marker on a true name", async () => {
+    const created = await createControlledGame("跨场景传音旧标记测试局", callWorld());
+    await expect(
+      playerCall(
+        handle.db,
+        created.game.slug,
+        "守烬人",
+        { targetActorName: "@缄默抄经人", message: "给我一个名字。" },
+        { judge: allowAllDialogue },
+      ),
+    ).resolves.toMatchObject({ ok: true });
   });
 
   it("requires the call action", async () => {

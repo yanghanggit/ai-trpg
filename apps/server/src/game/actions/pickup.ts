@@ -1,7 +1,7 @@
 import type { TraceContext } from "../../debug/trace";
 import type { ToolDefinition } from "../../llm/types";
 import { appendPublicMessage, bumpGameVersion } from "../apply/messages";
-import { assertItemNameFree, resolveStageItem } from "../apply/queries";
+import { resolveStageItem } from "../apply/queries";
 import type { ActorWithStageRow, Executor, ResolvedPickup } from "../apply/types";
 import { GameError } from "../errors";
 import { appendItemObservations, appendStageMemory } from "../observations";
@@ -57,7 +57,6 @@ export async function applyPickup(
   const actor = { id: actorRow.actor.id, name: actorRow.actor.name };
   const stageItem = resolved.stageItem;
 
-  await assertItemNameFree(executor, actor.id, stageItem.name);
   await moveStageItemToActor(executor, stageItem, actor.id);
   await bumpGameVersion(executor, gameId, now);
 

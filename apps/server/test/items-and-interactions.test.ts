@@ -221,6 +221,41 @@ if (!GATE_STAGE || !KEEPER_ACTOR) {
   throw new Error("测试世界缺少灰烬门廊或守烬人");
 }
 
+/** 提灯修士背包里先放着同一件短刃：用来验证“等价物品并进 count”。 */
+const SHARED_BLADE = {
+  key: "cracked-blade-copy",
+  name: "裂齿短刃",
+  description: "刃口崩了三处，握柄缠着发黑的布条。",
+  kind: "weapon" as const,
+  count: 2,
+  stats: { damage: 3, block: 0 },
+  effect: { type: "damage" },
+  actions: ["strike"] as const,
+};
+
+const MERGE_WORLD = {
+  ...ITEM_WORLD,
+  actors: ITEM_WORLD.actors.map((actor) =>
+    actor.name === "提灯修士" ? { ...actor, items: [...actor.items, SHARED_BLADE] } : actor,
+  ),
+};
+
+/** 同名但不是同一件东西：描述不同，不能并入 count。 */
+const CLASH_WORLD = {
+  ...ITEM_WORLD,
+  actors: ITEM_WORLD.actors.map((actor) =>
+    actor.name === "提灯修士"
+      ? {
+          ...actor,
+          items: [
+            ...actor.items,
+            { ...SHARED_BLADE, key: "other-blade", description: "刃口完好，柄上刻着别人的名字。" },
+          ],
+        }
+      : actor,
+  ),
+};
+
 const WEAPON_WORLD = {
   ...TEST_WORLD,
   actors: TEST_WORLD.actors.map((actor) =>
@@ -980,6 +1015,46 @@ describe.skipIf(!testDatabaseUrl)("items and interactions", () => {
     );
   });
 
+  it("merges an equivalent item into the receiver's count instead of a second row", async () => {
+    const created = await createGame(handle.db, {
+      username: DEMO_USER.username,
+      name: "物品并堆测试局",
+      world: MERGE_WORLD,
+    });
+    await takeActorControl(handle.db, created.game.slug, "守烬人");
+
+    const given = await playerGive(handle.db, created.game.slug, "守烬人", {
+      targetActorRef: "提灯修士",
+      itemName: "裂齿短刃",
+    });
+    expect(given.ok).toBe(true);
+
+    const state = await getGameState(handle.db, created.game.slug);
+    const actors = state.world.stages.flatMap((stage) => stage.actors);
+    const keeper = actors.find((actor) => actor.name === "守烬人");
+    const monk = actors.find((actor) => actor.name === "提灯修士");
+    expect(keeper?.items).toEqual([]);
+    const blades = monk?.items.filter((item) => item.name === "裂齿短刃") ?? [];
+    expect(blades).toHaveLength(1);
+    expect(blades[0]).toMatchObject({ count: 3 });
+  });
+
+  it("rejects a transfer that would put two different items under one name", async () => {
+    const created = await createGame(handle.db, {
+      username: DEMO_USER.username,
+      name: "同名不同物测试局",
+      world: CLASH_WORLD,
+    });
+    await takeActorControl(handle.db, created.game.slug, "守烬人");
+
+    await expect(
+      playerGive(handle.db, created.game.slug, "守烬人", {
+        targetActorRef: "提灯修士",
+        itemName: "裂齿短刃",
+      }),
+    ).rejects.toThrow(/同名的另一件物品/);
+  });
+
   it("picks up a stage item into the actor inventory", async () => {
     const created = await createGame(handle.db, {
       username: DEMO_USER.username,
@@ -1046,7 +1121,7 @@ describe.skipIf(!testDatabaseUrl)("items and interactions", () => {
 
     // 玩家入口绕过 parseUse，resolveUse 必须按当前场景的锚点集校验。
     // 另一个场景的锚点、角色名字、系统引用都只是“不存在的锚点”。
-    for (const label of ["门闩", "守烬人的锁孔", "#12 的锁孔", "@提灯修士的锁孔"]) {
+    for (const label of ["门闩", "守烬人的锁孔", "#12 的锁孔", "提灯修士的锁孔"]) {
       await expect(
         playerUse(handle.db, created.game.slug, "守烬人", {
           targetStageName: SEALED_STAGE_NAME,
