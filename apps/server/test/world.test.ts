@@ -70,8 +70,8 @@ describe("turn round budgets", () => {
   it("按任务提示正常规划时，探查、全部写动作与提交能装进一轮", () => {
     // world：look_stage + 全部写动作 + submit_world_plan
     expect(DEFAULT_WORLD_MAX_ROUNDS).toBeGreaterThanOrEqual(MAX_WORLD_ACTIONS_PER_TURN + 2);
-    // stage：submit_environment + open_passage + 两条通知
-    expect(DEFAULT_STAGE_MAX_ROUNDS).toBeGreaterThanOrEqual(MAX_STAGE_NOTIFICATIONS_PER_TURN + 3);
+    // stage：submit_environment + open_passage + 两条通知 + submit_stage_plan
+    expect(DEFAULT_STAGE_MAX_ROUNDS).toBeGreaterThanOrEqual(MAX_STAGE_NOTIFICATIONS_PER_TURN + 4);
   });
 });
 
@@ -99,7 +99,7 @@ describe.skipIf(!testDatabaseUrl)("world agent", () => {
     const result = await runStageTurn(handle.db, created.game.slug, "灰烬门廊", {
       service: new ScriptedService([
         call("notify_world", { content: notification }),
-        call("submit_environment", {}),
+        call("submit_stage_plan", {}),
       ]),
     });
 
@@ -124,7 +124,7 @@ describe.skipIf(!testDatabaseUrl)("world agent", () => {
     await runStageTurn(handle.db, created.game.slug, "灰烬门廊", {
       service: new ScriptedService([
         call("notify_world", { content: notification }),
-        call("submit_environment", {}),
+        call("submit_stage_plan", {}),
       ]),
     });
 

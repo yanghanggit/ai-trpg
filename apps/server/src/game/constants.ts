@@ -28,10 +28,10 @@ export const DEFAULT_NPC_MAX_ROUNDS = 4;
 export const DEFAULT_LLM_ERROR_RETRIES = 2;
 
 /**
- * stage 小 GM 的轮数上限：environment + open_passage + 两条通知，再加一次纠偏。
- * 与动作上限绑在一起，保证「按任务提示正常规划」在结构上能完成一轮。
+ * stage 小 GM 的轮数上限：environment + open_passage + 两条通知 + submit_stage_plan，
+ * 再加一次纠偏。与动作上限绑在一起，保证「按任务提示正常规划」在结构上能完成一轮。
  */
-export const DEFAULT_STAGE_MAX_ROUNDS = MAX_STAGE_NOTIFICATIONS_PER_TURN + 3;
+export const DEFAULT_STAGE_MAX_ROUNDS = MAX_STAGE_NOTIFICATIONS_PER_TURN + 4;
 
 /** world 的轮数上限：一次定位 + 全部写动作 + 提交 + 一次纠偏余量。 */
 export const DEFAULT_WORLD_MAX_ROUNDS = MAX_WORLD_ACTIONS_PER_TURN + 3;

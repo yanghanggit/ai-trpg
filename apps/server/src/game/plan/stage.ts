@@ -1,42 +1,24 @@
 import type { ToolDefinition } from "../../llm/types";
-import { MAX_STAGE_ANCHORS } from "../constants";
 import { GameError } from "../errors";
-import type { StageAction, StageAnchor } from "../types";
+import type { StageAction } from "../types";
 
 export function buildSubmitEnvironmentTool(): ToolDefinition {
   return {
     type: "function",
     function: {
       name: "submit_environment",
-      description: `提交 environment 与 anchors 的完整快照，并结束本轮仲裁；两者都是快照，不是差异。`,
+      description:
+        "提交本场景 environment 的完整快照；它是普通写动作，不结束本轮。没有变化就不要调用。",
       parameters: {
         type: "object",
         properties: {
           environment: {
             type: "string",
             description:
-              "更新后的完整 environment 快照；只写此刻可被观察到的状态，不含角色名、角色行动与编号引用（#编号）；省略表示本轮不修改。",
-          },
-          anchors: {
-            type: "array",
-            description: `完整锚点快照；最多 ${MAX_STAGE_ANCHORS} 个，标签场景内唯一；省略表示不修改，空数组表示全部移除。只列角色此刻能直接作用的点：装饰、氛围与通向别处的路径都不是锚点，也不写效果与后果。`,
-            items: {
-              type: "object",
-              properties: {
-                label: {
-                  type: "string",
-                  description: "锚点短标签",
-                },
-                description: {
-                  type: "string",
-                  description: "可选的可观察细节",
-                },
-              },
-              required: ["label"],
-            },
+              "更新后的完整 environment 快照；只写此刻可被观察到的状态，不含角色名、角色行动与编号引用（#编号）。",
           },
         },
-        required: [],
+        required: ["environment"],
       },
     },
   };
@@ -47,28 +29,20 @@ export function parseEnvironment(args: Record<string, unknown>): string | undefi
   return environment.length > 0 ? environment : undefined;
 }
 
-/** 解析 stage 提交的锚点快照；结构错误在这里拦住，内容语义在 applyStagePlan 里校验。 */
-export function parseAnchors(args: Record<string, unknown>): StageAnchor[] | undefined {
-  if (args.anchors === undefined) {
-    return undefined;
-  }
-  if (!Array.isArray(args.anchors)) {
-    throw new GameError("invalid_action", "anchors 必须是数组");
-  }
-  return args.anchors.map((raw) => {
-    if (typeof raw !== "object" || raw === null) {
-      throw new GameError("invalid_action", "anchors 的每一项必须是对象");
-    }
-    const label = typeof raw.label === "string" ? raw.label.trim() : "";
-    if (label.length === 0) {
-      throw new GameError("invalid_action", "锚点 label 不能为空");
-    }
-    const description = typeof raw.description === "string" ? raw.description.trim() : undefined;
-    return {
-      label,
-      ...(description !== undefined && description.length > 0 ? { description } : {}),
-    };
-  });
+/** 终结工具：把本轮已暂存的动作交出去；空计划表示本轮无改动。 */
+export function buildSubmitStagePlanTool(): ToolDefinition {
+  return {
+    type: "function",
+    function: {
+      name: "submit_stage_plan",
+      description: "提交本轮已暂存的动作并结束；没有动作时提交空计划。按加入顺序执行。",
+      parameters: {
+        type: "object",
+        properties: {},
+        required: [],
+      },
+    },
+  };
 }
 
 /** 把一条需要世界知晓的场景报告加入本轮计划。 */

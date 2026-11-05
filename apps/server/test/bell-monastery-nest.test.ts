@@ -107,7 +107,7 @@ describe.skipIf(!testDatabaseUrl)("bell monastery nest ending", () => {
     const reported = await runStageTurn(handle.db, slug, "地窖", {
       service: new ScriptedService([
         call("notify_world", { content: notification }),
-        call("submit_environment", {}),
+        call("submit_stage_plan", {}),
       ]),
     });
     expect(reported.ok).toBe(true);

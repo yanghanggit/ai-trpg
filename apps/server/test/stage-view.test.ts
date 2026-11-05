@@ -26,6 +26,14 @@ function submitEnvironment(environment: string): ToolCall {
   };
 }
 
+function submitStagePlan(): ToolCall {
+  return {
+    id: randomUUID(),
+    type: "function",
+    function: { name: "submit_stage_plan", arguments: "{}" },
+  };
+}
+
 class ScriptedStageService implements ChatCompletionService {
   constructor(private readonly environments: string[]) {}
 
@@ -34,7 +42,7 @@ class ScriptedStageService implements ChatCompletionService {
     if (environment === undefined) {
       throw new Error("脚本化 stage 环境已耗尽");
     }
-    const toolCalls = [submitEnvironment(environment)];
+    const toolCalls = [submitEnvironment(environment), submitStagePlan()];
     return new ChatCompletionResult({
       request,
       aiMessage: { type: "ai", content: "", toolCalls },

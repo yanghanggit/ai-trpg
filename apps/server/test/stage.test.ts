@@ -47,14 +47,11 @@ function submitEnvironment(environment: string): ToolCall {
   };
 }
 
-function submitAnchors(anchors: Array<{ label: string; description?: string }>): ToolCall {
+function submitStagePlan(): ToolCall {
   return {
     id: randomUUID(),
     type: "function",
-    function: {
-      name: "submit_environment",
-      arguments: JSON.stringify({ anchors }),
-    },
+    function: { name: "submit_stage_plan", arguments: "{}" },
   };
 }
 
@@ -70,36 +67,7 @@ class ScriptedStageService implements ChatCompletionService {
     if (environment === undefined) {
       throw new Error("脚本化 stage 环境已耗尽");
     }
-    const toolCalls = [submitEnvironment(environment)];
-    return new ChatCompletionResult({
-      request,
-      aiMessage: { type: "ai", content: "", toolCalls },
-      finishReason: "tool_calls",
-      toolCalls,
-    });
-  }
-}
-
-class ScriptedAnchorService implements ChatCompletionService {
-  constructor(private readonly anchors: Array<{ label: string; description?: string }>) {}
-
-  async complete(request: Parameters<ChatCompletionService["complete"]>[0]) {
-    const toolCalls = [submitAnchors(this.anchors)];
-    return new ChatCompletionResult({
-      request,
-      aiMessage: { type: "ai", content: "", toolCalls },
-      finishReason: "tool_calls",
-      toolCalls,
-    });
-  }
-}
-
-class SubmitEnvironmentThenAnchorsService implements ChatCompletionService {
-  async complete(request: Parameters<ChatCompletionService["complete"]>[0]) {
-    const toolCalls = [
-      submitEnvironment("风停了，灰烬沉在石阶缝里。"),
-      submitAnchors([{ label: "锁舌", description: "门板内侧新露出的铜锁舌。" }]),
-    ];
+    const toolCalls = [submitEnvironment(environment), submitStagePlan()];
     return new ChatCompletionResult({
       request,
       aiMessage: { type: "ai", content: "", toolCalls },
@@ -114,6 +82,7 @@ class SubmitThenNotifyService implements ChatCompletionService {
     const toolCalls = [
       submitEnvironment("风停了，灰烬沉在石阶缝里。"),
       notifyWorld("守烬人在门廊里找到了通往中殿的线索。"),
+      submitStagePlan(),
     ];
     return new ChatCompletionResult({
       request,
@@ -151,6 +120,24 @@ class CapturingWaitService implements ChatCompletionService {
       request,
       aiMessage: { type: "ai", content: "", toolCalls },
       finishReason: "tool_calls",
+      toolCalls,
+    });
+  }
+}
+
+/** 按轮次返回工具调用；轮次耗尽后直接 stop，用来观察终结工具的纠偏。 */
+class RoundsService implements ChatCompletionService {
+  private round = 0;
+
+  constructor(private readonly rounds: ToolCall[][]) {}
+
+  async complete(request: Parameters<ChatCompletionService["complete"]>[0]) {
+    const toolCalls = this.rounds[this.round] ?? [];
+    this.round += 1;
+    return new ChatCompletionResult({
+      request,
+      aiMessage: { type: "ai", content: "", toolCalls },
+      finishReason: toolCalls.length > 0 ? "tool_calls" : "stop",
       toolCalls,
     });
   }
@@ -251,7 +238,7 @@ describe.skipIf(!testDatabaseUrl)("stage mini-GM", () => {
     expect(capturing.inputMessage).toContain(environment);
   });
 
-  it("提交相同快照时不写环境或锚点事件", async () => {
+  it("提交相同环境快照时不写事件", async () => {
     const created = await createGame(handle.db, {
       username: DEMO_USER.username,
       name: "场景快照无变化测试局",
@@ -268,13 +255,7 @@ describe.skipIf(!testDatabaseUrl)("stage mini-GM", () => {
       created.game.id,
       stage.id,
       {
-        actions: [
-          {
-            kind: "submit_environment",
-            environment: stage.environment,
-            anchors: stage.anchors,
-          },
-        ],
+        actions: [{ kind: "submit_environment", environment: stage.environment }],
       },
       true,
     );
@@ -285,56 +266,45 @@ describe.skipIf(!testDatabaseUrl)("stage mini-GM", () => {
     expect(after.world.stages.find((item) => item.id === stage.id)?.environment).toBe(
       stage.environment,
     );
-    expect(after.world.stages.find((item) => item.id === stage.id)?.anchors).toEqual(stage.anchors);
   });
 
-  it("updates anchors without environment and exposes them to the next actor turn", async () => {
+  it("空计划是合法回合：只调终结工具，不改状态也不写事件", async () => {
     const created = await createGame(handle.db, {
       username: DEMO_USER.username,
-      name: "场景锚点更新测试局",
+      name: "场景空计划测试局",
       world: TEST_WORLD,
     });
-    const anchors = [{ label: "锁舌", description: "门板内侧新露出的铜锁舌。" }];
+    const before = await getGameState(handle.db, created.game.slug);
     const result = await runStageTurn(handle.db, created.game.slug, "灰烬门廊", {
-      service: new ScriptedAnchorService(anchors),
+      service: new RoundsService([[submitStagePlan()]]),
     });
 
+    expect(result.loopSuccess).toBe(true);
     expect(result.ok).toBe(true);
-    expect(result.plan?.actions).toEqual([{ kind: "submit_environment", anchors }]);
-    expect(result.state.game.version).toBe(1);
-    expect(result.state.world.stages.find((stage) => stage.name === "灰烬门廊")?.anchors).toEqual(
-      anchors,
+    expect(result.plan?.actions).toEqual([]);
+    const after = await getGameState(handle.db, created.game.slug);
+    expect(after.messages).toHaveLength(before.messages.length);
+    expect(after.world.stages.find((stage) => stage.name === "灰烬门廊")?.environment).toBe(
+      before.world.stages.find((stage) => stage.name === "灰烬门廊")?.environment,
     );
-    const lastMessage = (await listGameMessages(handle.db, created.game.id)).at(-1);
-    expect(lastMessage).toMatchObject({
-      kind: "anchor_change",
-      stageId: result.state.world.stages.find((stage) => stage.name === "灰烬门廊")?.id,
-    });
-
-    const capturing = new CapturingWaitService();
-    await runNpcTurn(handle.db, created.game.slug, "守烬人", { service: capturing });
-    expect(capturing.inputMessage).toContain("## 可交互锚点");
-    expect(capturing.inputMessage).toContain("锁舌：门板内侧新露出的铜锁舌。");
-    expect(capturing.useAnchorEnum).toEqual(["锁舌"]);
   });
 
-  it("merges environment and anchors submitted in the same turn", async () => {
+  it("没调终结工具时已写入的环境仍落账，但 loop 不算成功", async () => {
     const created = await createGame(handle.db, {
       username: DEMO_USER.username,
-      name: "场景快照合并测试局",
+      name: "场景缺终结工具测试局",
       world: TEST_WORLD,
     });
     const environment = "风停了，灰烬沉在石阶缝里。";
-    const anchors = [{ label: "锁舌", description: "门板内侧新露出的铜锁舌。" }];
     const result = await runStageTurn(handle.db, created.game.slug, "灰烬门廊", {
-      service: new SubmitEnvironmentThenAnchorsService(),
+      service: new RoundsService([[submitEnvironment(environment)]]),
     });
 
+    expect(result.loopSuccess).toBe(false);
     expect(result.ok).toBe(true);
-    expect(result.plan?.actions).toEqual([{ kind: "submit_environment", environment, anchors }]);
-    const stage = result.state.world.stages.find((candidate) => candidate.name === "灰烬门廊");
-    expect(stage?.environment).toBe(environment);
-    expect(stage?.anchors).toEqual(anchors);
+    expect(result.state.world.stages.find((stage) => stage.name === "灰烬门廊")?.environment).toBe(
+      environment,
+    );
   });
 
   it("在第一次仲裁时把开局快照写进 stage memory，且只写一次", async () => {
@@ -370,39 +340,6 @@ describe.skipIf(!testDatabaseUrl)("stage mini-GM", () => {
     expect(snapshots[0]?.content).toContain("门闩：门板上被灰烬塞住的门闩。");
     // 基线是 system 之后的第一条记忆：先有开局事实，再有事件。
     expect(gateMemory?.messages.map((message) => message.type)).toEqual(["system", "human"]);
-  });
-
-  it("rejects anchor labels that leak actor names or system references", async () => {
-    const created = await createGame(handle.db, {
-      username: DEMO_USER.username,
-      name: "场景锚点守卫测试局",
-      world: TEST_WORLD,
-    });
-    const state = await getGameState(handle.db, created.game.slug);
-    const gate = state.world.stages.find((stage) => stage.name === "灰烬门廊");
-    if (!gate) {
-      throw new Error("缺少灰烬门廊");
-    }
-
-    for (const label of ["守烬人的门闩", "#12 门闩"]) {
-      const ok = await applyStagePlan(
-        handle.db,
-        created.game.id,
-        gate.id,
-        { actions: [{ kind: "submit_environment", anchors: [{ label }] }] },
-        true,
-      );
-      expect(ok).toBe(false);
-    }
-
-    const after = await getGameState(handle.db, created.game.slug);
-    expect(after.game.version).toBe(0);
-    expect(after.world.stages.find((stage) => stage.id === gate.id)?.anchors).toEqual(gate.anchors);
-    const memories = await getGameMemories(handle.db, created.game.id);
-    const gateMemory = memories.find((memory) => memory.name === "灰烬门廊");
-    expect(
-      gateMemory?.messages.filter((message) => message.content.includes("锚点更新被拒绝")).length,
-    ).toBe(2);
   });
 
   it("keeps notify_world calls that arrive after submit_environment", async () => {

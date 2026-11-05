@@ -54,7 +54,7 @@ class ToolCaptureService implements ChatCompletionService {
 
   async complete(request: Parameters<ChatCompletionService["complete"]>[0]) {
     this.tools = request.tools?.map((tool) => tool.function.name) ?? [];
-    const toolCalls = [call("submit_environment", {})];
+    const toolCalls = [call("submit_stage_plan", {})];
     return new ChatCompletionResult({
       request,
       aiMessage: { type: "ai", content: "", toolCalls },
@@ -134,7 +134,7 @@ describe.skipIf(!testDatabaseUrl)("stage passage", () => {
     const result = await runStageTurn(handle.db, created.game.slug, GATE, {
       service: new ScriptedService([
         call("open_passage", { targetStageName: PATH }),
-        call("submit_environment", {}),
+        call("submit_stage_plan", {}),
       ]),
     });
     expect(result.ok).toBe(true);
@@ -175,7 +175,7 @@ describe.skipIf(!testDatabaseUrl)("stage passage", () => {
     await runStageTurn(handle.db, created.game.slug, GATE, {
       service: new ScriptedService([
         call("open_passage", { targetStageName: PATH }),
-        call("submit_environment", {}),
+        call("submit_stage_plan", {}),
       ]),
     });
     await playerMove(handle.db, created.game.slug, "无名者", { targetStageRef: PATH });
@@ -184,6 +184,8 @@ describe.skipIf(!testDatabaseUrl)("stage passage", () => {
     const gateTools = new ToolCaptureService();
     await runStageTurn(handle.db, created.game.slug, GATE, { service: gateTools });
     expect(gateTools.tools).toContain("submit_environment");
+    // 终结工具常驻：它不是场景能力，不随 stages.actions 变化。
+    expect(gateTools.tools).toContain("submit_stage_plan");
     expect(gateTools.tools).not.toContain("notify_world");
     expect(gateTools.tools).not.toContain("open_passage"); // 边已打开，没有候选
 
@@ -191,7 +193,7 @@ describe.skipIf(!testDatabaseUrl)("stage passage", () => {
     const reported = await runStageTurn(handle.db, created.game.slug, PATH, {
       service: new ScriptedService([
         call("notify_world", { content: notification }),
-        call("submit_environment", {}),
+        call("submit_stage_plan", {}),
       ]),
     });
     expect(reported.plan).toEqual({ actions: [{ kind: "notify_world", notification }] });

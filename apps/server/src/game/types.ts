@@ -272,12 +272,7 @@ export type ItemEventKind = Extract<ActionKind, "steal" | "give" | "pickup" | "u
 
 /** stage 的一次仲裁动作；与 actor / world 的计划同构，都是有序动作列表。 */
 export type StageAction =
-  | {
-      kind: "submit_environment";
-      environment?: string;
-      /** 完整锚点快照；省略表示不修改，空数组表示全部移除。 */
-      anchors?: StageAnchor[];
-    }
+  | { kind: "submit_environment"; environment: string }
   | { kind: "notify_world"; notification: string }
   | { kind: "open_passage"; targetStageName: string };
 

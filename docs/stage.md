@@ -1,6 +1,6 @@
 # Stage 小 GM
 
-Stage 是活着的场景实体：有自己的 memory、生命周期与仲裁回合，是本场景的小 GM。能力有三项——更新 `environment` 与可交互锚点、打开本场景通往相邻场景的通道、向 world 发出通知——都由 `stages.actions` 逐场景显式声明。
+Stage 是活着的场景实体：有自己的 memory、生命周期与仲裁回合，是本场景的小 GM。能力有三项——更新 `environment`、打开本场景通往相邻场景的通道、向 world 发出通知——都由 `stages.actions` 逐场景显式声明。
 
 ## 身份
 
@@ -25,7 +25,7 @@ stage 与 actor 共用 `agent_memories` 表，以 `owner_type=stage` 标识。�
 `environment` 是 stage 当前的环境快照：本场景此刻已成立、观察者可感知的状态。它是世界面文本，不承载叙事：不写历史与因果，不写角色名称、行动或状态。
 
 - 写入时统一守卫拒绝角色本名与 `#编号` 引用。角色由名单（`## 同场景角色`）、观察与记忆承载，历史在 stage memory 与 `game_messages` 里。actor 读取时再按观察者脱敏一次：本场角色写成观察者当前的称呼，**没有名字就用 `#编号`，外观另起一行**——在场者一定看得见对方，不存在「看不清」的兜底。
-- 什么算「改变」、何时必须原样提交、锚点能不能写效果，属工具契约与本轮任务文本；宪法不重复执行细节。
+- 什么算「改变」、何时提交，属工具契约与本轮任务文本；宪法不重复执行细节。
 
 environment 是拉取模型：stage 更新后不推送，actor 下一次 plan 与 `look_stage` 都读当时的 `stages.environment`，并按观察者渲染一次。
 
@@ -33,14 +33,14 @@ environment 是拉取模型：stage 更新后不推送，actor 下一次 plan �
 
 ## 可交互锚点
 
-`stages.anchors` 是场景内可见、可被角色操作的位置或部位（如“锁孔”“门闩”）的完整快照。它和 environment 一样由 stage 回合维护、由 actor pull：
+`stages.anchors` 是场景内可见、可被角色操作的位置或部位（如“锁孔”“门闩”）的完整快照。它在建局时由内容层赋予，运行时不改：stage 没有写锚点的工具，actor 也没有能让它增删改的动作。
 
 - 每个锚点只有 `label` 与可选的 `description`，不承载效果、后果或机制；实际结算仍由 item effect / stage / world 完成；
-- `label` 场景内唯一，数量有上限；写入时与世界面文本同样拒绝角色名字与 `@`/`#` 引用；
-- `actor` 的 `use` 只能从当前场景的锚点枚举里选 `targetAnchor`，不再接受自由文本位置描述；解析时重新校验，已移除的锚点会被拒绝；
-- 锚点变化产生 `anchor_change` 公共事件并进入 stage memory，不直接写 actor memory；actor 下一回合 pull 到新列表。
+- `label` 场景内唯一，数量有上限；内容校验与 environment 一样拒绝角色名字与 `@`/`#` 引用；
+- `actor` 的 `use` 只能从当前场景的锚点枚举里选 `targetAnchor`，解析时再校验一次；
+- 锚点不产生自己的事件，也不进 stage memory：列表不变，actor 每回合 pull 到的就是同一份。旧局里的 `anchor_change` 是运行时可写时期的记录，新局不再产生。
 
-锚点是可供性，不是任务清单：它不承诺奖励或状态变化。使用锚点可以没有任何机制后果，但至少会产生一次真实的事件与观察；死路与红鲱鱼是允许的。反过来，纯装饰、已失效或根本不可操作的物体不应列为锚点——它们只属于 environment 的散文。
+锚点是可供性，不是任务清单，也不是开关：它不承诺奖励或状态变化，锚点被使用、破坏或失效之后的局面由 environment 与 world 的裁决表达。纯装饰、已失效或根本不可操作的物体不应列为锚点——它们只属于 environment 的散文；若要表达“用掉一次就失效”，那是锚点状态化的独立机制，不靠改列表表达。
 
 ## 连通性
 
@@ -52,19 +52,21 @@ environment 是拉取模型：stage 更新后不推送，actor 下一次 plan �
 
 ## 回合
 
-stage 回合与 actor 回合平行，但不共享 actor plan：读状态与 stage memory → 组装环境、同场景角色、场景物品、可去场景、未开启通道与场景事件 → agent loop 推理 → 用 `open_passage` / `notify_world` 加入计划 → 用 `submit_environment` 提交 environment 与锚点 → 短事务内校验、按序执行、递增版本、写公共事件。
+stage 回合与 actor 回合平行，但不共享 actor plan：读状态与 stage memory → 组装环境、同场景角色、场景物品、可去场景、未开启通道与场景事件 → agent loop 推理 → 用 `submit_environment` 写环境、用 `open_passage` / `notify_world` 加动作 → 用 `submit_stage_plan` 结束本轮 → 短事务内校验、按序执行、递增版本、写公共事件。
 
-两个 GM 都是**写入即快照**：每加入一个动作就刷新一次计划快照，模型忘记调用终止工具或轮次用尽时，已暂存的动作仍会落账。轮数上限按「全部写动作 + 一次纠偏」配置；回合结果里的 `loopSuccess` 只表示模型是否显式提交过计划。
+`submit_stage_plan` 是回合控制而不是场景能力：它常驻、不受 `stages.actions` 门控，空计划表示本轮无改动。`submit_environment` 是普通写动作，省略表示不改；动作顺序由模型决定，事件顺序随之。
 
-`StagePlan` 与 `ActorPlan` / `WorldPlan` 同构，都是 `{ actions: [...] }` 的有序列表：environment/锚点至多一条、通道至多一条、通知至多 `MAX_STAGE_NOTIFICATIONS_PER_TURN` 条，开始写库前全部校验完。额度只约束会写库的动作，且写进 stage 的任务文本，模型不必靠试错发现上限。
+两个 GM 都是**写入即快照**：每加入一个动作就刷新一次计划快照，模型忘记调用终结工具或轮次用尽时，已暂存的动作仍会落账。轮数上限按「全部写动作 + 一次纠偏」配置；回合结果里的 `loopSuccess` 只表示模型是否显式提交过计划。
 
-每个场景都必须声明 `submit_environment`，内容校验会拒绝缺少它的内容；`open_passage` / `notify_world` 按设定额外声明。没有变化时也提交当前快照，不能省略；引擎按内容判断是否真的产生事件。
+`StagePlan` 与 `ActorPlan` / `WorldPlan` 同构，都是 `{ actions: [...] }` 的有序列表：environment 至多一条、通道至多一条、通知至多 `MAX_STAGE_NOTIFICATIONS_PER_TURN` 条，开始写库前全部校验完。额度只约束会写库的动作，且写进 stage 的任务文本，模型不必靠试错发现上限。
+
+每个场景都必须声明 `submit_environment`，内容校验会拒绝缺少它的内容；`open_passage` / `notify_world` 按设定额外声明。环境没有变化就不要提交；引擎按内容判重，相同快照不写事件。
 
 `notify_world` 写入的是 **stage 报告**，不是世界事实，也不是系统指令：它进入 world memory，由 world 回合裁决。stage 不应直接结束游戏，也不应修改其他场景。通道与通知是两件事：开门只改本场景出边，不向 world 报告；只有跨场景 / 世界级后果才报告，判断必须来自本场景已有的信息。
 
 ## 事件
 
-environment 或锚点实际变化才产生 `environment_change` / `anchor_change`（`stage_id` 指向该场景、`source_actor_id` 为空）；提交相同快照只结束回合，不写事件。打开通道产生 `passage_change`。三者都进 stage memory 与公共事件流，但不写 actor memory——actor 下一次 plan 读当前 environment、锚点与可去场景也自然更新。
+environment 实际变化才产生 `environment_change`（`stage_id` 指向该场景、`source_actor_id` 为空）；提交相同快照不写事件。打开通道产生 `passage_change`。两者都进 stage memory 与公共事件流，但不写 actor memory——actor 下一次 plan 读当前 environment、锚点与可去场景也自然更新。
 
 `passage_change` 只写起点场景的 stage memory，对面场景与 world 都不因此获得记忆。`notify_world` 不产生公共事件，只写 world memory 并在 stage memory 留一条通知记录；world 用 `notify_stage` 下发裁决，stage 下一回合读取 directive。actor 行动产生的场景事件同样进入 stage memory，移动分别写起点与终点两个 stage。
 
