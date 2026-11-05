@@ -1,3 +1,4 @@
+import { mentionOf } from "../addressing";
 import { loadActorWithStage } from "../persistence/actors";
 import { listStageItems } from "../persistence/items";
 import { isAlive, listStageActorViews, stageAddressLookup } from "./queries";
@@ -28,8 +29,7 @@ export async function describeMemoryState(
       ? "无"
       : views
           .map(({ actor }) => {
-            const ref = address(actor.id);
-            const label = ref.isSelf ? "你" : ref.token.length > 0 ? ref.token : "某个不在场者";
+            const label = mentionOf(address(actor.id));
             return `${label}${isAlive(actor) ? "" : "（已死亡）"}`;
           })
           .join("、");

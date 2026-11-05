@@ -5,6 +5,7 @@ import {
   handleOf,
   mentionOf,
   NAME_REF_PATTERN,
+  UNKNOWN_LABEL,
 } from "./addressing";
 import { GameError } from "./errors";
 
@@ -146,15 +147,15 @@ export function sanitizeActorFacingText(
   const appearances: string[] = [];
 
   // 本场角色怎么出现在句子里的：`@名字`，或 `#12` + 独立的外观行。
+  // 无名字的引用统一走 mentionOf：它已经包含「空 token → 泛称」的兜底。
   const shown = (entry: (typeof entries)[number]): string => {
-    if (entry.resolved.token.startsWith("@")) {
-      return mentionOf(entry.resolved);
+    if (!entry.resolved.token.startsWith("@")) {
+      const line = appearanceLine(entry.resolved);
+      if (line !== null) {
+        appearances.push(line);
+      }
     }
-    const line = appearanceLine(entry.resolved);
-    if (line !== null) {
-      appearances.push(line);
-    }
-    return entry.resolved.token.length > 0 ? entry.resolved.token : "某个不在场者";
+    return mentionOf(entry.resolved);
   };
 
   let sanitized = text;
@@ -174,7 +175,7 @@ export function sanitizeActorFacingText(
     });
   }
   for (const name of otherActorNames) {
-    sanitized = sanitized.split(name).join("某个不在场者");
+    sanitized = sanitized.split(name).join(UNKNOWN_LABEL);
   }
 
   const unique = [...new Set(appearances)];

@@ -25,8 +25,12 @@ export type AddressSubject = {
   appearance: string;
 };
 
-/** 引用无法解析（对方不在本场景）时的泛称：不可观测，也不编造外观。 */
-const UNKNOWN_LABEL = "某个不在场者";
+/**
+ * 引用无法解析（对方不在本场景 / 无法观测）时的泛称。
+ *
+ * 唯一来源：脱敏与状态摘要也用它，别再各写一份字符串。
+ */
+export const UNKNOWN_LABEL = "某个不在场者";
 
 /** 不知道名字时的匿名编号；与 actor / stage / item 共用本局实体序号。 */
 export function handleOf(signatureSeq: number): string {
