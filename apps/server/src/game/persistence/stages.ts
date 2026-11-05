@@ -17,6 +17,15 @@ export async function loadStageInWorld(
   return stage;
 }
 
+/** 按 id 读场景；stageId 唯一，不需要 world 限定。 */
+export async function loadStageById(
+  executor: Executor,
+  stageId: string,
+): Promise<StageRow | undefined> {
+  const [stage] = await executor.select().from(stages).where(eq(stages.id, stageId)).limit(1);
+  return stage;
+}
+
 /** 读一个 world 的全部场景。 */
 export async function listStagesOfWorld(executor: Executor, worldId: string): Promise<StageRow[]> {
   return executor.select().from(stages).where(eq(stages.worldId, worldId));

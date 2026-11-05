@@ -10,7 +10,7 @@ const GAME_DIR = fileURLToPath(new URL("../src/game", import.meta.url));
  *
  * - `apply/`：解析动作用的只读查询、事务边界、消息与版本号；
  * - `persistence/`：具名读写原语；
- * - `memory.ts` / `compact.ts`：记忆读写与压缩；
+ * - `memory/` / `compact.ts`：记忆读写（行映射、存储、注入文本）与压缩；
  * - `control.ts`：玩家接管关系；
  * - `create-game.ts`：建局；`read/`：状态与事件流读取。
  *
@@ -21,7 +21,7 @@ const ALLOWED = [
   "apply/",
   "persistence/",
   "read/",
-  "memory.ts",
+  "memory/",
   "compact.ts",
   "control.ts",
   "create-game.ts",

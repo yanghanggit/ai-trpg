@@ -16,7 +16,12 @@ import { type AddressLookup, type AddressSubject, makeAddressLookup, withSelf } 
 import { listStageActorViews } from "./apply/queries";
 import type { ActorRow, Executor } from "./apply/types";
 import { MEMORY_KINDS } from "./constants";
-import { appendMemoryMessages, loadAgentMemory } from "./memory";
+import {
+  appendMemoryMessages,
+  ensureStageOpeningSnapshot,
+  hasStageOpeningSnapshot,
+  loadAgentMemory,
+} from "./memory";
 import type { ObservationMetadata, StageEventMetadata } from "./observation-text";
 import {
   type Audience,
@@ -30,6 +35,7 @@ import {
   type StageRef,
 } from "./observation-text";
 import { listSignatureNames } from "./persistence/signature-names";
+import { loadStageById } from "./persistence/stages";
 import { assertWorldFaceText } from "./text-guard";
 
 /** 场景广播：场景内除发起者外的所有 actor。 */
@@ -294,6 +300,18 @@ export async function appendStageMemory(
   const memory = await loadAgentMemory(executor, gameId, "stage", stageId);
   if (!memory) {
     throw new Error(`stage 缺少 memory: ${stageId}`);
+  }
+  // 事件可能早于第一次仲裁，基线必须先落账。
+  if (!hasStageOpeningSnapshot(memory)) {
+    const stage = await loadStageById(executor, stageId);
+    if (stage && (await ensureStageOpeningSnapshot(executor, memory, stage))) {
+      await traceEvent(trace, {
+        event: "observed",
+        via: "stage-memory",
+        kind: MEMORY_KINDS.stageOpeningSnapshot,
+        stageId,
+      });
+    }
   }
   await appendMemoryMessages(executor, memory.row.id, [
     {

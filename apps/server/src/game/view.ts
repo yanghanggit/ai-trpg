@@ -1,12 +1,14 @@
 import type { Database } from "../db/pool";
-import { adjacentStages, findActorByName } from "./actors";
+import { adjacentStages, findActorByName, findStage } from "./actors";
 import { addressLookupFor, refOf } from "./addressing";
+import { isAlive } from "./apply/queries";
 import { MEMORY_KINDS } from "./constants";
+import { buildEdgeIndex } from "./edges";
 import { getMemoryState } from "./memory";
 import { getGameStateSlice } from "./read/game-state";
 import { handleOf } from "./reference";
 import { knownStagesForActor, visitedTeleportTargetsFor } from "./teleport";
-import type { SignatureNameState } from "./types";
+import type { GameStateSlice, PassageState, SignatureNameState } from "./types";
 
 /**
  * 客户端用的「世界面」投影。
@@ -44,14 +46,27 @@ export type ViewerLogEntry = {
   createdAt: string;
 };
 
-export type ActorView = {
-  game: {
-    id: string;
-    slug: string;
-    status: string;
-    version: number;
-    contentVersion: string;
+/** 两个视图共用的游戏头；不随观察者变化。 */
+export type ViewerGame = {
+  id: string;
+  slug: string;
+  status: string;
+  version: number;
+  contentVersion: string;
+};
+
+function gameOf(state: GameStateSlice): ViewerGame {
+  return {
+    id: state.game.id,
+    slug: state.game.slug,
+    status: state.game.status,
+    version: state.game.version,
+    contentVersion: state.game.contentVersion,
   };
+}
+
+export type ActorView = {
+  game: ViewerGame;
   viewer: {
     actorId: string;
     signatureId: string;
@@ -143,13 +158,7 @@ export async function getActorView(
   });
 
   return {
-    game: {
-      id: state.game.id,
-      slug: state.game.slug,
-      status: state.game.status,
-      version: state.game.version,
-      contentVersion: state.game.contentVersion,
-    },
+    game: gameOf(state),
     viewer: {
       actorId: actor.id,
       signatureId: actor.signature.id,
@@ -177,5 +186,126 @@ export async function getActorView(
     visitedStages,
     unvisitedKnownStages,
     teleportTargets,
+  };
+}
+
+/** 与 actor 的日志白名单分开：两边能收到的类别不同，混用会静默放过对方收不到的类别。 */
+const STAGE_LOG_KINDS = new Set<string>([
+  MEMORY_KINDS.stageOpeningSnapshot,
+  MEMORY_KINDS.stageObservation,
+  MEMORY_KINDS.worldDirective,
+  MEMORY_KINDS.actionRejected,
+  MEMORY_KINDS.planFailed,
+]);
+
+export type StageViewLogEntry = {
+  sequence: number;
+  kind: string;
+  /** 只有 stage_observation 携带。 */
+  eventKind?: string;
+  content: string;
+  createdAt: string;
+};
+
+export type StageViewActor = {
+  actorId: string;
+  name: string;
+  appearance: string;
+  alive: boolean;
+};
+
+export type StageViewExit = {
+  stageId: string;
+  name: string;
+  passage: PassageState;
+};
+
+export type StageView = {
+  game: ViewerGame;
+  viewer: {
+    stageId: string;
+    name: string;
+  };
+  scene: {
+    id: string;
+    name: string;
+    environment: string;
+    anchors: { label: string; description?: string }[];
+    items: { name: string; kind: string; description: string }[];
+    actors: StageViewActor[];
+    exits: StageViewExit[];
+  };
+  log: StageViewLogEntry[];
+};
+
+function eventKindOf(metadata: unknown): string | undefined {
+  if (typeof metadata !== "object" || metadata === null) {
+    return undefined;
+  }
+  const eventKind = (metadata as { eventKind?: unknown }).eventKind;
+  return typeof eventKind === "string" && eventKind.length > 0 ? eventKind : undefined;
+}
+
+/** 读侧投影；日志只含 stage memory 自己的类别。 */
+export async function getStageView(
+  db: Database,
+  gameRef: string,
+  stageRef: string,
+): Promise<StageView> {
+  const state = await getGameStateSlice(db, gameRef);
+  const stage = findStage(state, stageRef);
+  const memory = await getMemoryState(db, state.game.id, "stage", stage.id);
+  const byId = new Map(state.world.stages.map((candidate) => [candidate.id, candidate]));
+
+  const log: StageViewLogEntry[] = (memory?.messages ?? []).flatMap((message) => {
+    if (message.type !== "human") {
+      return [];
+    }
+    const kind = memoryKind(message.metadata);
+    if (!STAGE_LOG_KINDS.has(kind)) {
+      return [];
+    }
+    const eventKind = eventKindOf(message.metadata);
+    return [
+      {
+        sequence: message.sequence,
+        kind,
+        ...(eventKind === undefined ? {} : { eventKind }),
+        content: message.content,
+        createdAt: message.createdAt,
+      },
+    ];
+  });
+
+  return {
+    game: gameOf(state),
+    viewer: { stageId: stage.id, name: stage.name },
+    scene: {
+      id: stage.id,
+      name: stage.name,
+      environment: stage.environment,
+      anchors: stage.anchors.map((anchor) => ({
+        label: anchor.label,
+        ...(anchor.description === undefined ? {} : { description: anchor.description }),
+      })),
+      items: stage.items.map((item) => ({
+        name: item.name,
+        kind: item.kind,
+        description: item.description,
+      })),
+      actors: stage.actors.map((actor) => ({
+        actorId: actor.id,
+        name: actor.name,
+        appearance: actor.appearance.text,
+        alive: isAlive(actor),
+      })),
+      exits: buildEdgeIndex(state.world.connections)
+        .outgoing(stage.id)
+        .flatMap((edge) => {
+          const target = byId.get(edge.toStageId);
+          return target ? [{ stageId: target.id, name: target.name, passage: edge.passage }] : [];
+        }),
+    },
+    log,
   };
 }

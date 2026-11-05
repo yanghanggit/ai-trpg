@@ -68,9 +68,9 @@ actor、stage、world 三条链路共用同一个节奏：读状态与 memory �
 
 `seeds/` 是开发期测试内容，不是框架的一部分：剧本、知识库与检索评测集同目录维护，故事文本不写进服务逻辑。内容包是 `{ world, knowledge }`：建局只消费 `world`，`createGame` 在一个事务里把它物化；`knowledge` 走 rag ingest。之后 PostgreSQL 是唯一真相，改内容定义不会回改已有游戏。
 
-开场信息只存在于 stage 的 `environment` 与 actor 的 `openingBriefing`，建局不写开场消息；测试用独立的小型世界，不随演示剧本变化。
+建局不写开场消息，开场由 stage 的 `environment` 与 actor 的 `openingBriefing` 承载；stage memory 的开局基线属于第一次仲裁，不在建局时写。测试用独立的小型世界，不随演示剧本变化。
 
-→ 参见：[数据驱动目标](data-driven.md)、[bell-monastery.md](../apps/server/seeds/dark-fantasy/bell-monastery.md)
+→ 参见：[数据驱动目标](data-driven.md)、[bell-monastery.md](../apps/server/seeds/dark-fantasy/bell-monastery.md)、[Stage 小 GM](stage.md)
 
 ## 迁移与重置
 

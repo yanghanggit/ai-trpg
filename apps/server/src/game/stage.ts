@@ -14,7 +14,7 @@ import {
   MEMORY_KINDS,
 } from "./constants";
 import { GameError } from "./errors";
-import { appendMemoryMessages, loadAgentMemory } from "./memory";
+import { appendMemoryMessages, ensureStageOpeningSnapshot, loadAgentMemory } from "./memory";
 import { appendStageMemory } from "./observations";
 import { isPassageSealed, openPassage } from "./persistence/edges";
 import { lockGameRow } from "./persistence/games";
@@ -209,6 +209,15 @@ export async function applyStagePlan(
     const memory = await loadAgentMemory(tx, gameId, "stage", stage.id);
     if (!memory) {
       throw new GameError("invalid_state", `stage 缺少 memory: ${stage.id}`);
+    }
+    // 先补基线，再写本轮结论与事件。
+    if (await ensureStageOpeningSnapshot(tx, memory, stage)) {
+      await traceEvent(trace, {
+        event: "observed",
+        via: "stage-memory",
+        kind: MEMORY_KINDS.stageOpeningSnapshot,
+        stageId: stage.id,
+      });
     }
     const actorNames = (await listActorNamesInWorld(tx, world.id)).map((actor) => actor.name);
     const stageActions = stage.actions;

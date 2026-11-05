@@ -337,6 +337,41 @@ describe.skipIf(!testDatabaseUrl)("stage mini-GM", () => {
     expect(stage?.anchors).toEqual(anchors);
   });
 
+  it("在第一次仲裁时把开局快照写进 stage memory，且只写一次", async () => {
+    const created = await createGame(handle.db, {
+      username: DEMO_USER.username,
+      name: "场景开局快照测试局",
+      world: TEST_WORLD,
+    });
+    const state = await getGameState(handle.db, created.game.slug);
+    const gate = state.world.stages.find((stage) => stage.name === "灰烬门廊");
+    if (!gate) {
+      throw new Error("缺少灰烬门廊");
+    }
+
+    // 提交与开局完全相同的快照：不产生环境事件，但仍应留下基线。
+    for (let index = 0; index < 2; index += 1) {
+      const result = await runStageTurn(handle.db, created.game.slug, "灰烬门廊", {
+        service: new ScriptedStageService([gate.environment]),
+      });
+      expect(result.ok).toBe(true);
+    }
+
+    const memories = await getGameMemories(handle.db, created.game.id);
+    const gateMemory = memories.find((memory) => memory.name === "灰烬门廊");
+    const snapshots =
+      gateMemory?.messages.filter(
+        (message) =>
+          (message.metadata as { kind?: string } | undefined)?.kind === "stage_opening_snapshot",
+      ) ?? [];
+    expect(snapshots).toHaveLength(1);
+    expect(snapshots[0]?.content).toContain("# 本局开局场景");
+    expect(snapshots[0]?.content).toContain(gate.environment);
+    expect(snapshots[0]?.content).toContain("门闩：门板上被灰烬塞住的门闩。");
+    // 基线是 system 之后的第一条记忆：先有开局事实，再有事件。
+    expect(gateMemory?.messages.map((message) => message.type)).toEqual(["system", "human"]);
+  });
+
   it("rejects anchor labels that leak actor names or system references", async () => {
     const created = await createGame(handle.db, {
       username: DEMO_USER.username,
