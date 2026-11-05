@@ -71,7 +71,7 @@ describe("action tools", () => {
       "targetActorHandle",
       "itemName",
     ]);
-    expect(buildPickupTool().function.parameters.required).toEqual(["itemName"]);
+    expect(buildPickupTool().function.parameters.required).toEqual(["targetAnchor", "itemName"]);
     expect(buildUseTool(items, targets, "灰烬门廊").function.parameters.required).toEqual([
       "itemName",
     ]);
@@ -216,8 +216,9 @@ describe("action parsers", () => {
       targetActorHandle: "提灯修士",
       itemName: "裂齿短刃",
     });
-    expect(parsePickup({ itemName: "测试火把" })).toEqual({
+    expect(parsePickup({ targetAnchor: "墙角", itemName: "测试火把" })).toEqual({
       kind: "pickup",
+      targetAnchor: "墙角",
       itemName: "测试火把",
     });
     expect(
@@ -251,7 +252,8 @@ describe("action parsers", () => {
     expect(() => parseStrike({ targetActorHandle: "  " })).toThrow("targetActorHandle");
     expect(() => parseBrawl({ targetActorHandle: "  " })).toThrow("targetActorHandle");
     expect(() => parseSteal({ targetActorHandle: "提灯修士" })).toThrow("itemName");
-    expect(() => parsePickup({})).toThrow("itemName");
+    expect(() => parsePickup({ itemName: "测试火把" })).toThrow("targetAnchor");
+    expect(() => parsePickup({ targetAnchor: "墙角" })).toThrow("itemName");
     expect(() => parseUse({ itemName: "钥匙" })).toThrow("targetActorHandle 或 targetStageName");
     expect(() =>
       parseUse({ itemName: "钥匙", targetActorHandle: "提灯修士", targetStageName: "铁闸门" }),

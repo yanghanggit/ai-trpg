@@ -389,7 +389,7 @@ export const items = pgTable(
   (table) => [uniqueIndex("items_actor_name_unique").on(table.actorId, table.name)],
 );
 
-/** 与 `items` 同构；名字在同一个场景内唯一，拾取时才能按名字定位。 */
+/** 与 `items` 同构；名字在同一个锚点内唯一，拾取时按 (锚点, 名字) 定位。 */
 export const stageItems = pgTable(
   "stage_items",
   {
@@ -415,7 +415,14 @@ export const stageItems = pgTable(
     actions: jsonb("actions").$type<ActionKind[]>().notNull().default([]),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },
-  (table) => [uniqueIndex("stage_items_stage_name_unique").on(table.stageId, table.name)],
+  (table) => [
+    // 物品地址是 (场景, 锚点, 名字)：同一场景的不同锚点可以各放一件同名物品。
+    uniqueIndex("stage_items_stage_anchor_name_unique").on(
+      table.stageId,
+      table.anchorKey,
+      table.name,
+    ),
+  ],
 );
 
 export const gameMessages = pgTable(

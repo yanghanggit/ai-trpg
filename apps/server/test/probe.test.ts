@@ -78,6 +78,7 @@ describe.skipIf(!testDatabaseUrl)("agent probe", () => {
     const slug = created.game.slug;
     await takeActorControl(handle.db, slug, "守烬人");
     await playerPickup(handle.db, slug, "守烬人", {
+      targetAnchor: "门闩",
       itemName: "测试提灯",
     });
 
@@ -119,6 +120,7 @@ describe.skipIf(!testDatabaseUrl)("agent probe", () => {
     const slug = created.game.slug;
     await takeActorControl(handle.db, slug, "守烬人");
     await playerPickup(handle.db, slug, "守烬人", {
+      targetAnchor: "门闩",
       itemName: "测试提灯",
     });
 

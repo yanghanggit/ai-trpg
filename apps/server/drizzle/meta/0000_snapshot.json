@@ -1,5 +1,5 @@
 {
-  "id": "c038db98-274c-46b9-ad88-dd9cc5128f77",
+  "id": "b7b99e1f-972d-4c10-8bc6-3173e9f57c12",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "version": "7",
   "dialect": "postgresql",
@@ -2150,11 +2150,17 @@
         }
       },
       "indexes": {
-        "stage_items_stage_name_unique": {
-          "name": "stage_items_stage_name_unique",
+        "stage_items_stage_anchor_name_unique": {
+          "name": "stage_items_stage_anchor_name_unique",
           "columns": [
             {
               "expression": "stage_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "anchor_key",
               "isExpression": false,
               "asc": true,
               "nulls": "last"

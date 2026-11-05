@@ -335,7 +335,7 @@ CREATE UNIQUE INDEX "jobs_active_serialization_unique" ON "jobs" USING btree ("q
 CREATE UNIQUE INDEX "known_stages_actor_stage_unique" ON "known_stages" USING btree ("actor_id","stage_id");--> statement-breakpoint
 CREATE INDEX "known_stages_game_actor_idx" ON "known_stages" USING btree ("game_id","actor_id");--> statement-breakpoint
 CREATE UNIQUE INDEX "stage_connections_world_edge_unique" ON "stage_connections" USING btree ("world_id","from_stage_id","to_stage_id");--> statement-breakpoint
-CREATE UNIQUE INDEX "stage_items_stage_name_unique" ON "stage_items" USING btree ("stage_id","name");--> statement-breakpoint
+CREATE UNIQUE INDEX "stage_items_stage_anchor_name_unique" ON "stage_items" USING btree ("stage_id","anchor_key","name");--> statement-breakpoint
 CREATE UNIQUE INDEX "stage_visits_actor_stage_unique" ON "stage_visits" USING btree ("actor_id","stage_id");--> statement-breakpoint
 CREATE INDEX "stage_visits_game_actor_idx" ON "stage_visits" USING btree ("game_id","actor_id");--> statement-breakpoint
 CREATE UNIQUE INDEX "stages_world_name_unique" ON "stages" USING btree ("world_id","name");--> statement-breakpoint

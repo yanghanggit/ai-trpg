@@ -292,20 +292,27 @@ export async function resolveActorItem(
   return item;
 }
 
-/** 场景陈列同理：名字唯一由写入侧保证，重复行取序号最早的一件。 */
+/** 场景物品按 (场景, 锚点, 名字) 定位：锚点内名字唯一由写入侧保证。 */
 export async function resolveStageItem(
   executor: Executor,
   stageId: string,
+  anchor: { key: string; label: string },
   itemName: string,
 ): Promise<StageItemRow> {
   const [item] = await executor
     .select()
     .from(stageItems)
-    .where(and(eq(stageItems.stageId, stageId), eq(stageItems.name, itemName)))
+    .where(
+      and(
+        eq(stageItems.stageId, stageId),
+        eq(stageItems.anchorKey, anchor.key),
+        eq(stageItems.name, itemName),
+      ),
+    )
     .orderBy(asc(stageItems.seq))
     .limit(1);
   if (!item) {
-    throw new GameError("invalid_action", `场景内没有这件物品: ${itemName}`);
+    throw new GameError("invalid_action", `「${anchor.label}」上没有「${itemName}」。`);
   }
   return item;
 }

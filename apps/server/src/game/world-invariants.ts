@@ -18,8 +18,6 @@ export function checkWorldInvariants(world: World, ctx: z.RefinementCtx): void {
   const actorNames = world.actors.map((actor) => actor.name);
   world.stages.forEach((stage, index) => {
     checkEntityName(stage.name, ["stages", index, "name"], ctx);
-    const stageItems = (stage.anchors ?? []).flatMap((anchor) => anchor.items ?? []);
-    checkItemNamesUnique(stageItems, ["stages", index, "anchors"], ctx);
     const leaks = findTextLeaks(stage.environment, actorNames);
     if (leaks.length > 0) {
       ctx.addIssue({
@@ -48,6 +46,11 @@ export function checkWorldInvariants(world: World, ctx: z.RefinementCtx): void {
         });
       }
       anchorKeys.add(anchor.key);
+      checkItemNamesUnique(
+        anchor.items ?? [],
+        ["stages", index, "anchors", anchorIndex, "items"],
+        ctx,
+      );
       if (anchorLabels.has(anchor.label)) {
         ctx.addIssue({
           code: "custom",
@@ -89,7 +92,7 @@ function checkEntityName(raw: string, path: (string | number)[], ctx: z.Refineme
 }
 
 /**
- * 一个作用域（一个背包、一处场景陈列）里物品名唯一。
+ * 一个作用域（一个背包、一个锚点）里物品名唯一。
  *
  * 物品名就是地址，同名即无法指认；等价的多件是同一件东西的几份，用 `count` 表达。
  */

@@ -90,7 +90,11 @@ const moveInput = z.object({
 
 const targetInput = z.object({ ...gameAndActor, target: actorRef });
 
-const pickupInput = z.object({ ...gameAndActor, item: itemName });
+const pickupInput = z.object({
+  ...gameAndActor,
+  anchor: z.string().trim().min(1, "需要 --anchor <label>"),
+  item: itemName,
+});
 
 const targetItemInput = z.object({ ...gameAndActor, target: actorRef, item: itemName });
 
@@ -340,12 +344,22 @@ export function registerPlayerCommands(program: Command, ctx: CommandContext): v
   addCommand(program, ctx, {
     name: "player-pickup",
     group: GROUP,
-    summary: "拾取当前场景里的物品",
-    options: [gameOption(), actorOption(), itemOption()],
+    summary: "从当前场景的锚点上拾取物品",
+    options: [
+      gameOption(),
+      actorOption(),
+      optionalOption("--anchor <label>", "物品所在的锚点标签"),
+      itemOption(),
+    ],
     schema: pickupInput,
     run: async (input, ctx) =>
       turnOutput(
-        await ctx.db((db) => playerPickup(db, input.game, input.actor, { itemName: input.item })),
+        await ctx.db((db) =>
+          playerPickup(db, input.game, input.actor, {
+            targetAnchor: input.anchor,
+            itemName: input.item,
+          }),
+        ),
       ),
   });
 

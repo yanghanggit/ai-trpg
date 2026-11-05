@@ -8,33 +8,46 @@ import { appendItemObservations, appendStageMemory } from "../observations";
 import { moveStageItemToActor } from "../persistence/items";
 import type { PickupAction } from "../types";
 
-export function buildPickupTool(availableItemNames: readonly string[] = []): ToolDefinition {
+export function buildPickupTool(
+  availableAnchors: readonly string[] = [],
+  availableItemNames: readonly string[] = [],
+): ToolDefinition {
   return {
     type: "function",
     function: {
       name: "pickup",
-      description: "把一次拾取加入计划：从当前场景的锚点上取下一件物品，放进自己的背包。",
+      description:
+        "把一次拾取加入计划：从当前场景的某个锚点上取下一件物品，放进自己的背包。锚点与物品必须匹配。",
       parameters: {
         type: "object",
         properties: {
+          targetAnchor: {
+            type: "string",
+            description: "物品所在的锚点标签",
+            ...(availableAnchors.length > 0 ? { enum: [...availableAnchors] } : {}),
+          },
           itemName: {
             type: "string",
-            description: "要拾取的、挂在当前场景锚点上的物品名",
-            ...(availableItemNames.length > 0 ? { enum: [...availableItemNames] } : {}),
+            description: "要拾取的、挂在该锚点上的物品名",
+            ...(availableItemNames.length > 0 ? { enum: [...new Set(availableItemNames)] } : {}),
           },
         },
-        required: ["itemName"],
+        required: ["targetAnchor", "itemName"],
       },
     },
   };
 }
 
 export function parsePickup(args: Record<string, unknown>): PickupAction {
+  const targetAnchor = typeof args.targetAnchor === "string" ? args.targetAnchor.trim() : "";
   const itemName = typeof args.itemName === "string" ? args.itemName.trim() : "";
+  if (targetAnchor.length === 0) {
+    throw new GameError("invalid_action", "pickup 需要非空 targetAnchor");
+  }
   if (itemName.length === 0) {
     throw new GameError("invalid_action", "pickup 需要非空 itemName");
   }
-  return { kind: "pickup", itemName };
+  return { kind: "pickup", targetAnchor, itemName };
 }
 
 export async function resolvePickup(
@@ -42,14 +55,11 @@ export async function resolvePickup(
   stage: ResolvedPickup["stage"],
   action: PickupAction,
 ): Promise<ResolvedPickup> {
-  const stageItem = await resolveStageItem(executor, stage.id, action.itemName);
-  const anchor = stage.anchors.find((candidate) => candidate.key === stageItem.anchorKey);
+  const anchor = stage.anchors.find((candidate) => candidate.label === action.targetAnchor);
   if (!anchor) {
-    throw new GameError(
-      "invalid_state",
-      `物品 ${stageItem.name} 没有可用的锚点: ${stageItem.anchorKey}`,
-    );
+    throw new GameError("invalid_action", `当前场景没有这个可交互锚点: ${action.targetAnchor}`);
   }
+  const stageItem = await resolveStageItem(executor, stage.id, anchor, action.itemName);
   return { kind: "pickup", action, stage, stageItem, anchorLabel: anchor.label };
 }
 

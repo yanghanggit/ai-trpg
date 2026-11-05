@@ -1067,6 +1067,7 @@ describe.skipIf(!testDatabaseUrl)("items and interactions", () => {
     await takeActorControl(handle.db, created.game.slug, "守烬人");
 
     const picked = await playerPickup(handle.db, created.game.slug, "守烬人", {
+      targetAnchor: "门闩",
       itemName: "测试火把",
     });
     expect(picked.ok).toBe(true);

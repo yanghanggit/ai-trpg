@@ -216,6 +216,8 @@ export type GiveAction = {
 
 export type PickupAction = {
   kind: "pickup";
+  /** 物品所在的锚点标签：物品地址是 (锚点, 物品名)。 */
+  targetAnchor: string;
   itemName: string;
 };
 

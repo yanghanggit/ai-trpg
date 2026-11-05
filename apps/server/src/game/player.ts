@@ -235,6 +235,7 @@ export type PlayerGiveInput = {
 };
 
 export type PlayerPickupInput = {
+  targetAnchor: string;
   itemName: string;
 };
 
@@ -411,7 +412,11 @@ export async function playerPickup(
   actorRef: string,
   input: PlayerPickupInput,
 ): Promise<ActorTurnResult> {
-  const action: ActorAction = { kind: "pickup", itemName: input.itemName };
+  const action: ActorAction = {
+    kind: "pickup",
+    targetAnchor: input.targetAnchor,
+    itemName: input.itemName,
+  };
   return applyPlayerAction(db, gameRef, actorRef, action);
 }
 
