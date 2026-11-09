@@ -1,16 +1,26 @@
 import type { ContentPack } from "../src/content-pack";
-import { BELL_MONASTERY_KNOWLEDGE, BELL_MONASTERY_WORLD } from "./dark-fantasy";
+import {
+  BELL_MONASTERY_KNOWLEDGE,
+  BELL_MONASTERY_WORLD,
+  CROW_BELL_KNOWLEDGE,
+  CROW_BELL_WORLD,
+} from "./dark-fantasy";
 
 /**
  * 显式内容注册表；CLI 通过名称选取，不在框架层写死故事路径。
  *
  * 一个条目 = 一个剧本（World + 与它 1:1 绑定的知识库）。`dark-fantasy` 是战役名，
- * 当前指向该战役唯一的剧本「枯钟修道院」；同一战役新增剧本时在这里加条目。
+ * 指向该战役的第一个剧本「枯钟修道院」；同一战役的后续剧本在同一个目录里，
+ * 用带战役前缀的条目名注册。
  */
 export const CONTENT_PACKS = {
   "dark-fantasy": {
     world: BELL_MONASTERY_WORLD,
     knowledge: BELL_MONASTERY_KNOWLEDGE,
+  },
+  "dark-fantasy:crow-bell": {
+    world: CROW_BELL_WORLD,
+    knowledge: CROW_BELL_KNOWLEDGE,
   },
 } as const satisfies Record<string, ContentPack>;
 
