@@ -12,10 +12,10 @@ const GAME_DIR = fileURLToPath(new URL("../src/game", import.meta.url));
  * 新增状态时，要么在这里登记它的唯一写者，要么先想清楚为什么它需要多个写者。
  */
 const STATE_WRITERS: readonly { name: string; allowed: readonly string[] }[] = [
-  { name: "setStageEnvironment", allowed: ["stage.ts"] },
+  { name: "setStageEnvironment", allowed: ["stage-turn/effects.ts"] },
   { name: "recordAppearance", allowed: ["appearance.ts", "create-game.ts"] },
-  { name: "openPassage", allowed: ["stage.ts"] },
-  { name: "completeGame", allowed: ["world.ts"] },
+  { name: "openPassage", allowed: ["stage-turn/effects.ts"] },
+  { name: "completeGame", allowed: ["world-turn/arbitrate.ts"] },
 ];
 
 function listTsFiles(dir: string, prefix = ""): string[] {
