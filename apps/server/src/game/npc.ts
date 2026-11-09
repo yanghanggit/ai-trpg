@@ -35,6 +35,7 @@ import { type ActorWithStage, findActorByName, otherActorsInStage } from "./acto
 import { addressLookupFor, refOf } from "./addressing";
 import { applyActorPlan } from "./apply";
 import { isAlive } from "./apply/queries";
+import { STAT_LABELS } from "./attributes";
 import {
   DEFAULT_LLM_ERROR_RETRIES,
   DEFAULT_NPC_MAX_ROUNDS,
@@ -150,10 +151,16 @@ export function buildActorTurnInput(
   // 取物前通常要先看清名字：inspect 与 steal / loot 各占一次行动，所以分两回合走。
   const inspectHint =
     canInspect && (allowed.includes("steal") || allowed.includes("loot"))
-      ? "不知道对方身上有什么、或者记不准物品名时，先 inspect 看清（它占一次行动，在场可见），下个回合再取。"
+      ? "不知道对方身上有什么、或者记不准物品名时，先 inspect 看清（它占一次行动），下个回合再取。"
+      : "";
+  // 察觉与成败都看敏捷：自己这一侧的数值在「你的状态」里，对方的敏捷只能靠试。
+  const agilityHint = allowed.includes("steal")
+    ? "查看与窃取比敏捷：你比目标敏捷时两件事都不留痕迹；持平能偷到，但对方会察觉；不如对方时偷不到，查看也会被发现。"
+    : canInspect
+      ? "查看比敏捷：你比目标敏捷时对方不会察觉，否则对方知道你在看他的东西。"
       : "";
   const toolHint = canInspect
-    ? "名单里只列了同场景他人已穿戴的装备；要看全，用 get_self 看自己，用 inspect 看别人随身带的全部物品——它是一次动作，会占掉本轮行动名额，在场的人都看得见。"
+    ? "名单里只列了同场景他人已穿戴的装备；要看全，用 get_self 看自己，用 inspect 看别人随身带的全部物品——它是一次动作，会占掉本轮行动名额；留不留痕迹看敏捷。"
     : "要看自己的完整信息用 get_self。";
   const readOnlyList = [
     "look_stage",
@@ -199,7 +206,7 @@ ${current.stage.name}
 ${renderStageEnvironmentForActor(state, current)}
 
 ## 你的状态
-${current.actor.name}（你的引用：${selfHandle}）| HP ${current.actor.hp}/${current.actor.stats.maxHp}
+${current.actor.name}（你的引用：${selfHandle}）| HP ${current.actor.hp}/${current.actor.stats.maxHp} | ${STAT_LABELS.strength} ${current.actor.stats.strength} | ${STAT_LABELS.agility} ${current.actor.stats.agility}
 
 ## 同场景角色
 ${actorLines}
@@ -233,7 +240,7 @@ ${teleportLines}`
 2. 写：${actionList}。一次回复只提交 ${MAX_ACTIONS_PER_TURN} 个行动——说话、移动、动手都算。动作工具只把动作暂存进计划，不会落账。
 3. 提交：submit_plan。必须与那一个动作工具放在同一次回复里调用；只调动作不提交，这一轮就什么都没发生。
 
-${toolHint}${knowledgeHint}${identityHint}${useFlowHint}${callHint}${unarmedHint}${lootHint}${inspectHint}${readOnlyHint}`;
+${toolHint}${knowledgeHint}${identityHint}${useFlowHint}${callHint}${unarmedHint}${lootHint}${inspectHint}${agilityHint}${readOnlyHint}`;
 }
 
 /** 把动作加入本轮计划；条数上限在这里就告诉模型，避免提交后才被拒绝。 */

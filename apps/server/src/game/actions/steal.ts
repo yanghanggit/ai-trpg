@@ -2,7 +2,7 @@ import type { TraceContext } from "../../debug/trace";
 import type { ToolDefinition } from "../../llm/types";
 import { type AddressLookup, actionRef } from "../addressing";
 import { appendPublicMessage, bumpGameVersion } from "../apply/messages";
-import { assertNotSelf, isAlive, resolveActorItem } from "../apply/queries";
+import { assertNotSelf, effectiveAgility, isAlive, resolveActorItem } from "../apply/queries";
 import type { ActorWithStageRow, Executor, ResolvedSteal } from "../apply/types";
 import { GameError } from "../errors";
 import { withoutEquippedItem } from "../items";
@@ -17,7 +17,7 @@ export function buildStealTool(targetActorHandles: readonly string[]): ToolDefin
     function: {
       name: "steal",
       description:
-        "把一次窃取加入计划：从同场景的活人身上取走一件背包里的物品；只有发起者与目标知道。尸体不能偷，用 loot 搜刮。",
+        "把一次窃取加入计划：从同场景的活人身上取走一件背包里的物品。你比目标敏捷时无人察觉；持平也能得手，但对方会察觉；不如目标敏捷时一定失手。",
       parameters: {
         type: "object",
         properties: {
@@ -44,17 +44,29 @@ export function parseSteal(args: Record<string, unknown>): StealAction {
   return { kind: "steal", targetActorHandle, itemName };
 }
 
-/** 偷窃只看活人：死者的东西走 loot，两边的拒绝文案互相指路。 */
+/**
+ * 偷窃只看活人：死者的东西走 loot，两边的拒绝文案互相指路。
+ *
+ * 敏捷决定成败与痕迹：不如目标敏捷时摸不到东西（整份计划被拒）；
+ * 比目标敏捷时不写对方的观察，持平则照常通知。
+ */
 export async function resolveSteal(
   executor: Executor,
   stage: ResolvedSteal["stage"],
-  actorId: string,
+  actorRow: ActorWithStageRow,
   action: StealAction,
   target: ResolvedSteal["target"],
 ): Promise<ResolvedSteal> {
-  assertNotSelf(target, actorId);
+  assertNotSelf(target, actorRow.actor.id);
   if (!isAlive(target)) {
     throw new GameError("invalid_action", `${target.name}已经死了，搜刮尸体用 loot`);
+  }
+  const [thiefAgility, targetAgility] = await Promise.all([
+    effectiveAgility(executor, actorRow.actor),
+    effectiveAgility(executor, target),
+  ]);
+  if (thiefAgility < targetAgility) {
+    throw new GameError("invalid_action", `${target.name}比你敏捷，你没能得手`);
   }
   const transferItem = await resolveActorItem(executor, target.id, action.itemName);
   if (Object.values(target.equipment).includes(transferItem.name)) {
@@ -63,7 +75,14 @@ export async function resolveSteal(
       `${target.name}还活着，拿不走已装备的物品: ${transferItem.name}`,
     );
   }
-  return { kind: "steal", action, stage, target, transferItem };
+  return {
+    kind: "steal",
+    action,
+    stage,
+    target,
+    transferItem,
+    noticed: thiefAgility === targetAgility,
+  };
 }
 
 export async function applySteal(
@@ -96,18 +115,21 @@ export async function applySteal(
     visibility: "private",
     content,
   });
-  await appendItemObservations(
-    executor,
-    gameId,
-    resolved.stage,
-    {
-      actor: thief,
-      itemName: item.name,
-      event: "steal",
-      target,
-    },
-    trace,
-  );
+  // 不被察觉的窃取不写对方的观察：受害者记忆里没有这一笔，公共流仍是上帝视角。
+  if (resolved.noticed) {
+    await appendItemObservations(
+      executor,
+      gameId,
+      resolved.stage,
+      {
+        actor: thief,
+        itemName: item.name,
+        event: "steal",
+        target,
+      },
+      trace,
+    );
+  }
   await appendStageMemory(
     executor,
     gameId,
@@ -119,5 +141,8 @@ export async function applySteal(
     },
     trace,
   );
-  return `# 行动结果\n你从${actionRef(address(target.id))}身上取走了${item.name}。`;
+  const noticedNote = resolved.noticed
+    ? `${actionRef(address(target.id))}察觉到了`
+    : "没有惊动对方";
+  return `# 行动结果\n你从${actionRef(address(target.id))}身上取走了${item.name}；${noticedNote}。`;
 }

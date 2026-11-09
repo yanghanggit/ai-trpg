@@ -1,13 +1,15 @@
-import { STAT_KEYS, type Stats } from "../attributes";
+import { STAT_KEYS, STAT_LABELS, type Stats } from "../attributes";
 import type { Affix } from "../types";
 import { type WorldConstitution, worldFunctionAgent } from "../world-function";
 import type { AffixTrigger } from "./model";
 import type { StaticSettlement } from "./static";
 import type { StaticOutcome } from "./types";
 
-/** 属性渲染成 `damage 8、block 2`；未用到的字段不出现，全 0 写“无”。 */
+/** 属性渲染成 `力量 8、格挡 2`；未用到的字段不出现，全 0 写“无”。 */
 function statsText(stats: Stats): string {
-  const parts = STAT_KEYS.filter((key) => stats[key] !== 0).map((key) => `${key} ${stats[key]}`);
+  const parts = STAT_KEYS.filter((key) => stats[key] !== 0).map(
+    (key) => `${STAT_LABELS[key]} ${stats[key]}`,
+  );
   return parts.length > 0 ? parts.join("、") : "无";
 }
 
@@ -38,7 +40,7 @@ export function buildAffixPrompt(input: {
   const targetFacts = [
     input.targetForm ? `形态：${input.targetForm}` : "",
     input.targetAppearance ? `外观：${input.targetAppearance}` : "",
-    input.targetBlock !== undefined ? `block：${input.targetBlock}` : "",
+    input.targetBlock !== undefined ? `${STAT_LABELS.block}：${input.targetBlock}` : "",
     input.targetHp ? `HP：${input.targetHp}` : "",
   ].filter((line) => line.length > 0);
   const staticFacts =

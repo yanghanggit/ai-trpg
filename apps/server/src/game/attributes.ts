@@ -7,8 +7,12 @@ import { z } from "zod";
  * 状态而不是属性，所以不在 `Stats` 里，放在 `ActorState.hp` / `actors.hp`。
  * 新增属性只改 `STAT_KEYS`，类型自动跟着变。
  *
- * 结算只读 `damage` 与 `block`；`strength` / `wisdom` / `agility` 是标准角色属性
- * （力量 / 智慧 / 敏捷），留在结构里但没有任何代码读取——写进内容也不会影响游戏。
+ * `Stats` 是属性容器，不是面板读数：一次攻击打多少、一次格挡挡多少，都在结算
+ * 那一刻由属性换算成临时值（见 `combat/attack.ts`），用完即弃。
+ *
+ * 结算读四项：`damage` 与 `strength` 进攻击力，`block` 进格挡，
+ * `agility` 决定查看与窃取是否被察觉、窃取是否得手。
+ * `wisdom`（智慧）目前没有任何读取点——写进内容也不会影响游戏。
  */
 const STAT_KEYS = ["maxHp", "strength", "wisdom", "agility", "damage", "block"] as const;
 
@@ -17,6 +21,21 @@ export { STAT_KEYS };
 
 export type StatKey = (typeof STAT_KEYS)[number];
 export type Stats = Record<StatKey, number>;
+
+/**
+ * 面向 agent 的文本里属性的中文名。
+ *
+ * 字段名与中文的对应只在这里维护一次：渲染一律用中文，工具契约里再说明字段名，
+ * 两处不会各写一套、也不会出现「damage：」这种半中半英的行。
+ */
+export const STAT_LABELS: Record<StatKey, string> = {
+  maxHp: "最大生命",
+  strength: "力量",
+  wisdom: "智慧",
+  agility: "敏捷",
+  damage: "伤害",
+  block: "格挡",
+};
 
 /**
  * 同一条 `STAT_KEYS` 派生的内容校验形状：未写出的字段补 0，运行时总是完整 `Stats`。

@@ -335,7 +335,7 @@ export function registerPlayerCommands(program: Command, ctx: CommandContext): v
   addCommand(program, ctx, {
     name: "player-inspect",
     group: GROUP,
-    summary: "查看目标随身携带的全部物品（占一次行动，在场可见）",
+    summary: "查看目标随身携带的全部物品（占一次行动；察觉看敏捷）",
     options: [gameOption(), actorOption(), targetOption()],
     schema: targetInput,
     run: async (input, ctx) =>

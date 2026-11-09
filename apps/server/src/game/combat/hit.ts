@@ -24,7 +24,7 @@ export type HitInput = {
   actorRow: ActorWithStageRow;
   stage: StageRow;
   target: ActorRow;
-  /** 已经算好的最终伤害；调用方负责减伤（见 `mitigatedAttackDamage`）。 */
+  /** 已经算好的最终伤害；调用方负责换算与减伤（见 `mitigatedDamage`）。 */
   damage: number;
   action: HitAction;
   itemName?: string;

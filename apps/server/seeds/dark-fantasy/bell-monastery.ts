@@ -447,6 +447,8 @@ export const BELL_MONASTERY: Script = {
         ),
       },
       hp: 120,
+      // 鼠王比默认玩家快：活着的钟舌偷不到，设计上就是打死它再 `loot`。
+      // 它是「沉睡 → 猎杀」与火把词缀追加伤害的测试对象，不是给人偷的。
       stats: { maxHp: 120, strength: 60, wisdom: 100, agility: 8, damage: 60, block: 100 },
       inventory: [
         {

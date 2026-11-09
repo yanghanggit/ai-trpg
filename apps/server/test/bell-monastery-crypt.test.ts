@@ -1,4 +1,5 @@
 import { randomUUID } from "node:crypto";
+import { eq } from "drizzle-orm";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { BELL_MONASTERY_WORLD } from "../seeds/dark-fantasy";
 import { DEMO_USER } from "../src/db/demo-fixture";
@@ -6,10 +7,12 @@ import "../src/db/env";
 import { type DatabaseHandle, openDatabase } from "../src/db/connect";
 import { resetDomainData, seedDemoData } from "../src/db/maintenance";
 import { runMigrations } from "../src/db/migrate";
+import { actors } from "../src/db/schema";
 import {
   createGame,
   getGameMemories,
   getGameState,
+  playerLoot,
   playerMove,
   playerSteal,
   playerUse,
@@ -72,12 +75,29 @@ describe.skipIf(!testDatabaseUrl)("bell monastery crypt ending", () => {
     await playerMove(handle.db, slug, "无名者", { targetStageRef: "墓园" });
     await playerMove(handle.db, slug, "无名者", { targetStageRef: "地窖" });
 
-    // 钟舌是鼠王随身收着的 valuable，不是身体材料；活着也能偷。
-    const stolen = await playerSteal(handle.db, slug, "无名者", {
+    // 鼠王比无名者敏捷：活着的钟舌偷不到，这条路线是打死它再搜尸体。
+    await expect(
+      playerSteal(handle.db, slug, "无名者", {
+        targetActorRef: "鼠王",
+        itemName: "旧钟的钟舌",
+      }),
+    ).rejects.toThrow("比你敏捷，你没能得手");
+
+    // 钟舌是鼠王随身收着的 valuable，不是身体材料：打死它才会落到尸体背包里。
+    // 鼠王打不动（block 100）：这里直接写库把 hp 归零跳过战斗，钟舌留在它的背包里。
+    // 与 `actor-status.test.ts` 里造尸体的做法一致；存取边界只约束 src/game。
+    const corpse = created.world.stages
+      .flatMap((stage) => stage.actors)
+      .find((actor) => actor.name === "鼠王");
+    if (!corpse) {
+      throw new Error("缺少鼠王");
+    }
+    await handle.db.update(actors).set({ hp: 0 }).where(eq(actors.id, corpse.id));
+    const looted = await playerLoot(handle.db, slug, "无名者", {
       targetActorRef: "鼠王",
-      itemName: "旧钟的钟舌",
+      itemNames: ["旧钟的钟舌"],
     });
-    expect(stolen.ok).toBe(true);
+    expect(looted.ok).toBe(true);
 
     // 对祭坛使用钟舌：use 只写场景事件，开门的决定留给地窖的 stage 回合。
     const used = await playerUse(handle.db, slug, "无名者", {
@@ -143,10 +163,10 @@ describe.skipIf(!testDatabaseUrl)("bell monastery crypt ending", () => {
     });
     expect(ended.ok).toBe(true);
     expect(ended.state.game.status).toBe("completed");
-    // 收尾只看钟窖：鼠王到最后一刻都还活着。
+    // 收尾只看钟窖：鼠王已经被打死，钟窖的结局照样成立。
     const king = ended.state.world.stages
       .flatMap((stage) => stage.actors)
       .find((actor) => actor.name === "鼠王");
-    expect(king?.hp).toBeGreaterThan(0);
+    expect(king?.hp).toBe(0);
   });
 });

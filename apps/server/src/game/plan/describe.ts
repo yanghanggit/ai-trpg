@@ -7,6 +7,7 @@ import {
 } from "../actors";
 import { type AddressLookup, addressLookupFor, refOf } from "../addressing";
 import { isAlive } from "../apply/queries";
+import { STAT_LABELS } from "../attributes";
 import { handleOf } from "../reference";
 import { visitedStageIds, visitedStagesForActor, visitedTeleportTargetsFor } from "../teleport";
 import { sanitizeActorFacingText } from "../text-guard";
@@ -37,13 +38,18 @@ export function stageItemNames(stage: Pick<StageState, "anchors">): string[] {
 }
 
 /**
- * 只列参与结算的两项，免得模型据此推断出不存在的战斗机制。
+ * 只列参与结算的属性，免得模型据此推断出不存在的机制。
+ *
+ * 渲染统一用中文名：字段名与中文的对应只在工具契约里说一次，这里不再中英混排。
+ * 力量进攻击力、敏捷管察觉与窃取成败，智慧没有读取点，所以不给它一行。
  */
 export function describeStats(actor: ActorState): string {
   return `角色：${actor.name}
 HP：${actor.hp}/${actor.stats.maxHp}
-damage：${actor.stats.damage}
-block：${actor.stats.block}
+${STAT_LABELS.strength}：${actor.stats.strength}
+${STAT_LABELS.agility}：${actor.stats.agility}
+${STAT_LABELS.damage}：${actor.stats.damage}
+${STAT_LABELS.block}：${actor.stats.block}
 状态：${isAlive(actor) ? "存活" : "已死亡"}`;
 }
 
@@ -60,7 +66,7 @@ export function describeItems(actor: Pick<ActorState, "items" | "equipment">): s
     const { damage, block } = item.stats;
     const notes: string[] = [];
     if (damage > 0 || block > 0) {
-      notes.push(`damage ${damage}`, `block ${block}`);
+      notes.push(`${STAT_LABELS.damage} ${damage}`, `${STAT_LABELS.block} ${block}`);
     }
     // 物品提供的动作只在穿戴时生效；写出来，模型才知道能否挥击、卸下会失去什么。
     if (item.actions.length > 0) {

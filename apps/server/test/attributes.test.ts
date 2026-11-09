@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { addStats, EMPTY_STATS, toStats } from "../src/game/attributes";
+import { guardPower, strengthToDamage, weaponAttackPower } from "../src/game/combat/attack";
 import { formatForm, isValidForm, resolveAppearance } from "../src/game/form";
 import { equippedSlotOf, toItemState } from "../src/game/items";
 
@@ -21,7 +22,7 @@ describe("stats", () => {
   });
 
   it("逐字段相加：装备加成与本体属性走同一条规则", () => {
-    // strength / wisdom / agility 也走同一条加法规则，虽然当前没有结算读取它们。
+    // 六个字段都走同一条加法规则；是否参与结算由换算层决定，不靠这里区分。
     expect(addStats({ strength: 5 }, { damage: 3 }, undefined)).toEqual({
       ...EMPTY_STATS,
       strength: 5,
@@ -35,6 +36,16 @@ describe("stats", () => {
       block: 1,
     });
     expect(addStats()).toEqual(EMPTY_STATS);
+  });
+
+  it("结算期才换算攻击力与格挡，属性本身不落成面板值", () => {
+    // 本期换算取相等：力量 1:1 进伤害，block 原样当格挡。
+    expect(strengthToDamage(7)).toBe(7);
+    expect(weaponAttackPower({ ...EMPTY_STATS, strength: 3, damage: 4 })).toBe(7);
+    expect(
+      weaponAttackPower({ ...EMPTY_STATS, strength: 3, damage: 4 }, { ...EMPTY_STATS, damage: 2 }),
+    ).toBe(9);
+    expect(guardPower({ ...EMPTY_STATS, block: 5 })).toBe(5);
   });
 });
 

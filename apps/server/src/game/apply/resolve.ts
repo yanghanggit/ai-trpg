@@ -140,7 +140,7 @@ export async function resolvePlan(
           await resolveSteal(
             executor,
             stage,
-            actorRow.actor.id,
+            actorRow,
             action,
             await visibleTarget(action.targetActorHandle),
           ),
@@ -148,9 +148,10 @@ export async function resolvePlan(
         break;
       case "inspect":
         resolved.push(
-          resolveInspect(
+          await resolveInspect(
+            executor,
             stage,
-            actorRow.actor.id,
+            actorRow,
             action,
             await visibleTarget(action.targetActorHandle),
           ),

@@ -401,13 +401,18 @@ describe("read-only descriptions", () => {
     };
 
     expect(describeStats(actor)).toContain("HP：12/12");
-    expect(describeStats(actor)).toContain("damage：3");
-    expect(describeStats(actor)).toContain("block：2");
+    expect(describeStats(actor)).toContain("力量：3");
+    expect(describeStats(actor)).toContain("敏捷：4");
+    expect(describeStats(actor)).toContain("伤害：3");
+    expect(describeStats(actor)).toContain("格挡：2");
     // attack / defense 保留在数据里，但不再对外展示。
     expect(describeStats(actor)).not.toContain("attack：");
     expect(describeStats(actor)).not.toContain("defense：");
     expect(describeStats(actor)).toContain("状态：存活");
     expect(describeItems(actor)).toContain("裂齿短刃（weapon，count 1，已穿戴）：刃口崩了三处。");
+    // 物品数值同样用中文名，不再出现 damage / block。
+    expect(describeItems(actor)).toContain("伤害 3");
+    expect(describeItems(actor)).not.toContain("damage ");
     expect(describeItems({ items: [], equipment: {} })).toBe("物品：无");
     expect(describeEquipment(actor)).toContain("武器：裂齿短刃");
     expect(describeSelf(actor)).toContain("外观：披着旧斗篷。");

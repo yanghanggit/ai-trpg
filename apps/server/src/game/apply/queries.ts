@@ -268,6 +268,15 @@ export async function resolveEquippedStats(executor: Executor, actor: ActorRow):
 }
 
 /**
+ * 敏捷比较用的现值：自身属性 + 穿戴物品加成，与防御同一条「现读」规则。
+ *
+ * 偷取与查看都拿它和目标比，避免「面板一个数、结算另一个数」。
+ */
+export async function effectiveAgility(executor: Executor, actor: ActorRow): Promise<number> {
+  return addStats(actor.stats, await resolveEquippedStats(executor, actor)).agility;
+}
+
+/**
  * 按名字取 actor 名下的一件物品。
  *
  * 一个名字在一个作用域里只有一行，由写入侧保证（等价的并入 `count`，不等价的拒绝）。

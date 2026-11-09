@@ -91,7 +91,7 @@ export const ACTION_SUMMARIES: Record<ActionKind, string> = {
   cleave: "用装备的武器同时攻击同场景的多个目标",
   brawl: "用身体与同场景目标肉搏",
   steal: "从活着的目标身上取物",
-  inspect: "查看同场景目标随身携带的全部物品，在场可见",
+  inspect: "查看同场景目标随身携带的全部物品（察觉看敏捷）",
   loot: "从同场景的尸体上搜走物品（默认全部）",
   give: "把自己的物品交给目标",
   pickup: "拾起场景物品",

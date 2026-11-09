@@ -138,7 +138,11 @@ export type PassageState = "open" | "sealed";
  */
 export type AffixMode = "static" | "agent";
 
-/** 静态词缀能读取的属性引用；值在结算时从当前 actor / item 行读取。 */
+/**
+ * 静态词缀能读取的数值引用。
+ *
+ * `attack` 是结算期的攻击力（由属性换算，含本次物品）；另两个是属性原值。
+ */
 export type AffixStatRef = "attack" | "actor.damage" | "item.damage";
 
 /** 一次静态伤害贡献：常量或属性引用（可乘系数）。多条词缀的求和由结算统一做。 */
@@ -246,8 +250,8 @@ export type StealAction = {
  * 名字不带对象，看的对象由参数说明：现在只有 `targetActorHandle`，
  * 以后要看锚点或场景时加对应字段即可，不必再造一个动作。
  *
- * 这是一次会被看见的动作，不是免费读取：它与 `steal` / `loot` 同组，
- * 得到的清单进自己的行动事实（写进记忆），在场的人知道有人查看了行囊。
+ * 这是一次要占行动的动作，不是免费读取：它与 `steal` / `loot` 同组，
+ * 得到的清单进自己的行动事实（写进记忆）；是否被察觉由敏捷决定。
  */
 export type InspectAction = {
   kind: "inspect";

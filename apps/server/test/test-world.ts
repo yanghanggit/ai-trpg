@@ -107,7 +107,9 @@ export const TEST_WORLD: World = {
         appearance: "斗篷边缘被烧焦，脸上覆着一层洗不净的灰。",
       },
       hp: 12,
-      stats: { maxHp: 12, strength: 6, wisdom: 2, agility: 4, damage: 6, block: 2 },
+      // 力量留 0：默认攻击力恰好等于 damage + 武器伤害，数值断言不被力量加成干扰；
+      // 力量如何进入挥击/横扫由专门的用例覆盖。敏捷按 4，用于察觉与窃取的比较。
+      stats: { maxHp: 12, strength: 0, wisdom: 2, agility: 4, damage: 6, block: 2 },
       equipment: { weapon: "裂齿短刃" },
       // 测试世界里的玩家角色额外拥有 loot 与「探囊」，用于验证取物的三条通道。
       proficiencies: [

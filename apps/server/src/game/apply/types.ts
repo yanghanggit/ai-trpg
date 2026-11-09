@@ -135,6 +135,8 @@ export type ResolvedSteal = {
   stage: StageRow;
   target: ActorRow;
   transferItem: ItemRow;
+  /** 敏捷持平：偷得到，但目标会察觉。高于目标时是 false，低于目标时根本解析不通过。 */
+  noticed: boolean;
 };
 
 export type ResolvedInspect = {
@@ -142,6 +144,8 @@ export type ResolvedInspect = {
   action: InspectAction;
   stage: StageRow;
   target: ActorRow;
+  /** 敏捷不高于目标：对方会知道自己在被查看。高于目标时不产生任何观察。 */
+  noticed: boolean;
 };
 
 export type ResolvedLoot = {

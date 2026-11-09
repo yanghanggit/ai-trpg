@@ -10,7 +10,7 @@ export function buildSelfInfoTool(): ToolDefinition {
     function: {
       name: "get_self",
       description:
-        "查看自己的外观、stats、存活状态、穿戴槽与全部物品。stats 与物品上的数值只有 hp / max_hp、damage、block：damage 是基础伤害，block 直接抵扣受到的伤害。只读。",
+        "查看自己的外观、stats、存活状态、穿戴槽与全部物品。stats 的字段是 strength / agility / wisdom / damage / block，依次对应力量 / 敏捷 / 智慧 / 伤害 / 格挡；伤害与力量一起构成挥击与横扫的攻击力，格挡构成防御，敏捷决定查看与窃取是否被察觉、窃取能否得手。数值是结算的输入，不是面板上限。只读。",
       parameters: {
         type: "object",
         properties: {},
@@ -23,7 +23,7 @@ export function buildSelfInfoTool(): ToolDefinition {
 /**
  * 本场景小 GM 的只读查看：它对本场景的携带物本来就全知，因此不必行动。
  *
- * 与 actor 的 `inspect` 动作同名不同权：actor 要看别人的行囊得花一次行动，且在场可见。
+ * 与 actor 的 `inspect` 动作同名不同权：actor 要看别人的行囊得花一次行动，还要看敏捷。
  */
 export function buildStageInspectTool(availableTargetActorRefs: readonly string[]): ToolDefinition {
   return {

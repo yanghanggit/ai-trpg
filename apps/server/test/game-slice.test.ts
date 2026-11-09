@@ -330,6 +330,9 @@ describe.skipIf(!testDatabaseUrl)("memory-driven NPC slice", () => {
     expect(corpseService.tools).toContain("inspect");
     expect(corpseService.input).toContain("inspect");
     expect(corpseService.input).toContain("查看同场景目标随身携带的全部物品");
+    // 察觉与成败写在任务提示词里：工具描述不再替别的工具或编排说话。
+    expect(corpseService.input).toContain("查看与窃取比敏捷");
+    expect(corpseService.input).not.toContain("在场的人都看得见");
     expect(corpseService.tools).toContain("query");
     // 读写提交是一个协议：只读可并发、写占名额、提交必须同回复；
     // 不能再鼓励把只读调用拆成多轮，否则轮次还没到写就被吃完了。

@@ -254,6 +254,14 @@ const SHARED_BLADE = {
   affixes: TEST_BLADE.affixes,
 };
 
+/** 只改一个角色的敏捷：察觉与窃取成败都拿它比较。 */
+const withAgility = (world: World, name: string, agility: number): World => ({
+  ...world,
+  actors: world.actors.map((actor) =>
+    actor.name === name ? { ...actor, stats: { ...actor.stats, agility } } : actor,
+  ),
+});
+
 const MERGE_WORLD = {
   ...ITEM_WORLD,
   actors: ITEM_WORLD.actors.map((actor) =>
@@ -415,7 +423,7 @@ describe.skipIf(!testDatabaseUrl)("items and interactions", () => {
     await handle.pool.end();
   });
 
-  it("steals a backpack item from a living actor privately and leaves an observer unaware", async () => {
+  it("steals silently when the thief is more agile than the target", async () => {
     const created = await createGame(handle.db, {
       username: DEMO_USER.username,
       name: "窃取测试局",
@@ -441,16 +449,71 @@ describe.skipIf(!testDatabaseUrl)("items and interactions", () => {
     expect(keeper?.items.map((item) => item.name)).toContain("铅封提灯");
     expect(monk?.items.map((item) => item.name)).not.toContain("铅封提灯");
 
+    // 守烬人敏捷 4，提灯修士 3：偷得走，也不留观察。
     const memories = await getGameMemories(handle.db, created.game.id);
+    const keeperMemory = memories.find((memory) => memory.name === "守烬人");
+    expect(keeperMemory?.messages.some((message) => message.content.includes("没有惊动对方"))).toBe(
+      true,
+    );
     const monkMemory = memories.find((memory) => memory.name === "提灯修士");
     const observerMemory = memories.find((memory) => memory.name === "缄默抄经人");
-    expect(monkMemory?.messages.some((message) => message.content.includes("你被窃取"))).toBe(true);
+    expect(monkMemory?.messages.some((message) => message.content.includes("你被窃取"))).toBe(
+      false,
+    );
     expect(observerMemory?.messages.some((message) => message.content.includes("取走了"))).toBe(
       false,
     );
   });
 
-  it("inspects a target's items as a public action, keeping the list to the inspector", async () => {
+  it("steals with a notice at equal agility and fails below it", async () => {
+    const equalWorld = withAgility(ITEM_WORLD, "提灯修士", 4);
+    const equalGame = await createGame(handle.db, {
+      username: DEMO_USER.username,
+      name: "敏捷持平窃取测试局",
+      world: equalWorld,
+    });
+    await takeActorControl(handle.db, equalGame.game.slug, "守烬人");
+    const equal = await playerSteal(handle.db, equalGame.game.slug, "守烬人", {
+      targetActorRef: "提灯修士",
+      itemName: "铅封提灯",
+    });
+    expect(equal.ok).toBe(true);
+    const equalMemories = await getGameMemories(handle.db, equalGame.game.id);
+    expect(
+      equalMemories
+        .find((memory) => memory.name === "提灯修士")
+        ?.messages.some((message) => message.content.includes("你被窃取")),
+    ).toBe(true);
+    expect(
+      equalMemories
+        .find((memory) => memory.name === "守烬人")
+        ?.messages.some((message) => message.content.includes("察觉到了")),
+    ).toBe(true);
+
+    // 目标更快：整次行动被拒，什么也没搬走。
+    const quickWorld = withAgility(ITEM_WORLD, "提灯修士", 9);
+    const quickGame = await createGame(handle.db, {
+      username: DEMO_USER.username,
+      name: "敏捷压制窃取测试局",
+      world: quickWorld,
+    });
+    await takeActorControl(handle.db, quickGame.game.slug, "守烬人");
+    await expect(
+      playerSteal(handle.db, quickGame.game.slug, "守烬人", {
+        targetActorRef: "提灯修士",
+        itemName: "铅封提灯",
+      }),
+    ).rejects.toThrow("比你敏捷，你没能得手");
+    const quickState = await getGameState(handle.db, quickGame.game.slug);
+    expect(
+      quickState.world.stages
+        .flatMap((stage) => stage.actors)
+        .find((actor) => actor.name === "提灯修士")
+        ?.items.map((item) => item.name),
+    ).toContain("铅封提灯");
+  });
+
+  it("inspects without a trace when more agile, and leaves the list to the inspector", async () => {
     const created = await createGame(handle.db, {
       username: DEMO_USER.username,
       name: "查看行囊测试局",
@@ -482,10 +545,10 @@ describe.skipIf(!testDatabaseUrl)("items and interactions", () => {
     expect(feedback).toContain("铅封提灯");
     expect(feedback).toContain("已穿戴");
 
-    // 目标知道自己被查看；别的场景连「有人在看」都收不到，更拿不到清单。
+    // 守烬人敏捷 4 > 提灯修士 3：目标没有察觉；别的场景更收不到任何观察。
     const monkMemory = memories.find((memory) => memory.name === "提灯修士");
     expect(monkMemory?.messages.some((item) => item.content.includes("有人在查看你的物品"))).toBe(
-      true,
+      false,
     );
     const otherStageMemory = memories.find((memory) => memory.name === "缄默抄经人");
     expect(otherStageMemory?.messages.some((item) => item.content.includes("查看"))).toBe(false);
@@ -496,6 +559,31 @@ describe.skipIf(!testDatabaseUrl)("items and interactions", () => {
       .find((actor) => actor.name === "提灯修士");
     expect(monk?.items.map((item) => item.name)).toContain("铅封提灯");
     expect(monk?.equipment.armor).toBe("铅封提灯");
+  });
+
+  it("lets the target notice an inspection when agility is not higher", async () => {
+    const created = await createGame(handle.db, {
+      username: DEMO_USER.username,
+      name: "查看被察觉测试局",
+      world: withAgility(ARMORED_MONK_WORLD, "提灯修士", 4),
+    });
+    await takeActorControl(handle.db, created.game.slug, "守烬人");
+    const inspected = await playerInspect(handle.db, created.game.slug, "守烬人", {
+      targetActorRef: "提灯修士",
+    });
+    expect(inspected.ok).toBe(true);
+
+    const memories = await getGameMemories(handle.db, created.game.id);
+    expect(
+      memories
+        .find((memory) => memory.name === "提灯修士")
+        ?.messages.some((item) => item.content.includes("有人在查看你的物品")),
+    ).toBe(true);
+    expect(
+      memories
+        .find((memory) => memory.name === "守烬人")
+        ?.messages.some((item) => item.content.includes("察觉到了")),
+    ).toBe(true);
   });
 
   it("inspects corpses too, since looting needs the names", async () => {
@@ -745,6 +833,10 @@ describe.skipIf(!testDatabaseUrl)("items and interactions", () => {
     expect(service.input).toContain("外观：灰袍下摆浸着泥水，右手始终握着灯柄。");
     // 仲裁 agent 是控制面读者：目标用名字寻址，而不是出手者视角的引用。
     expect(service.input).toContain("目标：提灯修士");
+    // 属性在 agent 文本里一律用中文名，字段名只在工具契约里出现。
+    expect(service.input).toContain("伤害 6");
+    expect(service.input).toContain("格挡 2");
+    expect(service.input).not.toContain("damage ");
     // 静态结算的真实结果作为 agent 输入：6 点全部落到目标身上，未致死。
     expect(service.input).toContain("实际造成伤害：6");
     expect(service.input).toContain("目标 HP 归零：否");
@@ -1081,6 +1173,31 @@ describe.skipIf(!testDatabaseUrl)("items and interactions", () => {
     expect(state.messages.at(-1)?.content).toBe(
       "守烬人对提灯修士肉搏，造成3点伤害；提灯修士剩余 HP 7/10。",
     );
+  });
+
+  it("adds strength into the attack at strike time", async () => {
+    const strongWorld = {
+      ...TEST_WORLD,
+      actors: TEST_WORLD.actors.map((actor) =>
+        actor.name === "守烬人" ? { ...actor, stats: { ...actor.stats, strength: 2 } } : actor,
+      ),
+    };
+    const created = await createGame(handle.db, {
+      username: DEMO_USER.username,
+      name: "力量加成测试局",
+      world: strongWorld,
+    });
+    await takeActorControl(handle.db, created.game.slug, "守烬人");
+
+    await playerStrike(handle.db, created.game.slug, "守烬人", { targetActorRef: "提灯修士" });
+
+    const state = await getGameState(handle.db, created.game.slug);
+    // 力量 2 + 自身 damage 6 + 武器 3 = 11，减目标 block 3 = 8。
+    expect(state.messages.at(-1)?.content).toContain("造成8点伤害");
+    const monk = state.world.stages
+      .flatMap((stage) => stage.actors)
+      .find((actor) => actor.name === "提灯修士");
+    expect(monk?.hp).toBe(2);
   });
 
   it("settles a static-only weapon without calling the LLM", async () => {

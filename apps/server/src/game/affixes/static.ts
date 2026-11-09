@@ -1,5 +1,5 @@
 import type { ActorRow, ActorWithStageRow, Executor } from "../apply/types";
-import { defenderBlock } from "../combat/attack";
+import { defenderBlock, weaponAttackPower } from "../combat/attack";
 import { GameError } from "../errors";
 import type { AffixStatRef, AffixTriggers, DamageAmount } from "../types";
 import { type AffixTrigger, staticAffixes } from "./model";
@@ -30,9 +30,16 @@ type StaticContext = {
   item: { name: string; stats: ActorWithStageRow["actor"]["stats"]; affixes: AffixTriggers };
 };
 
+/**
+ * 词缀可引用的数值。
+ *
+ * `attack` 不是某个字段，而是结算期算出来的攻击力（力量换算 + 自身与本次物品的
+ * `damage`），所以 `{{attack}}` 的文本值与实际扣血始终是同一个数。
+ * 其余两个引用是属性原值：`actor.damage` / `item.damage` 只取那一项，不换算。
+ */
 function statValue(context: StaticContext, ref: AffixStatRef): number {
   if (ref === "attack") {
-    return context.actorRow.actor.stats.damage + context.item.stats.damage;
+    return weaponAttackPower(context.actorRow.actor.stats, context.item.stats);
   }
   const [owner] = ref.split(".") as ["actor" | "item"];
   return (owner === "actor" ? context.actorRow.actor.stats : context.item.stats).damage;

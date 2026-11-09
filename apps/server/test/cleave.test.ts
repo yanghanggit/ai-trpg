@@ -132,6 +132,30 @@ describe.skipIf(!testDatabaseUrl)("cleave", () => {
     expect(hpOf(state, "缄默抄经人")).toBeLessThan(hpOf(before, "缄默抄经人") ?? 0);
   });
 
+  it("adds strength to every target's own hit, 1v1 each", async () => {
+    const strongWorld: World = {
+      ...CLEAVE_WORLD,
+      actors: CLEAVE_WORLD.actors.map((actor) =>
+        actor.name === "守烬人" ? { ...actor, stats: { ...actor.stats, strength: 3 } } : actor,
+      ),
+    };
+    const { created, keeperId } = await startGame(strongWorld, "横扫力量加成测试局");
+
+    const result = await applyActorPlan(
+      handle.db,
+      created.game.id,
+      keeperId,
+      cleavePlan("提灯修士", "缄默抄经人"),
+      true,
+    );
+    expect(result.ok).toBe(true);
+
+    const state = await stateOf(created.game.slug);
+    // 每个目标按自己的 1v1 结算：力量 3 + damage 6 + 武器 3 = 12，各减自己的 block。
+    expect(hpOf(state, "提灯修士")).toBe(1);
+    expect(hpOf(state, "缄默抄经人")).toBe(1);
+  });
+
   it("rejects more targets than the weapon allows", async () => {
     const { created, keeperId } = await startGame(CLEAVE_WORLD, "横扫目标数上限测试局");
 

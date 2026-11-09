@@ -2,7 +2,7 @@ import type { TraceContext } from "../../debug/trace";
 import type { ToolDefinition } from "../../llm/types";
 import { type AddressLookup, actionRef } from "../addressing";
 import { appendPublicMessage, bumpGameVersion } from "../apply/messages";
-import { assertNotSelf, listActorItems } from "../apply/queries";
+import { assertNotSelf, effectiveAgility, isAlive, listActorItems } from "../apply/queries";
 import type { ActorWithStageRow, Executor, ResolvedInspect } from "../apply/types";
 import { GameError } from "../errors";
 import { toItemState } from "../items";
@@ -14,7 +14,7 @@ import type { InspectAction } from "../types";
  * 查看他人随身携带的物品：与 `steal` / `loot` 同组的动作，不是免费读取。
  *
  * 理由：背包清单是对方的私有信息，白拿清单等于让窃取没有风险。把它做成动作之后，
- * 一次查看要占掉本轮唯一的行动，而且在场的角色都看得见有人在打量行囊——
+ * 一次查看要占掉本轮唯一的行动，而且能不能不被察觉要看敏捷——
  * 先侦察再动手的代价被摆回台面上。清单本身只有查看者自己知道。
  *
  * 动作名不带对象：`targetActorHandle` 已经说明这次看的是角色，以后要看锚点或场景，
@@ -26,7 +26,7 @@ export function buildInspectTool(targetActorHandles: readonly string[]): ToolDef
     function: {
       name: "inspect",
       description:
-        "把一次查看加入计划：看同场景目标随身携带的全部物品（含已穿戴的），活人与尸体都能看。清单只有你自己知道，但这是一次公开动作，在场的人都看得见；它占本轮行动名额。",
+        "把一次查看加入计划：看同场景目标随身携带的全部物品（含已穿戴的），活人与尸体都能看。你的敏捷高于目标时无人察觉；否则对方知道你在看他的东西。它占本轮行动名额。",
       parameters: {
         type: "object",
         properties: {
@@ -51,15 +51,31 @@ export function parseInspect(args: Record<string, unknown>): InspectAction {
   return { kind: "inspect", targetActorHandle };
 }
 
-/** 目标可以活着也可以死了：尸体上有什么，正是搜刮前要知道的。 */
-export function resolveInspect(
+/**
+ * 目标可以活着也可以死了：尸体上有什么，正是搜刮前要知道的。
+ *
+ * 察觉看敏捷：高于目标时这一眼不留痕迹，持平或不如目标时对方会知道；
+ * 尸体不会察觉，查看尸体永远不留观察。
+ */
+export async function resolveInspect(
+  executor: Executor,
   stage: ResolvedInspect["stage"],
-  actorId: string,
+  actorRow: ActorWithStageRow,
   action: InspectAction,
   target: ResolvedInspect["target"],
-): ResolvedInspect {
-  assertNotSelf(target, actorId);
-  return { kind: "inspect", action, stage, target };
+): Promise<ResolvedInspect> {
+  assertNotSelf(target, actorRow.actor.id);
+  const [inspectorAgility, targetAgility] = await Promise.all([
+    effectiveAgility(executor, actorRow.actor),
+    effectiveAgility(executor, target),
+  ]);
+  return {
+    kind: "inspect",
+    action,
+    stage,
+    target,
+    noticed: isAlive(target) && inspectorAgility <= targetAgility,
+  };
 }
 
 export async function applyInspect(
@@ -85,13 +101,16 @@ export async function applyInspect(
     visibility: "stage",
     content,
   });
-  await appendInspectObservations(
-    executor,
-    gameId,
-    resolved.stage,
-    { actor: inspector, target },
-    trace,
-  );
+  // 不被察觉的查看不写任何观察；公共流与场景记忆仍是上帝视角。
+  if (resolved.noticed) {
+    await appendInspectObservations(
+      executor,
+      gameId,
+      resolved.stage,
+      { actor: inspector, target },
+      trace,
+    );
+  }
   await appendStageMemory(
     executor,
     gameId,
@@ -103,8 +122,13 @@ export async function applyInspect(
 
   // 清单只回给查看者；它随行动事实写进记忆，下一轮仍然记得对方身上有什么。
   const items = await listActorItems(executor, target.id);
-  return `# 行动结果\n你查看了${actionRef(address(target.id))}随身携带的东西。\n${describeItems({
-    items: items.map(toItemState),
-    equipment: resolved.target.equipment,
-  })}`;
+  const noticedNote = resolved.noticed
+    ? `${actionRef(address(target.id))}察觉到了`
+    : "对方没有察觉";
+  return `# 行动结果\n你查看了${actionRef(address(target.id))}随身携带的东西；${noticedNote}。\n${describeItems(
+    {
+      items: items.map(toItemState),
+      equipment: resolved.target.equipment,
+    },
+  )}`;
 }
