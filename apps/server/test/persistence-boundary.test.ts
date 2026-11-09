@@ -12,7 +12,7 @@ const GAME_DIR = fileURLToPath(new URL("../src/game", import.meta.url));
  * - `persistence/`：具名读写原语；
  * - `memory/` / `compact.ts`：记忆读写（行映射、存储、注入文本）与压缩；
  * - `control.ts`：玩家接管关系；
- * - `create-game.ts`：建局；`read/`：状态与事件流读取。
+ * - `create-game/`：建局（内容 → 行的物化）；`read/`：状态与事件流读取。
  *
  * 玩法模块（`actions/`、`items/`、`combat/`、`stage`/`world` 回合、死亡、外观、观察）不在名单里，
  * 它们只调用具名函数。
@@ -24,7 +24,7 @@ const ALLOWED = [
   "memory/",
   "compact.ts",
   "control.ts",
-  "create-game.ts",
+  "create-game/",
 ];
 
 function listTsFiles(dir: string, prefix = ""): string[] {

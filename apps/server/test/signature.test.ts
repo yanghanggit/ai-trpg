@@ -96,7 +96,6 @@ describe.skipIf(!testDatabaseUrl)("actor signatures", () => {
         text: "被雨淋透的旧斗篷。",
         input: {
           version: 1,
-          promptVersion: 1,
           source: "runtime",
           model: null,
           prompt: { messages: [], inputMessage: "test", tools: [], maxRounds: 1 },

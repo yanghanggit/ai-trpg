@@ -1,5 +1,5 @@
 import { buildEdgeIndex, openNeighborIds, sealedNeighborIds } from "./edges";
-import type { GameStateSlice, StageState } from "./types";
+import type { GameStateSlice, PassageState, StageState } from "./types";
 
 /**
  * 场景的邻接关系：从某个场景出发，哪些能走、哪些封着。
@@ -25,6 +25,23 @@ export function adjacentStages(state: GameStateSlice, stageId: string): StageSta
 /** 返回从指定场景可直接到达的场景名。 */
 export function adjacentStageNames(state: GameStateSlice, stageId: string): string[] {
   return adjacentStages(state, stageId).map((stage) => stage.name);
+}
+
+/**
+ * 所有出边，连通行状态一起给：客户端要区分「能走」与「封着」，所以不能用
+ * `adjacentStages` 过滤掉一半。图本身仍在 `edges.ts`，这里只做「边 → 场景」的连接。
+ */
+export function outgoingStages(
+  state: GameStateSlice,
+  stageId: string,
+): { stage: StageState; passage: PassageState }[] {
+  const byId = stagesById(state);
+  return buildEdgeIndex(state.world.connections)
+    .outgoing(stageId)
+    .flatMap((edge) => {
+      const stage = byId.get(edge.toStageId);
+      return stage ? [{ stage, passage: edge.passage }] : [];
+    });
 }
 
 /** 剧情上相连、但当前不可通过的场景；供 stage 小 GM 判断能否 open_passage。 */

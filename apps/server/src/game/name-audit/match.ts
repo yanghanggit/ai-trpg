@@ -1,144 +1,31 @@
-import type { Database } from "../db/pool";
-import { type TraceContext, traceEvent } from "../debug/trace";
-import type { Logger } from "../logging";
-import { MEMORY_KINDS } from "./constants";
-import type { AgentMemoryMessageState, AgentMemoryState } from "./memory";
-import { loadNameAuditInput } from "./persistence/name-audit";
-import type { CommunicationKind } from "./types";
+import { MEMORY_KINDS } from "../constants";
+import type { AgentMemoryMessageState, AgentMemoryState } from "../memory";
+import type { CommunicationKind } from "../types";
+import { DEFAULT_SKIP_KINDS } from "./config";
+import { subjectGroups } from "./subjects";
+import type {
+  NameAuditAlert,
+  NameAuditInput,
+  NameAuditResult,
+  NameAuditSignatureName,
+  NameLeak,
+  NameLeakOptions,
+  NameLeakPart,
+  NameLeakSeverity,
+} from "./types";
 
 /**
- * actor 记忆的名字泄漏审计。
+ * 名字泄漏的匹配核心：纯函数，给定 actor、签名称呼与记忆，找出所有真名越界。
  *
- * 只读：不写游戏状态，不调用 LLM。真名来自 `actors.name`，观察者的签名称呼来自
- * `actor_signature_names`（观察者 × 签名 × 名字），记忆来自 actor 的
- * `agent_memory_messages`。
- * stage / world 自己的记忆是上帝视角，允许写名字，不在扫描范围。
- *
- * 默认跳过 system prompt：campaignSetting / profile 是内容层设定，可能刻意使用
- * 普通名词或历史人物名；需要连内容一起检查时显式关掉 skipKinds。
+ * 只报告，不纠正：命中给片段、严重度与是否落在结构化台词里，怎么处理由调用方决定。
+ * 同一段文本里已匹配的名字会占位，避免它内部更短的未知名被误报。
  */
 
-export const ENV_NAME_AUDIT = "TRPG_AUDIT_NAMES";
-
-const TRUE_VALUES = new Set(["1", "true", "yes", "on"]);
-const DEFAULT_SKIP_KINDS = [MEMORY_KINDS.actorSystemPrompt];
+/** 低严重度：内容层设定与开局简报，本来就可能刻意出现普通名字。 */
 const LOW_SEVERITY_KINDS = new Set<string>([
   MEMORY_KINDS.actorSystemPrompt,
   MEMORY_KINDS.actorOpeningBriefing,
 ]);
-const MAX_RUNTIME_TRACE_EVENTS = 20;
-
-/** 回合级审计只看最近的增量；留一点时钟余量，避免 DB 与应用时钟的毫秒差漏掉消息。 */
-const RUNTIME_LOOKBACK_MS = 2000;
-
-export type NameAuditActor = {
-  id: string;
-  name: string;
-  /** 当前签名的 id；`currentSignature` 模式用它判断“现在是否仍用这个名字”。 */
-  currentSignatureId: string;
-};
-
-export type NameAuditSignature = {
-  id: string;
-  actorId: string;
-};
-
-export type NameAuditSignatureName = {
-  observerActorId: string;
-  signatureId: string;
-  name: string;
-};
-
-export type NameAuditInput = {
-  actors: readonly NameAuditActor[];
-  /** 包含已退场的签名；`ever` 模式靠它把旧名字归回 actor。 */
-  signatures: readonly NameAuditSignature[];
-  signatureNames: readonly NameAuditSignatureName[];
-  /** 只消费 `ownerType === "actor"` 的记忆。 */
-  memories: readonly AgentMemoryState[];
-};
-
-export type NameLeakScope = "ever" | "currentSignature";
-export type NameLeakSeverity = "high" | "medium" | "low";
-export type NameLeakPart = "content" | "tool_calls";
-
-export type NameLeakOptions = {
-  /**
-   * `ever`（默认）：观察者曾经用这个 actor 的真名称呼过它就不报，历史记忆不会被误伤。
-   * `currentSignature`：只看当前签名的名字，适合检查伪装 / 变身后的称呼。
-   */
-  nameScope?: NameLeakScope;
-  /** 跳过的记忆类别；默认跳过 actor system prompt。 */
-  skipKinds?: readonly string[];
-  /** 只扫这些记忆类别；设置后优先于 `skipKinds`。 */
-  onlyKinds?: readonly string[];
-  /** 内容层豁免的名字（常用词、与地点/物品撞名的角色名等）。 */
-  allowNames?: readonly string[];
-  /** 命中片段的上下文半径，默认 24 个字符。 */
-  excerptRadius?: number;
-  /** 是否连 `toolCalls` 的 JSON 一起扫，默认 true。 */
-  includeToolCalls?: boolean;
-  /** 只扫这个时间点之后写入的消息；回合级审计用。 */
-  since?: Date | string;
-};
-
-export type NameLeak = {
-  observerActorId: string;
-  observerName: string;
-  /** 命中的真名。 */
-  matchedName: string;
-  /** 真名对应的 actor；同名角色会有多个。 */
-  subjectActorIds: string[];
-  severity: NameLeakSeverity;
-  /** 沟通观察的事件类型；say / whisper / announce / call 才有。 */
-  communicationKind: CommunicationKind | null;
-  /** 命中位置是否落在该沟通观察结构化的 dialogue 字段内。 */
-  inDialogue: boolean;
-  messageSequence: number;
-  messageType: AgentMemoryMessageState["type"];
-  messageKind: string | null;
-  part: NameLeakPart;
-  excerpt: string;
-};
-
-/** 沟通观察缺台词结构时的告警；审计只报告，不补字段、不改文案。 */
-export type NameAuditAlert = {
-  code: "missing_dialogue_structure" | "unexpected_dialogue_structure";
-  observerActorId: string;
-  observerName: string;
-  messageSequence: number;
-  messageType: AgentMemoryMessageState["type"];
-  messageKind: string | null;
-  missing: string[];
-  detail: string;
-};
-
-export type NameAuditResult = {
-  leaks: NameLeak[];
-  alerts: NameAuditAlert[];
-};
-
-export type NameLeakReport = {
-  gameId: string;
-  leaks: NameLeak[];
-  alerts: NameAuditAlert[];
-  checked: {
-    actors: number;
-    messages: number;
-    nameRows: number;
-  };
-};
-
-/** `TRPG_AUDIT_NAMES=1/true/yes/on` 时打开回合级审计。 */
-export function nameAuditEnabled(env: NodeJS.ProcessEnv = process.env): boolean {
-  const raw = env[ENV_NAME_AUDIT]?.trim().toLowerCase();
-  return raw !== undefined && TRUE_VALUES.has(raw);
-}
-
-/** 回合级的 `since`：留出 DB 与应用时钟的毫秒差。 */
-export function nameAuditSince(now: Date = new Date()): Date {
-  return new Date(now.getTime() - RUNTIME_LOOKBACK_MS);
-}
 
 function metadataRecord(message: AgentMemoryMessageState): Record<string, unknown> | null {
   const metadata = message.metadata;
@@ -191,52 +78,6 @@ function excerptOf(text: string, index: number, length: number, radius: number):
   const start = Math.max(0, index - radius);
   const end = Math.min(text.length, index + length + radius);
   return text.slice(start, end).replace(/\s+/g, " ").trim();
-}
-
-type SubjectGroup = {
-  name: string;
-  /** 观察者没有在记忆里使用该主体真名的主体；同名角色可能多个。 */
-  unknown: NameAuditActor[];
-};
-
-function subjectGroups(input: {
-  actors: readonly NameAuditActor[];
-  observerId: string;
-  signatureNames: readonly NameAuditSignatureName[];
-  nameScope: NameLeakScope;
-  signatureActor: ReadonlyMap<string, string>;
-  allowNames: ReadonlySet<string>;
-}): SubjectGroup[] {
-  const namedTrueName = (subject: NameAuditActor): boolean =>
-    input.signatureNames.some(
-      (row) =>
-        input.signatureActor.get(row.signatureId) === subject.id &&
-        (input.nameScope === "ever" || row.signatureId === subject.currentSignatureId) &&
-        row.name === subject.name,
-    );
-
-  const byName = new Map<string, NameAuditActor[]>();
-  for (const subject of input.actors) {
-    if (subject.id === input.observerId) {
-      continue;
-    }
-    if (subject.name.length === 0 || input.allowNames.has(subject.name)) {
-      continue;
-    }
-    const list = byName.get(subject.name) ?? [];
-    list.push(subject);
-    byName.set(subject.name, list);
-  }
-
-  return [...byName.entries()]
-    .map(([name, subjects]) => {
-      const unknown = subjects.filter((subject) => !namedTrueName(subject));
-      return {
-        name,
-        unknown,
-      };
-    })
-    .sort((a, b) => b.name.length - a.name.length);
 }
 
 function overlaps(mask: Uint8Array, start: number, length: number): boolean {
@@ -475,102 +316,4 @@ export function findNameAudit(
 /** 只要泄漏列表的便捷入口；结构告警用 `findNameAudit`。 */
 export function findNameLeaks(input: NameAuditInput, options: NameLeakOptions = {}): NameLeak[] {
   return findNameAudit(input, options).leaks;
-}
-
-function countMessagesSince(
-  memories: readonly AgentMemoryState[],
-  since: Date | string | undefined,
-): number {
-  const sinceMs = since === undefined ? undefined : new Date(since).getTime();
-  let count = 0;
-  for (const memory of memories) {
-    for (const message of memory.messages) {
-      const createdAtMs = Date.parse(message.createdAt);
-      if (sinceMs === undefined || !Number.isFinite(createdAtMs) || createdAtMs >= sinceMs) {
-        count += 1;
-      }
-    }
-  }
-  return count;
-}
-
-export async function auditGameNameLeaks(
-  db: Database,
-  gameId: string,
-  options: NameLeakOptions = {},
-): Promise<NameLeakReport> {
-  const input = await loadNameAuditInput(db, gameId);
-  const result = findNameAudit(input, options);
-  return {
-    gameId,
-    ...result,
-    checked: {
-      actors: input.actors.length,
-      messages: countMessagesSince(input.memories, options.since),
-      nameRows: input.signatureNames.length,
-    },
-  };
-}
-
-/**
- * 回合级审计：只扫 `since` 之后的新消息，发现一条写一条 trace + 日志，不阻断回合。
- *
- * 失败被吞掉：审计是旁路，不能让一条查询错误回滚已经落账的行动。
- */
-export async function auditTurnNameLeaks(
-  db: Database,
-  gameId: string,
-  since: Date,
-  options: { logger?: Logger; trace?: TraceContext } = {},
-): Promise<NameLeak[]> {
-  try {
-    const report = await auditGameNameLeaks(db, gameId, { since });
-    const leaks = report.leaks.slice(0, MAX_RUNTIME_TRACE_EVENTS);
-    for (const leak of leaks) {
-      options.logger?.warn("名字泄漏", leak);
-      await traceEvent(options.trace, { event: "name_leak", ...leak });
-    }
-    for (const alert of report.alerts.slice(0, MAX_RUNTIME_TRACE_EVENTS)) {
-      options.logger?.warn("名字审计结构告警", alert);
-      await traceEvent(options.trace, { event: "name_audit_alert", ...alert });
-    }
-    return leaks;
-  } catch (error) {
-    options.logger?.warn("名字审计失败", error);
-    return [];
-  }
-}
-
-/** 人读视图；CLI 的 `--text` 与排障时用。 */
-export function renderNameLeakReport(report: NameLeakReport): string {
-  const lines = [
-    `# 名字审计 · ${report.gameId}`,
-    `检查 ${report.checked.actors} 个 actor / ${report.checked.messages} 条消息 / ${report.checked.nameRows} 条签名称呼`,
-  ];
-  if (report.leaks.length === 0 && report.alerts.length === 0) {
-    lines.push("", "未发现真名泄漏或结构告警。");
-    return `${lines.join("\n")}\n`;
-  }
-  if (report.leaks.length > 0) {
-    lines.push("", `发现 ${report.leaks.length} 条真名泄漏：`);
-    for (const leak of report.leaks) {
-      lines.push(
-        "",
-        `[${leak.severity}] ${leak.observerName} · #${leak.messageSequence} ${leak.messageKind ?? leak.messageType}${leak.part === "tool_calls" ? "（toolCalls）" : ""}${leak.communicationKind ? ` · ${leak.communicationKind}` : ""}${leak.inDialogue ? " · 台词内" : ""}`,
-        `真名「${leak.matchedName}」`,
-        `  ${leak.excerpt}`,
-      );
-    }
-  }
-  if (report.alerts.length > 0) {
-    lines.push("", `发现 ${report.alerts.length} 条结构告警：`);
-    for (const alert of report.alerts) {
-      lines.push(
-        "",
-        `[${alert.code}] ${alert.observerName} · #${alert.messageSequence} ${alert.messageKind ?? alert.messageType}`,
-        `  ${alert.detail}${alert.missing.length > 0 ? `（缺少：${alert.missing.join("、")}）` : ""}`,
-      );
-    }
-  }
-  return `${lines.join("\n")}\n`;
 }

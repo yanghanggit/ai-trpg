@@ -29,7 +29,7 @@ actor 的 system prompt 使用**开局签名**的 `form` 快照：外观一变�
 - `prompt.tools`：当时可用的工具定义；正常只有 `submit_appearance`，死亡时会多一个 `submit_appearance_brief`。
 - `context.form` / `context.dead` / `context.worn`：结构化摘要；`worn` 是穿戴项的快照（物品之后可能改名或删除，因此不引用当前物品行）。
 - `context.brief`：本次变化的可见简报；死亡时由死者自己先写，换装 / refresh 没有。
-- `model` / `promptVersion` / `contentVersion`：模型（当前 provider 契约未暴露，先记 null）、提示词版本与内容版本。
+- `model` / `contentVersion`：模型（当前 provider 契约未暴露，先记 null）与内容版本。提示词本身随快照一起存下，不再另记版本号。
 
 `source` 只区分「预编译 / 运行时」；具体是换装、死亡、refresh 还是自定义事件，由 `context.dead`、`context.brief` 与 `worn` 的变化判断，不再维护触发原因枚举。
 
@@ -37,7 +37,7 @@ actor 的 system prompt 使用**开局签名**的 `form` 快照：外观一变�
 
 ## 推理流程
 
-入口在 `src/game/appearance.ts`：以 actor memory 为上下文，追加一段「外观更新」任务，跑一次 agent loop。
+入口在 `src/game/appearance/turn.ts`：以 actor memory 为上下文，追加一段「外观更新」任务，跑一次 agent loop。
 
 - 输入只提供当前签名的 `form` 与槽位索引解析出的穿戴物品，不提供旧 `appearance`，避免模型复述旧值；提示词明确要求「穿戴不等于露出」：被衣物遮住的贴身物件不写进外观。
 - 战役设定与全局规则由 actor 的宪法（system prompt）携带，任务输入不重复下发；输入只到「角色自身」为止：不注入 stage 的 `environment` / `profile`，也不开放 `query`。外观是当前数据的快照（后续用于文生图），不追环境的实时变化——否则「下雨淋湿」就要推导「换到干燥场景后变干」，没有稳定终点。

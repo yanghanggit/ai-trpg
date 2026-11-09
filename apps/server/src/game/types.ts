@@ -48,7 +48,6 @@ export type AppearanceInput =
     }
   | {
       version: 1;
-      promptVersion: number;
       source: "runtime";
       /** provider 未暴露模型名时为 null。 */
       model: string | null;
