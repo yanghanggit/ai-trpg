@@ -1,12 +1,12 @@
-import { handleOf, isHandleRef } from "./reference";
-import type { ActorState, GameStateSlice, StageState } from "./types";
+import type { ActorState, GameStateSlice, StageState } from "../types";
+import { handleOf, isHandleRef } from "./syntax";
 
 /**
  * 观察者相对的引用：有名字就写名字，没有（或分不开）就写 `#序号`，并带上外观。
  *
  * 名字就是地址：观察者当前怎么称呼一个签名，就怎么写它。只有名字不能当地址时才退回编号，
- * 见 `docs/glossary.md`、`docs/information-disclosure.md`。字符串语法（`#12`）
- * 统一在 `reference.ts`，这里只负责观察者投影。
+ * 见 `docs/glossary.md`、`docs/information-disclosure.md`。字符串语法（`#12`）在
+ * `syntax.ts`，这里只负责把「主体」投成「这个观察者的地址」。
  */
 
 export type Address = {

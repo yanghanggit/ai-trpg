@@ -1,7 +1,7 @@
 import type { ToolDefinition } from "../../llm/types";
 import type { RagSearchResult } from "../../rag";
+import { NAME_MARKER_PATTERN, parseHandle } from "../addressing";
 import { GameError } from "../errors";
-import { NAME_MARKER_PATTERN, parseHandle } from "../reference";
 import type { RouteQuestion } from "../route";
 
 export function buildSelfInfoTool(): ToolDefinition {

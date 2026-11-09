@@ -1,5 +1,5 @@
 import type { ActorWithStage } from "../actor-state";
-import { handleOf } from "../reference";
+import { handleOf } from "../addressing";
 import type { GameStateSlice, IdentityBinding } from "../types";
 
 /**

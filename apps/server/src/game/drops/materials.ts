@@ -1,8 +1,7 @@
 import type { ToolDefinition } from "../../llm/types";
+import { assertWorldFaceText, NAME_MARKER_PATTERN } from "../addressing";
 import { GameError } from "../errors";
 import type { MaterialDrop } from "../persistence/items";
-import { NAME_MARKER_PATTERN } from "../reference";
-import { assertWorldFaceText } from "../text-guard";
 
 /**
  * 掉落材料的工具契约与校验：提交什么形状、什么算合法。

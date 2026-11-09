@@ -1,11 +1,10 @@
 import type { TraceContext } from "../../debug/trace";
 import type { ToolDefinition } from "../../llm/types";
-import { type AddressLookup, actionRef } from "../addressing";
+import { type AddressLookup, actionRef, assertNoSystemReference } from "../addressing";
 import { appendPublicMessage, bumpGameVersion } from "../apply/messages";
 import type { ActorWithStageRow, Executor, ResolvedSay } from "../apply/types";
 import { GameError } from "../errors";
 import { appendCommunicationObservations, appendStageMemory } from "../observations";
-import { assertNoSystemReference } from "../text-guard";
 import type { SayAction } from "../types";
 
 export function buildSayTool(targets: readonly string[]): ToolDefinition {

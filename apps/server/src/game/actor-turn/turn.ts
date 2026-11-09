@@ -13,6 +13,7 @@ import {
   worldCollection,
 } from "../../rag";
 import { findActorByName } from "../actor-state";
+import { handleOf } from "../addressing";
 import { applyActorPlan } from "../apply";
 import { isAlive } from "../apply/queries";
 import { GameError } from "../errors";
@@ -34,7 +35,6 @@ import {
   parseRecognizeIdentity,
 } from "../plan";
 import { getGameStateSlice, readTurnDelivery } from "../read/game-state";
-import { handleOf } from "../reference";
 import { DEFAULT_ACTOR_MAX_ROUNDS } from "../rounds";
 import {
   describeRoute,

@@ -10,11 +10,17 @@ import {
   stageVisits,
   worlds,
 } from "../../db/schema";
-import { type AddressLookup, makeAddressLookup, withSelf } from "../addressing";
+import {
+  type AddressLookup,
+  handleOf,
+  isHandleRef,
+  makeAddressLookup,
+  parseHandle,
+  withSelf,
+} from "../addressing";
 import { addStats, type Stats } from "../attributes";
 import { GameError } from "../errors";
 import { signatureNamesFor } from "../persistence/signature-names";
-import { handleOf, isHandleRef, parseHandle } from "../reference";
 import type { RouteWorld } from "../route";
 import { EQUIPMENT_SLOTS } from "../types";
 import type {

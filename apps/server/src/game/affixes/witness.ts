@@ -1,5 +1,11 @@
 import type { TraceContext } from "../../debug/trace";
-import { type AddressLookup, actionRef, mentionOf } from "../addressing";
+import {
+  type AddressLookup,
+  actionRef,
+  findTextLeaks,
+  mentionOf,
+  NAME_MARKER_PATTERN,
+} from "../addressing";
 import { appendPublicMessage } from "../apply/messages";
 import { listStageActorViews } from "../apply/queries";
 import type { ActorRow, Executor, StageRow } from "../apply/types";
@@ -7,8 +13,6 @@ import { GameError } from "../errors";
 import { MEMORY_KINDS } from "../memory/kinds";
 import { type ObservationView, withAppearances } from "../observation-text";
 import { appendCustomObservation, appendStageMemory } from "../observations";
-import { NAME_MARKER_PATTERN } from "../reference";
-import { findTextLeaks } from "../text-guard";
 
 /**
  * 见证事件：静态 `witness` op 与 agent `record_witness` 共用同一份结构化事实。

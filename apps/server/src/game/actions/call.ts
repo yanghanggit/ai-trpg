@@ -1,14 +1,13 @@
 import type { TraceContext } from "../../debug/trace";
 import type { ToolDefinition } from "../../llm/types";
 import { allowedActionKinds } from "../actions";
+import { assertNoSystemReference, isHandleRef } from "../addressing";
 import { appendPublicMessage, bumpGameVersion } from "../apply/messages";
 import { resolveActorByNameInWorld, resolveEquippedItems } from "../apply/queries";
 import type { Executor, ResolvedCall, WorldRow } from "../apply/types";
 import { GameError } from "../errors";
 import { renderCall } from "../observation-text";
 import { appendDirectObservation } from "../observations";
-import { isHandleRef } from "../reference";
-import { assertNoSystemReference } from "../text-guard";
 import type { CallAction } from "../types";
 
 /**

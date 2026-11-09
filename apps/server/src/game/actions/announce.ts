@@ -1,11 +1,10 @@
 import type { TraceContext } from "../../debug/trace";
 import type { ToolDefinition } from "../../llm/types";
-
+import { assertNoSystemReference } from "../addressing";
 import { appendPublicMessage, bumpGameVersion } from "../apply/messages";
 import type { ActorWithStageRow, Executor, ResolvedAnnounce } from "../apply/types";
 import { GameError } from "../errors";
 import { appendCommunicationObservations, appendStageMemory } from "../observations";
-import { assertNoSystemReference } from "../text-guard";
 import type { AnnounceAction } from "../types";
 
 export function buildAnnounceTool(): ToolDefinition {

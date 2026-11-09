@@ -1,11 +1,10 @@
 import type { Database } from "../../db/pool";
 import { findActorByName } from "../actor-state";
-import { addressLookupFor, refOf } from "../addressing";
+import { addressLookupFor, handleOf, refOf } from "../addressing";
 import { getMemoryState } from "../memory";
 import { adjacentStages } from "../neighbors";
 import { sealedVisitedStagesForActor } from "../plan";
 import { getGameStateSlice } from "../read/game-state";
-import { handleOf } from "../reference";
 import { visitedStagesForActor, visitedTeleportTargetsFor } from "../visit-state";
 import { actorLog } from "./log";
 import { gameOf, viewerAnchors } from "./project";

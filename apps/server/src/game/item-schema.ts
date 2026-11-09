@@ -4,8 +4,8 @@ import {
   CARRIED_ACTIONS_BY_ITEM_KIND,
   carriedActionsForKind,
 } from "./actions";
+import { NAME_MARKER_PATTERN } from "./addressing";
 import { statsSchema } from "./attributes";
-import { NAME_MARKER_PATTERN } from "./reference";
 import type { ActionKind, AffixStatRef, DamageAmount, ItemKind } from "./types";
 
 /**

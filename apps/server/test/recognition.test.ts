@@ -23,15 +23,13 @@ import {
 import { parseAnnounce } from "../src/game/actions/announce";
 import { parseSay } from "../src/game/actions/say";
 import { parseWhisper } from "../src/game/actions/whisper";
-import { addressLookupFor, refOf } from "../src/game/addressing";
+import { addressLookupFor, handleOf, isHandleRef, refOf } from "../src/game/addressing";
 import { resolveVisibleActor } from "../src/game/apply/queries";
 import { formatForm } from "../src/game/form";
-
 import { recordAppearance } from "../src/game/persistence/appearances";
 import { allocateEntitySeq } from "../src/game/persistence/entity-seq";
 import { insertSignature, switchCurrentSignature } from "../src/game/persistence/signatures";
 import { parseRecognizeIdentity } from "../src/game/plan";
-import { handleOf, isHandleRef } from "../src/game/reference";
 import { ChatCompletionResult, type ChatCompletionService } from "../src/llm";
 import { allowAllDialogue } from "./test-dialogue-judge";
 import { TEST_WORLD } from "./test-world";

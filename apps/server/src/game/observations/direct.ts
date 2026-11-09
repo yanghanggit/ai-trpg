@@ -1,4 +1,5 @@
 import { type TraceContext, traceEvent } from "../../debug/trace";
+import { assertWorldFaceText } from "../addressing";
 import { listStageActorViews } from "../apply/queries";
 import type { Executor } from "../apply/types";
 import {
@@ -10,7 +11,6 @@ import {
 import { MEMORY_KINDS } from "../memory/kinds";
 import type { ObservationMetadata, ObservationView, StageEventMetadata } from "../observation-text";
 import { loadStageById } from "../persistence/stages";
-import { assertWorldFaceText } from "../text-guard";
 
 /**
  * 不走场景广播的三条通道：写给当事人自己、写给单个远端 actor、写给 stage 自己。

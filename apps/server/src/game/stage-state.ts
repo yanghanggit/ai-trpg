@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
+import { isHandleRef } from "./addressing";
 import { GameError } from "./errors";
-import { isHandleRef } from "./reference";
 import type { GameStateSlice, StageState } from "./types";
 
 /**

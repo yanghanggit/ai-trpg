@@ -1,5 +1,6 @@
 import type { Database } from "../../db/pool";
 import { type TraceContext, traceEvent } from "../../debug/trace";
+import { assertStageFacingText } from "../addressing";
 import { bumpGameVersion } from "../apply/messages";
 import { listActorNamesInWorld } from "../apply/queries";
 import { GameError } from "../errors";
@@ -11,7 +12,6 @@ import { lockGameRow } from "../persistence/games";
 import { listStageItems } from "../persistence/items";
 import { listStagesOfWorld, loadStageInWorld } from "../persistence/stages";
 import { loadWorldByGame } from "../persistence/worlds";
-import { assertStageFacingText } from "../text-guard";
 import type { StagePlan } from "../types";
 import { type AnchorWrite, computeAnchorChange, isAnchorWrite, type StoredAnchor } from "./anchors";
 import { applyStageAction } from "./effects";

@@ -1,6 +1,6 @@
 import type { TraceContext } from "../../debug/trace";
 import type { ToolDefinition } from "../../llm/types";
-import { mentionOf } from "../addressing";
+import { isHandleRef, mentionOf } from "../addressing";
 import { appendPublicMessage, bumpGameVersion } from "../apply/messages";
 import { findStageByNameInWorld } from "../apply/queries";
 import type { ActorWithStageRow, Executor, ResolvedTeleport, WorldRow } from "../apply/types";
@@ -9,7 +9,6 @@ import { renderAction, renderEnvironmentChange, withAppearances } from "../obser
 import { appendCustomStageObservation, appendStageMemory } from "../observations";
 import { moveActorToStage } from "../persistence/actors";
 import { recordStageVisit } from "../persistence/visits";
-import { isHandleRef } from "../reference";
 import type { TeleportAction } from "../types";
 
 export function buildTeleportTool(): ToolDefinition {

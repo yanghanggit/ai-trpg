@@ -16,9 +16,9 @@ import { resolveUnequip } from "../actions/unequip";
 import { resolveUse } from "../actions/use";
 import { resolveWait } from "../actions/wait";
 import { resolveWhisper } from "../actions/whisper";
+import { assertNoSystemReference } from "../addressing";
 import { GameError } from "../errors";
 import { signatureNamesFor } from "../persistence/signature-names";
-import { assertNoSystemReference } from "../text-guard";
 import type { ActorPlan } from "../types";
 import { findSignatureByHandleInWorld, resolveEquippedItems, resolveVisibleActor } from "./queries";
 import type {

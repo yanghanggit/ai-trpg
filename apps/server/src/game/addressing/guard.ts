@@ -1,9 +1,14 @@
-import { type AddressLookup, appearanceLine, mentionOf, UNKNOWN_LABEL } from "./addressing";
-import { GameError } from "./errors";
-import { containsHandle, HANDLE_PATTERN, handleOf, handlesIn, isHandleRef } from "./reference";
+import { GameError } from "../errors";
+import { type AddressLookup, appearanceLine, mentionOf, UNKNOWN_LABEL } from "./projection";
+import { containsHandle, HANDLE_PATTERN, handleOf, handlesIn, isHandleRef } from "./syntax";
 
 /**
- * 世界面文本的泄漏检查。
+ * 世界面文本的守卫：拦下不该出现在 actor 视野里的地址，并把要写给 actor 的文本脱敏。
+ *
+ * 模块最上层。三层的关系是「同一套地址规则的三面」：语法（`syntax.ts`）说地址长什么样，
+ * 投影（`projection.ts`）说这个观察者该看到哪一个，守卫在这里说它能不能出现。
+ *
+ * 泄漏检查。
  *
  * `#12` 与角色本名都只属于控制面：它们可以出现在 stage / world 自己的全知记忆里，
  * 但不能进入 actor 能看到的环境、台词或结局文案。名字就是地址，所以这里查的是名字本身，
