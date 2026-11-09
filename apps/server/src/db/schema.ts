@@ -17,10 +17,9 @@ import type { Stats } from "../game/attributes";
 import type { DialogueActionKind, DialogueCategory } from "../game/persistence/dialogue-blocks";
 import type {
   ActionKind,
-  Affix,
+  AffixTriggers,
   AppearanceInput,
   EquipmentSlots,
-  ItemEffect,
   ItemKind,
   PassageState,
   StageActionKind,
@@ -349,8 +348,7 @@ export const items = pgTable(
     source: text("source"),
     count: integer("count").notNull().default(1),
     stats: jsonb("stats").$type<Stats>().notNull(),
-    effect: jsonb("effect").$type<ItemEffect>().notNull(),
-    affixes: jsonb("affixes").$type<Affix[]>().notNull().default([]),
+    affixes: jsonb("affixes").$type<AffixTriggers>().notNull().default({}),
     /** 物品提供的动作；只有穿戴中才会生效，目前只有武器会声明。 */
     actions: jsonb("actions").$type<ActionKind[]>().notNull().default([]),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
@@ -378,8 +376,7 @@ export const stageItems = pgTable(
     source: text("source"),
     count: integer("count").notNull().default(1),
     stats: jsonb("stats").$type<Stats>().notNull(),
-    effect: jsonb("effect").$type<ItemEffect>().notNull(),
-    affixes: jsonb("affixes").$type<Affix[]>().notNull().default([]),
+    affixes: jsonb("affixes").$type<AffixTriggers>().notNull().default({}),
     /** 物品提供的动作；只有穿戴中才会生效，目前只有武器会声明。 */
     actions: jsonb("actions").$type<ActionKind[]>().notNull().default([]),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),

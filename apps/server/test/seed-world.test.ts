@@ -55,12 +55,20 @@ describe("dark fantasy seed world", () => {
       kind: "weapon",
       count: 1,
       stats: { damage: 8, block: 0 },
-      affixes: [
-        {
-          name: "松脂渗毛",
-          content: "火焰顺着毛根渗进去：对多毛类生物额外造成武器伤害的一百倍，毛越厚烧得越透",
-        },
-      ],
+      affixes: {
+        strike: [
+          {
+            name: "火头灼击",
+            content: "火头砸下去，造成 {{attack}} 点伤害",
+            ops: [{ kind: "damage", amount: { ref: "attack" } }],
+          },
+          {
+            name: "松脂渗毛",
+            mode: "agent",
+            content: "火焰顺着毛根渗进去：对多毛类生物额外造成武器伤害的一百倍，毛越厚烧得越透",
+          },
+        ],
+      },
     });
     expect(stage("gate").anchors?.flatMap((anchor) => anchor.items ?? []) ?? []).toEqual([]);
   });
@@ -84,6 +92,7 @@ describe("dark fantasy seed world", () => {
     expect(keeper?.items.find((item) => item.name === "闸门钥匙")).toMatchObject({
       key: "gate-key",
       kind: "valuable",
+      affixes: { use: [{ name: "开锁" }] },
     });
     expect(keeper?.signature.form.startsWith("人类:")).toBe(true);
     expect(keeper?.hp).toBe(14);
@@ -91,11 +100,11 @@ describe("dark fantasy seed world", () => {
       .filter((actor) => actor.isDefaultPlayer)
       .map((actor) => actor.name);
     expect(defaultPlayers).toEqual(["无名者"]);
-    // 鼠王随身收着旧钟的钟舌：valuable + event，不是身体材料。
+    // 鼠王随身收着旧钟的钟舌：valuable + 使用词缀，不是身体材料。
     expect(king?.items.find((item) => item.name === "旧钟的钟舌")).toMatchObject({
       key: "rat-king-clapper",
       kind: "valuable",
-      effect: { type: "event" },
+      affixes: { use: [{ name: "归位" }] },
     });
     expect(king?.signature.form.startsWith("鼠:")).toBe(true);
     expect(king?.hp).toBeGreaterThan(keeper?.hp ?? 0);

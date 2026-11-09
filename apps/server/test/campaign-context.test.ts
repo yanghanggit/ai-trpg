@@ -72,6 +72,7 @@ describe("runtime agents carry the campaign setting", () => {
       itemName: "裂齿短刃",
       itemDescription: "刃口缺了两处，血槽里嵌着旧锈。",
       itemStats: STATS,
+      trigger: "strike",
       affixes: [{ name: "嗜血", content: "见到血时伤害提高。" }],
       defaultFeedback: "裂齿短刃劈开了石阶上的灰。",
       terminalToolName: "submit_affix",

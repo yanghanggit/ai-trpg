@@ -26,6 +26,7 @@ import { MAX_ACTIONS_PER_TURN, MEMORY_KINDS } from "../constants";
 import { settleDeaths } from "../death";
 import type { DialogueJudge } from "../dialogue-audit";
 import { GameError } from "../errors";
+import { agentAffixes } from "../items/affix-model";
 import { appendMemoryMessages, loadAgentMemory } from "../memory";
 import { auditTurnNameLeaks, nameAuditEnabled, nameAuditSince } from "../name-audit";
 import { upsertSignatureName } from "../persistence/signature-names";
@@ -57,6 +58,13 @@ function dialogueFeedbackMetadata(action: ResolvedAction): {
   }
 }
 
+/** 动作落账结果：反馈文本 + 静态词缀结算（供 agent 增量阶段使用）。 */
+type ActionResult = {
+  feedback: string;
+  staticSettlement?: import("../items/static").StaticSettlement;
+  staticOutcome?: import("../items/settle").StaticOutcome;
+};
+
 /** 扁平 dispatch，没有分类层。 */
 async function applyResolvedAction(
   executor: Executor,
@@ -66,38 +74,51 @@ async function applyResolvedAction(
   now: Date,
   address: AddressLookup,
   trace?: TraceContext,
-): Promise<string> {
+): Promise<ActionResult> {
+  const plain = (feedback: string): ActionResult => ({ feedback });
   switch (resolved.kind) {
     case "say":
-      return applySay(executor, gameId, actorRow, resolved, now, address, trace);
+      return plain(await applySay(executor, gameId, actorRow, resolved, now, address, trace));
     case "whisper":
-      return applyWhisper(executor, gameId, actorRow, resolved, now, address, trace);
+      return plain(await applyWhisper(executor, gameId, actorRow, resolved, now, address, trace));
     case "announce":
-      return applyAnnounce(executor, gameId, actorRow, resolved, now, trace);
+      return plain(await applyAnnounce(executor, gameId, actorRow, resolved, now, trace));
     case "call":
-      return applyCall(executor, gameId, resolved, now, trace);
+      return plain(await applyCall(executor, gameId, resolved, now, trace));
     case "move":
-      return applyMove(executor, gameId, actorRow, resolved, now, trace);
+      return plain(await applyMove(executor, gameId, actorRow, resolved, now, trace));
     case "teleport":
-      return applyTeleport(executor, gameId, actorRow, resolved, now, trace);
+      return plain(await applyTeleport(executor, gameId, actorRow, resolved, now, trace));
     case "wait":
-      return applyWait(executor, gameId, actorRow, resolved, now, trace);
-    case "strike":
-      return applyStrike(executor, gameId, actorRow, resolved, now, address, trace);
+      return plain(await applyWait(executor, gameId, actorRow, resolved, now, trace));
+    case "strike": {
+      const result = await applyStrike(executor, gameId, actorRow, resolved, now, address, trace);
+      return {
+        feedback: result.feedback,
+        staticSettlement: result.settlement,
+        staticOutcome: result.outcome,
+      };
+    }
     case "brawl":
-      return applyBrawl(executor, gameId, actorRow, resolved, now, address, trace);
+      return plain(await applyBrawl(executor, gameId, actorRow, resolved, now, address, trace));
     case "steal":
-      return applySteal(executor, gameId, actorRow, resolved, now, address, trace);
+      return plain(await applySteal(executor, gameId, actorRow, resolved, now, address, trace));
     case "give":
-      return applyGive(executor, gameId, actorRow, resolved, now, address, trace);
+      return plain(await applyGive(executor, gameId, actorRow, resolved, now, address, trace));
     case "pickup":
-      return applyPickup(executor, gameId, actorRow, resolved, now, trace);
-    case "use":
-      return applyUse(executor, gameId, actorRow, resolved, now, address, trace);
+      return plain(await applyPickup(executor, gameId, actorRow, resolved, now, trace));
+    case "use": {
+      const result = await applyUse(executor, gameId, actorRow, resolved, now, address, trace);
+      return {
+        feedback: result.feedback,
+        staticSettlement: result.settlement,
+        staticOutcome: result.outcome,
+      };
+    }
     case "equip":
-      return applyEquip(executor, gameId, actorRow, resolved, now, trace);
+      return plain(await applyEquip(executor, gameId, actorRow, resolved, now, trace));
     case "unequip":
-      return applyUnequip(executor, gameId, actorRow, resolved, now, trace);
+      return plain(await applyUnequip(executor, gameId, actorRow, resolved, now, trace));
   }
 }
 
@@ -105,28 +126,39 @@ function affixRequestFor(
   resolved: ResolvedAction,
   actorId: string,
   defaultFeedback: string,
+  staticSettlement: import("../items/static").StaticSettlement | undefined,
+  staticOutcome: import("../items/settle").StaticOutcome | undefined,
 ): AffixRequest | null {
-  if (resolved.kind === "strike" && resolved.item.affixes.length > 0) {
+  if (resolved.kind !== "strike" && resolved.kind !== "use") {
+    return null;
+  }
+  const trigger = resolved.kind === "strike" ? "strike" : "use";
+  const item = resolved.kind === "strike" ? resolved.item : resolved.transferItem;
+  if (agentAffixes(item, trigger).length === 0) {
+    return null;
+  }
+  if (resolved.kind === "strike") {
     return {
       actorId,
-      itemId: resolved.item.id,
-      actionKind: "strike",
+      itemId: item.id,
+      trigger,
       targetActorId: resolved.target.id,
       defaultFeedback,
+      ...(staticSettlement ? { staticSettlement } : {}),
+      ...(staticOutcome ? { staticOutcome } : {}),
     };
   }
-  if (resolved.kind === "use" && resolved.transferItem.affixes.length > 0) {
-    return {
-      actorId,
-      itemId: resolved.transferItem.id,
-      actionKind: "use",
-      ...(resolved.target ? { targetActorId: resolved.target.id } : {}),
-      ...(resolved.targetStage ? { targetStageId: resolved.targetStage.id } : {}),
-      ...(resolved.targetAnchor ? { targetAnchor: resolved.targetAnchor } : {}),
-      defaultFeedback,
-    };
-  }
-  return null;
+  return {
+    actorId,
+    itemId: item.id,
+    trigger,
+    ...(resolved.target ? { targetActorId: resolved.target.id } : {}),
+    ...(resolved.targetStage ? { targetStageId: resolved.targetStage.id } : {}),
+    ...(resolved.targetAnchor ? { targetAnchor: resolved.targetAnchor } : {}),
+    defaultFeedback,
+    ...(staticSettlement ? { staticSettlement } : {}),
+    ...(staticOutcome ? { staticOutcome } : {}),
+  };
 }
 
 /** 应用计划的结果；`rejection` 是给调用方（尤其是玩家入口）看的原因。 */
@@ -291,7 +323,7 @@ export async function applyActorPlan(
     const applied: { event: "applied"; actionKind: string; feedback: string }[] = [];
     const pendingMemory: { content: string; metadata: Record<string, unknown> }[] = [];
     for (const action of resolved.actions) {
-      const feedback = await applyResolvedAction(
+      const result = await applyResolvedAction(
         tx,
         gameId,
         actorRow,
@@ -300,8 +332,15 @@ export async function applyActorPlan(
         address,
         options.trace,
       );
+      const { feedback } = result;
       applied.push({ event: "applied", actionKind: action.kind, feedback });
-      const affixRequest = affixRequestFor(action, actorRow.actor.id, feedback);
+      const affixRequest = affixRequestFor(
+        action,
+        actorRow.actor.id,
+        feedback,
+        result.staticSettlement,
+        result.staticOutcome,
+      );
       if (affixRequest) {
         affixRequests.push(affixRequest);
       }

@@ -132,9 +132,24 @@ export const TEST_WORLD: World = {
           kind: "weapon" as const,
           count: 1,
           stats: { damage: 3, block: 0 },
-          effect: { type: "damage" },
-          // 裂齿短刃提供 strike：装备中才把挥击借给角色。
+          // 裂齿短刃提供 strike：装备中才把挥击借给角色；卸下后也能当道具使用。
           actions: ["strike"],
+          affixes: {
+            strike: [
+              {
+                name: "裂齿",
+                content: "崩口撕开皮肉，造成 {{attack}} 点伤害",
+                ops: [{ kind: "damage", amount: { ref: "attack" } }],
+              },
+            ],
+            use: [
+              {
+                name: "短刃刺击",
+                content: "刃尖捅进去，造成 {{attack}} 点伤害",
+                ops: [{ kind: "damage", amount: { ref: "attack" } }],
+              },
+            ],
+          },
         },
       ],
     },
@@ -170,7 +185,6 @@ export const TEST_WORLD: World = {
           kind: "equipment" as const,
           count: 1,
           stats: { block: 2 },
-          effect: { type: "event" },
         },
       ],
     },
@@ -206,7 +220,6 @@ export const TEST_WORLD: World = {
           kind: "equipment" as const,
           count: 1,
           stats: { block: 2 },
-          effect: { type: "event" },
         },
       ],
     },

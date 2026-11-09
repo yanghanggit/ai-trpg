@@ -3,8 +3,8 @@ import type { ToolDefinition } from "../../llm/types";
 import type { AddressLookup } from "../addressing";
 import { assertNotSelf } from "../apply/queries";
 import type { ActorWithStageRow, Executor, ResolvedBrawl } from "../apply/types";
+import { applyUnarmedHit } from "../combat/unarmed";
 import { GameError } from "../errors";
-import { applyItemEffect } from "../item-effects";
 import type { BrawlAction } from "../types";
 
 /**
@@ -55,7 +55,7 @@ export function resolveBrawl(
   return { kind: "brawl", action, stage, target };
 }
 
-/** 应用 brawl：不带物品，直接交给 damage effect 结算。 */
+/** 应用 brawl：不带物品，交给引擎原生的肉搏路径结算。 */
 export async function applyBrawl(
   executor: Executor,
   gameId: string,
@@ -65,16 +65,14 @@ export async function applyBrawl(
   address: AddressLookup,
   trace?: TraceContext,
 ): Promise<string> {
-  return applyItemEffect({
+  return applyUnarmedHit(
     executor,
     gameId,
     actorRow,
-    stage: resolved.stage,
-    actionKind: "brawl",
-    effect: { type: "damage" },
-    target: resolved.target,
-    address,
+    resolved.stage,
+    resolved.target,
     now,
-    ...(trace ? { trace } : {}),
-  });
+    address,
+    trace,
+  );
 }

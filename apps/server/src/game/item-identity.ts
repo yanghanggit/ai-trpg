@@ -12,7 +12,6 @@ export type ItemIdentity = {
   name: string;
   description: string;
   stats: unknown;
-  effect: unknown;
   affixes: unknown;
   actions: unknown;
   source: string | null;
@@ -45,7 +44,6 @@ export function isSameItem(a: ItemIdentity, b: ItemIdentity): boolean {
     a.description === b.description &&
     a.source === b.source &&
     stableJson(a.stats) === stableJson(b.stats) &&
-    stableJson(a.effect) === stableJson(b.effect) &&
     stableJson(a.affixes) === stableJson(b.affixes) &&
     stableJson(actionsOf(a.actions)) === stableJson(actionsOf(b.actions))
   );

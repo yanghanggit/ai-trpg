@@ -4,13 +4,14 @@ import type { AddressLookup } from "../addressing";
 import { assertNotSelf, resolveEquippedItems } from "../apply/queries";
 import type { ActorWithStageRow, Executor, ResolvedStrike } from "../apply/types";
 import { GameError } from "../errors";
-import { applyItemEffect } from "../item-effects";
+import { hasAffixes } from "../items/affix-model";
+import { applyStaticItemAction, type StaticItemActionResult } from "../items/settle";
 import type { StrikeAction } from "../types";
 
 /**
  * 武器动作：动作本身不带物品参数，武器隐式来自 `weapon` 槽。
  *
- * 这个工具只在武器穿戴中、且那把武器提供了 `strike` 时才会被装配进工具列表，
+ * 这个工具只在武器穿戴中、且那把武器声明了 `affixes.strike` 时才会被装配进工具列表，
  * 所以模型看到它时就已经有武器可用；结算端仍要独立复核一次。
  */
 export function buildStrikeTool(targetActorHandles: readonly string[]): ToolDefinition {
@@ -19,7 +20,7 @@ export function buildStrikeTool(targetActorHandles: readonly string[]): ToolDefi
     function: {
       name: "strike",
       description:
-        "把一次挥击加入计划：用 weapon 槽里装备的武器攻击同场景的一个角色；不判定命中与闪避，伤害由结果直接结算。",
+        "把一次挥击加入计划：用 weapon 槽里装备的武器攻击同场景的一个角色；不判定命中与闪避，伤害由静态词缀直接结算。",
       parameters: {
         type: "object",
         properties: {
@@ -48,7 +49,7 @@ export function parseStrike(args: Record<string, unknown>): StrikeAction {
  * 目标不要求存活：尸体也能被攻击，伤害结算会在 `isAlive` 处空转；
  * 唯一的存活要求是行动者自己。
  *
- * 武器只来自 `weapon` 槽，而且必须显式提供 `strike`；没有就不成立，不存在空手分支。
+ * 武器只来自 `weapon` 槽，而且必须声明 `affixes.strike`；没有就不成立。
  */
 export async function resolveStrike(
   executor: Executor,
@@ -70,10 +71,13 @@ export async function resolveStrike(
         : `weapon 槽的武器没有提供 strike: ${weaponName}`,
     );
   }
+  if (!hasAffixes(item, "strike")) {
+    throw new GameError("invalid_action", `weapon 槽的武器没有挥击词缀: ${item.name}`);
+  }
   return { kind: "strike", action, stage, target, item };
 }
 
-/** 应用 strike：只把武器交给 effect 分派；伤害公式在 damage effect 中。 */
+/** 应用 strike：静态词缀结算；agent 词缀随后由增量阶段补。 */
 export async function applyStrike(
   executor: Executor,
   gameId: string,
@@ -82,18 +86,18 @@ export async function applyStrike(
   now: Date,
   address: AddressLookup,
   trace?: TraceContext,
-): Promise<string> {
-  return applyItemEffect({
+): Promise<StaticItemActionResult> {
+  return applyStaticItemAction({
     executor,
     gameId,
     actorRow,
     stage: resolved.stage,
-    actionKind: "strike",
-    effect: resolved.item.effect,
     item: resolved.item,
+    trigger: "strike",
+    action: "strike",
     target: resolved.target,
-    address,
     now,
+    address,
     ...(trace ? { trace } : {}),
   });
 }

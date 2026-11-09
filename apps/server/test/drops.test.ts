@@ -157,7 +157,7 @@ describe.skipIf(!testDatabaseUrl)("death drops", () => {
     expect(material?.kind === "material" ? material.source : null).toBe("提灯修士");
     expect(material?.count).toBe(2);
     expect(material?.stats.damage).toBe(0);
-    expect(material?.effect).toEqual({ type: "none" });
+    expect(material?.affixes).toEqual({});
 
     // 场景小 GM 从场景事件里知道尸体上多了什么。
     const memory = await loadAgentMemory(handle.db, created.game.id, "stage", gate?.id ?? "");
@@ -182,7 +182,7 @@ describe.skipIf(!testDatabaseUrl)("death drops", () => {
         itemName: "浸血的灰袍碎片",
         targetStageName: "灰烬门廊",
       }),
-    ).rejects.toThrow(/没有可以直接使用的效果/);
+    ).rejects.toThrow(/物品没有可用的使用词缀/);
   });
 
   it("同名材料再掉一次只增加数量，不加新行", async () => {

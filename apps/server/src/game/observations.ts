@@ -140,6 +140,29 @@ export async function appendCustomStageObservation(
   );
 }
 
+/**
+ * 由调用方提供逐观察者渲染函数与收件范围的一次观察广播。
+ *
+ * 与 `appendCustomStageObservation` 同源，额外允许「只有目标」这类收件范围；
+ * 发起者仍由行动反馈承载，不从观察通道重复写。
+ */
+export async function appendCustomObservation(
+  executor: Executor,
+  gameId: string,
+  stageId: string,
+  sourceActorId: string,
+  audience: Audience,
+  render: (observerId: string, address: AddressLookup) => ObservationView,
+  trace?: TraceContext,
+): Promise<void> {
+  await writeObservations(
+    executor,
+    gameId,
+    { stageId, excludeActorId: sourceActorId, audience, render },
+    trace,
+  );
+}
+
 /** 写入伤害结果：发起者由行动结果反馈，目标与旁观者分别得到不同视角。 */
 export async function appendDamageObservations(
   executor: Executor,

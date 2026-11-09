@@ -8,9 +8,8 @@
 import type { Stats } from "./attributes";
 import type {
   ActionKind,
-  Affix,
+  AffixTriggers,
   EquipmentSlots,
-  ItemEffect,
   ItemKind,
   PassageState,
   StageActionKind,
@@ -153,10 +152,8 @@ export type ItemDefinition = {
   count?: number;
   /** 属性；可省略，未写出的字段按 0 归一。 */
   stats?: Partial<Stats>;
-  /** 物品效果；必须显式声明，type 路由到 handler。 */
-  effect: ItemEffect;
-  /** 词缀；可省略，创建时归一化为空数组。 */
-  affixes?: readonly Affix[];
+  /** 按触发场景声明的词缀；可省略，创建时归一化为空对象。 */
+  affixes?: AffixTriggers;
   /** 物品能提供的动作；穿戴中才借给角色。可省略，创建时归一化为空数组。 */
   actions?: readonly ActionKind[];
   /** 材料来源；只有 `material` 可以声明，其它大类声明会被内容校验拒绝。 */

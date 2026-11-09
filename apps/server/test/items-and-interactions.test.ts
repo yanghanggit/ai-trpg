@@ -45,6 +45,7 @@ class AffixDamageService implements ChatCompletionService {
         function: {
           name: "damage_target",
           arguments: JSON.stringify({
+            affixName: "松脂渗毛",
             targetActorHandle: "提灯修士",
             amount: 42,
             reason: "测试用词缀伤害",
@@ -59,8 +60,9 @@ class AffixDamageService implements ChatCompletionService {
         function: {
           name: "record_effect",
           arguments: JSON.stringify({
+            affixName: "松脂渗毛",
             targetActorHandle: "提灯修士",
-            witnessText: TORCH_WITNESS,
+            template: TORCH_WITNESS,
           }),
         },
       });
@@ -79,7 +81,7 @@ class AffixDamageService implements ChatCompletionService {
   }
 }
 
-const TORCH_WITNESS = "提灯修士的毛皮被火燎得卷曲发黑，空气里浮着焦毛味。";
+const TORCH_WITNESS = "{target}的毛皮被火燎得卷曲发黑，空气里浮着焦毛味。";
 
 /** 只记录可见后果，不追加伤害：验证故事效果能独立于数值发生。 */
 class AffixEffectService implements ChatCompletionService {
@@ -88,8 +90,9 @@ class AffixEffectService implements ChatCompletionService {
       {
         name: "record_effect",
         args: {
+          affixName: "松脂渗毛",
           targetActorHandle: "提灯修士",
-          witnessText: TORCH_WITNESS,
+          template: TORCH_WITNESS,
         },
       },
       { name: "submit_affix", args: {} },
@@ -102,7 +105,7 @@ class OverLimitEffectService implements ChatCompletionService {
   async complete(request: Parameters<ChatCompletionService["complete"]>[0]) {
     const record = (text: string) => ({
       name: "record_effect",
-      args: { targetActorHandle: "提灯修士", witnessText: text },
+      args: { affixName: "松脂渗毛", targetActorHandle: "提灯修士", template: text },
     });
     return toolCallResult(request, [
       record("灰毛上翻起一号焦痕。"),
@@ -209,7 +212,16 @@ const ITEM_WORLD = {
                 kind: "weapon" as const,
                 count: 1,
                 stats: { damage: 7, block: 1 },
-                effect: { type: "damage" },
+                actions: ["strike"] as const,
+                affixes: {
+                  strike: [
+                    {
+                      name: "测试劈砍",
+                      content: "造成 {{attack}} 点伤害",
+                      ops: [{ kind: "damage" as const, amount: { ref: "attack" as const } }],
+                    },
+                  ],
+                },
               },
             ],
           })),
@@ -223,6 +235,10 @@ const KEEPER_ACTOR = TEST_WORLD.actors.find((actor) => actor.name === "守烬人
 if (!GATE_STAGE || !KEEPER_ACTOR) {
   throw new Error("测试世界缺少灰烬门廊或守烬人");
 }
+const TEST_BLADE = KEEPER_ACTOR.items.find((item) => item.name === "裂齿短刃");
+if (!TEST_BLADE) {
+  throw new Error("测试世界缺少裂齿短刃");
+}
 
 /** 提灯修士背包里先放着同一件短刃：用来验证“等价物品并进 count”。 */
 const SHARED_BLADE = {
@@ -232,8 +248,8 @@ const SHARED_BLADE = {
   kind: "weapon" as const,
   count: 2,
   stats: { damage: 3, block: 0 },
-  effect: { type: "damage" },
   actions: ["strike"] as const,
+  affixes: TEST_BLADE.affixes,
 };
 
 const MERGE_WORLD = {
@@ -284,13 +300,18 @@ const AFFIX_WORLD = {
             item.name === "裂齿短刃"
               ? {
                   ...item,
-                  affixes: [
-                    {
-                      name: "松脂渗毛",
-                      content:
-                        "火焰顺着毛根渗进去：对多毛类生物额外造成武器伤害的一百倍，毛越厚烧得越透",
-                    },
-                  ],
+                  affixes: {
+                    ...item.affixes,
+                    strike: [
+                      ...(item.affixes?.strike ?? []),
+                      {
+                        name: "松脂渗毛",
+                        mode: "agent" as const,
+                        content:
+                          "火焰顺着毛根渗进去：对多毛类生物额外造成武器伤害的一百倍，毛越厚烧得越透",
+                      },
+                    ],
+                  },
                 }
               : item,
           ),
@@ -357,7 +378,21 @@ const SEALED_WORLD: World = {
           name: SEALED_KEY_NAME,
           description: "测试用闸门钥匙。",
           kind: "accessory" as const,
-          effect: { type: "event" },
+          affixes: {
+            use: [
+              {
+                name: "开锁",
+                mode: "static" as const,
+                content: "钥匙插进锁孔",
+                ops: [
+                  {
+                    kind: "witness" as const,
+                    template: "{item}插进{anchor}的锁孔，干蜡裂开。",
+                  },
+                ],
+              },
+            ],
+          },
         },
       ],
     },
@@ -532,20 +567,22 @@ describe.skipIf(!testDatabaseUrl)("items and interactions", () => {
     expect(service.input).toContain("外观：灰袍下摆浸着泥水，右手始终握着灯柄。");
     // 仲裁 agent 是控制面读者：目标用名字寻址，而不是出手者视角的引用。
     expect(service.input).toContain("目标：提灯修士");
+    // 静态结算的真实结果作为 agent 输入：6 点全部落到目标身上，未致死。
+    expect(service.input).toContain("实际造成伤害：6");
+    expect(service.input).toContain("目标 HP 归零：否");
 
     const state = await getGameState(handle.db, created.game.slug);
     const monk = state.world.stages
       .flatMap((stage) => stage.actors)
       .find((actor) => actor.name === "提灯修士");
     expect(monk?.hp).toBe(0);
-    // 死亡广播会追加一条 kind=death 的消息，所以按攻击消息取最近两条。
-    const recent = state.messages
+    // 静态命中、词缀追加、见证各成一条；见证排在最后。
+    const contents = state.messages
       .filter((message) => message.kind === "strike")
-      .slice(-2)
       .map((message) => message.content);
-    expect(recent[0]).toContain("造成6点伤害");
+    expect(contents.some((content) => content.includes("造成6点伤害"))).toBe(true);
     // 增量单独成句，不冒充实算端的伤害。
-    expect(recent[1]).toContain("词缀追加42点伤害");
+    expect(contents.some((content) => content.includes("词缀追加42点伤害"))).toBe(true);
 
     // 出手者的长期记忆里也要看得到这条增量。
     const memories = await getGameMemories(handle.db, created.game.id);
@@ -596,7 +633,7 @@ describe.skipIf(!testDatabaseUrl)("items and interactions", () => {
     expect(contents.some((content) => content.includes("提灯修士"))).toBe(false);
   });
 
-  it("writes the affix's visible consequence only into the stage memory", async () => {
+  it("broadcasts the affix's visible consequence to the scene with names isolated", async () => {
     const created = await createGame(handle.db, {
       username: DEMO_USER.username,
       name: "词缀后果记忆测试局",
@@ -628,14 +665,14 @@ describe.skipIf(!testDatabaseUrl)("items and interactions", () => {
       (memory) => memory.ownerType === "stage" && memory.ownerId === stage?.id,
     );
 
-    // 推理端不写 actor 记忆；第三人称可见事实只进场景记忆，由 actor 下次 pull。
-    expect(monkMemory?.messages.some((message) => message.content.includes(TORCH_WITNESS))).toBe(
-      false,
-    );
-    expect(stageMemory?.messages.some((message) => message.content.includes(TORCH_WITNESS))).toBe(
-      true,
-    );
-    // 只有后果、没有追加伤害：计算端的 6 点照常成立。
+    // 目标收到第二人称观察；stage memory 是上帝视角，带真名。
+    expect(monkMemory?.messages.some((message) => message.content.includes("你的毛皮"))).toBe(true);
+    expect(
+      stageMemory?.messages.some((message) =>
+        message.content.includes("提灯修士的毛皮被火燎得卷曲发黑"),
+      ),
+    ).toBe(true);
+    // 只有后果、没有追加伤害：静态的 6 点照常成立。
     expect(monk?.hp).toBe(4);
   });
 
@@ -701,7 +738,7 @@ describe.skipIf(!testDatabaseUrl)("items and interactions", () => {
     expect(monk?.appearance.text).toBe("被火燎过的尸体，毛皮焦黑卷曲。");
   });
 
-  it("treats the affix as a no-op when the computed damage already killed the target", async () => {
+  it("skips affix damage but still records the witness when the target already died", async () => {
     const created = await createGame(handle.db, {
       username: DEMO_USER.username,
       name: "词缀致死测试局",
@@ -720,13 +757,18 @@ describe.skipIf(!testDatabaseUrl)("items and interactions", () => {
     expect(attacked.ok).toBe(true);
     // 判定照常发生（LLM 仍可能改打别人），只是目标已经倒下，落账跳过。
     expect(service.calls).toBe(1);
+    // 6 点伤害只扣掉剩余的 5 点；静态结果如实报告“实际 5 点、已归零”。
+    expect(service.input).toContain("实际造成伤害：5");
+    expect(service.input).toContain("目标 HP 归零：是");
 
     const state = await getGameState(handle.db, created.game.slug);
     const strikeMessages = state.messages
       .filter((message) => message.kind === "strike")
       .map((message) => message.content);
-    expect(strikeMessages).toHaveLength(1);
+    // 目标已倒下：追加伤害跳过，但可见见证仍然成立。
+    expect(strikeMessages).toHaveLength(2);
     expect(strikeMessages[0]).toContain("造成6点伤害");
+    expect(strikeMessages[1]).toContain("毛皮被火燎得卷曲发黑");
     expect(strikeMessages.some((content) => content.includes("词缀追加"))).toBe(false);
   });
 
@@ -747,8 +789,8 @@ describe.skipIf(!testDatabaseUrl)("items and interactions", () => {
       { service },
     );
     expect(attacked.ok).toBe(true);
-    // 两轮都失败后放弃增量，不重试到回合外。
-    expect(service.calls).toBe(2);
+    // 到达 agent 轮数上限后放弃增量，不重试到回合外。
+    expect(service.calls).toBe(3);
 
     const state = await getGameState(handle.db, created.game.slug);
     const monk = state.world.stages
@@ -861,6 +903,142 @@ describe.skipIf(!testDatabaseUrl)("items and interactions", () => {
     expect(state.messages.at(-1)?.content).toBe(
       "守烬人对提灯修士肉搏，造成3点伤害；提灯修士剩余 HP 7/10。",
     );
+  });
+
+  it("settles a static-only weapon without calling the LLM", async () => {
+    const created = await createGame(handle.db, {
+      username: DEMO_USER.username,
+      name: "纯静态词缀测试局",
+      world: TEST_WORLD,
+    });
+    await takeActorControl(handle.db, created.game.slug, "守烬人");
+
+    const service = new AffixDamageService();
+    const attacked = await playerStrike(
+      handle.db,
+      created.game.slug,
+      "守烬人",
+      { targetActorRef: "提灯修士" },
+      { service },
+    );
+    expect(attacked.ok).toBe(true);
+    // 纯静态武器没有 agent 词缀：一次 LLM 都不发。
+    expect(service.calls).toBe(0);
+
+    const state = await getGameState(handle.db, created.game.slug);
+    const monk = state.world.stages
+      .flatMap((stage) => stage.actors)
+      .find((actor) => actor.name === "提灯修士");
+    // 6（自身）+ 3（短刃）- 3（修士 block）= 6。
+    expect(monk?.hp).toBe(4);
+    expect(state.messages.some((message) => message.content.includes("造成6点伤害"))).toBe(true);
+
+    const stage = state.world.stages.find((candidate) =>
+      candidate.actors.some((actor) => actor.id === monk?.id),
+    );
+    const stageMemory = (await getGameMemories(handle.db, created.game.id)).find(
+      (memory) => memory.ownerType === "stage" && memory.ownerId === stage?.id,
+    );
+    // 公共消息只写总数；逐条分解进场景记忆。
+    expect(stageMemory?.messages.some((message) => message.content.includes("崩口撕开皮肉"))).toBe(
+      true,
+    );
+  });
+
+  it("sums static damage before subtracting block exactly once", async () => {
+    const world = {
+      ...TEST_WORLD,
+      actors: TEST_WORLD.actors.map((actor) =>
+        actor.name === "守烬人"
+          ? {
+              ...actor,
+              items: actor.items.map((item) =>
+                item.name === "裂齿短刃"
+                  ? {
+                      ...item,
+                      affixes: {
+                        strike: [
+                          ...(item.affixes?.strike ?? []),
+                          {
+                            name: "额外撕裂",
+                            content: "造成 2 点伤害",
+                            ops: [{ kind: "damage" as const, amount: 2 }],
+                          },
+                        ],
+                      },
+                    }
+                  : item,
+              ),
+            }
+          : actor,
+      ),
+    };
+    const created = await createGame(handle.db, {
+      username: DEMO_USER.username,
+      name: "多静态词缀测试局",
+      world,
+    });
+    await takeActorControl(handle.db, created.game.slug, "守烬人");
+
+    const attacked = await playerStrike(handle.db, created.game.slug, "守烬人", {
+      targetActorRef: "提灯修士",
+    });
+    expect(attacked.ok).toBe(true);
+
+    const state = await getGameState(handle.db, created.game.slug);
+    const monk = state.world.stages
+      .flatMap((stage) => stage.actors)
+      .find((actor) => actor.name === "提灯修士");
+    // (6 + 3 + 2) - 3 = 8；若每条词缀各减一次 block，只会是 6。
+    expect(monk?.hp).toBe(2);
+    expect(state.messages.some((message) => message.content.includes("造成8点伤害"))).toBe(true);
+  });
+
+  it("still writes a zero-damage hit when static damage is zero", async () => {
+    const world = {
+      ...TEST_WORLD,
+      actors: TEST_WORLD.actors.map((actor) =>
+        actor.name === "守烬人"
+          ? {
+              ...actor,
+              items: actor.items.map((item) =>
+                item.name === "裂齿短刃"
+                  ? {
+                      ...item,
+                      affixes: {
+                        strike: [
+                          {
+                            name: "钝击",
+                            content: "造成 0 点伤害",
+                            ops: [{ kind: "damage" as const, amount: 0 }],
+                          },
+                        ],
+                      },
+                    }
+                  : item,
+              ),
+            }
+          : actor,
+      ),
+    };
+    const created = await createGame(handle.db, {
+      username: DEMO_USER.username,
+      name: "零伤害静态词缀测试局",
+      world,
+    });
+    await takeActorControl(handle.db, created.game.slug, "守烬人");
+
+    const attacked = await playerStrike(handle.db, created.game.slug, "守烬人", {
+      targetActorRef: "提灯修士",
+    });
+    expect(attacked.ok).toBe(true);
+
+    const state = await getGameState(handle.db, created.game.slug);
+    const monk = state.world.stages
+      .flatMap((stage) => stage.actors)
+      .find((actor) => actor.name === "提灯修士");
+    expect(monk?.hp).toBe(10);
+    expect(state.messages.some((message) => message.content.includes("造成0点伤害"))).toBe(true);
   });
 
   it("does not read weapon stats or affixes when brawling", async () => {

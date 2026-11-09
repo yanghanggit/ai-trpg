@@ -14,7 +14,7 @@ const GAME_DIR = fileURLToPath(new URL("../src/game", import.meta.url));
  * - `control.ts`：玩家接管关系；
  * - `create-game.ts`：建局；`read/`：状态与事件流读取。
  *
- * 玩法模块（`actions/`、`item-effects/`、`stage`/`world` 回合、死亡、外观、观察）不在名单里，
+ * 玩法模块（`actions/`、`items/`、`combat/`、`stage`/`world` 回合、死亡、外观、观察）不在名单里，
  * 它们只调用具名函数。
  */
 const ALLOWED = [

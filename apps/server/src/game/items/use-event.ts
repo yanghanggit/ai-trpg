@@ -1,20 +1,35 @@
+import type { TraceContext } from "../../debug/trace";
 import { type AddressLookup, actionRef } from "../addressing";
 import { appendPublicMessage, bumpGameVersion } from "../apply/messages";
+import type { ActorRow, ActorWithStageRow, Executor, StageRow } from "../apply/types";
 import { appendItemObservations, appendStageMemory } from "../observations";
-import type { ItemEffectHandler } from "./types";
 
-/** 事件效果：只记录“谁在何处对谁使用了什么”，后果交给 stage/world。 */
-export const applyEventEffect: ItemEffectHandler = async (context) => {
+export type UseEventInput = {
+  executor: Executor;
+  gameId: string;
+  actorRow: ActorWithStageRow;
+  stage: StageRow;
+  item: { name: string };
+  target?: ActorRow;
+  targetStage?: StageRow;
+  targetAnchor?: string;
+  now: Date;
+  address?: AddressLookup;
+  trace?: TraceContext;
+};
+
+/**
+ * `use` 的基础事件：引擎行为，不依赖词缀。
+ *
+ * 没有词缀的物品也可能被“使用”（例如把钟舌放回祭坛），这条记录保证动作在世界里
+ * 留下痕迹；可见后果由 witness 额外追加。
+ */
+export async function applyUseEvent(input: UseEventInput): Promise<string> {
   const { executor, gameId, actorRow, stage, item, target, targetStage, targetAnchor, now, trace } =
-    context;
-  if (!item) {
-    throw new Error("event effect 需要物品");
-  }
+    input;
   const actor = { id: actorRow.actor.id, name: actorRow.actor.name };
-  const address: AddressLookup | undefined = context.address;
-  const targetRef = target && address ? actionRef(address(target.id)) : undefined;
+  const targetRef = target && input.address ? actionRef(input.address(target.id)) : undefined;
   const targetLabel = targetStage ? targetStage.name : (targetRef ?? target?.name ?? "目标");
-  const itemName = item.name;
   const stageAnchorText = targetAnchor ? `的${targetAnchor}` : "";
   const content = targetStage
     ? `${actor.name}在${targetStage.name}${stageAnchorText}使用了${item.name}。`
@@ -56,6 +71,6 @@ export const applyEventEffect: ItemEffectHandler = async (context) => {
   );
 
   return targetStage
-    ? `# 行动结果\n你在${targetLabel}${stageAnchorText}使用了${itemName}。`
-    : `# 行动结果\n你对${targetLabel}使用了${itemName}。`;
-};
+    ? `# 行动结果\n你在${targetLabel}${stageAnchorText}使用了${item.name}。`
+    : `# 行动结果\n你对${targetLabel}使用了${item.name}。`;
+}

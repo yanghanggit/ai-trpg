@@ -14,14 +14,6 @@ export type ItemKind =
   | "material";
 
 /**
- * 物品的声明式效果：只存可序列化 JSON，`type` 路由到 handler，物品不持有函数。
- */
-export type ItemEffect = {
-  type: string;
-  [key: string]: unknown;
-};
-
-/**
  * actor 的穿戴槽：槽里只记录物品名，物品自身不知道被谁穿戴。
  * 开发期只保留一武器、一护甲（合并副手/头/身体/足部）、一饰品。
  */
@@ -138,10 +130,39 @@ export type StageAnchorState = {
 /** 场景边的通行状态；sealed 表示两侧在剧情上相连，但当前不能通过。 */
 export type PassageState = "open" | "sealed";
 
-/** 词缀：短名字 + 一句自然语言规则；展示与提示词统一为 `[名字]内容`。 */
+/**
+ * 词缀：短名字 + 一段规则文本，按触发场景挂在物品上。
+ *
+ * `mode` 省略等于 `static`：由引擎按 `ops` 纯计算，必然出结果；
+ * `agent` 交给推理端判定，允许携带条件、能做工具允许的任何追加。
+ */
+export type AffixMode = "static" | "agent";
+
+/** 静态词缀能读取的属性引用；值在结算时从当前 actor / item 行读取。 */
+export type AffixStatRef = "attack" | "actor.damage" | "item.damage";
+
+/** 一次静态伤害贡献：常量或属性引用（可乘系数）。多条词缀的求和由结算统一做。 */
+export type DamageAmount = number | { ref: AffixStatRef; factor?: number };
+
+/** 静态词缀的指令；`witness` 用渲染后的文本写场景记忆与观察。 */
+export type AffixOp =
+  | { kind: "damage"; amount: DamageAmount }
+  | { kind: "witness"; template: string; visibility?: "stage" | "target" };
+
 export type Affix = {
   name: string;
+  /** static：渲染模板；agent：规则原文。 */
   content: string;
+  /** 省略等于 `static`。 */
+  mode?: AffixMode;
+  /** 只有 static 允许；agent 词缀的效果由工具决定。 */
+  ops?: readonly AffixOp[];
+};
+
+/** 物品按触发场景声明的词缀；空列表等于该触发不可用。 */
+export type AffixTriggers = {
+  strike?: readonly Affix[];
+  use?: readonly Affix[];
 };
 
 export type SayAction = {
@@ -357,10 +378,8 @@ export type ItemBaseState = {
   description: string;
   kind: ItemKind;
   count: number;
-  /** 物品效果；由内容显式声明，运行时按 type 路由。 */
-  effect: ItemEffect;
-  /** 词缀；非空时 damage 路由到 LLM 结算 handler。 */
-  affixes: readonly Affix[];
+  /** 按触发场景声明的词缀；`strike` / `use` 各自独立。 */
+  affixes: AffixTriggers;
   /** 物品能提供的动作；穿戴中才借给角色。 */
   actions: readonly ActionKind[];
   /** 归一化后的完整属性；五种物品都携带，未用到的字段为 0。 */
@@ -385,7 +404,7 @@ export type ConsumableState = ItemBaseState & { kind: "consumable" };
 /** 贵重物品：无战斗数值的剧情物品。 */
 export type ValuableState = ItemBaseState & { kind: "valuable" };
 
-/** 材料：尸体留下的物理素材；不可穿戴、没有效果，只能搬运与堆叠。 */
+/** 材料：尸体留下的物理素材；不可穿戴、词缀为空，只能搬运与堆叠。 */
 export type MaterialState = ItemBaseState & {
   kind: "material";
   /** 源于哪个角色；只有死亡掉落会填，内容声明的材料可以为 null。 */

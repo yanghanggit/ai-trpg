@@ -8,6 +8,13 @@
       "when": 1793856049284,
       "tag": "0000_baseline",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1794198254197,
+      "tag": "0001_pale_brother_voodoo",
+      "breakpoints": true
     }
   ]
 }

@@ -6,10 +6,8 @@ import type { Executor, ItemRow, StageItemRow } from "../apply/types";
 import { toStats } from "../attributes";
 import { GameError } from "../errors";
 import { isSameItem } from "../item-identity";
+import { normalizeAffixTriggers } from "../items/affix-model";
 import { allocateEntitySeq } from "./entity-seq";
-
-/** 掉落只产 `material`：惰性效果、无属性，数量可堆叠。 */
-const MATERIAL_EFFECT = { type: "none" } as const;
 
 /**
  * 物品与场景物品的读写操作：玩法层只表达「谁拿到什么」，不关心两张表怎么搬。
@@ -94,8 +92,7 @@ export async function moveStageItemToActor(
     source: stageItem.source,
     count: stageItem.count,
     stats: stageItem.stats,
-    effect: stageItem.effect,
-    affixes: [...stageItem.affixes],
+    affixes: normalizeAffixTriggers(stageItem.affixes),
     actions: [...stageItem.actions],
   });
 }
@@ -181,8 +178,7 @@ export async function addActorMaterials(
         name: material.name,
         description: material.description,
         stats: toStats({}),
-        effect: MATERIAL_EFFECT,
-        affixes: [],
+        affixes: {},
         actions: [],
         source,
       };
@@ -212,8 +208,7 @@ export async function addActorMaterials(
       source,
       count: material.count,
       stats: toStats({}),
-      effect: MATERIAL_EFFECT,
-      affixes: [],
+      affixes: {},
       actions: [],
     });
     written.push(material.name);

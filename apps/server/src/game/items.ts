@@ -1,12 +1,12 @@
 import { type Stats, toStats } from "./attributes";
 import { GameError } from "./errors";
+import { normalizeAffixTriggers } from "./items/affix-model";
 import type {
   ActionKind,
   ActorState,
-  Affix,
+  AffixTriggers,
   EquipmentSlot,
   EquipmentSlots,
-  ItemEffect,
   ItemKind,
   ItemState,
   WearableItemState,
@@ -23,8 +23,7 @@ export function toItemState(row: {
   source?: string | null;
   count: number;
   stats: Stats;
-  effect: ItemEffect;
-  affixes?: readonly Affix[];
+  affixes?: AffixTriggers;
   actions?: readonly ActionKind[];
 }): ItemState {
   const base = {
@@ -34,8 +33,7 @@ export function toItemState(row: {
     name: row.name,
     description: row.description,
     count: row.count,
-    effect: row.effect,
-    affixes: row.affixes ?? [],
+    affixes: normalizeAffixTriggers(row.affixes),
     actions: row.actions ?? [],
     stats: toStats(row.stats),
   };

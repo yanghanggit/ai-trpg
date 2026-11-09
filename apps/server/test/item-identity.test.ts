@@ -6,8 +6,7 @@ const BASE: ItemIdentity = {
   name: "裂齿短刃",
   description: "刃口崩了三处。",
   stats: { damage: 3, block: 0 },
-  effect: { type: "damage" },
-  affixes: [],
+  affixes: {},
   actions: ["strike"],
   source: null,
 };
@@ -17,11 +16,17 @@ describe("item identity", () => {
     expect(isSameItem(BASE, { ...BASE })).toBe(true);
     // jsonb 读回的键序不稳定：键序不同仍是同一种。
     expect(isSameItem(BASE, { ...BASE, stats: { block: 0, damage: 3 } })).toBe(true);
-    // 词缀是对象数组，键序同理。
+    // 词缀按触发分组，键序同理。
     expect(
       isSameItem(
-        { ...BASE, affixes: [{ name: "松脂", content: "见火就着。" }] },
-        { ...BASE, affixes: [{ content: "见火就着。", name: "松脂" }] },
+        {
+          ...BASE,
+          affixes: { strike: [{ name: "松脂", content: "见火就着。", mode: "static", ops: [] }] },
+        },
+        {
+          ...BASE,
+          affixes: { strike: [{ content: "见火就着。", name: "松脂", ops: [], mode: "static" }] },
+        },
       ),
     ).toBe(true);
   });
@@ -36,7 +41,21 @@ describe("item identity", () => {
     expect(isSameItem(BASE, { ...BASE, description: "刃口完好。" })).toBe(false);
     expect(isSameItem(BASE, { ...BASE, kind: "consumable" })).toBe(false);
     expect(isSameItem(BASE, { ...BASE, stats: { damage: 9, block: 0 } })).toBe(false);
-    expect(isSameItem(BASE, { ...BASE, effect: { type: "event" } })).toBe(false);
+    expect(
+      isSameItem(BASE, {
+        ...BASE,
+        affixes: {
+          strike: [
+            {
+              name: "裂齿",
+              content: "造成 3 点伤害",
+              mode: "static",
+              ops: [{ kind: "damage", amount: 3 }],
+            },
+          ],
+        },
+      }),
+    ).toBe(false);
     expect(isSameItem(BASE, { ...BASE, actions: [] })).toBe(false);
     expect(isSameItem(BASE, { ...BASE, source: "奥德里克" })).toBe(false);
   });

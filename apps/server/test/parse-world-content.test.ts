@@ -194,27 +194,37 @@ describe("world content validation", () => {
     expect(() => parseWorldContent(withoutActions)).toThrow();
   });
 
-  it("keeps the declarative item effect and requires a handler type", () => {
+  it("keeps declarative item affixes and rejects invalid static ops", () => {
+    const strikeAffix = {
+      name: "裂齿",
+      content: "造成 {{attack}} 点伤害",
+      ops: [{ kind: "damage" as const, amount: { ref: "attack" as const } }],
+    };
     const world = {
       ...TEST_WORLD,
       actors: TEST_WORLD.actors.map((actor) =>
         actor.name === "守烬人"
           ? {
               ...actor,
-              items: [{ ...actor.items[0], effect: { type: "damage" } }],
+              items: [{ ...actor.items[0], affixes: { strike: [strikeAffix] } }],
             }
           : actor,
       ),
     };
     const parsedKeeper = parseWorldContent(world).actors.find((actor) => actor.name === "守烬人");
-    expect(parsedKeeper?.items[0]?.effect).toEqual({ type: "damage" });
+    expect(parsedKeeper?.items[0]?.affixes?.strike?.[0]?.ops).toEqual(strikeAffix.ops);
 
     expect(() =>
       parseWorldContent({
         ...world,
         actors: world.actors.map((actor) => ({
           ...actor,
-          items: [{ ...actor.items[0], effect: { type: "" } }],
+          items: [
+            {
+              ...actor.items[0],
+              affixes: { strike: [{ ...strikeAffix, ops: [] }] },
+            },
+          ],
         })),
       }),
     ).toThrow();

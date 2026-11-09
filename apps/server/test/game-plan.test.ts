@@ -108,6 +108,31 @@ describe("action tools", () => {
 });
 
 describe("use candidates", () => {
+  const useAffixes = (effect: string) => {
+    if (effect === "damage") {
+      return {
+        use: [
+          {
+            name: "造成伤害",
+            content: "造成 {{attack}} 点伤害",
+            ops: [{ kind: "damage" as const, amount: { ref: "attack" as const } }],
+          },
+        ],
+      };
+    }
+    if (effect === "event") {
+      return {
+        use: [
+          {
+            name: "使用",
+            content: "使用物品",
+            ops: [{ kind: "witness" as const, template: "{source}使用了{item}" }],
+          },
+        ],
+      };
+    }
+    return {};
+  };
   const item = (name: string, kind: "weapon" | "valuable" | "material", effect: string) =>
     toItemState({
       id: name,
@@ -117,7 +142,7 @@ describe("use candidates", () => {
       kind,
       count: 1,
       stats: { maxHp: 0, strength: 0, wisdom: 0, agility: 0, damage: 0, block: 0 },
-      effect: { type: effect },
+      affixes: useAffixes(effect),
       actions: [],
     });
 
@@ -311,8 +336,15 @@ describe("read-only descriptions", () => {
           kind: "weapon" as const,
           count: 1,
           stats: { maxHp: 0, strength: 0, wisdom: 0, agility: 0, damage: 3, block: 0 },
-          effect: { type: "damage" },
-          affixes: [],
+          affixes: {
+            strike: [
+              {
+                name: "裂齿",
+                content: "造成 {{attack}} 点伤害",
+                ops: [{ kind: "damage" as const, amount: { ref: "attack" as const } }],
+              },
+            ],
+          },
           actions: ["strike" as const],
         },
       ],
@@ -348,8 +380,7 @@ describe("read-only descriptions", () => {
           source: "提灯修士",
           count: 2,
           stats: { maxHp: 0, strength: 0, wisdom: 0, agility: 0, damage: 0, block: 0 },
-          effect: { type: "none" },
-          affixes: [],
+          affixes: {},
           actions: [],
         },
       ],
@@ -370,7 +401,6 @@ describe("stage anchors", () => {
       kind: "weapon",
       count: 1,
       stats: { maxHp: 0, strength: 0, wisdom: 0, agility: 0, damage: 8, block: 0 },
-      effect: { type: "damage" },
     });
     const anchors = [
       { key: "corner", label: "墙角", description: "炉门旁的墙角。", items: [torch] },

@@ -32,6 +32,8 @@ export type ObservationMetadata = {
   attackerActorId?: string;
   targetActorId?: string;
   itemName?: string;
+  affixName?: string;
+  witness?: boolean;
   targetStageId?: string;
   targetStageName?: string;
   targetAnchor?: string;

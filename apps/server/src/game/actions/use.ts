@@ -4,8 +4,10 @@ import type { AddressLookup } from "../addressing";
 import { resolveActorItem } from "../apply/queries";
 import type { ActorWithStageRow, Executor, ResolvedUse } from "../apply/types";
 import { GameError } from "../errors";
-import { applyItemEffect, hasItemEffectHandler } from "../item-effects";
 import { equippedSlotOf } from "../items";
+import { hasAffixes, staticAffixes } from "../items/affix-model";
+import { applyStaticItemAction, type StaticItemActionResult } from "../items/settle";
+import { applyUseEvent } from "../items/use-event";
 import { stripNameRef } from "../reference";
 
 import {
@@ -16,17 +18,13 @@ import {
 } from "../types";
 
 /**
- * `use` 的候选物品：有可执行效果，且此刻没被穿戴。
+ * `use` 的候选物品：声明了 `affixes.use`，且此刻没被穿戴。
  *
  * 与 `resolveUse` 的拒绝条件同源：候选里没有的物品，即使被模型点名也会在解析阶段失败。
  */
 export function usableItemNames(items: readonly ItemState[], equipment: EquipmentSlots): string[] {
   return items
-    .filter(
-      (item) =>
-        hasItemEffectHandler(item.effect.type) &&
-        equippedSlotOf(equipment, item.name) === undefined,
-    )
+    .filter((item) => hasAffixes(item, "use") && equippedSlotOf(equipment, item.name) === undefined)
     .map((item) => item.name);
 }
 
@@ -101,6 +99,13 @@ export function parseUse(args: Record<string, unknown>): UseAction {
   };
 }
 
+/** 静态词缀里是否有 damage op；`use` 指向场景时不成立。 */
+function hasDamageOp(item: { affixes: ItemState["affixes"] }): boolean {
+  return staticAffixes(item, "use").some((affix) =>
+    (affix.ops ?? []).some((op) => op.kind === "damage"),
+  );
+}
+
 export async function resolveUse(
   executor: Executor,
   stage: ResolvedUse["stage"],
@@ -116,6 +121,9 @@ export async function resolveUse(
       "invalid_action",
       `${transferItem.name}正装备在${EQUIPMENT_SLOT_LABELS[slot]}槽，先卸下再使用`,
     );
+  }
+  if (!hasAffixes(transferItem, "use")) {
+    throw new GameError("invalid_action", `物品没有可用的使用词缀: ${transferItem.name}`);
   }
   const targetAnchor = action.targetAnchor?.trim();
   if (targetAnchor && action.targetStageName === undefined) {
@@ -134,6 +142,9 @@ export async function resolveUse(
       !stage.anchors.some((anchor) => anchor.label === targetAnchor)
     ) {
       throw new GameError("invalid_action", "当前场景没有这个可交互锚点");
+    }
+    if (hasDamageOp(transferItem)) {
+      throw new GameError("invalid_action", "伤害词缀需要角色目标，不能作用于场景或锚点");
     }
     targetStage = stage;
   } else {
@@ -163,21 +174,37 @@ export async function applyUse(
   now: Date,
   address: AddressLookup,
   trace?: TraceContext,
-): Promise<string> {
+): Promise<StaticItemActionResult> {
   const targetAnchor = resolved.targetStage ? resolved.targetAnchor : undefined;
-  return applyItemEffect({
+  const baseFeedback = await applyUseEvent({
     executor,
     gameId,
     actorRow,
     stage: resolved.stage,
-    actionKind: "use",
-    effect: resolved.transferItem.effect,
     item: resolved.transferItem,
-    address,
     ...(resolved.target ? { target: resolved.target } : {}),
     ...(resolved.targetStage ? { targetStage: resolved.targetStage } : {}),
     ...(targetAnchor ? { targetAnchor } : {}),
     now,
+    address,
     ...(trace ? { trace } : {}),
   });
+  const staticResult = await applyStaticItemAction({
+    executor,
+    gameId,
+    actorRow,
+    stage: resolved.stage,
+    item: resolved.transferItem,
+    trigger: "use",
+    action: "use",
+    ...(resolved.target ? { target: resolved.target } : {}),
+    ...(targetAnchor ? { targetAnchor } : {}),
+    now,
+    address,
+    ...(trace ? { trace } : {}),
+  });
+  return {
+    ...staticResult,
+    feedback: [baseFeedback, staticResult.feedback].filter((line) => line.length > 0).join("\n\n"),
+  };
 }

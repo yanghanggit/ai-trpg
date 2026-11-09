@@ -19,6 +19,7 @@ import { toStats } from "./attributes";
 import { assertEdgeShape } from "./edges";
 import { GameError } from "./errors";
 import { resolveAppearance } from "./form";
+import { normalizeAffixTriggers } from "./items/affix-model";
 import {
   buildActorSystemPrompt,
   buildStageSystemPrompt,
@@ -79,8 +80,7 @@ function itemValues(item: ItemDefinition, seq: number) {
     source: item.source ?? null,
     count: item.count ?? 1,
     stats: toStats(item.stats),
-    effect: item.effect,
-    affixes: [...(item.affixes ?? [])],
+    affixes: normalizeAffixTriggers(item.affixes),
     actions: [...(item.actions ?? [])],
   };
 }

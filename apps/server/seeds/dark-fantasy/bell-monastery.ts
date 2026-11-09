@@ -99,7 +99,6 @@ export const BELL_MONASTERY: Script = {
                 "从钟腹内壁撬下来的一小块铜牌，名字的位置被磨得发亮，边缘留着半个钟形花纹。",
               kind: "valuable" as const,
               count: 1,
-              effect: { type: "event" },
             },
           ],
         },
@@ -127,16 +126,23 @@ export const BELL_MONASTERY: Script = {
               kind: "weapon" as const,
               count: 1,
               stats: { damage: 8, block: 0 },
-              effect: { type: "damage" },
               // 挥击由武器提供：这把火把被装备后，角色才会多出 strike 这个动作。
               actions: ["strike"],
-              affixes: [
-                {
-                  name: "松脂渗毛",
-                  content:
-                    "火焰顺着毛根渗进去：对多毛类生物额外造成武器伤害的一百倍，毛越厚烧得越透",
-                },
-              ],
+              affixes: {
+                strike: [
+                  {
+                    name: "火头灼击",
+                    content: "火头砸下去，造成 {{attack}} 点伤害",
+                    ops: [{ kind: "damage", amount: { ref: "attack" } }],
+                  },
+                  {
+                    name: "松脂渗毛",
+                    mode: "agent",
+                    content:
+                      "火焰顺着毛根渗进去：对多毛类生物额外造成武器伤害的一百倍，毛越厚烧得越透",
+                  },
+                ],
+              },
             },
           ],
         },
@@ -228,7 +234,21 @@ export const BELL_MONASTERY: Script = {
           description: "一把铸铁的闸门钥匙，柄上刻着修道院的钟形纹；齿纹被磨得很亮。",
           kind: "valuable" as const,
           count: 1,
-          effect: { type: "event" },
+          affixes: {
+            use: [
+              {
+                name: "开锁",
+                mode: "static",
+                content: "钥匙插进锁孔",
+                ops: [
+                  {
+                    kind: "witness",
+                    template: "{item}插进{anchor}，干蜡裂开。",
+                  },
+                ],
+              },
+            ],
+          },
         },
         {
           key: "gravedigger-shovel",
@@ -237,8 +257,16 @@ export const BELL_MONASTERY: Script = {
           kind: "weapon" as const,
           count: 1,
           stats: { damage: 6, block: 0 },
-          effect: { type: "damage" },
           actions: ["strike"],
+          affixes: {
+            strike: [
+              {
+                name: "铁锹劈砍",
+                content: "锹刃劈下去，造成 {{attack}} 点伤害",
+                ops: [{ kind: "damage", amount: { ref: "attack" } }],
+              },
+            ],
+          },
         },
         {
           key: "patched-cloak",
@@ -247,7 +275,6 @@ export const BELL_MONASTERY: Script = {
           kind: "equipment" as const,
           count: 1,
           stats: { block: 1 },
-          effect: { type: "event" },
         },
       ],
       // 人类：会说话、走动、战斗，也操作道具、穿脱装备。
@@ -348,7 +375,6 @@ export const BELL_MONASTERY: Script = {
           kind: "equipment" as const,
           count: 1,
           stats: { block: 0 },
-          effect: { type: "event" },
         },
         {
           key: "broken-neck-chain",
@@ -356,7 +382,6 @@ export const BELL_MONASTERY: Script = {
           description: "半截被鼠牙啃过的铁链，断口发亮，仍挂在颈间。",
           kind: "accessory" as const,
           count: 1,
-          effect: { type: "event" },
         },
         {
           key: "bent-coffin-nail",
@@ -365,8 +390,16 @@ export const BELL_MONASTERY: Script = {
           kind: "weapon" as const,
           count: 1,
           stats: { damage: 2, block: 0 },
-          effect: { type: "damage" },
           actions: ["strike"],
+          affixes: {
+            strike: [
+              {
+                name: "撬骨",
+                content: "钉尖顺着骨缝撬进去，造成 {{attack}} 点伤害",
+                ops: [{ kind: "damage", amount: { ref: "attack" } }],
+              },
+            ],
+          },
         },
       ],
       // 唯一会偷窃的角色；其余能力与普通人类一致。
@@ -413,7 +446,21 @@ export const BELL_MONASTERY: Script = {
             "一截黄铜的钟舌，断口新鲜，缠着一小圈浸过油的布；尾端比凹槽细半寸，正好能插进祭坛台面那道槽里。敲上去几乎没有声音，像被什么东西含住了。",
           kind: "valuable" as const,
           count: 1,
-          effect: { type: "event" },
+          affixes: {
+            use: [
+              {
+                name: "归位",
+                mode: "static",
+                content: "把钟舌放回祭坛",
+                ops: [
+                  {
+                    kind: "witness",
+                    template: "{item}嵌进{anchor}的凹槽，发出一声几乎没有声音的震动。",
+                  },
+                ],
+              },
+            ],
+          },
         },
       ],
       // 动物：沉睡时由 openingBriefing 约束留在原地；苏醒后可以移动与攻击，不操作道具。
