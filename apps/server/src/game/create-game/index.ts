@@ -115,3 +115,5 @@ export async function createGame(
 
   return getGameState(db, gameId);
 }
+
+export type { CreateGameInput } from "./types";
