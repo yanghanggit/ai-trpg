@@ -108,8 +108,8 @@ describe("action tools", () => {
 });
 
 describe("use candidates", () => {
-  const useAffixes = (effect: string) => {
-    if (effect === "damage") {
+  const useAffixes = (affixKind: string) => {
+    if (affixKind === "damage") {
       return {
         use: [
           {
@@ -120,7 +120,7 @@ describe("use candidates", () => {
         ],
       };
     }
-    if (effect === "event") {
+    if (affixKind === "witness") {
       return {
         use: [
           {
@@ -133,7 +133,7 @@ describe("use candidates", () => {
     }
     return {};
   };
-  const item = (name: string, kind: "weapon" | "valuable" | "material", effect: string) =>
+  const item = (name: string, kind: "weapon" | "valuable" | "material", affixKind: string) =>
     toItemState({
       id: name,
       seq: 1,
@@ -142,7 +142,7 @@ describe("use candidates", () => {
       kind,
       count: 1,
       stats: { maxHp: 0, strength: 0, wisdom: 0, agility: 0, damage: 0, block: 0 },
-      affixes: useAffixes(effect),
+      affixes: useAffixes(affixKind),
       actions: [],
     });
 
@@ -150,7 +150,7 @@ describe("use candidates", () => {
     const candidates = usableItemNames(
       [
         item("裂齿短刃", "weapon", "damage"),
-        item("闸门钥匙", "valuable", "event"),
+        item("闸门钥匙", "valuable", "witness"),
         item("碎骨", "material", "none"),
       ],
       { weapon: "裂齿短刃" },

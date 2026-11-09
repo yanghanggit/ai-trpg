@@ -65,7 +65,6 @@ const TORCH = {
   kind: "weapon" as const,
   count: 1,
   stats: { damage: 7, block: 1 },
-  effect: { type: "damage" as const },
 };
 
 /** 门闩上挂着物品：用来验证「改名不动物品、带物品不能移除」。 */

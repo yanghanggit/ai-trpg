@@ -13,7 +13,7 @@ export const MAX_STAGE_NOTIFICATIONS_PER_TURN = 2;
 export const MAX_WORLD_ACTIONS_PER_TURN = 3;
 
 /** 词缀 agent 一次执行最多记录几条可见后果。 */
-export const MAX_AFFIX_EFFECTS = 2;
+export const MAX_AFFIX_WITNESSES = 2;
 
 /** 一个场景最多保留的可交互锚点数。 */
 export const MAX_STAGE_ANCHORS = 8;

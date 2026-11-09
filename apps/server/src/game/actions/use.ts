@@ -1,12 +1,16 @@
 import type { TraceContext } from "../../debug/trace";
 import type { ToolDefinition } from "../../llm/types";
 import type { AddressLookup } from "../addressing";
+import {
+  applyStaticItemAction,
+  hasAffixes,
+  type StaticItemActionResult,
+  staticAffixes,
+} from "../affixes";
 import { resolveActorItem } from "../apply/queries";
 import type { ActorWithStageRow, Executor, ResolvedUse } from "../apply/types";
 import { GameError } from "../errors";
 import { equippedSlotOf } from "../items";
-import { hasAffixes, staticAffixes } from "../items/affix-model";
-import { applyStaticItemAction, type StaticItemActionResult } from "../items/settle";
 import { applyUseEvent } from "../items/use-event";
 import { stripNameRef } from "../reference";
 

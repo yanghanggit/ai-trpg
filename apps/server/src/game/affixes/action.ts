@@ -6,17 +6,10 @@ import { applyHit } from "../combat/hit";
 import { GameError } from "../errors";
 import { appendStageMemory } from "../observations";
 import type { AffixTriggers } from "../types";
-import type { AffixTrigger } from "./affix-model";
+import type { AffixTrigger } from "./model";
 import { type StaticSettlement, settleStaticAffixes } from "./static";
+import type { StaticOutcome } from "./types";
 import { appendWitnessEvent, type WitnessTarget } from "./witness";
-
-/** 静态命中落账后的实际结果；没有命中时为 0 / false。 */
-export type StaticOutcome = {
-  /** 实际扣除的 HP，按目标剩余生命截断。 */
-  dealtDamage: number;
-  /** 本次静态命中是否让目标 HP 归零。 */
-  targetDied: boolean;
-};
 
 export type StaticItemActionInput = {
   executor: Executor;

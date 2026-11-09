@@ -134,7 +134,6 @@ describe.skipIf(!testDatabaseUrl)("equip and unequip actions", () => {
       kind: "weapon" as const,
       count: 1,
       stats: { damage: 2, block: 0 },
-      effect: { type: "damage" as const },
     };
     const world = {
       ...TEST_WORLD,

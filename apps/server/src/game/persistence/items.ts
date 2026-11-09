@@ -2,11 +2,11 @@ import { randomUUID } from "node:crypto";
 import { and, asc, eq, inArray } from "drizzle-orm";
 import type { Database } from "../../db/pool";
 import { items, stageItems } from "../../db/schema";
+import { normalizeAffixTriggers } from "../affixes";
 import type { Executor, ItemRow, StageItemRow } from "../apply/types";
 import { toStats } from "../attributes";
 import { GameError } from "../errors";
 import { isSameItem } from "../item-identity";
-import { normalizeAffixTriggers } from "../items/affix-model";
 import { allocateEntitySeq } from "./entity-seq";
 
 /**

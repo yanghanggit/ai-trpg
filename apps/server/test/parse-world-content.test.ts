@@ -168,15 +168,18 @@ describe("world content validation", () => {
     };
     expect(() => parseWorldContent(duplicate)).toThrow(/锚点标签重复/);
 
-    const withEffect = {
+    const withUnknownAnchorField = {
       ...TEST_WORLD,
       stages: TEST_WORLD.stages.map((stage, index) =>
         index === 0
-          ? { ...stage, anchors: [{ key: "latch", label: "门闩", effect: { type: "damage" } }] }
+          ? {
+              ...stage,
+              anchors: [{ key: "latch", label: "门闩", unknownField: { type: "damage" } }],
+            }
           : stage,
       ),
     };
-    expect(() => parseWorldContent(withEffect)).toThrow();
+    expect(() => parseWorldContent(withUnknownAnchorField)).toThrow();
   });
 
   it("requires every stage to expose environment updates", () => {
@@ -245,7 +248,6 @@ describe("world content validation", () => {
                   description: "一撮混着石粉的冷灰。",
                   kind: "material" as const,
                   source: "守烬人",
-                  effect: { type: "none" },
                 },
               ],
             }

@@ -24,7 +24,6 @@ function torch(key: string) {
     kind: "weapon" as const,
     count: 1,
     stats: { damage: 7, block: 1 },
-    effect: { type: "damage" as const },
   };
 }
 
@@ -53,7 +52,6 @@ const TWO_ANCHOR_WORLD = {
                   description: "一把没有齿纹的钥匙。",
                   kind: "valuable" as const,
                   count: 1,
-                  effect: { type: "event" as const },
                 },
               ],
             },

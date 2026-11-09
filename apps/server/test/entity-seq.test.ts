@@ -26,7 +26,6 @@ const PICKUP_WORLD = {
                 kind: "weapon" as const,
                 count: 1,
                 stats: { damage: 7, block: 1 },
-                effect: { type: "damage" },
               },
             ],
           })),

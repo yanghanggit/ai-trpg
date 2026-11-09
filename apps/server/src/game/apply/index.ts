@@ -20,13 +20,12 @@ import { applyUse } from "../actions/use";
 import { applyWait } from "../actions/wait";
 import { applyWhisper } from "../actions/whisper";
 import type { AddressLookup } from "../addressing";
-import { type AffixRequest, runAffixEffect } from "../affixes";
+import { type AffixRequest, agentAffixes, runAffixPhase } from "../affixes";
 import { runAppearanceTurn } from "../appearance";
 import { MAX_ACTIONS_PER_TURN, MEMORY_KINDS } from "../constants";
 import { settleDeaths } from "../death";
 import type { DialogueJudge } from "../dialogue-audit";
 import { GameError } from "../errors";
-import { agentAffixes } from "../items/affix-model";
 import { appendMemoryMessages, loadAgentMemory } from "../memory";
 import { auditTurnNameLeaks, nameAuditEnabled, nameAuditSince } from "../name-audit";
 import { upsertSignatureName } from "../persistence/signature-names";
@@ -61,8 +60,8 @@ function dialogueFeedbackMetadata(action: ResolvedAction): {
 /** 动作落账结果：反馈文本 + 静态词缀结算（供 agent 增量阶段使用）。 */
 type ActionResult = {
   feedback: string;
-  staticSettlement?: import("../items/static").StaticSettlement;
-  staticOutcome?: import("../items/settle").StaticOutcome;
+  staticSettlement?: import("../affixes").StaticSettlement;
+  staticOutcome?: import("../affixes").StaticOutcome;
 };
 
 /** 扁平 dispatch，没有分类层。 */
@@ -126,8 +125,8 @@ function affixRequestFor(
   resolved: ResolvedAction,
   actorId: string,
   defaultFeedback: string,
-  staticSettlement: import("../items/static").StaticSettlement | undefined,
-  staticOutcome: import("../items/settle").StaticOutcome | undefined,
+  staticSettlement: import("../affixes").StaticSettlement | undefined,
+  staticOutcome: import("../affixes").StaticOutcome | undefined,
 ): AffixRequest | null {
   if (resolved.kind !== "strike" && resolved.kind !== "use") {
     return null;
@@ -452,7 +451,7 @@ export async function applyActorPlan(
   if (result.affixRequests && result.affixRequests.length > 0) {
     // 每个物品各自结算：一个失败只丢自己的增量，不影响其余，也不影响已提交的默认效果。
     for (const request of result.affixRequests) {
-      await runAffixEffect(db, gameId, request, options.service, options.trace, options.logger);
+      await runAffixPhase(db, gameId, request, options.service, options.trace, options.logger);
     }
   }
   // 换装改的是「别人看到的样子」：在事务外补一次外观推理。

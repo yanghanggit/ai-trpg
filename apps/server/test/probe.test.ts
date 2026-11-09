@@ -45,7 +45,6 @@ const worldWithPickup = {
                 description: "一盏用于探针测试的提灯。",
                 kind: "valuable" as const,
                 count: 1,
-                effect: { type: "event" },
               },
             ],
           })),

@@ -31,7 +31,6 @@ const ITEM_WORLD: World = {
                 name: "测试提灯",
                 description: "测试用的场景道具。",
                 kind: "equipment",
-                effect: { type: "event" },
               },
             ],
           })),

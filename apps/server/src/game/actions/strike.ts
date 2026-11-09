@@ -1,11 +1,10 @@
 import type { TraceContext } from "../../debug/trace";
 import type { ToolDefinition } from "../../llm/types";
 import type { AddressLookup } from "../addressing";
+import { applyStaticItemAction, hasAffixes, type StaticItemActionResult } from "../affixes";
 import { assertNotSelf, resolveEquippedItems } from "../apply/queries";
 import type { ActorWithStageRow, Executor, ResolvedStrike } from "../apply/types";
 import { GameError } from "../errors";
-import { hasAffixes } from "../items/affix-model";
-import { applyStaticItemAction, type StaticItemActionResult } from "../items/settle";
 import type { StrikeAction } from "../types";
 
 /**

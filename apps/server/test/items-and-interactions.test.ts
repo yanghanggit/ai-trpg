@@ -33,7 +33,7 @@ import {
 class AffixDamageService implements ChatCompletionService {
   calls = 0;
   input = "";
-  recordEffect = true;
+  recordWitness = true;
 
   async complete(request: Parameters<ChatCompletionService["complete"]>[0]) {
     this.calls += 1;
@@ -53,12 +53,12 @@ class AffixDamageService implements ChatCompletionService {
         },
       },
     ];
-    if (this.recordEffect) {
+    if (this.recordWitness) {
       toolCalls.push({
         id: randomUUID(),
         type: "function" as const,
         function: {
-          name: "record_effect",
+          name: "record_witness",
           arguments: JSON.stringify({
             affixName: "松脂渗毛",
             targetActorHandle: "提灯修士",
@@ -84,11 +84,11 @@ class AffixDamageService implements ChatCompletionService {
 const TORCH_WITNESS = "{target}的毛皮被火燎得卷曲发黑，空气里浮着焦毛味。";
 
 /** 只记录可见后果，不追加伤害：验证故事效果能独立于数值发生。 */
-class AffixEffectService implements ChatCompletionService {
+class AffixWitnessService implements ChatCompletionService {
   async complete(request: Parameters<ChatCompletionService["complete"]>[0]) {
     return toolCallResult(request, [
       {
-        name: "record_effect",
+        name: "record_witness",
         args: {
           affixName: "松脂渗毛",
           targetActorHandle: "提灯修士",
@@ -101,10 +101,10 @@ class AffixEffectService implements ChatCompletionService {
 }
 
 /** 一次吐出三条后果：验证上限只落两条。 */
-class OverLimitEffectService implements ChatCompletionService {
+class OverLimitWitnessService implements ChatCompletionService {
   async complete(request: Parameters<ChatCompletionService["complete"]>[0]) {
     const record = (text: string) => ({
-      name: "record_effect",
+      name: "record_witness",
       args: { affixName: "松脂渗毛", targetActorHandle: "提灯修士", template: text },
     });
     return toolCallResult(request, [
@@ -646,7 +646,7 @@ describe.skipIf(!testDatabaseUrl)("items and interactions", () => {
       created.game.slug,
       "守烬人",
       { targetActorRef: "提灯修士" },
-      { service: new AffixEffectService() },
+      { service: new AffixWitnessService() },
     );
     expect(attacked.ok).toBe(true);
 
@@ -689,7 +689,7 @@ describe.skipIf(!testDatabaseUrl)("items and interactions", () => {
       created.game.slug,
       "守烬人",
       { targetActorRef: "提灯修士" },
-      { service: new OverLimitEffectService() },
+      { service: new OverLimitWitnessService() },
     );
     expect(attacked.ok).toBe(true);
 

@@ -14,12 +14,12 @@ import {
 } from "../db/schema";
 import { dumpSystemPrompts } from "../debug/prompt-dump";
 import type { Logger } from "../logging";
+import { normalizeAffixTriggers } from "./affixes";
 import type { Executor } from "./apply/types";
 import { toStats } from "./attributes";
 import { assertEdgeShape } from "./edges";
 import { GameError } from "./errors";
 import { resolveAppearance } from "./form";
-import { normalizeAffixTriggers } from "./items/affix-model";
 import {
   buildActorSystemPrompt,
   buildStageSystemPrompt,

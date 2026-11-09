@@ -118,6 +118,7 @@ export const itemSchema = z
     actions: z.array(affixActionKindSchema).optional(),
     source: z.string().min(1).optional(),
   })
+  .strict()
   .superRefine((item, ctx) => {
     if (item.source !== undefined && item.kind !== "material") {
       ctx.addIssue({ code: "custom", message: "只有 material 可以声明 source", path: ["source"] });

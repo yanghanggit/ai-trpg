@@ -11,7 +11,7 @@ import { NAME_MARKER_PATTERN } from "../reference";
 import { findTextLeaks } from "../text-guard";
 
 /**
- * 见证事件：静态 `witness` op 与 agent `record_effect` 共用同一份结构化事实。
+ * 见证事件：静态 `witness` op 与 agent `record_witness` 共用同一份结构化事实。
  *
  * 文本本身不含名字：`{source}` / `{target}` / `{anchor}` / `{item}` 由引擎按收件人
  * 各自渲染，避免推理端把真名烧进别人的记忆。

@@ -1,6 +1,6 @@
+import { normalizeAffixTriggers } from "./affixes";
 import { type Stats, toStats } from "./attributes";
 import { GameError } from "./errors";
-import { normalizeAffixTriggers } from "./items/affix-model";
 import type {
   ActionKind,
   ActorState,

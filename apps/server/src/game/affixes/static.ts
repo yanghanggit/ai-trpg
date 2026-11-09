@@ -2,7 +2,7 @@ import type { ActorRow, ActorWithStageRow, Executor } from "../apply/types";
 import { defenderBlock } from "../combat/attack";
 import { GameError } from "../errors";
 import type { AffixStatRef, AffixTriggers, DamageAmount } from "../types";
-import { type AffixTrigger, staticAffixes } from "./affix-model";
+import { type AffixTrigger, staticAffixes } from "./model";
 
 /** 静态见证：文本与目标由动作层补齐后交给 witness 渲染。 */
 export type StaticWitness = {
