@@ -1,6 +1,6 @@
 import { allowedActionKinds } from "../actions";
 import { usableItemNames } from "../actions/use";
-import { type ActorWithStage, otherActorsInStage } from "../actors";
+import { type ActorWithStage, otherActorsInStage } from "../actor-state";
 import { type AddressLookup, addressLookupFor } from "../addressing";
 import { carriedActionCap, equippedItemActions, isWearable } from "../items";
 import { adjacentStageRefsForActor } from "../plan";

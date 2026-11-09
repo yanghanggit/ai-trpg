@@ -1,5 +1,5 @@
 import type { Database } from "../../db/pool";
-import { findActorByName } from "../actors";
+import { findActorByName } from "../actor-state";
 import { addressLookupFor, refOf } from "../addressing";
 import { getMemoryState } from "../memory";
 import { adjacentStages } from "../neighbors";

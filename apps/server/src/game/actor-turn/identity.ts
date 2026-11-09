@@ -1,4 +1,4 @@
-import type { ActorWithStage } from "../actors";
+import type { ActorWithStage } from "../actor-state";
 import { handleOf } from "../reference";
 import type { GameStateSlice, IdentityBinding } from "../types";
 

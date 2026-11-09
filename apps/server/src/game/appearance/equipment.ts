@@ -1,5 +1,5 @@
 import type { Database } from "../../db/pool";
-import { findActorByName } from "../actors";
+import { findActorByName } from "../actor-state";
 import { bumpGameVersion } from "../apply/messages";
 import { GameError } from "../errors";
 import { equipSlot, unequipSlot } from "../items";

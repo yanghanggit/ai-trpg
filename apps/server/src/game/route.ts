@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
-import type { ActorWithStage } from "./actors";
+import type { ActorWithStage } from "./actor-state";
 import { buildEdgeIndex, type EdgeIndex, type StageEdge } from "./edges";
-import { resolveStageName } from "./stages";
+import { resolveStageName } from "./stage-state";
 import { visitedStageIds } from "./teleport";
 import type { ConnectionState, GameStateSlice, RouteFailure, RouteQuery } from "./types";
 

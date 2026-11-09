@@ -1,7 +1,7 @@
 import type { Database } from "../../db/pool";
 import { parseCall } from "../actions/call";
 import { parseTeleport } from "../actions/teleport";
-import { findActorByRef, stageOfActor } from "../actors";
+import { findActorByRef, stageOfActor } from "../actor-state";
 import type { ApplyActorPlanOptions } from "../apply";
 import { parseSignatureName } from "../plan";
 import { getGameStateSlice } from "../read/game-state";

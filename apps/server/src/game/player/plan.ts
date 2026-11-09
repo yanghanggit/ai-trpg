@@ -1,6 +1,6 @@
 import type { Database } from "../../db/pool";
 import { createTurnTrace, traceEvent } from "../../debug/trace";
-import { findActorByName, findActorByRef, stageOfActor } from "../actors";
+import { findActorByName, findActorByRef, stageOfActor } from "../actor-state";
 import { addressLookupFor } from "../addressing";
 import { type ApplyActorPlanOptions, applyActorPlan } from "../apply";
 import { dialogueContextFor, isDialogueAction } from "../dialogue-audit";

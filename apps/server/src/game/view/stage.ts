@@ -3,7 +3,7 @@ import { isAlive } from "../apply/queries";
 import { getMemoryState } from "../memory";
 import { outgoingStages } from "../neighbors";
 import { getGameStateSlice } from "../read/game-state";
-import { findStage } from "../stages";
+import { findStage } from "../stage-state";
 import { stageLog } from "./log";
 import { gameOf, viewerAnchors } from "./project";
 import type { StageView } from "./types";

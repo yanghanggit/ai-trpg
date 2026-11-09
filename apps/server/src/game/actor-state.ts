@@ -6,6 +6,8 @@ import type { ActorState, GameStateSlice, StageState } from "./types";
 /**
  * actor 的状态层定位：把引用解析成 `ActorState`（连同他所在的场景）。
  *
+ * 与行级读写（`persistence/actors.ts`）分开：这里只看已装载的状态，不碰数据库。
+ *
  * 检索只保留两种语义入口：真名（这里）与签名（`apply/queries.ts`）。
  * id 是控制面的稳定身份，不作为 actor-facing 的检索键——只有 `stageOfActor`
  * 与 god-view 的 `#编号` 走它。

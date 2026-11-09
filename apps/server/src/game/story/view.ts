@@ -1,7 +1,7 @@
-import { findActorByName } from "../actors";
+import { findActorByName } from "../actor-state";
 import { GameError } from "../errors";
 import type { AgentMemoryMessageState, AgentMemoryState } from "../memory";
-import { findStage } from "../stages";
+import { findStage } from "../stage-state";
 import type { GameState } from "../types";
 
 /**

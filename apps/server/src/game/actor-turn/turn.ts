@@ -12,7 +12,7 @@ import {
   TransformersEmbeddingProvider,
   worldCollection,
 } from "../../rag";
-import { findActorByName } from "../actors";
+import { findActorByName } from "../actor-state";
 import { applyActorPlan } from "../apply";
 import { isAlive } from "../apply/queries";
 import { GameError } from "../errors";

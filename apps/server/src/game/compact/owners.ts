@@ -1,6 +1,6 @@
-import { allActors, findActorByName } from "../actors";
+import { allActors, findActorByName } from "../actor-state";
 import type { MemoryOwnerType } from "../memory";
-import { findStage } from "../stages";
+import { findStage } from "../stage-state";
 import type { GameStateSlice } from "../types";
 import type { CompactTarget } from "./types";
 

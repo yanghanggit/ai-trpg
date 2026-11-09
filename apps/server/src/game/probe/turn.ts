@@ -1,10 +1,10 @@
 import type { Database } from "../../db/pool";
 import { ChatCompletionRequest, type ChatMessage } from "../../llm";
-import { findActorByName } from "../actors";
+import { findActorByName } from "../actor-state";
 import { GameError } from "../errors";
 import { loadAgentMemory } from "../memory";
 import { getGameStateSlice } from "../read/game-state";
-import { findStage } from "../stages";
+import { findStage } from "../stage-state";
 import type { GameStateSlice } from "../types";
 import { buildProbeInput } from "./prompt";
 import type { ProbeOptions, ProbeResult, ProbeTarget } from "./types";

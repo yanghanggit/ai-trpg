@@ -1,5 +1,5 @@
 import { ACTION_SUMMARIES } from "../actions";
-import type { ActorWithStage } from "../actors";
+import type { ActorWithStage } from "../actor-state";
 import { refOf } from "../addressing";
 import { isAlive } from "../apply/queries";
 import { STAT_LABELS } from "../attributes";

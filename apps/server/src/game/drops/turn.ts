@@ -3,7 +3,7 @@ import type { Database } from "../../db/pool";
 import { DEFAULT_ERROR_RETRIES } from "../../llm";
 import { agentLoop } from "../../llm/agent-loop";
 import type { ChatCompletionService } from "../../llm/protocol";
-import { findActorByName } from "../actors";
+import { findActorByName } from "../actor-state";
 import { bumpGameVersion } from "../apply/messages";
 import { GameError } from "../errors";
 import { appendStageMemory } from "../observations";

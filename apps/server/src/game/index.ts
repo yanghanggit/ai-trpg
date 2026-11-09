@@ -1,6 +1,6 @@
 export * from "./actions";
+export * from "./actor-state";
 export * from "./actor-turn";
-export * from "./actors";
 export * from "./appearance";
 export * from "./apply";
 export * from "./compact";
@@ -20,8 +20,8 @@ export * from "./read/game-meta";
 export * from "./read/game-state";
 export * from "./rounds";
 export * from "./route";
+export * from "./stage-state";
 export * from "./stage-turn";
-export * from "./stages";
 export * from "./story";
 export * from "./types";
 export * from "./view";

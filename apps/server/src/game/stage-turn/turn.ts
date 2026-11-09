@@ -9,7 +9,7 @@ import { loadAgentMemory } from "../memory";
 import { buildStageInspectTool, buildSubmitStagePlanTool, describeObservedActor } from "../plan";
 import { getGameStateSlice, readTurnDelivery } from "../read/game-state";
 import { DEFAULT_STAGE_MAX_ROUNDS } from "../rounds";
-import { findStage } from "../stages";
+import { findStage } from "../stage-state";
 import type { StageTurnResult } from "../types";
 import { applyStagePlan } from "./arbitrate";
 import { STAGE_ACTION_KINDS, stageTurnContext } from "./context";
