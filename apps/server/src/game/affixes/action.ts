@@ -18,7 +18,7 @@ export type StaticItemActionInput = {
   stage: StageRow;
   item: { name: string; stats: Stats; affixes: AffixTriggers };
   trigger: AffixTrigger;
-  action: "strike" | "use";
+  action: "strike" | "cleave" | "use";
   target?: ActorRow;
   targetAnchor?: string;
   now: Date;
@@ -52,7 +52,8 @@ export async function applyStaticItemAction(
   const lines: string[] = [];
   let outcome: StaticOutcome = { dealtDamage: 0, targetDied: false };
 
-  if (action === "strike" || settlement.hasDamageOps) {
+  // strike 与 cleave 恒出命中：单体挥击与横扫都是“打了”，use 只在有 damage op 时出命中。
+  if (action === "strike" || action === "cleave" || settlement.hasDamageOps) {
     if (!target) {
       throw new GameError("invalid_action", "伤害词缀需要角色目标");
     }

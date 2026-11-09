@@ -7,7 +7,7 @@ import { appendDamageObservations, appendStageMemory } from "../observations";
 import { damageActor } from "../persistence/actors";
 
 /** 一次命中属于哪个动作；只影响文案，不影响结算。 */
-export type HitAction = "strike" | "brawl" | "use";
+export type HitAction = "strike" | "cleave" | "brawl" | "use";
 
 /** 一次命中落账后的实际结果；供需要知道“打掉多少、是否打死”的上层使用。 */
 export type HitOutcome = {

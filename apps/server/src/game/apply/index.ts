@@ -7,6 +7,7 @@ import type { Logger } from "../../logging";
 import { applyAnnounce } from "../actions/announce";
 import { applyBrawl } from "../actions/brawl";
 import { applyCall } from "../actions/call";
+import { applyCleave } from "../actions/cleave";
 import { applyEquip } from "../actions/equip";
 import { applyGive } from "../actions/give";
 import { applyMove } from "../actions/move";
@@ -100,6 +101,9 @@ async function applyResolvedAction(
     }
     case "brawl":
       return plain(await applyBrawl(executor, gameId, actorRow, resolved, now, address, trace));
+    case "cleave":
+      // 横扫逐目标各结算一次静态词缀；agent 词缀阶段暂不跟进（见 `actions/cleave.ts`）。
+      return plain(await applyCleave(executor, gameId, actorRow, resolved, now, address, trace));
     case "steal":
       return plain(await applySteal(executor, gameId, actorRow, resolved, now, address, trace));
     case "give":

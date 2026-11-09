@@ -16,6 +16,7 @@ import { ACTION_SUMMARIES, allowedActionKinds } from "./actions";
 import { buildAnnounceTool, parseAnnounce } from "./actions/announce";
 import { buildBrawlTool, parseBrawl } from "./actions/brawl";
 import { buildCallTool, parseCall } from "./actions/call";
+import { buildCleaveTool, parseCleave } from "./actions/cleave";
 import { buildEquipTool, parseEquip } from "./actions/equip";
 import { buildGiveTool, parseGive } from "./actions/give";
 import { buildMoveTool, parseMove } from "./actions/move";
@@ -39,7 +40,7 @@ import {
 } from "./constants";
 import { isPlayerControlled } from "./control";
 import { GameError } from "./errors";
-import { equippedItemActions, isWearable } from "./items";
+import { equippedItemActions, equippedItems, isWearable } from "./items";
 import { loadAgentMemory } from "./memory";
 import {
   adjacentStageRefsForActor,
@@ -118,10 +119,14 @@ export function buildActorTurnInput(state: GameStateSlice, current: ActorWithSta
   const allowed = allowedActionKinds(current.actor.actions, equippedItemActions(current.actor));
   const actionList = allowed.map((kind) => `${kind}（${ACTION_SUMMARIES[kind]}）`).join("、");
   // 已穿戴物品不能 use 是动作自身的约束；用哪个动作替代属于流程，放在任务提示词。
+  // 武器的两种攻击是平级的（单体挥击 / 横扫），提示词只列本次真的能用的那个。
+  const weaponAttackKinds = (["strike", "cleave"] as const).filter((kind) =>
+    allowed.includes(kind),
+  );
   const useAlternatives = [
-    ...(allowed.includes("strike") ? ["武器用 strike"] : []),
+    ...(weaponAttackKinds.length > 0 ? [`武器用 ${weaponAttackKinds.join(" 或 ")}`] : []),
     ...(allowed.includes("unequip")
-      ? [allowed.includes("strike") ? "其余先 unequip" : "先 unequip"]
+      ? [weaponAttackKinds.length > 0 ? "其余先 unequip" : "先 unequip"]
       : []),
   ];
   const useFlowHint = allowed.includes("use")
@@ -287,6 +292,9 @@ export async function runNpcTurn(
     otherActors.map((actor) => handleOf(actor.signature.seq)),
   );
   const submitTool = buildSubmitPlanTool();
+  // 横扫的目标上限属于武器：工具形状按当前穿戴的武器给，没武器时回落到 1（也就不会授权）。
+  const equippedWeapon = equippedItems(current.actor).find(({ slot }) => slot === "weapon");
+  const cleaveMaxTargets = equippedWeapon?.item.maxTargets ?? 1;
 
   /** 十二个动作的工具与参数解析器；按 kind 平铺，按权限过滤后使用。 */
   const actionTools: Record<ActionKind, ToolDefinition> = {
@@ -298,6 +306,7 @@ export async function runNpcTurn(
     teleport: buildTeleportTool(),
     wait: buildWaitTool(),
     strike: buildStrikeTool(targets),
+    cleave: buildCleaveTool(targets, cleaveMaxTargets),
     brawl: buildBrawlTool(targets),
     steal: buildStealTool(targets),
     give: buildGiveTool(targets),
@@ -323,6 +332,7 @@ export async function runNpcTurn(
     teleport: parseTeleport,
     wait: () => parseWait(),
     strike: parseStrike,
+    cleave: parseCleave,
     brawl: parseBrawl,
     steal: parseSteal,
     give: parseGive,

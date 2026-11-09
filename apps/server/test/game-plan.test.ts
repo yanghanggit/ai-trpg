@@ -3,6 +3,7 @@ import { assertActionAllowed } from "../src/game/actions";
 import { buildAnnounceTool, parseAnnounce } from "../src/game/actions/announce";
 import { buildBrawlTool, parseBrawl } from "../src/game/actions/brawl";
 import { buildCallTool, parseCall } from "../src/game/actions/call";
+import { buildCleaveTool, parseCleave } from "../src/game/actions/cleave";
 import { buildEquipTool, parseEquip } from "../src/game/actions/equip";
 import { buildGiveTool, parseGive } from "../src/game/actions/give";
 import { buildMoveTool, parseMove } from "../src/game/actions/move";
@@ -62,6 +63,17 @@ describe("action tools", () => {
     });
     expect(buildWaitTool().function.parameters.required).toEqual([]);
     expect(buildStrikeTool(targets).function.parameters.required).toEqual(["targetActorHandle"]);
+    // 横扫是列表入参：required 只有 targets，上限由武器给出的 maxTargets 写进形状。
+    expect(buildCleaveTool(targets, 3).function.parameters.required).toEqual(["targets"]);
+    const cleaveTargets = (maxTargets: number) =>
+      (
+        buildCleaveTool(targets, maxTargets).function.parameters.properties as Record<
+          string,
+          unknown
+        >
+      ).targets;
+    expect(cleaveTargets(3)).toMatchObject({ type: "array", minItems: 1, maxItems: 3 });
+    expect(cleaveTargets(2)).toMatchObject({ maxItems: 2 });
     expect(buildBrawlTool(targets).function.parameters.required).toEqual(["targetActorHandle"]);
     expect(buildStealTool(targets).function.parameters.required).toEqual([
       "targetActorHandle",
@@ -224,6 +236,14 @@ describe("action parsers", () => {
       kind: "brawl",
       targetActorHandle: "提灯修士",
     });
+    // 横扫接收目标列表；数量上限不在语法层，由武器的 maxTargets 在结算端复核。
+    expect(parseCleave({ targets: [" 提灯修士 ", "#3"] })).toEqual({
+      kind: "cleave",
+      targetActorHandles: ["提灯修士", "#3"],
+    });
+    expect(() => parseCleave({ targets: [] })).toThrow(/targets/);
+    expect(() => parseCleave({ targets: ["提灯修士", "  "] })).toThrow(/targets/);
+    expect(() => parseCleave({ targetActorHandle: "提灯修士" })).toThrow(/targets/);
     expect(parseEquip({ itemName: " 裂齿短刃 ", slot: " weapon " })).toEqual({
       kind: "equip",
       itemName: "裂齿短刃",
@@ -335,6 +355,7 @@ describe("read-only descriptions", () => {
           description: "刃口崩了三处。",
           kind: "weapon" as const,
           count: 1,
+          maxTargets: 1,
           stats: { maxHp: 0, strength: 0, wisdom: 0, agility: 0, damage: 3, block: 0 },
           affixes: {
             strike: [
@@ -379,6 +400,7 @@ describe("read-only descriptions", () => {
           kind: "material" as const,
           source: "提灯修士",
           count: 2,
+          maxTargets: 1,
           stats: { maxHp: 0, strength: 0, wisdom: 0, agility: 0, damage: 0, block: 0 },
           affixes: {},
           actions: [],

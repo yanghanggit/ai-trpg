@@ -162,6 +162,7 @@ export type Affix = {
 /** 物品按触发场景声明的词缀；空列表等于该触发不可用。 */
 export type AffixTriggers = {
   strike?: readonly Affix[];
+  cleave?: readonly Affix[];
   use?: readonly Affix[];
 };
 
@@ -216,6 +217,17 @@ export type StrikeAction = {
   targetActorHandle: string;
 };
 
+/**
+ * 用武器同时攻击同场景的多个角色；武器隐式取自 `equipment.weapon`，且必须提供 `cleave`。
+ *
+ * 目标是列表，但动作层不自己定上限：一次能命中几个由武器的 `maxTargets` 决定，
+ * 结算端按每把武器静态复核。
+ */
+export type CleaveAction = {
+  kind: "cleave";
+  targetActorHandles: string[];
+};
+
 /** 用身体攻击同场景角色；不读物品，伤害只来自自身 stats。 */
 export type BrawlAction = {
   kind: "brawl";
@@ -268,7 +280,7 @@ export type UnequipAction = {
   slot: EquipmentSlot;
 };
 
-/** 一次 actor 行动；十五个具体动作平级，不再有中间分类层。 */
+/** 一次 actor 行动；十六个具体动作平级，不再有中间分类层。 */
 export type ActorAction =
   | SayAction
   | WhisperAction
@@ -278,6 +290,7 @@ export type ActorAction =
   | TeleportAction
   | WaitAction
   | StrikeAction
+  | CleaveAction
   | BrawlAction
   | StealAction
   | GiveAction
@@ -378,15 +391,20 @@ export type ItemBaseState = {
   description: string;
   kind: ItemKind;
   count: number;
-  /** 按触发场景声明的词缀；`strike` / `use` 各自独立。 */
+  /** 按触发场景声明的词缀；`strike` / `cleave` / `use` 各自独立。 */
   affixes: AffixTriggers;
   /** 物品能提供的动作；穿戴中才借给角色。 */
   actions: readonly ActionKind[];
   /** 归一化后的完整属性；五种物品都携带，未用到的字段为 0。 */
   stats: Stats;
+  /**
+   * `cleave` 一次最多命中的目标数；只有武器会大于 1，其余大类恒为 1。
+   * `strike` 不读它，单体性由动作自己保证。
+   */
+  maxTargets: number;
 };
 
-/** 武器：`strike` 读它的 `damage`；穿戴后 `block` 与其它槽一样计入减伤。 */
+/** 武器：`strike` 与 `cleave` 读它的 `damage`；`cleave` 还读 `maxTargets`。穿戴后 `block` 与其它槽一样计入减伤。 */
 export type WeaponState = ItemBaseState & { kind: "weapon" };
 
 /** 装备：不能用于出手，但穿戴后 `block` 计入减伤。 */

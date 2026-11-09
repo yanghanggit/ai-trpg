@@ -152,6 +152,8 @@ export type ItemDefinition = {
   count?: number;
   /** 属性；可省略，未写出的字段按 0 归一。 */
   stats?: Partial<Stats>;
+  /** `cleave` 一次最多命中的目标数；只有 weapon 可声明，省略时物化为 1。 */
+  maxTargets?: number;
   /** 按触发场景声明的词缀；可省略，创建时归一化为空对象。 */
   affixes?: AffixTriggers;
   /** 物品能提供的动作；穿戴中才借给角色。可省略，创建时归一化为空数组。 */

@@ -80,6 +80,7 @@ function itemValues(item: ItemDefinition, seq: number) {
     source: item.source ?? null,
     count: item.count ?? 1,
     stats: toStats(item.stats),
+    maxTargets: item.maxTargets ?? 1,
     affixes: normalizeAffixTriggers(item.affixes),
     actions: [...(item.actions ?? [])],
   };

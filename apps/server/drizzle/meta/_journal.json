@@ -15,6 +15,13 @@
       "when": 1794198254197,
       "tag": "0001_pale_brother_voodoo",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1794203400805,
+      "tag": "0002_smiling_albert_cleary",
+      "breakpoints": true
     }
   ]
 }

@@ -118,10 +118,10 @@ ${unique.join("\n")}`;
 /**
  * 伤害观察的输入：数值由结算方给出，文案只负责按行动与视角取舍。
  *
- * `strike` / `brawl` / `use` 都会造成伤害，但不是同一件事：标题与措词一律跟着动作走。
+ * `strike` / `cleave` / `brawl` / `use` 都会造成伤害，但不是同一件事：标题与措词一律跟着动作走。
  */
 export type DamageObservation = {
-  action: Extract<ActionKind, "strike" | "brawl" | "use">;
+  action: Extract<ActionKind, "strike" | "cleave" | "brawl" | "use">;
   attacker: ActorRef;
   target: ActorRef & { maxHp: number };
   /** 本次动作用到的物品名；`strike` 必填，`use` 省略表示空手。 */
@@ -158,12 +158,19 @@ export function renderAppearanceChange(
 
 /**
  * 伤害行动的动作短语。句式由动作锁定，观察者、落点与视角都不改变它：
- * `strike` 的主体是「挥击」，武器只是括注；`brawl` 是「肉搏」；`use` 的主体是「使用道具」。
+ * `strike` 的主体是「挥击」，`cleave` 是「顺劈」，武器只是括注；`brawl` 是「肉搏」；
+ * `use` 的主体是「使用道具」。
  */
-export function damageActionText(action: "strike" | "brawl" | "use", itemName?: string): string {
+export function damageActionText(
+  action: "strike" | "cleave" | "brawl" | "use",
+  itemName?: string,
+): string {
   const name = itemName === undefined ? undefined : itemName;
   if (action === "strike") {
     return `挥击${name ? `（使用${name}）` : ""}`;
+  }
+  if (action === "cleave") {
+    return `顺劈${name ? `（使用${name}）` : ""}`;
   }
   if (action === "brawl") {
     return "肉搏";
@@ -190,7 +197,7 @@ export function renderDamage(
   const attackerRef = mentionOf(attackerAddress);
   const targetRef = mentionOf(targetAddress);
   const damageText = via === "affix" ? `词缀追加${damage}点伤害` : `造成${damage}点伤害`;
-  // 挥击与肉搏都是战斗；使用道具是另一件事。
+  // 挥击、顺劈与肉搏都是战斗；使用道具是另一件事。
   const heading =
     action === "use"
       ? { target: "# 你被使用道具", bystander: "# 场景动态" }

@@ -100,7 +100,7 @@ export function renderWitness(
 export type AppendWitnessInput = {
   executor: Executor;
   gameId: string;
-  action: "strike" | "use";
+  action: "strike" | "cleave" | "use";
   stage: StageRow;
   source: ActorRow;
   itemName?: string;

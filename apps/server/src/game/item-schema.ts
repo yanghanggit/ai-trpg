@@ -21,7 +21,7 @@ const ITEM_KINDS = [
 
 const itemKindSchema = z.enum(ITEM_KINDS);
 
-const affixActionKindSchema = z.enum(["strike"] satisfies readonly ActionKind[]);
+const affixActionKindSchema = z.enum(["strike", "cleave"] satisfies readonly ActionKind[]);
 
 /** 静态词缀能引用的属性全集；结算时从当前 actor / item 行读取。 */
 const statRefValues = [
@@ -102,6 +102,7 @@ const affixListSchema = z.array(affixDefinitionSchema);
 const affixTriggersSchema = z
   .object({
     strike: affixListSchema.optional(),
+    cleave: affixListSchema.optional(),
     use: affixListSchema.optional(),
   })
   .strict();
@@ -114,6 +115,8 @@ export const itemSchema = z
     kind: itemKindSchema,
     count: z.number().int().positive().optional(),
     stats: statsSchema.optional(),
+    /** `cleave` 一次最多命中的目标数；只有武器可声明，省略时物化为 1。 */
+    maxTargets: z.number().int().min(1).optional(),
     affixes: affixTriggersSchema.optional(),
     actions: z.array(affixActionKindSchema).optional(),
     source: z.string().min(1).optional(),
@@ -127,12 +130,39 @@ export const itemSchema = z
     if (item.actions !== undefined && item.actions.length > 0 && item.kind !== "weapon") {
       ctx.addIssue({ code: "custom", message: "只有 weapon 可以声明 actions", path: ["actions"] });
     }
-    // strike 的伤害来自静态词缀：没有 strike 列表就会变成“能挥击但打不出伤害”。
-    if (item.actions?.includes("strike") && (item.affixes?.strike?.length ?? 0) === 0) {
+    // 目标数是武器挥击的属性，不是可穿戴物的通用属性。
+    if (item.maxTargets !== undefined && item.kind !== "weapon") {
       ctx.addIssue({
         code: "custom",
-        message: "声明 strike 的武器必须声明 affixes.strike",
-        path: ["affixes", "strike"],
+        message: "只有 weapon 可以声明 maxTargets",
+        path: ["maxTargets"],
+      });
+    }
+    // 每个攻击动作都自带一套词缀：没有对应列表就会变成“能打但打不出伤害”。
+    // 无条件是两回事：挥击与横扫各自声明，互不借用。
+    for (const trigger of ["strike", "cleave"] as const) {
+      if (item.actions?.includes(trigger) && (item.affixes?.[trigger]?.length ?? 0) === 0) {
+        ctx.addIssue({
+          code: "custom",
+          message: `声明 ${trigger} 的武器必须声明 affixes.${trigger}`,
+          path: ["affixes", trigger],
+        });
+      }
+    }
+    // 单体挥击用 strike；cleave 至少两个目标才有意义，上限也必须真的容得下两个。
+    if (item.actions?.includes("cleave") && (item.maxTargets ?? 1) < 2) {
+      ctx.addIssue({
+        code: "custom",
+        message: "声明 cleave 的武器必须声明 maxTargets ≥ 2",
+        path: ["maxTargets"],
+      });
+    }
+    // 没有 cleave 的武器写多目标上限只会误导内容作者：strike 永远是单体。
+    if (!item.actions?.includes("cleave") && (item.maxTargets ?? 1) > 1) {
+      ctx.addIssue({
+        code: "custom",
+        message: "maxTargets > 1 需要同时声明 cleave",
+        path: ["maxTargets"],
       });
     }
   });

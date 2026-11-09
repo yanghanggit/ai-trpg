@@ -4,6 +4,7 @@ import type {
   AnnounceAction,
   BrawlAction,
   CallAction,
+  CleaveAction,
   EquipAction,
   GiveAction,
   MessageVisibility,
@@ -110,6 +111,15 @@ export type ResolvedStrike = {
   item: ItemRow;
 };
 
+export type ResolvedCleave = {
+  kind: "cleave";
+  action: CleaveAction;
+  stage: StageRow;
+  /** 已按武器 `maxTargets` 校验过的目标；顺序即结算顺序。 */
+  targets: ActorRow[];
+  item: ItemRow;
+};
+
 export type ResolvedBrawl = {
   kind: "brawl";
   action: BrawlAction;
@@ -176,6 +186,7 @@ export type ResolvedAction =
   | ResolvedTeleport
   | ResolvedWait
   | ResolvedStrike
+  | ResolvedCleave
   | ResolvedBrawl
   | ResolvedSteal
   | ResolvedGive

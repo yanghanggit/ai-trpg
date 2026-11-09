@@ -1,6 +1,7 @@
 import { allowedActionKinds, assertActionAllowed } from "../actions";
 import { resolveBrawl } from "../actions/brawl";
 import { resolveCall } from "../actions/call";
+import { resolveCleave } from "../actions/cleave";
 import { resolveEquip } from "../actions/equip";
 import { resolveGive } from "../actions/give";
 import { resolveMove } from "../actions/move";
@@ -19,6 +20,7 @@ import { assertNoSystemReference } from "../text-guard";
 import type { ActorPlan } from "../types";
 import { findSignatureByHandleInWorld, resolveEquippedItems, resolveVisibleActor } from "./queries";
 import type {
+  ActorRow,
   ActorWithStageRow,
   Executor,
   ResolvedAction,
@@ -122,6 +124,15 @@ export async function resolvePlan(
           ),
         );
         break;
+      case "cleave": {
+        // 目标逐个解析：解析本身就保证了每个目标都在当前场景，且未跨 move 变更。
+        const targets: ActorRow[] = [];
+        for (const handle of action.targetActorHandles) {
+          targets.push(await visibleTarget(handle));
+        }
+        resolved.push(await resolveCleave(executor, stage, actorRow, action, targets));
+        break;
+      }
       case "steal":
         resolved.push(
           await resolveSteal(

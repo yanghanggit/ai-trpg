@@ -306,4 +306,89 @@ describe("world content validation", () => {
     };
     expect(() => parseWorldContent(world)).toThrow();
   });
+
+  describe("cleave target cap", () => {
+    /** 横扫自己的词缀：与挥击各声明一套，互不借用。 */
+    const CLEAVE_AFFIX = [
+      {
+        name: "横扫",
+        content: "刀锋横过",
+        ops: [{ kind: "damage" as const, amount: 2 }],
+      },
+    ];
+
+    /** 守住门廊那把短刃：属性可直接打补丁，别处不动。 */
+    const withBlade = (patch: Record<string, unknown>) => ({
+      ...TEST_WORLD,
+      actors: TEST_WORLD.actors.map((actor) =>
+        actor.name === "守烬人"
+          ? {
+              ...actor,
+              items: actor.items.map((item) =>
+                item.key === "cracked-blade" ? { ...item, ...patch } : item,
+              ),
+            }
+          : actor,
+      ),
+    });
+
+    const withCleave = (patch: Record<string, unknown>) => {
+      const blade = withBlade(patch);
+      return {
+        ...blade,
+        actors: blade.actors.map((actor) =>
+          actor.name === "守烬人"
+            ? {
+                ...actor,
+                items: actor.items.map((item) =>
+                  item.key === "cracked-blade"
+                    ? { ...item, affixes: { ...item.affixes, cleave: CLEAVE_AFFIX } }
+                    : item,
+                ),
+              }
+            : actor,
+        ),
+      };
+    };
+
+    it("accepts cleave together with affixes.cleave and a target cap", () => {
+      const world = parseWorldContent(withCleave({ actions: ["strike", "cleave"], maxTargets: 3 }));
+      const blade = world.actors
+        .flatMap((actor) => actor.items)
+        .find((item) => item.key === "cracked-blade");
+      expect(blade?.actions).toEqual(["strike", "cleave"]);
+      expect(blade?.maxTargets).toBe(3);
+      expect(blade?.affixes?.cleave?.[0]?.name).toBe("横扫");
+    });
+
+    it("requires a cap of at least two for cleave", () => {
+      expect(() => parseWorldContent(withCleave({ actions: ["strike", "cleave"] }))).toThrow(
+        /maxTargets/,
+      );
+      expect(() =>
+        parseWorldContent(withCleave({ actions: ["strike", "cleave"], maxTargets: 1 })),
+      ).toThrow(/maxTargets/);
+    });
+
+    it("requires cleave and maxTargets to justify each other", () => {
+      // 没有 cleave 却写多目标上限：内容是写错了，不是留个伏笔。
+      expect(() => parseWorldContent(withCleave({ maxTargets: 3 }))).toThrow(/maxTargets/);
+      // 横扫不借用挥击词缀：没有 affixes.cleave 就没有伤害来源。
+      expect(() =>
+        parseWorldContent(withBlade({ actions: ["strike", "cleave"], maxTargets: 2 })),
+      ).toThrow(/affixes.cleave/);
+    });
+
+    it("keeps the target cap on weapons", () => {
+      const broken = {
+        ...TEST_WORLD,
+        actors: TEST_WORLD.actors.map((actor) =>
+          actor.name === "提灯修士"
+            ? { ...actor, items: actor.items.map((item) => ({ ...item, maxTargets: 2 })) }
+            : actor,
+        ),
+      };
+      expect(() => parseWorldContent(broken)).toThrow(/只有 weapon 可以声明 maxTargets/);
+    });
+  });
 });

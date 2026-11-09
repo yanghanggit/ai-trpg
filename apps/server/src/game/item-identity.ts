@@ -12,6 +12,8 @@ export type ItemIdentity = {
   name: string;
   description: string;
   stats: unknown;
+  /** `cleave` 的目标上限跟着物品走：两件只有上限不同的武器不同价。 */
+  maxTargets?: number | null;
   affixes: unknown;
   actions: unknown;
   source: string | null;
@@ -44,6 +46,8 @@ export function isSameItem(a: ItemIdentity, b: ItemIdentity): boolean {
     a.description === b.description &&
     a.source === b.source &&
     stableJson(a.stats) === stableJson(b.stats) &&
+    // 旧行没有 maxTargets（null / undefined）与显式 1 等价。
+    (a.maxTargets ?? 1) === (b.maxTargets ?? 1) &&
     stableJson(a.affixes) === stableJson(b.affixes) &&
     stableJson(actionsOf(a.actions)) === stableJson(actionsOf(b.actions))
   );

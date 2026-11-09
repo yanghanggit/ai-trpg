@@ -25,6 +25,7 @@ export function toItemState(row: {
   stats: Stats;
   affixes?: AffixTriggers;
   actions?: readonly ActionKind[];
+  maxTargets?: number;
 }): ItemState {
   const base = {
     id: row.id,
@@ -36,6 +37,8 @@ export function toItemState(row: {
     affixes: normalizeAffixTriggers(row.affixes),
     actions: row.actions ?? [],
     stats: toStats(row.stats),
+    // 旧数据没有这一列时按 1 归一：单体挥击是默认形态。
+    maxTargets: row.maxTargets ?? 1,
   };
   switch (row.kind) {
     case "weapon":
