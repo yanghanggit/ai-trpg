@@ -2,8 +2,8 @@ import assert from "node:assert/strict";
 import type { ActorWithStage } from "./actor-state";
 import { buildEdgeIndex, type EdgeIndex, type StageEdge } from "./edges";
 import { resolveStageName } from "./stage-state";
-import { visitedStageIds } from "./teleport";
 import type { ConnectionState, GameStateSlice, RouteFailure, RouteQuery } from "./types";
+import { visitedStageIds } from "./visit-state";
 
 /**
  * 路线回忆：从 A 到 B 怎么走，结论写进 actor 自己的记忆。

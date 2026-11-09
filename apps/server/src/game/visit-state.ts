@@ -3,6 +3,14 @@ import type { ActorState, GameStateSlice, StageState } from "./types";
 type StageIdIndex = Map<string, Set<string>>;
 
 /**
+ * 到访的状态层视图：谁去过哪些场景，以及由此派生出的场景认知。
+ *
+ * 与行级读写（`persistence/visits.ts`）分开：这里只读已装载的 `state.visits`，不碰数据库。
+ * 到访记录是场景认知的唯一来源——名字、地图、传送候选提示都从这里取；但它不是通行证，
+ * 各自的权限规则留在各自的行动里（`move` 看邻接边，`teleport` 只看真名能否对应到场景）。
+ */
+
+/**
  * 每份状态快照的「actor → 去过哪些场景」索引。
  *
  * 用 WeakMap 挂在 state 对象上：索引随快照一起被回收，不需要任何失效逻辑，也不可能读到

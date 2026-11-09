@@ -12,8 +12,8 @@ import {
 } from "../plan";
 import { isHandleRef } from "../reference";
 import { DEFAULT_ACTOR_MAX_ROUNDS } from "../rounds";
-import { visitedTeleportTargetsFor } from "../teleport";
 import type { GameStateSlice } from "../types";
+import { visitedTeleportTargetsFor } from "../visit-state";
 import { type ActorTurnContext, actorTurnContext } from "./context";
 
 /**

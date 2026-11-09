@@ -5,10 +5,10 @@ import { STAT_LABELS } from "../attributes";
 import { adjacentStageNames, adjacentStages, sealedStages } from "../neighbors";
 import { handleOf } from "../reference";
 import { findStageByName } from "../stage-state";
-import { visitedStageIds, visitedStagesForActor, visitedTeleportTargetsFor } from "../teleport";
 import { sanitizeActorFacingText } from "../text-guard";
 import type { ActorState, GameStateSlice, ItemState, StageAnchorState, StageState } from "../types";
 import { EQUIPMENT_SLOT_LABELS, EQUIPMENT_SLOTS } from "../types";
+import { visitedStageIds, visitedStagesForActor, visitedTeleportTargetsFor } from "../visit-state";
 
 /** 场景锚点的统一渲染：stage 与 actor 都看同一份公开列表，物品作为子项挂在锚点下。 */
 export function describeStageAnchors(anchors: readonly StageAnchorState[]): string {

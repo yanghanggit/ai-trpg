@@ -6,7 +6,7 @@ import { adjacentStages } from "../neighbors";
 import { sealedVisitedStagesForActor } from "../plan";
 import { getGameStateSlice } from "../read/game-state";
 import { handleOf } from "../reference";
-import { visitedStagesForActor, visitedTeleportTargetsFor } from "../teleport";
+import { visitedStagesForActor, visitedTeleportTargetsFor } from "../visit-state";
 import { actorLog } from "./log";
 import { gameOf, viewerAnchors } from "./project";
 import type { ActorView, ViewerAddress } from "./types";
