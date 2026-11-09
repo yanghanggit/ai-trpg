@@ -9,23 +9,14 @@ const GAME_DIR = fileURLToPath(new URL("../src/game", import.meta.url));
  * 允许直接 import drizzle / 表定义的模块：存取层与编排层。
  *
  * - `apply/`：解析动作用的只读查询、事务边界、消息与版本号；
- * - `persistence/`：具名读写原语；
+ * - `persistence/`：具名读写原语，含玩家接管关系；
  * - `memory/` / `compact/`：记忆读写（行映射、存储、注入文本）与压缩；
- * - `control.ts`：玩家接管关系；
  * - `create-game/`：建局（内容 → 行的物化）；`read/`：状态与事件流读取。
  *
  * 玩法模块（`actions/`、`items/`、`combat/`、`stage`/`world` 回合、死亡、外观、观察）不在名单里，
  * 它们只调用具名函数。
  */
-const ALLOWED = [
-  "apply/",
-  "persistence/",
-  "read/",
-  "memory/",
-  "compact/",
-  "control.ts",
-  "create-game/",
-];
+const ALLOWED = ["apply/", "persistence/", "read/", "memory/", "compact/", "create-game/"];
 
 function listTsFiles(dir: string, prefix = ""): string[] {
   return readdirSync(dir, { withFileTypes: true }).flatMap((entry) => {

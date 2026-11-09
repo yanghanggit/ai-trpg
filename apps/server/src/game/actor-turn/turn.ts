@@ -15,9 +15,9 @@ import {
 import { findActorByName } from "../actors";
 import { applyActorPlan } from "../apply";
 import { isAlive } from "../apply/queries";
-import { isPlayerControlled } from "../control";
 import { GameError } from "../errors";
 import { loadAgentMemory } from "../memory";
+import { isPlayerControlled } from "../persistence/actor-controls";
 import {
   buildActorLookTool,
   buildKnowledgeTool,

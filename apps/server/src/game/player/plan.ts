@@ -3,10 +3,10 @@ import { createTurnTrace, traceEvent } from "../../debug/trace";
 import { findActorByName, findActorByRef, stageOfActor } from "../actors";
 import { addressLookupFor } from "../addressing";
 import { type ApplyActorPlanOptions, applyActorPlan } from "../apply";
-import { isPlayerControlled } from "../control";
 import { dialogueContextFor, isDialogueAction } from "../dialogue-audit";
 import { GameError } from "../errors";
 import { MEMORY_KINDS } from "../memory/kinds";
+import { isPlayerControlled } from "../persistence/actor-controls";
 import { getGameStateSlice, readTurnDelivery } from "../read/game-state";
 import type {
   ActorAction,
