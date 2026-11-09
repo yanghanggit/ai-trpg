@@ -18,7 +18,7 @@ import { buildUnequipTool, parseUnequip } from "../src/game/actions/unequip";
 import { buildUseTool, parseUse, usableItemNames } from "../src/game/actions/use";
 import { buildWaitTool, parseWait } from "../src/game/actions/wait";
 import { buildWhisperTool, parseWhisper } from "../src/game/actions/whisper";
-import { formatForm } from "../src/game/form";
+import { formatForm } from "../src/game/appearance/form";
 import { toItemState } from "../src/game/items";
 import {
   describeEquipment,

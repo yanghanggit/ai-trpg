@@ -1,5 +1,6 @@
 import { ACTION_SUMMARIES } from "../actions";
 import type { ActorWithStage } from "../actor-state";
+import { visitedTeleportTargetsFor } from "../actor-state";
 import { isHandleRef, refOf } from "../addressing";
 import { isAlive } from "../apply/queries";
 import { STAT_LABELS } from "../attributes";
@@ -12,7 +13,6 @@ import {
   sealedVisitedStageRefsForActor,
 } from "../plan";
 import type { GameStateSlice } from "../types";
-import { visitedTeleportTargetsFor } from "../visit-state";
 import { type ActorTurnContext, actorTurnContext } from "./context";
 
 /**

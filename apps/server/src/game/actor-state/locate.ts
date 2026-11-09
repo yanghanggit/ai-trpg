@@ -1,12 +1,13 @@
 import assert from "node:assert/strict";
-import { isHandleRef, parseHandle } from "./addressing";
-import { GameError } from "./errors";
-import type { ActorState, GameStateSlice, StageState } from "./types";
+import { isHandleRef, parseHandle } from "../addressing";
+import { GameError } from "../errors";
+import type { ActorState, GameStateSlice, StageState } from "../types";
 
 /**
  * actor 的状态层定位：把引用解析成 `ActorState`（连同他所在的场景）。
  *
  * 与行级读写（`persistence/actors.ts`）分开：这里只看已装载的状态，不碰数据库。
+ * 包里两件事：这里认「哪一个 actor」，`visit.ts` 记「他去过哪些场景」。
  *
  * 检索只保留两种语义入口：真名（这里）与签名（`apply/queries.ts`）。
  * id 是控制面的稳定身份，不作为 actor-facing 的检索键——只有 `stageOfActor`

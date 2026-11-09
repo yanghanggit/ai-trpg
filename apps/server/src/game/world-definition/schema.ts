@@ -1,8 +1,8 @@
 import { z } from "zod";
 import { INNATE_ACTION_KINDS } from "../actions";
 import { NAME_MARKER_PATTERN } from "../addressing";
+import { isValidForm } from "../appearance/form";
 import { statsSchema } from "../attributes";
-import { isValidForm } from "../form";
 import { equipmentSchema, itemSchema } from "../item-schema";
 import { MAX_STAGE_ANCHORS } from "../limits";
 import type { StageActionKind, WorldActionKind, WorldFunction } from "../types";

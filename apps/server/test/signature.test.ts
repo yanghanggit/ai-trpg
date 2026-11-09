@@ -7,7 +7,7 @@ import { resetDomainData, seedDemoData } from "../src/db/maintenance";
 import { runMigrations } from "../src/db/migrate";
 import { appearances } from "../src/db/schema";
 import { createGame, getGameState } from "../src/game";
-import { resolveAppearance } from "../src/game/form";
+import { resolveAppearance } from "../src/game/appearance/form";
 import { recordAppearance } from "../src/game/persistence/appearances";
 import { TEST_WORLD } from "./test-world";
 

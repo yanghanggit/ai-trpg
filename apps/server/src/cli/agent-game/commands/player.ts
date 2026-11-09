@@ -33,9 +33,9 @@ import {
   releaseActorControl,
   takeActorControl,
 } from "../../../game";
+import { visitedStagesForActor } from "../../../game/actor-state";
 import type { ActorTurnResult } from "../../../game/types";
 import { EQUIPMENT_SLOTS } from "../../../game/types";
-import { visitedStagesForActor } from "../../../game/visit-state";
 import {
   actorOption,
   actorRef,

@@ -1,4 +1,4 @@
-import { formatForm } from "../src/game/form";
+import { formatForm } from "../src/game/appearance/form";
 import type { WorldFunction } from "../src/game/types";
 import type { World } from "../src/game/world-definition";
 

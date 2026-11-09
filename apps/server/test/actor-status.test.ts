@@ -20,7 +20,7 @@ import {
   settleDeaths,
   takeActorControl,
 } from "../src/game";
-import { formatForm } from "../src/game/form";
+import { formatForm } from "../src/game/appearance/form";
 import { loadAgentMemory } from "../src/game/memory";
 import { claimDeath } from "../src/game/persistence/deaths";
 import { describeStats } from "../src/game/plan";

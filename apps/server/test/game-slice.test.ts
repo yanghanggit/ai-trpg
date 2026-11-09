@@ -21,7 +21,7 @@ import {
   getGameState,
   runActorTurn,
 } from "../src/game";
-import { formatForm } from "../src/game/form";
+import { formatForm } from "../src/game/appearance/form";
 import { ChatCompletionResult, type ChatCompletionService, type ToolCall } from "../src/llm";
 
 const testDatabaseUrl = process.env.TEST_DATABASE_URL?.trim();

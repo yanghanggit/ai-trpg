@@ -1,4 +1,5 @@
 export { setEquipmentSlot } from "./equipment";
+export { FORM_PATTERN, formatForm, isValidForm, resolveAppearance } from "./form";
 export {
   type AppearanceBuildInput,
   buildAppearanceTurnInput,

@@ -1,4 +1,4 @@
-import type { ActorState, GameStateSlice, StageState } from "./types";
+import type { ActorState, GameStateSlice, StageState } from "../types";
 
 type StageIdIndex = Map<string, Set<string>>;
 
@@ -6,6 +6,7 @@ type StageIdIndex = Map<string, Set<string>>;
  * 到访的状态层视图：谁去过哪些场景，以及由此派生出的场景认知。
  *
  * 与行级读写（`persistence/visits.ts`）分开：这里只读已装载的 `state.visits`，不碰数据库。
+ * 它跟 `locate.ts` 同属 actor 的状态层：那边认人，这边认「这个人认得哪些地方」。
  * 到访记录是场景认知的唯一来源——名字、地图、传送候选提示都从这里取；但它不是通行证，
  * 各自的权限规则留在各自的行动里（`move` 看邻接边，`teleport` 只看真名能否对应到场景）。
  */

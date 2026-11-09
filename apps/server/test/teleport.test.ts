@@ -14,7 +14,7 @@ import {
   takeActorControl,
 } from "../src/game";
 
-import { visitedTeleportTargetsFor } from "../src/game/visit-state";
+import { visitedTeleportTargetsFor } from "../src/game/actor-state";
 import type { World } from "../src/game/world-definition";
 import { TEST_WORLD } from "./test-world";
 

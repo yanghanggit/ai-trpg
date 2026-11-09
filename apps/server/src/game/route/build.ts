@@ -1,7 +1,7 @@
 import type { ActorWithStage } from "../actor-state";
+import { visitedStageIds } from "../actor-state";
 import { resolveStageName } from "../stage-state";
 import type { GameStateSlice } from "../types";
-import { visitedStageIds } from "../visit-state";
 import type { RouteQuestion, RouteResolution, RouteWorld } from "./types";
 
 /**
