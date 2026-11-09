@@ -12,6 +12,9 @@ export function formatForm(race: string, description: string): string {
   return `${race}:${description}`;
 }
 
+/**
+ * 验证给定的字符串是否符合形态的格式要求。
+ */
 export function isValidForm(value: string): boolean {
   return FORM_PATTERN.test(value);
 }
