@@ -1,13 +1,13 @@
 import { type TraceContext, traceEvent } from "../../debug/trace";
 import { listStageActorViews } from "../apply/queries";
 import type { Executor } from "../apply/types";
-import { MEMORY_KINDS } from "../constants";
 import {
   appendMemoryMessages,
   ensureStageOpeningSnapshot,
   hasStageOpeningSnapshot,
   loadAgentMemory,
 } from "../memory";
+import { MEMORY_KINDS } from "../memory/kinds";
 import type { ObservationMetadata, ObservationView, StageEventMetadata } from "../observation-text";
 import { loadStageById } from "../persistence/stages";
 import { assertWorldFaceText } from "../text-guard";

@@ -1,5 +1,5 @@
 import { type AddressLookup, mentionOf } from "../addressing";
-import { MEMORY_KINDS } from "../constants";
+import { MEMORY_KINDS } from "../memory/kinds";
 import { withAppearances } from "./text";
 import type {
   InspectObservation,

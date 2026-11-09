@@ -1,5 +1,5 @@
-import { MAX_STAGE_ANCHOR_WRITES_PER_TURN, MAX_STAGE_NOTIFICATIONS_PER_TURN } from "../constants";
 import { GameError } from "../errors";
+import { MAX_STAGE_ANCHOR_WRITES_PER_TURN, MAX_STAGE_NOTIFICATIONS_PER_TURN } from "../limits";
 import type { StageAction, StagePlan } from "../types";
 import { type AnchorWrite, isAnchorWrite } from "./anchors";
 

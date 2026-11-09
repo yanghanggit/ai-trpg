@@ -1,17 +1,18 @@
 import { randomUUID } from "node:crypto";
 import type { Database } from "../db/pool";
+import { DEFAULT_ERROR_RETRIES } from "../llm";
 import { agentLoop } from "../llm/agent-loop";
 import type { ChatCompletionService } from "../llm/protocol";
 import type { ToolDefinition } from "../llm/types";
 import { findActorByName } from "./actors";
 import { bumpGameVersion } from "./apply/messages";
-import { DEFAULT_DROP_MAX_ROUNDS, DEFAULT_LLM_ERROR_RETRIES } from "./constants";
 import { GameError } from "./errors";
 import { appendStageMemory } from "./observations";
 import { lockGameRow } from "./persistence/games";
 import { addActorMaterials, type MaterialDrop } from "./persistence/items";
 import { getGameStateSlice, readTurnDelivery } from "./read/game-state";
 import { NAME_MARKER_PATTERN } from "./reference";
+import { DEFAULT_DROP_MAX_ROUNDS } from "./rounds";
 import { assertWorldFaceText } from "./text-guard";
 import type { ActorState, StageState, TurnDelivery } from "./types";
 import { type WorldConstitution, worldFunctionAgent } from "./world-function";
@@ -214,7 +215,7 @@ export async function runDropTurn(
     terminalTools: [tool],
     service: options.service,
     maxRounds: options.maxRounds ?? DEFAULT_DROP_MAX_ROUNDS,
-    errorRetries: DEFAULT_LLM_ERROR_RETRIES,
+    errorRetries: DEFAULT_ERROR_RETRIES,
     loopId: randomUUID(),
     ...(options.logger ? { logger: options.logger } : {}),
     ...(options.trace ? { trace: options.trace } : {}),

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { AddressLookup } from "../src/game/addressing";
-import { MEMORY_KINDS } from "../src/game/constants";
+import { MEMORY_KINDS } from "../src/game/memory/kinds";
 import {
   type CommunicationObservation,
   type DamageObservation,

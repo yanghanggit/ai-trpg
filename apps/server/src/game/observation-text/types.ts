@@ -1,4 +1,4 @@
-import type { MemoryKind } from "../constants";
+import type { MemoryKind } from "../memory/kinds";
 import type { ActionKind, CommunicationKind, ItemEventKind, MessageVisibility } from "../types";
 
 /**

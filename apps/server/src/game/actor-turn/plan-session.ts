@@ -1,5 +1,5 @@
-import { MAX_ACTIONS_PER_TURN } from "../constants";
 import { GameError } from "../errors";
+import { MAX_ACTIONS_PER_TURN } from "../limits";
 import type { ActorAction, ActorPlan, IdentityBinding, RouteFailure, RouteQuery } from "../types";
 
 /**

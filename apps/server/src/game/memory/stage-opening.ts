@@ -1,4 +1,4 @@
-import { MEMORY_KINDS } from "../constants";
+import { MEMORY_KINDS } from "../memory/kinds";
 import { listStageItems } from "../persistence/items";
 import { buildStageOpeningSnapshot } from "./prompts";
 import { appendMemoryMessages } from "./store";

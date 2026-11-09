@@ -3,7 +3,7 @@ import {
   MAX_STAGE_ANCHOR_WRITES_PER_TURN,
   MAX_STAGE_NOTIFICATIONS_PER_TURN,
   MAX_WORLD_ACTIONS_PER_TURN,
-} from "../src/game/constants";
+} from "../src/game/limits";
 import { createStagePlanSession } from "../src/game/stage-turn";
 import { createWorldPlanSession } from "../src/game/world-turn";
 

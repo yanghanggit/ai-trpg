@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
-import { MAX_STAGE_ANCHORS } from "../constants";
 import { GameError } from "../errors";
+import { MAX_STAGE_ANCHORS } from "../limits";
 import type { StageAction } from "../types";
 
 export type StoredAnchor = { key: string; label: string; description?: string };

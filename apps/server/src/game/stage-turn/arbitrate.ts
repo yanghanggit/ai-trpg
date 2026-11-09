@@ -2,14 +2,10 @@ import type { Database } from "../../db/pool";
 import { type TraceContext, traceEvent } from "../../debug/trace";
 import { bumpGameVersion } from "../apply/messages";
 import { listActorNamesInWorld } from "../apply/queries";
-
-import {
-  MAX_STAGE_ANCHOR_WRITES_PER_TURN,
-  MAX_STAGE_NOTIFICATIONS_PER_TURN,
-  MEMORY_KINDS,
-} from "../constants";
 import { GameError } from "../errors";
+import { MAX_STAGE_ANCHOR_WRITES_PER_TURN, MAX_STAGE_NOTIFICATIONS_PER_TURN } from "../limits";
 import { appendMemoryMessages, ensureStageOpeningSnapshot, loadAgentMemory } from "../memory";
+import { MEMORY_KINDS } from "../memory/kinds";
 import { isPassageSealed, listOpenNeighborStageNames } from "../persistence/edges";
 import { lockGameRow } from "../persistence/games";
 import { listStageItems } from "../persistence/items";

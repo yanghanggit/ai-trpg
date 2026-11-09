@@ -1,5 +1,5 @@
 import type { ToolDefinition } from "../../llm/types";
-import { MAX_AFFIX_WITNESSES } from "../constants";
+import { MAX_AFFIX_WITNESSES } from "../limits";
 
 export function buildTools(
   targetNames: readonly string[],

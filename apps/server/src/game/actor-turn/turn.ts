@@ -1,6 +1,7 @@
 import { randomUUID } from "node:crypto";
 import type { Database } from "../../db/pool";
 import { createTurnTrace, traceEvent } from "../../debug/trace";
+import { DEFAULT_ERROR_RETRIES } from "../../llm";
 import { agentLoop } from "../../llm/agent-loop";
 import type { ChatCompletionService } from "../../llm/protocol";
 import {
@@ -14,7 +15,6 @@ import {
 import { findActorByName } from "../actors";
 import { applyActorPlan } from "../apply";
 import { isAlive } from "../apply/queries";
-import { DEFAULT_LLM_ERROR_RETRIES, DEFAULT_NPC_MAX_ROUNDS } from "../constants";
 import { isPlayerControlled } from "../control";
 import { GameError } from "../errors";
 import { loadAgentMemory } from "../memory";
@@ -35,6 +35,7 @@ import {
 } from "../plan";
 import { getGameStateSlice, readTurnDelivery } from "../read/game-state";
 import { handleOf } from "../reference";
+import { DEFAULT_ACTOR_MAX_ROUNDS } from "../rounds";
 import {
   describeRoute,
   describeRouteFailure,
@@ -89,7 +90,7 @@ export async function runActorTurn(
   if (!memory) {
     throw new GameError("invalid_state", `actor 缺少 memory: ${current.actor.name}`);
   }
-  const maxRounds = options.maxRounds ?? DEFAULT_NPC_MAX_ROUNDS;
+  const maxRounds = options.maxRounds ?? DEFAULT_ACTOR_MAX_ROUNDS;
 
   const trace = createTurnTrace({ game: state.game, turnKind: "actor" });
   await traceEvent(trace, {
@@ -214,7 +215,7 @@ export async function runActorTurn(
     maxRounds,
     finalRoundHint:
       "# 最后一轮\n这是本回合最后一次推理机会，本次回复之后本轮结束。已决定做什么，就在这次回复里同时调用动作工具与 submit_plan；仍需信息就在这次回复里一并调完只读工具并立即提交，不要再留到下一轮。",
-    errorRetries: DEFAULT_LLM_ERROR_RETRIES,
+    errorRetries: DEFAULT_ERROR_RETRIES,
     loopId: randomUUID(),
     ...optional,
   });

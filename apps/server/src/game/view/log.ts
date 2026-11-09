@@ -1,5 +1,5 @@
-import { MEMORY_KINDS } from "../constants";
 import type { AgentMemoryMessageState } from "../memory";
+import { MEMORY_KINDS } from "../memory/kinds";
 import type { StageViewLogEntry, ViewerLogEntry } from "./types";
 
 /**

@@ -11,6 +11,7 @@ export {
   AgentLoopResult,
   type AgentLoopRound,
   agentLoop,
+  DEFAULT_ERROR_RETRIES,
   LOOP_END_ATTR,
   LOOP_ID_ATTR,
   type ToolHandler,

@@ -1,4 +1,4 @@
-import { MEMORY_KINDS } from "../constants";
+import { MEMORY_KINDS } from "../memory/kinds";
 
 /**
  * 审计的开关与口径。

@@ -3,7 +3,7 @@ import { and, asc, eq, inArray, sql } from "drizzle-orm";
 import type { Database } from "../../db/pool";
 import { agentMemories, agentMemoryMessages } from "../../db/schema";
 import type { ChatMessage } from "../../llm/types";
-import { MEMORY_KINDS } from "../constants";
+import { MEMORY_KINDS } from "../memory/kinds";
 import type { Actor, Stage, World } from "../world-definition";
 import { buildActorOpeningBriefing } from "./prompts";
 import { type MessageRow, toChatMessage, toMemoryMessageState, toRow } from "./rows";

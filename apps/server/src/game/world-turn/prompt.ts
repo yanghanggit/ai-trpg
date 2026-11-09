@@ -1,5 +1,5 @@
 import { isAlive } from "../apply/queries";
-import { MAX_WORLD_ACTIONS_PER_TURN } from "../constants";
+import { MAX_WORLD_ACTIONS_PER_TURN } from "../limits";
 import type { GameStateSlice } from "../types";
 
 /**

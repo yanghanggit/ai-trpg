@@ -2,9 +2,9 @@ import type { Database } from "../../db/pool";
 import type { TraceContext } from "../../debug/trace";
 import { mentionOf } from "../addressing";
 import { appendPublicMessage, bumpGameVersion } from "../apply/messages";
-import { MEMORY_KINDS } from "../constants";
 import { GameError } from "../errors";
 import { appendMemoryMessages, loadAgentMemory } from "../memory";
+import { MEMORY_KINDS } from "../memory/kinds";
 import { renderAction, withAppearances } from "../observation-text";
 import {
   appendCustomStageObservation,

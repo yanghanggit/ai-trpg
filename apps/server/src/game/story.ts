@@ -1,13 +1,13 @@
 import { createTurnTrace, traceEvent } from "../debug/trace";
-import { agentLoop } from "../llm/agent-loop";
+import { agentLoop, DEFAULT_ERROR_RETRIES } from "../llm";
 import type { ChatCompletionService } from "../llm/protocol";
 import type { ToolDefinition } from "../llm/types";
 import { findActorByName } from "./actors";
-import { DEFAULT_LLM_ERROR_RETRIES } from "./constants";
 import { GameError } from "./errors";
 import type { AgentMemoryMessageState, AgentMemoryState } from "./memory";
 import { getGameMemories } from "./memory";
 import { getGameState } from "./read/game-state";
+import { DEFAULT_STORY_MAX_ROUNDS } from "./rounds";
 import { findStage } from "./stages";
 import type { GameState } from "./types";
 import { type WorldConstitution, worldFunctionAgent } from "./world-function";
@@ -30,8 +30,6 @@ export type StoryResult = {
   memoriesRead: string[];
   eventsRead: boolean;
 };
-
-const DEFAULT_STORY_MAX_ROUNDS = 10;
 
 function memoryKey(ownerType: string, name: string): string {
   return `${ownerType}:${name}`;
@@ -247,7 +245,7 @@ export async function runStory(
     terminalTools: [submitTool],
     maxRounds: options.maxRounds ?? DEFAULT_STORY_MAX_ROUNDS,
     service: options.service,
-    errorRetries: DEFAULT_LLM_ERROR_RETRIES,
+    errorRetries: DEFAULT_ERROR_RETRIES,
     ...(options.logger ? { logger: options.logger } : {}),
     ...(trace ? { trace } : {}),
     handlers: {

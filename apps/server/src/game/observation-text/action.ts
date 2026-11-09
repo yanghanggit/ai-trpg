@@ -1,5 +1,5 @@
 import { type Address, mentionOf } from "../addressing";
-import { MEMORY_KINDS } from "../constants";
+import { MEMORY_KINDS } from "../memory/kinds";
 import type { ObservationView } from "./types";
 
 /**

@@ -3,7 +3,7 @@ import type { ActorWithStage } from "../actors";
 import { refOf } from "../addressing";
 import { isAlive } from "../apply/queries";
 import { STAT_LABELS } from "../attributes";
-import { DEFAULT_NPC_MAX_ROUNDS, MAX_ACTIONS_PER_TURN } from "../constants";
+import { MAX_ACTIONS_PER_TURN } from "../limits";
 import {
   describeEquipmentBrief,
   describeStageAnchors,
@@ -11,6 +11,7 @@ import {
   sealedVisitedStageRefsForActor,
 } from "../plan";
 import { isHandleRef } from "../reference";
+import { DEFAULT_ACTOR_MAX_ROUNDS } from "../rounds";
 import { visitedTeleportTargetsFor } from "../teleport";
 import type { GameStateSlice } from "../types";
 import { type ActorTurnContext, actorTurnContext } from "./context";
@@ -24,7 +25,7 @@ import { type ActorTurnContext, actorTurnContext } from "./context";
 export function buildActorTurnInput(
   state: GameStateSlice,
   current: ActorWithStage,
-  maxRounds: number = DEFAULT_NPC_MAX_ROUNDS,
+  maxRounds: number = DEFAULT_ACTOR_MAX_ROUNDS,
 ): string {
   return renderActorTurnInput(actorTurnContext(state, current), maxRounds);
 }
@@ -34,7 +35,7 @@ export function buildActorTurnInput(
  */
 export function renderActorTurnInput(
   context: ActorTurnContext,
-  maxRounds: number = DEFAULT_NPC_MAX_ROUNDS,
+  maxRounds: number = DEFAULT_ACTOR_MAX_ROUNDS,
 ): string {
   const { state, current } = context;
   const { actor, stage } = current;

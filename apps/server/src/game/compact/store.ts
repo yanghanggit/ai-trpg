@@ -1,9 +1,9 @@
 import { and, eq, gte } from "drizzle-orm";
 import type { Database } from "../../db/pool";
 import { agentMemories, agentMemoryMessages, games } from "../../db/schema";
-import { MEMORY_KINDS } from "../constants";
 import { GameError } from "../errors";
 import { appendMemoryMessages, loadAgentMemory } from "../memory";
+import { MEMORY_KINDS } from "../memory/kinds";
 import type { NameAuditInput } from "../name-audit";
 import type { WorldConstitution } from "../world-function";
 import { assertActorSummaryKnown } from "./audit";

@@ -1,7 +1,7 @@
 import { type TraceContext, traceEvent } from "../debug/trace";
 import type { Executor } from "./apply/types";
-import { MEMORY_KINDS } from "./constants";
 import { appendMemoryMessages, loadAgentMemory } from "./memory";
+import { MEMORY_KINDS } from "./memory/kinds";
 
 /** 把 stage 的报告写入 world memory；报告不是世界事实，也不是系统指令。 */
 export async function appendWorldNotification(

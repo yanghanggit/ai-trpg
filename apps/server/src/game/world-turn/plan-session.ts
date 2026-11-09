@@ -1,5 +1,5 @@
-import { MAX_WORLD_ACTIONS_PER_TURN } from "../constants";
 import { GameError } from "../errors";
+import { MAX_WORLD_ACTIONS_PER_TURN } from "../limits";
 import type { WorldAction, WorldPlan } from "../types";
 
 /**

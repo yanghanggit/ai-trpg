@@ -1,11 +1,11 @@
 import { randomUUID } from "node:crypto";
 import type { Database } from "../../db/pool";
+import { DEFAULT_ERROR_RETRIES } from "../../llm";
 import { agentLoop } from "../../llm/agent-loop";
 import type { ChatCompletionService } from "../../llm/protocol";
 import { findActorByName } from "../actors";
 import { bumpGameVersion } from "../apply/messages";
 import { isAlive } from "../apply/queries";
-import { DEFAULT_APPEARANCE_MAX_ROUNDS, DEFAULT_LLM_ERROR_RETRIES } from "../constants";
 import { GameError } from "../errors";
 import { loadAgentMemory } from "../memory";
 import { renderAppearanceChange } from "../observation-text";
@@ -13,6 +13,7 @@ import { appendCustomStageObservation } from "../observations";
 import { recordAppearance } from "../persistence/appearances";
 import { lockGameRow } from "../persistence/games";
 import { getGameStateSlice, readTurnDelivery } from "../read/game-state";
+import { DEFAULT_APPEARANCE_MAX_ROUNDS } from "../rounds";
 import type { EquipmentSlot, TurnDelivery } from "../types";
 import {
   buildAppearanceTurnInput,
@@ -120,7 +121,7 @@ export async function runAppearanceTurn(
     terminalTools: [tool],
     service: options.service,
     maxRounds,
-    errorRetries: DEFAULT_LLM_ERROR_RETRIES,
+    errorRetries: DEFAULT_ERROR_RETRIES,
     loopId: randomUUID(),
     ...(options.logger ? { logger: options.logger } : {}),
     ...(options.trace ? { trace: options.trace } : {}),
