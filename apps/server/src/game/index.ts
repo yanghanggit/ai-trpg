@@ -1,4 +1,5 @@
 export * from "./actions";
+export * from "./actor-turn";
 export * from "./actors";
 export * from "./appearance";
 export * from "./apply";
@@ -13,7 +14,6 @@ export * from "./errors";
 export * from "./memory";
 export * from "./memory-owner";
 export * from "./name-audit";
-export * from "./npc";
 export * from "./player";
 export * from "./probe";
 export * from "./read/game-messages";

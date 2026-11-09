@@ -12,7 +12,7 @@ import {
   loadAgentMemory,
   playerMove,
   playerRecallRoute,
-  runNpcTurn,
+  runActorTurn,
   takeActorControl,
 } from "../src/game";
 import type { World } from "../src/game/world-definition";
@@ -212,7 +212,7 @@ describe.skipIf(!testDatabaseUrl)("route recall", () => {
     });
     const slug = created.game.slug;
 
-    const turn = await runNpcTurn(handle.db, slug, "无名者", {
+    const turn = await runActorTurn(handle.db, slug, "无名者", {
       service: new RecallRouteService("墓园"),
     });
     expect(turn.ok).toBe(true);
@@ -233,7 +233,7 @@ describe.skipIf(!testDatabaseUrl)("route recall", () => {
     });
     const slug = created.game.slug;
 
-    const turn = await runNpcTurn(handle.db, slug, "无名者", {
+    const turn = await runActorTurn(handle.db, slug, "无名者", {
       service: new RecallRouteService("根本没有这个地方"),
     });
     expect(turn.ok).toBe(true);

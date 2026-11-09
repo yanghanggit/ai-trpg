@@ -17,7 +17,7 @@ import {
   playerStrike,
   playerWhisper,
   releaseActorControl,
-  runNpcTurn,
+  runActorTurn,
   takeActorControl,
 } from "../src/game";
 import type { ChatCompletionService } from "../src/llm";
@@ -61,7 +61,7 @@ describe.skipIf(!testDatabaseUrl)("player takeover", () => {
     expect(await isPlayerControlled(handle.db, game.game.id, control.actorId)).toBe(true);
 
     await expect(
-      runNpcTurn(handle.db, game.game.slug, "守烬人", {
+      runActorTurn(handle.db, game.game.slug, "守烬人", {
         service: NEVER_CALLED_SERVICE,
       }),
     ).rejects.toThrow("已被玩家接管");

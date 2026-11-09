@@ -5,6 +5,7 @@ import { DEMO_USER } from "../src/db/demo-fixture";
 import { resetDomainData, seedDemoData } from "../src/db/maintenance";
 import { runMigrations } from "../src/db/migrate";
 import {
+  buildActorTurnInput,
   createGame,
   getActorView,
   getGameState,
@@ -12,7 +13,7 @@ import {
   playerTeleport,
   takeActorControl,
 } from "../src/game";
-import { buildActorTurnInput } from "../src/game/npc";
+
 import { visitedTeleportTargetsFor } from "../src/game/teleport";
 import type { World } from "../src/game/world-definition";
 import { TEST_WORLD } from "./test-world";

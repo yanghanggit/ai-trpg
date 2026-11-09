@@ -19,7 +19,7 @@ import {
   playerMove,
   playerSay,
   renderNameLeakReport,
-  runNpcTurn,
+  runActorTurn,
   takeActorControl,
 } from "../src/game";
 import { MEMORY_KINDS } from "../src/game/constants";
@@ -521,7 +521,7 @@ describe.skipIf(!testDatabaseUrl)("name audit (database)", () => {
       warn,
       error: vi.fn(),
     };
-    const turn = await runNpcTurn(handle.db, created.game.slug, "奥德里克", {
+    const turn = await runActorTurn(handle.db, created.game.slug, "奥德里克", {
       service: new WaitService(),
       auditNameLeaks: true,
       logger,
@@ -543,7 +543,7 @@ describe.skipIf(!testDatabaseUrl)("name audit (database)", () => {
 
     const warn = vi.fn();
     const logger = { debug: vi.fn(), info: vi.fn(), warn, error: vi.fn() };
-    const turn = await runNpcTurn(handle.db, created.game.slug, "奥德里克", {
+    const turn = await runActorTurn(handle.db, created.game.slug, "奥德里克", {
       service: new WaitService(),
       auditNameLeaks: false,
       logger,

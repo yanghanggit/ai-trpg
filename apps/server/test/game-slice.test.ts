@@ -18,7 +18,7 @@ import {
   createGame,
   getGameMemories,
   getGameState,
-  runNpcTurn,
+  runActorTurn,
   snapshotGame,
 } from "../src/game";
 import { formatForm } from "../src/game/form";
@@ -149,23 +149,23 @@ describe.skipIf(!testDatabaseUrl)("memory-driven NPC slice", () => {
       { actions: [{ kind: "move", targetStageName: "断钟中殿" }] },
     ]);
 
-    const first = await runNpcTurn(handle.db, created.game.slug, "守烬人", {
+    const first = await runActorTurn(handle.db, created.game.slug, "守烬人", {
       service,
     });
     expect(first.ok).toBe(true);
     expect(first.plan?.actions[0]).toMatchObject({ kind: "say" });
 
-    const second = await runNpcTurn(handle.db, created.game.slug, "提灯修士", {
+    const second = await runActorTurn(handle.db, created.game.slug, "提灯修士", {
       service,
     });
     expect(second.ok).toBe(true);
 
-    const third = await runNpcTurn(handle.db, created.game.slug, "守烬人", {
+    const third = await runActorTurn(handle.db, created.game.slug, "守烬人", {
       service,
     });
     expect(third.ok).toBe(true);
 
-    const fourth = await runNpcTurn(handle.db, created.game.slug, "提灯修士", {
+    const fourth = await runActorTurn(handle.db, created.game.slug, "提灯修士", {
       service,
     });
     expect(fourth.ok).toBe(true);
@@ -301,7 +301,7 @@ describe.skipIf(!testDatabaseUrl)("memory-driven NPC slice", () => {
     });
 
     const keeperService = new ToolCaptureService();
-    await runNpcTurn(handle.db, created.game.slug, "奥德里克", { service: keeperService });
+    await runActorTurn(handle.db, created.game.slug, "奥德里克", { service: keeperService });
     expect(keeperService.tools).toContain("say");
     expect(keeperService.tools).toContain("strike");
     // 肉搏是固有动作，与武器装备无关。
@@ -323,7 +323,7 @@ describe.skipIf(!testDatabaseUrl)("memory-driven NPC slice", () => {
 
     // 公共知识库检索对所有 actor 开放，不按角色开关。
     const corpseService = new ToolCaptureService();
-    await runNpcTurn(handle.db, created.game.slug, "无名者", { service: corpseService });
+    await runActorTurn(handle.db, created.game.slug, "无名者", { service: corpseService });
     expect(corpseService.tools).toContain("steal");
     expect(corpseService.tools).toContain("loot");
     // 探囊把两个动作一起给：工具表里成对出现，说明也写进动作清单。
@@ -341,7 +341,7 @@ describe.skipIf(!testDatabaseUrl)("memory-driven NPC slice", () => {
     expect(corpseService.input).not.toContain("可以分多轮调用");
 
     const dogService = new ToolCaptureService();
-    await runNpcTurn(handle.db, created.game.slug, "小狗“煤渣”", { service: dogService });
+    await runActorTurn(handle.db, created.game.slug, "小狗“煤渣”", { service: dogService });
     expect(dogService.tools).toContain("query");
     // 查看行囊要占行动，动物没有这个能力，工具与提示词都不该出现。
     expect(dogService.tools).not.toContain("inspect");
@@ -353,7 +353,7 @@ describe.skipIf(!testDatabaseUrl)("memory-driven NPC slice", () => {
     expect(dogService.tools).toContain("brawl");
 
     const mouseService = new ToolCaptureService();
-    await runNpcTurn(handle.db, created.game.slug, "小鼠“坏运气”", { service: mouseService });
+    await runActorTurn(handle.db, created.game.slug, "小鼠“坏运气”", { service: mouseService });
     expect(mouseService.tools).not.toContain("strike");
     // 幼崽不会战斗：身体动作也没有。
     expect(mouseService.tools).not.toContain("brawl");
@@ -425,7 +425,7 @@ describe.skipIf(!testDatabaseUrl)("memory-driven NPC slice", () => {
       }
     }
 
-    const result = await runNpcTurn(handle.db, created.game.slug, "守烬人", {
+    const result = await runActorTurn(handle.db, created.game.slug, "守烬人", {
       service: new NoSubmitService(),
       maxRounds: 1,
     });
@@ -446,7 +446,7 @@ describe.skipIf(!testDatabaseUrl)("memory-driven NPC slice", () => {
     });
     const service = new ScriptedNpcService([{ actions: [{ kind: "wait" }] }]);
 
-    const result = await runNpcTurn(handle.db, created.game.slug, "守烬人", { service });
+    const result = await runActorTurn(handle.db, created.game.slug, "守烬人", { service });
     expect(result.ok).toBe(true);
 
     const state = await getGameState(handle.db, created.game.slug);
@@ -470,7 +470,7 @@ describe.skipIf(!testDatabaseUrl)("memory-driven NPC slice", () => {
     });
     const service = new ScriptedNpcService([{ actions: [strikeAction("提灯修士")] }]);
 
-    const result = await runNpcTurn(handle.db, created.game.slug, "守烬人", { service });
+    const result = await runActorTurn(handle.db, created.game.slug, "守烬人", { service });
     expect(result.ok).toBe(true);
 
     const state = await getGameState(handle.db, created.game.slug);
@@ -537,7 +537,7 @@ describe.skipIf(!testDatabaseUrl)("memory-driven NPC slice", () => {
     });
     const service = new ScriptedNpcService([{ actions: [strikeAction("提灯修士")] }]);
 
-    const result = await runNpcTurn(handle.db, created.game.slug, "守烬人", { service });
+    const result = await runActorTurn(handle.db, created.game.slug, "守烬人", { service });
     expect(result.ok).toBe(true);
 
     const state = await getGameState(handle.db, created.game.slug);
@@ -548,7 +548,7 @@ describe.skipIf(!testDatabaseUrl)("memory-driven NPC slice", () => {
     expect(monk?.hp).toBe(0);
 
     await expect(
-      runNpcTurn(handle.db, created.game.slug, "提灯修士", {
+      runActorTurn(handle.db, created.game.slug, "提灯修士", {
         service: new ScriptedNpcService([]),
       }),
     ).rejects.toThrow("已死亡");
@@ -579,7 +579,7 @@ describe.skipIf(!testDatabaseUrl)("memory-driven NPC slice", () => {
     expect(defaultPlayer?.isDefaultPlayer).toBe(true);
 
     const service = new ScriptedNpcService([{ actions: [strikeAction("提灯修士")] }]);
-    const result = await runNpcTurn(handle.db, created.game.slug, "守烬人", { service });
+    const result = await runActorTurn(handle.db, created.game.slug, "守烬人", { service });
     expect(result.ok).toBe(true);
 
     const state = await getGameState(handle.db, created.game.slug);
@@ -609,11 +609,11 @@ describe.skipIf(!testDatabaseUrl)("memory-driven NPC slice", () => {
       },
     ]);
 
-    const moved = await runNpcTurn(handle.db, created.game.slug, "守烬人", { service });
+    const moved = await runActorTurn(handle.db, created.game.slug, "守烬人", { service });
     expect(moved.ok).toBe(true);
     expect(moved.plan?.actions).toHaveLength(1);
 
-    const talked = await runNpcTurn(handle.db, created.game.slug, "守烬人", { service });
+    const talked = await runActorTurn(handle.db, created.game.slug, "守烬人", { service });
     expect(talked.ok).toBe(true);
     expect(talked.plan?.actions).toHaveLength(1);
 
@@ -647,7 +647,7 @@ describe.skipIf(!testDatabaseUrl)("memory-driven NPC slice", () => {
       },
     ]);
 
-    const result = await runNpcTurn(handle.db, created.game.slug, "守烬人", { service });
+    const result = await runActorTurn(handle.db, created.game.slug, "守烬人", { service });
     expect(result.ok).toBe(true);
     // 第二个动作在加入计划时就报错，计划里只留下第一个。
     expect(result.plan?.actions.map((action) => action.kind)).toEqual(["move"]);
@@ -725,13 +725,13 @@ describe.skipIf(!testDatabaseUrl)("memory-driven NPC slice", () => {
         actions: [strikeAction("提灯修士")],
       },
     ]);
-    const announced = await runNpcTurn(handle.db, game.game.slug, "守烬人", { service });
+    const announced = await runActorTurn(handle.db, game.game.slug, "守烬人", { service });
     expect(announced.ok).toBe(true);
-    const targeted = await runNpcTurn(handle.db, game.game.slug, "守烬人", { service });
+    const targeted = await runActorTurn(handle.db, game.game.slug, "守烬人", { service });
     expect(targeted.ok).toBe(true);
-    const whispered = await runNpcTurn(handle.db, game.game.slug, "守烬人", { service });
+    const whispered = await runActorTurn(handle.db, game.game.slug, "守烬人", { service });
     expect(whispered.ok).toBe(true);
-    const attacked = await runNpcTurn(handle.db, game.game.slug, "守烬人", { service });
+    const attacked = await runActorTurn(handle.db, game.game.slug, "守烬人", { service });
     expect(attacked.ok).toBe(true);
 
     const memories = await getGameMemories(handle.db, game.game.id);

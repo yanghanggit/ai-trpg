@@ -15,7 +15,7 @@ import {
   playerMove,
   playerWhisper,
   releaseActorControl,
-  runNpcTurn,
+  runActorTurn,
   runStageTurn,
   takeActorControl,
 } from "../src/game";
@@ -228,7 +228,7 @@ describe.skipIf(!testDatabaseUrl)("stage mini-GM", () => {
     expect(gate?.messages.some((message) => message.type === "tool")).toBe(false);
 
     const capturing = new CapturingWaitService();
-    await runNpcTurn(handle.db, slug, "提灯修士", { service: capturing });
+    await runActorTurn(handle.db, slug, "提灯修士", { service: capturing });
     expect(capturing.inputMessage).toContain(environment);
   });
 

@@ -6,7 +6,7 @@ import "../src/db/env";
 import { type DatabaseHandle, openDatabase } from "../src/db/connect";
 import { resetDomainData, seedDemoData } from "../src/db/maintenance";
 import { runMigrations } from "../src/db/migrate";
-import { createGame, getGameMemories, runNpcTurn } from "../src/game";
+import { createGame, getGameMemories, runActorTurn } from "../src/game";
 import { ChatCompletionResult, type ChatCompletionService, type ToolCall } from "../src/llm";
 import { EMBEDDING_DIMENSIONS } from "../src/rag/constants";
 import { DeterministicEmbeddingProvider } from "../src/rag/embeddings";
@@ -95,7 +95,7 @@ describe.skipIf(!testDatabaseUrl)("knowledge retrieval tool", () => {
     ]);
 
     const service = new KnowledgeService();
-    const result = await runNpcTurn(handle.db, created.game.slug, "奥德里克", {
+    const result = await runActorTurn(handle.db, created.game.slug, "奥德里克", {
       service,
       knowledgeProvider: provider,
     });

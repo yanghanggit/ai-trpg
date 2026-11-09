@@ -16,7 +16,7 @@ import {
   playerWait,
   refreshAppearances,
   releaseActorControl,
-  runNpcTurn,
+  runActorTurn,
   settleDeaths,
   takeActorControl,
 } from "../src/game";
@@ -105,7 +105,7 @@ describe.skipIf(!testDatabaseUrl)("actor status", () => {
     expect(looted.ok).toBe(true);
 
     await expect(
-      runNpcTurn(handle.db, created.game.slug, "提灯修士", { service: new WaitService() }),
+      runActorTurn(handle.db, created.game.slug, "提灯修士", { service: new WaitService() }),
     ).rejects.toThrow("已死亡");
   });
 
@@ -125,7 +125,7 @@ describe.skipIf(!testDatabaseUrl)("actor status", () => {
     await handle.db.update(actors).set({ hp: 0 }).where(eq(actors.id, monk.id));
 
     await expect(
-      runNpcTurn(handle.db, created.game.slug, "提灯修士", { service: new WaitService() }),
+      runActorTurn(handle.db, created.game.slug, "提灯修士", { service: new WaitService() }),
     ).rejects.toThrow("已死亡");
 
     // 尸体仍可被攻击，只是伤害结算空转；行动主体才必须活着。
@@ -809,7 +809,7 @@ describe.skipIf(!testDatabaseUrl)("corpses can be operated on", () => {
     // 守烬人已经被玩家接管，改用同场景的旁观者视角检查工具枚举。
     await takeActorControl(handle.db, created.game.slug, "守烬人");
     await releaseActorControl(handle.db, created.game.slug, "守烬人");
-    await runNpcTurn(handle.db, created.game.slug, "守烬人", { service: capture });
+    await runActorTurn(handle.db, created.game.slug, "守烬人", { service: capture });
 
     // strike / give / use 的参数枚举都包含尸体名，没有第二套存活过滤。
     for (const toolName of ["strike", "give", "use"]) {

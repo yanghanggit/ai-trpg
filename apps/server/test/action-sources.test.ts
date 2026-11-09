@@ -17,7 +17,7 @@ import "../src/db/env";
 import { type DatabaseHandle, openDatabase } from "../src/db/connect";
 import { resetDomainData, seedDemoData } from "../src/db/maintenance";
 import { runMigrations } from "../src/db/migrate";
-import { createGame, runNpcTurn } from "../src/game";
+import { createGame, runActorTurn } from "../src/game";
 
 const testDatabaseUrl = process.env.TEST_DATABASE_URL?.trim();
 
@@ -136,7 +136,7 @@ describe.skipIf(!testDatabaseUrl)("unarmed attack options", () => {
       world,
     });
     const service = new PromptCaptureService();
-    await runNpcTurn(handle.db, created.game.slug, actorRef, { service });
+    await runActorTurn(handle.db, created.game.slug, actorRef, { service });
     return service;
   };
 

@@ -10,7 +10,7 @@ import {
   loadAgentMemory,
   playerMove,
   playerWait,
-  runNpcTurn,
+  runActorTurn,
   takeActorControl,
 } from "../src/game";
 import type { World } from "../src/game/world-definition";
@@ -151,7 +151,7 @@ describe.skipIf(!testDatabaseUrl)("memory state snapshot", () => {
       name: "自主 NPC 记忆状态快照局",
       world: TEST_WORLD,
     });
-    const result = await runNpcTurn(handle.db, created.game.slug, "守烬人", {
+    const result = await runActorTurn(handle.db, created.game.slug, "守烬人", {
       service: new WaitService(),
     });
     expect(result.ok).toBe(true);

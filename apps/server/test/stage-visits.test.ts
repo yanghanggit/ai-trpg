@@ -4,8 +4,14 @@ import { type DatabaseHandle, openDatabase } from "../src/db/connect";
 import { DEMO_USER } from "../src/db/demo-fixture";
 import { resetDomainData, seedDemoData } from "../src/db/maintenance";
 import { runMigrations } from "../src/db/migrate";
-import { createGame, getGameState, playerMove, takeActorControl } from "../src/game";
-import { buildActorTurnInput } from "../src/game/npc";
+import {
+  buildActorTurnInput,
+  createGame,
+  getGameState,
+  playerMove,
+  takeActorControl,
+} from "../src/game";
+
 import { recordStageVisit } from "../src/game/persistence/visits";
 import { buildVisitedStagesTool, describeVisitedStages } from "../src/game/plan";
 import type { World } from "../src/game/world-definition";

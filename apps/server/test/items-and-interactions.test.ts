@@ -22,7 +22,7 @@ import {
   playerStrike,
   playerUnequip,
   playerUse,
-  runNpcTurn,
+  runActorTurn,
   takeActorControl,
 } from "../src/game";
 import {
@@ -1443,7 +1443,7 @@ describe.skipIf(!testDatabaseUrl)("items and interactions", () => {
       world: TEST_WORLD,
     });
     const capture = new ToolCaptureService();
-    await runNpcTurn(handle.db, created.game.slug, "守烬人", { service: capture });
+    await runActorTurn(handle.db, created.game.slug, "守烬人", { service: capture });
     expect(capture.tools).toContain("strike");
 
     const unarmed = await createGame(handle.db, {
@@ -1457,7 +1457,7 @@ describe.skipIf(!testDatabaseUrl)("items and interactions", () => {
       },
     });
     const bareCapture = new ToolCaptureService();
-    await runNpcTurn(handle.db, unarmed.game.slug, "守烬人", { service: bareCapture });
+    await runActorTurn(handle.db, unarmed.game.slug, "守烬人", { service: bareCapture });
     expect(bareCapture.tools).not.toContain("strike");
     // 固有动作不受影响，只有武器提供的动作消失。
     expect(bareCapture.tools).toContain("say");

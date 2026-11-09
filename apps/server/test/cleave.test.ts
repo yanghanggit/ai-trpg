@@ -1,7 +1,13 @@
 import { randomUUID } from "node:crypto";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { DEMO_USER } from "../src/db/demo-fixture";
-import { type ActorPlan, applyActorPlan, createGame, getGameState, runNpcTurn } from "../src/game";
+import {
+  type ActorPlan,
+  applyActorPlan,
+  createGame,
+  getGameState,
+  runActorTurn,
+} from "../src/game";
 import { formatForm } from "../src/game/form";
 import type { World } from "../src/game/world-definition";
 import { ChatCompletionResult, type ChatCompletionService, type ToolCall } from "../src/llm";
@@ -207,7 +213,7 @@ describe.skipIf(!testDatabaseUrl)("cleave", () => {
   it("offers the cleave tool with the weapon's target cap, and only when armed with it", async () => {
     const armed = await startGame(CLEAVE_WORLD, "横扫工具装配测试局");
     const armedService = new ToolCaptureService();
-    await runNpcTurn(handle.db, armed.created.game.slug, "守烬人", { service: armedService });
+    await runActorTurn(handle.db, armed.created.game.slug, "守烬人", { service: armedService });
     const cleaveTool = armedService.tools.find((tool) => tool.function.name === "cleave");
     expect(cleaveTool).toBeDefined();
     if (!cleaveTool) {
@@ -220,7 +226,7 @@ describe.skipIf(!testDatabaseUrl)("cleave", () => {
 
     const unarmed = await startGame(TEST_WORLD, "横扫工具缺失测试局");
     const unarmedService = new ToolCaptureService();
-    await runNpcTurn(handle.db, unarmed.created.game.slug, "守烬人", { service: unarmedService });
+    await runActorTurn(handle.db, unarmed.created.game.slug, "守烬人", { service: unarmedService });
     expect(unarmedService.tools.map((tool) => tool.function.name)).not.toContain("cleave");
     expect(unarmedService.tools.map((tool) => tool.function.name)).toContain("strike");
   });

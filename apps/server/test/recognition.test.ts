@@ -11,12 +11,13 @@ import { stages } from "../src/db/schema";
 import {
   type ActorPlan,
   applyActorPlan,
+  buildActorTurnInput,
   createGame,
   getGameState,
   playerMove,
   playerRecognizeIdentity,
   playerSay,
-  runNpcTurn,
+  runActorTurn,
   takeActorControl,
 } from "../src/game";
 import { parseAnnounce } from "../src/game/actions/announce";
@@ -25,7 +26,7 @@ import { parseWhisper } from "../src/game/actions/whisper";
 import { addressLookupFor, refOf } from "../src/game/addressing";
 import { resolveVisibleActor } from "../src/game/apply/queries";
 import { formatForm } from "../src/game/form";
-import { buildActorTurnInput } from "../src/game/npc";
+
 import { recordAppearance } from "../src/game/persistence/appearances";
 import { allocateEntitySeq } from "../src/game/persistence/entity-seq";
 import { insertSignature, switchCurrentSignature } from "../src/game/persistence/signatures";
@@ -378,7 +379,7 @@ describe.skipIf(!testDatabaseUrl)("names and addresses", () => {
     const { actor } = await actorByName(created.game.slug, handle, "无名者");
 
     const service = new RecognizeService(handleOf(actor.signature.seq), "裹尸布人");
-    const turn = await runNpcTurn(handle.db, created.game.slug, "奥德里克", { service });
+    const turn = await runActorTurn(handle.db, created.game.slug, "奥德里克", { service });
     expect(turn.ok).toBe(true);
     expect(turn.loopSuccess).toBe(true);
 

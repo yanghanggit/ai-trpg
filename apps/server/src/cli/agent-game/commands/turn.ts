@@ -12,8 +12,8 @@ import {
   isAlive,
   listPlayerControlledActorIds,
   refreshAppearances,
+  runActorTurn,
   runAppearanceTurn,
-  runNpcTurn,
   runStageTurn,
   runWorldTurn,
   settleDeaths,
@@ -106,7 +106,7 @@ export function registerTurnCommands(program: Command, ctx: CommandContext): voi
           logger: ctx.log(),
         };
         if (!input.all && input.actor !== undefined) {
-          return [await runNpcTurn(db, input.game, input.actor, services)];
+          return [await runActorTurn(db, input.game, input.actor, services)];
         }
         const state = await getGameState(db, input.game);
         const controlled = new Set(await listPlayerControlledActorIds(db, state.game.id));
@@ -115,7 +115,7 @@ export function registerTurnCommands(program: Command, ctx: CommandContext): voi
           .filter((actor) => !controlled.has(actor.id));
         const output: ActorTurnResult[] = [];
         for (const actor of actors) {
-          output.push(await runNpcTurn(db, input.game, actor.name, services));
+          output.push(await runActorTurn(db, input.game, actor.name, services));
         }
         return output;
       });

@@ -8,16 +8,17 @@ import { type DatabaseHandle, openDatabase } from "../src/db/connect";
 import { resetDomainData, seedDemoData } from "../src/db/maintenance";
 import { runMigrations } from "../src/db/migrate";
 import {
+  buildActorTurnInput,
   createGame,
   getGameMemories,
   getGameState,
   playerEquip,
   playerMove,
   playerUnequip,
-  runNpcTurn,
+  runActorTurn,
   takeActorControl,
 } from "../src/game";
-import { buildActorTurnInput } from "../src/game/npc";
+
 import { describeStageForActor } from "../src/game/plan";
 import { ChatCompletionResult, type ChatCompletionService, type ToolCall } from "../src/llm";
 
@@ -284,7 +285,7 @@ describe.skipIf(!testDatabaseUrl)("equip and unequip actions", () => {
     });
     const planner = new UnequipPlanService();
     const appearance = new AppearanceSubmitService("空着手，旧斗篷还披在肩上。");
-    const turn = await runNpcTurn(handle.db, created.game.slug, "奥德里克", {
+    const turn = await runActorTurn(handle.db, created.game.slug, "奥德里克", {
       service: planner,
       appearanceService: appearance,
     });
