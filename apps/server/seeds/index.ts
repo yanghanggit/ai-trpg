@@ -2,8 +2,8 @@ import type { ContentPack } from "../src/content-pack";
 import {
   BELL_MONASTERY_KNOWLEDGE,
   BELL_MONASTERY_WORLD,
-  CROW_BELL_KNOWLEDGE,
-  CROW_BELL_WORLD,
+  CROW_GRAVE_KNOWLEDGE,
+  CROW_GRAVE_WORLD,
 } from "./dark-fantasy";
 
 /**
@@ -18,9 +18,9 @@ export const CONTENT_PACKS = {
     world: BELL_MONASTERY_WORLD,
     knowledge: BELL_MONASTERY_KNOWLEDGE,
   },
-  "dark-fantasy:crow-bell": {
-    world: CROW_BELL_WORLD,
-    knowledge: CROW_BELL_KNOWLEDGE,
+  "dark-fantasy:crow-grave": {
+    world: CROW_GRAVE_WORLD,
+    knowledge: CROW_GRAVE_KNOWLEDGE,
   },
 } as const satisfies Record<string, ContentPack>;
 

@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { CROW_BELL_WORLD } from "../seeds/dark-fantasy";
+import { CROW_GRAVE_WORLD } from "../seeds/dark-fantasy";
 import { DEMO_USER } from "../src/db/demo-fixture";
 import "../src/db/env";
 import { type DatabaseHandle, openDatabase } from "../src/db/connect";
@@ -48,23 +48,23 @@ class ScriptedService implements ChatCompletionService {
   }
 }
 
-async function createCrowBellGame(handle: DatabaseHandle, name: string) {
+async function createCrowGraveGame(handle: DatabaseHandle, name: string) {
   const created = await createGame(handle.db, {
     username: DEMO_USER.username,
     name,
-    world: CROW_BELL_WORLD,
+    world: CROW_GRAVE_WORLD,
   });
   await takeActorControl(handle.db, created.game.slug, "拾骨人伊莱");
   return created;
 }
 
 /**
- * 灰炉墓园的 e2e：两条路线都从真实建局、真实玩家动作、真实 stage/world 回合走完。
+ * 鸦葬岗的 e2e：两条路线都从真实建局、真实玩家动作、真实 stage/world 回合走完。
  *
  * 推理端用 ScriptedService 固定成“场景小 GM 已经看懂事件”的那一步；
  * 这里验证的是内容链路与引擎接线，不是 LLM 的临场判断。
  */
-describe.skipIf(!testDatabaseUrl)("crow bell e2e", () => {
+describe.skipIf(!testDatabaseUrl)("crow grave e2e", () => {
   let handle: DatabaseHandle;
 
   beforeAll(async () => {
@@ -78,59 +78,61 @@ describe.skipIf(!testDatabaseUrl)("crow bell e2e", () => {
     await handle.pool.end();
   });
 
-  it("picks up the clapper, opens the sealed well, enters it, and lets the well end the game", async () => {
-    const created = await createCrowBellGame(handle, "灰炉墓园钟井 e2e");
+  it("picks up the cellar pin, opens the sealed cellar, enters it, and lets the cellar end the game", async () => {
+    const created = await createCrowGraveGame(handle, "鸦葬岗封尸窖 e2e");
     const slug = created.game.slug;
 
-    // 断钟舌挂在墓园中庭的裂钟上；拾取是普通的 anchor pickup。
+    // 窖钉卡在中庭的尸车里；拾取是普通的 anchor pickup。
     const picked = await playerPickup(handle.db, slug, "拾骨人伊莱", {
-      targetAnchor: "裂钟",
-      itemName: "断钟舌",
+      targetAnchor: "尸车",
+      itemName: "窖钉",
     });
     expect(picked.ok).toBe(true);
 
-    // 对空钟架使用断钟舌：use 只写场景事件，开门留给灰炉墓园的 stage 回合。
+    // 对锁石使用窖钉：use 只写场景事件，开门留给鸦葬岗的 stage 回合。
     const used = await playerUse(handle.db, slug, "拾骨人伊莱", {
-      targetStageName: "灰炉墓园",
-      itemName: "断钟舌",
-      targetAnchor: "空钟架",
+      targetStageName: "鸦葬岗",
+      itemName: "窖钉",
+      targetAnchor: "锁石",
     });
     expect(used.ok).toBe(true);
     const afterUse = await getGameState(handle.db, slug);
-    expect(afterUse.messages.some((message) => message.content.includes("空钟架"))).toBe(true);
+    expect(afterUse.messages.some((message) => message.content.includes("锁石"))).toBe(true);
     const memoriesAfterUse = await getGameMemories(handle.db, created.game.id);
-    const graveyardMemory = memoriesAfterUse.find((memory) => memory.name === "灰炉墓园");
-    expect(graveyardMemory?.messages.some((message) => message.content.includes("空钟架"))).toBe(
+    const graveyardMemory = memoriesAfterUse.find((memory) => memory.name === "鸦葬岗");
+    expect(graveyardMemory?.messages.some((message) => message.content.includes("锁石"))).toBe(
       true,
     );
 
-    // 灰炉墓园的小 GM 看到钟舌归位，才把石壁后的通道打开。
-    const opened = await runStageTurn(handle.db, slug, "灰炉墓园", {
+    // 鸦葬岗的小 GM 看到窖钉归位，才把石壁后的通道打开。
+    const opened = await runStageTurn(handle.db, slug, "鸦葬岗", {
       service: new ScriptedService([
-        call("open_passage", { targetStageName: "钟井" }),
+        call("open_passage", { targetStageName: "封尸窖" }),
         call("submit_stage_plan", {}),
       ]),
     });
     expect(opened.ok).toBe(true);
-    expect(opened.plan?.actions).toEqual([{ kind: "open_passage", targetStageName: "钟井" }]);
+    expect(opened.plan?.actions).toEqual([
+      { kind: "open_passage", targetStageName: "封尸窖" },
+    ]);
 
     const afterOpen = await getGameState(handle.db, slug);
-    const graveyard = afterOpen.world.stages.find((stage) => stage.name === "灰炉墓园");
-    const well = afterOpen.world.stages.find((stage) => stage.name === "钟井");
+    const graveyard = afterOpen.world.stages.find((stage) => stage.name === "鸦葬岗");
+    const cellar = afterOpen.world.stages.find((stage) => stage.name === "封尸窖");
     expect(
       afterOpen.world.connections.find(
         (connection) =>
-          connection.fromStageId === graveyard?.id && connection.toStageId === well?.id,
+          connection.fromStageId === graveyard?.id && connection.toStageId === cellar?.id,
       )?.passage,
     ).toBe("open");
 
-    const moved = await playerMove(handle.db, slug, "拾骨人伊莱", { targetStageRef: "钟井" });
+    const moved = await playerMove(handle.db, slug, "拾骨人伊莱", { targetStageRef: "封尸窖" });
     expect(moved.ok).toBe(true);
 
-    // 收束报告由钟井自己发出：井底的东西只在这里见光。
+    // 收束报告由封尸窖自己发出：窖底的东西只在这里见光。
     const notification =
-      "空钟架后的石壁裂开，废井见了光；井底的裂钟、骨灰和一只发黑的木铃露了出来。";
-    const reported = await runStageTurn(handle.db, slug, "钟井", {
+      "锁石后的石壁裂开，封尸窖见了光；窖底的骨渣、烂裹尸布和一口没有钉死的小棺露了出来。";
+    const reported = await runStageTurn(handle.db, slug, "封尸窖", {
       service: new ScriptedService([
         call("notify_world", { content: notification }),
         call("submit_stage_plan", {}),
@@ -148,47 +150,49 @@ describe.skipIf(!testDatabaseUrl)("crow bell e2e", () => {
     const ended = await runWorldTurn(handle.db, slug, {
       service: new ScriptedService([
         call("end_game", {
-          outcome: "钟井被打开",
-          message: "裂钟被掀开，井底的骨灰与木铃终于见了光；墓园里的铃声停了。",
+          outcome: "封尸窖被打开",
+          message: "锁石被撬开，窖底的小棺与骨渣终于见了光；坡上的乌鸦落回坟头。",
         }),
         call("submit_world_plan", {}),
       ]),
     });
     expect(ended.ok).toBe(true);
     expect(ended.state.game.status).toBe("completed");
-    expect(ended.state.game.outcome).toBe("钟井被打开");
+    expect(ended.state.game.outcome).toBe("封尸窖被打开");
   });
 
-  it("steals the tower key from the mad father, unlocks the tower, and lets the tower end the game", async () => {
-    const created = await createCrowBellGame(handle, "灰炉墓园钟楼 e2e");
+  it("steals the tower key from the mad corpse-collector, unlocks the tower, and lets the tower end the game", async () => {
+    const created = await createCrowGraveGame(handle, "鸦葬岗守夜塔 e2e");
     const slug = created.game.slug;
 
-    // 钥匙在卡兰背包里、不在穿戴槽；活着也能偷。
+    // 钥匙在卡尔背包里、不在穿戴槽；活着也能偷。
     const stolen = await playerSteal(handle.db, slug, "拾骨人伊莱", {
-      targetActorRef: "钟父卡兰",
-      itemName: "钟楼钥匙",
+      targetActorRef: "收尸人卡尔",
+      itemName: "塔门钥匙",
     });
     expect(stolen.ok).toBe(true);
 
     const used = await playerUse(handle.db, slug, "拾骨人伊莱", {
-      targetStageName: "灰炉墓园",
-      itemName: "钟楼钥匙",
-      targetAnchor: "木门",
+      targetStageName: "鸦葬岗",
+      itemName: "塔门钥匙",
+      targetAnchor: "塔门",
     });
     expect(used.ok).toBe(true);
 
-    const opened = await runStageTurn(handle.db, slug, "灰炉墓园", {
+    const opened = await runStageTurn(handle.db, slug, "鸦葬岗", {
       service: new ScriptedService([
-        call("open_passage", { targetStageName: "钟楼" }),
+        call("open_passage", { targetStageName: "守夜塔" }),
         call("submit_stage_plan", {}),
       ]),
     });
     expect(opened.ok).toBe(true);
-    expect(opened.plan?.actions).toEqual([{ kind: "open_passage", targetStageName: "钟楼" }]);
+    expect(opened.plan?.actions).toEqual([
+      { kind: "open_passage", targetStageName: "守夜塔" },
+    ]);
 
     const afterOpen = await getGameState(handle.db, slug);
-    const graveyard = afterOpen.world.stages.find((stage) => stage.name === "灰炉墓园");
-    const tower = afterOpen.world.stages.find((stage) => stage.name === "钟楼");
+    const graveyard = afterOpen.world.stages.find((stage) => stage.name === "鸦葬岗");
+    const tower = afterOpen.world.stages.find((stage) => stage.name === "守夜塔");
     expect(
       afterOpen.world.connections.find(
         (connection) =>
@@ -196,11 +200,11 @@ describe.skipIf(!testDatabaseUrl)("crow bell e2e", () => {
       )?.passage,
     ).toBe("open");
 
-    const moved = await playerMove(handle.db, slug, "拾骨人伊莱", { targetStageRef: "钟楼" });
+    const moved = await playerMove(handle.db, slug, "拾骨人伊莱", { targetStageRef: "守夜塔" });
     expect(moved.ok).toBe(true);
 
-    const notification = "木门上的锁开了，有人走上了钟楼；墓园外的风从钟绳边灌进来。";
-    const reported = await runStageTurn(handle.db, slug, "钟楼", {
+    const notification = "塔门上的锁开了，有人走上了守夜塔；塔顶的火盆边堆着干芦苇。";
+    const reported = await runStageTurn(handle.db, slug, "守夜塔", {
       service: new ScriptedService([
         call("notify_world", { content: notification }),
         call("submit_stage_plan", {}),
@@ -212,14 +216,14 @@ describe.skipIf(!testDatabaseUrl)("crow bell e2e", () => {
     const ended = await runWorldTurn(handle.db, slug, {
       service: new ScriptedService([
         call("end_game", {
-          outcome: "钟楼的门开了",
-          message: "钟楼的门开着，拾骨人走出了灰炉墓园；身后的铃声终于听不见了。",
+          outcome: "守夜塔的烽火亮了",
+          message: "守夜塔的烽火亮了起来，坡下的人看见了；拾骨人走出了鸦葬岗。",
         }),
         call("submit_world_plan", {}),
       ]),
     });
     expect(ended.ok).toBe(true);
     expect(ended.state.game.status).toBe("completed");
-    expect(ended.state.game.outcome).toBe("钟楼的门开了");
+    expect(ended.state.game.outcome).toBe("守夜塔的烽火亮了");
   });
 });
