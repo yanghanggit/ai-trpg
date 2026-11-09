@@ -131,7 +131,7 @@ export const BELL_MONASTERY: Script = {
               affixes: {
                 strike: [
                   {
-                    name: "火头灼击",
+                    name: "打击",
                     content: "火头砸下去，造成 {{attack}} 点伤害",
                     ops: [{ kind: "damage", amount: { ref: "attack" } }],
                   },
@@ -261,7 +261,7 @@ export const BELL_MONASTERY: Script = {
           affixes: {
             strike: [
               {
-                name: "铁锹劈砍",
+                name: "打击",
                 content: "锹刃劈下去，造成 {{attack}} 点伤害",
                 ops: [{ kind: "damage", amount: { ref: "attack" } }],
               },
@@ -394,7 +394,7 @@ export const BELL_MONASTERY: Script = {
           affixes: {
             strike: [
               {
-                name: "撬骨",
+                name: "打击",
                 content: "钉尖顺着骨缝撬进去，造成 {{attack}} 点伤害",
                 ops: [{ kind: "damage", amount: { ref: "attack" } }],
               },

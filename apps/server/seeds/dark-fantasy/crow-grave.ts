@@ -68,7 +68,7 @@ export const CROW_GRAVE: Script = {
               affixes: {
                 use: [
                   {
-                    name: "开锁石",
+                    name: "插进凹槽",
                     mode: "static",
                     content: "把窖钉插进锁石",
                     ops: [
@@ -137,14 +137,12 @@ export const CROW_GRAVE: Script = {
         {
           key: "small-coffin",
           label: "小棺",
-          description:
-            "窖底最上面的一口小棺，没有钉死；棺盖上放着一只被蜡封住哨口的木哨。",
+          description: "窖底最上面的一口小棺，没有钉死；棺盖上放着一只被蜡封住哨口的木哨。",
           items: [
             {
               key: "wooden-whistle",
               name: "木哨",
-              description:
-                "一只拇指大的木哨，哨口被黑蜡封住，哨身上刻着一个歪歪扭扭的“卡”字。",
+              description: "一只拇指大的木哨，哨口被黑蜡封住，哨身上刻着一个歪歪扭扭的“卡”字。",
               kind: "valuable" as const,
               count: 1,
             },
@@ -240,14 +238,14 @@ export const CROW_GRAVE: Script = {
           affixes: {
             strike: [
               {
-                name: "封尸锤重击",
+                name: "打击",
                 content: "锤头砸下去，造成 {{attack}} 点伤害",
                 ops: [{ kind: "damage", amount: { ref: "attack" } }],
               },
             ],
             cleave: [
               {
-                name: "撬开半圈",
+                name: "横扫",
                 content: "长柄带着锤头横抡半圈，扫到的人各自挨了一下，造成 {{attack}} 点伤害",
                 ops: [{ kind: "damage", amount: { ref: "attack" } }],
               },
@@ -257,8 +255,7 @@ export const CROW_GRAVE: Script = {
         {
           key: "shroud-apron",
           name: "尸布围裙",
-          description:
-            "浸过石灰的粗布围裙，前襟结着一层黑蜡与骨渣，肩带被汗浸得发黑。",
+          description: "浸过石灰的粗布围裙，前襟结着一层黑蜡与骨渣，肩带被汗浸得发黑。",
           kind: "equipment" as const,
           count: 1,
           stats: { block: 1 },
@@ -266,8 +263,7 @@ export const CROW_GRAVE: Script = {
         {
           key: "corpse-tallies",
           name: "收尸人的骨牌",
-          description:
-            "一串用麻绳穿着的骨牌，每块上刻着一道划痕；最下面一块还是空的。",
+          description: "一串用麻绳穿着的骨牌，每块上刻着一道划痕；最下面一块还是空的。",
           kind: "valuable" as const,
           count: 1,
         },
@@ -306,8 +302,7 @@ export const CROW_GRAVE: Script = {
         {
           key: "crow-beak",
           name: "鸦啄",
-          description:
-            "一把弯钩似的短刃，刃背铸成鸦喙的形状，握手处缠着鸦羽和旧皮绳。",
+          description: "一把弯钩似的短刃，刃背铸成鸦喙的形状，握手处缠着鸦羽和旧皮绳。",
           kind: "weapon" as const,
           count: 1,
           stats: { damage: 10, block: 0 },
@@ -315,12 +310,12 @@ export const CROW_GRAVE: Script = {
           affixes: {
             strike: [
               {
-                name: "鸦啄钩刃",
+                name: "打击",
                 content: "钩刃顺着骨缝划开，造成 {{attack}} 点伤害",
                 ops: [{ kind: "damage", amount: { ref: "attack" } }],
               },
               {
-                name: "鸦羽错步",
+                name: "错步",
                 mode: "agent",
                 content:
                   "钩刃逼得对方侧身：如果对方正在挥动重武器，这一下会让他露出空门，下一次攻击更难挡。",
@@ -331,8 +326,7 @@ export const CROW_GRAVE: Script = {
         {
           key: "crow-feather-cloak",
           name: "鸦羽斗篷",
-          description:
-            "黑羽与旧皮缝成的短斗篷，下摆缀着一圈铁片；动起来像一群鸦从肩上飞起。",
+          description: "黑羽与旧皮缝成的短斗篷，下摆缀着一圈铁片；动起来像一群鸦从肩上飞起。",
           kind: "equipment" as const,
           count: 1,
           stats: { block: 4 },
@@ -340,14 +334,13 @@ export const CROW_GRAVE: Script = {
         {
           key: "old-bone-whistle",
           name: "旧骨哨",
-          description:
-            "一只用死人指骨刻成的短哨，哨口磨得发亮，哨身上刻着一只歪歪扭扭的乌鸦。",
+          description: "一只用死人指骨刻成的短哨，哨口磨得发亮，哨身上刻着一只歪歪扭扭的乌鸦。",
           kind: "valuable" as const,
           count: 1,
           affixes: {
             use: [
               {
-                name: "骨哨回响",
+                name: "吹响",
                 mode: "static",
                 content: "吹响旧骨哨",
                 ops: [
@@ -369,8 +362,7 @@ export const CROW_GRAVE: Script = {
         {
           key: "crow-list",
           name: "鸦猎名单",
-          description:
-            "一卷发黑的皮纸，上面划掉了七个名字；最下面一个还没划，只露出半个“卡”字。",
+          description: "一卷发黑的皮纸，上面划掉了七个名字；最下面一个还没划，只露出半个“卡”字。",
           kind: "valuable" as const,
           count: 1,
         },
@@ -423,8 +415,7 @@ export const CROW_GRAVE: Script = {
         {
           key: "bone-hook",
           name: "拾骨钩",
-          description:
-            "一截弯成钩的旧铁，柄上缠着麻绳；钩尖磨得发亮，专用来从骨缝里把骨头勾出来。",
+          description: "一截弯成钩的旧铁，柄上缠着麻绳；钩尖磨得发亮，专用来从骨缝里把骨头勾出来。",
           kind: "weapon" as const,
           count: 1,
           stats: { damage: 5, block: 0 },
@@ -432,7 +423,7 @@ export const CROW_GRAVE: Script = {
           affixes: {
             strike: [
               {
-                name: "钩骨",
+                name: "打击",
                 content: "钩尖勾住骨缝，造成 {{attack}} 点伤害",
                 ops: [{ kind: "damage", amount: { ref: "attack" } }],
               },

@@ -86,7 +86,7 @@ describe("crow-grave seed world", () => {
     expect(pin).toMatchObject({
       key: "cellar-pin",
       kind: "valuable",
-      affixes: { use: [{ name: "开锁石", mode: "static" }] },
+      affixes: { use: [{ name: "插进凹槽", mode: "static" }] },
     });
     expect(stage("graveyard").anchors?.map((anchor) => anchor.label)).toEqual(
       expect.arrayContaining(["塔门", "锁石", "尸车", "新坟"]),
@@ -100,7 +100,7 @@ describe("crow-grave seed world", () => {
       kind: "valuable",
       affixes: {
         use: [
-          { name: "骨哨回响", mode: "static" },
+          { name: "吹响", mode: "static" },
           { name: "旧日的哨声", mode: "agent" },
         ],
       },
@@ -121,7 +121,7 @@ describe("crow-grave seed world", () => {
     const hammer = weapons.find((weapon) => weapon.name === "封尸锤");
     expect(hammer?.actions).toEqual(["strike", "cleave"]);
     expect(hammer?.maxTargets).toBe(2);
-    expect(hammer?.affixes?.cleave?.[0]?.name).toBe("撬开半圈");
+    expect(hammer?.affixes?.cleave?.[0]?.name).toBe("横扫");
 
     // 两把刃器只提供单体挥击；目标数不是它们的属性。
     for (const weapon of ["鸦啄", "拾骨钩"]) {

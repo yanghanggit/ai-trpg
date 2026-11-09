@@ -112,9 +112,7 @@ describe.skipIf(!testDatabaseUrl)("crow grave e2e", () => {
       ]),
     });
     expect(opened.ok).toBe(true);
-    expect(opened.plan?.actions).toEqual([
-      { kind: "open_passage", targetStageName: "封尸窖" },
-    ]);
+    expect(opened.plan?.actions).toEqual([{ kind: "open_passage", targetStageName: "封尸窖" }]);
 
     const afterOpen = await getGameState(handle.db, slug);
     const graveyard = afterOpen.world.stages.find((stage) => stage.name === "鸦葬岗");
@@ -186,9 +184,7 @@ describe.skipIf(!testDatabaseUrl)("crow grave e2e", () => {
       ]),
     });
     expect(opened.ok).toBe(true);
-    expect(opened.plan?.actions).toEqual([
-      { kind: "open_passage", targetStageName: "守夜塔" },
-    ]);
+    expect(opened.plan?.actions).toEqual([{ kind: "open_passage", targetStageName: "守夜塔" }]);
 
     const afterOpen = await getGameState(handle.db, slug);
     const graveyard = afterOpen.world.stages.find((stage) => stage.name === "鸦葬岗");

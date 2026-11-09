@@ -58,7 +58,7 @@ describe("dark fantasy seed world", () => {
       affixes: {
         strike: [
           {
-            name: "火头灼击",
+            name: "打击",
             content: "火头砸下去，造成 {{attack}} 点伤害",
             ops: [{ kind: "damage", amount: { ref: "attack" } }],
           },
