@@ -11,7 +11,7 @@ import {
   createGame,
   getGameState,
   playerGive,
-  playerSteal,
+  playerLoot,
   playerStrike,
   playerWait,
   refreshAppearances,
@@ -90,6 +90,7 @@ describe.skipIf(!testDatabaseUrl)("actor status", () => {
   });
 
   it("尸体仍然可以被搜刮，但不会进入 NPC loop", async () => {
+    // 搜刮尸体走 loot；steal 只对活人，所以这条用例自己就是两者分工的回归。
     const created = await createGame(handle.db, {
       username: DEMO_USER.username,
       name: "尸体搜刮测试局",
@@ -97,11 +98,11 @@ describe.skipIf(!testDatabaseUrl)("actor status", () => {
     });
     await takeActorControl(handle.db, created.game.slug, "守烬人");
 
-    const stolen = await playerSteal(handle.db, created.game.slug, "守烬人", {
+    const looted = await playerLoot(handle.db, created.game.slug, "守烬人", {
       targetActorRef: "提灯修士",
-      itemName: "铅封提灯",
+      itemNames: ["铅封提灯"],
     });
-    expect(stolen.ok).toBe(true);
+    expect(looted.ok).toBe(true);
 
     await expect(
       runNpcTurn(handle.db, created.game.slug, "提灯修士", { service: new WaitService() }),

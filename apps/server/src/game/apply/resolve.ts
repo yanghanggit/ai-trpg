@@ -4,6 +4,7 @@ import { resolveCall } from "../actions/call";
 import { resolveCleave } from "../actions/cleave";
 import { resolveEquip } from "../actions/equip";
 import { resolveGive } from "../actions/give";
+import { resolveLoot } from "../actions/loot";
 import { resolveMove } from "../actions/move";
 import { resolvePickup } from "../actions/pickup";
 import { resolveSay } from "../actions/say";
@@ -136,6 +137,17 @@ export async function resolvePlan(
       case "steal":
         resolved.push(
           await resolveSteal(
+            executor,
+            stage,
+            actorRow.actor.id,
+            action,
+            await visibleTarget(action.targetActorHandle),
+          ),
+        );
+        break;
+      case "loot":
+        resolved.push(
+          await resolveLoot(
             executor,
             stage,
             actorRow.actor.id,

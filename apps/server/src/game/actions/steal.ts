@@ -17,7 +17,7 @@ export function buildStealTool(targetActorHandles: readonly string[]): ToolDefin
     function: {
       name: "steal",
       description:
-        "把一次窃取加入计划：从同场景目标身上取走一件物品。活人只能拿背包，尸体什么都能拿；只有发起者与目标知道。",
+        "把一次窃取加入计划：从同场景的活人身上取走一件背包里的物品；只有发起者与目标知道。尸体不能偷，用 loot 搜刮。",
       parameters: {
         type: "object",
         properties: {
@@ -44,7 +44,7 @@ export function parseSteal(args: Record<string, unknown>): StealAction {
   return { kind: "steal", targetActorHandle, itemName };
 }
 
-/** 尸体上什么都能拿，所以只有活着目标要挡已穿戴的物品。 */
+/** 偷窃只看活人：死者的东西走 loot，两边的拒绝文案互相指路。 */
 export async function resolveSteal(
   executor: Executor,
   stage: ResolvedSteal["stage"],
@@ -53,8 +53,11 @@ export async function resolveSteal(
   target: ResolvedSteal["target"],
 ): Promise<ResolvedSteal> {
   assertNotSelf(target, actorId);
+  if (!isAlive(target)) {
+    throw new GameError("invalid_action", `${target.name}已经死了，搜刮尸体用 loot`);
+  }
   const transferItem = await resolveActorItem(executor, target.id, action.itemName);
-  if (isAlive(target) && Object.values(target.equipment).includes(transferItem.name)) {
+  if (Object.values(target.equipment).includes(transferItem.name)) {
     throw new GameError(
       "invalid_action",
       `${target.name}还活着，拿不走已装备的物品: ${transferItem.name}`,

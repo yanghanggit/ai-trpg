@@ -135,10 +135,14 @@ describe("crow-grave seed world", () => {
       expect([...entry.actions] as string[]).not.toContain("strike");
       expect(entry.actions).toContain("brawl");
     }
-    // 只有拾骨人会偷；卡尔疯到不再操作道具。
+    // 只有拾骨人会偷；搜刮尸体是另一条通道，两个会取物的人都有。
     expect(actor("eli").actions).toContain("steal");
     expect(actor("vela").actions).not.toContain("steal");
+    expect(actor("eli").actions).toContain("loot");
+    expect(actor("vela").actions).toContain("loot");
+    // 卡尔疯到不再操作道具，偷与搜刮都不会有。
     expect(actor("karl").actions).not.toContain("use");
+    expect(actor("karl").actions).not.toContain("loot");
   });
 
   it("writes the two opening rules and the three endings into the content", () => {

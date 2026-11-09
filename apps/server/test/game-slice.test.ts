@@ -289,10 +289,11 @@ describe.skipIf(!testDatabaseUrl)("memory-driven NPC slice", () => {
     expect(keeperService.tools).toContain("strike");
     // 肉搏是固有动作，与武器装备无关。
     expect(keeperService.tools).toContain("brawl");
-    // 侦察跟着偷窃走：不偷东西的角色只拿得到名单里的穿戴摘要。
+    // 侦察跟着取物能力走：能搜刮尸体的角色也需要看背包，但不能偷活人。
     expect(keeperService.tools).not.toContain("steal");
-    expect(keeperService.tools).not.toContain("inspect_actor");
-    expect(keeperService.input).not.toContain("inspect_actor");
+    expect(keeperService.tools).toContain("loot");
+    expect(keeperService.tools).toContain("inspect_actor");
+    expect(keeperService.input).toContain("loot");
     expect(keeperService.tools).toContain("get_self");
     expect(keeperService.tools).not.toContain("get_actor");
     expect(keeperService.tools).not.toContain("get_stats");
@@ -306,6 +307,7 @@ describe.skipIf(!testDatabaseUrl)("memory-driven NPC slice", () => {
     const corpseService = new ToolCaptureService();
     await runNpcTurn(handle.db, created.game.slug, "无名者", { service: corpseService });
     expect(corpseService.tools).toContain("steal");
+    expect(corpseService.tools).toContain("loot");
     // 当前种子只有主角会偷窃，所以只有他拿到侦察工具。
     expect(corpseService.tools).toContain("inspect_actor");
     expect(corpseService.input).toContain("inspect_actor");

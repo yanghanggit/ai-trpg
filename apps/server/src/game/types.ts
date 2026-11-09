@@ -240,6 +240,19 @@ export type StealAction = {
   itemName: string;
 };
 
+/**
+ * 从同场景的尸体上搜走物品；不点名就搜刮全部。
+ *
+ * 与 `steal` 按对象分工：`steal` 只对活人，`loot` 只对尸体；
+ * 尸体上什么都能拿（含穿戴），而且是在场可见的公开行为。
+ */
+export type LootAction = {
+  kind: "loot";
+  targetActorHandle: string;
+  /** 要取走的物品名；省略表示搜刮尸体身上的全部物品。 */
+  itemNames?: string[];
+};
+
 /** 把自己持有的一件物品交给同场景的一个角色；尸体也可以是接收方。 */
 export type GiveAction = {
   kind: "give";
@@ -280,7 +293,7 @@ export type UnequipAction = {
   slot: EquipmentSlot;
 };
 
-/** 一次 actor 行动；十六个具体动作平级，不再有中间分类层。 */
+/** 一次 actor 行动；十七个具体动作平级，不再有中间分类层。 */
 export type ActorAction =
   | SayAction
   | WhisperAction
@@ -293,6 +306,7 @@ export type ActorAction =
   | CleaveAction
   | BrawlAction
   | StealAction
+  | LootAction
   | GiveAction
   | PickupAction
   | UseAction
@@ -319,8 +333,8 @@ export type InnateActionKind = Exclude<ActionKind, CarriedActionKind>;
  */
 export type CommunicationKind = Extract<ActionKind, "say" | "whisper" | "announce" | "call">;
 
-/** 会改变物品归属或使用状态的四个动作；物品观察按这组分叉文本。 */
-export type ItemEventKind = Extract<ActionKind, "steal" | "give" | "pickup" | "use">;
+/** 会改变物品归属或使用状态的五个动作；物品观察按这组分叉文本。 */
+export type ItemEventKind = Extract<ActionKind, "steal" | "loot" | "give" | "pickup" | "use">;
 
 /** stage 的一次仲裁动作；与 actor / world 的计划同构，都是有序动作列表。 */
 export type StageAction =

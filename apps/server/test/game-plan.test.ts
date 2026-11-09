@@ -6,6 +6,7 @@ import { buildCallTool, parseCall } from "../src/game/actions/call";
 import { buildCleaveTool, parseCleave } from "../src/game/actions/cleave";
 import { buildEquipTool, parseEquip } from "../src/game/actions/equip";
 import { buildGiveTool, parseGive } from "../src/game/actions/give";
+import { buildLootTool, parseLoot } from "../src/game/actions/loot";
 import { buildMoveTool, parseMove } from "../src/game/actions/move";
 import { buildPickupTool, parsePickup } from "../src/game/actions/pickup";
 import { buildSayTool, parseSay } from "../src/game/actions/say";
@@ -79,6 +80,8 @@ describe("action tools", () => {
       "targetActorHandle",
       "itemName",
     ]);
+    // 搜刮的 itemNames 是可选的：不传就是搬空尸体。
+    expect(buildLootTool(targets).function.parameters.required).toEqual(["targetActorHandle"]);
     expect(buildGiveTool(targets).function.parameters.required).toEqual([
       "targetActorHandle",
       "itemName",
@@ -256,6 +259,24 @@ describe("action parsers", () => {
       targetActorHandle: "提灯修士",
       itemName: "铅封提灯",
     });
+    expect(parseLoot({ targetActorHandle: "提灯修士" })).toEqual({
+      kind: "loot",
+      targetActorHandle: "提灯修士",
+    });
+    expect(parseLoot({ targetActorHandle: " 提灯修士 ", itemNames: [" 铅封提灯 "] })).toEqual({
+      kind: "loot",
+      targetActorHandle: "提灯修士",
+      itemNames: ["铅封提灯"],
+    });
+    // 空列表与省略等价：都是搜刮全部。
+    expect(parseLoot({ targetActorHandle: "提灯修士", itemNames: [] })).toEqual({
+      kind: "loot",
+      targetActorHandle: "提灯修士",
+    });
+    expect(() => parseLoot({ itemNames: ["铅封提灯"] })).toThrow(/targetActorHandle/);
+    expect(() =>
+      parseLoot({ targetActorHandle: "提灯修士", itemNames: ["铅封提灯", "铅封提灯"] }),
+    ).toThrow(/不能重复/);
     expect(parseGive({ targetActorHandle: "提灯修士", itemName: "裂齿短刃" })).toEqual({
       kind: "give",
       targetActorHandle: "提灯修士",

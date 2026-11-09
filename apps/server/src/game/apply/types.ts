@@ -7,6 +7,7 @@ import type {
   CleaveAction,
   EquipAction,
   GiveAction,
+  LootAction,
   MessageVisibility,
   MoveAction,
   PickupAction,
@@ -135,6 +136,15 @@ export type ResolvedSteal = {
   transferItem: ItemRow;
 };
 
+export type ResolvedLoot = {
+  kind: "loot";
+  action: LootAction;
+  stage: StageRow;
+  target: ActorRow;
+  /** 本次搜走的物品，按请求顺序；省略名单时是尸体身上的全部。 */
+  items: ItemRow[];
+};
+
 export type ResolvedGive = {
   kind: "give";
   action: GiveAction;
@@ -189,6 +199,7 @@ export type ResolvedAction =
   | ResolvedCleave
   | ResolvedBrawl
   | ResolvedSteal
+  | ResolvedLoot
   | ResolvedGive
   | ResolvedPickup
   | ResolvedUse

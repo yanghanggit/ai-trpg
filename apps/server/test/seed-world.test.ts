@@ -157,7 +157,7 @@ describe("dark fantasy seed world", () => {
     ];
 
     const TALK_AND_MOVE = ["say", "whisper", "announce", "move", "wait"];
-    const ITEM_ACTIONS = ["give", "pickup", "use"];
+    const ITEM_ACTIONS = ["give", "pickup", "loot", "use"];
 
     // 活物都会说话、走动与等待。
     for (const actor of BELL_MONASTERY_WORLD.actors) {

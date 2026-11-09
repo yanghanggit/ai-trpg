@@ -16,6 +16,7 @@ import {
   playerCall,
   playerEquip,
   playerGive,
+  playerLoot,
   playerMove,
   playerPickup,
   playerRecallRoute,
@@ -96,6 +97,13 @@ const pickupInput = z.object({
 });
 
 const targetItemInput = z.object({ ...gameAndActor, target: actorRef, item: itemName });
+
+/** 搜刮不传 `--item` 就是搬空尸体：列表可重复给，也可一次给多个名字。 */
+const lootInput = z.object({
+  ...gameAndActor,
+  target: actorRef,
+  item: z.array(z.string().trim().min(1)).optional(),
+});
 
 const useInput = z
   .object({
@@ -318,6 +326,28 @@ export function registerPlayerCommands(program: Command, ctx: CommandContext): v
           playerSteal(db, input.game, input.actor, {
             targetActorRef: input.target,
             itemName: input.item,
+          }),
+        ),
+      ),
+  });
+
+  addCommand(program, ctx, {
+    name: "player-loot",
+    group: GROUP,
+    summary: "搜刮同场景的尸体；不给 --item 就搜刮全部",
+    options: [
+      gameOption(),
+      actorOption(),
+      targetOption(),
+      optionalOption("--item <names...>", "要搜刮的物品名；省略表示搜刮全部"),
+    ],
+    schema: lootInput,
+    run: async (input, ctx) =>
+      turnOutput(
+        await ctx.db((db) =>
+          playerLoot(db, input.game, input.actor, {
+            targetActorRef: input.target,
+            ...(input.item === undefined ? {} : { itemNames: input.item }),
           }),
         ),
       ),

@@ -291,6 +291,11 @@ export async function resolveActorItem(
   return item;
 }
 
+/** 某个角色名下的全部物品；搜刮尸体要用整份清单，按序号稳定排序。 */
+export async function listActorItems(executor: Executor, actorId: string): Promise<ItemRow[]> {
+  return executor.select().from(items).where(eq(items.actorId, actorId)).orderBy(asc(items.seq));
+}
+
 /** 场景物品按 (场景, 锚点, 名字) 定位：锚点内名字唯一由写入侧保证。 */
 export async function resolveStageItem(
   executor: Executor,

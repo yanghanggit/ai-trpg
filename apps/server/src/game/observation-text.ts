@@ -32,6 +32,8 @@ export type ObservationMetadata = {
   attackerActorId?: string;
   targetActorId?: string;
   itemName?: string;
+  /** 一次动作取走多件物品时用（目前只有搜刮尸体）。 */
+  itemNames?: readonly string[];
   affixName?: string;
   witness?: boolean;
   targetStageId?: string;
@@ -87,15 +89,17 @@ export type CallObservation = {
  * 成员与 `ItemEventKind` 对应：`target` 的有无由动作本身决定，不交给调用方记，
  * 于是文案里不再有「某人」这类兜底。
  */
-export type ItemObservation = { actor: ActorRef; itemName: string } & (
-  | { event: Extract<ItemEventKind, "steal" | "give">; target: ActorRef }
+export type ItemObservation = { actor: ActorRef } & (
+  | { event: Extract<ItemEventKind, "steal" | "give">; itemName: string; target: ActorRef }
+  | { event: "loot"; target: ActorRef; itemNames: readonly string[] }
   | {
       event: Extract<ItemEventKind, "use">;
+      itemName: string;
       target?: ActorRef;
       targetStageName?: string;
       targetAnchor?: string;
     }
-  | { event: "pickup"; anchorLabel: string }
+  | { event: "pickup"; itemName: string; anchorLabel: string }
 );
 
 /**
@@ -248,12 +252,29 @@ export function renderItemEvent(
   address: AddressLookup,
 ): ObservationView {
   const { actor } = observation;
-  const itemName = observation.itemName;
   const actorAddress = address(actor.id);
   const actorRef = mentionOf(actorAddress);
   const targetAddress =
     "target" in observation && observation.target ? address(observation.target.id) : null;
   const targetRef = targetAddress ? mentionOf(targetAddress) : "";
+
+  // 搜刮可能一次搬空尸体：句子用列表，metadata 也跟着从单数变复数。
+  if (observation.event === "loot") {
+    return {
+      content: withAppearances(
+        `# 场景动态\n${actorRef}从${targetRef}的尸体上搜走了${observation.itemNames.join("、")}。`,
+        [actorAddress, ...(targetAddress ? [targetAddress] : [])],
+      ),
+      metadata: {
+        kind: MEMORY_KINDS.actionObservation,
+        stageId: stage.id,
+        itemNames: observation.itemNames,
+        targetActorId: observation.target.id,
+      },
+    };
+  }
+
+  const itemName = observation.itemName;
   const metadata: ObservationMetadata = {
     kind: MEMORY_KINDS.actionObservation,
     stageId: stage.id,

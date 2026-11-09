@@ -109,7 +109,7 @@ export const TEST_WORLD: World = {
       hp: 12,
       stats: { maxHp: 12, strength: 6, wisdom: 2, agility: 4, damage: 6, block: 2 },
       equipment: { weapon: "裂齿短刃" },
-      // 测试世界里的玩家角色额外拥有 steal，用于验证私密事件。
+      // 测试世界里的玩家角色额外拥有 steal 与 loot，用于验证取物两条通道。
       actions: [
         "say",
         "whisper",
@@ -121,6 +121,7 @@ export const TEST_WORLD: World = {
         "pickup",
         "use",
         "steal",
+        "loot",
         "equip",
         "unequip",
       ],

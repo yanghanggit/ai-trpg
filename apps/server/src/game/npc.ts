@@ -19,6 +19,7 @@ import { buildCallTool, parseCall } from "./actions/call";
 import { buildCleaveTool, parseCleave } from "./actions/cleave";
 import { buildEquipTool, parseEquip } from "./actions/equip";
 import { buildGiveTool, parseGive } from "./actions/give";
+import { buildLootTool, parseLoot } from "./actions/loot";
 import { buildMoveTool, parseMove } from "./actions/move";
 import { buildPickupTool, parsePickup } from "./actions/pickup";
 import { buildSayTool, parseSay } from "./actions/say";
@@ -100,11 +101,11 @@ export type NpcTurnOptions = {
 };
 
 /**
- * 侦察（`inspect_actor`）是偷窃的前置：只有能 `steal` 的角色才注入这个工具。
+ * 侦察（`inspect_actor`）是取物的前置：能偷活人或搜刮尸体的角色才注入这个工具。
  * 工具注入与任务提示词共用这一条判断，避免提示词提到不存在的工具。
  */
 function canInspectActorItems(actor: Pick<ActorState, "actions">): boolean {
-  return actor.actions.includes("steal");
+  return actor.actions.includes("steal") || actor.actions.includes("loot");
 }
 
 /** 构造 actor 本轮的公开环境与任务说明；NPC 与探针共用。 */
@@ -141,13 +142,20 @@ export function buildActorTurnInput(
     : "";
   // 攻击是能力面：引擎不自动授予 brawl，没武器时能用什么完全由角色固有声明决定。
   // 这里只把“现在到底有没有出手方式”说清楚，避免模型反复尝试没有的动作。
+  // 偷与搜刮按对象分工，尸体不是窃取目标；这句只在本回合真能用其中一条时出现。
+  const lootHint =
+    allowed.includes("steal") && allowed.includes("loot")
+      ? "活人用 steal（私密，拿不走穿戴中的物品）；尸体用 loot 搜刮（公开，装备与材料都能拿，不点名就是全部）。"
+      : allowed.includes("loot")
+        ? "尸体用 loot 搜刮：装备、材料与背包里的东西都能拿，不点名就是全部，在场的人都看得见。"
+        : "";
   const unarmedHint =
     weaponAttackKinds.length > 0
       ? ""
       : allowed.includes("brawl")
         ? "当前没有能出手的武器：近战只能用 brawl（身体攻击，不吃武器数值）。"
         : "当前既没有能出手的武器，也没有 brawl：本轮无法发起攻击。";
-  // 侦察与偷窃同生共死：不偷东西的角色只看姓名与穿戴，不提供背包细节。
+  // 侦察跟着取物走：既不能偷也不能搜刮的角色只看姓名与穿戴，不提供背包细节。
   const canInspect = canInspectActorItems(current.actor);
   const toolHint = canInspect
     ? "名单里只列了同场景他人已穿戴的装备；要看全，用 get_self 看自己、用 inspect_actor 看别人随身带的全部物品。"
@@ -231,7 +239,7 @@ ${teleportLines}`
 2. 写：${actionList}。一次回复只提交 ${MAX_ACTIONS_PER_TURN} 个行动——说话、移动、动手都算。动作工具只把动作暂存进计划，不会落账。
 3. 提交：submit_plan。必须与那一个动作工具放在同一次回复里调用；只调动作不提交，这一轮就什么都没发生。
 
-${toolHint}${knowledgeHint}${identityHint}${useFlowHint}${callHint}${unarmedHint}${readOnlyHint}`;
+${toolHint}${knowledgeHint}${identityHint}${useFlowHint}${callHint}${unarmedHint}${lootHint}${readOnlyHint}`;
 }
 
 /** 把动作加入本轮计划；条数上限在这里就告诉模型，避免提交后才被拒绝。 */
@@ -327,6 +335,7 @@ export async function runNpcTurn(
     cleave: buildCleaveTool(targets, cleaveMaxTargets),
     brawl: buildBrawlTool(targets),
     steal: buildStealTool(targets),
+    loot: buildLootTool(targets),
     give: buildGiveTool(targets),
     pickup: buildPickupTool(
       current.stage.anchors.map((anchor) => anchor.label),
@@ -353,6 +362,7 @@ export async function runNpcTurn(
     cleave: parseCleave,
     brawl: parseBrawl,
     steal: parseSteal,
+    loot: parseLoot,
     give: parseGive,
     pickup: parsePickup,
     use: parseUse,

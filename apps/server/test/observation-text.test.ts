@@ -230,6 +230,27 @@ describe("item observations", () => {
     expect(bystander.metadata.targetActorId).toBe(OTHER.id);
   });
 
+  it("搜刮是公开事件，物品用列表写进同一句", () => {
+    const loot: ItemObservation = {
+      actor: ACTOR,
+      event: "loot",
+      target: OTHER,
+      itemNames: ["旧钥匙", "半截铁钉"],
+    };
+    const view = renderItemEvent(STAGE, loot, "actor-3");
+    expect(view.content).toBe(
+      withAppearances(
+        "# 场景动态\n守烬人从提灯修士的尸体上搜走了旧钥匙、半截铁钉。",
+        ACTOR_APPEARANCE,
+        OTHER_APPEARANCE,
+      ),
+    );
+    expect(view.metadata).toMatchObject({
+      itemNames: ["旧钥匙", "半截铁钉"],
+      targetActorId: OTHER.id,
+    });
+  });
+
   it("拾取没有目标，也不带当事人视角", () => {
     const view = renderItemEvent(STAGE, pickup, "actor-3");
     expect(view.content).toBe(

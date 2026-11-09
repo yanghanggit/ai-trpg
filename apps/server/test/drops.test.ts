@@ -9,7 +9,7 @@ import {
   createGame,
   getGameState,
   parseDrops,
-  playerSteal,
+  playerLoot,
   playerStrike,
   playerUse,
   runDropTurn,
@@ -110,7 +110,7 @@ describe.skipIf(!testDatabaseUrl)("death drops", () => {
     await handle.pool.end();
   });
 
-  it("掉落材料留在尸体上，靠 steal 取走，不能被使用", async () => {
+  it("掉落材料留在尸体上，靠 loot 取走，不能被使用", async () => {
     const created = await createGame(handle.db, {
       username: DEMO_USER.username,
       name: "掉落测试局",
@@ -163,13 +163,13 @@ describe.skipIf(!testDatabaseUrl)("death drops", () => {
     const memory = await loadAgentMemory(handle.db, created.game.id, "stage", gate?.id ?? "");
     expect(memory?.messages.some((message) => message.content.includes("# 尸体遗留"))).toBe(true);
 
-    const stolen = await playerSteal(handle.db, created.game.slug, "守烬人", {
+    const looted = await playerLoot(handle.db, created.game.slug, "守烬人", {
       targetActorRef: "提灯修士",
-      itemName: "浸血的灰袍碎片",
+      itemNames: ["浸血的灰袍碎片"],
     });
-    expect(stolen.ok).toBe(true);
-    const afterSteal = await getGameState(handle.db, created.game.slug);
-    const keeper = afterSteal.world.stages
+    expect(looted.ok).toBe(true);
+    const afterLoot = await getGameState(handle.db, created.game.slug);
+    const keeper = afterLoot.world.stages
       .flatMap((stage) => stage.actors)
       .find((actor) => actor.name === "守烬人");
     const carried = keeper?.items.find((item) => item.name === "浸血的灰袍碎片");

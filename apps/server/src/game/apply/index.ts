@@ -10,6 +10,7 @@ import { applyCall } from "../actions/call";
 import { applyCleave } from "../actions/cleave";
 import { applyEquip } from "../actions/equip";
 import { applyGive } from "../actions/give";
+import { applyLoot } from "../actions/loot";
 import { applyMove } from "../actions/move";
 import { applyPickup } from "../actions/pickup";
 import { applySay } from "../actions/say";
@@ -106,6 +107,8 @@ async function applyResolvedAction(
       return plain(await applyCleave(executor, gameId, actorRow, resolved, now, address, trace));
     case "steal":
       return plain(await applySteal(executor, gameId, actorRow, resolved, now, address, trace));
+    case "loot":
+      return plain(await applyLoot(executor, gameId, actorRow, resolved, now, address, trace));
     case "give":
       return plain(await applyGive(executor, gameId, actorRow, resolved, now, address, trace));
     case "pickup":

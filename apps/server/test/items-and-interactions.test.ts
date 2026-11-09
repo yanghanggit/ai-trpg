@@ -14,6 +14,7 @@ import {
   getGameState,
   playerBrawl,
   playerGive,
+  playerLoot,
   playerMove,
   playerPickup,
   playerSteal,
@@ -464,7 +465,7 @@ describe.skipIf(!testDatabaseUrl)("items and interactions", () => {
     ).rejects.toThrow("拿不走已装备的物品");
   });
 
-  it("takes a worn item from a corpse and clears the corpse's slot", async () => {
+  it("loots a worn item from a corpse and clears the corpse's slot", async () => {
     const created = await createGame(handle.db, {
       username: DEMO_USER.username,
       name: "尸体取物测试局",
@@ -472,18 +473,105 @@ describe.skipIf(!testDatabaseUrl)("items and interactions", () => {
     });
     await takeActorControl(handle.db, created.game.slug, "守烬人");
 
-    const stolen = await playerSteal(handle.db, created.game.slug, "守烬人", {
+    const looted = await playerLoot(handle.db, created.game.slug, "守烬人", {
       targetActorRef: "提灯修士",
-      itemName: "铅封提灯",
+      itemNames: ["铅封提灯"],
     });
-    expect(stolen.ok).toBe(true);
+    expect(looted.ok).toBe(true);
 
     const state = await getGameState(handle.db, created.game.slug);
+    // 搜刮是公开行为：消息可见性跟着 pickup 走，不用 steal 的私密。
+    const lootMessage = state.messages.find((message) => message.kind === "loot");
+    expect(lootMessage?.visibility).toBe("stage");
+    expect(lootMessage?.content).toContain("搜走了铅封提灯");
     const actors = state.world.stages.flatMap((stage) => stage.actors);
     expect(
       actors.find((actor) => actor.name === "守烬人")?.items.map((item) => item.name),
     ).toContain("铅封提灯");
     expect(actors.find((actor) => actor.name === "提灯修士")?.equipment.armor).toBeUndefined();
+  });
+
+  it("loots everything on a corpse when itemNames is omitted", async () => {
+    const world = {
+      ...MERGE_WORLD,
+      actors: MERGE_WORLD.actors.map((actor) =>
+        actor.name === "提灯修士"
+          ? { ...actor, hp: 0, status: "dead" as const, equipment: { armor: "铅封提灯" } }
+          : actor,
+      ),
+    };
+    const created = await createGame(handle.db, {
+      username: DEMO_USER.username,
+      name: "搜刮全部测试局",
+      world,
+    });
+    await takeActorControl(handle.db, created.game.slug, "守烬人");
+
+    const looted = await playerLoot(handle.db, created.game.slug, "守烬人", {
+      targetActorRef: "提灯修士",
+    });
+    expect(looted.ok).toBe(true);
+    // 不点名 = 搜刮全部：计划里不带 itemNames，由解析期展开成整份清单。
+    expect(looted.plan?.actions[0]).toEqual({ kind: "loot", targetActorHandle: "提灯修士" });
+
+    const state = await getGameState(handle.db, created.game.slug);
+    const actors = state.world.stages.flatMap((stage) => stage.actors);
+    const keeper = actors.find((actor) => actor.name === "守烬人");
+    const corpse = actors.find((actor) => actor.name === "提灯修士");
+    expect(keeper?.items.map((item) => item.name)).toEqual(
+      expect.arrayContaining(["铅封提灯", "裂齿短刃"]),
+    );
+    expect(corpse?.items).toEqual([]);
+    // 穿戴槽跟着清空：尸体不再「穿着」已被搜走的东西。
+    expect(corpse?.equipment.armor).toBeUndefined();
+
+    const lootMessage = state.messages.find((message) => message.kind === "loot");
+    // 一次动作一条消息，物品用顿号并列，不拆成多条。
+    expect(lootMessage?.content).toContain("搜走了铅封提灯、裂齿短刃");
+  });
+
+  it("rejects a loot list that names an item the corpse does not have", async () => {
+    const created = await createGame(handle.db, {
+      username: DEMO_USER.username,
+      name: "搜刮点名测试局",
+      world: CORPSE_WORLD,
+    });
+    await takeActorControl(handle.db, created.game.slug, "守烬人");
+
+    await expect(
+      playerLoot(handle.db, created.game.slug, "守烬人", {
+        targetActorRef: "提灯修士",
+        itemNames: ["不存在的物件"],
+      }),
+    ).rejects.toThrow("身上没有这些物品: 不存在的物件");
+  });
+
+  it("keeps steal and loot apart by target: corpses are not stealable", async () => {
+    const corpseGame = await createGame(handle.db, {
+      username: DEMO_USER.username,
+      name: "尸体不可偷测试局",
+      world: CORPSE_WORLD,
+    });
+    await takeActorControl(handle.db, corpseGame.game.slug, "守烬人");
+    await expect(
+      playerSteal(handle.db, corpseGame.game.slug, "守烬人", {
+        targetActorRef: "提灯修士",
+        itemName: "铅封提灯",
+      }),
+    ).rejects.toThrow("已经死了，搜刮尸体用 loot");
+
+    const livingGame = await createGame(handle.db, {
+      username: DEMO_USER.username,
+      name: "活人不可搜刮测试局",
+      world: ITEM_WORLD,
+    });
+    await takeActorControl(handle.db, livingGame.game.slug, "守烬人");
+    await expect(
+      playerLoot(handle.db, livingGame.game.slug, "守烬人", {
+        targetActorRef: "提灯修士",
+        itemNames: ["铅封提灯"],
+      }),
+    ).rejects.toThrow("还活着，搜刮只对尸体");
   });
 
   it("rejects steal for an actor whose actions do not include it", async () => {
