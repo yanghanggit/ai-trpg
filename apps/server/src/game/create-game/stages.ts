@@ -1,10 +1,10 @@
 import { randomUUID } from "node:crypto";
 import { stageConnections, stageItems, stages } from "../../db/schema";
 import type { Executor } from "../apply/types";
-import { assertEdgeShape } from "../edges";
 import { GameError } from "../errors";
 import { buildStageSystemPrompt, createStageMemory } from "../memory";
 import { allocateEntitySeq } from "../persistence/entity-seq";
+import { assertEdgeShape } from "../stage-state";
 import type { Stage, World } from "../world-definition";
 import { itemValues } from "./rows";
 import type { PromptDump } from "./types";

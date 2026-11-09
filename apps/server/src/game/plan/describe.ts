@@ -8,8 +8,7 @@ import {
 } from "../addressing";
 import { isAlive } from "../apply/queries";
 import { STAT_LABELS } from "../attributes";
-import { adjacentStageNames, adjacentStages, sealedStages } from "../neighbors";
-import { findStageByName } from "../stage-state";
+import { adjacentStageNames, adjacentStages, findStageByName, sealedStages } from "../stage-state";
 import type { ActorState, GameStateSlice, ItemState, StageAnchorState, StageState } from "../types";
 import { EQUIPMENT_SLOT_LABELS, EQUIPMENT_SLOTS } from "../types";
 import { visitedStageIds, visitedStagesForActor, visitedTeleportTargetsFor } from "../visit-state";

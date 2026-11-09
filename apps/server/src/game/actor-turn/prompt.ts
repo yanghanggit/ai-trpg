@@ -3,6 +3,7 @@ import type { ActorWithStage } from "../actor-state";
 import { isHandleRef, refOf } from "../addressing";
 import { isAlive } from "../apply/queries";
 import { STAT_LABELS } from "../attributes";
+import { DEFAULT_ACTOR_MAX_ROUNDS } from "../default-rounds";
 import { MAX_ACTIONS_PER_TURN } from "../limits";
 import {
   describeEquipmentBrief,
@@ -10,7 +11,6 @@ import {
   renderStageEnvironmentForActor,
   sealedVisitedStageRefsForActor,
 } from "../plan";
-import { DEFAULT_ACTOR_MAX_ROUNDS } from "../rounds";
 import type { GameStateSlice } from "../types";
 import { visitedTeleportTargetsFor } from "../visit-state";
 import { type ActorTurnContext, actorTurnContext } from "./context";

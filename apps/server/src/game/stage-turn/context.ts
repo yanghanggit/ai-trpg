@@ -1,4 +1,4 @@
-import { adjacentStageNames, sealedStageNames } from "../neighbors";
+import { adjacentStageNames, sealedStageNames } from "../stage-state";
 import type { GameStateSlice, StageActionKind, StageState } from "../types";
 
 /** 仲裁动作的固定顺序：工具列表按它排，内容里声明的先后不影响模型看到的顺序。 */

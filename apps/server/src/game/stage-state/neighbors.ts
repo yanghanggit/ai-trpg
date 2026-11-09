@@ -1,10 +1,10 @@
-import { buildEdgeIndex, openNeighborIds, sealedNeighborIds } from "./edges";
-import type { GameStateSlice, PassageState, StageState } from "./types";
+import type { GameStateSlice, PassageState, StageState } from "../types";
+import { buildEdgeIndex, openNeighborIds, sealedNeighborIds } from "./graph";
 
 /**
  * 场景的邻接关系：从某个场景出发，哪些能走、哪些封着。
  *
- * 图本身属于 `edges.ts`（连接行的索引）；这里只把索引套到已装载的状态上，
+ * 图本身属于 `graph.ts`（边、索引与遍历）；这里只把索引套到已装载的状态上，
  * 让提示词、视图和移动共用同一份「隔壁是谁」的判断。两张表都随通道开合变化，
  * 调用方总是现算，不要缓存。
  */
@@ -29,7 +29,7 @@ export function adjacentStageNames(state: GameStateSlice, stageId: string): stri
 
 /**
  * 所有出边，连通行状态一起给：客户端要区分「能走」与「封着」，所以不能用
- * `adjacentStages` 过滤掉一半。图本身仍在 `edges.ts`，这里只做「边 → 场景」的连接。
+ * `adjacentStages` 过滤掉一半。图本身仍在 `graph.ts`，这里只做「边 → 场景」的连接。
  */
 export function outgoingStages(
   state: GameStateSlice,

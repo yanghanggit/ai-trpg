@@ -4,6 +4,7 @@ import { createTurnTrace, traceEvent } from "../../debug/trace";
 import { DEFAULT_ERROR_RETRIES } from "../../llm";
 import { agentLoop } from "../../llm/agent-loop";
 import type { ChatCompletionService } from "../../llm/protocol";
+import { DEFAULT_WORLD_MAX_ROUNDS } from "../default-rounds";
 import { GameError } from "../errors";
 import { loadAgentMemory } from "../memory";
 import {
@@ -16,7 +17,6 @@ import {
   parseNotifyStage,
 } from "../plan";
 import { getGameStateSlice, readTurnDelivery } from "../read/game-state";
-import { DEFAULT_WORLD_MAX_ROUNDS } from "../rounds";
 import type { WorldAction, WorldTurnResult } from "../types";
 import { applyWorldPlan } from "./arbitrate";
 import { createWorldPlanSession } from "./plan-session";

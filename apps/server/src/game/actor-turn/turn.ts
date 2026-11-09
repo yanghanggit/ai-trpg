@@ -16,6 +16,7 @@ import { findActorByName } from "../actor-state";
 import { handleOf } from "../addressing";
 import { applyActorPlan } from "../apply";
 import { isAlive } from "../apply/queries";
+import { DEFAULT_ACTOR_MAX_ROUNDS } from "../default-rounds";
 import { GameError } from "../errors";
 import { loadAgentMemory } from "../memory";
 import { isPlayerControlled } from "../persistence/actor-controls";
@@ -35,7 +36,6 @@ import {
   parseRecognizeIdentity,
 } from "../plan";
 import { getGameStateSlice, readTurnDelivery } from "../read/game-state";
-import { DEFAULT_ACTOR_MAX_ROUNDS } from "../rounds";
 import {
   describeRoute,
   describeRouteFailure,

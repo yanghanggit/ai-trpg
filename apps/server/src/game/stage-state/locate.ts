@@ -1,10 +1,13 @@
 import assert from "node:assert/strict";
-import { isHandleRef } from "./addressing";
-import { GameError } from "./errors";
-import type { GameStateSlice, StageState } from "./types";
+import { isHandleRef } from "../addressing";
+import { GameError } from "../errors";
+import type { GameStateSlice, StageState } from "../types";
 
 /**
  * 场景的状态层定位：把引用解析成 `StageState`。
+ *
+ * 包里三件事的分工：这里认「哪一个场景」，`graph.ts` 管「场景之间怎么连」，`neighbors.ts`
+ * 回答「从这里能去哪」。
  *
  * 与行级读写（`persistence/stages.ts`）分开：这里只看已装载的状态，不碰数据库。
  *

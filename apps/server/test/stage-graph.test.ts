@@ -4,7 +4,7 @@ import {
   buildEdgeIndex,
   openNeighborIds,
   sealedNeighborIds,
-} from "../src/game/edges";
+} from "../src/game/stage-state";
 
 const edges = [
   { fromStageId: "a", toStageId: "b", passage: "open" as const },

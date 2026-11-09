@@ -6,6 +6,7 @@ import type { ChatCompletionService } from "../../llm/protocol";
 import { findActorByName } from "../actor-state";
 import { bumpGameVersion } from "../apply/messages";
 import { isAlive } from "../apply/queries";
+import { DEFAULT_APPEARANCE_MAX_ROUNDS } from "../default-rounds";
 import { GameError } from "../errors";
 import { loadAgentMemory } from "../memory";
 import { renderAppearanceChange } from "../observation-text";
@@ -13,7 +14,6 @@ import { appendCustomStageObservation } from "../observations";
 import { recordAppearance } from "../persistence/appearances";
 import { lockGameRow } from "../persistence/games";
 import { getGameStateSlice, readTurnDelivery } from "../read/game-state";
-import { DEFAULT_APPEARANCE_MAX_ROUNDS } from "../rounds";
 import type { EquipmentSlot, TurnDelivery } from "../types";
 import {
   buildAppearanceTurnInput,
