@@ -206,6 +206,33 @@ describe("agentLoop", () => {
     expect(result.rounds).toHaveLength(2);
   });
 
+  it("finalRoundHint 只拼在最后一轮请求上，不进消息历史", async () => {
+    const { calls, service } = scriptedService((request) =>
+      completion(request, {
+        finishReason: "tool_calls",
+        toolCalls: [toolCall("get_weather", { city: "北京" })],
+      }),
+    );
+    const messages: ChatMessage[] = [systemMessage()];
+
+    const result = await agentLoop({
+      name: "final-round-hint",
+      inputMessage: "查天气",
+      messages,
+      tools: [weatherTool],
+      handlers: { get_weather: () => "25°C" },
+      service,
+      maxRounds: 2,
+      finalRoundHint: "最后一次机会",
+    });
+
+    expect(result.ok).toBe(false);
+    expect(calls[0]?.inputMessage).toBe("查天气");
+    expect(calls[1]?.inputMessage).toBe("最后一次机会");
+    // 提示是临时输入：记忆里不该多出一条 human。
+    expect(messages.some((message) => message.content === "最后一次机会")).toBe(false);
+  });
+
   it("未知工具与 handler 异常都会写回 ToolMessage，循环可继续", async () => {
     const { service } = scriptedService((request, index) => {
       if (index === 0) {

@@ -42,6 +42,11 @@ export type AgentLoopOptions = {
   mutateMessages?: boolean;
   maxRounds?: number;
   maxTerminalNudges?: number;
+  /**
+   * 最后一轮的临时提示：拼在本次请求的 inputMessage 上，不进记忆。
+   * 用于告诉模型「这是最后一次推理机会」，避免把写动作与终结工具留到不存在的下一轮。
+   */
+  finalRoundHint?: string;
   toolChoice?: ToolChoice;
   thinking?: boolean;
   terminalTools?: readonly ToolDefinition[];
@@ -193,6 +198,7 @@ export async function agentLoop(options: AgentLoopOptions): Promise<AgentLoopRes
     mutateMessages = true,
     maxRounds = 5,
     maxTerminalNudges = 2,
+    finalRoundHint,
     toolChoice = "auto",
     thinking = false,
     terminalTools = [],
@@ -227,6 +233,10 @@ export async function agentLoop(options: AgentLoopOptions): Promise<AgentLoopRes
   try {
     for (let round = 1; round <= maxRounds; round += 1) {
       logger.debug(`[agent_loop:${name}] 第 ${round}/${maxRounds} 轮`);
+      if (round === maxRounds && finalRoundHint) {
+        currentPrompt =
+          currentPrompt.length > 0 ? `${currentPrompt}\n\n${finalRoundHint}` : finalRoundHint;
+      }
       const roundStart = history.length;
 
       const request = new ChatCompletionRequest({
@@ -309,7 +319,10 @@ export async function agentLoop(options: AgentLoopOptions): Promise<AgentLoopRes
       }
 
       if (currentPrompt.length > 0) {
-        tracker.appendStartMessage(currentPrompt, inputMetadata);
+        // 最后一轮的提示只服务这一次请求：之后没有下一轮会用到，也不该留进记忆。
+        if (round < maxRounds) {
+          tracker.appendStartMessage(currentPrompt, inputMetadata);
+        }
         currentPrompt = "";
       }
 

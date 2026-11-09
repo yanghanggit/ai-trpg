@@ -86,7 +86,7 @@ export function describeEquipment(actor: Pick<ActorState, "equipment">): string 
  * 同场景角色名单里的穿戴摘要：一行只列已穿戴的槽位。
  *
  * 与 `describeEquipment` 的区别是给名单内联用；没穿东西时返回空串。
- * 完整背包（含未穿戴物品与数值）仍走 `observe_actor`。
+ * 完整背包（含未穿戴物品与数值）仍走 `inspect_actor`。
  */
 export function describeEquipmentBrief(actor: Pick<ActorState, "equipment">): string {
   return EQUIPMENT_SLOTS.flatMap((slot) => {

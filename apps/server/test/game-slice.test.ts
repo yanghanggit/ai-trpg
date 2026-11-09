@@ -291,8 +291,8 @@ describe.skipIf(!testDatabaseUrl)("memory-driven NPC slice", () => {
     expect(keeperService.tools).toContain("brawl");
     // 侦察跟着偷窃走：不偷东西的角色只拿得到名单里的穿戴摘要。
     expect(keeperService.tools).not.toContain("steal");
-    expect(keeperService.tools).not.toContain("observe_actor");
-    expect(keeperService.input).not.toContain("observe_actor");
+    expect(keeperService.tools).not.toContain("inspect_actor");
+    expect(keeperService.input).not.toContain("inspect_actor");
     expect(keeperService.tools).toContain("get_self");
     expect(keeperService.tools).not.toContain("get_actor");
     expect(keeperService.tools).not.toContain("get_stats");
@@ -307,14 +307,19 @@ describe.skipIf(!testDatabaseUrl)("memory-driven NPC slice", () => {
     await runNpcTurn(handle.db, created.game.slug, "无名者", { service: corpseService });
     expect(corpseService.tools).toContain("steal");
     // 当前种子只有主角会偷窃，所以只有他拿到侦察工具。
-    expect(corpseService.tools).toContain("observe_actor");
-    expect(corpseService.input).toContain("observe_actor");
+    expect(corpseService.tools).toContain("inspect_actor");
+    expect(corpseService.input).toContain("inspect_actor");
     expect(corpseService.tools).toContain("query");
+    // 读写提交是一个协议：只读可并发、写占名额、提交必须同回复；
+    // 不能再鼓励把只读调用拆成多轮，否则轮次还没到写就被吃完了。
+    expect(corpseService.input).toContain("本回合的推理预算是");
+    expect(corpseService.input).toContain("必须与那一个动作工具放在同一次回复里调用");
+    expect(corpseService.input).not.toContain("可以分多轮调用");
 
     const dogService = new ToolCaptureService();
     await runNpcTurn(handle.db, created.game.slug, "小狗“煤渣”", { service: dogService });
     expect(dogService.tools).toContain("query");
-    expect(dogService.tools).not.toContain("observe_actor");
+    expect(dogService.tools).not.toContain("inspect_actor");
     expect(dogService.tools).not.toContain("equip");
     expect(dogService.tools).not.toContain("unequip");
     // 犬没有武器，挥击由武器提供，所以没有这个动作；肉搏是身体动作，仍然有。
@@ -366,6 +371,45 @@ describe.skipIf(!testDatabaseUrl)("memory-driven NPC slice", () => {
     expect(
       keeperMemory?.messages.some((message) => message.content.includes("本轮最多 1 个行动")),
     ).toBe(true);
+  });
+
+  it("applies queued actions when the loop runs out of rounds without submit_plan", async () => {
+    const created = await createGame(handle.db, {
+      username: DEMO_USER.username,
+      name: "轮次用尽测试局",
+      world: TEST_WORLD,
+    });
+
+    // 只调动作工具、从不调 submit_plan：轮次用尽时已暂存的动作仍要落账。
+    class NoSubmitService implements ChatCompletionService {
+      async complete(request: Parameters<ChatCompletionService["complete"]>[0]) {
+        const toolCalls: ToolCall[] = [
+          {
+            id: randomUUID(),
+            type: "function",
+            function: { name: "wait", arguments: "{}" },
+          },
+        ];
+        return new ChatCompletionResult({
+          request,
+          aiMessage: { type: "ai", content: "", toolCalls },
+          finishReason: "tool_calls",
+          toolCalls,
+        });
+      }
+    }
+
+    const result = await runNpcTurn(handle.db, created.game.slug, "守烬人", {
+      service: new NoSubmitService(),
+      maxRounds: 1,
+    });
+    expect(result.loopSuccess).toBe(false);
+    expect(result.ok).toBe(true);
+    expect(result.plan?.actions[0]).toMatchObject({ kind: "wait" });
+
+    const state = await getGameState(handle.db, created.game.slug);
+    expect(state.game.version).toBe(1);
+    expect(state.messages.map((message) => message.kind)).toEqual(["wait"]);
   });
 
   it("emits a public event for wait", async () => {

@@ -29,8 +29,8 @@ import {
 import { loadWorldByGame } from "./persistence/worlds";
 import {
   buildAddAnchorTool,
+  buildInspectActorTool,
   buildNotifyWorldTool,
-  buildObserveActorTool,
   buildOpenPassageTool,
   buildRemoveAnchorTool,
   buildSubmitEnvironmentTool,
@@ -104,8 +104,8 @@ export function buildStageTurnInput(state: GameStateSlice, stage: StageState): s
           "需要向世界报告时用 notify_world，写清发生了什么与需要裁决什么；只更新 environment 不会让世界知道。本场景设定明确要求报告世界的事实，必须使用 notify_world。",
         ]
       : []),
-    "本轮结束时调用 submit_stage_plan 提交计划；没有改动就提交空计划。",
-    "只读工具（observe_actor）可以多次调用，不占额度；本轮会写库的动作最多：environment 一次、锚点一次、通道一条、world 通知两条。",
+    "读完就调用 submit_stage_plan 提交；写动作与提交可以放在同一次回复里，没有改动就提交空计划。",
+    "只读工具（inspect_actor）可以在同一次回复里多次调用，不占写额度，但每一次回复都算一轮推理；本轮会写库的动作最多：environment 一次、锚点一次、通道一条、world 通知两条。",
   ];
 
   return `# 当前场景
@@ -554,7 +554,7 @@ export async function runStageTurn(
     contentVersion: state.game.contentVersion,
   });
 
-  const observeTool = buildObserveActorTool(
+  const inspectTool = buildInspectActorTool(
     stage.actors.map((actor) => actor.name),
     "stage",
   );
@@ -600,7 +600,7 @@ export async function runStageTurn(
     inputMessage: buildStageTurnInput(state, stage),
     messages: memory.messages,
     tools: [
-      observeTool,
+      inspectTool,
       ...(canSubmit ? [submitTool] : []),
       ...(canNotify ? [notifyTool] : []),
       ...(canOpen ? [openTool] : []),
@@ -610,7 +610,7 @@ export async function runStageTurn(
       planTool,
     ],
     handlers: {
-      [observeTool.function.name]: (args) => {
+      [inspectTool.function.name]: (args) => {
         const targetActorRef =
           typeof args.targetActorRef === "string" ? args.targetActorRef.trim() : "";
         const target = stage.actors.find((actor) => actor.name === targetActorRef);

@@ -45,8 +45,8 @@ import { loadAgentMemory } from "./memory";
 import {
   adjacentStageRefsForActor,
   buildActorLookTool,
+  buildInspectActorTool,
   buildKnowledgeTool,
-  buildObserveActorTool,
   buildRecallRouteTool,
   buildRecognizeIdentityTool,
   buildSelfInfoTool,
@@ -100,15 +100,19 @@ export type NpcTurnOptions = {
 };
 
 /**
- * 侦察（`observe_actor`）是偷窃的前置：只有能 `steal` 的角色才注入这个工具。
+ * 侦察（`inspect_actor`）是偷窃的前置：只有能 `steal` 的角色才注入这个工具。
  * 工具注入与任务提示词共用这一条判断，避免提示词提到不存在的工具。
  */
-function canObserveActorItems(actor: Pick<ActorState, "actions">): boolean {
+function canInspectActorItems(actor: Pick<ActorState, "actions">): boolean {
   return actor.actions.includes("steal");
 }
 
 /** 构造 actor 本轮的公开环境与任务说明；NPC 与探针共用。 */
-export function buildActorTurnInput(state: GameStateSlice, current: ActorWithStage): string {
+export function buildActorTurnInput(
+  state: GameStateSlice,
+  current: ActorWithStage,
+  maxRounds: number = DEFAULT_NPC_MAX_ROUNDS,
+): string {
   const moves = adjacentStageRefsForActor(state, current);
   // 去过、但现在封着的出口：记忆里的一道门。它不能走，只是认得出来。
   const remembered = sealedVisitedStageRefsForActor(state, current);
@@ -144,21 +148,21 @@ export function buildActorTurnInput(state: GameStateSlice, current: ActorWithSta
         ? "当前没有能出手的武器：近战只能用 brawl（身体攻击，不吃武器数值）。"
         : "当前既没有能出手的武器，也没有 brawl：本轮无法发起攻击。";
   // 侦察与偷窃同生共死：不偷东西的角色只看姓名与穿戴，不提供背包细节。
-  const canObserve = canObserveActorItems(current.actor);
-  const toolHint = canObserve
-    ? "使用 get_self 查看自己的完整信息，使用 observe_actor 查看同场景目标背包里的全部物品（含未穿戴的）；"
-    : "使用 get_self 查看自己的完整信息；";
-  const readOnlyHint = `${[
+  const canInspect = canInspectActorItems(current.actor);
+  const toolHint = canInspect
+    ? "名单里只列了同场景他人已穿戴的装备；要看全，用 get_self 看自己、用 inspect_actor 看别人随身带的全部物品。"
+    : "要看自己的完整信息用 get_self。";
+  const readOnlyList = [
     "look_stage",
     "get_self",
-    ...(canObserve ? ["observe_actor"] : []),
+    ...(canInspect ? ["inspect_actor"] : []),
     "get_visited_stages",
     "recall_route",
     "query",
     "recognize_identity",
-  ].join(
-    "、",
-  )} 不占计划。look_stage 只能看本场景；get_visited_stages 可以回看你走过的场景；recall_route 顺着场景连接回一条路线，结论会进你的认知（地名写错时会记成「无法寻路」）。`;
+  ].join("、");
+  const readOnlyHint =
+    "look_stage 只能看本场景；get_visited_stages 可以回看你走过的场景；recall_route 顺着场景连接回一条路线，结论会进你的认知（地名写错时会记成「无法寻路」）。";
   const actorLines =
     others.length === 0
       ? "无"
@@ -221,7 +225,13 @@ ${teleportLines}`
 
 # 本轮任务
 
-根据当前环境与自己的记忆决定行动。名单里已列出同场景他人身上穿戴的装备；${toolHint}需要多项信息时，可以一次返回多个只读工具调用，也可以分多轮调用。${knowledgeHint}${identityHint}你能使用的行动工具：${actionList}。${useFlowHint}${callHint}${unarmedHint}本轮只能提交 ${MAX_ACTIONS_PER_TURN} 个行动：说话、移动、动手都各占一个回合，需要连着做就分几个回合。最后调用 submit_plan 提交。${readOnlyHint}`;
+本轮只有一件事要做：决定并提交 ${MAX_ACTIONS_PER_TURN} 个行动。流程分三步：
+
+1. 读：${readOnlyList}。都是只读的，一次回复里能问完就问完，不需要为每项信息单独占一轮。本回合的推理预算是 ${maxRounds} 轮，因此写和提交要把最后几轮留出来。
+2. 写：${actionList}。一次回复只提交 ${MAX_ACTIONS_PER_TURN} 个行动——说话、移动、动手都算。动作工具只把动作暂存进计划，不会落账。
+3. 提交：submit_plan。必须与那一个动作工具放在同一次回复里调用；只调动作不提交，这一轮就什么都没发生。
+
+${toolHint}${knowledgeHint}${identityHint}${useFlowHint}${callHint}${unarmedHint}${readOnlyHint}`;
 }
 
 /** 把动作加入本轮计划；条数上限在这里就告诉模型，避免提交后才被拒绝。 */
@@ -258,6 +268,7 @@ export async function runNpcTurn(
   if (!memory) {
     throw new GameError("invalid_state", `actor 缺少 memory: ${current.actor.name}`);
   }
+  const maxRounds = options.maxRounds ?? DEFAULT_NPC_MAX_ROUNDS;
 
   const trace = createTurnTrace({ game: state.game, turnKind: "actor" });
   await traceEvent(trace, {
@@ -291,9 +302,9 @@ export async function runNpcTurn(
   const selfTool = buildSelfInfoTool();
   const visitedStagesTool = buildVisitedStagesTool();
   const routeTool = buildRecallRouteTool();
-  // 侦察是偷窃的前置：只有能 steal 的角色才注入 observe_actor，与任务提示词同一判断。
-  const observeTool = canObserveActorItems(current.actor)
-    ? buildObserveActorTool(targets)
+  // 侦察是偷窃的前置：只有能 steal 的角色才注入 inspect_actor，与任务提示词同一判断。
+  const inspectTool = canInspectActorItems(current.actor)
+    ? buildInspectActorTool(targets)
     : undefined;
   // 编号始终可见：既能给新签名起名，也能对已有名字重新记录来更新称呼。
   const recognizeTool = buildRecognizeIdentityTool(
@@ -357,6 +368,23 @@ export async function runNpcTurn(
   let routeWorld: RouteWorld | undefined;
   const routeWorldOnce = () => (routeWorld ??= routeWorldFromState(state, current));
   let submitted: ActorPlan | null = null;
+  /** 每次写入后都刷新一次快照；模型忘记调 submit_plan 或轮次用尽时，本轮动作也不会丢。 */
+  let snapshot: ActorPlan | null = null;
+
+  const freezePlan = (): ActorPlan => {
+    const plan: ActorPlan = { actions: actions.map((action) => ({ ...action })) };
+    if (identities.length > 0) {
+      plan.identities = identities.map((item) => ({ ...item }));
+    }
+    if (routes.length > 0) {
+      plan.routes = routes.map((item) => ({ ...item }));
+    }
+    if (routeFailures.length > 0) {
+      plan.routeFailures = routeFailures.map((item) => ({ ...item }));
+    }
+    snapshot = plan;
+    return plan;
+  };
 
   const ensureOpen = () => {
     if (submitted) {
@@ -371,6 +399,7 @@ export async function runNpcTurn(
         (args: Record<string, unknown>) => {
           ensureOpen();
           addAction(actions, parsers[kind](args));
+          freezePlan();
           return `${kind} 已加入计划`;
         },
       ]),
@@ -425,22 +454,24 @@ export async function runNpcTurn(
     const known = identities.find((existing) => existing.handle === binding.handle);
     if (known) {
       known.name = binding.name;
+      freezePlan();
       return `${binding.handle} 的名字已更新${note}`;
     }
     identities.push(binding);
+    freezePlan();
     return `名字已加入计划${note}`;
   };
 
   const loop = await agentLoop({
     name: current.actor.name,
-    inputMessage: buildActorTurnInput(state, current),
+    inputMessage: buildActorTurnInput(state, current, maxRounds),
     messages: memory.messages,
     tools: [
       lookTool,
       selfTool,
       visitedStagesTool,
       routeTool,
-      ...(observeTool ? [observeTool] : []),
+      ...(inspectTool ? [inspectTool] : []),
       knowledgeTool,
       recognizeTool,
       ...allowed.map((kind) => actionTools[kind]),
@@ -451,9 +482,9 @@ export async function runNpcTurn(
       [selfTool.function.name]: () => describeSelf(current.actor),
       [visitedStagesTool.function.name]: () =>
         describeVisitedStages(state, current.actor.id, current.stage.id),
-      ...(observeTool
+      ...(inspectTool
         ? {
-            [observeTool.function.name]: (args: Record<string, unknown>) => {
+            [inspectTool.function.name]: (args: Record<string, unknown>) => {
               const targetActorRef =
                 typeof args.targetActorRef === "string" ? args.targetActorRef.trim() : "";
               const target = otherActors.find(
@@ -499,6 +530,7 @@ export async function runNpcTurn(
           );
           if (!duplicate) {
             routeFailures.push(failure);
+            freezePlan();
           }
           return `# 路线\n${describeRouteFailure(routeWorldOnce(), failure)}`;
         }
@@ -509,6 +541,7 @@ export async function runNpcTurn(
         );
         if (!duplicate) {
           routes.push(query);
+          freezePlan();
         }
         return `# 路线\n${describeRoute(routeWorldOnce(), query)}`;
       },
@@ -522,40 +555,30 @@ export async function runNpcTurn(
         ) {
           throw new GameError("invalid_action", "计划中没有行动");
         }
-        submitted = {
-          actions: actions.map((action) => ({ ...action })),
-          ...(identities.length > 0 ? { identities: identities.map((item) => ({ ...item })) } : {}),
-          ...(routes.length > 0 ? { routes: routes.map((item) => ({ ...item })) } : {}),
-          ...(routeFailures.length > 0
-            ? { routeFailures: routeFailures.map((item) => ({ ...item })) }
-            : {}),
-        };
+        submitted = freezePlan();
         return "计划已提交";
       },
     },
     terminalTools: [submitTool],
     service: options.service,
-    maxRounds: options.maxRounds ?? DEFAULT_NPC_MAX_ROUNDS,
+    maxRounds,
+    finalRoundHint:
+      "# 最后一轮\n这是本回合最后一次推理机会，本次回复之后本轮结束。已决定做什么，就在这次回复里同时调用动作工具与 submit_plan；仍需信息就在这次回复里一并调完只读工具并立即提交，不要再留到下一轮。",
     errorRetries: DEFAULT_LLM_ERROR_RETRIES,
     loopId: randomUUID(),
     ...(options.logger ? { logger: options.logger } : {}),
     ...(trace ? { trace } : {}),
   });
 
-  const applied = await applyActorPlan(
-    db,
-    state.game.id,
-    current.actor.id,
-    submitted,
-    loop.success,
-    {
-      service: options.service,
-      ...(options.appearanceService ? { appearanceService: options.appearanceService } : {}),
-      ...(options.logger ? { logger: options.logger } : {}),
-      ...(trace ? { trace } : {}),
-      ...(options.auditNameLeaks === undefined ? {} : { auditNameLeaks: options.auditNameLeaks }),
-    },
-  );
+  // 轮次用尽或模型忘记终结时，退回最后一次快照，让已暂存的动作照常落账。
+  const plan = submitted ?? snapshot;
+  const applied = await applyActorPlan(db, state.game.id, current.actor.id, plan, loop.success, {
+    service: options.service,
+    ...(options.appearanceService ? { appearanceService: options.appearanceService } : {}),
+    ...(options.logger ? { logger: options.logger } : {}),
+    ...(trace ? { trace } : {}),
+    ...(options.auditNameLeaks === undefined ? {} : { auditNameLeaks: options.auditNameLeaks }),
+  });
   await traceEvent(trace, {
     event: "turn_end",
     ok: applied.ok,
@@ -566,7 +589,7 @@ export async function runNpcTurn(
   return {
     ...(await readTurnDelivery(db, state.game.id)),
     ok: applied.ok,
-    plan: submitted,
+    plan,
     loopSuccess: loop.success,
     ...(applied.death ? { death: applied.death } : {}),
   };

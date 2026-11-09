@@ -21,7 +21,7 @@ export function buildSelfInfoTool(): ToolDefinition {
 }
 
 /** 只返回对方携带的物品，不暴露 stats 或状态。 */
-export function buildObserveActorTool(
+export function buildInspectActorTool(
   availableTargetActorRefs: readonly string[],
   mode: "actor" | "stage" = "actor",
 ): ToolDefinition {
@@ -29,11 +29,11 @@ export function buildObserveActorTool(
   return {
     type: "function",
     function: {
-      name: "observe_actor",
+      name: "inspect_actor",
       description:
         mode === "actor"
-          ? "查看同场景目标携带的物品（含其穿戴）；看不到对方的 stats 或存活状态。只读。"
-          : "查看本场景角色携带的物品（含其穿戴）；看不到对方的 stats 或存活状态。只读。",
+          ? "检视同场景目标随身携带的物品（含已穿戴的）；只看得见物品，看不到对方的 stats、伤势或存活状态。只读。"
+          : "检视本场景角色随身携带的物品（含已穿戴的）；只看得见物品，看不到对方的 stats、伤势或存活状态。只读。",
       parameters: {
         type: "object",
         properties: {
