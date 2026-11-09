@@ -1,6 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { parseWorldContent } from "../src/game/world-content";
-import { actorInnateActions } from "../src/game/world-definition";
+import { actorInnateActions, parseWorldContent } from "../src/game/world-definition";
 import { TEST_WORLD } from "./test-world";
 
 describe("world content validation", () => {

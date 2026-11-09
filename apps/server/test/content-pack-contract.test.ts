@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { CONTENT_PACKS } from "../seeds";
 import { CARRIED_ACTION_KINDS, INNATE_ACTION_KINDS } from "../src/game/actions";
-import { parseWorldContent } from "../src/game/world-content";
+import { parseWorldContent } from "../src/game/world-definition";
 
 /**
  * 内容包契约：与具体剧本无关的结构约束，对仓库里每一个剧本都跑一遍。

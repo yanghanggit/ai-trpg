@@ -1,9 +1,9 @@
-import type { World } from "../world-definition";
 import { checkWorldInvariants } from "./invariants";
 import { worldSchema } from "./schema";
+import type { World } from "./types";
 
 /**
- * 世界内容的解析入口：zod 形状 + 跨实体不变量，最后收窄成 `World`。
+ * 世界定义的入口：zod 形状 + 跨实体不变量，最后收窄成 `World`。
  *
  * 分两层是因为两类规则需要的视野不同：单看一个实体就能判的形状在 `schema.ts`，
  * 要看整张图的规则（名字唯一、环境文本不点名未通场景、职能宪法齐全）在 `invariants.ts`。
@@ -22,3 +22,5 @@ const contentSchema = worldSchema.superRefine(checkWorldInvariants);
 export function parseWorldContent(value: unknown): World {
   return contentSchema.parse(value);
 }
+
+export * from "./types";

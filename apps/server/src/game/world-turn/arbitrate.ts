@@ -6,11 +6,11 @@ import { GameError } from "../errors";
 import { MAX_WORLD_ACTIONS_PER_TURN } from "../limits";
 import { appendMemoryMessages, loadAgentMemory } from "../memory";
 import { MEMORY_KINDS } from "../memory/kinds";
+import { appendStageDirective } from "../memory/world-channel";
 import { completeGameIfActive, lockGameRow } from "../persistence/games";
 import { listStagesOfWorld } from "../persistence/stages";
 import { loadWorldByGame } from "../persistence/worlds";
 import type { WorldPlan } from "../types";
-import { appendStageDirective } from "../world-events";
 
 /** 把 world 的动作应用到数据库；业务校验失败时写 world memory 并返回 false。 */
 export async function applyWorldPlan(

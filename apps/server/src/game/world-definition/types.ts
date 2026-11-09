@@ -2,10 +2,10 @@
  * 世界定义：建局时读一次、物化成数据库行，之后以数据库为唯一真相。
  *
  * 与运行时的 `WorldState` / `StageState` / `ActorState` 是两份 shape：定义侧用 `key` 引用彼此，
- * 状态侧用 id。校验在 `world-content/`。
+ * 状态侧用 id。形状在 `schema.ts`，跨实体规则在 `invariants.ts`，入口在 `index.ts`。
  */
 
-import type { Stats } from "./attributes";
+import type { Stats } from "../attributes";
 import type {
   AffixTriggers,
   CarriedActionKind,
@@ -16,7 +16,7 @@ import type {
   StageActionKind,
   WorldActionKind,
   WorldFunctionAgents,
-} from "./types";
+} from "../types";
 
 export type World = {
   contentVersion: string;

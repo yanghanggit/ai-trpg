@@ -1,7 +1,13 @@
-import { type TraceContext, traceEvent } from "../debug/trace";
-import type { Executor } from "./apply/types";
-import { appendMemoryMessages, loadAgentMemory } from "./memory";
-import { MEMORY_KINDS } from "./memory/kinds";
+import { type TraceContext, traceEvent } from "../../debug/trace";
+import type { Executor } from "../apply/types";
+import { MEMORY_KINDS } from "./kinds";
+import { appendMemoryMessages, loadAgentMemory } from "./store";
+
+/**
+ * world 与 stage 之间的定向通道：上调是场景报告，下降是 world 裁决。
+ *
+ * 两端都写对方的 memory，谁都不进公共事件流——这条通道只在两个 agent 之间说话。
+ */
 
 /** 把 stage 的报告写入 world memory；报告不是世界事实，也不是系统指令。 */
 export async function appendWorldNotification(

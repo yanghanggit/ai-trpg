@@ -11,7 +11,7 @@ import {
   playerPickup,
   takeActorControl,
 } from "../src/game";
-import { parseWorldContent } from "../src/game/world-content";
+import { parseWorldContent } from "../src/game/world-definition";
 import { TEST_WORLD } from "./test-world";
 
 const testDatabaseUrl = process.env.TEST_DATABASE_URL?.trim();

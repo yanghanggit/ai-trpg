@@ -9,7 +9,7 @@ import { buildWorldSystemPrompt, createWorldMemory } from "../memory";
 import { allocateEntitySeq } from "../persistence/entity-seq";
 import { getGameState } from "../read/game-state";
 import type { GameState } from "../types";
-import { parseWorldContent } from "../world-content";
+import { parseWorldContent } from "../world-definition";
 import { bindSignatureNames, bindVisitedStages, createActors } from "./actors";
 import { buildFunctionAgentPrompts } from "./prompts";
 import { createConnections, createStages } from "./stages";
