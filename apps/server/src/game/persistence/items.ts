@@ -6,8 +6,8 @@ import { normalizeAffixTriggers } from "../affixes";
 import type { Executor, ItemRow, StageItemRow } from "../apply/types";
 import { toStats } from "../attributes";
 import { GameError } from "../errors";
-import { isSameItem } from "../item-identity";
 import { allocateEntitySeq } from "./entity-seq";
+import { isSameItem } from "./item-identity";
 
 /**
  * 物品与场景物品的读写操作：玩法层只表达「谁拿到什么」，不关心两张表怎么搬。

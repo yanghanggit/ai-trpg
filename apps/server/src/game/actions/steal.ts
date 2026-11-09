@@ -5,7 +5,7 @@ import { appendPublicMessage, bumpGameVersion } from "../apply/messages";
 import { assertNotSelf, effectiveAgility, isAlive, resolveActorItem } from "../apply/queries";
 import type { ActorWithStageRow, Executor, ResolvedSteal } from "../apply/types";
 import { GameError } from "../errors";
-import { withoutEquippedItem } from "../items";
+import { withoutEquippedItem } from "../item-state";
 import { appendItemObservations, appendStageMemory } from "../observations";
 import { setActorEquipment } from "../persistence/actors";
 import { transferItemToActor } from "../persistence/items";

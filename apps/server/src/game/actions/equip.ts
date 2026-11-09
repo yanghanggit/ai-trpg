@@ -5,7 +5,7 @@ import { appendPublicMessage, bumpGameVersion } from "../apply/messages";
 import { resolveActorItem } from "../apply/queries";
 import type { ActorWithStageRow, Executor, ResolvedEquip } from "../apply/types";
 import { GameError } from "../errors";
-import { equipSlot } from "../items";
+import { equipSlot } from "../item-state";
 import { renderAction, withAppearances } from "../observation-text";
 import { appendCustomStageObservation, appendStageMemory } from "../observations";
 import { setActorEquipment } from "../persistence/actors";

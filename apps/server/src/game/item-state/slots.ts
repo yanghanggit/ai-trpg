@@ -1,69 +1,22 @@
-import { carriedActionsForKind } from "./actions";
-import { normalizeAffixTriggers } from "./affixes";
-import { type Stats, toStats } from "./attributes";
-import { GameError } from "./errors";
+import { carriedActionsForKind } from "../actions";
+import { GameError } from "../errors";
 import type {
   ActorState,
-  AffixTriggers,
   CarriedActionKind,
   EquipmentSlot,
   EquipmentSlots,
   ItemKind,
-  ItemState,
   WearableItemState,
-} from "./types";
-import { EQUIPMENT_SLOT_KINDS, EQUIPMENT_SLOT_LABELS, EQUIPMENT_SLOTS } from "./types";
+} from "../types";
+import { EQUIPMENT_SLOT_KINDS, EQUIPMENT_SLOT_LABELS, EQUIPMENT_SLOTS } from "../types";
+import { isWearable } from "./project";
 
-export function toItemState(row: {
-  id: string;
-  seq: number;
-  key?: string | null;
-  name: string;
-  description: string;
-  kind: ItemKind;
-  source?: string | null;
-  count: number;
-  stats: Stats;
-  affixes?: AffixTriggers;
-  actions?: readonly CarriedActionKind[];
-  maxTargets?: number;
-}): ItemState {
-  const base = {
-    id: row.id,
-    seq: row.seq,
-    key: row.key ?? row.name,
-    name: row.name,
-    description: row.description,
-    count: row.count,
-    affixes: normalizeAffixTriggers(row.affixes),
-    actions: row.actions ?? [],
-    stats: toStats(row.stats),
-    // 旧数据没有这一列时按 1 归一：单体挥击是默认形态。
-    maxTargets: row.maxTargets ?? 1,
-  };
-  switch (row.kind) {
-    case "weapon":
-      return { ...base, kind: "weapon" };
-    case "equipment":
-      return { ...base, kind: "equipment" };
-    case "accessory":
-      return { ...base, kind: "accessory" };
-    case "consumable":
-      return { ...base, kind: "consumable" };
-    case "valuable":
-      return { ...base, kind: "valuable" };
-    case "material":
-      return { ...base, kind: "material", source: row.source ?? null };
-    default: {
-      const exhaustive: never = row.kind;
-      throw new Error(`未知物品类型: ${String(exhaustive)}`);
-    }
-  }
-}
-
-export function isWearable(item: ItemState): item is WearableItemState {
-  return item.kind === "weapon" || item.kind === "equipment" || item.kind === "accessory";
-}
+/**
+ * 穿戴：谁此刻穿着什么、槽位索引怎么改、穿戴中的物品授予了哪些动作。
+ *
+ * 槽里只存物品名，物品自己不记 `equipped`——所以指向不存在物品的槽位一律当作没穿。
+ * 授予只认携带者表，表外的动作写了也不生效。
+ */
 
 export type EquippedItemState = {
   slot: EquipmentSlot;

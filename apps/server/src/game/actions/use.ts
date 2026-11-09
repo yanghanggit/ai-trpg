@@ -10,15 +10,14 @@ import {
 import { resolveActorItem } from "../apply/queries";
 import type { ActorWithStageRow, Executor, ResolvedUse } from "../apply/types";
 import { GameError } from "../errors";
-import { equippedSlotOf } from "../items";
-import { applyUseEvent } from "../items/use-event";
-
+import { equippedSlotOf } from "../item-state";
 import {
   EQUIPMENT_SLOT_LABELS,
   type EquipmentSlots,
   type ItemState,
   type UseAction,
 } from "../types";
+import { applyUseEvent } from "./use-event";
 
 /**
  * `use` 的候选物品：声明了 `affixes.use`，且此刻没被穿戴。

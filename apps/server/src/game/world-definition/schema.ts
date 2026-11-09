@@ -3,10 +3,10 @@ import { INNATE_ACTION_KINDS } from "../actions";
 import { NAME_MARKER_PATTERN } from "../addressing";
 import { isValidForm } from "../appearance/form";
 import { statsSchema } from "../attributes";
-import { equipmentSchema, itemSchema } from "../item-schema";
 import { MAX_STAGE_ANCHORS } from "../limits";
 import type { StageActionKind, WorldActionKind, WorldFunction } from "../types";
 import { WORLD_FUNCTION_TYPES } from "../types";
+import { equipmentSchema, itemSchema } from "./item-schema";
 
 /**
  * 世界内容的 zod 形状：场景、角色、连接与世界本身。

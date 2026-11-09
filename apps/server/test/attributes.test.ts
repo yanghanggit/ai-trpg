@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { formatForm, isValidForm, resolveAppearance } from "../src/game/appearance/form";
 import { addStats, EMPTY_STATS, toStats } from "../src/game/attributes";
 import { guardPower, strengthToDamage, weaponAttackPower } from "../src/game/combat/attack";
-import { equippedSlotOf, toItemState } from "../src/game/items";
+import { equippedSlotOf, toItemState } from "../src/game/item-state";
 
 const ROW = {
   id: "item-1",

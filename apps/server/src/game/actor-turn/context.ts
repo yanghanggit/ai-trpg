@@ -2,7 +2,7 @@ import { allowedActionKinds } from "../actions";
 import { usableItemNames } from "../actions/use";
 import { type ActorWithStage, otherActorsInStage } from "../actor-state";
 import { type AddressLookup, addressLookupFor } from "../addressing";
-import { carriedActionCap, equippedItemActions, isWearable } from "../items";
+import { carriedActionCap, equippedItemActions, isWearable } from "../item-state";
 import { adjacentStageRefsForActor } from "../plan";
 import {
   type ActionKind,

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { type ItemIdentity, isSameItem } from "../src/game/item-identity";
+import { type ItemIdentity, isSameItem } from "../src/game/persistence/item-identity";
 
 const BASE: ItemIdentity = {
   kind: "weapon",

@@ -5,7 +5,7 @@ import { appendPublicMessage, bumpGameVersion } from "../apply/messages";
 import { assertNotSelf, effectiveAgility, isAlive, listActorItems } from "../apply/queries";
 import type { ActorWithStageRow, Executor, ResolvedInspect } from "../apply/types";
 import { GameError } from "../errors";
-import { toItemState } from "../items";
+import { toItemState } from "../item-state";
 import { appendInspectObservations, appendStageMemory } from "../observations";
 import { describeItems } from "../plan/describe";
 import type { InspectAction } from "../types";

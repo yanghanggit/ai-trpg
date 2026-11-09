@@ -1,7 +1,7 @@
 import type { ToolDefinition } from "../../llm/types";
 import { assertWorldFaceText } from "../addressing";
 import { GameError } from "../errors";
-import { equippedItems } from "../items";
+import { equippedItems } from "../item-state";
 import { type ActorState, type AppearanceWornItem, EQUIPMENT_SLOT_LABELS } from "../types";
 
 /**

@@ -14,7 +14,7 @@ import {
   worlds,
 } from "../../db/schema";
 import { GameError } from "../errors";
-import { toItemState } from "../items";
+import { toItemState } from "../item-state";
 import { listSignatureNames } from "../persistence/signature-names";
 import { listCurrentSignatureViews } from "../persistence/signatures";
 import type {

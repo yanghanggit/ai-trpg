@@ -9,7 +9,7 @@ import {
   carriedActions,
   equippedItemActions,
   toItemState,
-} from "../src/game/items";
+} from "../src/game/item-state";
 import { actorInnateActions } from "../src/game/world-definition";
 import { ChatCompletionResult, type ChatCompletionService, type ToolCall } from "../src/llm";
 import { TEST_WORLD } from "./test-world";

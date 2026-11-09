@@ -3,15 +3,15 @@ import {
   CARRIED_ACTION_KINDS,
   CARRIED_ACTIONS_BY_ITEM_KIND,
   carriedActionsForKind,
-} from "./actions";
-import { NAME_MARKER_PATTERN } from "./addressing";
-import { statsSchema } from "./attributes";
-import type { ActionKind, AffixStatRef, DamageAmount, ItemKind } from "./types";
+} from "../actions";
+import { NAME_MARKER_PATTERN } from "../addressing";
+import { statsSchema } from "../attributes";
+import type { ActionKind, AffixStatRef, DamageAmount, ItemKind } from "../types";
 
 /**
  * 物品定义的内容校验：只查这件物品自己的字段是否自洽。
  *
- * 需要看整张世界的规则（名字、文本泄漏、能力清单）在 `world-definition/invariants.ts`。
+ * 需要看整张世界的规则（名字、文本泄漏、能力清单）在 `./invariants.ts`。
  */
 
 /** 物品大类清单；`satisfies` 保证这里的每一项都在运行时 `ItemKind` 里。 */
