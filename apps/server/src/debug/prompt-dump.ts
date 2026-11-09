@@ -20,8 +20,8 @@ export type PromptDumpInput = {
   /** 世界名做文件名（与 actor / stage 一致）；内容版本进容器目录名。 */
   world: { name: string; contentVersion: string };
   worldPrompt: string;
-  /** 世界职能 agent 的 system prompt：每份独立、没有 memory；这里只带要写的文件名与正文。 */
-  functionAgentPrompts: readonly { name: string; prompt: string }[];
+  /** 世界职能的宪法：每份独立、没有 memory；这里只带要写的文件名与正文。 */
+  functionPromptDumps: readonly { name: string; prompt: string }[];
   actorPrompts: readonly { name: string; prompt: string }[];
   stagePrompts: readonly { name: string; prompt: string }[];
 };
@@ -91,7 +91,7 @@ export async function dumpSystemPrompts(
 `,
       "utf8",
     );
-    for (const fn of input.functionAgentPrompts) {
+    for (const fn of input.functionPromptDumps) {
       await writeFile(
         join(dir, "functions", `${safeFileName(fn.name)}.md`),
         `${fn.prompt}\n`,

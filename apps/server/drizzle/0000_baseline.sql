@@ -149,8 +149,8 @@ CREATE TABLE "items" (
 	"source" text,
 	"count" integer DEFAULT 1 NOT NULL,
 	"stats" jsonb NOT NULL,
-	"effect" jsonb NOT NULL,
-	"affixes" jsonb DEFAULT '[]'::jsonb NOT NULL,
+	"max_targets" integer DEFAULT 1 NOT NULL,
+	"affixes" jsonb DEFAULT '{}'::jsonb NOT NULL,
 	"actions" jsonb DEFAULT '[]'::jsonb NOT NULL,
 	"created_at" timestamp with time zone DEFAULT now() NOT NULL
 );
@@ -196,8 +196,8 @@ CREATE TABLE "stage_items" (
 	"source" text,
 	"count" integer DEFAULT 1 NOT NULL,
 	"stats" jsonb NOT NULL,
-	"effect" jsonb NOT NULL,
-	"affixes" jsonb DEFAULT '[]'::jsonb NOT NULL,
+	"max_targets" integer DEFAULT 1 NOT NULL,
+	"affixes" jsonb DEFAULT '{}'::jsonb NOT NULL,
 	"actions" jsonb DEFAULT '[]'::jsonb NOT NULL,
 	"created_at" timestamp with time zone DEFAULT now() NOT NULL
 );
@@ -259,7 +259,7 @@ CREATE TABLE "worlds" (
 	"profile" text NOT NULL,
 	"campaign_setting" text NOT NULL,
 	"global_rules" text NOT NULL,
-	"function_agents" jsonb NOT NULL,
+	"function_prompts" jsonb NOT NULL,
 	"actions" jsonb DEFAULT '[]'::jsonb NOT NULL,
 	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
 	"updated_at" timestamp with time zone DEFAULT now() NOT NULL

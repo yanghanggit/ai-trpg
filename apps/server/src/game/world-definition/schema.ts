@@ -5,7 +5,7 @@ import { isValidForm } from "../form";
 import { equipmentSchema, itemSchema } from "../item-schema";
 import { MAX_STAGE_ANCHORS } from "../limits";
 import { NAME_MARKER_PATTERN } from "../reference";
-import type { StageActionKind, WorldActionKind } from "../types";
+import type { StageActionKind, WorldActionKind, WorldFunction } from "../types";
 import { WORLD_FUNCTION_TYPES } from "../types";
 
 /**
@@ -114,12 +114,11 @@ export const worldSchema = z.object({
   profile: z.string().min(1),
   campaignSetting: z.string(),
   globalRules: z.string(),
-  /** 世界职能 agent：内容层在剧本构建时逐个定档，框架只校验不代劳。 */
-  functionAgents: z.array(
-    z.object({
-      fn: z.enum(WORLD_FUNCTION_TYPES),
-      systemPrompt: z.string().min(1),
-    }),
+  /** 世界职能宪法：内容层在剧本构建时定档，每个职能恰好一段；缺一个就是解析失败。 */
+  functionPrompts: z.object(
+    Object.fromEntries(WORLD_FUNCTION_TYPES.map((fn) => [fn, z.string().min(1)])) as {
+      [K in WorldFunction]: z.ZodString;
+    },
   ),
   stages: z.array(stageSchema).min(1),
   connections: z.array(

@@ -44,7 +44,7 @@ function systemPrompts(world: World): { name: string; prompt: string }[] {
     // 世界职能的宪法同样由内容注入（战役设定 + 全局规则 + 自己的口径）。
     ...WORLD_FUNCTION_TYPES.map((fn) => ({
       name: `function:${fn}`,
-      prompt: world.functionAgents.find((agent) => agent.fn === fn)?.systemPrompt ?? "",
+      prompt: world.functionPrompts[fn],
     })),
     // openingBriefing 不是 system prompt，但同样是内容注入的固定文本。
     ...world.actors.flatMap((actor) =>

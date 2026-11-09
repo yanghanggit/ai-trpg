@@ -13,19 +13,14 @@ describe("world content validation", () => {
   it("requires each world function prompt to carry the world constitution", () => {
     const broken = {
       ...TEST_WORLD,
-      functionAgents: TEST_WORLD.functionAgents.map((agent) =>
-        agent.fn === "story" ? { ...agent, systemPrompt: "## 职责\n\n写一段故事。\n" } : agent,
-      ),
+      functionPrompts: { ...TEST_WORLD.functionPrompts, story: "## 职责\n\n写一段故事。\n" },
     };
-    expect(() => parseWorldContent(broken)).toThrow(/世界职能 agent 的宪法缺少/);
+    expect(() => parseWorldContent(broken)).toThrow(/世界职能宪法缺少/);
   });
 
-  it("requires exactly one agent per world function", () => {
-    const broken = {
-      ...TEST_WORLD,
-      functionAgents: TEST_WORLD.functionAgents.slice(1),
-    };
-    expect(() => parseWorldContent(broken)).toThrow(/世界职能 agent 必须恰好一个/);
+  it("requires every world function to have a prompt", () => {
+    const { story: _omitted, ...partial } = TEST_WORLD.functionPrompts;
+    expect(() => parseWorldContent({ ...TEST_WORLD, functionPrompts: partial })).toThrow();
   });
 
   it("accepts an optional opening briefing without changing the actor profile", () => {

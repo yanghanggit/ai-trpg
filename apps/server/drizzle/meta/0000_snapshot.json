@@ -1,5 +1,5 @@
 {
-  "id": "59892b05-443c-4750-8a66-187124c0f120",
+  "id": "90fc4e6b-bcc0-47a4-a37c-39adaa75e3d3",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "version": "7",
   "dialect": "postgresql",
@@ -1492,18 +1492,19 @@
           "primaryKey": false,
           "notNull": true
         },
-        "effect": {
-          "name": "effect",
-          "type": "jsonb",
+        "max_targets": {
+          "name": "max_targets",
+          "type": "integer",
           "primaryKey": false,
-          "notNull": true
+          "notNull": true,
+          "default": 1
         },
         "affixes": {
           "name": "affixes",
           "type": "jsonb",
           "primaryKey": false,
           "notNull": true,
-          "default": "'[]'::jsonb"
+          "default": "'{}'::jsonb"
         },
         "actions": {
           "name": "actions",
@@ -1969,18 +1970,19 @@
           "primaryKey": false,
           "notNull": true
         },
-        "effect": {
-          "name": "effect",
-          "type": "jsonb",
+        "max_targets": {
+          "name": "max_targets",
+          "type": "integer",
           "primaryKey": false,
-          "notNull": true
+          "notNull": true,
+          "default": 1
         },
         "affixes": {
           "name": "affixes",
           "type": "jsonb",
           "primaryKey": false,
           "notNull": true,
-          "default": "'[]'::jsonb"
+          "default": "'{}'::jsonb"
         },
         "actions": {
           "name": "actions",
@@ -2597,8 +2599,8 @@
           "primaryKey": false,
           "notNull": true
         },
-        "function_agents": {
-          "name": "function_agents",
+        "function_prompts": {
+          "name": "function_prompts",
           "type": "jsonb",
           "primaryKey": false,
           "notNull": true

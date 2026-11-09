@@ -1,6 +1,6 @@
 import type { AgentMemoryState } from "../memory";
-import type { GameState } from "../types";
-import { type WorldConstitution, worldFunctionAgent } from "../world-function";
+import type { GameState, WorldState } from "../types";
+import { worldFunctionPrompt } from "../world-function";
 
 /**
  * 故事整理的提示词：宪法来自世界职能，任务只说明这一轮要读什么、写成什么样。
@@ -9,8 +9,8 @@ import { type WorldConstitution, worldFunctionAgent } from "../world-function";
  */
 
 /** 故事整理的宪法：建局时装配好的完整文本。 */
-export function buildStorySystemPrompt(world: WorldConstitution): string {
-  return worldFunctionAgent(world, "story").systemPrompt;
+export function buildStorySystemPrompt(world: WorldState): string {
+  return worldFunctionPrompt(world, "story");
 }
 
 export function buildStoryInput(state: GameState, memories: readonly AgentMemoryState[]): string {

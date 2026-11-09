@@ -1,8 +1,7 @@
-import type { WorldFunctionAgentSpec } from "./spec";
+import type { WorldFunctionSpec } from "./spec";
 
 /** 记忆压缩：把超长的记忆压成可继续使用的短记忆。 */
-export const COMPACT_AGENT = {
-  fn: "compact",
+export const COMPACT_SPEC = {
   label: "记忆压缩",
   duty: "把一段即将超长的记忆压成一段更短的私有记忆，留下后续回合仍然要用的东西。",
   profile: `保住原文的专名与称谓，不换成通用词，也不替角色改口；压缩后读起来仍像这个人自己的记忆。`,
@@ -31,4 +30,4 @@ export const COMPACT_AGENT = {
 ### 输出
 
 只输出压缩后的私有记忆正文：不要标题、列表、解释，也不要“系统”“模型”“压缩”等元语言。`,
-} satisfies WorldFunctionAgentSpec;
+} satisfies WorldFunctionSpec;

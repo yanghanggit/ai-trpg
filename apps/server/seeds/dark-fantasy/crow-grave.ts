@@ -1,21 +1,15 @@
 import { formatForm } from "../../src/game/form";
 import type { Script } from "../assemble";
 import { GLOBAL_RULES } from "../global-rules";
-import { renderWorldFunctionAgent, WORLD_FUNCTION_AGENTS } from "./agents";
+import { renderFunctionPrompts } from "./agents";
 import { DARK_FANTASY_SETTING } from "./campaign";
 
 /**
- * 世界职能 agent 在这一刻定档：清单里的每个 agent 逐个拼装一次。
+ * 世界职能宪法在这一刻定档：清单里的每个职能装配一次。
  *
  * 装配只发生在这里，建局时随 `World` 存库，运行时原样取用；之后的代码或内容改动
  * 不会影响已存在的局。
  */
-const FUNCTION_AGENTS = WORLD_FUNCTION_AGENTS.map((spec) =>
-  renderWorldFunctionAgent(spec, {
-    campaignSetting: DARK_FANTASY_SETTING,
-    globalRules: GLOBAL_RULES,
-  }),
-);
 
 /**
  * 剧本「鸦葬岗」：黑暗奇幻战役下的第二个故事切片。
@@ -29,7 +23,10 @@ export const CROW_GRAVE: Script = {
   contentVersion: "crow-grave.v1",
   contentKey: "crow-grave",
   worldName: "鸦葬岗的故事",
-  functionAgents: FUNCTION_AGENTS,
+  functionPrompts: renderFunctionPrompts({
+    campaignSetting: DARK_FANTASY_SETTING,
+    globalRules: GLOBAL_RULES,
+  }),
   profile: `这局故事的世界是鸦葬岗：黑疖病留下的乱葬岗、锁石、守夜塔与石壁后的封尸窖。故事之外还有更大的天地，但那不属于这一局。
 这个故事有且只有三种收尾：拾骨人从守夜塔离开鸦葬岗，守夜塔的烽火亮了；拾骨人死在这里；石壁后的封尸窖被打开，窖底的东西见了光。三种收尾都只由你在收到相应事实后裁定；除此之外，不要替故事收尾。`,
   stages: [

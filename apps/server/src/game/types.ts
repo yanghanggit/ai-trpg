@@ -85,7 +85,7 @@ export const EQUIPMENT_SLOT_KINDS: Record<EquipmentSlot, readonly ItemKind[]> = 
   accessory: ["accessory"],
 };
 
-/** 世界职能：世界级单例，有宪法与自己的一份口径，没有 memory。 */
+/** 世界职能：世界级单例，只有一份宪法文本，没有 memory。 */
 export const WORLD_FUNCTION_TYPES = [
   "drops",
   "affixes",
@@ -94,21 +94,7 @@ export const WORLD_FUNCTION_TYPES = [
   "dialogueAudit",
 ] as const;
 
-export type WorldFunctionType = (typeof WORLD_FUNCTION_TYPES)[number];
-
-/**
- * 一个世界职能 agent。
- *
- * 它今天只由一份 system prompt 定义：口径、职责与不可协商的约束都在那段文本里，
- * 建局时定档、随局存库，运行时原样作为 system prompt 使用。
- */
-export type WorldFunctionAgent = {
-  fn: WorldFunctionType;
-  systemPrompt: string;
-};
-
-/** 定档顺序即列表顺序；每个职能一个 agent，查表按 `fn`。 */
-export type WorldFunctionAgents = readonly WorldFunctionAgent[];
+export type WorldFunction = (typeof WORLD_FUNCTION_TYPES)[number];
 
 /**
  * 场景内的可交互锚点：actor 能明确指认的位置或部位。
@@ -571,8 +557,8 @@ export type WorldState = {
   contentKey: string;
   campaignSetting: string;
   globalRules: string;
-  /** 开局时定档的世界职能 agent；运行时直接使用，不再拼接。 */
-  functionAgents: WorldFunctionAgents;
+  /** 开局时定档的世界职能宪法：每个职能一份完整 system prompt，运行时直接用。 */
+  functionPrompts: Record<WorldFunction, string>;
   actions: WorldActionKind[];
   stages: StageState[];
   connections: ConnectionState[];

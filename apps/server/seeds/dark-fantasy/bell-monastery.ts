@@ -1,28 +1,25 @@
 import { formatForm } from "../../src/game/form";
 import type { Script } from "../assemble";
 import { GLOBAL_RULES } from "../global-rules";
-import { renderWorldFunctionAgent, WORLD_FUNCTION_AGENTS } from "./agents";
+import { renderFunctionPrompts } from "./agents";
 import { DARK_FANTASY_SETTING } from "./campaign";
 
 /**
- * 世界职能 agent 在这一刻定档：清单里的每个 agent 逐个拼装一次。
+ * 世界职能宪法在这一刻定档：清单里的每个职能装配一次。
  *
  * 装配只发生在这里，建局时随 `World` 存库，运行时原样取用；之后的代码或内容改动
  * 不会影响已存在的局。
  */
-const FUNCTION_AGENTS = WORLD_FUNCTION_AGENTS.map((spec) =>
-  renderWorldFunctionAgent(spec, {
-    campaignSetting: DARK_FANTASY_SETTING,
-    globalRules: GLOBAL_RULES,
-  }),
-);
 
 /** 剧本「枯钟修道院」：黑暗奇幻战役下的第一个故事切片。 */
 export const BELL_MONASTERY: Script = {
   contentVersion: "dark-fantasy.v16",
   contentKey: "bell-monastery",
   worldName: "枯钟修道院的故事",
-  functionAgents: FUNCTION_AGENTS,
+  functionPrompts: renderFunctionPrompts({
+    campaignSetting: DARK_FANTASY_SETTING,
+    globalRules: GLOBAL_RULES,
+  }),
   profile: `这局故事的世界是枯钟修道院：一座被黑疖病掏空的修道院，连同它的墓园、地窖、钟窖、焚尸房、铁闸门与山道。故事之外还有更大的天地，但那不属于这一局。
 这个故事有且只有三种收尾：无名者离开了他原本被困住的地方，他死在这里，或者地窖底下那口倒扣的铜钟被打开、压在钟腹底下的源头见了光。仅当第三种成立时，你这一轮只裁定故事结束。`,
   stages: [

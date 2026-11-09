@@ -1,7 +1,6 @@
 import type { z } from "zod";
 import { NAME_MARKER_PATTERN } from "../reference";
 import { findStageNameLeaks, findTextLeaks } from "../text-guard";
-import { WORLD_FUNCTION_TYPES } from "../types";
 import type { Actor, World } from "../world-definition";
 
 /**
@@ -213,29 +212,13 @@ function checkEntityNamesUnique(
 }
 
 /**
- * 世界职能 agent 是内容层定档的成品，框架只确认它真的带上了这一局的设定与规则。
+ * 世界职能宪法是内容层定档的成品，框架只确认它真的带上了这一局的设定与规则。
  *
- * 排版由内容负责；这里守的是「宪法必须吃世界设定」——否则材质名与术语会退回
- * 模型的世界外常识，而下游看不出题材越界。
+ * 「每个职能恰好一段」由形状保证（`functionPrompts` 是每键必填的记录），这里守的是
+ * 「宪法必须吃世界设定」——否则材质名与术语会退回模型的世界外常识，而下游看不出题材越界。
  */
 function checkFunctionPrompts(world: World, ctx: z.RefinementCtx): void {
-  const seen = new Map<string, number>();
-  for (const agent of world.functionAgents) {
-    seen.set(agent.fn, (seen.get(agent.fn) ?? 0) + 1);
-  }
-  for (const fn of WORLD_FUNCTION_TYPES) {
-    const count = seen.get(fn) ?? 0;
-    if (count !== 1) {
-      ctx.addIssue({
-        code: "custom",
-        message: `世界职能 agent 必须恰好一个: ${fn}（当前 ${count} 个）`,
-        path: ["functionAgents"],
-      });
-    }
-  }
-  for (const agent of world.functionAgents) {
-    const fn = agent.fn;
-    const prompt = agent.systemPrompt;
+  for (const [fn, prompt] of Object.entries(world.functionPrompts)) {
     const missing = [
       prompt.includes("## 职责") ? null : "职责",
       prompt.includes(world.campaignSetting) ? null : "战役设定",
@@ -245,8 +228,8 @@ function checkFunctionPrompts(world: World, ctx: z.RefinementCtx): void {
     if (missing.length > 0) {
       ctx.addIssue({
         code: "custom",
-        message: `世界职能 agent 的宪法缺少 ${missing.join("、")}: ${fn}`,
-        path: ["functionAgents"],
+        message: `世界职能宪法缺少 ${missing.join("、")}: ${fn}`,
+        path: ["functionPrompts"],
       });
     }
   }

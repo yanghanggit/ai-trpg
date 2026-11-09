@@ -1,5 +1,5 @@
-import type { ActorState, StageState } from "../types";
-import { type WorldConstitution, worldFunctionAgent } from "../world-function";
+import type { ActorState, StageState, WorldState } from "../types";
+import { worldFunctionPrompt } from "../world-function";
 
 /**
  * 掉落推理的提示词：这一轮要模型看什么，以及掉落裁决的宪法。
@@ -10,8 +10,8 @@ import { type WorldConstitution, worldFunctionAgent } from "../world-function";
  */
 
 /** 掉落裁决的宪法：建局时装配好的完整文本。 */
-export function buildDropSystemPrompt(world: WorldConstitution): string {
-  return worldFunctionAgent(world, "drops").systemPrompt;
+export function buildDropSystemPrompt(world: WorldState): string {
+  return worldFunctionPrompt(world, "drops");
 }
 
 export function buildDropTurnInput(actor: ActorState, stage: StageState): string {

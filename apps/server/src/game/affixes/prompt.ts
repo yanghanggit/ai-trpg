@@ -1,6 +1,6 @@
 import { STAT_KEYS, STAT_LABELS, type Stats } from "../attributes";
-import type { Affix } from "../types";
-import { type WorldConstitution, worldFunctionAgent } from "../world-function";
+import type { Affix, WorldState } from "../types";
+import { worldFunctionPrompt } from "../world-function";
 import type { AffixTrigger } from "./model";
 import type { StaticSettlement } from "./static";
 import type { StaticOutcome } from "./types";
@@ -14,8 +14,8 @@ function statsText(stats: Stats): string {
 }
 
 /** 词缀判定的宪法：建局时装配好的完整文本。 */
-export function buildAffixSystemPrompt(world: WorldConstitution): string {
-  return worldFunctionAgent(world, "affixes").systemPrompt;
+export function buildAffixSystemPrompt(world: WorldState): string {
+  return worldFunctionPrompt(world, "affixes");
 }
 
 export function buildAffixPrompt(input: {

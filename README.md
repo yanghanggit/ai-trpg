@@ -1,6 +1,8 @@
 # AI TRPG
 
-AI 跑团项目：TypeScript monorepo，Fastify 服务端 + React 客户端，共享 OpenAPI 契约。
+AI 驱动的 RPG 框架：名字沿用 trpg，但做的是引擎而不是一套跑团规则。框架层内容无关，只提供世界、场景、actor、物品、记忆、检索等通用机制；具体故事以内容包（`World` + 知识库）注入，开发期内置内容包由 `apps/server/seeds/` 提供，外部内容走同一契约。
+
+TypeScript monorepo，Fastify 服务端 + React 客户端，共享 OpenAPI 契约。
 
 技术栈：Node.js 22 / TypeScript / pnpm workspaces / Fastify / React + Vite。
 

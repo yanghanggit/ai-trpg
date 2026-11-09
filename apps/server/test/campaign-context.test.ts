@@ -24,7 +24,7 @@ const WORLD = {
   name: TEST_WORLD.worldName,
   campaignSetting: TEST_WORLD.campaignSetting,
   globalRules: TEST_WORLD.globalRules,
-  functionAgents: TEST_WORLD.functionAgents,
+  functionPrompts: TEST_WORLD.functionPrompts,
 };
 
 const ACTOR = {
@@ -54,7 +54,7 @@ const STATS = { maxHp: 10, strength: 4, wisdom: 2, agility: 3, damage: 5, block:
 describe("runtime agents carry the campaign setting", () => {
   it("世界职能 agent 的宪法携带设定、规则与自己的口径", () => {
     for (const fn of ["drops", "affixes", "story", "compact", "dialogueAudit"] as const) {
-      const prompt = WORLD.functionAgents.find((agent) => agent.fn === fn)?.systemPrompt ?? "";
+      const prompt = WORLD.functionPrompts[fn];
       expect(prompt).toContain(TEST_WORLD.campaignSetting);
       expect(prompt).toContain(TEST_WORLD.globalRules);
     }

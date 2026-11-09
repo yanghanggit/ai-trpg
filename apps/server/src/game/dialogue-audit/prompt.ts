@@ -1,7 +1,8 @@
 import { z } from "zod";
 import type { ToolDefinition } from "../../llm";
 import type { DialogueCategory } from "../persistence/dialogue-blocks";
-import { type WorldConstitution, worldFunctionAgent } from "../world-function";
+import type { WorldState } from "../types";
+import { worldFunctionPrompt } from "../world-function";
 import type { DialogueAuditRequest } from "./types";
 
 /**
@@ -54,8 +55,8 @@ export const VERDICT_TOOL: ToolDefinition = {
 };
 
 /** 玩家对话审核的宪法：建局时装配好的完整文本。 */
-export function buildDialogueAuditSystemPrompt(world: WorldConstitution): string {
-  return worldFunctionAgent(world, "dialogueAudit").systemPrompt;
+export function buildDialogueAuditSystemPrompt(world: WorldState): string {
+  return worldFunctionPrompt(world, "dialogueAudit");
 }
 
 export function buildAuditMessage(input: DialogueAuditRequest): string {

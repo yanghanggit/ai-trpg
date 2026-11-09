@@ -16,7 +16,7 @@ export type Campaign = {
  * 它**不能**写 `campaignSetting` / `globalRules`：前者只来自战役文件，后者是所有
  * 战役共用的框架文本，由 `assembleWorld()` 统一补上。
  *
- * `functionAgents` 由剧本自己给出——世界职能 agent 在剧本构建时定档，框架不代劳装配。
+ * 世界职能的宪法由剧本自己给出——每个职能在剧本构建时定档，框架不代劳装配。
  */
 export type Script = Omit<World, "campaignSetting" | "globalRules">;
 

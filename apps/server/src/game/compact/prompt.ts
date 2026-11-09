@@ -1,12 +1,13 @@
 import { type ChatMessage, getBufferString } from "../../llm";
-import { type WorldConstitution, worldFunctionAgent } from "../world-function";
+import type { WorldState } from "../types";
+import { worldFunctionPrompt } from "../world-function";
 import type { ResolvedOwner } from "./types";
 
 /**
  * 压缩的提示词：任务输入、记忆转写，以及压缩宪法。
  *
  * 压缩结果会成为该主体后续所有回合的长期记忆，所以任务里要写明主体是谁；
- * 宪法在建局时装配好（`worldFunctionAgent`），这里只取那一份，不再重算。
+ * 宪法在建局时装配好（`worldFunctionPrompt`），这里只取那一份，不再重算。
  */
 
 /**
@@ -44,6 +45,6 @@ export function renderTranscript(messages: readonly ChatMessage[]): string {
 }
 
 /** 记忆压缩的宪法：建局时装配好的完整文本。 */
-export function buildCompactSystemPrompt(world: WorldConstitution): string {
-  return worldFunctionAgent(world, "compact").systemPrompt;
+export function buildCompactSystemPrompt(world: WorldState): string {
+  return worldFunctionPrompt(world, "compact");
 }

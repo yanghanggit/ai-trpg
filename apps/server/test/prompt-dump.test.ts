@@ -14,7 +14,7 @@ import {
 const input = {
   world: { name: "枯钟修道院", contentVersion: "test.v1" },
   worldPrompt: "WORLD PROMPT",
-  functionAgentPrompts: [{ name: "drops", prompt: "FUNCTION PROMPT" }],
+  functionPromptDumps: [{ name: "drops", prompt: "FUNCTION PROMPT" }],
   actorPrompts: [{ name: "奥德里克", prompt: "ACTOR PROMPT" }],
   stagePrompts: [{ name: "灰烬门廊", prompt: "STAGE PROMPT" }],
 };

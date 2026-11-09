@@ -138,9 +138,7 @@ describe.skipIf(!testDatabaseUrl)("death drops", () => {
       service.systemPrompts.some(
         (prompt) =>
           prompt.includes(TEST_WORLD.campaignSetting) &&
-          prompt.includes(
-            TEST_WORLD.functionAgents.find((agent) => agent.fn === "drops")?.systemPrompt ?? "",
-          ),
+          prompt.includes(TEST_WORLD.functionPrompts.drops),
       ),
     ).toBe(true);
     const dropInputs = service.inputs.filter((input) => input.includes("尸体掉落"));

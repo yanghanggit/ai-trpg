@@ -11,7 +11,7 @@ import { getGameState } from "../read/game-state";
 import type { GameState } from "../types";
 import { parseWorldContent } from "../world-definition";
 import { bindSignatureNames, bindVisitedStages, createActors } from "./actors";
-import { buildFunctionAgentPrompts } from "./prompts";
+import { buildFunctionPromptDumps } from "./prompts";
 import { createConnections, createStages } from "./stages";
 import type { CreateGameInput, PromptDump } from "./types";
 import { assertUniqueActorKeys, assertUniqueItemKeys, resolveSlug } from "./validate";
@@ -64,7 +64,7 @@ export async function createGame(
       profile: world.profile,
       campaignSetting: world.campaignSetting,
       globalRules: world.globalRules,
-      functionAgents: world.functionAgents,
+      functionPrompts: world.functionPrompts,
       actions: [...world.actions],
     });
     await createWorldMemory(
@@ -107,7 +107,7 @@ export async function createGame(
   await dumpSystemPrompts({
     world: { name: world.worldName, contentVersion: world.contentVersion },
     worldPrompt,
-    functionAgentPrompts: buildFunctionAgentPrompts(world),
+    functionPromptDumps: buildFunctionPromptDumps(world),
     stagePrompts,
     actorPrompts,
     ...(options.logger ? { logger: options.logger } : {}),

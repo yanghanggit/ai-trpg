@@ -1,6 +1,6 @@
 import { ChatCompletionRequest, type ChatCompletionService, type ChatMessage } from "../../llm";
 import { GameError } from "../errors";
-import type { WorldConstitution } from "../world-function";
+import type { WorldState } from "../types";
 import { buildCompactionInput, buildCompactSystemPrompt, renderTranscript } from "./prompt";
 import type { ResolvedOwner } from "./types";
 
@@ -14,7 +14,7 @@ export async function summarizeMemory(
   owner: ResolvedOwner,
   messages: readonly ChatMessage[],
   service: ChatCompletionService,
-  world: WorldConstitution,
+  world: WorldState,
 ): Promise<string> {
   const transcript = renderTranscript(messages.slice(1));
   if (transcript.trim().length === 0) {

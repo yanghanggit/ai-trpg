@@ -3,7 +3,7 @@ import type {
   DialogueCategory,
   DialogueFailureKind,
 } from "../persistence/dialogue-blocks";
-import type { WorldConstitution } from "../world-function";
+import type { WorldState } from "../types";
 
 /**
  * 审核的形状：问什么、答什么、调用方在审核之后拿到什么。
@@ -17,7 +17,7 @@ export type DialogueAuditRequest = {
   message: string;
   actorName: string;
   stageName: string;
-  world: WorldConstitution;
+  world: WorldState;
 };
 
 export type DialogueVerdict = {
@@ -48,5 +48,5 @@ export type DialogueContext = {
   message: string;
   actorName: string;
   stageName: string;
-  world: WorldConstitution;
+  world: WorldState;
 };

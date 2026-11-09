@@ -63,7 +63,7 @@ function allSystemPrompts(): { name: string; prompt: string }[] {
     })),
     ...WORLD_FUNCTION_TYPES.map((fn) => ({
       name: `function:${fn}`,
-      prompt: world.functionAgents.find((agent) => agent.fn === fn)?.systemPrompt ?? "",
+      prompt: world.functionPrompts[fn],
     })),
   ];
 }

@@ -96,9 +96,7 @@ describe.skipIf(!testDatabaseUrl)("game story", () => {
     expect(result.rounds).toBe(9);
     // 故事整理的宪法带该局设定与自己的口径；任务提示词只放本轮事实。
     expect(service.systemPrompts[0]).toContain(TEST_WORLD.campaignSetting);
-    expect(service.systemPrompts[0]).toBe(
-      TEST_WORLD.functionAgents.find((agent) => agent.fn === "story")?.systemPrompt,
-    );
+    expect(service.systemPrompts[0]).toBe(TEST_WORLD.functionPrompts.story);
     expect(service.inputs[0]).not.toContain(TEST_WORLD.campaignSetting);
     expect(service.tools).toEqual(
       expect.arrayContaining(["list_memories", "read_memory", "read_events", "submit_story"]),

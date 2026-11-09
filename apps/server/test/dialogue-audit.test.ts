@@ -3,8 +3,8 @@ import Fastify from "fastify";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import "../src/db/env";
 import { BELL_MONASTERY_WORLD } from "../seeds/dark-fantasy";
-import { renderWorldFunctionAgent } from "../seeds/dark-fantasy/agents";
-import { DIALOGUE_AUDIT_AGENT } from "../seeds/dark-fantasy/agents/dialogue-audit";
+import { renderFunctionPrompt } from "../seeds/dark-fantasy/agents";
+import { DIALOGUE_AUDIT_SPEC } from "../seeds/dark-fantasy/agents/dialogue-audit";
 import { type DatabaseHandle, openDatabase } from "../src/db/connect";
 import { DEMO_USER } from "../src/db/demo-fixture";
 import { resetDomainData, seedDemoData } from "../src/db/maintenance";
@@ -25,6 +25,7 @@ import {
   DialogueJudgeError,
 } from "../src/game/dialogue-audit";
 import { DialogueBlockedError } from "../src/game/errors";
+import type { WorldState } from "../src/game/types";
 import {
   ChatCompletionResult,
   type ChatCompletionService,
@@ -39,13 +40,17 @@ const AUDIT_WORLD = {
   name: "枯钟修道院的故事",
   campaignSetting: "黑暗奇幻世界。",
   globalRules: "角色只能沿场景连接移动。",
-  functionAgents: [DIALOGUE_AUDIT_AGENT].map((spec) =>
-    renderWorldFunctionAgent(spec, {
+  functionPrompts: {
+    drops: "",
+    affixes: "",
+    story: "",
+    compact: "",
+    dialogueAudit: renderFunctionPrompt(DIALOGUE_AUDIT_SPEC, {
       campaignSetting: "黑暗奇幻世界。",
       globalRules: "角色只能沿场景连接移动。",
     }),
-  ),
-};
+  },
+} as unknown as WorldState;
 
 const AUDIT_INPUT = {
   actionKind: "say" as const,
@@ -320,7 +325,7 @@ describe("deepseek dialogue judge", () => {
     const system = captured?.messages.find((message) => message.type === "system");
     const human = captured?.messages.find((message) => message.type === "human");
     // 宪法在装配期定稿：运行时原样取用，不改写、不拼接。
-    expect(system?.content).toBe(AUDIT_WORLD.functionAgents[0]?.systemPrompt);
+    expect(system?.content).toBe(AUDIT_WORLD.functionPrompts.dialogueAudit);
     expect(system?.content).toContain(AUDIT_WORLD.campaignSetting);
     expect(human?.content).not.toContain(AUDIT_WORLD.campaignSetting);
     expect(human?.content).toContain("待审台词");

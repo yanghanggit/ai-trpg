@@ -15,7 +15,7 @@ import type {
   PassageState,
   StageActionKind,
   WorldActionKind,
-  WorldFunctionAgents,
+  WorldFunction,
 } from "../types";
 
 export type World = {
@@ -28,11 +28,11 @@ export type World = {
   campaignSetting: string;
   globalRules: string;
   /**
-   * 世界职能 agent，建局前在内容层定档、之后直接使用。
+   * 世界职能宪法：每个职能一份完整 system prompt，建局前在内容层定档、之后直接使用。
    *
    * 与 `globalRules` 一样属于开局快照：改代码或内容不影响已存在的局。
    */
-  functionAgents: WorldFunctionAgents;
+  functionPrompts: Record<WorldFunction, string>;
   stages: readonly Stage[];
   connections: readonly Connection[];
   actors: readonly Actor[];

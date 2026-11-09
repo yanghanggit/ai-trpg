@@ -5,7 +5,7 @@ import { GameError } from "../errors";
 import { appendMemoryMessages, loadAgentMemory } from "../memory";
 import { MEMORY_KINDS } from "../memory/kinds";
 import type { NameAuditInput } from "../name-audit";
-import type { WorldConstitution } from "../world-function";
+import type { WorldState } from "../types";
 import { assertActorSummaryKnown } from "./audit";
 import { summarizeMemory } from "./summarize";
 import type { CompactMemoryOptions, CompactMemoryResult, ResolvedOwner } from "./types";
@@ -32,7 +32,7 @@ function validateMinRatio(minRatio: number | undefined): void {
 export async function compactResolvedMemory(
   db: Database,
   gameId: string,
-  world: WorldConstitution,
+  world: WorldState,
   owner: ResolvedOwner,
   options: CompactMemoryOptions,
   auditInput?: NameAuditInput,
