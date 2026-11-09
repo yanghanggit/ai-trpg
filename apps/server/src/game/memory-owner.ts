@@ -1,6 +1,7 @@
-import { findActorByName, findStage } from "./actors";
+import { findActorByName } from "./actors";
 import { GameError } from "./errors";
 import type { MemoryOwnerType } from "./memory";
+import { findStage } from "./stages";
 import type { GameStateSlice } from "./types";
 
 /**

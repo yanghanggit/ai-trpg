@@ -1,13 +1,15 @@
 import type { Database } from "../db/pool";
-import { adjacentStages, findActorByName, findStage } from "./actors";
+import { findActorByName } from "./actors";
 import { addressLookupFor, refOf } from "./addressing";
 import { isAlive } from "./apply/queries";
 import { MEMORY_KINDS } from "./constants";
 import { buildEdgeIndex } from "./edges";
 import { getMemoryState } from "./memory";
+import { adjacentStages } from "./neighbors";
 import { sealedVisitedStagesForActor } from "./plan";
 import { getGameStateSlice } from "./read/game-state";
 import { handleOf } from "./reference";
+import { findStage } from "./stages";
 import { visitedStagesForActor, visitedTeleportTargetsFor } from "./teleport";
 import type { GameStateSlice, PassageState, SignatureNameState, StageState } from "./types";
 

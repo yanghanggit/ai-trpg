@@ -1,14 +1,10 @@
-import {
-  type ActorWithStage,
-  adjacentStageNames,
-  adjacentStages,
-  findStageByName,
-  sealedStages,
-} from "../actors";
+import type { ActorWithStage } from "../actors";
 import { type AddressLookup, addressLookupFor, refOf } from "../addressing";
 import { isAlive } from "../apply/queries";
 import { STAT_LABELS } from "../attributes";
+import { adjacentStageNames, adjacentStages, sealedStages } from "../neighbors";
 import { handleOf } from "../reference";
+import { findStageByName } from "../stages";
 import { visitedStageIds, visitedStagesForActor, visitedTeleportTargetsFor } from "../teleport";
 import { sanitizeActorFacingText } from "../text-guard";
 import type { ActorState, GameStateSlice, ItemState, StageAnchorState, StageState } from "../types";

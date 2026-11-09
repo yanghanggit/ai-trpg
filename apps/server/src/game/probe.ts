@@ -1,9 +1,10 @@
 import type { Database } from "../db/pool";
 import { ChatCompletionRequest, type ChatCompletionService, type ChatMessage } from "../llm";
-import { findActorByName, findStage } from "./actors";
+import { findActorByName } from "./actors";
 import { GameError } from "./errors";
 import { loadAgentMemory } from "./memory";
 import { getGameStateSlice } from "./read/game-state";
+import { findStage } from "./stages";
 
 export type ProbeTarget = { type: "actor"; actorRef: string } | { type: "stage"; stageRef: string };
 

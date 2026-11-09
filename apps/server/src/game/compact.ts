@@ -7,7 +7,7 @@ import {
   type ChatMessage,
   getBufferString,
 } from "../llm";
-import { allActors, findActorByName, findStage } from "./actors";
+import { allActors, findActorByName } from "./actors";
 import { MEMORY_KINDS } from "./constants";
 import { GameError } from "./errors";
 import type { AgentMemoryState } from "./memory";
@@ -15,6 +15,7 @@ import { appendMemoryMessages, loadAgentMemory, type MemoryOwnerType } from "./m
 import { findNameLeaks, type NameAuditInput } from "./name-audit";
 import { loadNameAuditInput } from "./persistence/name-audit";
 import { getGameStateSlice } from "./read/game-state";
+import { findStage } from "./stages";
 import type { GameStateSlice } from "./types";
 import { type WorldConstitution, worldFunctionAgent } from "./world-function";
 

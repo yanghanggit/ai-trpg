@@ -2,12 +2,13 @@ import { createTurnTrace, traceEvent } from "../debug/trace";
 import { agentLoop } from "../llm/agent-loop";
 import type { ChatCompletionService } from "../llm/protocol";
 import type { ToolDefinition } from "../llm/types";
-import { findActorByName, findStage } from "./actors";
+import { findActorByName } from "./actors";
 import { DEFAULT_LLM_ERROR_RETRIES } from "./constants";
 import { GameError } from "./errors";
 import type { AgentMemoryMessageState, AgentMemoryState } from "./memory";
 import { getGameMemories } from "./memory";
 import { getGameState } from "./read/game-state";
+import { findStage } from "./stages";
 import type { GameState } from "./types";
 import { type WorldConstitution, worldFunctionAgent } from "./world-function";
 
