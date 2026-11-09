@@ -19,6 +19,7 @@ import { buildCallTool, parseCall } from "./actions/call";
 import { buildCleaveTool, parseCleave } from "./actions/cleave";
 import { buildEquipTool, parseEquip } from "./actions/equip";
 import { buildGiveTool, parseGive } from "./actions/give";
+import { buildInspectTool, parseInspect } from "./actions/inspect";
 import { buildLootTool, parseLoot } from "./actions/loot";
 import { buildMoveTool, parseMove } from "./actions/move";
 import { buildPickupTool, parsePickup } from "./actions/pickup";
@@ -46,7 +47,6 @@ import { loadAgentMemory } from "./memory";
 import {
   adjacentStageRefsForActor,
   buildActorLookTool,
-  buildInspectActorTool,
   buildKnowledgeTool,
   buildRecallRouteTool,
   buildRecognizeIdentityTool,
@@ -55,7 +55,6 @@ import {
   buildVisitedStagesTool,
   describeEquipmentBrief,
   describeKnowledgeResults,
-  describeObservedActor,
   describeSelf,
   describeStageAnchors,
   describeStageForActor,
@@ -80,7 +79,6 @@ import type {
   ActionKind,
   ActorAction,
   ActorPlan,
-  ActorState,
   ActorTurnResult,
   GameStateSlice,
   RouteFailure,
@@ -99,14 +97,6 @@ export type NpcTurnOptions = {
   /** 覆盖 TRPG_AUDIT_NAMES；测试用来打开回合级名字审计。 */
   auditNameLeaks?: boolean;
 };
-
-/**
- * 侦察（`inspect_actor`）是取物的前置：能偷活人或搜刮尸体的角色才注入这个工具。
- * 工具注入与任务提示词共用这一条判断，避免提示词提到不存在的工具。
- */
-function canInspectActorItems(actor: Pick<ActorState, "actions">): boolean {
-  return actor.actions.includes("steal") || actor.actions.includes("loot");
-}
 
 /** 构造 actor 本轮的公开环境与任务说明；NPC 与探针共用。 */
 export function buildActorTurnInput(
@@ -155,15 +145,19 @@ export function buildActorTurnInput(
       : allowed.includes("brawl")
         ? "当前没有能出手的武器：近战只能用 brawl（身体攻击，不吃武器数值）。"
         : "当前既没有能出手的武器，也没有 brawl：本轮无法发起攻击。";
-  // 侦察跟着取物走：既不能偷也不能搜刮的角色只看姓名与穿戴，不提供背包细节。
-  const canInspect = canInspectActorItems(current.actor);
+  // 背包清单不是免费读取：名单里只有穿戴摘要，要看全得花一次行动，而且在场都看得见。
+  const canInspect = allowed.includes("inspect");
+  // 取物前通常要先看清名字：inspect 与 steal / loot 各占一次行动，所以分两回合走。
+  const inspectHint =
+    canInspect && (allowed.includes("steal") || allowed.includes("loot"))
+      ? "不知道对方身上有什么、或者记不准物品名时，先 inspect 看清（它占一次行动，在场可见），下个回合再取。"
+      : "";
   const toolHint = canInspect
-    ? "名单里只列了同场景他人已穿戴的装备；要看全，用 get_self 看自己、用 inspect_actor 看别人随身带的全部物品。"
+    ? "名单里只列了同场景他人已穿戴的装备；要看全，用 get_self 看自己，用 inspect 看别人随身带的全部物品——它是一次动作，会占掉本轮行动名额，在场的人都看得见。"
     : "要看自己的完整信息用 get_self。";
   const readOnlyList = [
     "look_stage",
     "get_self",
-    ...(canInspect ? ["inspect_actor"] : []),
     "get_visited_stages",
     "recall_route",
     "query",
@@ -239,7 +233,7 @@ ${teleportLines}`
 2. 写：${actionList}。一次回复只提交 ${MAX_ACTIONS_PER_TURN} 个行动——说话、移动、动手都算。动作工具只把动作暂存进计划，不会落账。
 3. 提交：submit_plan。必须与那一个动作工具放在同一次回复里调用；只调动作不提交，这一轮就什么都没发生。
 
-${toolHint}${knowledgeHint}${identityHint}${useFlowHint}${callHint}${unarmedHint}${lootHint}${readOnlyHint}`;
+${toolHint}${knowledgeHint}${identityHint}${useFlowHint}${callHint}${unarmedHint}${lootHint}${inspectHint}${readOnlyHint}`;
 }
 
 /** 把动作加入本轮计划；条数上限在这里就告诉模型，避免提交后才被拒绝。 */
@@ -310,10 +304,6 @@ export async function runNpcTurn(
   const selfTool = buildSelfInfoTool();
   const visitedStagesTool = buildVisitedStagesTool();
   const routeTool = buildRecallRouteTool();
-  // 侦察是偷窃的前置：只有能 steal 的角色才注入 inspect_actor，与任务提示词同一判断。
-  const inspectTool = canInspectActorItems(current.actor)
-    ? buildInspectActorTool(targets)
-    : undefined;
   // 编号始终可见：既能给新签名起名，也能对已有名字重新记录来更新称呼。
   const recognizeTool = buildRecognizeIdentityTool(
     otherActors.map((actor) => handleOf(actor.signature.seq)),
@@ -335,6 +325,7 @@ export async function runNpcTurn(
     cleave: buildCleaveTool(targets, cleaveMaxTargets),
     brawl: buildBrawlTool(targets),
     steal: buildStealTool(targets),
+    inspect: buildInspectTool(targets),
     loot: buildLootTool(targets),
     give: buildGiveTool(targets),
     pickup: buildPickupTool(
@@ -362,6 +353,7 @@ export async function runNpcTurn(
     cleave: parseCleave,
     brawl: parseBrawl,
     steal: parseSteal,
+    inspect: parseInspect,
     loot: parseLoot,
     give: parseGive,
     pickup: parsePickup,
@@ -481,7 +473,6 @@ export async function runNpcTurn(
       selfTool,
       visitedStagesTool,
       routeTool,
-      ...(inspectTool ? [inspectTool] : []),
       knowledgeTool,
       recognizeTool,
       ...allowed.map((kind) => actionTools[kind]),
@@ -492,21 +483,6 @@ export async function runNpcTurn(
       [selfTool.function.name]: () => describeSelf(current.actor),
       [visitedStagesTool.function.name]: () =>
         describeVisitedStages(state, current.actor.id, current.stage.id),
-      ...(inspectTool
-        ? {
-            [inspectTool.function.name]: (args: Record<string, unknown>) => {
-              const targetActorRef =
-                typeof args.targetActorRef === "string" ? args.targetActorRef.trim() : "";
-              const target = otherActors.find(
-                (actor) => address(actor.id).token === targetActorRef,
-              );
-              if (!target) {
-                return `错误：当前场景内找不到引用 ${targetActorRef}`;
-              }
-              return describeObservedActor(target, address);
-            },
-          }
-        : {}),
       [knowledgeTool.function.name]: async (args: Record<string, unknown>) => {
         const keywords = typeof args.keywords === "string" ? args.keywords.trim() : "";
         if (keywords.length === 0) {

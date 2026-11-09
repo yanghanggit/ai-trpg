@@ -6,6 +6,7 @@ import { buildCallTool, parseCall } from "../src/game/actions/call";
 import { buildCleaveTool, parseCleave } from "../src/game/actions/cleave";
 import { buildEquipTool, parseEquip } from "../src/game/actions/equip";
 import { buildGiveTool, parseGive } from "../src/game/actions/give";
+import { buildInspectTool, parseInspect } from "../src/game/actions/inspect";
 import { buildLootTool, parseLoot } from "../src/game/actions/loot";
 import { buildMoveTool, parseMove } from "../src/game/actions/move";
 import { buildPickupTool, parsePickup } from "../src/game/actions/pickup";
@@ -80,6 +81,8 @@ describe("action tools", () => {
       "targetActorHandle",
       "itemName",
     ]);
+    // 查看行囊只有一个目标参数，对象是谁由参数名说明。
+    expect(buildInspectTool(targets).function.parameters.required).toEqual(["targetActorHandle"]);
     // 搜刮的 itemNames 是可选的：不传就是搬空尸体。
     expect(buildLootTool(targets).function.parameters.required).toEqual(["targetActorHandle"]);
     expect(buildGiveTool(targets).function.parameters.required).toEqual([
@@ -259,6 +262,11 @@ describe("action parsers", () => {
       targetActorHandle: "提灯修士",
       itemName: "铅封提灯",
     });
+    expect(parseInspect({ targetActorHandle: " 提灯修士 " })).toEqual({
+      kind: "inspect",
+      targetActorHandle: "提灯修士",
+    });
+    expect(() => parseInspect({ targetActorHandle: "  " })).toThrow(/targetActorHandle/);
     expect(parseLoot({ targetActorHandle: "提灯修士" })).toEqual({
       kind: "loot",
       targetActorHandle: "提灯修士",

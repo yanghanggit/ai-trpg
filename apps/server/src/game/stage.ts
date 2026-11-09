@@ -29,10 +29,10 @@ import {
 import { loadWorldByGame } from "./persistence/worlds";
 import {
   buildAddAnchorTool,
-  buildInspectActorTool,
   buildNotifyWorldTool,
   buildOpenPassageTool,
   buildRemoveAnchorTool,
+  buildStageInspectTool,
   buildSubmitEnvironmentTool,
   buildSubmitStagePlanTool,
   buildUpdateAnchorTool,
@@ -105,7 +105,7 @@ export function buildStageTurnInput(state: GameStateSlice, stage: StageState): s
         ]
       : []),
     "读完就调用 submit_stage_plan 提交；写动作与提交可以放在同一次回复里，没有改动就提交空计划。",
-    "只读工具（inspect_actor）可以在同一次回复里多次调用，不占写额度，但每一次回复都算一轮推理；本轮会写库的动作最多：environment 一次、锚点一次、通道一条、world 通知两条。",
+    "只读工具（inspect）可以在同一次回复里多次调用，不占写额度，但每一次回复都算一轮推理；本轮会写库的动作最多：environment 一次、锚点一次、通道一条、world 通知两条。",
   ];
 
   return `# 当前场景
@@ -554,10 +554,7 @@ export async function runStageTurn(
     contentVersion: state.game.contentVersion,
   });
 
-  const inspectTool = buildInspectActorTool(
-    stage.actors.map((actor) => actor.name),
-    "stage",
-  );
+  const inspectTool = buildStageInspectTool(stage.actors.map((actor) => actor.name));
   const canSubmit = stage.actions.includes("submit_environment");
   const canNotify = stage.actions.includes("notify_world");
   const sealed = sealedStageNames(state, stage.id);

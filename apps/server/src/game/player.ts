@@ -229,6 +229,10 @@ export type PlayerStealInput = {
   itemName: string;
 };
 
+export type PlayerInspectInput = {
+  targetActorRef: string;
+};
+
 export type PlayerLootInput = {
   targetActorRef: string;
   /** 省略表示搜刮尸体身上的全部物品。 */
@@ -395,6 +399,19 @@ export async function playerSteal(
     kind: "steal",
     targetActorHandle: input.targetActorRef,
     itemName: input.itemName,
+  };
+  return applyPlayerAction(db, gameRef, actorRef, action);
+}
+
+export async function playerInspect(
+  db: Database,
+  gameRef: string,
+  actorRef: string,
+  input: PlayerInspectInput,
+): Promise<ActorTurnResult> {
+  const action: ActorAction = {
+    kind: "inspect",
+    targetActorHandle: input.targetActorRef,
   };
   return applyPlayerAction(db, gameRef, actorRef, action);
 }

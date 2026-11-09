@@ -241,6 +241,20 @@ export type StealAction = {
 };
 
 /**
+ * 看同场景目标随身携带的全部物品；活人与尸体都可以看。
+ *
+ * 名字不带对象，看的对象由参数说明：现在只有 `targetActorHandle`，
+ * 以后要看锚点或场景时加对应字段即可，不必再造一个动作。
+ *
+ * 这是一次会被看见的动作，不是免费读取：它与 `steal` / `loot` 同组，
+ * 得到的清单进自己的行动事实（写进记忆），在场的人知道有人查看了行囊。
+ */
+export type InspectAction = {
+  kind: "inspect";
+  targetActorHandle: string;
+};
+
+/**
  * 从同场景的尸体上搜走物品；不点名就搜刮全部。
  *
  * 与 `steal` 按对象分工：`steal` 只对活人，`loot` 只对尸体；
@@ -293,7 +307,7 @@ export type UnequipAction = {
   slot: EquipmentSlot;
 };
 
-/** 一次 actor 行动；十七个具体动作平级，不再有中间分类层。 */
+/** 一次 actor 行动；十八个具体动作平级，不再有中间分类层。 */
 export type ActorAction =
   | SayAction
   | WhisperAction
@@ -306,6 +320,7 @@ export type ActorAction =
   | CleaveAction
   | BrawlAction
   | StealAction
+  | InspectAction
   | LootAction
   | GiveAction
   | PickupAction

@@ -287,6 +287,7 @@ export const BELL_MONASTERY: Script = {
         "brawl",
         "give",
         "pickup",
+        "inspect",
         "loot",
         "use",
         "equip",
@@ -403,7 +404,7 @@ export const BELL_MONASTERY: Script = {
           },
         },
       ],
-      // 唯一会偷窃的角色；其余能力与普通人类一致。
+      // 唯一会偷窃的角色；其余能力与普通人类一致（包括查看行囊）。
       actions: [
         "say",
         "whisper",
@@ -413,6 +414,7 @@ export const BELL_MONASTERY: Script = {
         "brawl",
         "give",
         "pickup",
+        "inspect",
         "loot",
         "use",
         "steal",

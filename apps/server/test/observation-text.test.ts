@@ -10,6 +10,7 @@ import {
   renderCommunication as renderCommunicationRaw,
   renderDamage as renderDamageRaw,
   renderEnvironmentChange,
+  renderInspect as renderInspectRaw,
   renderItemEvent as renderItemEventRaw,
 } from "../src/game/observation-text";
 
@@ -46,6 +47,13 @@ const renderItemEvent = (
     Parameters<typeof renderItemEventRaw>[2],
   ]
 ) => renderItemEventRaw(args[0], args[1], args[2], ADDRESS);
+const renderInspect = (
+  ...args: [
+    Parameters<typeof renderInspectRaw>[0],
+    Parameters<typeof renderInspectRaw>[1],
+    Parameters<typeof renderInspectRaw>[2],
+  ]
+) => renderInspectRaw(args[0], args[1], args[2], ADDRESS);
 const renderCommunication = (
   ...args: [
     Parameters<typeof renderCommunicationRaw>[0],
@@ -228,6 +236,22 @@ describe("item observations", () => {
       ),
     );
     expect(bystander.metadata.targetActorId).toBe(OTHER.id);
+  });
+
+  it("查看行囊只写「有人在看」，清单不进观察", () => {
+    const observation = { actor: ACTOR, target: OTHER };
+    expect(renderInspect(STAGE, observation, "actor-3").content).toBe(
+      withAppearances(
+        "# 场景动态\n守烬人查看了提灯修士随身携带的东西。",
+        ACTOR_APPEARANCE,
+        OTHER_APPEARANCE,
+      ),
+    );
+    const asTarget = renderInspect(STAGE, observation, OTHER.id);
+    expect(asTarget.content).toBe(
+      withAppearances("# 有人在查看你的物品\n守烬人查看了你随身携带的东西。", ACTOR_APPEARANCE),
+    );
+    expect(asTarget.metadata.targetActorId).toBe(OTHER.id);
   });
 
   it("搜刮是公开事件，物品用列表写进同一句", () => {

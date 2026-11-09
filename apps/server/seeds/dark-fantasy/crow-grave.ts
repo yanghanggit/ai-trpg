@@ -367,7 +367,7 @@ export const CROW_GRAVE: Script = {
           count: 1,
         },
       ],
-      // 人类：会说话、走动、战斗，也会用哨、递东西、拾取与换装；不偷东西。
+      // 人类：会说话、走动、战斗，也会用哨、递东西、拾取与换装；不偷东西，但会翻看行囊。
       actions: [
         "say",
         "whisper",
@@ -377,6 +377,7 @@ export const CROW_GRAVE: Script = {
         "brawl",
         "give",
         "pickup",
+        "inspect",
         "loot",
         "use",
         "equip",
@@ -464,6 +465,7 @@ export const CROW_GRAVE: Script = {
         "brawl",
         "give",
         "pickup",
+        "inspect",
         "loot",
         "use",
         "steal",

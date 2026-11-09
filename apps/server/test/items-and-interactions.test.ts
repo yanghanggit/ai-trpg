@@ -14,6 +14,7 @@ import {
   getGameState,
   playerBrawl,
   playerGive,
+  playerInspect,
   playerLoot,
   playerMove,
   playerPickup,
@@ -447,6 +448,95 @@ describe.skipIf(!testDatabaseUrl)("items and interactions", () => {
     expect(observerMemory?.messages.some((message) => message.content.includes("取走了"))).toBe(
       false,
     );
+  });
+
+  it("inspects a target's items as a public action, keeping the list to the inspector", async () => {
+    const created = await createGame(handle.db, {
+      username: DEMO_USER.username,
+      name: "查看行囊测试局",
+      world: ARMORED_MONK_WORLD,
+    });
+    await takeActorControl(handle.db, created.game.slug, "守烬人");
+
+    const inspected = await playerInspect(handle.db, created.game.slug, "守烬人", {
+      targetActorRef: "提灯修士",
+    });
+    expect(inspected.ok).toBe(true);
+    expect(inspected.plan?.actions[0]).toEqual({
+      kind: "inspect",
+      targetActorHandle: "提灯修士",
+    });
+
+    const state = await getGameState(handle.db, created.game.slug);
+    // 查看是公开动作，但清单不进公共事件：只写「有人在看」。
+    const message = state.messages.find((item) => item.kind === "inspect");
+    expect(message?.visibility).toBe("stage");
+    expect(message?.content).toBe("守烬人查看了提灯修士随身携带的东西。");
+    expect(message?.content).not.toContain("铅封提灯");
+
+    // 清单只出现在查看者自己的行动事实里，连同物品描述与穿戴标记。
+    const memories = await getGameMemories(handle.db, created.game.id);
+    const keeperMemory = memories.find((memory) => memory.name === "守烬人");
+    const feedback = keeperMemory?.messages.map((item) => item.content).join("\n") ?? "";
+    expect(feedback).toContain("你查看了提灯修士随身携带的东西");
+    expect(feedback).toContain("铅封提灯");
+    expect(feedback).toContain("已穿戴");
+
+    // 目标知道自己被查看；别的场景连「有人在看」都收不到，更拿不到清单。
+    const monkMemory = memories.find((memory) => memory.name === "提灯修士");
+    expect(monkMemory?.messages.some((item) => item.content.includes("有人在查看你的物品"))).toBe(
+      true,
+    );
+    const otherStageMemory = memories.find((memory) => memory.name === "缄默抄经人");
+    expect(otherStageMemory?.messages.some((item) => item.content.includes("查看"))).toBe(false);
+
+    // 查看不搬东西：穿在身上的还在尸体…还在目标身上。
+    const monk = state.world.stages
+      .flatMap((stage) => stage.actors)
+      .find((actor) => actor.name === "提灯修士");
+    expect(monk?.items.map((item) => item.name)).toContain("铅封提灯");
+    expect(monk?.equipment.armor).toBe("铅封提灯");
+  });
+
+  it("inspects corpses too, since looting needs the names", async () => {
+    const created = await createGame(handle.db, {
+      username: DEMO_USER.username,
+      name: "查看尸体测试局",
+      world: CORPSE_WORLD,
+    });
+    await takeActorControl(handle.db, created.game.slug, "守烬人");
+
+    const inspected = await playerInspect(handle.db, created.game.slug, "守烬人", {
+      targetActorRef: "提灯修士",
+    });
+    expect(inspected.ok).toBe(true);
+
+    const memories = await getGameMemories(handle.db, created.game.id);
+    const feedback =
+      memories
+        .find((memory) => memory.name === "守烬人")
+        ?.messages.map((item) => item.content)
+        .join("\n") ?? "";
+    expect(feedback).toContain("你查看了提灯修士随身携带的东西");
+    expect(feedback).toContain("铅封提灯");
+  });
+
+  it("rejects inspecting yourself and actors without the action", async () => {
+    const created = await createGame(handle.db, {
+      username: DEMO_USER.username,
+      name: "查看限制测试局",
+      world: ITEM_WORLD,
+    });
+    await takeActorControl(handle.db, created.game.slug, "守烬人");
+    await expect(
+      playerInspect(handle.db, created.game.slug, "守烬人", { targetActorRef: "守烬人" }),
+    ).rejects.toThrow("目标不能是自己");
+
+    // 查看是内容声明的能力：没声明的角色连工具都没有，硬提交也要被拒。
+    await takeActorControl(handle.db, created.game.slug, "提灯修士");
+    await expect(
+      playerInspect(handle.db, created.game.slug, "提灯修士", { targetActorRef: "守烬人" }),
+    ).rejects.toThrow("不能使用动作: inspect");
   });
 
   it("refuses to take a worn item from a living actor", async () => {

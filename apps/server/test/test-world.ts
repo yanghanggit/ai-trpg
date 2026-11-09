@@ -122,6 +122,7 @@ export const TEST_WORLD: World = {
         "use",
         "steal",
         "loot",
+        "inspect",
         "equip",
         "unequip",
       ],

@@ -289,11 +289,12 @@ describe.skipIf(!testDatabaseUrl)("memory-driven NPC slice", () => {
     expect(keeperService.tools).toContain("strike");
     // 肉搏是固有动作，与武器装备无关。
     expect(keeperService.tools).toContain("brawl");
-    // 侦察跟着取物能力走：能搜刮尸体的角色也需要看背包，但不能偷活人。
+    // 查看行囊是动作而不是只读工具：它有单独的工具，也必须出现在动作说明里。
     expect(keeperService.tools).not.toContain("steal");
     expect(keeperService.tools).toContain("loot");
-    expect(keeperService.tools).toContain("inspect_actor");
+    expect(keeperService.tools).toContain("inspect");
     expect(keeperService.input).toContain("loot");
+    expect(keeperService.input).toContain("查看同场景目标随身携带的全部物品");
     expect(keeperService.tools).toContain("get_self");
     expect(keeperService.tools).not.toContain("get_actor");
     expect(keeperService.tools).not.toContain("get_stats");
@@ -308,9 +309,9 @@ describe.skipIf(!testDatabaseUrl)("memory-driven NPC slice", () => {
     await runNpcTurn(handle.db, created.game.slug, "无名者", { service: corpseService });
     expect(corpseService.tools).toContain("steal");
     expect(corpseService.tools).toContain("loot");
-    // 当前种子只有主角会偷窃，所以只有他拿到侦察工具。
-    expect(corpseService.tools).toContain("inspect_actor");
-    expect(corpseService.input).toContain("inspect_actor");
+    // 当前种子只有主角会偷窃，但会取物的两个人都会翻看行囊。
+    expect(corpseService.tools).toContain("inspect");
+    expect(corpseService.input).toContain("inspect");
     expect(corpseService.tools).toContain("query");
     // 读写提交是一个协议：只读可并发、写占名额、提交必须同回复；
     // 不能再鼓励把只读调用拆成多轮，否则轮次还没到写就被吃完了。
@@ -321,7 +322,9 @@ describe.skipIf(!testDatabaseUrl)("memory-driven NPC slice", () => {
     const dogService = new ToolCaptureService();
     await runNpcTurn(handle.db, created.game.slug, "小狗“煤渣”", { service: dogService });
     expect(dogService.tools).toContain("query");
-    expect(dogService.tools).not.toContain("inspect_actor");
+    // 查看行囊要占行动，动物没有这个能力，工具与提示词都不该出现。
+    expect(dogService.tools).not.toContain("inspect");
+    expect(dogService.input).not.toContain("inspect");
     expect(dogService.tools).not.toContain("equip");
     expect(dogService.tools).not.toContain("unequip");
     // 犬没有武器，挥击由武器提供，所以没有这个动作；肉搏是身体动作，仍然有。

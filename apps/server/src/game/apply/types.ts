@@ -7,6 +7,7 @@ import type {
   CleaveAction,
   EquipAction,
   GiveAction,
+  InspectAction,
   LootAction,
   MessageVisibility,
   MoveAction,
@@ -136,6 +137,13 @@ export type ResolvedSteal = {
   transferItem: ItemRow;
 };
 
+export type ResolvedInspect = {
+  kind: "inspect";
+  action: InspectAction;
+  stage: StageRow;
+  target: ActorRow;
+};
+
 export type ResolvedLoot = {
   kind: "loot";
   action: LootAction;
@@ -199,6 +207,7 @@ export type ResolvedAction =
   | ResolvedCleave
   | ResolvedBrawl
   | ResolvedSteal
+  | ResolvedInspect
   | ResolvedLoot
   | ResolvedGive
   | ResolvedPickup

@@ -166,7 +166,7 @@ describe("dark fantasy seed world", () => {
 
     // 动物不操作道具。
     for (const animal of ["小狗“煤渣”", "小鼠“坏运气”", "鼠王"]) {
-      for (const action of [...ITEM_ACTIONS, "steal"]) {
+      for (const action of [...ITEM_ACTIONS, "steal", "inspect"]) {
         expect(actionsOf(animal)).not.toContain(action);
       }
     }
@@ -201,6 +201,10 @@ describe("dark fantasy seed world", () => {
     }
     expect(actionsOf("无名者")).toContain("steal");
     expect(actionsOf("奥德里克")).not.toContain("steal");
+    // 查看行囊是动作：会取物的人类都要先能看，动物看不了。
+    for (const human of ["奥德里克", "无名者"]) {
+      expect(actionsOf(human)).toContain("inspect");
+    }
 
     // 所有场景都必须能更新 environment；向 world 报告的只有山道与钟窖，
     // 能改变连通性的只有铁闸门与地窖。

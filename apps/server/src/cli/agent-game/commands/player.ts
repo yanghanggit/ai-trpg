@@ -16,6 +16,7 @@ import {
   playerCall,
   playerEquip,
   playerGive,
+  playerInspect,
   playerLoot,
   playerMove,
   playerPickup,
@@ -327,6 +328,20 @@ export function registerPlayerCommands(program: Command, ctx: CommandContext): v
             targetActorRef: input.target,
             itemName: input.item,
           }),
+        ),
+      ),
+  });
+
+  addCommand(program, ctx, {
+    name: "player-inspect",
+    group: GROUP,
+    summary: "查看目标随身携带的全部物品（占一次行动，在场可见）",
+    options: [gameOption(), actorOption(), targetOption()],
+    schema: targetInput,
+    run: async (input, ctx) =>
+      turnOutput(
+        await ctx.db((db) =>
+          playerInspect(db, input.game, input.actor, { targetActorRef: input.target }),
         ),
       ),
   });

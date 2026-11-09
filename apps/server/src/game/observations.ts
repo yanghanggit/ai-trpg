@@ -27,10 +27,12 @@ import {
   type Audience,
   type CommunicationObservation,
   type DamageObservation,
+  type InspectObservation,
   type ItemObservation,
   type ObservationView,
   renderCommunication,
   renderDamage,
+  renderInspect,
   renderItemEvent,
   type StageRef,
 } from "./observation-text";
@@ -211,6 +213,32 @@ export async function appendItemObservations(
           ? { type: "only", actorId: observation.target.id }
           : STAGE_WIDE,
       render: (observerId, address) => renderItemEvent(stage, observation, observerId, address),
+    },
+    trace,
+  );
+}
+
+/**
+ * 写入「有人查看了自己的行囊」的观察。
+ *
+ * 查看者由行动反馈承载，这里写给目标与在场其余角色；尸体收到的也是一句场景动态，
+ * 清单本身既不进公共消息也不进任何观察。
+ */
+export async function appendInspectObservations(
+  executor: Executor,
+  gameId: string,
+  stage: StageRef,
+  observation: InspectObservation,
+  trace?: TraceContext,
+): Promise<void> {
+  await writeObservations(
+    executor,
+    gameId,
+    {
+      stageId: stage.id,
+      excludeActorId: observation.actor.id,
+      audience: STAGE_WIDE,
+      render: (observerId, address) => renderInspect(stage, observation, observerId, address),
     },
     trace,
   );

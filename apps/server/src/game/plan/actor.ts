@@ -20,27 +20,25 @@ export function buildSelfInfoTool(): ToolDefinition {
   };
 }
 
-/** 只返回对方携带的物品，不暴露 stats 或状态。 */
-export function buildInspectActorTool(
-  availableTargetActorRefs: readonly string[],
-  mode: "actor" | "stage" = "actor",
-): ToolDefinition {
-  const targetDescription = mode === "actor" ? "同场景角色的引用（名字 或 #编号）" : "本场景角色名";
+/**
+ * 本场景小 GM 的只读查看：它对本场景的携带物本来就全知，因此不必行动。
+ *
+ * 与 actor 的 `inspect` 动作同名不同权：actor 要看别人的行囊得花一次行动，且在场可见。
+ */
+export function buildStageInspectTool(availableTargetActorRefs: readonly string[]): ToolDefinition {
   return {
     type: "function",
     function: {
-      name: "inspect_actor",
+      name: "inspect",
       description:
-        mode === "actor"
-          ? "检视同场景目标随身携带的物品（含已穿戴的）；只看得见物品，看不到对方的 stats、伤势或存活状态。只读。"
-          : "检视本场景角色随身携带的物品（含已穿戴的）；只看得见物品，看不到对方的 stats、伤势或存活状态。只读。",
+        "检视本场景角色随身携带的物品（含已穿戴的）；只看得见物品，看不到对方的 stats、伤势或存活状态。只读。",
       parameters: {
         type: "object",
         properties: {
           targetActorRef: {
             type: "string",
             enum: availableTargetActorRefs,
-            description: targetDescription,
+            description: "本场景角色名",
           },
         },
         required: ["targetActorRef"],

@@ -140,9 +140,13 @@ describe("crow-grave seed world", () => {
     expect(actor("vela").actions).not.toContain("steal");
     expect(actor("eli").actions).toContain("loot");
     expect(actor("vela").actions).toContain("loot");
+    // 翻看行囊是动作，两个会取物的人类都有。
+    expect(actor("eli").actions).toContain("inspect");
+    expect(actor("vela").actions).toContain("inspect");
     // 卡尔疯到不再操作道具，偷与搜刮都不会有。
     expect(actor("karl").actions).not.toContain("use");
     expect(actor("karl").actions).not.toContain("loot");
+    expect(actor("karl").actions).not.toContain("inspect");
   });
 
   it("writes the two opening rules and the three endings into the content", () => {

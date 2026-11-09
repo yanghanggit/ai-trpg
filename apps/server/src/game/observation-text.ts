@@ -84,6 +84,14 @@ export type CallObservation = {
 };
 
 /**
+ * 查看他人行囊的观察输入。
+ *
+ * 清单只回给查看者自己的行动事实；目标与旁观者看到的只是「有人在翻看」，
+ * 所以这条观察不带任何物品名。
+ */
+export type InspectObservation = { actor: ActorRef; target: ActorRef };
+
+/**
  * 物品观察的输入。
  *
  * 成员与 `ItemEventKind` 对应：`target` 的有无由动作本身决定，不交给调用方记，
@@ -236,6 +244,42 @@ export function renderDamage(
       attackerActorId: attacker.id,
       targetActorId: target.id,
     },
+  };
+}
+
+/**
+ * 查看行囊：目标收到「你被查看」，旁观者只看到场景动态。
+ *
+ * 查看者自己不在收件人里——清单走他的行动反馈，同一事实只留一条。
+ */
+export function renderInspect(
+  stage: StageRef,
+  observation: InspectObservation,
+  observerId: string,
+  address: AddressLookup,
+): ObservationView {
+  const actorAddress = address(observation.actor.id);
+  const targetAddress = address(observation.target.id);
+  const metadata: ObservationMetadata = {
+    kind: MEMORY_KINDS.actionObservation,
+    stageId: stage.id,
+    targetActorId: observation.target.id,
+  };
+  if (observerId === observation.target.id) {
+    return {
+      content: withAppearances(
+        `# 有人在查看你的物品\n${mentionOf(actorAddress)}查看了你随身携带的东西。`,
+        [actorAddress],
+      ),
+      metadata,
+    };
+  }
+  return {
+    content: withAppearances(
+      `# 场景动态\n${mentionOf(actorAddress)}查看了${mentionOf(targetAddress)}随身携带的东西。`,
+      [actorAddress, targetAddress],
+    ),
+    metadata,
   };
 }
 
