@@ -1,10 +1,11 @@
+import { carriedActionsForKind } from "./actions";
 import { normalizeAffixTriggers } from "./affixes";
 import { type Stats, toStats } from "./attributes";
 import { GameError } from "./errors";
 import type {
-  ActionKind,
   ActorState,
   AffixTriggers,
+  CarriedActionKind,
   EquipmentSlot,
   EquipmentSlots,
   ItemKind,
@@ -24,7 +25,7 @@ export function toItemState(row: {
   count: number;
   stats: Stats;
   affixes?: AffixTriggers;
-  actions?: readonly ActionKind[];
+  actions?: readonly CarriedActionKind[];
   maxTargets?: number;
 }): ItemState {
   const base = {
@@ -91,9 +92,60 @@ export function equippedItems(actor: Pick<ActorState, "items" | "equipment">): E
   return equipped;
 }
 
+/** 穿戴中的物品实际授予给角色的动作，带来源：哪一件、在哪个槽。 */
+export type ActionGrant = {
+  kind: CarriedActionKind;
+  slot: EquipmentSlot;
+  itemId: string;
+  itemName: string;
+};
+
+/**
+ * 携带者授予的动作清单。
+ *
+ * 这是“动作可以来自外部数据”的唯一入口：调用方不关心是武器还是未来的其它携带者，
+ * 只问“现在谁给了我什么动作”。来源字段用于工具装配与错误文案，不参与授权判定。
+ */
+export function carriedActions(actor: Pick<ActorState, "items" | "equipment">): ActionGrant[] {
+  const grants: ActionGrant[] = [];
+  for (const { slot, item } of equippedItems(actor)) {
+    // 槽位与大类不匹配的行（旧数据）不授予任何动作。
+    if (!EQUIPMENT_SLOT_KINDS[slot].includes(item.kind)) {
+      continue;
+    }
+    // 携带者表决定“这件东西能不能授予这个动作”；表外的动作一律不生效。
+    const grantable = carriedActionsForKind(item.kind);
+    for (const kind of item.actions) {
+      if (grantable.includes(kind)) {
+        grants.push({ kind, slot, itemId: item.id, itemName: item.name });
+      }
+    }
+  }
+  return grants;
+}
+
 /** 穿戴中的物品提供的动作；槽位索引指向不存在的物品时不授予。 */
-export function equippedItemActions(actor: Pick<ActorState, "items" | "equipment">): ActionKind[] {
-  return equippedItems(actor).flatMap(({ item }) => item.actions);
+export function equippedItemActions(
+  actor: Pick<ActorState, "items" | "equipment">,
+): CarriedActionKind[] {
+  return carriedActions(actor).map((grant) => grant.kind);
+}
+
+/**
+ * 携带者授予的动作上限：`strike` 恒为 1，`cleave` 读武器自己的 `maxTargets`。
+ *
+ * 没有携带者时回落到 1——这也是工具形状的描述值，真正的授权由 `allowedActionKinds` 与
+ * 结算端复核决定。
+ */
+export function carriedActionCap(
+  actor: Pick<ActorState, "items" | "equipment">,
+  kind: CarriedActionKind,
+): number {
+  const grant = carriedActions(actor).find((candidate) => candidate.kind === kind);
+  if (!grant) {
+    return 1;
+  }
+  return actor.items.find((item) => item.id === grant.itemId)?.maxTargets ?? 1;
 }
 
 export function equipSlot(

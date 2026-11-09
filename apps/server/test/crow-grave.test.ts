@@ -24,11 +24,7 @@ describe("crow-grave seed world", () => {
   it("keeps three actors in the graveyard and exactly one default player", () => {
     expect(world.worldName).toBe("鸦葬岗的故事");
     expect(world.stages.map((item) => item.name)).toEqual(["鸦葬岗", "守夜塔", "封尸窖"]);
-    expect(world.actors.map((item) => item.name)).toEqual([
-      "收尸人卡尔",
-      "鸦猎薇拉",
-      "拾骨人伊莱",
-    ]);
+    expect(world.actors.map((item) => item.name)).toEqual(["收尸人卡尔", "鸦猎薇拉", "拾骨人伊莱"]);
     expect(world.actors.every((item) => item.stageKey === "graveyard")).toBe(true);
     expect(world.actors.filter((item) => item.isDefaultPlayer).map((item) => item.key)).toEqual([
       "eli",
@@ -113,6 +109,36 @@ describe("crow-grave seed world", () => {
     expect(world.signatureNames).toEqual([{ observer: "vela", subject: "karl", name: "卡尔" }]);
     expect(actor("karl").profile).toContain("你疯了之后不再认人");
     expect(actor("eli").openingBriefing).toContain("你都不认识");
+  });
+
+  it("binds the attack to the weapon and keeps brawl innate", () => {
+    const weapons = world.actors
+      .flatMap((entry) => entry.items)
+      .filter((item) => item.kind === "weapon");
+    expect(weapons.map((weapon) => weapon.name)).toEqual(["封尸锤", "鸦啄", "拾骨钩"]);
+
+    // 卡尔的封尸锤是长柄重锤：单体砸击之外还能横扫并排的两个人。
+    const hammer = weapons.find((weapon) => weapon.name === "封尸锤");
+    expect(hammer?.actions).toEqual(["strike", "cleave"]);
+    expect(hammer?.maxTargets).toBe(2);
+    expect(hammer?.affixes?.cleave?.[0]?.name).toBe("撬开半圈");
+
+    // 两把刃器只提供单体挥击；目标数不是它们的属性。
+    for (const weapon of ["鸦啄", "拾骨钩"]) {
+      const blade = weapons.find((candidate) => candidate.name === weapon);
+      expect(blade?.actions).toEqual(["strike"]);
+      expect(blade?.affixes?.strike?.length ?? 0).toBeGreaterThan(0);
+      expect(blade?.maxTargets ?? 1).toBe(1);
+    }
+    // 携带者动作不能出现在角色身上：这一条由内容校验挡在建局前，这里留住约定。
+    for (const entry of world.actors) {
+      expect([...entry.actions] as string[]).not.toContain("strike");
+      expect(entry.actions).toContain("brawl");
+    }
+    // 只有拾骨人会偷；卡尔疯到不再操作道具。
+    expect(actor("eli").actions).toContain("steal");
+    expect(actor("vela").actions).not.toContain("steal");
+    expect(actor("karl").actions).not.toContain("use");
   });
 
   it("writes the two opening rules and the three endings into the content", () => {

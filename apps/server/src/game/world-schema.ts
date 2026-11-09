@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { ACTION_KINDS } from "./actions";
+import { INNATE_ACTION_KINDS } from "./actions";
 import { statsSchema } from "./attributes";
 import { MAX_STAGE_ANCHORS } from "./constants";
 import { isValidForm } from "./form";
@@ -14,8 +14,11 @@ import { WORLD_FUNCTION_TYPES } from "./types";
  * 只描述形状；需要整张图的规则在 `world-invariants.ts`，入口在 `parse-world-content.ts`。
  */
 
-/** 十二个动作直接复用运行时清单，避免新增动作时漏改。 */
-const actionKindSchema = z.enum(ACTION_KINDS);
+/**
+ * 角色只能声明固有动作；携带者动作（`strike` / `cleave`）由物品授予，
+ * 写进 `actor.actions` 会在建局前被拒，而不是等回合里失败。
+ */
+const actionKindSchema = z.enum(INNATE_ACTION_KINDS);
 
 const stageActionSchema = z.enum([
   "submit_environment",

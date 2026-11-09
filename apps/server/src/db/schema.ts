@@ -16,10 +16,11 @@ import {
 import type { Stats } from "../game/attributes";
 import type { DialogueActionKind, DialogueCategory } from "../game/persistence/dialogue-blocks";
 import type {
-  ActionKind,
   AffixTriggers,
   AppearanceInput,
+  CarriedActionKind,
   EquipmentSlots,
+  InnateActionKind,
   ItemKind,
   PassageState,
   StageActionKind,
@@ -196,7 +197,8 @@ export const actors = pgTable("actors", {
   /** 默认玩家角色；该角色死亡时整局结束。 */
   isDefaultPlayer: boolean("is_default_player").notNull().default(false),
   equipment: jsonb("equipment").$type<EquipmentSlots>().notNull().default({}),
-  actions: jsonb("actions").$type<ActionKind[]>().notNull().default([]),
+  /** 角色固有动作；携带者（武器）授予的动作不入库。 */
+  actions: jsonb("actions").$type<InnateActionKind[]>().notNull().default([]),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
 });
@@ -351,8 +353,8 @@ export const items = pgTable(
     /** `cleave` 一次最多命中的目标数；只有武器会大于 1，其余大类恒为 1。 */
     maxTargets: integer("max_targets").notNull().default(1),
     affixes: jsonb("affixes").$type<AffixTriggers>().notNull().default({}),
-    /** 物品提供的动作；只有穿戴中才会生效，目前只有武器会声明。 */
-    actions: jsonb("actions").$type<ActionKind[]>().notNull().default([]),
+    /** 携带者动作；只有穿戴中才会生效，目前只有武器会声明。 */
+    actions: jsonb("actions").$type<CarriedActionKind[]>().notNull().default([]),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (table) => [uniqueIndex("items_actor_name_unique").on(table.actorId, table.name)],
@@ -381,8 +383,8 @@ export const stageItems = pgTable(
     /** 跟着这件东西走的挥击上限：从锚点搬进背包、被偷走都不改。 */
     maxTargets: integer("max_targets").notNull().default(1),
     affixes: jsonb("affixes").$type<AffixTriggers>().notNull().default({}),
-    /** 物品提供的动作；只有穿戴中才会生效，目前只有武器会声明。 */
-    actions: jsonb("actions").$type<ActionKind[]>().notNull().default([]),
+    /** 携带者动作；只有穿戴中才会生效，目前只有武器会声明。 */
+    actions: jsonb("actions").$type<CarriedActionKind[]>().notNull().default([]),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (table) => [

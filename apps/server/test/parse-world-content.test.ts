@@ -307,6 +307,39 @@ describe("world content validation", () => {
     expect(() => parseWorldContent(world)).toThrow();
   });
 
+  describe("action sources", () => {
+    it("rejects carried actions declared as innate", () => {
+      // 武器授予的动作不能写进角色：内容层就该拒绝，而不是等回合里发现没有武器。
+      for (const kind of ["strike", "cleave"]) {
+        const broken = {
+          ...TEST_WORLD,
+          actors: TEST_WORLD.actors.map((actor) =>
+            actor.name === "守烬人" ? { ...actor, actions: [...actor.actions, kind] } : actor,
+          ),
+        };
+        expect(() => parseWorldContent(broken)).toThrow(/actions/);
+      }
+    });
+
+    it("rejects innate actions declared on items", () => {
+      // 物品只能携带武器类动作；把 say / use 挂到物品上是另一类写错。
+      const broken = {
+        ...TEST_WORLD,
+        actors: TEST_WORLD.actors.map((actor) =>
+          actor.name === "守烬人"
+            ? {
+                ...actor,
+                items: actor.items.map((item) =>
+                  item.kind === "weapon" ? { ...item, actions: ["strike", "say"] } : item,
+                ),
+              }
+            : actor,
+        ),
+      };
+      expect(() => parseWorldContent(broken)).toThrow(/actions/);
+    });
+  });
+
   describe("cleave target cap", () => {
     /** 横扫自己的词缀：与挥击各声明一套，互不借用。 */
     const CLEAVE_AFFIX = [

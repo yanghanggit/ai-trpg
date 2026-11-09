@@ -40,7 +40,7 @@ import {
 } from "./constants";
 import { isPlayerControlled } from "./control";
 import { GameError } from "./errors";
-import { equippedItemActions, equippedItems, isWearable } from "./items";
+import { carriedActionCap, equippedItemActions, isWearable } from "./items";
 import { loadAgentMemory } from "./memory";
 import {
   adjacentStageRefsForActor,
@@ -135,6 +135,14 @@ export function buildActorTurnInput(state: GameStateSlice, current: ActorWithSta
   const callHint = allowed.includes("call")
     ? "传音不会自动暴露你是谁；想让对方知道，就把自称写进 message。"
     : "";
+  // 攻击是能力面：引擎不自动授予 brawl，没武器时能用什么完全由角色固有声明决定。
+  // 这里只把“现在到底有没有出手方式”说清楚，避免模型反复尝试没有的动作。
+  const unarmedHint =
+    weaponAttackKinds.length > 0
+      ? ""
+      : allowed.includes("brawl")
+        ? "当前没有能出手的武器：近战只能用 brawl（身体攻击，不吃武器数值）。"
+        : "当前既没有能出手的武器，也没有 brawl：本轮无法发起攻击。";
   // 侦察与偷窃同生共死：不偷东西的角色只看姓名与穿戴，不提供背包细节。
   const canObserve = canObserveActorItems(current.actor);
   const toolHint = canObserve
@@ -213,7 +221,7 @@ ${teleportLines}`
 
 # 本轮任务
 
-根据当前环境与自己的记忆决定行动。名单里已列出同场景他人身上穿戴的装备；${toolHint}需要多项信息时，可以一次返回多个只读工具调用，也可以分多轮调用。${knowledgeHint}${identityHint}你能使用的行动工具：${actionList}。${useFlowHint}${callHint}本轮只能提交 ${MAX_ACTIONS_PER_TURN} 个行动：说话、移动、动手都各占一个回合，需要连着做就分几个回合。最后调用 submit_plan 提交。${readOnlyHint}`;
+根据当前环境与自己的记忆决定行动。名单里已列出同场景他人身上穿戴的装备；${toolHint}需要多项信息时，可以一次返回多个只读工具调用，也可以分多轮调用。${knowledgeHint}${identityHint}你能使用的行动工具：${actionList}。${useFlowHint}${callHint}${unarmedHint}本轮只能提交 ${MAX_ACTIONS_PER_TURN} 个行动：说话、移动、动手都各占一个回合，需要连着做就分几个回合。最后调用 submit_plan 提交。${readOnlyHint}`;
 }
 
 /** 把动作加入本轮计划；条数上限在这里就告诉模型，避免提交后才被拒绝。 */
@@ -292,9 +300,8 @@ export async function runNpcTurn(
     otherActors.map((actor) => handleOf(actor.signature.seq)),
   );
   const submitTool = buildSubmitPlanTool();
-  // 横扫的目标上限属于武器：工具形状按当前穿戴的武器给，没武器时回落到 1（也就不会授权）。
-  const equippedWeapon = equippedItems(current.actor).find(({ slot }) => slot === "weapon");
-  const cleaveMaxTargets = equippedWeapon?.item.maxTargets ?? 1;
+  // 横扫的目标上限属于携带者：工具形状按当前穿戴的武器给，没武器时回落到 1（也就不会授权）。
+  const cleaveMaxTargets = carriedActionCap(current.actor, "cleave");
 
   /** 十二个动作的工具与参数解析器；按 kind 平铺，按权限过滤后使用。 */
   const actionTools: Record<ActionKind, ToolDefinition> = {

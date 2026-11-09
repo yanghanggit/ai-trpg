@@ -1,4 +1,9 @@
 import { z } from "zod";
+import {
+  CARRIED_ACTION_KINDS,
+  CARRIED_ACTIONS_BY_ITEM_KIND,
+  carriedActionsForKind,
+} from "./actions";
 import { statsSchema } from "./attributes";
 import { NAME_MARKER_PATTERN } from "./reference";
 import type { ActionKind, AffixStatRef, DamageAmount, ItemKind } from "./types";
@@ -21,7 +26,8 @@ const ITEM_KINDS = [
 
 const itemKindSchema = z.enum(ITEM_KINDS);
 
-const affixActionKindSchema = z.enum(["strike", "cleave"] satisfies readonly ActionKind[]);
+/** 物品只能声明携带者动作；固有动作不属于任何物品。 */
+const affixActionKindSchema = z.enum(CARRIED_ACTION_KINDS satisfies readonly ActionKind[]);
 
 /** 静态词缀能引用的属性全集；结算时从当前 actor / item 行读取。 */
 const statRefValues = [
@@ -126,9 +132,18 @@ export const itemSchema = z
     if (item.source !== undefined && item.kind !== "material") {
       ctx.addIssue({ code: "custom", message: "只有 material 可以声明 source", path: ["source"] });
     }
-    // 动作挂在物品上，但只有武器能借给角色出手；其它大类声明动作一定是内容写错了。
-    if (item.actions !== undefined && item.actions.length > 0 && item.kind !== "weapon") {
-      ctx.addIssue({ code: "custom", message: "只有 weapon 可以声明 actions", path: ["actions"] });
+    // 动作挂在携带者上，哪些大类能携带由 `CARRIED_ACTIONS_BY_ITEM_KIND` 决定；
+    // 没登记的物品类声明动作一定是内容写错了，而不是“暂时不生效”。
+    const grantable = carriedActionsForKind(item.kind);
+    const unknown = (item.actions ?? []).filter((kind) => !grantable.includes(kind));
+    if (unknown.length > 0) {
+      ctx.addIssue({
+        code: "custom",
+        message: `${item.kind} 不能声明动作 ${unknown.join("、")}；携带者只有 ${Object.keys(
+          CARRIED_ACTIONS_BY_ITEM_KIND,
+        ).join(" / ")}`,
+        path: ["actions"],
+      });
     }
     // 目标数是武器挥击的属性，不是可穿戴物的通用属性。
     if (item.maxTargets !== undefined && item.kind !== "weapon") {
@@ -140,7 +155,7 @@ export const itemSchema = z
     }
     // 每个攻击动作都自带一套词缀：没有对应列表就会变成“能打但打不出伤害”。
     // 无条件是两回事：挥击与横扫各自声明，互不借用。
-    for (const trigger of ["strike", "cleave"] as const) {
+    for (const trigger of CARRIED_ACTION_KINDS) {
       if (item.actions?.includes(trigger) && (item.affixes?.[trigger]?.length ?? 0) === 0) {
         ctx.addIssue({
           code: "custom",

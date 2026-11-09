@@ -302,6 +302,18 @@ export type ActorAction =
 export type ActionKind = ActorAction["kind"];
 
 /**
+ * 动作的两个来源，也是权限模型的唯一分界：
+ *
+ * - `InnateActionKind`：角色自身固有，由内容层逐角色显式声明；
+ * - `CarriedActionKind`：由外部携带者授予，只有穿戴中的物品能提供，角色无法固有声明。
+ *
+ * 目前唯一的携带者是武器（`strike` / `cleave`）；新增携带者动作只改
+ * `CARRIED_ACTION_KINDS`，授权、工具装配、内容校验都从这一份派生。
+ */
+export type CarriedActionKind = Extract<ActionKind, "strike" | "cleave">;
+export type InnateActionKind = Exclude<ActionKind, CarriedActionKind>;
+
+/**
  * 四个沟通动作；观察与提示词按这组区分「对谁说话、谁能听见」。
  * 从 `ActorAction` 派生，新增沟通动作时不会和动作清单脱钩。
  */
@@ -393,8 +405,8 @@ export type ItemBaseState = {
   count: number;
   /** 按触发场景声明的词缀；`strike` / `cleave` / `use` 各自独立。 */
   affixes: AffixTriggers;
-  /** 物品能提供的动作；穿戴中才借给角色。 */
-  actions: readonly ActionKind[];
+  /** 物品能提供的动作；穿戴中才借给角色。没有携带者的角色只能做固有动作。 */
+  actions: readonly CarriedActionKind[];
   /** 归一化后的完整属性；五种物品都携带，未用到的字段为 0。 */
   stats: Stats;
   /**
@@ -470,7 +482,8 @@ export type ActorState = {
   isDefaultPlayer: boolean;
   equipment: EquipmentSlots;
   items: ItemState[];
-  actions: readonly ActionKind[];
+  /** 角色固有的动作；携带者（武器）授予的动作不在这里，要从穿戴中取。 */
+  actions: readonly InnateActionKind[];
 };
 
 export type StageState = {

@@ -7,9 +7,10 @@
 
 import type { Stats } from "./attributes";
 import type {
-  ActionKind,
   AffixTriggers,
+  CarriedActionKind,
   EquipmentSlots,
+  InnateActionKind,
   ItemKind,
   PassageState,
   StageActionKind,
@@ -138,8 +139,8 @@ export type Actor = {
   /** 是否为默认玩家角色；主角死亡时只通知 world，收尾由 world 回合决定。 */
   isDefaultPlayer?: boolean;
   items: readonly ItemDefinition[];
-  /** 该角色能执行的行动；必须显式列出，不给默认值。 */
-  actions: readonly ActionKind[];
+  /** 该角色固有的行动；必须显式列出，不给默认值。武器授予的动作不写在这里。 */
+  actions: readonly InnateActionKind[];
 };
 
 /** Actor 的初始物品定义；创建后物化为 `items` 或 `stage_items` 行。 */
@@ -156,8 +157,8 @@ export type ItemDefinition = {
   maxTargets?: number;
   /** 按触发场景声明的词缀；可省略，创建时归一化为空对象。 */
   affixes?: AffixTriggers;
-  /** 物品能提供的动作；穿戴中才借给角色。可省略，创建时归一化为空数组。 */
-  actions?: readonly ActionKind[];
+  /** 物品能提供的携带者动作；穿戴中才借给角色。可省略，创建时归一化为空数组。 */
+  actions?: readonly CarriedActionKind[];
   /** 材料来源；只有 `material` 可以声明，其它大类声明会被内容校验拒绝。 */
   source?: string;
 };

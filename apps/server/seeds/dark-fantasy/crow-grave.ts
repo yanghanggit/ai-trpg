@@ -230,16 +230,25 @@ export const CROW_GRAVE: Script = {
           key: "sealing-hammer",
           name: "封尸锤",
           description:
-            "收尸人用来把窖钉砸进锁石的长柄铁锤，锤头一侧磨得发亮，另一侧沾着暗色的旧血。",
+            "收尸人用来把窖钉砸进锁石的长柄铁锤，柄比人的肩膀还长；锤头一侧磨得发亮，另一侧沾着暗色的旧血。",
           kind: "weapon" as const,
           count: 1,
           stats: { damage: 10, block: 0 },
-          actions: ["strike"],
+          // 长柄重锤：单手砸，也能连着半圈抡开；一锤最多扫到两个并排的人。
+          maxTargets: 2,
+          actions: ["strike", "cleave"],
           affixes: {
             strike: [
               {
                 name: "封尸锤重击",
                 content: "锤头砸下去，造成 {{attack}} 点伤害",
+                ops: [{ kind: "damage", amount: { ref: "attack" } }],
+              },
+            ],
+            cleave: [
+              {
+                name: "撬开半圈",
+                content: "长柄带着锤头横抡半圈，扫到的人各自挨了一下，造成 {{attack}} 点伤害",
                 ops: [{ kind: "damage", amount: { ref: "attack" } }],
               },
             ],
