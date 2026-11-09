@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { GameError } from "./errors";
-import { isHandleRef, stripNameRef } from "./reference";
+import { isHandleRef } from "./reference";
 import type { GameStateSlice, StageState } from "./types";
 
 /**
@@ -25,7 +25,7 @@ export type StageNameResolution =
   | { ok: false; reason: "empty" | "handle_ref" | "unknown_stage" | "ambiguous" };
 
 export function resolveStageName(state: GameStateSlice, ref: string): StageNameResolution {
-  const name = stripNameRef(ref.trim());
+  const name = ref.trim();
   if (name.length === 0) {
     return { ok: false, reason: "empty" };
   }

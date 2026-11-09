@@ -1,14 +1,14 @@
 import type { z } from "zod";
-import { NAME_MARKER_PATTERN } from "./reference";
-import { findStageNameLeaks, findTextLeaks } from "./text-guard";
-import { WORLD_FUNCTION_TYPES } from "./types";
-import type { Actor, World } from "./world-definition";
+import { NAME_MARKER_PATTERN } from "../reference";
+import { findStageNameLeaks, findTextLeaks } from "../text-guard";
+import { WORLD_FUNCTION_TYPES } from "../types";
+import type { Actor, World } from "../world-definition";
 
 /**
  * 跨实体的内容不变量：名字、文本泄漏、锚点与能力清单。
  *
- * 这些规则都要看整张世界图，所以不塞回 `world-schema.ts` 的形状里；
- * 由 `parse-world-content.ts` 在解析时统一执行。
+ * 这些规则都要看整张世界图，所以不塞回 `schema.ts` 的 zod 形状里；
+ * 由 `index.ts` 接在形状之后执行。
  */
 export function checkWorldInvariants(world: World, ctx: z.RefinementCtx): void {
   // 职能宪法由内容层定档，但框架要确认它真的带上了这一局的设定与规则。
@@ -144,12 +144,15 @@ function checkProficiencies(actor: Actor, actorIndex: number, ctx: z.RefinementC
   });
 }
 
-/** 名字里不能出现系统标记：`#` 是地址，`@` 是旧版地址标记，点号是旧前缀分隔符。 */
+/**
+ * 名字要在句子里被当成一个整体扫出来：不能含地址标记 `#`，也不能含空白与 `.`——
+ * 它们会把名字切成两半，或与句读混在一起。
+ */
 function checkEntityName(raw: string, path: (string | number)[], ctx: z.RefinementCtx): void {
   if (NAME_MARKER_PATTERN.test(raw) || /[\s.]/.test(raw)) {
     ctx.addIssue({
       code: "custom",
-      message: "名称不能包含 @、#、空白或 .",
+      message: "名称不能包含 #、空白或 .",
       path,
     });
   }

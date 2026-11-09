@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { CROW_GRAVE_WORLD } from "../seeds/dark-fantasy";
-import { parseWorldContent } from "../src/game/parse-world-content";
+import { parseWorldContent } from "../src/game/world-content";
 import { actorInnateActions } from "../src/game/world-definition";
 
 const world = parseWorldContent(CROW_GRAVE_WORLD);

@@ -1,13 +1,6 @@
 import { type AddressLookup, appearanceLine, mentionOf, UNKNOWN_LABEL } from "./addressing";
 import { GameError } from "./errors";
-import {
-  containsHandle,
-  HANDLE_PATTERN,
-  handleOf,
-  handlesIn,
-  isHandleRef,
-  stripNameRef,
-} from "./reference";
+import { containsHandle, HANDLE_PATTERN, handleOf, handlesIn, isHandleRef } from "./reference";
 
 /**
  * 世界面文本的泄漏检查。
@@ -206,12 +199,12 @@ export function sanitizeActorFacingText(
     return mentionOf(entry.resolved);
   };
 
-  // 长的名字优先，避免「父亲」把「父亲大人」切掉一半；`@?` 兼容旧记忆里的标记写法。
+  // 长的名字优先，避免「父亲」把「父亲大人」切掉一半。
   const names = [...new Set([...byName.keys(), ...otherActorNames])]
     .filter((name) => name.length > 0)
     .sort((a, b) => b.length - a.length)
     .map(escapeRegExp);
-  const patterns = [...(names.length === 0 ? [] : [`@?(?:${names.join("|")})`])];
+  const patterns = [...(names.length === 0 ? [] : [`(?:${names.join("|")})`])];
   if (options.resolveHandles !== false) {
     patterns.push(HANDLE_PATTERN.source);
   }
@@ -225,8 +218,7 @@ export function sanitizeActorFacingText(
       const entry = byHandle.get(match) ?? byToken.get(match);
       return entry ? shown(entry) : UNKNOWN_LABEL;
     }
-    const name = stripNameRef(match);
-    const entry = byName.get(name);
+    const entry = byName.get(match);
     return entry ? shown(entry) : UNKNOWN_LABEL;
   });
 

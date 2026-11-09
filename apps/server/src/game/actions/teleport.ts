@@ -9,7 +9,7 @@ import { renderAction, renderEnvironmentChange, withAppearances } from "../obser
 import { appendCustomStageObservation, appendStageMemory } from "../observations";
 import { moveActorToStage } from "../persistence/actors";
 import { recordStageVisit } from "../persistence/visits";
-import { isHandleRef, stripNameRef } from "../reference";
+import { isHandleRef } from "../reference";
 import type { TeleportAction } from "../types";
 
 export function buildTeleportTool(): ToolDefinition {
@@ -45,7 +45,7 @@ export function parseTeleport(args: Record<string, unknown>): TeleportAction {
   if (targetStageName.length === 0) {
     throw new GameError("invalid_action", "teleport 需要非空 targetStageName");
   }
-  const target = stripNameRef(targetStageName);
+  const target = targetStageName;
   if (isHandleRef(target)) {
     throw new GameError("invalid_action", "teleport 需要目标场景的真名，不能用 #编号");
   }

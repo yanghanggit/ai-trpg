@@ -85,7 +85,7 @@ ${targetFacts.join("\n")}
 - **判定**：按语义读词缀的对象、条件、效果与比例，以上方事实判定；同义、上下位都算成立。
 - **不要重复**：静态已造成的伤害不要再算一次；你的 damage_target 只追加词缀本身的补充值。
 - **数值**：走 damage_target；不叠加静态结算。
-- **可见后果**：走 record_witness。template 只能用 {source}/{target}/{anchor}/{item} 占位，禁止写名字、编号或 @；只写旁人可见的事实，不写数值、机制与心理。
+- **可见后果**：走 record_witness。template 只能用 {source}/{target}/{anchor}/{item} 占位，禁止写名字或编号；只写旁人可见的事实，不写数值、机制与心理。
 - **不成立但过程可见**：可以用 record_witness 记一条可见见证；完全不可见就什么都不做。
 - **收尾**：无论是否落账，必调 ${input.terminalToolName}。`;
 }

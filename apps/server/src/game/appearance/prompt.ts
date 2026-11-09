@@ -11,7 +11,6 @@ import { type ActorState, type AppearanceWornItem, EQUIPMENT_SLOT_LABELS } from 
  * 回合怎么跑、结果怎么写库在 `turn.ts`。
  */
 
-/** 快照里的提示词版本；提示词结构改变时递增，便于复盘时区分。 */
 /** 外观推理的终止工具。 */
 export function buildSubmitAppearanceTool(): ToolDefinition {
   return {

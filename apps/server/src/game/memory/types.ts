@@ -25,6 +25,17 @@ export type AgentMemoryState = {
 
 export type MemoryOwnerType = "actor" | "stage" | "world";
 
+/**
+ * 记忆实体的稳定集合：actor / stage / world 各有独立 memory。
+ *
+ * 与 `MemoryOwnerType` 同源，新增携带记忆的实体时两处一起改；`satisfies` 保证漏登记是编译错误。
+ */
+export const MEMORY_OWNER_TYPES = [
+  "actor",
+  "stage",
+  "world",
+] as const satisfies readonly MemoryOwnerType[];
+
 /** 记忆读写只要这三件事；不暴露整张 Database。 */
 export type MemoryExecutor = Pick<Database, "select" | "insert" | "update">;
 

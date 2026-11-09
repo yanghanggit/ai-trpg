@@ -1,12 +1,12 @@
 import type { Database } from "../../db/pool";
 import { type TraceContext, traceEvent } from "../../debug/trace";
-import { bumpGameVersion } from "../apply/messages";
-import { completeGame } from "../end-game";
+import { appendPublicMessage, bumpGameVersion } from "../apply/messages";
+import type { Executor } from "../apply/types";
 import { GameError } from "../errors";
 import { MAX_WORLD_ACTIONS_PER_TURN } from "../limits";
 import { appendMemoryMessages, loadAgentMemory } from "../memory";
 import { MEMORY_KINDS } from "../memory/kinds";
-import { lockGameRow } from "../persistence/games";
+import { completeGameIfActive, lockGameRow } from "../persistence/games";
 import { listStagesOfWorld } from "../persistence/stages";
 import { loadWorldByGame } from "../persistence/worlds";
 import type { WorldPlan } from "../types";
@@ -105,7 +105,7 @@ export async function applyWorldPlan(
         continue;
       }
 
-      await completeGame(tx, gameId, action.message, { now, outcome: action.outcome });
+      await endGame(tx, gameId, action.message, action.outcome, now);
       await appendMemoryMessages(tx, memory.row.id, [
         {
           type: "human",
@@ -123,5 +123,29 @@ export async function applyWorldPlan(
 
     await bumpGameVersion(tx, gameId, now);
     return completed || actions.length > 0;
+  });
+}
+
+/**
+ * 结束一局：状态位翻成 completed，再写一条公共结束事件；两者只能一起发生。
+ *
+ * 已经结束的游戏不再写第二条事件，所以先看状态位是否真的翻过来了——
+ * `completeGameIfActive` 是并发下的裁决点。
+ */
+async function endGame(
+  executor: Executor,
+  gameId: string,
+  message: string,
+  outcome: string,
+  now: Date,
+): Promise<void> {
+  if (!(await completeGameIfActive(executor, gameId, now, outcome))) {
+    return;
+  }
+  await appendPublicMessage(executor, gameId, null, {
+    kind: "game_completed",
+    stageId: null,
+    visibility: "stage",
+    content: message,
   });
 }

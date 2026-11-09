@@ -1,14 +1,13 @@
 import { randomUUID } from "node:crypto";
 import type { Database } from "../../db/pool";
-import type { TraceContext } from "../../debug/trace";
+import { type TraceContext, traceEvent } from "../../debug/trace";
 import { agentLoop } from "../../llm/agent-loop";
 import type { ChatCompletionService } from "../../llm/protocol";
 import type { Logger } from "../../logging";
 import { isAlive, stageAddressLookup } from "../apply/queries";
 import type { Executor, StageRow } from "../apply/types";
 import { applyHit } from "../combat/hit";
-import { GameError } from "../errors";
-import { runIncrementalPhase } from "../incremental";
+import { describeError, GameError } from "../errors";
 import { hasOnlyKnownPlaceholders } from "../item-schema";
 import { MAX_AFFIX_WITNESSES } from "../limits";
 import { appendMemoryMessages, loadAgentMemory } from "../memory";
@@ -171,7 +170,7 @@ async function evaluateAffix(
           throw new GameError("invalid_action", "record_witness 的 template 含未知占位符");
         }
         if (NAME_MARKER_PATTERN.test(template)) {
-          throw new GameError("invalid_action", "record_witness 的 template 不能包含 @ 或 # 标记");
+          throw new GameError("invalid_action", "record_witness 的 template 不能包含 # 标记");
         }
         const leaks = findTextLeaks(template, targetNames);
         if (leaks.length > 0) {
@@ -365,43 +364,64 @@ export async function runAffixPhase(
   trace?: TraceContext,
   logger?: Logger,
 ): Promise<void> {
-  await runIncrementalPhase(
-    { name: "affix", ...(trace ? { trace } : {}), ...(logger ? { logger } : {}) },
-    async () => {
-      const { actorName, itemName, evaluation } = await evaluateAffix(
-        db,
-        gameId,
-        request,
-        service,
-        trace,
-      );
-      const head = actorName === undefined ? {} : { actorName };
-      const subject = itemName === undefined ? {} : { itemName };
-      if (evaluation.kind === "failed") {
-        return {
-          kind: "failed",
-          reason: evaluation.reason,
-          ...head,
-          detail: { ...subject, ...(evaluation.detail ?? {}) },
-        };
-      }
-      if (evaluation.kind === "noop") {
-        return { kind: "noop", reason: evaluation.reason, ...head, detail: subject };
-      }
-      const applied = await settleAffix(db, gameId, request, evaluation.operations, trace);
-      if (applied.damage === 0 && applied.witnesses === 0) {
-        return {
-          kind: "noop",
-          reason: "判定成立但落账为空",
-          ...head,
-          detail: subject,
-        };
-      }
-      return {
-        kind: "applied",
+  try {
+    const { actorName, itemName, evaluation } = await evaluateAffix(
+      db,
+      gameId,
+      request,
+      service,
+      trace,
+    );
+    const head = actorName === undefined ? {} : { actorName };
+    const subject = itemName === undefined ? {} : { itemName };
+
+    if (evaluation.kind === "failed") {
+      await traceEvent(trace, {
+        event: "phase",
+        name: "affix",
+        status: "failed",
         ...head,
-        detail: { ...subject, ...applied },
-      };
-    },
-  );
+        detail: { reason: evaluation.reason, ...subject, ...(evaluation.detail ?? {}) },
+      });
+      return;
+    }
+    if (evaluation.kind === "noop") {
+      await traceEvent(trace, {
+        event: "phase",
+        name: "affix",
+        status: "skipped",
+        ...head,
+        detail: { reason: evaluation.reason, ...subject },
+      });
+      return;
+    }
+
+    const applied = await settleAffix(db, gameId, request, evaluation.operations, trace);
+    if (applied.damage === 0 && applied.witnesses === 0) {
+      await traceEvent(trace, {
+        event: "phase",
+        name: "affix",
+        status: "skipped",
+        ...head,
+        detail: { reason: "判定成立但落账为空", ...subject },
+      });
+      return;
+    }
+    await traceEvent(trace, {
+      event: "phase",
+      name: "affix",
+      status: "ok",
+      ...head,
+      detail: { ...subject, ...applied },
+    });
+  } catch (error) {
+    // 推理端的失败只等于「这次没有补伤害」：不外抛，也不影响已提交的静态结果。
+    logger?.warn(`词缀阶段失败，不影响已结算的结果: ${request.itemId}`, error);
+    await traceEvent(trace, {
+      event: "phase",
+      name: "affix",
+      status: "failed",
+      detail: { reason: describeError(error) },
+    });
+  }
 }

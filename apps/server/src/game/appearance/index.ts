@@ -8,6 +8,11 @@ export {
   parseAppearanceBrief,
 } from "./prompt";
 export {
+  type AppearanceRefreshOptions,
+  type AppearanceRefreshResult,
+  refreshAppearances,
+} from "./refresh";
+export {
   type AppearanceTurnOptions,
   type AppearanceTurnResult,
   type EquipmentResult,

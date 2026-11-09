@@ -11,7 +11,7 @@ import type { ActionKind, AffixStatRef, DamageAmount, ItemKind } from "./types";
 /**
  * 物品定义的内容校验：只查这件物品自己的字段是否自洽。
  *
- * 需要看整张世界的规则（名字、文本泄漏、能力清单）在 `world-invariants.ts`。
+ * 需要看整张世界的规则（名字、文本泄漏、能力清单）在 `world-content/invariants.ts`。
  */
 
 /** 物品大类清单；`satisfies` 保证这里的每一项都在运行时 `ItemKind` 里。 */
@@ -56,7 +56,7 @@ const witnessTemplateSchema = z
   .string()
   .min(1)
   .refine(hasOnlyKnownPlaceholders, `见证模板只允许占位符 ${WITNESS_PLACEHOLDERS.join(" / ")}`)
-  .refine((template) => !NAME_MARKER_PATTERN.test(template), "见证模板不能包含 @ 或 # 标记");
+  .refine((template) => !NAME_MARKER_PATTERN.test(template), "见证模板不能包含 # 标记");
 
 const affixOpSchema = z.discriminatedUnion("kind", [
   z.strictObject({ kind: z.literal("damage"), amount: damageAmountSchema }),

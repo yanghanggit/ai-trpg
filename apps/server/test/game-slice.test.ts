@@ -7,6 +7,7 @@ import { BELL_MONASTERY_WORLD } from "../seeds/dark-fantasy";
 import { DEMO_USER } from "../src/db/demo-fixture";
 import { TEST_WORLD } from "./test-world";
 import "../src/db/env";
+import { snapshotGame } from "../src/cli/agent-game/snapshot";
 import { type DatabaseHandle, openDatabase } from "../src/db/connect";
 import { resetDomainData, seedDemoData } from "../src/db/maintenance";
 import { runMigrations } from "../src/db/migrate";
@@ -19,7 +20,6 @@ import {
   getGameMemories,
   getGameState,
   runActorTurn,
-  snapshotGame,
 } from "../src/game";
 import { formatForm } from "../src/game/form";
 import { ChatCompletionResult, type ChatCompletionService, type ToolCall } from "../src/llm";

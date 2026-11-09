@@ -119,7 +119,7 @@ export async function appendWitnessEvent(input: AppendWitnessInput): Promise<str
   const { executor, gameId, action, stage, source, itemName, event, trace } = input;
   assertWitnessTargetMatches(event);
   if (NAME_MARKER_PATTERN.test(event.template)) {
-    throw new GameError("invalid_action", "见证文本不能包含 @ 或 # 标记");
+    throw new GameError("invalid_action", "见证文本不能包含 # 标记");
   }
   const views = await listStageActorViews(executor, stage.id);
   const names = views.map(({ actor }) => actor.name);

@@ -758,9 +758,9 @@ describe.skipIf(!testDatabaseUrl)("names and addresses", () => {
   });
 
   it("parses identity bindings by anonymous handle and rejects marker-shaped names", () => {
-    expect(() => parseRecognizeIdentity({ handle: "#3", name: "编号 #3" })).toThrow(/系统标记/);
+    expect(() => parseRecognizeIdentity({ handle: "#3", name: "编号 #3" })).toThrow(/不能包含 #/);
     expect(() => parseRecognizeIdentity({ handle: "#3", name: "" })).toThrow(/name/);
-    expect(() => parseRecognizeIdentity({ handle: "@3", name: "守钟人" })).toThrow(/匿名编号/);
+    expect(() => parseRecognizeIdentity({ handle: "3", name: "守钟人" })).toThrow(/匿名编号/);
     expect(parseRecognizeIdentity({ handle: "#3", name: "守钟人" })).toEqual({
       handle: "#3",
       name: "守钟人",

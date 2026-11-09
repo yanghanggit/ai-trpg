@@ -79,7 +79,7 @@ export function buildTools(
             template: {
               type: "string",
               description:
-                "只允许 {source}/{target}/{anchor}/{item} 占位；不得写名字、编号或 @；第三人称可见事实",
+                "只允许 {source}/{target}/{anchor}/{item} 占位；不得写名字或编号；第三人称可见事实",
             },
           },
           required: ["affixName", "template"],

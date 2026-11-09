@@ -84,8 +84,8 @@ describe("drop materials parser", () => {
   });
 
   it("材料名与描述是公共标签，不得含引用或角色名", () => {
-    expect(() => parseDrops({ items: [{ name: "@骨片", description: "碎得只剩边角。" }] })).toThrow(
-      /材料名 不能包含/,
+    expect(() => parseDrops({ items: [{ name: "#骨片", description: "碎得只剩边角。" }] })).toThrow(
+      /材料名不能包含/,
     );
     expect(() => parseDrops({ items: [{ name: "骨片", description: "#12 的碎骨。" }] })).toThrow(
       /材料描述 不能包含/,

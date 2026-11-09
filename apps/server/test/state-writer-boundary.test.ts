@@ -15,7 +15,7 @@ const STATE_WRITERS: readonly { name: string; allowed: readonly string[] }[] = [
   { name: "setStageEnvironment", allowed: ["stage-turn/effects.ts"] },
   { name: "recordAppearance", allowed: ["appearance/turn.ts", "create-game/actors.ts"] },
   { name: "openPassage", allowed: ["stage-turn/effects.ts"] },
-  { name: "completeGame", allowed: ["world-turn/arbitrate.ts"] },
+  { name: "completeGameIfActive", allowed: ["world-turn/arbitrate.ts"] },
 ];
 
 function listTsFiles(dir: string, prefix = ""): string[] {

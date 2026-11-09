@@ -9,7 +9,6 @@ import { renderAction, renderEnvironmentChange, withAppearances } from "../obser
 import { appendCustomStageObservation, appendStageMemory } from "../observations";
 import { moveActorToStage } from "../persistence/actors";
 import { recordStageVisit } from "../persistence/visits";
-import { stripNameRef } from "../reference";
 import type { MoveAction } from "../types";
 
 export function buildMoveTool(stageNames: readonly string[]): ToolDefinition {
@@ -39,7 +38,7 @@ export function parseMove(args: Record<string, unknown>): MoveAction {
   if (targetStageName.length === 0) {
     throw new GameError("invalid_action", "move 需要非空 targetStageName");
   }
-  return { kind: "move", targetStageName: stripNameRef(targetStageName) };
+  return { kind: "move", targetStageName };
 }
 
 export async function resolveMove(

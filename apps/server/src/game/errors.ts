@@ -35,3 +35,8 @@ export class DialogueBlockedError extends GameError {
     this.auditId = input.auditId;
   }
 }
+
+/** 日志与轨迹里的错误描述：非 Error 抛出物也要能落成一句可读的话。 */
+export function describeError(error: unknown): string {
+  return error instanceof Error ? error.message : String(error);
+}

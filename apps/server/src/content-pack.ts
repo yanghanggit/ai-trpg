@@ -1,6 +1,6 @@
 import { readFile } from "node:fs/promises";
 import { z } from "zod";
-import { parseWorldContent } from "./game/parse-world-content";
+import { parseWorldContent } from "./game/world-content";
 import type { World } from "./game/world-definition";
 import type { KnowledgeBase } from "./rag";
 

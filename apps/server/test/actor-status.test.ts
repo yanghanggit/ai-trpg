@@ -515,7 +515,7 @@ describe.skipIf(!testDatabaseUrl)("appearance maintenance", () => {
     await handle.pool.end();
   });
 
-  it("批量入口跳过已收尾的尸体，只重推活人", async () => {
+  it("批量入口只重推活人，尸体留给死亡阶段", async () => {
     const created = await createGame(handle.db, {
       username: DEMO_USER.username,
       name: "批量外观测试局",
@@ -539,11 +539,13 @@ describe.skipIf(!testDatabaseUrl)("appearance maintenance", () => {
       .flatMap((stage) => stage.actors)
       .find((actor) => actor.name === "提灯修士")?.appearance;
 
-    // 批量维护：尸体已收尾 → 跳过；其余活人各推一次。
+    // 批量维护：尸体一律跳过；其余活人各推一次。
     const result = await refreshAppearances(handle.db, created.game.id, { service });
-    expect(result.skipped).toEqual(["提灯修士"]);
-    expect(result.settled).toEqual([]);
+    expect(result.skippedCorpses).toEqual(["提灯修士"]);
     expect(result.refreshed).toEqual(["守烬人", "缄默抄经人"]);
+    // 已收尾的尸体不再宣布，也不会补一次外观。
+    const settled = await settleDeaths(handle.db, created.game.id, { service });
+    expect(settled.settled).toEqual([]);
     // 1（死亡收尾）+ 2（活人）= 3，没有第三次给尸体。
     expect(service.calls).toBe(3);
 

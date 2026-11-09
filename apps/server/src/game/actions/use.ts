@@ -12,7 +12,6 @@ import type { ActorWithStageRow, Executor, ResolvedUse } from "../apply/types";
 import { GameError } from "../errors";
 import { equippedSlotOf } from "../items";
 import { applyUseEvent } from "../items/use-event";
-import { stripNameRef } from "../reference";
 
 import {
   EQUIPMENT_SLOT_LABELS,
@@ -98,7 +97,7 @@ export function parseUse(args: Record<string, unknown>): UseAction {
     kind: "use",
     itemName,
     ...(targetActorHandle.length > 0 ? { targetActorHandle } : {}),
-    ...(targetStageName.length > 0 ? { targetStageName: stripNameRef(targetStageName) } : {}),
+    ...(targetStageName.length > 0 ? { targetStageName } : {}),
     ...(targetAnchor.length > 0 ? { targetAnchor } : {}),
   };
 }
@@ -138,7 +137,7 @@ export async function resolveUse(
   let targetStage: ResolvedUse["targetStage"];
 
   if (action.targetStageName !== undefined) {
-    if (stripNameRef(action.targetStageName) !== stage.name) {
+    if (action.targetStageName !== stage.name) {
       throw new GameError("invalid_action", "只能对当前所在场景使用道具");
     }
     if (

@@ -224,7 +224,7 @@ export function parseSignatureName(raw: unknown): string {
     throw new GameError("invalid_action", "name 不能为空");
   }
   if (NAME_MARKER_PATTERN.test(name) || /\p{Cc}/u.test(name)) {
-    throw new GameError("invalid_action", "name 不能包含系统标记（@ 或 #）或控制字符");
+    throw new GameError("invalid_action", "name 不能包含 # 或控制字符");
   }
   return name;
 }

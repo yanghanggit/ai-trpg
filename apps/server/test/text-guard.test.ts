@@ -75,12 +75,6 @@ describe("world text guard", () => {
     expect(rendered).toBe("#9站在坡底。\n\n#9 外观：灰毛犬｜你的称呼：父亲");
   });
 
-  it("strips the legacy marker left in old memories", () => {
-    const actor = { id: "a", name: "煤渣" };
-    const rendered = sanitizeActorFacingText("@煤渣守在门口。", [actor], ADDRESS(true));
-    expect(rendered).toBe("煤渣守在门口。");
-  });
-
   it("keeps handles when sanitizing action feedback", () => {
     const stranger = { id: "a", name: "无名者" };
     const rendered = sanitizeActorFacingText(

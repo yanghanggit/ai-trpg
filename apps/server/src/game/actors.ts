@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { GameError } from "./errors";
-import { isHandleRef, parseHandle, stripNameRef } from "./reference";
+import { isHandleRef, parseHandle } from "./reference";
 import type { ActorState, GameStateSlice, StageState } from "./types";
 
 /**
@@ -68,7 +68,7 @@ export function otherActorsInStage(stage: StageState, actorId: string): ActorSta
 }
 
 /**
- * god-view 解析：真名、`@真名`（兼容旧写法）或 `#签名序号` → actor。
+ * god-view 解析：真名或 `#签名序号` → actor。
  *
  * 玩家入口、开发期命令都用这一份；模型工具只拿得到 actor-facing 引用。
  */
@@ -81,5 +81,5 @@ export function findActorByRef(state: GameStateSlice, ref: string): ActorState {
     }
     return findActorBySignatureSeq(state, seq).actor;
   }
-  return findActorByName(state, stripNameRef(value)).actor;
+  return findActorByName(state, value).actor;
 }

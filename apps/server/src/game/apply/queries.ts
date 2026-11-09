@@ -14,7 +14,7 @@ import { type AddressLookup, makeAddressLookup, withSelf } from "../addressing";
 import { addStats, type Stats } from "../attributes";
 import { GameError } from "../errors";
 import { signatureNamesFor } from "../persistence/signature-names";
-import { handleOf, isHandleRef, parseHandle, stripNameRef } from "../reference";
+import { handleOf, isHandleRef, parseHandle } from "../reference";
 import type { RouteWorld } from "../route";
 import { EQUIPMENT_SLOTS } from "../types";
 import type {
@@ -184,7 +184,7 @@ export async function resolveVisibleActor(
     return view.actor;
   }
 
-  const name = stripNameRef(value);
+  const name = value;
   if (name.length === 0) {
     throw new GameError("invalid_action", `引用不能为空: ${value}`);
   }
@@ -337,7 +337,7 @@ export async function resolveAdjacentStage(
   stage: StageRow,
   targetStageRef: string,
 ): Promise<StageRow> {
-  const ref = stripNameRef(targetStageRef.trim());
+  const ref = targetStageRef.trim();
   const [target] = await executor
     .select()
     .from(stages)
@@ -405,7 +405,7 @@ export async function findStageByNameInWorld(
   const [row] = await executor
     .select()
     .from(stages)
-    .where(and(eq(stages.worldId, worldId), eq(stages.name, stripNameRef(name.trim()))))
+    .where(and(eq(stages.worldId, worldId), eq(stages.name, name.trim())))
     .limit(1);
   return row;
 }

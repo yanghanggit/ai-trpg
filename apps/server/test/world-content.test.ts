@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { parseWorldContent } from "../src/game/parse-world-content";
+import { parseWorldContent } from "../src/game/world-content";
 import { actorInnateActions } from "../src/game/world-definition";
 import { TEST_WORLD } from "./test-world";
 
@@ -67,13 +67,13 @@ describe("world content validation", () => {
   it("rejects a starting signature name with system markers", () => {
     const world = {
       ...TEST_WORLD,
-      signatureNames: [{ observer: "ember-keeper", subject: "lantern-monk", name: "@提灯人" }],
+      signatureNames: [{ observer: "ember-keeper", subject: "lantern-monk", name: "#提灯人" }],
     };
     expect(() => parseWorldContent(world)).toThrow(/名字不能包含/);
   });
 
   it("rejects names with system markers", () => {
-    for (const name of ["@守烬人", "#守烬人", "守烬 人", "角色.守烬人"]) {
+    for (const name of ["#守烬人", "守烬 人", "角色.守烬人"]) {
       const world = {
         ...TEST_WORLD,
         actors: TEST_WORLD.actors.map((actor, index) => (index === 0 ? { ...actor, name } : actor)),

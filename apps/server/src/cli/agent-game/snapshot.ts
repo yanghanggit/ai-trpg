@@ -1,14 +1,21 @@
-import type { Database } from "../db/pool";
+import type { Database } from "../../db/pool";
 import {
   formatSnapshotId,
   type JsonValue,
   type SessionEvent,
   saveSnapshot,
-} from "../debug/snapshot";
-import { getGameMemories } from "./memory";
-import { listGameMessages } from "./read/game-messages";
-import { getGameStateSlice } from "./read/game-state";
+} from "../../debug/snapshot";
+import { getGameMemories } from "../../game/memory";
+import { listGameMessages } from "../../game/read/game-messages";
+import { getGameStateSlice } from "../../game/read/game-state";
 
+/**
+ * 把一局落成文件快照：唯一入口是 `agent:game snapshot`。
+ *
+ * 快照是提交后的只读投影，不是写入源；投影只在调试入口发生，所以引擎侧不留这份逻辑。
+ */
+
+/** 记忆文件名：保留可读性，只替换路径分隔符与文件名非法字符。 */
 function memoryFileName(name: string): string {
   return name.replace(/[/\\\0:*?"<>|]/g, "_").replace(/^\.+$/, "_") || "actor";
 }

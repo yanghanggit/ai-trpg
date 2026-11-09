@@ -207,14 +207,6 @@ describe("action parsers", () => {
       targetActorName: "缄默抄经人",
       message: "钟声还在吗？",
     });
-    expect(
-      parseCall({ mind: "他还在中殿。", targetActorName: "@缄默抄经人", message: "钟声还在吗？" }),
-    ).toEqual({
-      kind: "call",
-      mind: "他还在中殿。",
-      targetActorName: "缄默抄经人",
-      message: "钟声还在吗？",
-    });
     expect(() =>
       parseCall({
         mind: "他还在中殿。",

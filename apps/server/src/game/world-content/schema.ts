@@ -1,17 +1,18 @@
 import { z } from "zod";
-import { INNATE_ACTION_KINDS } from "./actions";
-import { statsSchema } from "./attributes";
-import { isValidForm } from "./form";
-import { equipmentSchema, itemSchema } from "./item-schema";
-import { MAX_STAGE_ANCHORS } from "./limits";
-import { NAME_MARKER_PATTERN } from "./reference";
-import type { StageActionKind, WorldActionKind } from "./types";
-import { WORLD_FUNCTION_TYPES } from "./types";
+import { INNATE_ACTION_KINDS } from "../actions";
+import { statsSchema } from "../attributes";
+import { isValidForm } from "../form";
+import { equipmentSchema, itemSchema } from "../item-schema";
+import { MAX_STAGE_ANCHORS } from "../limits";
+import { NAME_MARKER_PATTERN } from "../reference";
+import type { StageActionKind, WorldActionKind } from "../types";
+import { WORLD_FUNCTION_TYPES } from "../types";
 
 /**
- * 世界定义的内容校验形状：场景、角色、连接与世界本身。
+ * 世界内容的 zod 形状：场景、角色、连接与世界本身。
  *
- * 只描述形状；需要整张图的规则在 `world-invariants.ts`，入口在 `parse-world-content.ts`。
+ * 只描述「单看一个实体就能判」的约束。要看整张世界图才能判的规则在 `invariants.ts`，
+ * 两者由 `index.ts` 串成一次解析。
  */
 
 /**
@@ -36,7 +37,7 @@ const signatureNameSchema = z
   .min(1)
   .refine(
     (value) => !NAME_MARKER_PATTERN.test(value) && !/\p{Cc}/u.test(value),
-    "名字不能包含 @、# 或控制字符",
+    "名字不能包含 # 或控制字符",
   );
 
 const worldVisitedStageSchema = z.strictObject({

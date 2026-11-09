@@ -18,14 +18,14 @@ import {
   latestMessageSequence,
   listGameMessages,
   runStory,
-  snapshotGame,
 } from "../../../game";
-import { parseWorldContent } from "../../../game/parse-world-content";
+import { parseWorldContent } from "../../../game/world-content";
 import type { World } from "../../../game/world-definition";
 import { gameOption, optionalOption, requiredOption } from "../args";
 import { addCommand } from "../command";
 import type { CommandContext } from "../context";
 import { UsageError } from "../errors";
+import { snapshotGame } from "../snapshot";
 
 const GROUP = "建局与读取";
 

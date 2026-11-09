@@ -1,0 +1,41 @@
+import type { ActorState, StageState } from "../types";
+import { type WorldConstitution, worldFunctionAgent } from "../world-function";
+
+/**
+ * 掉落推理的提示词：这一轮要模型看什么，以及掉落裁决的宪法。
+ *
+ * 掉落只看得到尸体本身与所在场景；不注入死者记忆，掉落必须是外部可观察的事实。
+ * 世界设定是任务上下文：材料会变成公共物品名并被玩家反复引用，必须使用该世界
+ * 自己的材质、工艺与叫法，不能靠模型的世界外常识补全。
+ */
+
+/** 掉落裁决的宪法：建局时装配好的完整文本。 */
+export function buildDropSystemPrompt(world: WorldConstitution): string {
+  return worldFunctionAgent(world, "drops").systemPrompt;
+}
+
+export function buildDropTurnInput(actor: ActorState, stage: StageState): string {
+  return `# 尸体掉落
+
+${actor.name}刚刚死亡。
+
+## 形态
+
+${actor.signature.form}
+
+## 尸体外观
+
+${actor.appearance.text}
+
+## 所在场景
+
+${stage.name}：${stage.environment}
+
+# 本轮任务
+
+判断这具尸体在被搜刮之前留下什么可以被别人捡走的材料。只写尸体本身产生的、可以被别人搜走的实体残留，材质不限；不写衣物或生前持有的物品。
+
+材料名与描述不得含角色名或编号引用。
+
+不写它生前持有的武器、钥匙、信件或任何剧情物品；那些留在尸体背包里，不走掉落。不写心理、名字与规则，不解释推理过程。没有合理产物就提交空数组。完成后调用 drop_materials 提交。`;
+}

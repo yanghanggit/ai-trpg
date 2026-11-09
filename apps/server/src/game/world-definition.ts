@@ -2,7 +2,7 @@
  * 世界定义：建局时读一次、物化成数据库行，之后以数据库为唯一真相。
  *
  * 与运行时的 `WorldState` / `StageState` / `ActorState` 是两份 shape：定义侧用 `key` 引用彼此，
- * 状态侧用 id。校验在 `parse-world-content.ts`。
+ * 状态侧用 id。校验在 `world-content/`。
  */
 
 import type { Stats } from "./attributes";

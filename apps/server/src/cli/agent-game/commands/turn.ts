@@ -164,12 +164,16 @@ export function registerTurnCommands(program: Command, ctx: CommandContext): voi
     options: [gameOption(), optionalActorOption(), allOption()],
     schema: appearanceInput,
     run: async (input, ctx) => {
-      // --all 是批量维护：活人重推、未收尾的死者收尾、已收尾的尸体跳过。
+      // --all 是批量维护：活人重推，随后把未收尾的死者交给死亡阶段。
       // --actor 是单点干预：强制重推，尸体也照推（不写收尾标记）。
       if (input.all || input.actor === undefined) {
         return ctx.db(async (db) => {
           const state = await getGameState(db, input.game);
-          return refreshAppearances(db, state.game.id, { service: DEEPSEEK_SERVICE });
+          const refreshed = await refreshAppearances(db, state.game.id, {
+            service: DEEPSEEK_SERVICE,
+          });
+          const death = await settleDeaths(db, state.game.id, { service: DEEPSEEK_SERVICE });
+          return { ...refreshed, ...death };
         });
       }
       const actor = input.actor;

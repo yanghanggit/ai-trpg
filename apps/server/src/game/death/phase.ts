@@ -4,6 +4,7 @@ import type { ChatCompletionService } from "../../llm/protocol";
 import type { Logger } from "../../logging";
 import { runAppearanceTurn } from "../appearance";
 import { runDropTurn } from "../drops";
+import { describeError } from "../errors";
 import {
   listDeathsToSettle,
   listStageIdsOfGame,
@@ -191,8 +192,4 @@ async function runDeathPhase(
   }
 
   return result;
-}
-
-function describeError(error: unknown): string {
-  return error instanceof Error ? error.message : String(error);
 }

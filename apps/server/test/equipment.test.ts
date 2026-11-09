@@ -92,7 +92,6 @@ describe.skipIf(!testDatabaseUrl)("equip and unequip actions", () => {
         .join("\n") ?? "";
     expect(feedback).toContain("你穿上了补丁斗篷");
     expect(feedback).toContain("你卸下了补丁斗篷");
-    expect(feedback).not.toContain("@");
   });
 
   it("物品仍在背包里，只是不再计入穿戴", async () => {

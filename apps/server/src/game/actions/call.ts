@@ -7,7 +7,7 @@ import type { Executor, ResolvedCall, WorldRow } from "../apply/types";
 import { GameError } from "../errors";
 import { renderCall } from "../observation-text";
 import { appendDirectObservation } from "../observations";
-import { isHandleRef, stripNameRef } from "../reference";
+import { isHandleRef } from "../reference";
 import { assertNoSystemReference } from "../text-guard";
 import type { CallAction } from "../types";
 
@@ -46,9 +46,8 @@ export function buildCallTool(): ToolDefinition {
 export function parseCall(args: Record<string, unknown>): CallAction {
   const mind = typeof args.mind === "string" ? args.mind.trim() : "";
   const message = typeof args.message === "string" ? args.message : "";
-  const targetActorName = stripNameRef(
-    typeof args.targetActorName === "string" ? args.targetActorName.trim() : "",
-  );
+  const targetActorName =
+    typeof args.targetActorName === "string" ? args.targetActorName.trim() : "";
   if (mind.length === 0) {
     throw new GameError("invalid_action", "call 需要非空 mind");
   }
@@ -76,11 +75,7 @@ export async function resolveCall(
   if (isHandleRef(action.targetActorName)) {
     throw new GameError("invalid_action", "call 的目标必须使用真名，不能用编号占位");
   }
-  const target = await resolveActorByNameInWorld(
-    executor,
-    world.id,
-    stripNameRef(action.targetActorName),
-  );
+  const target = await resolveActorByNameInWorld(executor, world.id, action.targetActorName);
   if (target.actor.id === actorId) {
     throw new GameError("invalid_action", "call 的目标不能是自己");
   }

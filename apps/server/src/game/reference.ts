@@ -1,15 +1,14 @@
 /**
- * 地址的字符串语法：`#序号` 与旧版 `@名字`。
+ * 地址的字符串语法：观察者当前的称呼（纯名字），或占位编号 `#12`。
  *
- * 地址只有两种写法：观察者当前的称呼（纯名字），或占位编号 `#12`。`#` 是引擎唯一
- * 保留的前缀——它既要能写、能读、能在句子里扫出来，又必须在世界面被拦下。这些
- * 特化处理集中在这里：散在各处各写一份正则，放宽一处就会在另一处漏网。
+ * `#` 是引擎唯一保留的前缀——它既要能写、能读、能在句子里扫出来，又必须在世界面被拦下。
+ * 这些特化处理集中在这里：散在各处各写一份正则，放宽一处就会在另一处漏网。
  *
  * 观察者相对的投影（谁叫什么、重名怎么退化、句子怎么渲染）在 `addressing.ts`。
  */
 
-/** 名字里不能出现系统标记：`#` 是地址，`@` 是旧版地址标记。 */
-export const NAME_MARKER_PATTERN = /[@#]/;
+/** 名字里不能出现地址标记 `#`：它既是保留前缀，也是句子里能被扫出来的编号。 */
+export const NAME_MARKER_PATTERN = /#/;
 
 /** 编号的书写形式；序号由本局实体序号分配。 */
 export function handleOf(seq: number): string {
@@ -41,9 +40,4 @@ export function handlesIn(text: string): string[] {
 /** 世界面守卫用：文本里是否出现了编号。 */
 export function containsHandle(text: string): boolean {
   return HANDLE_PATTERN.test(text);
-}
-
-/** 参数归一：允许带一个前导 `@`（旧写法与手输），其余原样。 */
-export function stripNameRef(ref: string): string {
-  return ref.startsWith("@") ? ref.slice(1) : ref;
 }
