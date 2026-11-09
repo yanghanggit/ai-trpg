@@ -138,10 +138,48 @@ export type Actor = {
   hp?: number;
   /** 是否为默认玩家角色；主角死亡时只通知 world，收尾由 world 回合决定。 */
   isDefaultPlayer?: boolean;
-  items: readonly ItemDefinition[];
-  /** 该角色固有的行动；必须显式列出，不给默认值。武器授予的动作不写在这里。 */
+  /** 随身携带的道具；建局时物化成 `items` 行。 */
+  inventory: readonly ItemDefinition[];
+  /**
+   * 成套的技艺：一项技艺可以带几个动作，建局时并入 `actions`。
+   *
+   * 它只是内容层的分组，不落库、不在运行时存在；物化后剩下的就是动作本身。
+   * 同一个动作只能有一个来源：写在 `actions` 里，或者属于某一项技艺。
+   */
+  proficiencies?: readonly SkillDefinition[];
+  /**
+   * 该角色固有的行动；必须显式列出，不给默认值。
+   *
+   * 武器授予的动作不写在这里；属于某项技艺的动作也只写在技艺里，一个动作只有一个出处。
+   */
   actions: readonly InnateActionKind[];
 };
+
+/**
+ * 一项技艺：把几个动作捆在一个名字下的内容单元。
+ *
+ * 和物品的 `actions` 同形，但物品的授予随穿戴借还，技艺在开局时就变成角色自己的本事。
+ * 名字是给内容与读者看的（「探囊」），机制只看 `actions`。
+ */
+export type SkillDefinition = {
+  /** 角色内稳定标识；同一角色下不重复，改 `name` 不影响它。 */
+  key: string;
+  name: string;
+  description: string;
+  /** 这项技艺授予的动作；只能是没有携带者的固有动作。 */
+  actions: readonly InnateActionKind[];
+};
+
+/** 角色实际固有的动作：自己声明的 ∪ 技艺授予的；建局时按它物化。 */
+export function actorInnateActions(
+  actor: Pick<Actor, "actions" | "proficiencies">,
+): InnateActionKind[] {
+  const merged = [
+    ...actor.actions,
+    ...(actor.proficiencies ?? []).flatMap((skill) => skill.actions),
+  ];
+  return [...new Set(merged)];
+}
 
 /** Actor 的初始物品定义；创建后物化为 `items` 或 `stage_items` 行。 */
 export type ItemDefinition = {

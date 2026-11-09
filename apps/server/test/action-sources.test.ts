@@ -10,6 +10,7 @@ import {
   equippedItemActions,
   toItemState,
 } from "../src/game/items";
+import { actorInnateActions } from "../src/game/world-definition";
 import { ChatCompletionResult, type ChatCompletionService, type ToolCall } from "../src/llm";
 import { TEST_WORLD } from "./test-world";
 import "../src/db/env";
@@ -36,6 +37,19 @@ const blade = (overrides: Partial<Parameters<typeof toItemState>[0]> = {}) =>
   });
 
 describe("action sources", () => {
+  it("merges skill actions into the innate list once", () => {
+    const actor = {
+      actions: ["say", "wait"] as const,
+      proficiencies: [
+        { key: "a", name: "甲", description: "一。", actions: ["inspect", "steal"] as const },
+        { key: "b", name: "乙", description: "二。", actions: ["steal", "give"] as const },
+      ],
+    };
+    // 内容校验会拒绝重复来源；物化这一步只保证幂等，不靠调用方去重。
+    expect(actorInnateActions(actor)).toEqual(["say", "wait", "inspect", "steal", "give"]);
+    expect(actorInnateActions({ actions: ["say"] })).toEqual(["say"]);
+  });
+
   it("reports where each carried action comes from", () => {
     const actor = { equipment: { weapon: "裂齿短刃" }, items: [blade()] };
     const grants: ActionGrant[] = carriedActions(actor);

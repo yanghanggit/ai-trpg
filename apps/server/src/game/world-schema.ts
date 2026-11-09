@@ -71,6 +71,20 @@ const stageSchema = z
   })
   .strict();
 
+/**
+ * 技艺：把几个动作捆在一个名字下的内容单元。
+ *
+ * 动作只能是没有携带者的固有动作——`strike` / `cleave` 由武器借出，不能写进技艺。
+ */
+const skillSchema = z
+  .object({
+    key: z.string().trim().min(1),
+    name: z.string().trim().min(1),
+    description: z.string().trim().min(1),
+    actions: z.array(actionKindSchema).min(1),
+  })
+  .strict();
+
 const actorSchema = z.object({
   key: z.string().min(1),
   stageKey: z.string().min(1),
@@ -87,7 +101,8 @@ const actorSchema = z.object({
   stats: statsSchema,
   hp: z.number().optional(),
   isDefaultPlayer: z.boolean().optional(),
-  items: z.array(itemSchema),
+  inventory: z.array(itemSchema),
+  proficiencies: z.array(skillSchema).optional(),
   actions: z.array(actionKindSchema),
 });
 

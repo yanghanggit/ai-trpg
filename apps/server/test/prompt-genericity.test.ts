@@ -30,7 +30,7 @@ function storyTokens(): string[] {
   }
   for (const actor of BELL_MONASTERY_WORLD.actors) {
     tokens.add(actor.name);
-    for (const item of actor.items) {
+    for (const item of actor.inventory) {
       tokens.add(item.name);
     }
   }

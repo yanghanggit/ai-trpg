@@ -200,7 +200,7 @@ export const CROW_GRAVE: Script = {
         weapon: "封尸锤",
         armor: "尸布围裙",
       },
-      items: [
+      inventory: [
         {
           key: "tower-key",
           name: "塔门钥匙",
@@ -298,7 +298,7 @@ export const CROW_GRAVE: Script = {
         weapon: "鸦啄",
         armor: "鸦羽斗篷",
       },
-      items: [
+      inventory: [
         {
           key: "crow-beak",
           name: "鸦啄",
@@ -367,7 +367,7 @@ export const CROW_GRAVE: Script = {
           count: 1,
         },
       ],
-      // 人类：会说话、走动、战斗，也会用哨、递东西、拾取与换装；不偷东西，但会翻看行囊。
+      // 人类：会说话、走动、战斗，也会用哨、递东西、拾取与换装；不偷东西，也不翻别人的行囊。
       actions: [
         "say",
         "whisper",
@@ -377,7 +377,6 @@ export const CROW_GRAVE: Script = {
         "brawl",
         "give",
         "pickup",
-        "inspect",
         "loot",
         "use",
         "equip",
@@ -413,7 +412,7 @@ export const CROW_GRAVE: Script = {
         armor: "骨粉围裙",
         accessory: "拾骨袋",
       },
-      items: [
+      inventory: [
         {
           key: "bone-hook",
           name: "拾骨钩",
@@ -455,7 +454,16 @@ export const CROW_GRAVE: Script = {
           count: 1,
         },
       ],
-      // 唯一会偷窃的角色；其余能力与普通人类一致。
+      // 唯一会探囊的角色：看清与取走是同一手本事，其余能力与普通人类一致。
+      proficiencies: [
+        {
+          key: "pickpocket",
+          name: "探囊",
+          description:
+            "探囊取物：先扫一眼对方囊中有什么，再顺手把那件东西变成自己的；看清楚与拿走之间没有第二道手艺。",
+          actions: ["inspect", "steal"],
+        },
+      ],
       actions: [
         "say",
         "whisper",
@@ -465,10 +473,8 @@ export const CROW_GRAVE: Script = {
         "brawl",
         "give",
         "pickup",
-        "inspect",
         "loot",
         "use",
-        "steal",
         "equip",
         "unequip",
       ],

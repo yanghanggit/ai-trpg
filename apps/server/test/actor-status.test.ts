@@ -843,7 +843,7 @@ describe.skipIf(!testDatabaseUrl)("corpses can be operated on", () => {
           },
           hp: 8,
           stats: { maxHp: 8, strength: 1, wisdom: 1, agility: 2, damage: 1, block: 1 },
-          items: [],
+          inventory: [],
           actions: ["say", "whisper", "move", "wait"] as const,
         },
       ],

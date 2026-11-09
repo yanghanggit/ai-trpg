@@ -109,7 +109,15 @@ export const TEST_WORLD: World = {
       hp: 12,
       stats: { maxHp: 12, strength: 6, wisdom: 2, agility: 4, damage: 6, block: 2 },
       equipment: { weapon: "裂齿短刃" },
-      // 测试世界里的玩家角色额外拥有 steal 与 loot，用于验证取物两条通道。
+      // 测试世界里的玩家角色额外拥有 loot 与「探囊」，用于验证取物的三条通道。
+      proficiencies: [
+        {
+          key: "pickpocket",
+          name: "探囊",
+          description: "先看清，再取走：这两个动作在测试世界里成对出现。",
+          actions: ["inspect", "steal"],
+        },
+      ],
       actions: [
         "say",
         "whisper",
@@ -120,13 +128,11 @@ export const TEST_WORLD: World = {
         "give",
         "pickup",
         "use",
-        "steal",
         "loot",
-        "inspect",
         "equip",
         "unequip",
       ],
-      items: [
+      inventory: [
         {
           key: "cracked-blade",
           name: "裂齿短刃",
@@ -179,7 +185,7 @@ export const TEST_WORLD: World = {
         "equip",
         "unequip",
       ],
-      items: [
+      inventory: [
         {
           key: "lead-lantern",
           name: "铅封提灯",
@@ -214,7 +220,7 @@ export const TEST_WORLD: World = {
         "equip",
         "unequip",
       ],
-      items: [
+      inventory: [
         {
           key: "blank-scripture",
           name: "无字经页",

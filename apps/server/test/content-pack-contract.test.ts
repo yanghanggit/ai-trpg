@@ -14,7 +14,7 @@ const packs = Object.entries(CONTENT_PACKS);
 describe.each(packs)("content pack %s", (_name, pack) => {
   const world = parseWorldContent(pack.world);
   const items = [
-    ...world.actors.flatMap((actor) => actor.items),
+    ...world.actors.flatMap((actor) => actor.inventory),
     ...world.stages.flatMap((stage) =>
       (stage.anchors ?? []).flatMap((anchor) => anchor.items ?? []),
     ),
@@ -58,7 +58,7 @@ describe.each(packs)("content pack %s", (_name, pack) => {
   it("points every equipped slot at an item the actor actually owns", () => {
     for (const actor of world.actors) {
       for (const name of Object.values(actor.equipment ?? {})) {
-        expect(actor.items.some((item) => item.name === name)).toBe(true);
+        expect(actor.inventory.some((item) => item.name === name)).toBe(true);
       }
     }
   });

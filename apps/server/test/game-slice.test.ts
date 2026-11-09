@@ -276,6 +276,23 @@ describe.skipIf(!testDatabaseUrl)("memory-driven NPC slice", () => {
     expect(monk?.messages.map((message) => message.type)).toEqual(["system"]);
   });
 
+  it("materializes skill actions into the actor at creation", async () => {
+    const created = await createGame(handle.db, {
+      username: DEMO_USER.username,
+      name: "技艺物化测试局",
+      world: TEST_WORLD,
+    });
+    const keeper = created.world.stages
+      .flatMap((stage) => stage.actors)
+      .find((actor) => actor.name === "守烬人");
+    // 技艺是内容层的写法：物化后角色自己就带着这两个动作。
+    expect(keeper?.actions).toEqual(expect.arrayContaining(["inspect", "steal"]));
+    // 内容侧没有重复声明：actions 里没有它们，来源只有技艺。
+    const contentKeeper = TEST_WORLD.actors.find((actor) => actor.name === "守烬人");
+    expect([...(contentKeeper?.actions ?? [])] as string[]).not.toContain("steal");
+    expect(contentKeeper?.proficiencies?.[0]?.actions).toEqual(["inspect", "steal"]);
+  });
+
   it("only exposes actions the actor is allowed to use", async () => {
     const created = await createGame(handle.db, {
       username: DEMO_USER.username,
@@ -289,12 +306,12 @@ describe.skipIf(!testDatabaseUrl)("memory-driven NPC slice", () => {
     expect(keeperService.tools).toContain("strike");
     // 肉搏是固有动作，与武器装备无关。
     expect(keeperService.tools).toContain("brawl");
-    // 查看行囊是动作而不是只读工具：它有单独的工具，也必须出现在动作说明里。
+    // 查看行囊与偷窃同出一项技艺（探囊）：只会搜尸体的角色既不能偷，也不能翻看行囊。
     expect(keeperService.tools).not.toContain("steal");
     expect(keeperService.tools).toContain("loot");
-    expect(keeperService.tools).toContain("inspect");
+    expect(keeperService.tools).not.toContain("inspect");
     expect(keeperService.input).toContain("loot");
-    expect(keeperService.input).toContain("查看同场景目标随身携带的全部物品");
+    expect(keeperService.input).not.toContain("查看同场景目标随身携带的全部物品");
     expect(keeperService.tools).toContain("get_self");
     expect(keeperService.tools).not.toContain("get_actor");
     expect(keeperService.tools).not.toContain("get_stats");
@@ -309,9 +326,10 @@ describe.skipIf(!testDatabaseUrl)("memory-driven NPC slice", () => {
     await runNpcTurn(handle.db, created.game.slug, "无名者", { service: corpseService });
     expect(corpseService.tools).toContain("steal");
     expect(corpseService.tools).toContain("loot");
-    // 当前种子只有主角会偷窃，但会取物的两个人都会翻看行囊。
+    // 探囊把两个动作一起给：工具表里成对出现，说明也写进动作清单。
     expect(corpseService.tools).toContain("inspect");
     expect(corpseService.input).toContain("inspect");
+    expect(corpseService.input).toContain("查看同场景目标随身携带的全部物品");
     expect(corpseService.tools).toContain("query");
     // 读写提交是一个协议：只读可并发、写占名额、提交必须同回复；
     // 不能再鼓励把只读调用拆成多轮，否则轮次还没到写就被吃完了。
@@ -652,7 +670,7 @@ describe.skipIf(!testDatabaseUrl)("memory-driven NPC slice", () => {
           },
           hp: 8,
           stats: { maxHp: 8, strength: 1, wisdom: 1, agility: 2, damage: 1, block: 1 },
-          items: [],
+          inventory: [],
           actions: ["say", "whisper", "move", "wait"] as const,
         },
       ],

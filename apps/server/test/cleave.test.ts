@@ -38,7 +38,7 @@ const CLEAVE_WORLD: World = {
   actors: [
     {
       ...KEEPER,
-      items: KEEPER.items.map((item) =>
+      inventory: KEEPER.inventory.map((item) =>
         item.key === "cracked-blade"
           ? {
               ...item,
@@ -73,7 +73,7 @@ const CLEAVE_WORLD: World = {
       hp: 6,
       stats: { maxHp: 6, strength: 1, wisdom: 2, agility: 5, damage: 1, block: 0 },
       actions: ["say", "wait"],
-      items: [],
+      inventory: [],
     },
   ],
 };

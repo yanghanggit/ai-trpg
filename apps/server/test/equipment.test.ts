@@ -138,7 +138,7 @@ describe.skipIf(!testDatabaseUrl)("equip and unequip actions", () => {
     const world = {
       ...TEST_WORLD,
       actors: TEST_WORLD.actors.map((actor) =>
-        actor.name === "守烬人" ? { ...actor, items: [...actor.items, spare] } : actor,
+        actor.name === "守烬人" ? { ...actor, inventory: [...actor.inventory, spare] } : actor,
       ),
     };
     const created = await createGame(handle.db, {

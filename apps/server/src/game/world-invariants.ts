@@ -2,7 +2,7 @@ import type { z } from "zod";
 import { NAME_MARKER_PATTERN } from "./reference";
 import { findStageNameLeaks, findTextLeaks } from "./text-guard";
 import { WORLD_FUNCTION_TYPES } from "./types";
-import type { World } from "./world-definition";
+import type { Actor, World } from "./world-definition";
 
 /**
  * 跨实体的内容不变量：名字、文本泄漏、锚点与能力清单。
@@ -103,7 +103,44 @@ export function checkWorldInvariants(world: World, ctx: z.RefinementCtx): void {
   });
   world.actors.forEach((actor, index) => {
     checkEntityName(actor.name, ["actors", index, "name"], ctx);
-    checkItemNamesUnique(actor.items, ["actors", index, "items"], ctx);
+    checkItemNamesUnique(actor.inventory, ["actors", index, "inventory"], ctx);
+    checkProficiencies(actor, index, ctx);
+  });
+}
+
+/**
+ * 技艺是动作的第二个来源，所以一个动作只能有一个出处。
+ *
+ * 写在 `actions` 里的动作不能再被技艺带一遍，两项技艺也不能带同一个动作：
+ * 重复不产生额外授权，只让「谁给了这个动作」变得说不清。
+ */
+function checkProficiencies(actor: Actor, actorIndex: number, ctx: z.RefinementCtx): void {
+  const owner = new Map<string, string>();
+  for (const action of actor.actions) {
+    owner.set(action, "actions");
+  }
+  const seen = new Set<string>();
+  actor.proficiencies?.forEach((skill, index) => {
+    const path = ["actors", actorIndex, "proficiencies", index];
+    if (seen.has(skill.key)) {
+      ctx.addIssue({
+        code: "custom",
+        message: `技艺 key 重复: ${skill.key}`,
+        path: [...path, "key"],
+      });
+    }
+    seen.add(skill.key);
+    for (const action of skill.actions) {
+      const existing = owner.get(action);
+      if (existing !== undefined) {
+        ctx.addIssue({
+          code: "custom",
+          message: `动作 ${action} 已经有来源（${existing}），不能重复声明`,
+          path: [...path, "actions"],
+        });
+      }
+      owner.set(action, skill.name);
+    }
   });
 }
 

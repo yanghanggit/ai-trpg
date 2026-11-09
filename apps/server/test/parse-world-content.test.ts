@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { parseWorldContent } from "../src/game/parse-world-content";
+import { actorInnateActions } from "../src/game/world-definition";
 import { TEST_WORLD } from "./test-world";
 
 describe("world content validation", () => {
@@ -105,7 +106,7 @@ describe("world content validation", () => {
     const world = {
       ...TEST_WORLD,
       actors: TEST_WORLD.actors.map((actor, index) =>
-        index === 0 ? { ...actor, items: [...actor.items, ...actor.items] } : actor,
+        index === 0 ? { ...actor, inventory: [...actor.inventory, ...actor.inventory] } : actor,
       ),
     };
     expect(() => parseWorldContent(world)).toThrow(/物品名重复/);
@@ -209,22 +210,22 @@ describe("world content validation", () => {
         actor.name === "守烬人"
           ? {
               ...actor,
-              items: [{ ...actor.items[0], affixes: { strike: [strikeAffix] } }],
+              inventory: [{ ...actor.inventory[0], affixes: { strike: [strikeAffix] } }],
             }
           : actor,
       ),
     };
     const parsedKeeper = parseWorldContent(world).actors.find((actor) => actor.name === "守烬人");
-    expect(parsedKeeper?.items[0]?.affixes?.strike?.[0]?.ops).toEqual(strikeAffix.ops);
+    expect(parsedKeeper?.inventory[0]?.affixes?.strike?.[0]?.ops).toEqual(strikeAffix.ops);
 
     expect(() =>
       parseWorldContent({
         ...world,
         actors: world.actors.map((actor) => ({
           ...actor,
-          items: [
+          inventory: [
             {
-              ...actor.items[0],
+              ...actor.inventory[0],
               affixes: { strike: [{ ...strikeAffix, ops: [] }] },
             },
           ],
@@ -240,8 +241,8 @@ describe("world content validation", () => {
         actor.name === "守烬人"
           ? {
               ...actor,
-              items: [
-                ...actor.items,
+              inventory: [
+                ...actor.inventory,
                 {
                   key: "ash-scrap",
                   name: "灰烬碎片",
@@ -257,11 +258,11 @@ describe("world content validation", () => {
     const parsed = parseWorldContent(world);
     expect(
       parsed.actors
-        .flatMap((actor) => actor.items)
+        .flatMap((actor) => actor.inventory)
         .some((item) => item.kind === "material" && item.name === "灰烬碎片"),
     ).toBe(true);
     expect(
-      parsed.actors.flatMap((actor) => actor.items).find((item) => item.name === "灰烬碎片")
+      parsed.actors.flatMap((actor) => actor.inventory).find((item) => item.name === "灰烬碎片")
         ?.source,
     ).toBe("守烬人");
     expect(() =>
@@ -269,7 +270,7 @@ describe("world content validation", () => {
         ...world,
         actors: world.actors.map((actor) => ({
           ...actor,
-          items: actor.items.map((item) => ({ ...item, kind: "relic" })),
+          inventory: actor.inventory.map((item) => ({ ...item, kind: "relic" })),
         })),
       }),
     ).toThrow();
@@ -281,7 +282,7 @@ describe("world content validation", () => {
           actor.name === "守烬人"
             ? {
                 ...actor,
-                items: actor.items.map((item) =>
+                inventory: actor.inventory.map((item) =>
                   item.kind === "weapon" ? { ...item, source: "守烬人" } : item,
                 ),
               }
@@ -301,7 +302,9 @@ describe("world content validation", () => {
     const world = {
       ...TEST_WORLD,
       actors: TEST_WORLD.actors.map((actor) =>
-        actor.name === "守烬人" ? { ...actor, items: [{ ...actor.items[0], key: "" }] } : actor,
+        actor.name === "守烬人"
+          ? { ...actor, inventory: [{ ...actor.inventory[0], key: "" }] }
+          : actor,
       ),
     };
     expect(() => parseWorldContent(world)).toThrow();
@@ -321,6 +324,71 @@ describe("world content validation", () => {
       }
     });
 
+    it("turns skills into actor actions and keeps one owner per action", () => {
+      const withSkill = (skills: unknown[] | undefined) => ({
+        ...TEST_WORLD,
+        actors: TEST_WORLD.actors.map((actor) =>
+          actor.name === "守烬人"
+            ? {
+                ...actor,
+                actions: actor.actions.filter((kind) => kind !== "steal"),
+                proficiencies: skills,
+              }
+            : actor,
+        ),
+      });
+      const skill = {
+        key: "pickpocket",
+        name: "探囊",
+        description: "先看清，再取走。",
+        actions: ["inspect", "steal"],
+      };
+      const parsed = parseWorldContent(withSkill([skill]));
+      const keeper = parsed.actors.find((actor) => actor.name === "守烬人");
+      expect(keeper?.proficiencies?.[0]?.name).toBe("探囊");
+      // 物化由 `actorInnateActions` 负责：定义侧的动作列表不重复写技艺给的动作。
+      if (!keeper) {
+        throw new Error("解析结果缺少守烬人");
+      }
+      expect(actorInnateActions(keeper)).toEqual(expect.arrayContaining(["inspect", "steal"]));
+
+      // 一个动作只能有一个出处：既在 actions 里又被技艺带一遍，是重复声明。
+      const duplicated = {
+        ...TEST_WORLD,
+        actors: TEST_WORLD.actors.map((actor) =>
+          actor.name === "守烬人"
+            ? { ...actor, actions: [...actor.actions, "steal" as const] }
+            : actor,
+        ),
+      };
+      expect(() => parseWorldContent(duplicated)).toThrow(/已经有来源/);
+
+      // 两项技艺不能带同一个动作，key 也不能在同一角色下重复。
+      expect(() =>
+        parseWorldContent(
+          withSkill([
+            { key: "a", name: "甲", description: "一。", actions: ["inspect"] },
+            { key: "b", name: "乙", description: "二。", actions: ["inspect"] },
+          ]),
+        ),
+      ).toThrow(/已经有来源/);
+      expect(() =>
+        parseWorldContent(
+          withSkill([
+            skill,
+            { key: "pickpocket", name: "另一手", description: "重名。", actions: ["give"] },
+          ]),
+        ),
+      ).toThrow(/技艺 key 重复/);
+
+      // 技艺只能带固有动作；武器授予的 strike 由物品借出，不能写进技艺。
+      expect(() => parseWorldContent(withSkill([{ ...skill, actions: ["strike"] }]))).toThrow(
+        /actions/,
+      );
+      // 空技艺没有意义。
+      expect(() => parseWorldContent(withSkill([{ ...skill, actions: [] }]))).toThrow(/actions/);
+    });
+
     it("rejects innate actions declared on items", () => {
       // 物品只能携带武器类动作；把 say / use 挂到物品上是另一类写错。
       const broken = {
@@ -329,7 +397,7 @@ describe("world content validation", () => {
           actor.name === "守烬人"
             ? {
                 ...actor,
-                items: actor.items.map((item) =>
+                inventory: actor.inventory.map((item) =>
                   item.kind === "weapon" ? { ...item, actions: ["strike", "say"] } : item,
                 ),
               }
@@ -357,7 +425,7 @@ describe("world content validation", () => {
         actor.name === "守烬人"
           ? {
               ...actor,
-              items: actor.items.map((item) =>
+              inventory: actor.inventory.map((item) =>
                 item.key === "cracked-blade" ? { ...item, ...patch } : item,
               ),
             }
@@ -373,7 +441,7 @@ describe("world content validation", () => {
           actor.name === "守烬人"
             ? {
                 ...actor,
-                items: actor.items.map((item) =>
+                inventory: actor.inventory.map((item) =>
                   item.key === "cracked-blade"
                     ? { ...item, affixes: { ...item.affixes, cleave: CLEAVE_AFFIX } }
                     : item,
@@ -387,7 +455,7 @@ describe("world content validation", () => {
     it("accepts cleave together with affixes.cleave and a target cap", () => {
       const world = parseWorldContent(withCleave({ actions: ["strike", "cleave"], maxTargets: 3 }));
       const blade = world.actors
-        .flatMap((actor) => actor.items)
+        .flatMap((actor) => actor.inventory)
         .find((item) => item.key === "cracked-blade");
       expect(blade?.actions).toEqual(["strike", "cleave"]);
       expect(blade?.maxTargets).toBe(3);
@@ -417,7 +485,7 @@ describe("world content validation", () => {
         ...TEST_WORLD,
         actors: TEST_WORLD.actors.map((actor) =>
           actor.name === "提灯修士"
-            ? { ...actor, items: actor.items.map((item) => ({ ...item, maxTargets: 2 })) }
+            ? { ...actor, inventory: actor.inventory.map((item) => ({ ...item, maxTargets: 2 })) }
             : actor,
         ),
       };

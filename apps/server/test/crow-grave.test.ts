@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { CROW_GRAVE_WORLD } from "../seeds/dark-fantasy";
 import { parseWorldContent } from "../src/game/parse-world-content";
+import { actorInnateActions } from "../src/game/world-definition";
 
 const world = parseWorldContent(CROW_GRAVE_WORLD);
 
@@ -67,12 +68,12 @@ describe("crow-grave seed world", () => {
     const karl = actor("karl");
     expect(karl.equipment).toEqual({ weapon: "封尸锤", armor: "尸布围裙" });
     // 钥匙是剧情道具，不在穿戴槽里：活着能偷，死后留在尸体背包。
-    expect(karl.items.find((item) => item.name === "塔门钥匙")).toMatchObject({
+    expect(karl.inventory.find((item) => item.name === "塔门钥匙")).toMatchObject({
       key: "tower-key",
       kind: "valuable",
       affixes: { use: [{ name: "开锁", mode: "static" }] },
     });
-    expect(karl.items.find((item) => item.name === "塔门钥匙")?.kind).not.toBe("material");
+    expect(karl.inventory.find((item) => item.name === "塔门钥匙")?.kind).not.toBe("material");
     expect(world.visitedStages).toEqual(
       expect.arrayContaining([
         { actor: "karl", stage: "watchtower" },
@@ -95,7 +96,7 @@ describe("crow-grave seed world", () => {
 
   it("gives the crow hunter an old bone whistle and a remembered name, but keeps the player ignorant", () => {
     const vela = actor("vela");
-    expect(vela.items.find((item) => item.name === "旧骨哨")).toMatchObject({
+    expect(vela.inventory.find((item) => item.name === "旧骨哨")).toMatchObject({
       key: "old-bone-whistle",
       kind: "valuable",
       affixes: {
@@ -113,7 +114,7 @@ describe("crow-grave seed world", () => {
 
   it("binds the attack to the weapon and keeps brawl innate", () => {
     const weapons = world.actors
-      .flatMap((entry) => entry.items)
+      .flatMap((entry) => entry.inventory)
       .filter((item) => item.kind === "weapon");
     expect(weapons.map((weapon) => weapon.name)).toEqual(["封尸锤", "鸦啄", "拾骨钩"]);
 
@@ -135,18 +136,22 @@ describe("crow-grave seed world", () => {
       expect([...entry.actions] as string[]).not.toContain("strike");
       expect(entry.actions).toContain("brawl");
     }
-    // 只有拾骨人会偷；搜刮尸体是另一条通道，两个会取物的人都有。
-    expect(actor("eli").actions).toContain("steal");
-    expect(actor("vela").actions).not.toContain("steal");
-    expect(actor("eli").actions).toContain("loot");
-    expect(actor("vela").actions).toContain("loot");
-    // 翻看行囊是动作，两个会取物的人类都有。
-    expect(actor("eli").actions).toContain("inspect");
-    expect(actor("vela").actions).toContain("inspect");
-    // 卡尔疯到不再操作道具，偷与搜刮都不会有。
+    // 探囊把看清与取走捆成一项技艺：只有拾骨人有，且两个动作都出自它。
+    expect(actor("eli").proficiencies).toEqual([
+      expect.objectContaining({ key: "pickpocket", actions: ["inspect", "steal"] }),
+    ]);
+    expect([...actor("eli").actions] as string[]).not.toContain("steal");
+    expect([...actor("eli").actions] as string[]).not.toContain("inspect");
+    expect(actorInnateActions(actor("eli"))).toEqual(
+      expect.arrayContaining(["inspect", "steal", "loot"]),
+    );
+    expect(actor("vela").proficiencies).toBeUndefined();
+    expect(actorInnateActions(actor("vela"))).not.toContain("inspect");
+    expect(actorInnateActions(actor("vela"))).toContain("loot");
+    // 卡尔疯到不再操作道具，探囊与搜刮都不会有。
     expect(actor("karl").actions).not.toContain("use");
     expect(actor("karl").actions).not.toContain("loot");
-    expect(actor("karl").actions).not.toContain("inspect");
+    expect(actorInnateActions(actor("karl"))).not.toContain("inspect");
   });
 
   it("writes the two opening rules and the three endings into the content", () => {

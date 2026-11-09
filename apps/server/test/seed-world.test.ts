@@ -3,6 +3,7 @@ import { BELL_MONASTERY_KNOWLEDGE, BELL_MONASTERY_WORLD } from "../seeds/dark-fa
 import { resolveAppearance } from "../src/game/form";
 import { buildWorldSystemPrompt } from "../src/game/memory";
 import { parseWorldContent } from "../src/game/parse-world-content";
+import { actorInnateActions } from "../src/game/world-definition";
 
 const { stages } = BELL_MONASTERY_WORLD;
 
@@ -76,20 +77,20 @@ describe("dark fantasy seed world", () => {
   it("gives the keeper the gate key and makes the rat king a lethal sleeper", () => {
     const keeper = BELL_MONASTERY_WORLD.actors.find((actor) => actor.name === "奥德里克");
     const king = BELL_MONASTERY_WORLD.actors.find((actor) => actor.name === "鼠王");
-    expect(keeper?.items.map((item) => item.name)).toEqual(
+    expect(keeper?.inventory.map((item) => item.name)).toEqual(
       expect.arrayContaining(["闸门钥匙", "掘墓人的铁锹", "补丁斗篷"]),
     );
     expect(keeper?.equipment).toEqual({
       weapon: "掘墓人的铁锹",
       armor: "补丁斗篷",
     });
-    expect(keeper?.items.find((item) => item.name === "补丁斗篷")).toMatchObject({
+    expect(keeper?.inventory.find((item) => item.name === "补丁斗篷")).toMatchObject({
       key: "patched-cloak",
       kind: "equipment",
       stats: { block: 1 },
     });
     // 钥匙是剧情道具（valuable），不在穿戴槽里，所以活着时也能被窃取。
-    expect(keeper?.items.find((item) => item.name === "闸门钥匙")).toMatchObject({
+    expect(keeper?.inventory.find((item) => item.name === "闸门钥匙")).toMatchObject({
       key: "gate-key",
       kind: "valuable",
       affixes: { use: [{ name: "开锁" }] },
@@ -101,7 +102,7 @@ describe("dark fantasy seed world", () => {
       .map((actor) => actor.name);
     expect(defaultPlayers).toEqual(["无名者"]);
     // 鼠王随身收着旧钟的钟舌：valuable + 使用词缀，不是身体材料。
-    expect(king?.items.find((item) => item.name === "旧钟的钟舌")).toMatchObject({
+    expect(king?.inventory.find((item) => item.name === "旧钟的钟舌")).toMatchObject({
       key: "rat-king-clapper",
       kind: "valuable",
       affixes: { use: [{ name: "归位" }] },
@@ -152,9 +153,12 @@ describe("dark fantasy seed world", () => {
   });
 
   it("declares per-actor actions explicitly in the seed", () => {
-    const actionsOf = (name: string) => [
-      ...(BELL_MONASTERY_WORLD.actors.find((actor) => actor.name === name)?.actions ?? []),
-    ];
+    const actorOf = (name: string) =>
+      BELL_MONASTERY_WORLD.actors.find((actor) => actor.name === name);
+    const actionsOf = (name: string) => {
+      const actor = actorOf(name);
+      return actor ? actorInnateActions(actor) : [];
+    };
 
     const TALK_AND_MOVE = ["say", "whisper", "announce", "move", "wait"];
     const ITEM_ACTIONS = ["give", "pickup", "loot", "use"];
@@ -168,6 +172,7 @@ describe("dark fantasy seed world", () => {
     for (const animal of ["小狗“煤渣”", "小鼠“坏运气”", "鼠王"]) {
       for (const action of [...ITEM_ACTIONS, "steal", "inspect"]) {
         expect(actionsOf(animal)).not.toContain(action);
+        expect(actorOf(animal)?.proficiencies).toBeUndefined();
       }
     }
 
@@ -181,7 +186,7 @@ describe("dark fantasy seed world", () => {
     expect(actionsOf("小鼠“坏运气”")).not.toContain("brawl");
     const weaponActions = (itemName: string) => {
       const item = BELL_MONASTERY_WORLD.actors
-        .flatMap((actor) => actor.items)
+        .flatMap((actor) => actor.inventory)
         .concat(
           BELL_MONASTERY_WORLD.stages.flatMap((stage) =>
             (stage.anchors ?? []).flatMap((anchor) => anchor.items ?? []),
@@ -199,12 +204,16 @@ describe("dark fantasy seed world", () => {
         expect(actionsOf(human)).toContain(action);
       }
     }
-    expect(actionsOf("无名者")).toContain("steal");
+    // 探囊把看清与取走捆成一项技艺：只有无名者有，两个动作都出自它，
+    // 所以它们不出现在 `actions` 里。
+    expect(actorOf("无名者")?.proficiencies).toEqual([
+      expect.objectContaining({ key: "pickpocket", name: "探囊", actions: ["inspect", "steal"] }),
+    ]);
+    expect([...(actorOf("无名者")?.actions ?? [])] as string[]).not.toContain("steal");
+    expect(actionsOf("无名者")).toEqual(expect.arrayContaining(["inspect", "steal", "loot"]));
+    expect(actorOf("奥德里克")?.proficiencies).toBeUndefined();
     expect(actionsOf("奥德里克")).not.toContain("steal");
-    // 查看行囊是动作：会取物的人类都要先能看，动物看不了。
-    for (const human of ["奥德里克", "无名者"]) {
-      expect(actionsOf(human)).toContain("inspect");
-    }
+    expect(actionsOf("奥德里克")).not.toContain("inspect");
 
     // 所有场景都必须能更新 environment；向 world 报告的只有山道与钟窖，
     // 能改变连通性的只有铁闸门与地窖。
@@ -308,7 +317,7 @@ describe("dark fantasy seed world", () => {
       ]),
       ...BELL_MONASTERY_WORLD.actors.flatMap((actor) => [
         actor.name,
-        ...actor.items.map((item) => item.name),
+        ...actor.inventory.map((item) => item.name),
       ]),
     ];
     for (const name of names) {

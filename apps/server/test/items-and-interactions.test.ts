@@ -237,7 +237,7 @@ const KEEPER_ACTOR = TEST_WORLD.actors.find((actor) => actor.name === "守烬人
 if (!GATE_STAGE || !KEEPER_ACTOR) {
   throw new Error("测试世界缺少灰烬门廊或守烬人");
 }
-const TEST_BLADE = KEEPER_ACTOR.items.find((item) => item.name === "裂齿短刃");
+const TEST_BLADE = KEEPER_ACTOR.inventory.find((item) => item.name === "裂齿短刃");
 if (!TEST_BLADE) {
   throw new Error("测试世界缺少裂齿短刃");
 }
@@ -257,7 +257,7 @@ const SHARED_BLADE = {
 const MERGE_WORLD = {
   ...ITEM_WORLD,
   actors: ITEM_WORLD.actors.map((actor) =>
-    actor.name === "提灯修士" ? { ...actor, items: [...actor.items, SHARED_BLADE] } : actor,
+    actor.name === "提灯修士" ? { ...actor, inventory: [...actor.inventory, SHARED_BLADE] } : actor,
   ),
 };
 
@@ -268,8 +268,8 @@ const CLASH_WORLD = {
     actor.name === "提灯修士"
       ? {
           ...actor,
-          items: [
-            ...actor.items,
+          inventory: [
+            ...actor.inventory,
             { ...SHARED_BLADE, key: "other-blade", description: "刃口完好，柄上刻着别人的名字。" },
           ],
         }
@@ -284,7 +284,7 @@ const WEAPON_WORLD = {
       ? {
           ...actor,
           equipment: { armor: "铅封提灯" },
-          items: actor.items.map((item) =>
+          inventory: actor.inventory.map((item) =>
             item.name === "铅封提灯" ? { ...item, stats: { ...item.stats, block: 2 } } : item,
           ),
         }
@@ -298,7 +298,7 @@ const AFFIX_WORLD = {
     actor.name === "守烬人"
       ? {
           ...actor,
-          items: actor.items.map((item) =>
+          inventory: actor.inventory.map((item) =>
             item.name === "裂齿短刃"
               ? {
                   ...item,
@@ -374,7 +374,7 @@ const SEALED_WORLD: World = {
     {
       ...KEEPER_ACTOR,
       stageKey: "gate",
-      items: [
+      inventory: [
         {
           key: "sealed-key",
           name: SEALED_KEY_NAME,
@@ -1130,7 +1130,7 @@ describe.skipIf(!testDatabaseUrl)("items and interactions", () => {
         actor.name === "守烬人"
           ? {
               ...actor,
-              items: actor.items.map((item) =>
+              inventory: actor.inventory.map((item) =>
                 item.name === "裂齿短刃"
                   ? {
                       ...item,
@@ -1179,7 +1179,7 @@ describe.skipIf(!testDatabaseUrl)("items and interactions", () => {
         actor.name === "守烬人"
           ? {
               ...actor,
-              items: actor.items.map((item) =>
+              inventory: actor.inventory.map((item) =>
                 item.name === "裂齿短刃"
                   ? {
                       ...item,
@@ -1301,7 +1301,7 @@ describe.skipIf(!testDatabaseUrl)("items and interactions", () => {
         actor.name === "守烬人"
           ? {
               ...actor,
-              items: actor.items.map((item) => ({ ...item, actions: [] })),
+              inventory: actor.inventory.map((item) => ({ ...item, actions: [] })),
             }
           : actor,
       ),

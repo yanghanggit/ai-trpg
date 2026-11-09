@@ -36,7 +36,13 @@ import { insertSignature } from "./persistence/signatures";
 import { recordStageVisit } from "./persistence/visits";
 import { getGameState } from "./read/game-state";
 import type { GameState, WorldFunctionType } from "./types";
-import type { Actor, ItemDefinition, Stage, World } from "./world-definition";
+import {
+  type Actor,
+  actorInnateActions,
+  type ItemDefinition,
+  type Stage,
+  type World,
+} from "./world-definition";
 
 type PromptDump = { name: string; prompt: string };
 type ActorRef = { actorId: string; signatureId: string; name: string };
@@ -93,7 +99,7 @@ function assertUniqueItemKeys(world: World): void {
     ...world.stages.flatMap((stage) =>
       (stage.anchors ?? []).flatMap((anchor) => anchor.items ?? []),
     ),
-    ...world.actors.flatMap((actor) => actor.items),
+    ...world.actors.flatMap((actor) => actor.inventory),
   ];
   for (const item of all) {
     if (item.key.trim().length === 0) {
@@ -261,7 +267,7 @@ async function createActors(
     });
     actorRefs.set(actor.key, { actorId, signatureId, name: actor.name });
 
-    for (const item of actor.items) {
+    for (const item of actor.inventory) {
       await tx
         .insert(items)
         .values({ ...itemValues(item, await allocateEntitySeq(tx, gameId)), actorId });
@@ -315,7 +321,7 @@ async function insertActor(
     hp: actor.hp ?? stats.maxHp,
     isDefaultPlayer: actor.isDefaultPlayer ?? false,
     equipment: actor.equipment ?? {},
-    actions: [...actor.actions],
+    actions: actorInnateActions(actor),
   });
   return actorId;
 }

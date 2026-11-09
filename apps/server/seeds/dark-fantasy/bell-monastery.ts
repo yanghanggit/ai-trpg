@@ -227,7 +227,7 @@ export const BELL_MONASTERY: Script = {
         weapon: "掘墓人的铁锹",
         armor: "补丁斗篷",
       },
-      items: [
+      inventory: [
         {
           key: "gate-key",
           name: "闸门钥匙",
@@ -277,7 +277,7 @@ export const BELL_MONASTERY: Script = {
           stats: { block: 1 },
         },
       ],
-      // 人类：会说话、走动、战斗，也操作道具、穿脱装备。
+      // 人类：会说话、走动、战斗，也操作道具、穿脱装备；不会探囊。
       actions: [
         "say",
         "whisper",
@@ -287,7 +287,6 @@ export const BELL_MONASTERY: Script = {
         "brawl",
         "give",
         "pickup",
-        "inspect",
         "loot",
         "use",
         "equip",
@@ -315,7 +314,7 @@ export const BELL_MONASTERY: Script = {
       },
       hp: 10,
       stats: { maxHp: 10, strength: 7, wisdom: 1, agility: 7, damage: 7, block: 1 },
-      items: [],
+      inventory: [],
       // 动物：会说话、走动与战斗，但不操作道具。
       actions: ["say", "whisper", "announce", "move", "wait", "brawl"],
     },
@@ -339,7 +338,7 @@ export const BELL_MONASTERY: Script = {
       },
       hp: 4,
       stats: { maxHp: 4, strength: 1, wisdom: 0, agility: 10, damage: 1, block: 0 },
-      items: [],
+      inventory: [],
       // 幼崽只会说话、走动与躲避；不会战斗，也不操作道具。
       actions: ["say", "whisper", "announce", "move", "wait"],
     },
@@ -369,7 +368,7 @@ export const BELL_MONASTERY: Script = {
         armor: "发黄的裹尸布",
         accessory: "颈上的断链",
       },
-      items: [
+      inventory: [
         {
           key: "yellow-shroud",
           name: "发黄的裹尸布",
@@ -404,7 +403,16 @@ export const BELL_MONASTERY: Script = {
           },
         },
       ],
-      // 唯一会偷窃的角色；其余能力与普通人类一致（包括查看行囊）。
+      // 唯一会探囊的角色：看清与取走是同一手本事，其余能力与普通人类一致。
+      proficiencies: [
+        {
+          key: "pickpocket",
+          name: "探囊",
+          description:
+            "探囊取物：在酒气与钟灰里练出来的一双手，先看清对方身上有什么，再让那件东西悄悄换主人。",
+          actions: ["inspect", "steal"],
+        },
+      ],
       actions: [
         "say",
         "whisper",
@@ -414,10 +422,8 @@ export const BELL_MONASTERY: Script = {
         "brawl",
         "give",
         "pickup",
-        "inspect",
         "loot",
         "use",
-        "steal",
         "equip",
         "unequip",
       ],
@@ -442,7 +448,7 @@ export const BELL_MONASTERY: Script = {
       },
       hp: 120,
       stats: { maxHp: 120, strength: 60, wisdom: 100, agility: 8, damage: 60, block: 100 },
-      items: [
+      inventory: [
         {
           key: "rat-king-clapper",
           name: "旧钟的钟舌",
