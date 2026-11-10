@@ -128,7 +128,7 @@ describe.skipIf(!testDatabaseUrl)("death drops", () => {
       created.game.slug,
       "守烬人",
       { targetActorRef: "提灯修士" },
-      { appearanceService: service },
+      { inferenceService: service },
     );
     expect(hit.death?.settled).toEqual(["提灯修士"]);
     expect(hit.death?.dropped).toEqual([{ actorName: "提灯修士", items: ["浸血的灰袍碎片"] }]);
@@ -243,7 +243,7 @@ describe.skipIf(!testDatabaseUrl)("death drops", () => {
       created.game.slug,
       "守烬人",
       { targetActorRef: "提灯修士" },
-      { appearanceService: service },
+      { inferenceService: service },
     );
     expect(hit.death?.settled).toEqual(["提灯修士"]);
     expect(hit.death?.dropped).toEqual([]);

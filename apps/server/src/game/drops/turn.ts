@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
 import type { Database } from "../../db/pool";
-import { DEFAULT_ERROR_RETRIES } from "../../llm";
+import { DEFAULT_ERROR_RETRIES, loopErrorReason } from "../../llm";
 import { agentLoop } from "../../llm/agent-loop";
 import type { ChatCompletionService } from "../../llm/protocol";
 import { findActorByName } from "../actor-state";
@@ -27,18 +27,15 @@ export type DropTurnResult = TurnDelivery & {
   ok: boolean;
   /** 真正留在尸体上的材料名；模型返回空数组时也是 `ok`。 */
   dropped: string[];
+  /** 没生成时的原因：loop 失败，或模型没调用提交工具。 */
+  reason?: string;
 };
 
 /**
  * 掉落阶段：跑一次推理，把尸体留下的材料写进它自己的背包。
  *
- * 只见尸体与所在场景；掉落材料的落账与场景记忆在同一个事务里，事务外只有 LLM 调用。
- */
-
-/**
- * 掉落阶段：给一具刚宣布死亡的尸体生成材料，写进尸体自己的背包。
- *
- * 只在死亡阶段对新宣布的死者调用，所以不需要额外的幂等标记。
+ * 只见尸体与所在场景；落账与场景记忆在同一个事务里，事务外只有 LLM 调用。
+ * 幂等由调用方的死亡认领保证：一次死亡只掉一次，这里不另设标记。
  */
 export async function runDropTurn(
   db: Database,
@@ -88,7 +85,15 @@ export async function runDropTurn(
   });
 
   if (!loop.success || submitted.materials === null) {
-    return { ...(await readTurnDelivery(db, state.game.id)), ok: false, dropped: [] };
+    const reason = loop.success
+      ? "模型未调用 drop_materials 提交掉落"
+      : (loopErrorReason(loop) ?? "推理未完成");
+    return {
+      ...(await readTurnDelivery(db, state.game.id)),
+      ok: false,
+      dropped: [],
+      reason,
+    };
   }
   const dropped = submitted.materials;
   let written: string[] = [];

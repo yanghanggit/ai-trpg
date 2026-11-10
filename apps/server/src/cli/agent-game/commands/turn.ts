@@ -52,7 +52,7 @@ export type AppearanceRefreshResult = {
  * 那份幂等。想让整局「外观与死亡都跟当前状态一致」的是调试入口，它在这之后接着跑死亡阶段。
  *
  * 住在 CLI 是因为它只服务这一个维护命令：读全表、按生命状态分流，是最高层的编排；
- * `appearance/` 只管被点名的那个 actor。
+ * `appearance/` 只管被点名的活人，尸体走 `death/` 的收尾能力。
  */
 export async function refreshAppearances(
   db: Database,
@@ -155,7 +155,7 @@ export function registerTurnCommands(program: Command, ctx: CommandContext): voi
       const results = await ctx.db(async (db) => {
         const services = {
           service: DEEPSEEK_SERVICE,
-          appearanceService: DEEPSEEK_SERVICE,
+          inferenceService: DEEPSEEK_SERVICE,
           logger: ctx.log(),
         };
         if (!input.all && input.actor !== undefined) {
@@ -218,7 +218,7 @@ export function registerTurnCommands(program: Command, ctx: CommandContext): voi
     schema: appearanceInput,
     run: async (input, ctx) => {
       // --all 是批量维护：活人重推，随后把未收尾的死者交给死亡阶段。
-      // --actor 是单点干预：强制重推，尸体也照推（不写收尾标记）。
+      // --actor 是单点干预：活人走外观入口，尸体走死亡阶段的尸体刷新（不写收尾标记）。
       if (input.all || input.actor === undefined) {
         return ctx.db(async (db) => {
           const state = await getGameState(db, input.game);

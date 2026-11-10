@@ -14,6 +14,7 @@ export {
   DEFAULT_ERROR_RETRIES,
   LOOP_END_ATTR,
   LOOP_ID_ATTR,
+  loopErrorReason,
   type ToolHandler,
 } from "./agent-loop";
 export { type BatchCompleteOptions, batchComplete } from "./batch";

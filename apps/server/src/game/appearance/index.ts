@@ -1,16 +1,16 @@
+export { runAppearanceTask } from "./compose";
 export { formatForm, isValidForm, resolveAppearance } from "./form";
 export {
-  type AppearanceDeathInput,
   type AppearanceUpdateInput,
-  buildAppearanceDeathInput,
   buildAppearanceUpdateInput,
   buildSubmitAppearanceTool,
   parseAppearance,
+  renderWorn,
+  VISIBILITY_RULES,
+  wornForAppearance,
 } from "./prompt";
-export {
-  type AppearanceOptions,
-  type AppearanceResult,
-  rebuildAppearance,
-  refreshCorpseAppearance,
-  updateAppearance,
-} from "./turn";
+export { type AppearanceSnapshot, writeAppearanceSnapshot } from "./record";
+export { type RenderedAppearance, renderAppearance } from "./render";
+export { type AppearanceTarget, loadAppearanceTarget } from "./target";
+export { rebuildAppearance, updateAppearance } from "./turn";
+export type { AppearanceOptions, AppearanceOutcome, AppearanceTask } from "./types";

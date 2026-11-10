@@ -28,7 +28,7 @@ import { type AffixRequest, agentAffixes, runAffixPhase } from "../affixes";
 import { updateAppearance } from "../appearance";
 import { settleDeaths } from "../death";
 import type { DialogueJudge } from "../dialogue-audit";
-import { GameError } from "../errors";
+import { describeError, GameError } from "../errors";
 import { MAX_ACTIONS_PER_TURN } from "../limits";
 import { appendMemoryMessages, loadAgentMemory } from "../memory";
 import { MEMORY_KINDS } from "../memory/kinds";
@@ -191,8 +191,8 @@ export type ApplyActorPlanOptions = {
   judge?: DialogueJudge;
   /** 词缀补充效果需要 LLM agent。 */
   service?: ChatCompletionService;
-  /** 死亡阶段的外观快照需要 LLM；不传则跳过（下次 hp 变化或显式调用再补）。 */
-  appearanceService?: ChatCompletionService;
+  /** 提交后的推理阶段（换装外观、尸体外观、掉落）需要 LLM；不传则只跑确定性的部分。 */
+  inferenceService?: ChatCompletionService;
   /** 死亡阶段的失败只进日志与返回值，不抛给调用方。 */
   logger?: Logger;
   /** 回合轨迹；有值时记录计划、拒绝、落账与子阶段结果。 */
@@ -470,32 +470,35 @@ export async function applyActorPlan(
   const equipmentChanged = (result.applied ?? []).some(
     ({ actionKind }) => actionKind === "equip" || actionKind === "unequip",
   );
-  if (equipmentChanged && options.appearanceService) {
+  if (equipmentChanged && options.inferenceService) {
     if (!appearanceActorName) {
       throw new GameError("invalid_state", `actor 名称缺失: ${actorId}`);
     }
-    let failed = false;
+    let failureReason: string | undefined;
     try {
       const appearance = await updateAppearance(db, gameId, appearanceActorName, {
-        service: options.appearanceService,
+        service: options.inferenceService,
         ...(options.logger ? { logger: options.logger } : {}),
         ...(options.trace ? { trace: options.trace } : {}),
       });
-      failed = !appearance.ok;
+      if (!appearance.ok) {
+        failureReason = appearance.reason ?? "未生成外观";
+      }
     } catch (error) {
-      failed = true;
+      failureReason = describeError(error);
       options.logger?.warn("换装后外观重算失败", error);
     }
     await traceEvent(options.trace, {
       event: "phase",
       name: "appearance",
-      status: failed ? "failed" : "ok",
+      status: failureReason ? "failed" : "ok",
+      ...(failureReason ? { detail: { reason: failureReason } } : {}),
     });
   }
   // 死亡阶段在事务外跑：它要调 LLM，失败也不能回滚这次行动。
   try {
     result.death = await settleDeaths(db, gameId, {
-      ...(options.appearanceService ? { service: options.appearanceService } : {}),
+      ...(options.inferenceService ? { service: options.inferenceService } : {}),
       ...(options.logger ? { logger: options.logger } : {}),
       ...(options.trace ? { trace: options.trace } : {}),
     });

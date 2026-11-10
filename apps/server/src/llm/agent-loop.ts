@@ -77,6 +77,18 @@ export type AgentLoopRound = {
   appended: ChatMessage[];
 };
 
+/**
+ * loop 失败的可解释原因：取最后一轮 provider 错误的消息。
+ *
+ * 没有 provider 错误时返回 undefined——那是「模型没按约定提交」这类业务原因，
+ * 由调用方补自己的说法，基建不替业务解释。
+ */
+export function loopErrorReason(loop: AgentLoopResult): string | undefined {
+  return loop.rounds
+    .flatMap((round) => (round.completion.error ? [round.completion.error.message] : []))
+    .at(-1);
+}
+
 export class AgentLoopResult {
   readonly success: boolean;
   readonly startIndex: number;

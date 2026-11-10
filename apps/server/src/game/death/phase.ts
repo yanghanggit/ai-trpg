@@ -2,7 +2,6 @@ import type { Database } from "../../db/pool";
 import { type TraceContext, traceEvent } from "../../debug/trace";
 import type { ChatCompletionService } from "../../llm/protocol";
 import type { Logger } from "../../logging";
-import { refreshCorpseAppearance } from "../appearance";
 import { runDropTurn } from "../drops";
 import { describeError } from "../errors";
 import {
@@ -12,6 +11,7 @@ import {
 } from "../persistence/deaths";
 import type { DeathPhaseResult } from "../types";
 import { announceDeath } from "./announce";
+import { refreshCorpseAppearance } from "./corpse-appearance";
 
 /**
  * 死亡阶段：把「`hp` 归零但还没宣布」的死者各收尾一次。
@@ -20,12 +20,18 @@ import { announceDeath } from "./announce";
  * 宣布时顺带把默认玩家的死亡通知 world，是否收尾由 world 回合决定；尸体外观
  * 排在掉落之前，掉落才能读到刚写下的尸体描写。
  *
- * 每个死者独立结算；失败只进返回值与日志，不回滚也不否定触发它的行动，等下次调用重试。
+ * 幂等分两段，不要混为一谈：
+ * - 宣布是至少一次。认领失败或事务回滚都不写标记，下次扫描会重试。
+ * - 尸体外观与掉落是至多一次。它们排在认领之后，每次认领只跑一次，失败了不补账，
+ *   也不另加收尾标记：开发期不为这一步引入新的待补状态，等到需要重试时再说。
+ *   所以外观失败时，掉落读到的是生前最后一条外观，不是尸体描写。
+ *
+ * 每个死者独立结算；失败只进返回值与日志，不回滚也不否定触发它的行动。
  * 认领语义见 `claimDeath`，取舍见 docs/database.md。
  */
 
 export type DeathPhaseOptions = {
-  /** 只有尸体外观快照需要 LLM；不传就跳过外观。 */
+  /** 尸体外观与掉落都需要 LLM；不传就只跑宣布。 */
   service?: ChatCompletionService;
   logger?: Logger;
   /** 触发这次死亡阶段的回合轨迹；子阶段结果写进该回合。 */
@@ -35,16 +41,7 @@ export type DeathPhaseOptions = {
 /** 同一局的并发调用合流到同一次扫描。 */
 const running = new Map<string, Promise<DeathPhaseResult>>();
 
-/**
- * 死亡阶段：把「`hp` 归零但还没宣布」的死者各收尾一次。
- *
- * 由 hp 变化的调用方在事务之后触发，也可显式调用。顺序固定为 宣布 → 尸体外观 → 掉落：
- * 宣布时顺带把默认玩家的死亡通知 world，是否收尾由 world 回合决定；尸体外观
- * 排在掉落之前，掉落才能读到刚写下的尸体描写。
- *
- * 每个死者独立结算；失败只进返回值与日志，不回滚也不否定触发它的行动，等下次调用重试。
- * 认领语义见 `claimDeath`，取舍见 docs/database.md。
- */
+/** 入口：并发合流后跑一次扫描，细节见上方模块注释与 `runDeathPhase`。 */
 export async function settleDeaths(
   db: Database,
   gameId: string,
@@ -124,12 +121,14 @@ async function runDeathPhase(
           });
           if (!appearance.ok) {
             result.appearanceFailed.push(actor.name);
+            logger?.warn(`尸体外观快照未生成: ${actor.name}（${appearance.reason ?? "未知原因"}）`);
           }
           await traceEvent(trace, {
             event: "phase",
             name: "appearance",
             status: appearance.ok ? "ok" : "failed",
             actorName: actor.name,
+            ...(appearance.ok ? {} : { detail: { reason: appearance.reason ?? "未知原因" } }),
           });
         } catch (error) {
           result.appearanceFailed.push(actor.name);
@@ -159,6 +158,7 @@ async function runDeathPhase(
               name: "drop",
               status: "failed",
               actorName: actor.name,
+              detail: { reason: drop.reason ?? "未知原因" },
             });
             return;
           }

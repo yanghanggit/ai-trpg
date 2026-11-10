@@ -99,7 +99,7 @@ describe.skipIf(!testDatabaseUrl)("appearance fusion", () => {
         created.game.slug,
         "奥德里克",
         { slot: "weapon", itemName: "补丁斗篷" },
-        { appearanceService: service },
+        { inferenceService: service },
       ),
     ).rejects.toThrow("不能放进武器槽");
     const result = await playerUnequip(
@@ -107,7 +107,7 @@ describe.skipIf(!testDatabaseUrl)("appearance fusion", () => {
       created.game.slug,
       "奥德里克",
       { slot: "armor" },
-      { appearanceService: service },
+      { inferenceService: service },
     );
 
     expect(result.ok).toBe(true);
@@ -145,7 +145,10 @@ describe.skipIf(!testDatabaseUrl)("appearance fusion", () => {
     }
     expect(input.context.form).toContain("人类:");
     expect(input.context.task).toBe("update");
-    expect(input.context.worn.some(({ name }) => name === "补丁斗篷")).toBe(false);
+    // 上下文是开放形状：具体字段由图任务定义，测试只验它没带上被卸下的穿戴。
+    expect(input.context.worn).toEqual(
+      expect.not.arrayContaining([expect.objectContaining({ name: "补丁斗篷" })]),
+    );
     expect(input.prompt.inputMessage).toContain("外观更新");
     expect(input.prompt.messages.length).toBeGreaterThan(0);
     expect(input.prompt.tools[0]?.function.name).toBe("submit_appearance");
@@ -172,7 +175,7 @@ describe.skipIf(!testDatabaseUrl)("appearance fusion", () => {
         created.game.slug,
         "无名者",
         { slot, itemName },
-        { appearanceService: service },
+        { inferenceService: service },
       );
 
     // 护甲槽只接受 equipment 大类。
@@ -228,7 +231,7 @@ describe.skipIf(!testDatabaseUrl)("appearance fusion", () => {
       created.game.slug,
       "奥德里克",
       { slot: "armor" },
-      { appearanceService: service },
+      { inferenceService: service },
     );
 
     const memories = await getGameMemories(handle.db, created.game.id);

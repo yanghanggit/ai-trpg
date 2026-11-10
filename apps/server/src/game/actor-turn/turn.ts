@@ -52,8 +52,8 @@ import {
 
 export type ActorTurnOptions = {
   service: ChatCompletionService;
-  /** 死亡阶段的外观快照；不传则死者外观留到显式调用。 */
-  appearanceService?: ChatCompletionService;
+  /** 提交后的推理阶段（换装外观、尸体外观、掉落）需要 LLM；不传则只跑确定性的部分。 */
+  inferenceService?: ChatCompletionService;
   maxRounds?: number;
   logger?: Parameters<typeof agentLoop>[0]["logger"];
   /** 真实 RAG provider；所有 actor 都能用 query 检索，测试可注入假 provider。 */
@@ -224,7 +224,7 @@ export async function runActorTurn(
   const plan = session.plan;
   const applied = await applyActorPlan(db, state.game.id, current.actor.id, plan, loop.success, {
     service: options.service,
-    ...(options.appearanceService ? { appearanceService: options.appearanceService } : {}),
+    ...(options.inferenceService ? { inferenceService: options.inferenceService } : {}),
     ...optional,
   });
   await traceEvent(trace, {

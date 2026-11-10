@@ -222,7 +222,7 @@ describe.skipIf(!testDatabaseUrl)("death phase", () => {
       created.game.slug,
       "守烬人",
       { targetActorRef: "提灯修士" },
-      { appearanceService: service },
+      { inferenceService: service },
     );
     expect(attacked.ok).toBe(true);
     // 修士没有死（还剩下 HP），所以不该有死亡阶段。
@@ -240,7 +240,7 @@ describe.skipIf(!testDatabaseUrl)("death phase", () => {
       created.game.slug,
       "守烬人",
       { targetActorRef: "提灯修士" },
-      { appearanceService: service },
+      { inferenceService: service },
     );
     expect(killed.ok).toBe(true);
     expect(service.calls).toBe(1);
@@ -303,14 +303,14 @@ describe.skipIf(!testDatabaseUrl)("death phase", () => {
       created.game.slug,
       "守烬人",
       { targetActorRef: "提灯修士" },
-      { appearanceService: service },
+      { inferenceService: service },
     );
     await playerStrike(
       handle.db,
       created.game.slug,
       "守烬人",
       { targetActorRef: "提灯修士" },
-      { appearanceService: service },
+      { inferenceService: service },
     );
 
     const state = await getGameState(handle.db, created.game.slug);
@@ -479,7 +479,7 @@ describe.skipIf(!testDatabaseUrl)("death phase", () => {
       created.game.slug,
       "守烬人",
       { targetActorRef: "提灯修士" },
-      { appearanceService: new FailingAppearanceService() },
+      { inferenceService: new FailingAppearanceService() },
     );
     expect(result.ok).toBe(true);
     expect(result.death?.settled).toEqual(["提灯修士"]);
@@ -591,7 +591,7 @@ describe.skipIf(!testDatabaseUrl)("death phase does not block death", () => {
         created.game.slug,
         "守烬人",
         { targetActorRef: "提灯修士" },
-        { appearanceService: failing },
+        { inferenceService: failing },
       );
     await kill();
     const killing = await kill();
@@ -662,7 +662,7 @@ describe.skipIf(!testDatabaseUrl)("death phase does not block death", () => {
         created.game.slug,
         "守烬人",
         { targetActorRef: "提灯修士" },
-        { appearanceService: service },
+        { inferenceService: service },
       );
     await strike();
     await strike();
@@ -750,7 +750,7 @@ describe.skipIf(!testDatabaseUrl)("corpses can be operated on", () => {
         created.game.slug,
         "守烬人",
         { targetActorRef: "提灯修士" },
-        service ? { appearanceService: service } : {},
+        service ? { inferenceService: service } : {},
       );
     await strike();
     await strike();

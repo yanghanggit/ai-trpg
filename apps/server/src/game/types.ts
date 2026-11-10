@@ -602,7 +602,7 @@ export type DeathPhaseResult = {
   failed: DeathPhaseFailure[];
   /** 死亡已宣布、但尸体外观快照没推成的 actor；按设计可以放着不管。 */
   appearanceFailed: string[];
-  /** 本次掉落进场景的材料；`items` 是落到地上的物品名。 */
+  /** 本次掉落的材料；材料写进尸体自己的背包（靠 `loot` 取走），`items` 是写成功的那几条名字。 */
   dropped: { actorName: string; items: string[] }[];
   /** 宣布成功但掉落没跑成、或返回物不合法的 actor；按设计可以放着不管。 */
   dropFailed: string[];

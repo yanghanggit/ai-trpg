@@ -994,7 +994,7 @@ describe.skipIf(!testDatabaseUrl)("items and interactions", () => {
       { targetActorRef: "提灯修士" },
       {
         service: new AffixDamageService(),
-        appearanceService: deathService,
+        inferenceService: deathService,
       },
     );
     expect(attacked.ok).toBe(true);

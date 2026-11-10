@@ -78,7 +78,7 @@ describe.skipIf(!testDatabaseUrl)("equip and unequip actions", () => {
       .flatMap((stage) => stage.actors)
       .find((actor) => actor.name === "奥德里克");
     expect(keeper?.equipment.armor).toBe("补丁斗篷");
-    // 没提供 appearanceService：动作不会顺手改外观，需要 agent:game appearance 单独推动。
+    // 没提供 inferenceService：动作不会顺手改外观，需要 agent:game appearance 单独推动。
     expect(keeper?.appearance.text).toBe(appearanceBefore);
     expect(state.messages.map((message) => message.kind)).toEqual(["unequip", "equip"]);
 
@@ -243,7 +243,7 @@ describe.skipIf(!testDatabaseUrl)("equip and unequip actions", () => {
     expect(seen).not.toContain("无名者");
   });
 
-  it("提供 appearanceService 时，换装在事务外补一次外观推理", async () => {
+  it("提供 inferenceService 时，换装在事务外补一次外观推理", async () => {
     const created = await createKeeperGame("换装推外观测试局");
     const service = new AppearanceSubmitService("只穿旧衬衣，腰间别着铁锹。");
     const removed = await playerUnequip(
@@ -251,7 +251,7 @@ describe.skipIf(!testDatabaseUrl)("equip and unequip actions", () => {
       created.game.slug,
       "奥德里克",
       { slot: "armor" },
-      { appearanceService: service },
+      { inferenceService: service },
     );
     expect(removed.ok).toBe(true);
     // 玩家路径没有规划 loop，只有这一次外观 loop。
@@ -286,7 +286,7 @@ describe.skipIf(!testDatabaseUrl)("equip and unequip actions", () => {
     const appearance = new AppearanceSubmitService("空着手，旧斗篷还披在肩上。");
     const turn = await runActorTurn(handle.db, created.game.slug, "奥德里克", {
       service: planner,
-      appearanceService: appearance,
+      inferenceService: appearance,
     });
     expect(turn.ok).toBe(true);
     expect(planner.calls).toBe(1);

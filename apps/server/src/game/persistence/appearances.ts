@@ -4,7 +4,6 @@ import { actorSignatures, appearances } from "../../db/schema";
 import type { ChatMessage, ToolDefinition } from "../../llm/types";
 import type { Executor } from "../apply/types";
 import { GameError } from "../errors";
-import type { AppearanceWornItem } from "../types";
 
 /**
  * 外观渲染的持久化原语。
@@ -42,23 +41,16 @@ export type AppearanceInput =
     };
 
 /**
- * 运行时外观的生成上下文：两种任务各自一个形状，`death` 多一份底座。
+ * 运行时外观的生成上下文：任务标签 + 该任务自己的结构化细节，原样进审计快照。
+ *
+ * 存储只要求一个 `task` 标签，不枚举有哪些任务：任务形状归调用方的业务，
+ * 增一个任务不改存储类型。
  */
-export type AppearanceContext =
-  | {
-      task: "update";
-      form: string;
-      worn: readonly AppearanceWornItem[];
-      contentVersion: string;
-    }
-  | {
-      task: "death";
-      form: string;
-      worn: readonly AppearanceWornItem[];
-      /** 刷新前的那一份外观。 */
-      base: string;
-      contentVersion: string;
-    };
+export type AppearanceContext = {
+  /** 任务标签，取值由调用方定义（`update` / `death` / …）。 */
+  task: string;
+  [field: string]: unknown;
+};
 
 export type AppearanceWrite = {
   gameId: string;

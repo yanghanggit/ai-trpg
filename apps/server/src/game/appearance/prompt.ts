@@ -5,12 +5,13 @@ import { equippedItems } from "../item-state";
 import { type ActorState, type AppearanceWornItem, EQUIPMENT_SLOT_LABELS } from "../types";
 
 /**
- * 外观两个任务的输入，各是一个函数：`update` 重新生成，`death` 以当前外观为底刷新。
+ * 外观推理的提交契约与共享片段：终止工具、产出校验、穿戴解析与可见性规则。
  *
- * 两个任务共用的只有穿戴解析、可见性规则与提交工具；任务文本各写各的，不靠开关拼。
+ * `update` 的任务文本在本模块；`death` 的任务文本在 `death/corpse-appearance.ts`——
+ * 任务文本归业务，这里只留两边共用的部分，不靠开关拼。
  */
 
-/** 外观推理的终止工具：两种任务都靠它提交结果。 */
+/** 外观推理的终止工具。 */
 export function buildSubmitAppearanceTool(): ToolDefinition {
   return {
     type: "function",
@@ -50,7 +51,7 @@ export function parseAppearance(
  * 饰品不参与：这个大类在不同题材里语义漂移（它也可能指与外观无关的植入物），引擎只保留
  * 槽位与穿戴索引，外观只消费武器与护甲两个槽。见 docs/data-driven.md。
  */
-function wornForAppearance(actor: ActorState): AppearanceWornItem[] {
+export function wornForAppearance(actor: ActorState): AppearanceWornItem[] {
   return equippedItems(actor)
     .filter(({ slot }) => slot !== "accessory")
     .map(({ slot, item }) => ({
@@ -62,7 +63,7 @@ function wornForAppearance(actor: ActorState): AppearanceWornItem[] {
     }));
 }
 
-function renderWorn(worn: readonly AppearanceWornItem[]): string {
+export function renderWorn(worn: readonly AppearanceWornItem[]): string {
   if (worn.length === 0) {
     return "无";
   }
@@ -74,8 +75,8 @@ function renderWorn(worn: readonly AppearanceWornItem[]): string {
     .join("\n");
 }
 
-/** 两个任务共用的可见性规则。 */
-const VISIBILITY_RULES = `只使用上面列出的穿戴项；没列出的装备不存在，不要虚构。形态里没写到的穿戴视为没有装备。形态已经写定的部分不要改写。
+/** 外观任务共用的可见性规则。 */
+export const VISIBILITY_RULES = `只使用上面列出的穿戴项；没列出的装备不存在，不要虚构。形态里没写到的穿戴视为没有装备。形态已经写定的部分不要改写。
 
 穿戴不等于露出：只写从外面能看见的部分。被外层遮住的部分与收在里面看不见的东西不要提，也不为了提到它去改写外形。
 
@@ -108,48 +109,4 @@ ${renderWorn(worn)}
 
 ${VISIBILITY_RULES}`;
   return { inputMessage, form: actor.signature.form, worn };
-}
-
-export type AppearanceDeathInput = {
-  inputMessage: string;
-  form: string;
-  worn: AppearanceWornItem[];
-  base: string;
-};
-
-/**
- * `death`：以刷新前的当前外观为底，把「已经死亡」翻译成看得见的样子。
- *
- * 「死亡」「尸体」是跨题材通用的状态词，可以留在引擎；材质与痕迹不点名：任务只给
- * 姿态、表面与结构三个维度，不说穿戴掉落在哪、也不说周围留下什么——那属于引擎没有
- * 的机制，写进提示词等于教模型编造。见 docs/data-driven.md。
- */
-export function buildAppearanceDeathInput(actor: ActorState, base: string): AppearanceDeathInput {
-  const worn = wornForAppearance(actor);
-  const inputMessage = `# 尸体外观
-
-你已经死亡。以你此刻的外观为底，用第三人称写出尸体现在的样子。
-
-## 形态
-
-${actor.signature.form}
-
-## 你此刻的外观
-
-${base}
-
-## 你身上的穿戴
-
-${renderWorn(worn)}
-
-# 本轮任务
-
-写出尸体此刻的样子：在现有外观上体现死亡带来的变化。
-
-- 记忆里若有造成这次死亡的可见事实，用它；没有就不要猜。
-- 只动姿态、表面与结构。
-- 不加原本没有的东西；形态与穿戴不变。
-
-${VISIBILITY_RULES}`;
-  return { inputMessage, form: actor.signature.form, worn, base };
 }
