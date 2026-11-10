@@ -13,11 +13,11 @@ import {
   playerStrike,
   playerUse,
   runDropPhase,
-  settleDeaths,
   takeActorControl,
 } from "../src/game";
 import { loadAgentMemory } from "../src/game/memory";
 import { ChatCompletionResult, type ChatCompletionService } from "../src/llm";
+import { declaredNames, failureReasons, settleAllDeaths } from "./death-settlement";
 
 const testDatabaseUrl = process.env.TEST_DATABASE_URL?.trim();
 
@@ -130,9 +130,9 @@ describe.skipIf(!testDatabaseUrl)("death drops", () => {
       { targetActorRef: "提灯修士" },
       { inferenceService: service },
     );
-    expect(hit.death?.settled).toEqual(["提灯修士"]);
-    expect(hit.death?.dropped).toEqual([{ actorName: "提灯修士", items: ["浸血的灰袍碎片"] }]);
-    expect(hit.death?.dropFailed).toEqual([]);
+    expect(declaredNames(hit.death ?? [])).toEqual(["提灯修士"]);
+    expect(hit.death?.[0]?.dropped).toEqual(["浸血的灰袍碎片"]);
+    expect(failureReasons(hit.death ?? [], "drop")).toEqual([]);
     // 掉落推理的宪法自带该局设定与自己的口径；任务提示词只放本轮事实。
     expect(
       service.systemPrompts.some(
@@ -245,9 +245,11 @@ describe.skipIf(!testDatabaseUrl)("death drops", () => {
       { targetActorRef: "提灯修士" },
       { inferenceService: service },
     );
-    expect(hit.death?.settled).toEqual(["提灯修士"]);
-    expect(hit.death?.dropped).toEqual([]);
-    expect(hit.death?.dropFailed).toEqual(["提灯修士"]);
+    expect(declaredNames(hit.death ?? [])).toEqual(["提灯修士"]);
+    expect(hit.death?.[0]?.dropped).toEqual([]);
+    expect(failureReasons(hit.death ?? [], "drop")).toEqual([
+      { actorName: "提灯修士", reason: expect.any(String) },
+    ]);
 
     const monk = (await getGameState(handle.db, created.game.slug)).world.stages
       .flatMap((stage) => stage.actors)
@@ -261,9 +263,9 @@ describe.skipIf(!testDatabaseUrl)("death drops", () => {
       name: "离线死亡测试局",
       world: { ...TEST_WORLD, actors: TEST_WORLD.actors.map((actor) => ({ ...actor, hp: 0 })) },
     });
-    const phase = await settleDeaths(handle.db, created.game.id);
-    expect(phase.settled.length).toBeGreaterThan(0);
-    expect(phase.dropped).toEqual([]);
-    expect(phase.dropFailed).toEqual([]);
+    const settlements = await settleAllDeaths(handle.db, created.game.id);
+    expect(declaredNames(settlements).length).toBeGreaterThan(0);
+    expect(settlements.flatMap(({ dropped }) => dropped)).toEqual([]);
+    expect(failureReasons(settlements, "drop")).toEqual([]);
   });
 });

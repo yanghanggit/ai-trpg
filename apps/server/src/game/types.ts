@@ -584,28 +584,24 @@ export type SignatureNameState = {
   learnedStageId: string | null;
 };
 
-/** 死亡阶段里一个没做成的收尾动作；失败不改变 hp，也不撤销已宣布的死亡。 */
-export type DeathPhaseFailure = {
-  actorName: string;
-  reason: string;
-};
-
 /**
- * 一次死亡阶段的结果。
+ * 一个死者的收尾记录：宣布、尸体外观、掉落三段的结果并排。
  *
- * 阶段本身不抛业务错误：单个死者失败只记录在这里，标记没写成，下次调用会重试。
+ * 收尾逐人推进——调用方先取名单再逐个调用，所以这里不聚合多人，也不表达「这一局
+ * 死了几个」。业务失败只落在这份记录里，不改变 hp，也不撤销已宣布的死亡。
  */
-export type DeathPhaseResult = {
-  /** 本次认领并宣布死亡的 actor。 */
-  settled: string[];
-  /** 认领或宣布失败、需要重试的 actor 与原因。 */
-  failed: DeathPhaseFailure[];
-  /** 死亡已宣布、但尸体外观快照没推成的 actor；按设计可以放着不管。 */
-  appearanceFailed: string[];
-  /** 本次掉落的材料；材料写进尸体自己的背包（靠 `loot` 取走），`items` 是写成功的那几条名字。 */
-  dropped: { actorName: string; items: string[] }[];
-  /** 宣布成功但掉落没跑成、或返回物不合法的 actor；按设计可以放着不管。 */
-  dropFailed: string[];
+export type DeathSettlement = {
+  actorName: string;
+  /** 认领赢了并宣布成功；false 表示别人已宣布，或死者刚复活。 */
+  declared: boolean;
+  /** 宣布失败、需要重试的原因；这类失败不写标记，下次扫描会再来。 */
+  failure?: string;
+  /** 死亡已宣布、但尸体外观快照没推成的原因；按设计放着不管。 */
+  appearanceFailure?: string;
+  /** 这次写进尸体的材料名；材料在尸体背包里，靠 `loot` 取走。 */
+  dropped: string[];
+  /** 宣布成功但掉落没跑成、或返回物不合法的原因；按设计放着不管。 */
+  dropFailure?: string;
 };
 
 /**
@@ -624,8 +620,8 @@ export type ActorTurnResult = TurnDelivery & {
   ok: boolean;
   plan: ActorPlan | null;
   loopSuccess: boolean;
-  /** 本次行动之后死亡阶段的结果；失败不回滚这次行动，但要让上层看得见。 */
-  death?: DeathPhaseResult;
+  /** 本次行动之后逐个收尾的死者；失败不回滚这次行动，但要让上层看得见。 */
+  death?: DeathSettlement[];
 };
 
 export type StageTurnResult = TurnDelivery & {

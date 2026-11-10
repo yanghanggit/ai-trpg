@@ -26,7 +26,7 @@ import type { AddressLookup } from "../addressing";
 import { sanitizeActorFacingText } from "../addressing";
 import { type AffixRequest, agentAffixes, runAffixPhase } from "../affixes";
 import { updateAppearance } from "../appearance";
-import { settleDeaths } from "../death";
+import { scanDeathsToSettle, settleDeath } from "../death";
 import type { DialogueJudge } from "../dialogue-audit";
 import { describeError, GameError } from "../errors";
 import { MAX_ACTIONS_PER_TURN } from "../limits";
@@ -35,7 +35,7 @@ import { MEMORY_KINDS } from "../memory/kinds";
 import { auditTurnNameLeaks, nameAuditEnabled, nameAuditSince } from "../name-audit";
 import { upsertSignatureName } from "../persistence/signature-names";
 import { describeRoute, describeRouteFailure } from "../route";
-import type { ActorPlan, CommunicationKind, DeathPhaseResult } from "../types";
+import type { ActorPlan, CommunicationKind, DeathSettlement } from "../types";
 import { bumpGameVersion } from "./messages";
 import { isAlive, listStageActorRefs, loadRouteWorld, stageAddressLookup } from "./queries";
 
@@ -180,9 +180,9 @@ export type ApplyPlanResult = {
   affixRequests?: AffixRequest[];
   /** 实际落账的动作事件（事务提交后才写轨迹）。 */
   applied?: { event: "applied"; actionKind: string; feedback: string }[];
-  /** 死亡阶段的结果（含失败与重试信息）；失败不回滚这次行动。 */
-  death?: DeathPhaseResult;
-  /** 死亡阶段整体没能跑起来的原因（例如数据库错误）；行动本身仍然成功。 */
+  /** 这次行动之后逐个收尾的死者；失败不回滚这次行动。 */
+  death?: DeathSettlement[];
+  /** 取死者名单这一步没能跑起来的原因（例如数据库错误）；行动本身仍然成功。 */
   deathError?: string;
 };
 
@@ -495,17 +495,23 @@ export async function applyActorPlan(
       ...(failureReason ? { detail: { reason: failureReason } } : {}),
     });
   }
-  // 死亡阶段在事务外跑：它要调 LLM，失败也不能回滚这次行动。
+  // 死亡收尾在事务外跑：它要调 LLM，失败也不能回滚这次行动。
+  // 一次行动可能打死多个目标，所以先取名单再逐个推进；单个死者失败只落在自己那条记录里。
+  const settlementOptions = {
+    ...(options.inferenceService ? { service: options.inferenceService } : {}),
+    ...(options.logger ? { logger: options.logger } : {}),
+    ...(options.trace ? { trace: options.trace } : {}),
+  };
+  const settlements: DeathSettlement[] = [];
+  result.death = settlements;
   try {
-    result.death = await settleDeaths(db, gameId, {
-      ...(options.inferenceService ? { service: options.inferenceService } : {}),
-      ...(options.logger ? { logger: options.logger } : {}),
-      ...(options.trace ? { trace: options.trace } : {}),
-    });
+    for (const actor of await scanDeathsToSettle(db, gameId)) {
+      settlements.push(await settleDeath(db, gameId, actor, settlementOptions));
+    }
   } catch (error) {
-    // 标记没写成：下一次 hp 变化或 `agent:game deaths` 会再来。
+    // 名单没取成：下一次 hp 变化或 `agent:game deaths` 会再来。
     result.deathError = error instanceof Error ? error.message : String(error);
-    options.logger?.warn("死亡阶段失败，下次调用会重试", error);
+    options.logger?.warn("死亡收尾扫描失败，下次调用会重试", error);
   }
   await auditNames();
   return result;

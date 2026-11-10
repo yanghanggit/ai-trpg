@@ -16,9 +16,9 @@ import {
   MAX_WORLD_ACTIONS_PER_TURN,
   runStageTurn,
   runWorldTurn,
-  settleDeaths,
 } from "../src/game";
 import { ChatCompletionResult, type ChatCompletionService, type ToolCall } from "../src/llm";
+import { declaredNames, settleAllDeaths } from "./death-settlement";
 import { TEST_WORLD } from "./test-world";
 
 const testDatabaseUrl = process.env.TEST_DATABASE_URL?.trim();
@@ -236,8 +236,8 @@ describe.skipIf(!testDatabaseUrl)("world agent", () => {
       world,
     });
 
-    const phase = await settleDeaths(handle.db, created.game.id);
-    expect(phase.settled).toEqual(["提灯修士"]);
+    const settlements = await settleAllDeaths(handle.db, created.game.id);
+    expect(declaredNames(settlements)).toEqual(["提灯修士"]);
 
     const afterDeath = await getGameState(handle.db, created.game.slug);
     expect(afterDeath.game.status).toBe("active");

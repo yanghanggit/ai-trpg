@@ -17,13 +17,15 @@ import { loadWorldByGame } from "../persistence/worlds";
 /**
  * 宣布死亡：一个事务里认领死者、广播倒下、写场景事件与死者自己的记忆。
  *
- * 认领（`claimDeath`）是并发下的唯一裁决点：输了就说明别人已经宣布，直接返回 false，
- * 不重复广播；死者刚复活也在这里被挡住。主角死亡对 world 的通知排在事务之后，
- * 走 `memory/world-channel.ts`——world 聚合不完整不能反过来否定已经宣布的事实。
+ * 文件叫 `declare` 而不是 `announce`：`announce` 是角色动作的名字（`actions/announce.ts`），
+ * 而这里写的是引擎认定的事实，两者不该同名。认领（`claimDeath`）是并发下的唯一裁决点：
+ * 输了就说明别人已经宣布，直接返回 false，不重复广播；死者刚复活也在这里被挡住。
+ * 主角死亡对 world 的通知排在事务之后，走 `memory/world-channel.ts`——world 聚合
+ * 不完整不能反过来否定已经宣布的事实。
  */
 
 /** 宣布一个 actor 死亡；认领失败（别人已宣布，或死者刚复活）时返回 false。 */
-export async function announceDeath(
+export async function declareDeath(
   db: Database,
   gameId: string,
   actor: PendingDeath,
@@ -32,7 +34,7 @@ export async function announceDeath(
   const { trace, logger } = options;
   const content = `${actor.name}倒下了，不再有任何生命迹象。`;
   const now = new Date();
-  const announced = await db.transaction(async (tx) => {
+  const declared = await db.transaction(async (tx) => {
     if (!(await claimDeath(tx, actor.id, now))) {
       return false;
     }
@@ -79,7 +81,7 @@ export async function announceDeath(
     await bumpGameVersion(tx, gameId, now);
     return true;
   });
-  if (!announced) {
+  if (!declared) {
     return false;
   }
   if (actor.isDefaultPlayer) {

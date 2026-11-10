@@ -1,3 +1,4 @@
+export type { PendingDeath } from "../persistence/deaths";
 export {
   buildCorpseAppearanceInput,
   type CorpseAppearanceInput,
@@ -10,4 +11,8 @@ export {
   runDropPhase,
 } from "./drop";
 export { buildDropMaterialsTool, parseDrops } from "./drop-materials";
-export { type DeathPhaseOptions, settleDeaths } from "./phase";
+export {
+  type DeathSettlementOptions,
+  scanDeathsToSettle,
+  settleDeath,
+} from "./settle";

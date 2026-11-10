@@ -29,6 +29,14 @@ const WORLD_MEMORY_ACCESS: readonly string[] = [
   "world-turn/arbitrate.ts",
 ];
 
+/**
+ * 暂未加守卫：stage memory 的写入。
+ *
+ * 观察原语（`observations/`）是它目前唯一的入口，但这只靠约定：漏网形态是「拿到别人的
+ * memory row 后直接 appendMemoryMessages」，源码扫描看不住。等 `observations/` 成为
+ * 独立主题，或把 `appendMemoryMessages` 收窄到观察与压缩两处时一并收。
+ */
+
 function listTsFiles(dir: string, prefix = ""): string[] {
   return readdirSync(dir, { withFileTypes: true }).flatMap((entry) => {
     const relative = prefix ? `${prefix}/${entry.name}` : entry.name;

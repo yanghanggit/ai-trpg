@@ -18,11 +18,17 @@ import {
   runActorTurn,
   runStageTurn,
   runWorldTurn,
-  settleDeaths,
+  scanDeathsToSettle,
+  settleDeath,
   updateAppearance,
 } from "../../../game";
 import { listActorsForAppearance } from "../../../game/persistence/actors";
-import type { ActorTurnResult, StageTurnResult, WorldTurnResult } from "../../../game/types";
+import type {
+  ActorTurnResult,
+  DeathSettlement,
+  StageTurnResult,
+  WorldTurnResult,
+} from "../../../game/types";
 import type { ChatCompletionService } from "../../../llm/protocol";
 import type { Logger } from "../../../logging";
 import { gameOption, gameRef, optionalActorOption, optionalOption } from "../args";
@@ -225,8 +231,12 @@ export function registerTurnCommands(program: Command, ctx: CommandContext): voi
           const refreshed = await refreshAppearances(db, state.game.id, {
             service: DEEPSEEK_SERVICE,
           });
-          const death = await settleDeaths(db, state.game.id, { service: DEEPSEEK_SERVICE });
-          return { ...refreshed, ...death };
+          // 尸体逐个收尾：先取名单，再 for 循环推进，一次一具。
+          const deaths: DeathSettlement[] = [];
+          for (const actor of await scanDeathsToSettle(db, state.game.id)) {
+            deaths.push(await settleDeath(db, state.game.id, actor, { service: DEEPSEEK_SERVICE }));
+          }
+          return { ...refreshed, deaths };
         });
       }
       const actor = input.actor;
@@ -252,8 +262,12 @@ export function registerTurnCommands(program: Command, ctx: CommandContext): voi
     run: async (input, ctx) =>
       ctx.db(async (db) => {
         const state = await getGameState(db, input.game);
-        // 外观失败按设计可以不管，所以 ok 只看死亡是否宣布成功。
-        return { ...(await settleDeaths(db, state.game.id, { service: DEEPSEEK_SERVICE })) };
+        // 逐个死者推进：名单取自扫描，循环留在命令这一层。
+        const deaths: DeathSettlement[] = [];
+        for (const actor of await scanDeathsToSettle(db, state.game.id)) {
+          deaths.push(await settleDeath(db, state.game.id, actor, { service: DEEPSEEK_SERVICE }));
+        }
+        return { deaths };
       }),
   });
 }

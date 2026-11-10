@@ -17,7 +17,6 @@ import {
   playerWait,
   releaseActorControl,
   runActorTurn,
-  settleDeaths,
   takeActorControl,
 } from "../src/game";
 import { describeStats } from "../src/game/actor-turn";
@@ -25,6 +24,7 @@ import { formatForm } from "../src/game/appearance/form";
 import { loadAgentMemory } from "../src/game/memory";
 import { claimDeath } from "../src/game/persistence/deaths";
 import { ChatCompletionResult, type ChatCompletionService } from "../src/llm";
+import { declaredNames, failureReasons, settleAllDeaths } from "./death-settlement";
 
 const testDatabaseUrl = process.env.TEST_DATABASE_URL?.trim();
 
@@ -279,8 +279,8 @@ describe.skipIf(!testDatabaseUrl)("death phase", () => {
     expect(deathInput.prompt.inputMessage).toContain(context.base);
 
     // 收尾只跑一次：第二次扫描不再重复调用。
-    const again = await settleDeaths(handle.db, created.game.id, { service });
-    expect(again.settled).toEqual([]);
+    const again = await settleAllDeaths(handle.db, created.game.id, { service });
+    expect(declaredNames(again)).toEqual([]);
     expect(service.calls).toBe(1);
   });
 
@@ -356,13 +356,13 @@ describe.skipIf(!testDatabaseUrl)("death phase", () => {
 
     await handle.db.update(actors).set({ hp: 0 }).where(eq(actors.id, monk.id));
     const service = new DeathAppearanceService();
-    const first = await settleDeaths(handle.db, created.game.id, { service });
-    expect(first.settled).toEqual(["提灯修士"]);
+    const first = await settleAllDeaths(handle.db, created.game.id, { service });
+    expect(declaredNames(first)).toEqual(["提灯修士"]);
 
     // 模拟复活：hp 回到正数。
     await handle.db.update(actors).set({ hp: 5 }).where(eq(actors.id, monk.id));
-    const cleared = await settleDeaths(handle.db, created.game.id, { service });
-    expect(cleared.settled).toEqual([]);
+    const cleared = await settleAllDeaths(handle.db, created.game.id, { service });
+    expect(declaredNames(cleared)).toEqual([]);
     const revived = await getGameState(handle.db, created.game.slug);
     expect(
       revived.world.stages
@@ -372,8 +372,8 @@ describe.skipIf(!testDatabaseUrl)("death phase", () => {
 
     // 再次死亡 → 重新收尾。
     await handle.db.update(actors).set({ hp: 0 }).where(eq(actors.id, monk.id));
-    const second = await settleDeaths(handle.db, created.game.id, { service });
-    expect(second.settled).toEqual(["提灯修士"]);
+    const second = await settleAllDeaths(handle.db, created.game.id, { service });
+    expect(declaredNames(second)).toEqual(["提灯修士"]);
     expect(service.calls).toBe(2);
   });
 
@@ -415,12 +415,11 @@ describe.skipIf(!testDatabaseUrl)("death phase", () => {
     await handle.db.update(actors).set({ hp: 0 }).where(eq(actors.id, monk.id));
 
     const [first, second] = await Promise.all([
-      settleDeaths(handle.db, created.game.id),
-      settleDeaths(handle.db, created.game.id),
+      settleAllDeaths(handle.db, created.game.id),
+      settleAllDeaths(handle.db, created.game.id),
     ]);
-    // 进程内同局合流：两个调用共享同一次扫描，不会各自宣布一遍。
-    expect(first.settled).toEqual(["提灯修士"]);
-    expect(second.settled).toEqual(first.settled);
+    // 认领是数据库上的 compare-and-set：两个调用合起来只有一个能宣布。
+    expect([...declaredNames(first), ...declaredNames(second)]).toEqual(["提灯修士"]);
 
     const state = await getGameState(handle.db, created.game.slug);
     expect(state.messages.filter((message) => message.kind === "death")).toHaveLength(1);
@@ -440,9 +439,9 @@ describe.skipIf(!testDatabaseUrl)("death phase", () => {
     });
 
     // 没有攻击、没有外观服务：只有 hp 归零这个事实。
-    const phase = await settleDeaths(handle.db, created.game.id);
-    expect(phase.settled).toEqual(["提灯修士"]);
-    expect(phase.failed).toEqual([]);
+    const settlements = await settleAllDeaths(handle.db, created.game.id);
+    expect(declaredNames(settlements)).toEqual(["提灯修士"]);
+    expect(failureReasons(settlements, "announce")).toEqual([]);
 
     const state = await getGameState(handle.db, created.game.slug);
     expect(state.game.status).toBe("active");
@@ -470,14 +469,14 @@ describe.skipIf(!testDatabaseUrl)("death phase", () => {
       .delete(agentMemories)
       .where(and(eq(agentMemories.gameId, created.game.id), eq(agentMemories.ownerType, "world")));
 
-    const phase = await settleDeaths(handle.db, created.game.id);
-    expect(phase.settled).toEqual(["提灯修士"]);
-    expect(phase.failed).toEqual([]);
+    const settlements = await settleAllDeaths(handle.db, created.game.id);
+    expect(declaredNames(settlements)).toEqual(["提灯修士"]);
+    expect(failureReasons(settlements, "announce")).toEqual([]);
 
     // 宣布与广播不依赖 world：认领已落账，下一次扫描不会把它当成待收尾的死者。
     const state = await getGameState(handle.db, created.game.slug);
     expect(state.messages.filter((message) => message.kind === "death")).toHaveLength(1);
-    expect((await settleDeaths(handle.db, created.game.id)).settled).toEqual([]);
+    expect(declaredNames(await settleAllDeaths(handle.db, created.game.id))).toEqual([]);
     expect(
       await loadAgentMemory(handle.db, created.game.id, "world", created.world.id),
     ).toBeUndefined();
@@ -512,9 +511,11 @@ describe.skipIf(!testDatabaseUrl)("death phase", () => {
       { inferenceService: new FailingAppearanceService() },
     );
     expect(result.ok).toBe(true);
-    expect(result.death?.settled).toEqual(["提灯修士"]);
-    expect(result.death?.failed).toEqual([]);
-    expect(result.death?.appearanceFailed).toEqual(["提灯修士"]);
+    expect(declaredNames(result.death ?? [])).toEqual(["提灯修士"]);
+    expect(failureReasons(result.death ?? [], "announce")).toEqual([]);
+    expect(failureReasons(result.death ?? [], "appearance")).toEqual([
+      { actorName: "提灯修士", reason: expect.any(String) },
+    ]);
 
     const state = await getGameState(handle.db, created.game.slug);
     expect(state.game.status).toBe("active");
@@ -552,7 +553,7 @@ describe.skipIf(!testDatabaseUrl)("appearance maintenance", () => {
     // 先把修士打死并完成收尾。
     await handle.db.update(actors).set({ hp: 0 }).where(eq(actors.id, monk.id));
     const service = new DeathAppearanceService();
-    expect((await settleDeaths(handle.db, created.game.id, { service })).settled).toEqual([
+    expect(declaredNames(await settleAllDeaths(handle.db, created.game.id, { service }))).toEqual([
       "提灯修士",
     ]);
     expect(service.calls).toBe(1);
@@ -565,8 +566,8 @@ describe.skipIf(!testDatabaseUrl)("appearance maintenance", () => {
     expect(result.skippedCorpses).toEqual(["提灯修士"]);
     expect(result.refreshed).toEqual(["守烬人", "缄默抄经人"]);
     // 已收尾的尸体不再宣布，也不会补一次外观。
-    const settled = await settleDeaths(handle.db, created.game.id, { service });
-    expect(settled.settled).toEqual([]);
+    const settled = await settleAllDeaths(handle.db, created.game.id, { service });
+    expect(declaredNames(settled)).toEqual([]);
     // 1（死亡收尾）+ 2（活人）= 3，没有第三次给尸体。
     expect(service.calls).toBe(3);
 
@@ -642,11 +643,11 @@ describe.skipIf(!testDatabaseUrl)("death phase does not block death", () => {
     expect(deathMessage?.content).toBe("提灯修士倒下了，不再有任何生命迹象。");
 
     // 死亡已经宣布过：标记已写，再来一次不会重复广播，也不会重试外观。
-    const again = await settleDeaths(handle.db, created.game.id, {
+    const again = await settleAllDeaths(handle.db, created.game.id, {
       service: new DeathAppearanceService(),
     });
-    expect(again.settled).toEqual([]);
-    expect(again.appearanceFailed).toEqual([]);
+    expect(declaredNames(again)).toEqual([]);
+    expect(failureReasons(again, "appearance")).toEqual([]);
     const after2 = await getGameState(handle.db, created.game.slug);
     expect(after2.messages.filter((message) => message.kind === "death")).toHaveLength(1);
   });
@@ -666,9 +667,9 @@ describe.skipIf(!testDatabaseUrl)("death phase does not block death", () => {
     await handle.db.update(actors).set({ hp: 0 }).where(eq(actors.id, monk.id));
 
     // 完全不传 service：死亡判定与广播必须照常发生，只有外观快照被跳过。
-    const phase = await settleDeaths(handle.db, created.game.id);
-    expect(phase.settled).toEqual(["提灯修士"]);
-    expect(phase.appearanceFailed).toEqual([]);
+    const settlements = await settleAllDeaths(handle.db, created.game.id);
+    expect(declaredNames(settlements)).toEqual(["提灯修士"]);
+    expect(failureReasons(settlements, "appearance")).toEqual([]);
 
     const state = await getGameState(handle.db, created.game.slug);
     expect(state.messages.filter((message) => message.kind === "death")).toHaveLength(1);
