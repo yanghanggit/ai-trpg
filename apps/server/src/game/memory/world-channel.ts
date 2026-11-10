@@ -1,5 +1,5 @@
 import { type TraceContext, traceEvent } from "../../debug/trace";
-import type { Executor } from "../apply/types";
+import type { Executor } from "../persistence/rows";
 import { MEMORY_KINDS } from "./kinds";
 import { appendMemoryMessages, loadAgentMemory } from "./store";
 

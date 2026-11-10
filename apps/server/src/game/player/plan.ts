@@ -2,12 +2,12 @@ import type { Database } from "../../db/pool";
 import { createTurnTrace, traceEvent } from "../../debug/trace";
 import { findActorByName, findActorByRef, stageOfActor } from "../actor-state";
 import { addressLookupFor } from "../addressing";
-import { type ApplyActorPlanOptions, applyActorPlan } from "../apply";
 import { dialogueContextFor, isDialogueAction } from "../dialogue-audit";
 import { GameError } from "../errors";
 import { MEMORY_KINDS } from "../memory/kinds";
 import { isPlayerControlled } from "../persistence/actor-controls";
 import { getGameStateSlice, readTurnDelivery } from "../read/game-state";
+import { settleActorPlan } from "../settle";
 import type {
   ActorAction,
   ActorPlan,
@@ -17,9 +17,10 @@ import type {
   StageState,
 } from "../types";
 import { auditDialogueOrThrow } from "./audit";
+import type { PlayerActionOptions } from "./inputs";
 
 /**
- * 玩家入口是 god view，可以用真名 / 引用指定目标；但进入 apply 前必须
+ * 玩家入口是 god view，可以用真名 / 引用指定目标；但进入结算前必须
  * 换成该 actor 当前地址表发出的 actor-facing 引用，后续只走签名 / 当前名字入口。
  */
 function normalizePlayerTargets(
@@ -65,7 +66,7 @@ export async function applyPlayerAction(
   gameRef: string,
   actorRef: string,
   action: ActorAction,
-  options: ApplyActorPlanOptions = {},
+  options: PlayerActionOptions = {},
 ): Promise<ActorTurnResult> {
   return applyPlayerPlan(db, gameRef, actorRef, { actions: [action] }, options);
 }
@@ -76,7 +77,7 @@ export async function applyPlayerPlan(
   gameRef: string,
   actorRef: string,
   plan: ActorPlan,
-  options: ApplyActorPlanOptions = {},
+  options: PlayerActionOptions = {},
 ): Promise<ActorTurnResult> {
   const state = await getGameStateSlice(db, gameRef);
   return applyPlayerPlanOnState(db, state, findActorByRef(state, actorRef), plan, options);
@@ -93,7 +94,7 @@ export async function applyPlayerPlanOnState(
   state: GameStateSlice,
   actor: ActorState,
   plan: ActorPlan,
-  options: ApplyActorPlanOptions = {},
+  options: PlayerActionOptions = {},
 ): Promise<ActorTurnResult> {
   if (!(await isPlayerControlled(db, state.game.id, actor.id))) {
     throw new GameError("invalid_action", `actor 未被玩家接管: ${actor.name}`);
@@ -136,8 +137,12 @@ export async function applyPlayerPlanOnState(
     });
   }
 
-  const result = await applyActorPlan(db, state.game.id, actor.id, plan, true, {
-    ...options,
+  // 只挑结算认得的字段：`judge` 是玩家入口的台词审核，结算不读它。
+  const result = await settleActorPlan(db, state.game.id, actor.id, plan, true, {
+    ...(options.service ? { service: options.service } : {}),
+    ...(options.inferenceService ? { inferenceService: options.inferenceService } : {}),
+    ...(options.logger ? { logger: options.logger } : {}),
+    ...(options.auditNameLeaks === undefined ? {} : { auditNameLeaks: options.auditNameLeaks }),
     ...(trace ? { trace } : {}),
   });
   await traceEvent(trace, { event: "turn_end", ok: result.ok, loopSuccess: true });

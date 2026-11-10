@@ -1,3 +1,5 @@
+import type { DialogueJudge } from "../dialogue-audit";
+import type { SettleActorPlanOptions } from "../settle";
 import type { EquipmentSlot } from "../types";
 
 /**
@@ -93,3 +95,6 @@ export type PlayerRecognizeInput = {
   /** 角色当前想怎么称呼对方；不必是真名。 */
   name: string;
 };
+
+/** 玩家入口的依赖：结算的那份，加上台词审核器——审核发生在结算之前。 */
+export type PlayerActionOptions = SettleActorPlanOptions & { judge?: DialogueJudge };

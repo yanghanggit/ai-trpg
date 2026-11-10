@@ -90,7 +90,7 @@ describe("runtime agents carry the campaign setting", () => {
     expect(buildStoryInput(GAME_STATE, [])).not.toContain(TEST_WORLD.campaignSetting);
     expect(
       buildCompactionInput(
-        { ownerType: "actor", ownerId: "actor-1", ownerName: "守烬人" },
+        { ownerType: "actor", ownerId: "actor-1", name: "守烬人" },
         "[human] 一条待压缩的记忆。",
       ),
     ).not.toContain(TEST_WORLD.campaignSetting);

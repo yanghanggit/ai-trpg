@@ -1,9 +1,8 @@
 import type { Database } from "../../db/pool";
-import { bumpGameVersion } from "../apply/messages";
 import { loadMemoryTarget, type MemoryRenderOptions, renderWithMemory } from "../bypass";
 import { DEFAULT_DROP_MAX_ROUNDS } from "../default-rounds";
 import { GameError } from "../errors";
-import { lockGameRow } from "../persistence/games";
+import { bumpGameVersion, lockGameRow } from "../persistence/games";
 import { addActorMaterials, type MaterialDrop } from "../persistence/items";
 import type { ActorState, StageState } from "../types";
 import { buildDropMaterialsTool, parseDrops } from "./drop-materials";

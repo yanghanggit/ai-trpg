@@ -1,10 +1,10 @@
 import type { TraceContext } from "../../debug/trace";
 import type { AddressLookup } from "../addressing";
-import type { ActorRow, ActorWithStageRow, Executor, StageRow } from "../apply/types";
 import type { Stats } from "../attributes";
 import { applyHit } from "../combat/hit";
 import { GameError } from "../errors";
 import { appendStageMemory } from "../observations";
+import type { ActorRow, ActorWithStageRow, Executor, StageRow } from "../persistence/rows";
 import type { AffixTriggers } from "../types";
 import type { AffixTrigger } from "./model";
 import { type StaticSettlement, settleStaticAffixes } from "./static";

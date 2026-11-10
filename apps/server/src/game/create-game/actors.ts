@@ -1,12 +1,12 @@
 import { randomUUID } from "node:crypto";
 import { actors, items } from "../../db/schema";
 import { resolveAppearance } from "../appearance/form";
-import type { Executor } from "../apply/types";
 import { toStats } from "../attributes";
 import { GameError } from "../errors";
 import { buildActorSystemPrompt, createActorMemory } from "../memory";
 import { recordAppearance } from "../persistence/appearances";
 import { allocateEntitySeq } from "../persistence/entity-seq";
+import type { Executor } from "../persistence/rows";
 import { upsertSignatureName } from "../persistence/signature-names";
 import { insertSignature } from "../persistence/signatures";
 import { recordStageVisit } from "../persistence/visits";

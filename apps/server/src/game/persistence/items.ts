@@ -3,11 +3,11 @@ import { and, asc, eq, inArray } from "drizzle-orm";
 import type { Database } from "../../db/pool";
 import { items, stageItems } from "../../db/schema";
 import { normalizeAffixTriggers } from "../affixes";
-import type { Executor, ItemRow, StageItemRow } from "../apply/types";
 import { toStats } from "../attributes";
 import { GameError } from "../errors";
 import { allocateEntitySeq } from "./entity-seq";
 import { isSameItem } from "./item-identity";
+import type { Executor, ItemRow, StageItemRow } from "./rows";
 
 /**
  * 物品与场景物品的读写操作：玩法层只表达「谁拿到什么」，不关心两张表怎么搬。

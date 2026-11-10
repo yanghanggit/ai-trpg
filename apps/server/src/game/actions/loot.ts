@@ -1,14 +1,16 @@
 import type { TraceContext } from "../../debug/trace";
 import type { ToolDefinition } from "../../llm/types";
 import { type AddressLookup, actionRef } from "../addressing";
-import { appendPublicMessage, bumpGameVersion } from "../apply/messages";
-import { assertNotSelf, isAlive, listActorItems } from "../apply/queries";
-import type { ActorWithStageRow, Executor, ResolvedLoot } from "../apply/types";
 import { GameError } from "../errors";
 import { withoutEquippedItem } from "../item-state";
+import { assertNotSelf, isAlive, listActorItems } from "../lookup";
 import { appendItemObservations, appendStageMemory } from "../observations";
 import { setActorEquipment } from "../persistence/actors";
+import { appendPublicMessage } from "../persistence/game-messages";
+import { bumpGameVersion } from "../persistence/games";
 import { transferItemToActor } from "../persistence/items";
+import type { ActorWithStageRow, Executor } from "../persistence/rows";
+import type { ResolvedLoot } from "../settle/types";
 import type { LootAction } from "../types";
 
 /**

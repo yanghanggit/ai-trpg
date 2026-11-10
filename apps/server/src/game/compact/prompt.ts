@@ -1,7 +1,7 @@
 import { type ChatMessage, getBufferString } from "../../llm";
+import type { MemoryOwnerRef } from "../memory";
 import type { WorldState } from "../types";
 import { worldFunctionPrompt } from "../world-function";
-import type { ResolvedOwner } from "./types";
 
 /**
  * 压缩的提示词：任务输入、记忆转写，以及压缩宪法。
@@ -14,12 +14,12 @@ import type { ResolvedOwner } from "./types";
  * 压缩任务也要带上世界设定：压缩结果会成为该主体后续所有回合的长期记忆，
  * 专名、称谓与人称必须在压缩后仍然一致。
  */
-export function buildCompactionInput(owner: ResolvedOwner, transcript: string): string {
+export function buildCompactionInput(owner: MemoryOwnerRef, transcript: string): string {
   return `# 记忆压缩任务
 
 ## 记忆主体
 
-- 名称：${owner.ownerName}
+- 名称：${owner.name}
 - 类型：${owner.ownerType}
 
 ## 待压缩记忆

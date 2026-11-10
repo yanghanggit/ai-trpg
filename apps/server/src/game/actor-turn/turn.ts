@@ -14,10 +14,9 @@ import {
 } from "../../rag";
 import { findActorByName } from "../actor-state";
 import { handleOf } from "../addressing";
-import { applyActorPlan } from "../apply";
-import { isAlive } from "../apply/queries";
 import { DEFAULT_ACTOR_MAX_ROUNDS } from "../default-rounds";
 import { GameError } from "../errors";
+import { isAlive } from "../lookup";
 import { loadAgentMemory } from "../memory";
 import { isPlayerControlled } from "../persistence/actor-controls";
 import { getGameStateSlice, readTurnDelivery } from "../read/game-state";
@@ -28,6 +27,7 @@ import {
   resolveRouteQuestion,
   routeWorldFromState,
 } from "../route";
+import { settleActorPlan } from "../settle";
 import type { ActorTurnResult } from "../types";
 import { actorTurnContext } from "./context";
 import { describeNameCollision } from "./identity";
@@ -222,7 +222,7 @@ export async function runActorTurn(
 
   // 轮次用尽或模型忘记终结时，退回最后一次快照，让已暂存的动作照常落账。
   const plan = session.plan;
-  const applied = await applyActorPlan(db, state.game.id, current.actor.id, plan, loop.success, {
+  const applied = await settleActorPlan(db, state.game.id, current.actor.id, plan, loop.success, {
     service: options.service,
     ...(options.inferenceService ? { inferenceService: options.inferenceService } : {}),
     ...optional,

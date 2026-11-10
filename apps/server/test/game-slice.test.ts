@@ -15,11 +15,11 @@ import { loadSnapshot } from "../src/debug/snapshot";
 import {
   type ActorAction,
   type ActorPlan,
-  applyActorPlan,
   createGame,
   getGameMemories,
   getGameState,
   runActorTurn,
+  settleActorPlan,
 } from "../src/game";
 import { formatForm } from "../src/game/appearance/form";
 import { ChatCompletionResult, type ChatCompletionService, type ToolCall } from "../src/llm";
@@ -375,7 +375,7 @@ describe.skipIf(!testDatabaseUrl)("memory-driven NPC slice", () => {
       .find((actor) => actor.name === "守烬人");
     expect(keeper).toBeDefined();
 
-    const result = await applyActorPlan(
+    const result = await settleActorPlan(
       handle.db,
       created.game.id,
       keeper?.id as string,

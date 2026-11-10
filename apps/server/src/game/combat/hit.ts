@@ -1,10 +1,11 @@
 import type { TraceContext } from "../../debug/trace";
 import { type AddressLookup, actionRef } from "../addressing";
-import { appendPublicMessage, bumpGameVersion } from "../apply/messages";
-import type { ActorRow, ActorWithStageRow, Executor, StageRow } from "../apply/types";
 import { damageActionText } from "../observation-text";
 import { appendDamageObservations, appendStageMemory } from "../observations";
 import { damageActor } from "../persistence/actors";
+import { appendPublicMessage } from "../persistence/game-messages";
+import { bumpGameVersion } from "../persistence/games";
+import type { ActorRow, ActorWithStageRow, Executor, StageRow } from "../persistence/rows";
 
 /** 一次命中属于哪个动作；只影响文案，不影响结算。 */
 export type HitAction = "strike" | "cleave" | "brawl" | "use";

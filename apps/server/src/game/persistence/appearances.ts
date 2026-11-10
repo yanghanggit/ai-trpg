@@ -2,8 +2,8 @@ import { randomUUID } from "node:crypto";
 import { and, eq, isNull } from "drizzle-orm";
 import { actorSignatures, appearances } from "../../db/schema";
 import type { ChatMessage, ToolDefinition } from "../../llm/types";
-import type { Executor } from "../apply/types";
 import { GameError } from "../errors";
+import type { Executor } from "./rows";
 
 /**
  * 外观渲染的持久化原语。

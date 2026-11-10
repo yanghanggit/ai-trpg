@@ -1,7 +1,6 @@
 import { GameError } from "../errors";
-import type { AgentMemoryState } from "../memory";
+import type { AgentMemoryState, MemoryOwnerRef } from "../memory";
 import { findNameLeaks, type NameAuditInput } from "../name-audit";
-import type { ResolvedOwner } from "./types";
 
 /**
  * 压缩摘要的名字审计：摘要会回灌成长期记忆，所以落账前用名字审计的同一套白名单再查一次。
@@ -17,18 +16,18 @@ import type { ResolvedOwner } from "./types";
  */
 export function assertActorSummaryKnown(
   input: NameAuditInput,
-  owner: ResolvedOwner,
+  owner: MemoryOwnerRef,
   summary: string,
 ): void {
   const observer = input.actors.find((actor) => actor.id === owner.ownerId);
   if (!observer) {
-    throw new GameError("invalid_state", `压缩主体不在 actor 列表中: ${owner.ownerName}`);
+    throw new GameError("invalid_state", `压缩主体不在 actor 列表中: ${owner.name}`);
   }
   const memory: AgentMemoryState = {
     id: "compact-summary",
     ownerType: "actor",
     ownerId: owner.ownerId,
-    name: owner.ownerName,
+    name: owner.name,
     contextUsageRatio: 0,
     messages: [
       {

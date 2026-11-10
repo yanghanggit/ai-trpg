@@ -1,14 +1,16 @@
 import type { TraceContext } from "../../debug/trace";
 import type { ToolDefinition } from "../../llm/types";
 import { isHandleRef, mentionOf } from "../addressing";
-import { appendPublicMessage, bumpGameVersion } from "../apply/messages";
-import { findStageByNameInWorld } from "../apply/queries";
-import type { ActorWithStageRow, Executor, ResolvedTeleport, WorldRow } from "../apply/types";
 import { GameError } from "../errors";
+import { findStageByNameInWorld } from "../lookup";
 import { renderAction, renderEnvironmentChange, withAppearances } from "../observation-text";
 import { appendCustomStageObservation, appendStageMemory } from "../observations";
 import { moveActorToStage } from "../persistence/actors";
+import { appendPublicMessage } from "../persistence/game-messages";
+import { bumpGameVersion } from "../persistence/games";
+import type { ActorWithStageRow, Executor, WorldRow } from "../persistence/rows";
 import { recordStageVisit } from "../persistence/visits";
+import type { ResolvedTeleport } from "../settle/types";
 import type { TeleportAction } from "../types";
 
 export function buildTeleportTool(): ToolDefinition {

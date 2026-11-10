@@ -1,6 +1,6 @@
-import { resolveEquippedStats } from "../apply/queries";
-import type { ActorRow, Executor } from "../apply/types";
 import { addStats, type Stats } from "../attributes";
+import { resolveEquippedStats } from "../lookup";
+import type { ActorRow, Executor } from "../persistence/rows";
 
 /**
  * 属性 → 战斗数值的换算，只在结算期发生一次。

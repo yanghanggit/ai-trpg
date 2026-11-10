@@ -1,7 +1,6 @@
 import { type TraceContext, traceEvent } from "../../debug/trace";
 import { assertWorldFaceText } from "../addressing";
-import { listStageActorViews } from "../apply/queries";
-import type { Executor } from "../apply/types";
+import { listStageActorViews } from "../lookup";
 import {
   appendMemoryMessages,
   ensureStageOpeningSnapshot,
@@ -10,6 +9,7 @@ import {
 } from "../memory";
 import { MEMORY_KINDS } from "../memory/kinds";
 import type { ObservationMetadata, ObservationView, StageEventMetadata } from "../observation-text";
+import type { Executor } from "../persistence/rows";
 import { loadStageById } from "../persistence/stages";
 
 /**

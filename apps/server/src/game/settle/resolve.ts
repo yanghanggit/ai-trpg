@@ -18,19 +18,17 @@ import { resolveWait } from "../actions/wait";
 import { resolveWhisper } from "../actions/whisper";
 import { assertNoSystemReference } from "../addressing";
 import { GameError } from "../errors";
-import { signatureNamesFor } from "../persistence/signature-names";
-import type { ActorPlan } from "../types";
-import { findSignatureByHandleInWorld, resolveEquippedItems, resolveVisibleActor } from "./queries";
+import { findSignatureByHandleInWorld, resolveEquippedItems, resolveVisibleActor } from "../lookup";
 import type {
   ActorRow,
   ActorWithStageRow,
   Executor,
-  ResolvedAction,
-  ResolvedIdentity,
-  ResolvedPlan,
   StageRow,
   WorldRow,
-} from "./types";
+} from "../persistence/rows";
+import { signatureNamesFor } from "../persistence/signature-names";
+import type { ActorPlan } from "../types";
+import type { ResolvedAction, ResolvedIdentity, ResolvedPlan } from "./types";
 
 /**
  * 顺序校验计划里的动作，并模拟移动后的场景，不写数据库。

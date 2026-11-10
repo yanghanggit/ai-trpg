@@ -30,9 +30,3 @@ export type CompactMemoryResult = {
   afterMessages: number;
   summary?: string;
 };
-
-export type ResolvedOwner = {
-  ownerType: MemoryOwnerType;
-  ownerId: string;
-  ownerName: string;
-};

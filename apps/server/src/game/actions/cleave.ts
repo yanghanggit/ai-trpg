@@ -2,9 +2,10 @@ import type { TraceContext } from "../../debug/trace";
 import type { ToolDefinition } from "../../llm/types";
 import type { AddressLookup } from "../addressing";
 import { applyStaticItemAction, hasAffixes } from "../affixes";
-import { assertNotSelf, resolveEquippedItems } from "../apply/queries";
-import type { ActorRow, ActorWithStageRow, Executor, ResolvedCleave } from "../apply/types";
 import { GameError } from "../errors";
+import { assertNotSelf, resolveEquippedItems } from "../lookup";
+import type { ActorRow, ActorWithStageRow, Executor } from "../persistence/rows";
+import type { ResolvedCleave } from "../settle/types";
 import type { CleaveAction } from "../types";
 
 /**

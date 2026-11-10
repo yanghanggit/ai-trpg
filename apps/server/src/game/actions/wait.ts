@@ -1,10 +1,12 @@
 import type { TraceContext } from "../../debug/trace";
 import type { ToolDefinition } from "../../llm/types";
 import { mentionOf } from "../addressing";
-import { appendPublicMessage, bumpGameVersion } from "../apply/messages";
-import type { ActorWithStageRow, Executor, ResolvedWait } from "../apply/types";
 import { renderAction, withAppearances } from "../observation-text";
 import { appendCustomStageObservation, appendStageMemory } from "../observations";
+import { appendPublicMessage } from "../persistence/game-messages";
+import { bumpGameVersion } from "../persistence/games";
+import type { ActorWithStageRow, Executor } from "../persistence/rows";
+import type { ResolvedWait } from "../settle/types";
 import type { WaitAction } from "../types";
 
 export function buildWaitTool(): ToolDefinition {

@@ -1,6 +1,5 @@
 import type { TraceContext } from "../../debug/trace";
 import type { AddressLookup } from "../addressing";
-import type { Executor } from "../apply/types";
 import {
   type Audience,
   type CommunicationObservation,
@@ -14,6 +13,7 @@ import {
   renderItemEvent,
   type StageRef,
 } from "../observation-text";
+import type { Executor } from "../persistence/rows";
 import { STAGE_WIDE, writeObservations } from "./write";
 
 /**

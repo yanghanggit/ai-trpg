@@ -1,7 +1,7 @@
 import { eq, sql } from "drizzle-orm";
 import { games } from "../../db/schema";
-import type { Executor } from "../apply/types";
 import { GameError } from "../errors";
+import type { Executor } from "./rows";
 
 /**
  * 每局实体序号：world / stage / actor / item 共用一条递增序列。

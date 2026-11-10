@@ -8,7 +8,6 @@ import { type DatabaseHandle, openDatabase } from "../src/db/connect";
 import { resetDomainData, seedDemoData } from "../src/db/maintenance";
 import { runMigrations } from "../src/db/migrate";
 import {
-  applyActorPlan,
   createGame,
   getGameMemories,
   getGameState,
@@ -23,6 +22,7 @@ import {
   playerUnequip,
   playerUse,
   runActorTurn,
+  settleActorPlan,
   takeActorControl,
 } from "../src/game";
 import {
@@ -1637,7 +1637,7 @@ describe.skipIf(!testDatabaseUrl)("items and interactions", () => {
     }
 
     // NPC plan 与玩家接管共用 resolveUse；模型写错也只能得到通用拒绝。
-    const npcResult = await applyActorPlan(
+    const npcResult = await settleActorPlan(
       handle.db,
       created.game.id,
       keeper.id,

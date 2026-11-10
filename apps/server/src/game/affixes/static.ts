@@ -1,6 +1,6 @@
-import type { ActorRow, ActorWithStageRow, Executor } from "../apply/types";
 import { defenderBlock, weaponAttackPower } from "../combat/attack";
 import { GameError } from "../errors";
+import type { ActorRow, ActorWithStageRow, Executor } from "../persistence/rows";
 import type { AffixStatRef, AffixTriggers, DamageAmount } from "../types";
 import { type AffixTrigger, staticAffixes } from "./model";
 

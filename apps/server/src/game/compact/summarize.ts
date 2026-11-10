@@ -1,8 +1,8 @@
 import { ChatCompletionRequest, type ChatCompletionService, type ChatMessage } from "../../llm";
 import { GameError } from "../errors";
+import type { MemoryOwnerRef } from "../memory";
 import type { WorldState } from "../types";
 import { buildCompactionInput, buildCompactSystemPrompt, renderTranscript } from "./prompt";
-import type { ResolvedOwner } from "./types";
 
 /**
  * 跑一次压缩推理：输入是本局记忆的转写，输出是一段连续的私有记忆正文。
@@ -11,18 +11,18 @@ import type { ResolvedOwner } from "./types";
  */
 
 export async function summarizeMemory(
-  owner: ResolvedOwner,
+  owner: MemoryOwnerRef,
   messages: readonly ChatMessage[],
   service: ChatCompletionService,
   world: WorldState,
 ): Promise<string> {
   const transcript = renderTranscript(messages.slice(1));
   if (transcript.trim().length === 0) {
-    throw new GameError("invalid_action", `没有可压缩记忆: ${owner.ownerName}`);
+    throw new GameError("invalid_action", `没有可压缩记忆: ${owner.name}`);
   }
   const result = await service.complete(
     new ChatCompletionRequest({
-      label: `compact:${owner.ownerType}:${owner.ownerName}`,
+      label: `compact:${owner.ownerType}:${owner.name}`,
       inputMessage: buildCompactionInput(owner, transcript),
       messages: [{ type: "system", content: buildCompactSystemPrompt(world) }],
     }),
@@ -32,7 +32,7 @@ export async function summarizeMemory(
   }
   const summary = result.content.trim();
   if (summary.length === 0) {
-    throw new GameError("invalid_state", `记忆压缩返回空摘要: ${owner.ownerName}`);
+    throw new GameError("invalid_state", `记忆压缩返回空摘要: ${owner.name}`);
   }
   return summary;
 }

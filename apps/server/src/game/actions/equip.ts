@@ -1,14 +1,16 @@
 import type { TraceContext } from "../../debug/trace";
 import type { ToolDefinition } from "../../llm/types";
 import { mentionOf } from "../addressing";
-import { appendPublicMessage, bumpGameVersion } from "../apply/messages";
-import { resolveActorItem } from "../apply/queries";
-import type { ActorWithStageRow, Executor, ResolvedEquip } from "../apply/types";
 import { GameError } from "../errors";
 import { equipSlot } from "../item-state";
+import { resolveActorItem } from "../lookup";
 import { renderAction, withAppearances } from "../observation-text";
 import { appendCustomStageObservation, appendStageMemory } from "../observations";
 import { setActorEquipment } from "../persistence/actors";
+import { appendPublicMessage } from "../persistence/game-messages";
+import { bumpGameVersion } from "../persistence/games";
+import type { ActorWithStageRow, Executor } from "../persistence/rows";
+import type { ResolvedEquip } from "../settle/types";
 import {
   EQUIPMENT_SLOT_LABELS,
   EQUIPMENT_SLOTS,

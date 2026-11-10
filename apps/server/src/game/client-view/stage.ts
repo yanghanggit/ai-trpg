@@ -1,5 +1,5 @@
 import type { Database } from "../../db/pool";
-import { isAlive } from "../apply/queries";
+import { isAlive } from "../lookup";
 import { getMemoryState } from "../memory";
 import { getGameStateSlice } from "../read/game-state";
 import { findStage, outgoingStages } from "../stage-state";

@@ -1,6 +1,6 @@
 import { and, eq } from "drizzle-orm";
 import { stages } from "../../db/schema";
-import type { Executor, StageRow } from "../apply/types";
+import type { Executor, StageRow } from "./rows";
 
 /** 读一个场景，并限定在该 world 内。 */
 export async function loadStageInWorld(

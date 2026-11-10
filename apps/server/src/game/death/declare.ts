@@ -2,7 +2,6 @@ import type { Database } from "../../db/pool";
 import { type TraceContext, traceEvent } from "../../debug/trace";
 import type { Logger } from "../../logging";
 import { mentionOf } from "../addressing";
-import { appendPublicMessage, bumpGameVersion } from "../apply/messages";
 import { describeError, GameError } from "../errors";
 import { appendWorldEvent } from "../memory";
 import { renderAction, withAppearances } from "../observation-text";
@@ -12,6 +11,8 @@ import {
   appendStageMemory,
 } from "../observations";
 import { claimDeath, type PendingDeath } from "../persistence/deaths";
+import { appendPublicMessage } from "../persistence/game-messages";
+import { bumpGameVersion } from "../persistence/games";
 import { loadWorldByGame } from "../persistence/worlds";
 
 /**

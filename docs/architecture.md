@@ -11,7 +11,7 @@
 
 目标拓扑是「客户端 ⇄ 业务服务端 ⇄ PostgreSQL」。`agent:game` 与 HTTP 路由复用同一 `game` 服务层；服务端不保留跨请求的权威世界对象。
 
-服务端内部再分一层：**玩法模块不写 SQL**。动作、物品效果、stage / world 回合、死亡与外观只调用 `game/persistence/` 的具名读写原语；解析动作的只读查询在 `game/apply/queries.ts`，事务边界在 `game/apply/index.ts`，建局在 `game/create-game.ts`，状态与事件流的读取在 `game/read/`。`test/persistence-boundary.test.ts` 用源码扫描守住这条边界。
+服务端内部再分一层：**玩法模块不写 SQL**。动作、物品效果、stage / world 回合、死亡与外观只调用 `game/persistence/` 的具名读写原语；解析动作的只读查询在 `game/lookup/`，事务边界在 `game/settle/`（`plan.ts` 计算端、`increment.ts` 推理端），行投影与事务执行器在 `game/persistence/rows.ts`，建局在 `game/create-game.ts`，状态与事件流的读取在 `game/read/`。`test/persistence-boundary.test.ts` 用源码扫描守住这条边界。
 
 → 参见：[开发规范](conventions.md)
 
@@ -80,6 +80,6 @@ LLM 是服务端内部依赖，不是客户端可调用的 API：浏览器只提
 
 实现上分为 provider 无关的 `llm` 与 DeepSeek 实现 `deepseek`，依赖方向固定为 `deepseek → llm`。
 
-结算分两端，顺序固定：计算端（公式、装备、静态词缀、数值）先结算并提交；推理/泛化端（agent 词缀、外观、掉落这类自然语言后果）只在提交之后追加。推理端是纯增量——失败只等于「这次没有增量」，不回滚计算端结果，也不阻断同回合的其它阶段；增量不做跨回合补账，但失败必须在过程轨迹里留下可解释的记录。
+结算分两端，顺序固定（`game/settle/plan.ts` 与 `increment.ts`）：计算端（公式、装备、静态词缀、数值）先结算并提交；推理/泛化端（agent 词缀、外观、掉落这类自然语言后果）只在提交之后追加。推理端是纯增量——失败只等于「这次没有增量」，不回滚计算端结果，也不阻断同回合的其它阶段；增量不做跨回合补账，但失败必须在过程轨迹里留下可解释的记录。
 
 → 参见：[Agent 与工具](agents.md)、[词缀](affixes.md)、[过程轨迹](debug-workflow.md)

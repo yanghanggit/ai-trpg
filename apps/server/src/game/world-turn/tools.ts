@@ -7,8 +7,8 @@
  */
 
 import type { ToolDefinition } from "../../llm/types";
-import { isAlive } from "../apply/queries";
 import { GameError } from "../errors";
+import { isAlive } from "../lookup";
 import { adjacentStageNames, findStageByName } from "../stage-state";
 import { describeStageAnchorsSection } from "../stage-state/describe";
 import type { GameStateSlice, WorldAction } from "../types";

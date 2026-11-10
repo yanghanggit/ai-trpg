@@ -1,13 +1,15 @@
 import type { TraceContext } from "../../debug/trace";
 import type { ToolDefinition } from "../../llm/types";
 import { type AddressLookup, actionRef } from "../addressing";
-import { appendPublicMessage, bumpGameVersion } from "../apply/messages";
-import { assertNotSelf, effectiveAgility, isAlive, listActorItems } from "../apply/queries";
-import type { ActorWithStageRow, Executor, ResolvedInspect } from "../apply/types";
 import { GameError } from "../errors";
 import { toItemState } from "../item-state";
 import { describeItems } from "../item-state/describe";
+import { assertNotSelf, effectiveAgility, isAlive, listActorItems } from "../lookup";
 import { appendInspectObservations, appendStageMemory } from "../observations";
+import { appendPublicMessage } from "../persistence/game-messages";
+import { bumpGameVersion } from "../persistence/games";
+import type { ActorWithStageRow, Executor } from "../persistence/rows";
+import type { ResolvedInspect } from "../settle/types";
 import type { InspectAction } from "../types";
 
 /**

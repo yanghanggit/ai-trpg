@@ -20,9 +20,6 @@ import {
 } from "../addressing";
 import { addStats, type Stats } from "../attributes";
 import { GameError } from "../errors";
-import { signatureNamesFor } from "../persistence/signature-names";
-import type { RouteWorld } from "../route";
-import { EQUIPMENT_SLOTS } from "../types";
 import type {
   ActorRow,
   ActorWithStageRow,
@@ -31,7 +28,16 @@ import type {
   StageItemRow,
   StageRow,
   WorldRow,
-} from "./types";
+} from "../persistence/rows";
+import { signatureNamesFor } from "../persistence/signature-names";
+import type { RouteWorld } from "../route";
+import { EQUIPMENT_SLOTS } from "../types";
+
+/**
+ * 带策略的只读查询：解析动作与守卫要回答「必须存在、必须唯一、谁看得见、身上有什么」。
+ *
+ * 全部只读——写原语在 `persistence/`。玩法模块调这里，而不是自己拼 SQL。
+ */
 
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -419,7 +425,7 @@ export async function findStageByNameInWorld(
 /**
  * 路线回忆需要的最小图：场景、边、以及观察者走过去哪些地方。
  *
- * `apply` 里装配整份状态太重，这里只读三张表的最小列，与 `getGameState` 的三层读互不依赖。
+ * `settle` 里装配整份状态太重，这里只读三张表的最小列，与 `getGameState` 的三层读互不依赖。
  */
 export async function loadRouteWorld(
   executor: Executor,

@@ -10,7 +10,6 @@ import { runMigrations } from "../src/db/migrate";
 import { stages } from "../src/db/schema";
 import {
   type ActorPlan,
-  applyActorPlan,
   buildActorTurnInput,
   createGame,
   getGameState,
@@ -18,6 +17,7 @@ import {
   playerRecognizeIdentity,
   playerSay,
   runActorTurn,
+  settleActorPlan,
   takeActorControl,
 } from "../src/game";
 import { parseAnnounce } from "../src/game/actions/announce";
@@ -26,7 +26,7 @@ import { parseWhisper } from "../src/game/actions/whisper";
 import { parseRecognizeIdentity } from "../src/game/actor-turn";
 import { addressLookupFor, handleOf, isHandleRef, refOf } from "../src/game/addressing";
 import { formatForm } from "../src/game/appearance/form";
-import { resolveVisibleActor } from "../src/game/apply/queries";
+import { resolveVisibleActor } from "../src/game/lookup";
 import { recordAppearance } from "../src/game/persistence/appearances";
 import { allocateEntitySeq } from "../src/game/persistence/entity-seq";
 import { insertSignature, switchCurrentSignature } from "../src/game/persistence/signatures";
@@ -432,7 +432,7 @@ describe.skipIf(!testDatabaseUrl)("names and addresses", () => {
       actions: [],
       identities: [{ handle: handleOf(ratKing.signature.seq), name: "鼠王" }],
     };
-    const result = await applyActorPlan(handle.db, created.game.id, odric.id, plan, true);
+    const result = await settleActorPlan(handle.db, created.game.id, odric.id, plan, true);
     expect(result.ok).toBe(false);
     expect(result.rejection).toMatch(/只能给当前场景内的角色起名/);
 
@@ -463,7 +463,7 @@ describe.skipIf(!testDatabaseUrl)("names and addresses", () => {
       actions: [{ kind: "move", targetStageName: "地窖" }],
       identities: [{ handle: handleOf(badLuck.signature.seq), name: "小东西" }],
     };
-    const result = await applyActorPlan(handle.db, created.game.id, cinder.id, plan, true);
+    const result = await settleActorPlan(handle.db, created.game.id, cinder.id, plan, true);
     expect(result.ok).toBe(true);
 
     const after = await getGameState(handle.db, created.game.slug);
@@ -585,7 +585,7 @@ describe.skipIf(!testDatabaseUrl)("names and addresses", () => {
       actions: [{ kind: "wait" }],
       identities: [{ handle: handleOf(odric.signature.seq), name: "灰衣人" }],
     };
-    const turn = await applyActorPlan(handle.db, state.game.id, nameless.id, plan, true);
+    const turn = await settleActorPlan(handle.db, state.game.id, nameless.id, plan, true);
     expect(turn.ok).toBe(true);
 
     // 动作自己已经 bump 过了，认知更新不重复计一次。
@@ -739,7 +739,7 @@ describe.skipIf(!testDatabaseUrl)("names and addresses", () => {
         { handle: handleOf(odric.signature.seq), name: "灰衣人" },
       ],
     };
-    const result = await applyActorPlan(handle.db, created.game.id, cinder.id, plan, true);
+    const result = await settleActorPlan(handle.db, created.game.id, cinder.id, plan, true);
     expect(result.ok).toBe(true);
 
     const after = await getGameState(handle.db, created.game.slug);

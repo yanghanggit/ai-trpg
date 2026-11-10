@@ -1,6 +1,6 @@
 import { and, eq, inArray, or } from "drizzle-orm";
 import { stageConnections, stages } from "../../db/schema";
-import type { Executor } from "../apply/types";
+import type { Executor } from "./rows";
 
 /**
  * 把一条已存在、仍封闭的边打开；返回是否真的改动了行。

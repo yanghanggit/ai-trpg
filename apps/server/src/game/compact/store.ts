@@ -2,13 +2,14 @@ import { and, eq, gte } from "drizzle-orm";
 import type { Database } from "../../db/pool";
 import { agentMemories, agentMemoryMessages, games } from "../../db/schema";
 import { GameError } from "../errors";
+import type { MemoryOwnerRef } from "../memory";
 import { appendMemoryMessages, loadAgentMemory } from "../memory";
 import { MEMORY_KINDS } from "../memory/kinds";
 import type { NameAuditInput } from "../name-audit";
 import type { WorldState } from "../types";
 import { assertActorSummaryKnown } from "./audit";
 import { summarizeMemory } from "./summarize";
-import type { CompactMemoryOptions, CompactMemoryResult, ResolvedOwner } from "./types";
+import type { CompactMemoryOptions, CompactMemoryResult } from "./types";
 
 /**
  * 压缩的落账：LLM 调用在事务外，事务内只做并发检查和写入。
@@ -33,24 +34,24 @@ export async function compactResolvedMemory(
   db: Database,
   gameId: string,
   world: WorldState,
-  owner: ResolvedOwner,
+  owner: MemoryOwnerRef,
   options: CompactMemoryOptions,
   auditInput?: NameAuditInput,
 ): Promise<CompactMemoryResult> {
   validateMinRatio(options.minRatio);
   const memory = await loadAgentMemory(db, gameId, owner.ownerType, owner.ownerId);
   if (!memory) {
-    throw new GameError("invalid_state", `记忆不存在: ${owner.ownerName}`);
+    throw new GameError("invalid_state", `记忆不存在: ${owner.name}`);
   }
   if (memory.messages[0]?.type !== "system") {
-    throw new GameError("invalid_state", `memory 第一条不是 system: ${owner.ownerName}`);
+    throw new GameError("invalid_state", `memory 第一条不是 system: ${owner.name}`);
   }
 
   const beforeMessages = memory.messages.length;
   const contextUsageRatio = memory.row.contextUsageRatio;
   const base = {
     ownerType: owner.ownerType,
-    ownerName: owner.ownerName,
+    ownerName: owner.name,
     contextUsageRatio,
     beforeMessages,
     afterMessages: beforeMessages,
@@ -70,7 +71,7 @@ export async function compactResolvedMemory(
   const summary = await summarizeMemory(owner, memory.messages, options.service, world);
   if (owner.ownerType === "actor") {
     if (!auditInput) {
-      throw new GameError("invalid_state", `缺少 actor 名字审计输入: ${owner.ownerName}`);
+      throw new GameError("invalid_state", `缺少 actor 名字审计输入: ${owner.name}`);
     }
     assertActorSummaryKnown(auditInput, owner, summary);
   }
@@ -84,14 +85,14 @@ export async function compactResolvedMemory(
     }
     const current = await loadAgentMemory(tx, gameId, owner.ownerType, owner.ownerId);
     if (!current) {
-      throw new GameError("invalid_state", `记忆不存在: ${owner.ownerName}`);
+      throw new GameError("invalid_state", `记忆不存在: ${owner.name}`);
     }
     if (
       current.messages.length !== beforeMessages ||
       current.row.updatedAt.getTime() !== beforeUpdatedAt ||
       current.messages.at(-1)?.content !== lastContent
     ) {
-      throw new GameError("invalid_state", `记忆在压缩期间发生变化，请重试: ${owner.ownerName}`);
+      throw new GameError("invalid_state", `记忆在压缩期间发生变化，请重试: ${owner.name}`);
     }
 
     const compactedMessages = current.messages.slice(1);

@@ -1,6 +1,6 @@
 import { and, eq, gt, inArray, isNull, lte, not } from "drizzle-orm";
 import { actors, stages, worlds } from "../../db/schema";
-import type { Executor } from "../apply/types";
+import type { Executor } from "./rows";
 
 /**
  * 死亡相关的读写。

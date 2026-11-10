@@ -1,12 +1,12 @@
 import { type TraceContext, traceEvent } from "../../debug/trace";
-import { appendPublicMessage } from "../apply/messages";
-import type { Executor, StageRow, WorldRow } from "../apply/types";
 import { GameError } from "../errors";
 import { appendWorldNotification } from "../memory/world-channel";
 import type { StageEventMetadata } from "../observation-text";
 import { appendStageMemory } from "../observations";
 import { openPassage } from "../persistence/edges";
+import { appendPublicMessage } from "../persistence/game-messages";
 import { deleteStageItemsByAnchor } from "../persistence/items";
+import type { Executor, StageRow, WorldRow } from "../persistence/rows";
 import { setStageAnchors, setStageEnvironment } from "../persistence/stages";
 import type { StageAction } from "../types";
 import {

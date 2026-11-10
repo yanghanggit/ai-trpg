@@ -6,13 +6,13 @@ import {
   mentionOf,
   NAME_MARKER_PATTERN,
 } from "../addressing";
-import { appendPublicMessage } from "../apply/messages";
-import { listStageActorViews } from "../apply/queries";
-import type { ActorRow, Executor, StageRow } from "../apply/types";
 import { GameError } from "../errors";
+import { listStageActorViews } from "../lookup";
 import { MEMORY_KINDS } from "../memory/kinds";
 import { type ObservationView, withAppearances } from "../observation-text";
 import { appendCustomObservation, appendStageMemory } from "../observations";
+import { appendPublicMessage } from "../persistence/game-messages";
+import type { ActorRow, Executor, StageRow } from "../persistence/rows";
 
 /**
  * 见证事件：静态 `witness` op 与 agent `record_witness` 共用同一份结构化事实。

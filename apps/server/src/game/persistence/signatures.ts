@@ -1,6 +1,6 @@
 import { and, eq, inArray, isNull } from "drizzle-orm";
 import { actorSignatures, appearances } from "../../db/schema";
-import type { Executor } from "../apply/types";
+import type { Executor } from "./rows";
 
 /**
  * 签名的持久化原语。

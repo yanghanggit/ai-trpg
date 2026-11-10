@@ -9,7 +9,7 @@ import type { ActorState, GameStateSlice, StageState } from "../types";
  * 与行级读写（`persistence/actors.ts`）分开：这里只看已装载的状态，不碰数据库。
  * 包里两件事：这里认「哪一个 actor」，`visit.ts` 记「他去过哪些场景」。
  *
- * 检索只保留两种语义入口：真名（这里）与签名（`apply/queries.ts`）。
+ * 检索只保留两种语义入口：真名（这里）与签名（`lookup/`）。
  * id 是控制面的稳定身份，不作为 actor-facing 的检索键——只有 `stageOfActor`
  * 与 god-view 的 `#编号` 走它。
  */

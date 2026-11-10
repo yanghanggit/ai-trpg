@@ -1,13 +1,13 @@
 import { and, eq } from "drizzle-orm";
 import { actors, stages, worlds } from "../../db/schema";
-import type { ActorRow, ActorWithStageRow, Executor } from "../apply/types";
+import type { ActorRow, ActorWithStageRow, Executor } from "./rows";
 
 /**
  * actor 的持久化原语（读与写）。
  *
  * 玩法层（`actions/`、`items/`、`combat/`、`stage`/`world` 回合、死亡与外观）只调用这里的
  * 具名函数，不出现表名、列名或 SQL：规则与存储格式解耦。
- * 「必须存在、必须唯一」这类带校验的读取仍在 `apply/queries.ts`；这里是不带策略的读与写。
+ * 「必须存在、必须唯一」这类带校验的读取仍在 `lookup/`；这里是不带策略的读与写。
  * 命名约定：`load*` 是数据库读，`list*` 是数据库集合读，`set*` / `move*` / `mark*` 是写；
  * `find*` 留给 `actor-state/` 与 `stage-state/` 里对 `GameStateSlice` 的内存查找，避免两套东西同名。
  * 所有函数都接受 `Executor`，在事务里传 `tx` 即可。

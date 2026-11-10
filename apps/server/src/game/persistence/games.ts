@@ -1,6 +1,6 @@
-import { eq } from "drizzle-orm";
+import { eq, sql } from "drizzle-orm";
 import { games } from "../../db/schema";
-import type { Executor } from "../apply/types";
+import type { Executor } from "./rows";
 
 /** 以行锁读取游戏行：结算类事务用它把同一局的写入串行化。 */
 export async function lockGameRow(
@@ -43,4 +43,16 @@ export async function completeGameIfActive(
     .set({ status: "completed", outcome, updatedAt: now })
     .where(eq(games.id, gameId));
   return true;
+}
+
+/** 递增 game version：这次写入才对客户端与 `expectedVersion` 可见。 */
+export async function bumpGameVersion(
+  executor: Executor,
+  gameId: string,
+  now: Date,
+): Promise<void> {
+  await executor
+    .update(games)
+    .set({ version: sql<number>`${games.version} + 1`, updatedAt: now })
+    .where(eq(games.id, gameId));
 }

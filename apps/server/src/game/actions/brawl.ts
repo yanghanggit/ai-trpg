@@ -1,10 +1,11 @@
 import type { TraceContext } from "../../debug/trace";
 import type { ToolDefinition } from "../../llm/types";
 import type { AddressLookup } from "../addressing";
-import { assertNotSelf } from "../apply/queries";
-import type { ActorWithStageRow, Executor, ResolvedBrawl } from "../apply/types";
 import { applyUnarmedHit } from "../combat/unarmed";
 import { GameError } from "../errors";
+import { assertNotSelf } from "../lookup";
+import type { ActorWithStageRow, Executor } from "../persistence/rows";
+import type { ResolvedBrawl } from "../settle/types";
 import type { BrawlAction } from "../types";
 
 /**

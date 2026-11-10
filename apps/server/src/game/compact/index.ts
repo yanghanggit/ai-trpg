@@ -1,7 +1,7 @@
 import type { Database } from "../../db/pool";
+import { listMemoryOwners, resolveMemoryOwner } from "../memory";
 import { loadNameAuditInput } from "../persistence/name-audit";
 import { getGameStateSlice } from "../read/game-state";
-import { resolveAllOwners, resolveTarget } from "./owners";
 import { compactResolvedMemory } from "./store";
 import type { CompactMemoryOptions, CompactMemoryResult, CompactTarget } from "./types";
 
@@ -20,7 +20,11 @@ export async function compactMemory(
   options: CompactMemoryOptions,
 ): Promise<CompactMemoryResult> {
   const state = await getGameStateSlice(db, gameRef);
-  const owner = resolveTarget(state, target);
+  const owner = resolveMemoryOwner(
+    state,
+    target.ownerType,
+    target.ownerType === "world" ? undefined : target.ref,
+  );
   const auditInput =
     owner.ownerType === "actor" ? await loadNameAuditInput(db, state.game.id) : undefined;
   return compactResolvedMemory(db, state.game.id, state.world, owner, options, auditInput);
@@ -35,7 +39,7 @@ export async function compactAllMemories(
   const state = await getGameStateSlice(db, gameRef);
   const auditInput = await loadNameAuditInput(db, state.game.id);
   const results: CompactMemoryResult[] = [];
-  for (const owner of resolveAllOwners(state)) {
+  for (const owner of listMemoryOwners(state)) {
     results.push(
       await compactResolvedMemory(db, state.game.id, state.world, owner, options, auditInput),
     );

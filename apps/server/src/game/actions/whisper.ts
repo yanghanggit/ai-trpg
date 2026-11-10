@@ -1,10 +1,12 @@
 import type { TraceContext } from "../../debug/trace";
 import type { ToolDefinition } from "../../llm/types";
 import { type AddressLookup, actionRef, assertNoSystemReference } from "../addressing";
-import { appendPublicMessage, bumpGameVersion } from "../apply/messages";
-import type { ActorWithStageRow, Executor, ResolvedWhisper } from "../apply/types";
 import { GameError } from "../errors";
 import { appendCommunicationObservations, appendStageMemory } from "../observations";
+import { appendPublicMessage } from "../persistence/game-messages";
+import { bumpGameVersion } from "../persistence/games";
+import type { ActorWithStageRow, Executor } from "../persistence/rows";
+import type { ResolvedWhisper } from "../settle/types";
 import type { WhisperAction } from "../types";
 
 export function buildWhisperTool(targets: readonly string[]): ToolDefinition {

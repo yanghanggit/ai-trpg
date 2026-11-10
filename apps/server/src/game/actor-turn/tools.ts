@@ -14,10 +14,10 @@ import {
   visitedTeleportTargetsFor,
 } from "../actor-state";
 import { addressLookupFor, parseHandle, parseSignatureName, refOf } from "../addressing";
-import { isAlive } from "../apply/queries";
 import { STAT_LABELS } from "../attributes";
 import { GameError } from "../errors";
 import { describeEquipment, describeEquipmentBrief, describeItems } from "../item-state/describe";
+import { isAlive } from "../lookup";
 import type { RouteQuestion } from "../route";
 import { describeStageAnchorsSection } from "../stage-state/describe";
 import type { ActorState, GameStateSlice } from "../types";

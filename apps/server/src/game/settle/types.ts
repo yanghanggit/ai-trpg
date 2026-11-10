@@ -1,15 +1,18 @@
-import type { Database } from "../../db/pool";
-import type { actors, items, stageItems, stages, worlds } from "../../db/schema";
+import type { TraceContext } from "../../debug/trace";
+import type { ChatCompletionService } from "../../llm/protocol";
+import type { Logger } from "../../logging";
+import type { AffixRequest } from "../affixes";
+import type { ActorRow, ItemRow, StageItemRow, StageRow } from "../persistence/rows";
 import type {
   AnnounceAction,
   BrawlAction,
   CallAction,
   CleaveAction,
+  DeathSettlement,
   EquipAction,
   GiveAction,
   InspectAction,
   LootAction,
-  MessageVisibility,
   MoveAction,
   PickupAction,
   RouteFailure,
@@ -24,14 +27,6 @@ import type {
   WhisperAction,
 } from "../types";
 
-export type Executor = Pick<Database, "select" | "insert" | "update" | "delete">;
-export type WorldRow = typeof worlds.$inferSelect;
-export type StageRow = typeof stages.$inferSelect;
-export type ActorRow = typeof actors.$inferSelect;
-export type ItemRow = typeof items.$inferSelect;
-export type StageItemRow = typeof stageItems.$inferSelect;
-export type ActorWithStageRow = { actor: ActorRow; stage: StageRow };
-
 /** 已解析的名字绑定：句柄换成签名 id，写入时不再依赖可变的展示名。 */
 export type ResolvedIdentity = {
   handle: string;
@@ -45,14 +40,6 @@ export type ResolvedPlan = {
   identities: ResolvedIdentity[];
   routes: RouteQuery[];
   routeFailures: RouteFailure[];
-};
-
-export type PublicMessage = {
-  kind: string;
-  stageId: string | null;
-  targetActorId?: string;
-  visibility: MessageVisibility;
-  content: string;
 };
 
 /** 通过校验、已解析出具体对象的动作；`kind` 与动作类型一一对应。 */
@@ -218,3 +205,35 @@ export type ResolvedAction =
   | ResolvedUse
   | ResolvedEquip
   | ResolvedUnequip;
+
+/** 结算的推理端依赖：词缀、外观、死亡收尾各自按需取用。 */
+export type IncrementOptions = {
+  /** 词缀补充效果需要 LLM agent。 */
+  service?: ChatCompletionService;
+  /** 提交后的推理阶段（换装外观、尸体外观、掉落）需要 LLM；不传则只跑确定性的部分。 */
+  inferenceService?: ChatCompletionService;
+  /** 子阶段的失败只进日志与返回值，不抛给调用方。 */
+  logger?: Logger;
+  /** 回合轨迹；有值时记录计划、拒绝、落账与子阶段结果。 */
+  trace?: TraceContext;
+};
+
+export type SettleActorPlanOptions = IncrementOptions & {
+  /** 回合结束后审计新增的 actor 记忆；默认读 TRPG_AUDIT_NAMES。 */
+  auditNameLeaks?: boolean;
+};
+
+/** 应用计划的结果；`rejection` 是给调用方（尤其是玩家入口）看的原因。 */
+export type SettlePlanResult = {
+  ok: boolean;
+  rejection?: string;
+  /** 拒绝类别，与写入 memory 的 kind 一致；轨迹按它聚合。 */
+  rejectionCode?: string;
+  affixRequests?: AffixRequest[];
+  /** 实际落账的动作事件（事务提交后才写轨迹）。 */
+  applied?: { event: "applied"; actionKind: string; feedback: string }[];
+  /** 这次行动之后逐个收尾的死者；失败不回滚这次行动。 */
+  death?: DeathSettlement[];
+  /** 取死者名单这一步没能跑起来的原因（例如数据库错误）；行动本身仍然成功。 */
+  deathError?: string;
+};

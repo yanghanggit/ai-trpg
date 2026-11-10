@@ -1,14 +1,13 @@
 import type { Database } from "../../db/pool";
 import { type TraceContext, traceEvent } from "../../debug/trace";
 import { assertStageFacingText } from "../addressing";
-import { bumpGameVersion } from "../apply/messages";
-import { listActorNamesInWorld } from "../apply/queries";
 import { GameError } from "../errors";
 import { MAX_STAGE_ANCHOR_WRITES_PER_TURN, MAX_STAGE_NOTIFICATIONS_PER_TURN } from "../limits";
+import { listActorNamesInWorld } from "../lookup";
 import { appendMemoryMessages, ensureStageOpeningSnapshot, loadAgentMemory } from "../memory";
 import { MEMORY_KINDS } from "../memory/kinds";
 import { isPassageSealed, listOpenNeighborStageNames } from "../persistence/edges";
-import { lockGameRow } from "../persistence/games";
+import { bumpGameVersion, lockGameRow } from "../persistence/games";
 import { listStageItems } from "../persistence/items";
 import { listStagesOfWorld, loadStageInWorld } from "../persistence/stages";
 import { loadWorldByGame } from "../persistence/worlds";

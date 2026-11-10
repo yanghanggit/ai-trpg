@@ -7,12 +7,14 @@ import {
   type StaticItemActionResult,
   staticAffixes,
 } from "../affixes";
-import { appendPublicMessage, bumpGameVersion } from "../apply/messages";
-import { resolveActorItem } from "../apply/queries";
-import type { ActorWithStageRow, Executor, ResolvedUse } from "../apply/types";
 import { GameError } from "../errors";
 import { equippedSlotOf } from "../item-state";
+import { resolveActorItem } from "../lookup";
 import { appendItemObservations, appendStageMemory } from "../observations";
+import { appendPublicMessage } from "../persistence/game-messages";
+import { bumpGameVersion } from "../persistence/games";
+import type { ActorWithStageRow, Executor } from "../persistence/rows";
+import type { ResolvedUse } from "../settle/types";
 import {
   EQUIPMENT_SLOT_LABELS,
   type EquipmentSlots,

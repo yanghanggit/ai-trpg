@@ -1,11 +1,11 @@
-import { findActorByName } from "../actor-state";
+import { allActors, findActorByName } from "../actor-state";
 import { GameError } from "../errors";
 import { findStage } from "../stage-state";
 import type { GameStateSlice } from "../types";
 import { MEMORY_OWNER_TYPES, type MemoryOwnerType } from "./types";
 
 /**
- * 把调试入口的「类型 + 名字」解析成记忆所有者的稳定 id。
+ * 记忆所有者的解析：调试入口的「类型 + 名字」、以及批量维护的「全部」。
  *
  * 解析只此一处：新增携带记忆的实体时，登记 `MEMORY_OWNER_TYPES` 并在这里补一个分支，
  * 各调试入口（记忆导出、compact）就不必各自维护一份清单。
@@ -49,4 +49,25 @@ export function resolveMemoryOwner(
         `未知的记忆所有者类型: ${ownerType}；可用: ${MEMORY_OWNER_TYPES.join(" / ")}`,
       );
   }
+}
+
+/**
+ * 一局全部记忆所有者，顺序固定：world → 各场景 → 各 actor。
+ *
+ * 批量维护（压缩、导出）按这个顺序逐条跑，复盘时同一局的输出顺序可复现。
+ */
+export function listMemoryOwners(state: GameStateSlice): MemoryOwnerRef[] {
+  return [
+    { ownerType: "world", ownerId: state.world.id, name: state.world.name },
+    ...state.world.stages.map((stage) => ({
+      ownerType: "stage" as const,
+      ownerId: stage.id,
+      name: stage.name,
+    })),
+    ...allActors(state).map(({ actor }) => ({
+      ownerType: "actor" as const,
+      ownerId: actor.id,
+      name: actor.name,
+    })),
+  ];
 }

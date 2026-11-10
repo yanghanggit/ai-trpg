@@ -3,10 +3,10 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { DEMO_USER } from "../src/db/demo-fixture";
 import {
   type ActorPlan,
-  applyActorPlan,
   createGame,
   getGameState,
   runActorTurn,
+  settleActorPlan,
 } from "../src/game";
 import { formatForm } from "../src/game/appearance/form";
 import type { World } from "../src/game/world-definition";
@@ -118,7 +118,7 @@ describe.skipIf(!testDatabaseUrl)("cleave", () => {
     const { created, keeperId } = await startGame(CLEAVE_WORLD, "横扫多目标测试局");
     const before = await stateOf(created.game.slug);
 
-    const result = await applyActorPlan(
+    const result = await settleActorPlan(
       handle.db,
       created.game.id,
       keeperId,
@@ -147,7 +147,7 @@ describe.skipIf(!testDatabaseUrl)("cleave", () => {
     };
     const { created, keeperId } = await startGame(strongWorld, "横扫力量加成测试局");
 
-    const result = await applyActorPlan(
+    const result = await settleActorPlan(
       handle.db,
       created.game.id,
       keeperId,
@@ -165,7 +165,7 @@ describe.skipIf(!testDatabaseUrl)("cleave", () => {
   it("rejects more targets than the weapon allows", async () => {
     const { created, keeperId } = await startGame(CLEAVE_WORLD, "横扫目标数上限测试局");
 
-    const result = await applyActorPlan(
+    const result = await settleActorPlan(
       handle.db,
       created.game.id,
       keeperId,
@@ -184,7 +184,7 @@ describe.skipIf(!testDatabaseUrl)("cleave", () => {
   it("rejects a target list that repeats the same actor", async () => {
     const { created, keeperId } = await startGame(CLEAVE_WORLD, "横扫重复目标测试局");
 
-    const result = await applyActorPlan(
+    const result = await settleActorPlan(
       handle.db,
       created.game.id,
       keeperId,
@@ -199,7 +199,7 @@ describe.skipIf(!testDatabaseUrl)("cleave", () => {
     const { created, keeperId } = await startGame(TEST_WORLD, "横扫未授权测试局");
 
     // 原样的裂齿短刃只提供 strike：cleave 不在可用动作里，解析前就被拒。
-    const result = await applyActorPlan(
+    const result = await settleActorPlan(
       handle.db,
       created.game.id,
       keeperId,

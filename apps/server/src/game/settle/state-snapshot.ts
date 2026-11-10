@@ -1,8 +1,8 @@
 import { mentionOf } from "../addressing";
+import { isAlive, listStageActorViews, stageAddressLookup } from "../lookup";
 import { loadActorWithStage } from "../persistence/actors";
 import { listStageItems } from "../persistence/items";
-import { isAlive, listStageActorViews, stageAddressLookup } from "./queries";
-import type { Executor } from "./types";
+import type { Executor } from "../persistence/rows";
 
 /**
  * 行动落账后的“当时状态”，供 actor 长期 memory 使用。

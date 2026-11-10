@@ -1,13 +1,13 @@
 import type { Database } from "../../db/pool";
 import { type TraceContext, traceEvent } from "../../debug/trace";
-import { appendPublicMessage, bumpGameVersion } from "../apply/messages";
-import type { Executor } from "../apply/types";
 import { GameError } from "../errors";
 import { MAX_WORLD_ACTIONS_PER_TURN } from "../limits";
 import { appendMemoryMessages, loadAgentMemory } from "../memory";
 import { MEMORY_KINDS } from "../memory/kinds";
 import { appendStageDirective } from "../memory/world-channel";
-import { completeGameIfActive, lockGameRow } from "../persistence/games";
+import { appendPublicMessage } from "../persistence/game-messages";
+import { bumpGameVersion, completeGameIfActive, lockGameRow } from "../persistence/games";
+import type { Executor } from "../persistence/rows";
 import { listStagesOfWorld } from "../persistence/stages";
 import { loadWorldByGame } from "../persistence/worlds";
 import type { WorldPlan } from "../types";

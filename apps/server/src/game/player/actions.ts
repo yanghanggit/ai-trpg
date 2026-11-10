@@ -3,11 +3,11 @@ import { parseCall } from "../actions/call";
 import { parseTeleport } from "../actions/teleport";
 import { findActorByRef, stageOfActor } from "../actor-state";
 import { handleOf, parseSignatureName } from "../addressing";
-import type { ApplyActorPlanOptions } from "../apply";
 import { getGameStateSlice } from "../read/game-state";
 import { type RouteQuestion, resolveRouteQuestion } from "../route";
 import type { ActorAction, ActorPlan, ActorTurnResult } from "../types";
 import type {
+  PlayerActionOptions,
   PlayerAnnounceInput,
   PlayerBrawlInput,
   PlayerCallInput,
@@ -44,7 +44,7 @@ export async function playerSay(
   gameRef: string,
   actorRef: string,
   input: PlayerTalkInput,
-  options: ApplyActorPlanOptions = {},
+  options: PlayerActionOptions = {},
 ): Promise<ActorTurnResult> {
   const action: ActorAction = {
     kind: "say",
@@ -60,7 +60,7 @@ export async function playerWhisper(
   gameRef: string,
   actorRef: string,
   input: PlayerTalkInput,
-  options: ApplyActorPlanOptions = {},
+  options: PlayerActionOptions = {},
 ): Promise<ActorTurnResult> {
   const action: ActorAction = {
     kind: "whisper",
@@ -76,7 +76,7 @@ export async function playerAnnounce(
   gameRef: string,
   actorRef: string,
   input: PlayerAnnounceInput,
-  options: ApplyActorPlanOptions = {},
+  options: PlayerActionOptions = {},
 ): Promise<ActorTurnResult> {
   const action: ActorAction = {
     kind: "announce",
@@ -91,7 +91,7 @@ export async function playerCall(
   gameRef: string,
   actorRef: string,
   input: PlayerCallInput,
-  options: ApplyActorPlanOptions = {},
+  options: PlayerActionOptions = {},
 ): Promise<ActorTurnResult> {
   const action = parseCall({
     mind: playerMind(input.reason),
@@ -106,7 +106,7 @@ export async function playerMove(
   gameRef: string,
   actorRef: string,
   input: PlayerMoveInput,
-  options: ApplyActorPlanOptions = {},
+  options: PlayerActionOptions = {},
 ): Promise<ActorTurnResult> {
   const action: ActorAction = { kind: "move", targetStageName: input.targetStageRef };
   return submit(db, gameRef, actorRef, action, options);
@@ -117,7 +117,7 @@ export async function playerTeleport(
   gameRef: string,
   actorRef: string,
   input: PlayerTeleportInput,
-  options: ApplyActorPlanOptions = {},
+  options: PlayerActionOptions = {},
 ): Promise<ActorTurnResult> {
   // 玩家入口与模型工具共用同一份参数校验：`#编号` 在这里就该被拒。
   const action: ActorAction = parseTeleport({ targetStageName: input.targetStageRef });
@@ -128,7 +128,7 @@ export async function playerWait(
   db: Database,
   gameRef: string,
   actorRef: string,
-  options: ApplyActorPlanOptions = {},
+  options: PlayerActionOptions = {},
 ): Promise<ActorTurnResult> {
   const action: ActorAction = { kind: "wait" };
   return submit(db, gameRef, actorRef, action, options);
@@ -139,7 +139,7 @@ export async function playerStrike(
   gameRef: string,
   actorRef: string,
   input: PlayerStrikeInput,
-  options: ApplyActorPlanOptions = {},
+  options: PlayerActionOptions = {},
 ): Promise<ActorTurnResult> {
   const action: ActorAction = {
     kind: "strike",
@@ -153,7 +153,7 @@ export async function playerBrawl(
   gameRef: string,
   actorRef: string,
   input: PlayerBrawlInput,
-  options: ApplyActorPlanOptions = {},
+  options: PlayerActionOptions = {},
 ): Promise<ActorTurnResult> {
   const action: ActorAction = {
     kind: "brawl",
@@ -167,7 +167,7 @@ export async function playerSteal(
   gameRef: string,
   actorRef: string,
   input: PlayerStealInput,
-  options: ApplyActorPlanOptions = {},
+  options: PlayerActionOptions = {},
 ): Promise<ActorTurnResult> {
   const action: ActorAction = {
     kind: "steal",
@@ -182,7 +182,7 @@ export async function playerInspect(
   gameRef: string,
   actorRef: string,
   input: PlayerInspectInput,
-  options: ApplyActorPlanOptions = {},
+  options: PlayerActionOptions = {},
 ): Promise<ActorTurnResult> {
   const action: ActorAction = {
     kind: "inspect",
@@ -196,7 +196,7 @@ export async function playerLoot(
   gameRef: string,
   actorRef: string,
   input: PlayerLootInput,
-  options: ApplyActorPlanOptions = {},
+  options: PlayerActionOptions = {},
 ): Promise<ActorTurnResult> {
   const action: ActorAction = {
     kind: "loot",
@@ -211,7 +211,7 @@ export async function playerGive(
   gameRef: string,
   actorRef: string,
   input: PlayerGiveInput,
-  options: ApplyActorPlanOptions = {},
+  options: PlayerActionOptions = {},
 ): Promise<ActorTurnResult> {
   const action: ActorAction = {
     kind: "give",
@@ -226,7 +226,7 @@ export async function playerPickup(
   gameRef: string,
   actorRef: string,
   input: PlayerPickupInput,
-  options: ApplyActorPlanOptions = {},
+  options: PlayerActionOptions = {},
 ): Promise<ActorTurnResult> {
   const action: ActorAction = {
     kind: "pickup",
@@ -241,7 +241,7 @@ export async function playerEquip(
   gameRef: string,
   actorRef: string,
   input: PlayerEquipInput,
-  options: ApplyActorPlanOptions = {},
+  options: PlayerActionOptions = {},
 ): Promise<ActorTurnResult> {
   const action: ActorAction = { kind: "equip", itemName: input.itemName, slot: input.slot };
   return submit(db, gameRef, actorRef, action, options);
@@ -252,7 +252,7 @@ export async function playerUnequip(
   gameRef: string,
   actorRef: string,
   input: PlayerUnequipInput,
-  options: ApplyActorPlanOptions = {},
+  options: PlayerActionOptions = {},
 ): Promise<ActorTurnResult> {
   const action: ActorAction = { kind: "unequip", slot: input.slot };
   return submit(db, gameRef, actorRef, action, options);
@@ -263,7 +263,7 @@ export async function playerUse(
   gameRef: string,
   actorRef: string,
   input: PlayerUseInput,
-  options: ApplyActorPlanOptions = {},
+  options: PlayerActionOptions = {},
 ): Promise<ActorTurnResult> {
   const action: ActorAction = {
     kind: "use",
@@ -281,7 +281,7 @@ export async function playerRecognizeIdentity(
   gameRef: string,
   actorRef: string,
   input: PlayerRecognizeInput,
-  options: ApplyActorPlanOptions = {},
+  options: PlayerActionOptions = {},
 ): Promise<ActorTurnResult> {
   const state = await getGameStateSlice(db, gameRef);
   const actor = findActorByRef(state, actorRef);
@@ -299,7 +299,7 @@ export async function playerRecallRoute(
   gameRef: string,
   actorRef: string,
   input: RouteQuestion,
-  options: ApplyActorPlanOptions = {},
+  options: PlayerActionOptions = {},
 ): Promise<ActorTurnResult> {
   const state = await getGameStateSlice(db, gameRef);
   const actor = findActorByRef(state, actorRef);

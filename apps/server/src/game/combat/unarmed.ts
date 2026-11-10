@@ -1,5 +1,5 @@
 import type { AddressLookup } from "../addressing";
-import type { ActorRow, ActorWithStageRow, Executor, StageRow } from "../apply/types";
+import type { ActorRow, ActorWithStageRow, Executor, StageRow } from "../persistence/rows";
 import { mitigatedDamage, unarmedDamage } from "./attack";
 import { applyHit } from "./hit";
 

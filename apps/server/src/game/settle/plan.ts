@@ -1,9 +1,7 @@
 import { and, eq } from "drizzle-orm";
 import type { Database } from "../../db/pool";
 import { actors, games, stages, worlds } from "../../db/schema";
-import { type TraceContext, traceEvent } from "../../debug/trace";
-import type { ChatCompletionService } from "../../llm/protocol";
-import type { Logger } from "../../logging";
+import type { TraceContext } from "../../debug/trace";
 import { applyAnnounce } from "../actions/announce";
 import { applyBrawl } from "../actions/brawl";
 import { applyCall } from "../actions/call";
@@ -24,26 +22,32 @@ import { applyWait } from "../actions/wait";
 import { applyWhisper } from "../actions/whisper";
 import type { AddressLookup } from "../addressing";
 import { sanitizeActorFacingText } from "../addressing";
-import { type AffixRequest, agentAffixes, runAffixPhase } from "../affixes";
-import { updateAppearance } from "../appearance";
-import { scanDeathsToSettle, settleDeath } from "../death";
-import type { DialogueJudge } from "../dialogue-audit";
-import { describeError, GameError } from "../errors";
+import {
+  type AffixRequest,
+  agentAffixes,
+  type StaticOutcome,
+  type StaticSettlement,
+} from "../affixes";
+import { GameError } from "../errors";
 import { MAX_ACTIONS_PER_TURN } from "../limits";
+import { isAlive, listStageActorRefs, loadRouteWorld, stageAddressLookup } from "../lookup";
 import { appendMemoryMessages, loadAgentMemory } from "../memory";
 import { MEMORY_KINDS } from "../memory/kinds";
-import { auditTurnNameLeaks, nameAuditEnabled, nameAuditSince } from "../name-audit";
+import { bumpGameVersion } from "../persistence/games";
+import type { ActorWithStageRow, Executor } from "../persistence/rows";
 import { upsertSignatureName } from "../persistence/signature-names";
 import { describeRoute, describeRouteFailure } from "../route";
-import type { ActorPlan, CommunicationKind, DeathSettlement } from "../types";
-import { bumpGameVersion } from "./messages";
-import { isAlive, listStageActorRefs, loadRouteWorld, stageAddressLookup } from "./queries";
-
-export * from "./queries";
-
-import { describeMemoryState } from "./memory-snapshot";
+import type { ActorPlan, CommunicationKind } from "../types";
 import { resolvePlan } from "./resolve";
-import type { ActorWithStageRow, Executor, ResolvedAction } from "./types";
+import { describeMemoryState } from "./state-snapshot";
+import type { ResolvedAction, SettlePlanResult } from "./types";
+
+/**
+ * 结算的计算端：校验、解析、逐动作落账、写行动事实，全部在一个事务里。
+ *
+ * 事务外的事（词缀、外观、死亡收尾）在 `increment.ts`：那一端要调 LLM，失败不能回滚
+ * 这次行动，所以必须先提交再补。
+ */
 
 /** 台词动作的行动反馈也带结构化台词信息；其他动作没有台词。 */
 function dialogueFeedbackMetadata(action: ResolvedAction): {
@@ -64,8 +68,8 @@ function dialogueFeedbackMetadata(action: ResolvedAction): {
 /** 动作落账结果：反馈文本 + 静态词缀结算（供 agent 增量阶段使用）。 */
 type ActionResult = {
   feedback: string;
-  staticSettlement?: import("../affixes").StaticSettlement;
-  staticOutcome?: import("../affixes").StaticOutcome;
+  staticSettlement?: StaticSettlement;
+  staticOutcome?: StaticOutcome;
 };
 
 /** 扁平 dispatch，没有分类层。 */
@@ -136,8 +140,8 @@ function affixRequestFor(
   resolved: ResolvedAction,
   actorId: string,
   defaultFeedback: string,
-  staticSettlement: import("../affixes").StaticSettlement | undefined,
-  staticOutcome: import("../affixes").StaticOutcome | undefined,
+  staticSettlement: StaticSettlement | undefined,
+  staticOutcome: StaticOutcome | undefined,
 ): AffixRequest | null {
   if (resolved.kind !== "strike" && resolved.kind !== "use") {
     return null;
@@ -171,63 +175,29 @@ function affixRequestFor(
   };
 }
 
-/** 应用计划的结果；`rejection` 是给调用方（尤其是玩家入口）看的原因。 */
-export type ApplyPlanResult = {
-  ok: boolean;
-  rejection?: string;
-  /** 拒绝类别，与写入 memory 的 kind 一致；轨迹按它聚合。 */
-  rejectionCode?: string;
-  affixRequests?: AffixRequest[];
-  /** 实际落账的动作事件（事务提交后才写轨迹）。 */
-  applied?: { event: "applied"; actionKind: string; feedback: string }[];
-  /** 这次行动之后逐个收尾的死者；失败不回滚这次行动。 */
-  death?: DeathSettlement[];
-  /** 取死者名单这一步没能跑起来的原因（例如数据库错误）；行动本身仍然成功。 */
-  deathError?: string;
-};
-
-export type ApplyActorPlanOptions = {
-  /** 玩家对话审核器；默认使用 DeepSeek flash，测试可注入。 */
-  judge?: DialogueJudge;
-  /** 词缀补充效果需要 LLM agent。 */
-  service?: ChatCompletionService;
-  /** 提交后的推理阶段（换装外观、尸体外观、掉落）需要 LLM；不传则只跑确定性的部分。 */
-  inferenceService?: ChatCompletionService;
-  /** 死亡阶段的失败只进日志与返回值，不抛给调用方。 */
-  logger?: Logger;
-  /** 回合轨迹；有值时记录计划、拒绝、落账与子阶段结果。 */
-  trace?: TraceContext;
-  /** 回合结束后审计新增的 actor 记忆；默认读 TRPG_AUDIT_NAMES。 */
-  auditNameLeaks?: boolean;
+/** 一次计划落账的产出：结果，加上主体名（提交后的外观阶段要用）。 */
+export type PlanSettlement = {
+  result: SettlePlanResult;
+  /** 事务里读到的 actor 名；计划被拒绝时没有。 */
+  actorName?: string;
 };
 
 /**
- * 默认效果在事务内提交；词缀 agent 在事务外补结算。LLM 不进入数据库事务。
+ * 落账一个 actor 计划：一个事务，失败或拒绝整份丢弃。
  *
- * 推理端只做增量：词缀阶段的任何失败（含未配置 service）都只丢增量，不回滚默认效果，
- * 也不阻断随后的死亡阶段。
+ * 拒绝也写进自己的记忆（带当时状态），因为「这轮没成」对 actor 是事实。
  */
-export async function applyActorPlan(
+export async function settlePlan(
   db: Database,
   gameId: string,
   actorId: string,
   plan: ActorPlan | null,
   loopSuccess: boolean,
-  options: ApplyActorPlanOptions = {},
-): Promise<ApplyPlanResult> {
+  trace?: TraceContext,
+): Promise<PlanSettlement> {
   const affixRequests: AffixRequest[] = [];
-  const nameAuditStartedAt = nameAuditSince();
-  const auditNames = async (): Promise<void> => {
-    if (!(options.auditNameLeaks ?? nameAuditEnabled())) {
-      return;
-    }
-    await auditTurnNameLeaks(db, gameId, nameAuditStartedAt, {
-      ...(options.logger ? { logger: options.logger } : {}),
-      ...(options.trace ? { trace: options.trace } : {}),
-    });
-  };
-  let appearanceActorName: string | null = null;
-  const result: ApplyPlanResult = await db.transaction(async (tx) => {
+  let actorName: string | undefined;
+  const result: SettlePlanResult = await db.transaction(async (tx) => {
     const [game] = await tx.select().from(games).where(eq(games.id, gameId)).limit(1).for("update");
     if (!game) {
       throw new GameError("not_found", `游戏不存在: ${gameId}`);
@@ -248,7 +218,7 @@ export async function applyActorPlan(
     if (!actorRow) {
       throw new GameError("not_found", `actor 不存在: ${actorId}`);
     }
-    appearanceActorName = actorRow.actor.name;
+    actorName = actorRow.actor.name;
     if (!isAlive(actorRow.actor)) {
       throw new GameError("invalid_action", `actor 已死亡: ${actorRow.actor.name}`);
     }
@@ -333,15 +303,7 @@ export async function applyActorPlan(
     const applied: { event: "applied"; actionKind: string; feedback: string }[] = [];
     const pendingMemory: { content: string; metadata: Record<string, unknown> }[] = [];
     for (const action of resolved.actions) {
-      const result = await applyResolvedAction(
-        tx,
-        gameId,
-        actorRow,
-        action,
-        now,
-        address,
-        options.trace,
-      );
+      const result = await applyResolvedAction(tx, gameId, actorRow, action, now, address, trace);
       const { feedback } = result;
       applied.push({ event: "applied", actionKind: action.kind, feedback });
       const affixRequest = affixRequestFor(
@@ -446,73 +408,5 @@ export async function applyActorPlan(
     };
   });
 
-  await traceEvent(options.trace, { event: "plan", actions: plan?.actions ?? [] });
-  if (!result.ok) {
-    await traceEvent(options.trace, {
-      event: "rejected",
-      code: result.rejectionCode ?? "rejected",
-      reason: result.rejection ?? "未知原因",
-    });
-    await auditNames();
-    return result;
-  }
-  for (const applied of result.applied ?? []) {
-    await traceEvent(options.trace, applied);
-  }
-  if (result.affixRequests && result.affixRequests.length > 0) {
-    // 每个物品各自结算：一个失败只丢自己的增量，不影响其余，也不影响已提交的默认效果。
-    for (const request of result.affixRequests) {
-      await runAffixPhase(db, gameId, request, options.service, options.trace, options.logger);
-    }
-  }
-  // 换装改的是「别人看到的样子」：在事务外补一次外观推理。
-  // 失败与死亡阶段一致，只记日志，不回滚已落账的穿戴。
-  const equipmentChanged = (result.applied ?? []).some(
-    ({ actionKind }) => actionKind === "equip" || actionKind === "unequip",
-  );
-  if (equipmentChanged && options.inferenceService) {
-    if (!appearanceActorName) {
-      throw new GameError("invalid_state", `actor 名称缺失: ${actorId}`);
-    }
-    let failureReason: string | undefined;
-    try {
-      const appearance = await updateAppearance(db, gameId, appearanceActorName, {
-        service: options.inferenceService,
-        ...(options.logger ? { logger: options.logger } : {}),
-        ...(options.trace ? { trace: options.trace } : {}),
-      });
-      if (!appearance.ok) {
-        failureReason = appearance.reason ?? "未生成外观";
-      }
-    } catch (error) {
-      failureReason = describeError(error);
-      options.logger?.warn("换装后外观重算失败", error);
-    }
-    await traceEvent(options.trace, {
-      event: "phase",
-      name: "appearance",
-      status: failureReason ? "failed" : "ok",
-      ...(failureReason ? { detail: { reason: failureReason } } : {}),
-    });
-  }
-  // 死亡收尾在事务外跑：它要调 LLM，失败也不能回滚这次行动。
-  // 一次行动可能打死多个目标，所以先取名单再逐个推进；单个死者失败只落在自己那条记录里。
-  const settlementOptions = {
-    ...(options.inferenceService ? { service: options.inferenceService } : {}),
-    ...(options.logger ? { logger: options.logger } : {}),
-    ...(options.trace ? { trace: options.trace } : {}),
-  };
-  const settlements: DeathSettlement[] = [];
-  result.death = settlements;
-  try {
-    for (const actor of await scanDeathsToSettle(db, gameId)) {
-      settlements.push(await settleDeath(db, gameId, actor, settlementOptions));
-    }
-  } catch (error) {
-    // 名单没取成：下一次 hp 变化或 `agent:game deaths` 会再来。
-    result.deathError = error instanceof Error ? error.message : String(error);
-    options.logger?.warn("死亡收尾扫描失败，下次调用会重试", error);
-  }
-  await auditNames();
-  return result;
+  return actorName === undefined ? { result } : { result, actorName };
 }

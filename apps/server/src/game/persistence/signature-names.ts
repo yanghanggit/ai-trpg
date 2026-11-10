@@ -1,6 +1,6 @@
 import { and, eq } from "drizzle-orm";
 import { actorSignatureNames } from "../../db/schema";
-import type { Executor } from "../apply/types";
+import type { Executor } from "./rows";
 
 /**
  * 观察者对签名名字的持久化原语。
