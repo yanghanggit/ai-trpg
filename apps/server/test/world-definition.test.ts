@@ -86,6 +86,42 @@ describe("world content validation", () => {
     expect(() => parseWorldContent(world)).toThrow(/名字重复: 灰烬门廊/);
   });
 
+  it("rejects duplicate actor keys", () => {
+    const [first, second, ...rest] = TEST_WORLD.actors;
+    if (!first || !second) {
+      throw new Error("测试世界缺少 actor");
+    }
+    const world = {
+      ...TEST_WORLD,
+      actors: [first, { ...second, key: first.key }, ...rest],
+    };
+    expect(() => parseWorldContent(world)).toThrow(/重复的 actor key/);
+  });
+
+  it("rejects duplicate stage keys", () => {
+    const [first, second, ...rest] = TEST_WORLD.stages;
+    if (!first || !second) {
+      throw new Error("测试世界缺少 stage");
+    }
+    const world = {
+      ...TEST_WORLD,
+      stages: [first, { ...second, key: first.key }, ...rest],
+    };
+    expect(() => parseWorldContent(world)).toThrow(/重复的 stage key/);
+  });
+
+  it("rejects an item key reused across scopes", () => {
+    const [first, second, ...rest] = TEST_WORLD.actors;
+    if (!first || !second) {
+      throw new Error("测试世界缺少 actor");
+    }
+    const world = {
+      ...TEST_WORLD,
+      actors: [first, { ...second, inventory: [...second.inventory, ...first.inventory] }, ...rest],
+    };
+    expect(() => parseWorldContent(world)).toThrow(/重复的物品 key/);
+  });
+
   it("rejects an environment that names an actor", () => {
     const world = {
       ...TEST_WORLD,

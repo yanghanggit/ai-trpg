@@ -4,13 +4,11 @@ import { toStats } from "../attributes";
 import type { ItemDefinition } from "../world-definition";
 
 /**
- * 内容定义 → 数据库行的公共列。
+ * 内容定义 → 物品行的公共列。
  *
  * `stage_items` 与 `items` 字段相同，只差归属列，所以只有这一份取值逻辑：
  * 两边各写一份的话，新增物品字段时总会漏掉一边。
  */
-
-/** 物品行的公共列；`stage_items` 与 `items` 字段相同，只差归属列。 */
 export function itemValues(item: ItemDefinition, seq: number) {
   return {
     id: randomUUID(),

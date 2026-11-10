@@ -13,6 +13,8 @@ export function checkWorldInvariants(world: World, ctx: z.RefinementCtx): void {
   checkFunctionPrompts(world, ctx);
   // 名字就是名字：角色与场景在 world 内全局唯一，且不能带系统标记字符。
   checkEntityNamesUnique(world, ctx);
+  // key 是内容引用实体的唯一方式：重复会静默指向另一样东西，宁可解析失败也不猜。
+  checkKeysUnique(world, ctx);
   const actorNames = world.actors.map((actor) => actor.name);
   const stageNames = world.stages.map((stage) => stage.name);
   // 环境文本只能点名「从本场景走得到的场景」；未通的通道对面叫什么，要靠发现与对话浮出来。
@@ -178,6 +180,74 @@ function checkItemNamesUnique(
     }
     seen.add(item.name);
   });
+}
+
+/**
+ * 内容 key 的唯一性。
+ *
+ * key 是内容引用 actor / stage / item 的唯一方式（行为与内容判定都按 key 找），重复会
+ * 静默指向另一样东西，所以这里一并拒绝。物品 key 跨锚点与背包全局唯一，与「物品名按
+ * 作用域唯一」是两条不同的规则：名字是地址，key 是引用。
+ */
+function checkKeysUnique(world: World, ctx: z.RefinementCtx): void {
+  const checkEntityKeys = (
+    entries: readonly { key: string }[],
+    path: (string | number)[],
+    label: string,
+  ): void => {
+    const seen = new Set<string>();
+    entries.forEach((entry, index) => {
+      const key = entry.key.trim();
+      if (key.length === 0) {
+        ctx.addIssue({
+          code: "custom",
+          message: `${label} key 不能为空`,
+          path: [...path, index, "key"],
+        });
+        return;
+      }
+      if (seen.has(key)) {
+        ctx.addIssue({
+          code: "custom",
+          message: `重复的 ${label} key: ${key}`,
+          path: [...path, index, "key"],
+        });
+      }
+      seen.add(key);
+    });
+  };
+
+  checkEntityKeys(world.stages, ["stages"], "stage");
+  checkEntityKeys(world.actors, ["actors"], "actor");
+
+  const items = [
+    ...world.stages.flatMap((stage, stageIndex) =>
+      (stage.anchors ?? []).flatMap((anchor, anchorIndex) =>
+        (anchor.items ?? []).map((item, itemIndex) => ({
+          item,
+          path: ["stages", stageIndex, "anchors", anchorIndex, "items", itemIndex, "key"],
+        })),
+      ),
+    ),
+    ...world.actors.flatMap((actor, actorIndex) =>
+      actor.inventory.map((item, itemIndex) => ({
+        item,
+        path: ["actors", actorIndex, "inventory", itemIndex, "key"],
+      })),
+    ),
+  ];
+  const seenItems = new Set<string>();
+  for (const { item, path } of items) {
+    const key = item.key.trim();
+    if (key.length === 0) {
+      ctx.addIssue({ code: "custom", message: "物品 key 不能为空", path });
+      continue;
+    }
+    if (seenItems.has(key)) {
+      ctx.addIssue({ code: "custom", message: `重复的物品 key: ${key}`, path });
+    }
+    seenItems.add(key);
+  }
 }
 
 /**

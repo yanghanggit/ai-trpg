@@ -6,7 +6,7 @@ import { allocateEntitySeq } from "../persistence/entity-seq";
 import type { Executor } from "../persistence/rows";
 import { assertEdgeShape } from "../stage-state";
 import type { Stage, World } from "../world-definition";
-import { itemValues } from "./rows";
+import { itemValues } from "./item-row";
 import type { PromptDump } from "./types";
 
 /**
@@ -16,7 +16,7 @@ import type { PromptDump } from "./types";
  * 否则只能在写了一半的图上做引用校验。
  */
 
-/** 物化场景与场景物品；stage key 在建局内必须唯一。 */
+/** 物化场景与场景物品；key 的唯一性由 `parseWorldContent` 保证。 */
 export async function createStages(
   tx: Executor,
   input: { gameId: string; worldId: string; world: World },
@@ -26,9 +26,6 @@ export async function createStages(
   const { gameId, worldId, world } = input;
 
   for (const [ordinal, stage] of world.stages.entries()) {
-    if (stageIds.has(stage.key)) {
-      throw new GameError("invalid_state", `重复的 stage key: ${stage.key}`);
-    }
     const stageId = randomUUID();
     stageIds.set(stage.key, stageId);
     await insertStage(tx, gameId, worldId, stage, stageId, ordinal);
@@ -60,7 +57,7 @@ export async function createStages(
   return { stageIds, prompts };
 }
 
-export async function insertStage(
+async function insertStage(
   tx: Executor,
   gameId: string,
   worldId: string,

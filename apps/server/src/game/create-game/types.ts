@@ -7,7 +7,8 @@ import type { World } from "../world-definition";
  */
 
 export type PromptDump = { name: string; prompt: string };
-export type ActorRef = { actorId: string; signatureId: string; name: string };
+/** 建局期的一次 actor 物化结果：内容 key 之外，后面几步要靠这两个 id。 */
+export type OpeningActorRef = { actorId: string; signatureId: string; name: string };
 
 /** `createGame` 的输入；`world` 只在创建时读取，之后以数据库状态为准。 */
 export type CreateGameInput = {

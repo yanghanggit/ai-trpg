@@ -50,7 +50,7 @@ describe("content pack", () => {
     );
   });
 
-  it("rejects a pack whose world fails the create-game validation", () => {
+  it("rejects a pack whose world fails content validation", () => {
     const { actions: _actions, ...withoutActions } = TEST_WORLD;
     expect(() => parseContentPack({ world: withoutActions, knowledge: pack.knowledge })).toThrow();
   });

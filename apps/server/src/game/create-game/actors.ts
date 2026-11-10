@@ -11,8 +11,8 @@ import { upsertSignatureName } from "../persistence/signature-names";
 import { insertSignature } from "../persistence/signatures";
 import { recordStageVisit } from "../persistence/visits";
 import { type Actor, actorInnateActions, type World } from "../world-definition";
-import { itemValues } from "./rows";
-import type { ActorRef, PromptDump } from "./types";
+import { itemValues } from "./item-row";
+import type { OpeningActorRef, PromptDump } from "./types";
 
 /**
  * 物化 actor：角色行、开局签名、外观快照、随身物品、记忆与起始到访。
@@ -31,8 +31,8 @@ export async function createActors(
     stageIds: Map<string, string>;
     now: Date;
   },
-): Promise<{ actorRefs: Map<string, ActorRef>; prompts: PromptDump[] }> {
-  const actorRefs = new Map<string, ActorRef>();
+): Promise<{ actorRefs: Map<string, OpeningActorRef>; prompts: PromptDump[] }> {
+  const actorRefs = new Map<string, OpeningActorRef>();
   const prompts: PromptDump[] = [];
   const { gameId, worldId, world, stageIds, now } = input;
 
@@ -101,7 +101,7 @@ export async function createActors(
   return { actorRefs, prompts };
 }
 
-export async function insertActor(
+async function insertActor(
   tx: Executor,
   gameId: string,
   actor: Actor,
@@ -126,7 +126,6 @@ export async function insertActor(
   return actorId;
 }
 
-/** 开局名字绑定：观察者与对象都用内容 key 引用，落库时变成 actor / 签名 id。 */
 /**
  * 开局前就去过的场景：写一条到访，和真实走到那里一模一样。
  *
@@ -138,7 +137,7 @@ export async function bindVisitedStages(
     gameId: string;
     world: World;
     stageIds: Map<string, string>;
-    actorRefs: Map<string, ActorRef>;
+    actorRefs: Map<string, OpeningActorRef>;
     now: Date;
   },
 ): Promise<void> {
@@ -155,9 +154,10 @@ export async function bindVisitedStages(
   }
 }
 
+/** 开局名字绑定：观察者与对象都用内容 key 引用，落库时变成 actor / 签名 id。 */
 export async function bindSignatureNames(
   tx: Executor,
-  input: { gameId: string; world: World; actorRefs: Map<string, ActorRef> },
+  input: { gameId: string; world: World; actorRefs: Map<string, OpeningActorRef> },
 ): Promise<void> {
   for (const binding of input.world.signatureNames ?? []) {
     const observer = input.actorRefs.get(binding.observer);
