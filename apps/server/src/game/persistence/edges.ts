@@ -1,5 +1,6 @@
 import { and, eq, inArray, or } from "drizzle-orm";
 import { stageConnections, stages } from "../../db/schema";
+import type { PassageState } from "../types";
 import type { Executor } from "./rows";
 
 /**
@@ -91,4 +92,19 @@ export async function listOpenNeighborStageNames(
     .from(stages)
     .where(inArray(stages.id, neighborIds));
   return neighbors.map((neighbor) => neighbor.name);
+}
+
+/** 本 world 的全部边（窄列）：路线回忆只需要端点与通行状态。 */
+export async function listConnectionsOfWorld(
+  executor: Executor,
+  worldId: string,
+): Promise<{ fromStageId: string; toStageId: string; passage: PassageState }[]> {
+  return executor
+    .select({
+      fromStageId: stageConnections.fromStageId,
+      toStageId: stageConnections.toStageId,
+      passage: stageConnections.passage,
+    })
+    .from(stageConnections)
+    .where(eq(stageConnections.worldId, worldId));
 }

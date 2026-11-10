@@ -7,7 +7,6 @@ import {
   stageConnections,
   stageItems,
   stages,
-  stageVisits,
   worlds,
 } from "../../db/schema";
 import {
@@ -29,7 +28,6 @@ import type {
   WorldRow,
 } from "../persistence/rows";
 import { signatureNamesFor } from "../persistence/signature-names";
-import type { RouteWorld } from "../route";
 import { EQUIPMENT_SLOTS } from "../types";
 
 /**
@@ -394,41 +392,4 @@ export async function findStageByNameInWorld(
     .where(and(eq(stages.worldId, worldId), eq(stages.name, name.trim())))
     .limit(1);
   return row;
-}
-
-/**
- * 路线回忆需要的最小图：场景、边、以及观察者走过去哪些地方。
- *
- * `settle` 里装配整份状态太重，这里只读三张表的最小列，与 `getGameState` 的三层读互不依赖。
- */
-export async function loadRouteWorld(
-  executor: Executor,
-  input: { gameId: string; worldId: string; actorId: string; currentStageId: string },
-): Promise<RouteWorld> {
-  const [stageRows, edges, visits] = await Promise.all([
-    executor
-      .select({
-        id: stages.id,
-        seq: stages.seq,
-        name: stages.name,
-        ordinal: stages.ordinal,
-      })
-      .from(stages)
-      .where(eq(stages.worldId, input.worldId)),
-    executor
-      .select({
-        fromStageId: stageConnections.fromStageId,
-        toStageId: stageConnections.toStageId,
-        passage: stageConnections.passage,
-      })
-      .from(stageConnections)
-      .where(eq(stageConnections.worldId, input.worldId)),
-    executor
-      .select({ stageId: stageVisits.stageId })
-      .from(stageVisits)
-      .where(and(eq(stageVisits.gameId, input.gameId), eq(stageVisits.actorId, input.actorId))),
-  ]);
-  const visited = new Set(visits.map((row) => row.stageId));
-  visited.add(input.currentStageId);
-  return { stages: stageRows, connections: edges, visited };
 }

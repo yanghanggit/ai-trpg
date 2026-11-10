@@ -1,24 +1,18 @@
 import assert from "node:assert/strict";
-import {
-  buildEdgeIndex,
-  distanceOf,
-  pathTo,
-  reverseEdges,
-  type StageEdge,
-  search,
-} from "../stage-state";
 import type { RouteFailure, RouteQuery } from "../types";
+import { findRoute, type SealedChain } from "./recall";
 import type { RouteNode, RouteWorld } from "./types";
 
 /**
- * 路线回忆的渲染：把一条路径写成 actor 记忆里那句话。
+ * 路线回忆的渲染：把选好的结论写成 actor 记忆里那句话。
  *
- * 能走通就给整条链；走不通就把链拉到断点、在断处标 `→[封着]→`。这里只做文字，
- * 图怎么走由 `stage-state/graph.ts` 负责。
+ * 只做文字与称呼：链上的场景按观察者认知渲染，走过的写名字，否则写 `#序号`。
+ * 选路与断点选择在 `recall.ts`，遍历原语在 `stage-state/graph.ts`。
  */
 
-/** 走不通时最多报几条断点：多到能说明「哪几条路都断了」，又不至于把整张图倒出来。 */
-const MAX_BREAKS = 3;
+function indexStages(world: RouteWorld): Map<string, RouteNode> {
+  return new Map(world.stages.map((stage) => [stage.id, stage]));
+}
 
 /** 链上的场景按观察者认知渲染：走过的写名字，否则写 `#序号`。 */
 function renderChain(
@@ -35,12 +29,6 @@ function renderChain(
     .join(" → ");
 }
 
-function ordinalOf(nodes: Map<string, RouteNode>, id: string): number {
-  const node = nodes.get(id);
-  assert(node, `场景索引缺少节点: ${id}`);
-  return node.ordinal;
-}
-
 /**
  * 封着的门写成链上的一段，读起来和走通的路是同一种形状。
  *
@@ -50,12 +38,10 @@ function ordinalOf(nodes: Map<string, RouteNode>, id: string): number {
 function renderSealedChain(
   nodes: Map<string, RouteNode>,
   world: RouteWorld,
-  before: readonly string[],
-  after: readonly string[],
-  complete: boolean,
+  chain: SealedChain,
 ): string {
-  const chain = `${renderChain(nodes, world, before)} →[封着]→ ${renderChain(nodes, world, after)}`;
-  return complete ? chain : `${chain} …`;
+  const text = `${renderChain(nodes, world, chain.before)} →[封着]→ ${renderChain(nodes, world, chain.after)}`;
+  return chain.complete ? text : `${text} …`;
 }
 
 /**
@@ -65,70 +51,24 @@ function renderSealedChain(
  * 标题一行说清问答，下面一条路径一行；多条断点不重复标题前缀。
  */
 export function describeRoute(world: RouteWorld, query: RouteQuery): string {
-  const nodes = new Map(world.stages.map((stage) => [stage.id, stage]));
+  const nodes = indexStages(world);
   const from = nodes.get(query.fromStageId);
   const to = nodes.get(query.toStageId);
   assert(from, `路线起点不存在: ${query.fromStageId}`);
   assert(to, `路线终点不存在: ${query.toStageId}`);
-  if (from.id === to.id) {
+
+  const plan = findRoute(world, query);
+  if (plan.kind === "here") {
     return `你就在${from.name}，不用走。`;
   }
   const title = `从${from.name}到${to.name}：`;
-  const index = buildEdgeIndex(world.connections);
-  const isOpen = (edge: StageEdge) => edge.passage === "open";
-  const byOrdinal = (left: string, right: string) =>
-    ordinalOf(nodes, left) - ordinalOf(nodes, right);
-
-  const forward = search(index, from.id, { passable: isOpen, compare: byOrdinal });
-  const direct = pathTo(forward, from.id, to.id);
-  if (direct) {
-    return `${title}\n${renderChain(nodes, world, direct)}（${direct.length - 1} 步）`;
+  if (plan.kind === "path") {
+    return `${title}\n${renderChain(nodes, world, plan.path)}（${plan.path.length - 1} 步）`;
   }
-
-  // 走不通：从终点反向再搜一次，两面之间封着的门就是断点。
-  const backward = search(reverseEdges(world.connections), to.id, {
-    passable: isOpen,
-    compare: byOrdinal,
-  });
-  const breaks = world.connections
-    .filter((edge) => edge.passage === "sealed")
-    .filter((edge) => forward.distance.has(edge.fromStageId))
-    .filter((edge) => backward.distance.has(edge.toStageId))
-    .map((edge) => ({
-      edge,
-      cost: distanceOf(forward, edge.fromStageId) + distanceOf(backward, edge.toStageId),
-    }))
-    .sort(
-      (left, right) =>
-        left.cost - right.cost ||
-        ordinalOf(nodes, left.edge.fromStageId) - ordinalOf(nodes, right.edge.fromStageId) ||
-        ordinalOf(nodes, left.edge.toStageId) - ordinalOf(nodes, right.edge.toStageId),
-    )
-    .slice(0, MAX_BREAKS);
-
-  if (breaks.length > 0) {
-    const lines = breaks.map(({ edge }) => {
-      const before = pathTo(forward, from.id, edge.fromStageId);
-      const after = pathTo(backward, to.id, edge.toStageId);
-      assert(before && after, "断点路径缺失");
-      return renderSealedChain(nodes, world, before, [...after].reverse(), true);
-    });
-    return [title, ...lines].join("\n");
-  }
-
-  // 连「对面能到 B」的门都找不到：只能说明最近的一扇门就把路截断了。
-  const firstStopped = world.connections
-    .filter((edge) => edge.passage === "sealed" && forward.distance.has(edge.fromStageId))
-    .sort(
-      (left, right) =>
-        distanceOf(forward, left.fromStageId) - distanceOf(forward, right.fromStageId) ||
-        ordinalOf(nodes, left.fromStageId) - ordinalOf(nodes, right.fromStageId),
-    )
-    .at(0);
-  if (firstStopped) {
-    const before = pathTo(forward, from.id, firstStopped.fromStageId);
-    assert(before, "断点前的路径缺失");
-    return `${title}\n${renderSealedChain(nodes, world, before, [firstStopped.toStageId], false)}`;
+  if (plan.kind === "sealed") {
+    return [title, ...plan.chains.map((chain) => renderSealedChain(nodes, world, chain))].join(
+      "\n",
+    );
   }
   return `${title}\n没有能走通的路。`;
 }

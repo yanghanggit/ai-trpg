@@ -30,13 +30,13 @@ import {
 } from "../affixes";
 import { GameError } from "../errors";
 import { MAX_ACTIONS_PER_TURN } from "../limits";
-import { isAlive, listStageActorRefs, loadRouteWorld, stageAddressLookup } from "../lookup";
+import { isAlive, listStageActorRefs, stageAddressLookup } from "../lookup";
 import { appendMemoryMessages, loadAgentMemory } from "../memory";
 import { MEMORY_KINDS } from "../memory/kinds";
 import { bumpGameVersion } from "../persistence/games";
 import type { ActorWithStageRow, Executor } from "../persistence/rows";
 import { upsertSignatureName } from "../persistence/signature-names";
-import { describeRoute, describeRouteFailure } from "../route";
+import { describeRoute, describeRouteFailure, loadRouteWorld } from "../route";
 import type { ActorPlan, CommunicationKind } from "../types";
 import { resolvePlan } from "./resolve";
 import { describeMemoryState } from "./state-snapshot";

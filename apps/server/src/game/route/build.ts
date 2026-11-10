@@ -1,8 +1,8 @@
 import type { ActorWithStage } from "../actor-state";
 import { visitedStageIds } from "../actor-state";
 import { resolveStageName } from "../stage-state";
-import type { GameStateSlice } from "../types";
-import type { RouteQuestion, RouteResolution, RouteWorld } from "./types";
+import type { ConnectionState, GameStateSlice } from "../types";
+import type { RouteNode, RouteQuestion, RouteResolution, RouteWorld } from "./types";
 
 /**
  * 问路的两端准备：把状态收成一张窄图，把模型给的引用解析成端点 id。
@@ -11,14 +11,36 @@ import type { RouteQuestion, RouteResolution, RouteWorld } from "./types";
  * 让上层把它们写成同一种「这次的结论」。
  */
 
+/**
+ * 把「场景、边、去过哪些场景」收成一次回忆的窄世界。
+ *
+ * 两个入口共用这一份规则：实时工具从 `GameStateSlice` 来，结算事务从窄读来。
+ * `visited` 恒含当前场景——站在这里就能看见它，即使到访表还没记过。
+ */
+export function routeWorldOf(input: {
+  stages: readonly { id: string; seq: number; name: string; ordinal: number }[];
+  connections: readonly Pick<ConnectionState, "fromStageId" | "toStageId" | "passage">[];
+  visitedStageIds: Iterable<string>;
+  currentStageId: string;
+}): RouteWorld {
+  const visited = new Set(input.visitedStageIds);
+  visited.add(input.currentStageId);
+  const stages: RouteNode[] = input.stages.map(({ id, seq, name, ordinal }) => ({
+    id,
+    seq,
+    name,
+    ordinal,
+  }));
+  return { stages, connections: input.connections, visited };
+}
+
 export function routeWorldFromState(state: GameStateSlice, current: ActorWithStage): RouteWorld {
-  const visited = new Set(visitedStageIds(state, current.actor.id));
-  visited.add(current.stage.id);
-  return {
-    stages: state.world.stages.map(({ id, seq, name, ordinal }) => ({ id, seq, name, ordinal })),
+  return routeWorldOf({
+    stages: state.world.stages,
     connections: state.world.connections,
-    visited,
-  };
+    visitedStageIds: visitedStageIds(state, current.actor.id),
+    currentStageId: current.stage.id,
+  });
 }
 
 /**

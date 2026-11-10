@@ -15,7 +15,7 @@ export type RouteNode = {
   ordinal: number;
 };
 
-/** 路线只需要场景、边与「走过哪些场景」；`apply` 阶段按这三样窄读，不必装配整份状态。 */
+/** 路线只需要场景、边与「走过哪些场景」；结算事务按这三样窄读，不必装配整份状态。 */
 export type RouteWorld = {
   stages: readonly RouteNode[];
   connections: readonly Pick<ConnectionState, "fromStageId" | "toStageId" | "passage">[];
