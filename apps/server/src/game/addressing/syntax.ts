@@ -8,6 +8,8 @@
  * 与世界面守卫（`guard.ts`）。
  */
 
+import { GameError } from "../errors";
+
 /** 名字里不能出现地址标记 `#`：它既是保留前缀，也是句子里能被扫出来的编号。 */
 export const NAME_MARKER_PATTERN = /#/;
 
@@ -41,4 +43,20 @@ export function handlesIn(text: string): string[] {
 /** 世界面守卫用：文本里是否出现了编号。 */
 export function containsHandle(text: string): boolean {
   return HANDLE_PATTERN.test(text);
+}
+
+/**
+ * 一个名字能不能写进地址表：不能为空，不能含 `#`，不能含控制字符。
+ *
+ * 模型工具与玩家入口共用这一份；两个入口各写一次规则，放宽一处就会在另一处漏网。
+ */
+export function parseSignatureName(raw: unknown): string {
+  const name = typeof raw === "string" ? raw.trim() : "";
+  if (name.length === 0) {
+    throw new GameError("invalid_action", "name 不能为空");
+  }
+  if (NAME_MARKER_PATTERN.test(name) || /\p{Cc}/u.test(name)) {
+    throw new GameError("invalid_action", "name 不能包含 # 或控制字符");
+  }
+  return name;
 }

@@ -1,5 +1,8 @@
 import type { ToolDefinition } from "../../llm/types";
 import { GameError } from "../errors";
+import type { StageAction, StageActionKind } from "../types";
+import type { StageTurnContext } from "./context";
+import type { StagePlanSession } from "./plan-session";
 import {
   buildAddAnchorTool,
   buildNotifyWorldTool,
@@ -13,16 +16,15 @@ import {
   parseRemoveAnchor,
   parseUpdateAnchor,
   parseWorldNotification,
-} from "../plan";
-import type { StageAction, StageActionKind } from "../types";
-import type { StageTurnContext } from "./context";
-import type { StagePlanSession } from "./plan-session";
+} from "./tools";
 
 /**
  * 一个仲裁动作的两个接口：给模型看的工具形状，与把参数写进本轮计划的那一步。
  *
  * 与 actor 侧同样的理由：一张表而不是两张平行表，`Record<StageActionKind, …>`
  * 保证新增仲裁动作时不会漏掉一半。工具形状按本场景此刻的可供性生成。
+ *
+ * 工具契约（形状与 parser）在 `./tools`：它是模型看到的那一面，与这里的装配分开。
  */
 export type StageActionToolkit = {
   build: (context: StageTurnContext) => ToolDefinition;

@@ -1,23 +1,24 @@
 import type { TraceContext } from "../../debug/trace";
 import type { ToolDefinition } from "../../llm/types";
-import type { AddressLookup } from "../addressing";
+import { type AddressLookup, actionRef } from "../addressing";
 import {
   applyStaticItemAction,
   hasAffixes,
   type StaticItemActionResult,
   staticAffixes,
 } from "../affixes";
+import { appendPublicMessage, bumpGameVersion } from "../apply/messages";
 import { resolveActorItem } from "../apply/queries";
 import type { ActorWithStageRow, Executor, ResolvedUse } from "../apply/types";
 import { GameError } from "../errors";
 import { equippedSlotOf } from "../item-state";
+import { appendItemObservations, appendStageMemory } from "../observations";
 import {
   EQUIPMENT_SLOT_LABELS,
   type EquipmentSlots,
   type ItemState,
   type UseAction,
 } from "../types";
-import { applyUseEvent } from "./use-event";
 
 /**
  * `use` 的候选物品：声明了 `affixes.use`，且此刻没被穿戴。
@@ -168,6 +169,71 @@ export async function resolveUse(
   };
 }
 
+/**
+ * `use` 的基础事件：引擎行为，不依赖词缀。
+ *
+ * 没有词缀的物品也可能被“使用”（例如把钟舌放回祭坛），这条记录保证动作在世界里
+ * 留下痕迹；可见后果由 witness 额外追加。
+ */
+async function recordUseEvent(
+  executor: Executor,
+  gameId: string,
+  actorRow: ActorWithStageRow,
+  resolved: ResolvedUse,
+  now: Date,
+  address: AddressLookup,
+  trace?: TraceContext,
+): Promise<string> {
+  const { stage, transferItem, target, targetStage } = resolved;
+  const targetAnchor = targetStage ? resolved.targetAnchor : undefined;
+  const actor = { id: actorRow.actor.id, name: actorRow.actor.name };
+  const targetRef = target ? actionRef(address(target.id)) : undefined;
+  const targetLabel = targetStage ? targetStage.name : (targetRef ?? target?.name ?? "目标");
+  const stageAnchorText = targetAnchor ? `的${targetAnchor}` : "";
+  const content = targetStage
+    ? `${actor.name}在${targetStage.name}${stageAnchorText}使用了${transferItem.name}。`
+    : `${actor.name}对${targetLabel}使用了${transferItem.name}。`;
+
+  await bumpGameVersion(executor, gameId, now);
+  await appendPublicMessage(executor, gameId, actor.id, {
+    kind: "use",
+    stageId: stage.id,
+    ...(target ? { targetActorId: target.id } : {}),
+    visibility: "stage",
+    content,
+  });
+  await appendItemObservations(
+    executor,
+    gameId,
+    stage,
+    {
+      actor,
+      itemName: transferItem.name,
+      event: "use",
+      ...(target ? { target: { id: target.id } } : {}),
+      ...(targetStage ? { targetStageName: targetStage.name } : {}),
+      ...(targetAnchor ? { targetAnchor } : {}),
+    },
+    trace,
+  );
+  await appendStageMemory(
+    executor,
+    gameId,
+    stage.id,
+    `# 场景事件\n${content}`,
+    {
+      eventKind: "use",
+      ...(target ? { targetActorId: target.id } : {}),
+      ...(targetStage ? { targetStageId: targetStage.id } : {}),
+    },
+    trace,
+  );
+
+  return targetStage
+    ? `# 行动结果\n你在${targetLabel}${stageAnchorText}使用了${transferItem.name}。`
+    : `# 行动结果\n你对${targetLabel}使用了${transferItem.name}。`;
+}
+
 export async function applyUse(
   executor: Executor,
   gameId: string,
@@ -178,19 +244,15 @@ export async function applyUse(
   trace?: TraceContext,
 ): Promise<StaticItemActionResult> {
   const targetAnchor = resolved.targetStage ? resolved.targetAnchor : undefined;
-  const baseFeedback = await applyUseEvent({
+  const baseFeedback = await recordUseEvent(
     executor,
     gameId,
     actorRow,
-    stage: resolved.stage,
-    item: resolved.transferItem,
-    ...(resolved.target ? { target: resolved.target } : {}),
-    ...(resolved.targetStage ? { targetStage: resolved.targetStage } : {}),
-    ...(targetAnchor ? { targetAnchor } : {}),
+    resolved,
     now,
     address,
-    ...(trace ? { trace } : {}),
-  });
+    trace,
+  );
   const staticResult = await applyStaticItemAction({
     executor,
     gameId,

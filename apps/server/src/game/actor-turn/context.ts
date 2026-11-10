@@ -3,7 +3,6 @@ import { usableItemNames } from "../actions/use";
 import { type ActorWithStage, otherActorsInStage } from "../actor-state";
 import { type AddressLookup, addressLookupFor } from "../addressing";
 import { carriedActionCap, equippedItemActions, isWearable } from "../item-state";
-import { adjacentStageRefsForActor } from "../plan";
 import {
   type ActionKind,
   type ActorState,
@@ -11,6 +10,7 @@ import {
   type EquipmentSlot,
   type GameStateSlice,
 } from "../types";
+import { adjacentStageRefsForActor } from "./observed-stage";
 
 /**
  * 一轮 actor 回合里「看得到什么、能做什么」的全部派生结果。

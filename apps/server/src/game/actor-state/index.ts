@@ -15,6 +15,7 @@ export {
   stageOfActor,
 } from "./locate";
 export {
+  sealedVisitedStagesForActor,
   visitedStageIds,
   visitedStagesForActor,
   visitedTeleportTargetsFor,

@@ -1,4 +1,6 @@
+import { sealedStages } from "../stage-state";
 import type { ActorState, GameStateSlice, StageState } from "../types";
+import type { ActorWithStage } from "./locate";
 
 type StageIdIndex = Map<string, Set<string>>;
 
@@ -60,6 +62,23 @@ export function visitedStagesForActor(state: GameStateSlice, actorId: string): S
       const stage = byId.get(visit.stageId);
       return stage ? [stage] : [];
     });
+}
+
+/**
+ * 封着、但自己去过的出口：记忆里的一道门。
+ *
+ * 到访是记忆，不是通行证：去过的地方即使现在过不去，也认得出它在哪儿；没走过的门
+ * 连名字都不知道，自然也无从记得。
+ *
+ * 名字从 `visitedStageIds` 推，封没封从地形推：这是「场景认知」跨到地形上的一次组合，
+ * 所以落在认知这一层，而不是 `stage-state`。
+ */
+export function sealedVisitedStagesForActor(
+  state: GameStateSlice,
+  current: ActorWithStage,
+): StageState[] {
+  const visited = visitedStageIds(state, current.actor.id);
+  return sealedStages(state, current.stage.id).filter((stage) => visited.has(stage.id));
 }
 
 /**

@@ -19,7 +19,7 @@ import {
   takeActorControl,
 } from "../src/game";
 
-import { describeStageForActor } from "../src/game/plan";
+import { describeStageForActor } from "../src/game/actor-turn";
 import { ChatCompletionResult, type ChatCompletionService, type ToolCall } from "../src/llm";
 
 const testDatabaseUrl = process.env.TEST_DATABASE_URL?.trim();

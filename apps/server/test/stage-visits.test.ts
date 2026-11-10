@@ -11,9 +11,8 @@ import {
   playerMove,
   takeActorControl,
 } from "../src/game";
-
+import { buildVisitedStagesTool, describeVisitedStages } from "../src/game/actor-turn";
 import { recordStageVisit } from "../src/game/persistence/visits";
-import { buildVisitedStagesTool, describeVisitedStages } from "../src/game/plan";
 import type { World } from "../src/game/world-definition";
 import { TEST_WORLD } from "./test-world";
 

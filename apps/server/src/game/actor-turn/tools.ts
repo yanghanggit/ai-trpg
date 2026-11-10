@@ -1,8 +1,31 @@
+/**
+ * actor 回合的工具契约：只读查看、称呼与提交，以及它们各自的解析器与结果渲染。
+ *
+ * 与 stage / world 的 `tools.ts` 同层：这里只管模型看得见的形状、就地校验，
+ * 以及该工具把自己读到的东西渲染成什么文本。动作工具不在这里——它们与玩家入口
+ * 共用，留在 `actions/*`；装配见 `./toolkit.ts`，编排见 `./prompt.ts`。
+ */
+
 import type { ToolDefinition } from "../../llm/types";
 import type { RagSearchResult } from "../../rag";
-import { NAME_MARKER_PATTERN, parseHandle } from "../addressing";
+import {
+  type ActorWithStage,
+  visitedStagesForActor,
+  visitedTeleportTargetsFor,
+} from "../actor-state";
+import { addressLookupFor, parseHandle, parseSignatureName, refOf } from "../addressing";
+import { isAlive } from "../apply/queries";
+import { STAT_LABELS } from "../attributes";
 import { GameError } from "../errors";
+import { describeEquipment, describeEquipmentBrief, describeItems } from "../item-state/describe";
 import type { RouteQuestion } from "../route";
+import { describeStageAnchorsSection } from "../stage-state/describe";
+import type { ActorState, GameStateSlice } from "../types";
+import {
+  adjacentStageRefsForActor,
+  renderStageEnvironmentForActor,
+  sealedVisitedStageRefsForActor,
+} from "./observed-stage";
 
 export function buildSelfInfoTool(): ToolDefinition {
   return {
@@ -15,33 +38,6 @@ export function buildSelfInfoTool(): ToolDefinition {
         type: "object",
         properties: {},
         required: [],
-      },
-    },
-  };
-}
-
-/**
- * 本场景小 GM 的只读查看：它对本场景的携带物本来就全知，因此不必行动。
- *
- * 与 actor 的 `inspect` 动作同名不同权：actor 要看别人的行囊得花一次行动，还要看敏捷。
- */
-export function buildStageInspectTool(availableTargetActorRefs: readonly string[]): ToolDefinition {
-  return {
-    type: "function",
-    function: {
-      name: "inspect",
-      description:
-        "检视本场景角色随身携带的物品（含已穿戴的）；只看得见物品，看不到对方的 stats、伤势或存活状态。只读。",
-      parameters: {
-        type: "object",
-        properties: {
-          targetActorRef: {
-            type: "string",
-            enum: availableTargetActorRefs,
-            description: "本场景角色名",
-          },
-        },
-        required: ["targetActorRef"],
       },
     },
   };
@@ -217,18 +213,6 @@ export function parseRecallRoute(args: Record<string, unknown>): RouteQuestion {
   return { ...(from.length > 0 ? { fromStageRef: from } : {}), toStageRef: to };
 }
 
-/** 签名的当前名字；模型与玩家入口共用同一套格式校验。 */
-export function parseSignatureName(raw: unknown): string {
-  const name = typeof raw === "string" ? raw.trim() : "";
-  if (name.length === 0) {
-    throw new GameError("invalid_action", "name 不能为空");
-  }
-  if (NAME_MARKER_PATTERN.test(name) || /\p{Cc}/u.test(name)) {
-    throw new GameError("invalid_action", "name 不能包含 # 或控制字符");
-  }
-  return name;
-}
-
 export function parseRecognizeIdentity(args: Record<string, unknown>): {
   handle: string;
   name: string;
@@ -238,4 +222,81 @@ export function parseRecognizeIdentity(args: Record<string, unknown>): {
     throw new GameError("invalid_action", "handle 必须是匿名编号，例如 #12");
   }
   return { handle, name: parseSignatureName(args.name) };
+}
+
+/**
+ * 只列参与结算的属性，免得模型据此推断出不存在的机制。
+ *
+ * 渲染统一用中文名：字段名与中文的对应只在工具契约里说一次，这里不再中英混排。
+ * 力量进攻击力、敏捷管察觉与窃取成败，智慧没有读取点，所以不给它一行。
+ */
+export function describeStats(actor: ActorState): string {
+  return `角色：${actor.name}
+HP：${actor.hp}/${actor.stats.maxHp}
+${STAT_LABELS.strength}：${actor.stats.strength}
+${STAT_LABELS.agility}：${actor.stats.agility}
+${STAT_LABELS.damage}：${actor.stats.damage}
+${STAT_LABELS.block}：${actor.stats.block}
+状态：${isAlive(actor) ? "存活" : "已死亡"}`;
+}
+
+export function describeSelf(actor: ActorState): string {
+  return `外观：${actor.appearance.text}
+${describeStats(actor)}
+${describeEquipment(actor)}
+${describeItems(actor)}`;
+}
+
+/** actor 视角的场景视图：只读当前场景，名字走观察者相对的引用。 */
+export function describeStageForActor(state: GameStateSlice, current: ActorWithStage): string {
+  const stage = current.stage;
+  const address = addressLookupFor(state, current.actor, stage);
+  const moves = adjacentStageRefsForActor(state, current);
+  const remembered = sealedVisitedStageRefsForActor(state, current);
+  const canTeleport = current.actor.actions.includes("teleport");
+  const teleportLines = visitedTeleportTargetsFor(state, current.actor, stage)
+    .map((candidate) => candidate.name)
+    .join("、");
+  const actors =
+    stage.actors.length === 0
+      ? "无"
+      : stage.actors
+          .map((actor) => {
+            const worn = describeEquipmentBrief(actor);
+            const dead = isAlive(actor) ? "" : "（已死亡）";
+            return `${refOf(address(actor.id))}${dead}${worn.length === 0 ? "" : `｜${worn}`}`;
+          })
+          .join("、");
+  return `场景：${stage.name}
+${renderStageEnvironmentForActor(state, current)}
+角色：${actors}
+${describeStageAnchorsSection(stage.anchors)}
+可去：${moves.length === 0 ? "无" : moves.join("、")}${
+    remembered.length === 0 ? "" : `\n记得封着：${remembered.join("、")}`
+  }${
+    canTeleport
+      ? `
+可传送（写对真名即可；下列是去过的、未禁传）：${teleportLines.length === 0 ? "无" : teleportLines}`
+      : ""
+  }`;
+}
+
+/**
+ * 去过哪些场景。顺序直接沿用 `state.visits`（并列时已按场景序号兜底），
+ * 这里不再重排，避开两处排序规则漂移。
+ */
+export function describeVisitedStages(
+  state: GameStateSlice,
+  actorId: string,
+  currentStageId?: string,
+): string {
+  const visited = visitedStagesForActor(state, actorId);
+  const lines =
+    visited.length === 0
+      ? "无"
+      : visited
+          .map((stage) => `${stage.name}${stage.id === currentStageId ? "（当前）" : ""}`)
+          .join("\n");
+  return `# 你去过的场景
+${lines}`;
 }

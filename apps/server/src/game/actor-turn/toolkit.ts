@@ -17,7 +17,7 @@ import { buildUnequipTool, parseUnequip } from "../actions/unequip";
 import { buildUseTool, parseUse } from "../actions/use";
 import { buildWaitTool, parseWait } from "../actions/wait";
 import { buildWhisperTool, parseWhisper } from "../actions/whisper";
-import { stageItemNames } from "../plan";
+import { stageItemNames } from "../stage-state/describe";
 import type { ActionKind, ActorAction } from "../types";
 import type { ActorTurnContext } from "./context";
 

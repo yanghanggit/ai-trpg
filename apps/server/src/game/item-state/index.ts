@@ -5,6 +5,12 @@
  * 定义侧的校验在 `world-definition/item-schema.ts`，行怎么搬在 `persistence/items.ts`。
  */
 
+export {
+  describeEquipment,
+  describeEquipmentBrief,
+  describeItems,
+  itemSourceNote,
+} from "./describe";
 export { isWearable, toItemState } from "./project";
 export {
   type ActionGrant,

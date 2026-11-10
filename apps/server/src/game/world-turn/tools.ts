@@ -1,5 +1,16 @@
+/**
+ * world 裁决动作的工具契约：模型看得见的形状 + 把参数变回 `WorldAction` 的解析器。
+ *
+ * 只读的 look_stage 也在这里，连同它读出来的场景文本：world 是 god view，读任意场景的
+ * 完整视图（含 profile 与 environment），不按观察者脱敏。落账见 `./arbitrate.ts`，
+ * 编排见 `./prompt.ts`。
+ */
+
 import type { ToolDefinition } from "../../llm/types";
+import { isAlive } from "../apply/queries";
 import { GameError } from "../errors";
+import { adjacentStageNames, findStageByName } from "../stage-state";
+import { describeStageAnchorsSection } from "../stage-state/describe";
 import type { GameStateSlice, WorldAction } from "../types";
 
 export function buildLookTool(state: GameStateSlice): ToolDefinition {
@@ -113,4 +124,25 @@ export function buildSubmitWorldPlanTool(): ToolDefinition {
       },
     },
   };
+}
+
+/** world 视角：可查看任意场景，名字与 environment 原样输出。 */
+export function describeStageForWorld(state: GameStateSlice, stageName: string): string {
+  const stage = findStageByName(state, stageName);
+  if (!stage) {
+    return `错误：场景不存在 ${stageName}`;
+  }
+  const moves = adjacentStageNames(state, stage.id);
+  const actors =
+    stage.actors.length === 0
+      ? "无"
+      : stage.actors
+          .map((actor) => `${actor.name}${isAlive(actor) ? "" : "（已死亡）"}`)
+          .join("、");
+  return `场景：${stage.name}
+${stage.profile}
+${stage.environment}
+角色：${actors}
+${describeStageAnchorsSection(stage.anchors)}
+可去：${moves.length === 0 ? "无" : moves.join("、")}`;
 }

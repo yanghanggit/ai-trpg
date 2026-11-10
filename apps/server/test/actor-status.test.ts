@@ -20,10 +20,10 @@ import {
   settleDeaths,
   takeActorControl,
 } from "../src/game";
+import { describeStats } from "../src/game/actor-turn";
 import { formatForm } from "../src/game/appearance/form";
 import { loadAgentMemory } from "../src/game/memory";
 import { claimDeath } from "../src/game/persistence/deaths";
-import { describeStats } from "../src/game/plan";
 import { ChatCompletionResult, type ChatCompletionService } from "../src/llm";
 
 const testDatabaseUrl = process.env.TEST_DATABASE_URL?.trim();

@@ -5,15 +5,12 @@ import { isHandleRef, refOf } from "../addressing";
 import { isAlive } from "../apply/queries";
 import { STAT_LABELS } from "../attributes";
 import { DEFAULT_ACTOR_MAX_ROUNDS } from "../default-rounds";
+import { describeEquipmentBrief } from "../item-state/describe";
 import { MAX_ACTIONS_PER_TURN } from "../limits";
-import {
-  describeEquipmentBrief,
-  describeStageAnchors,
-  renderStageEnvironmentForActor,
-  sealedVisitedStageRefsForActor,
-} from "../plan";
+import { describeStageAnchors } from "../stage-state/describe";
 import type { GameStateSlice } from "../types";
 import { type ActorTurnContext, actorTurnContext } from "./context";
+import { renderStageEnvironmentForActor, sealedVisitedStageRefsForActor } from "./observed-stage";
 
 /**
  * actor 本轮的公开环境与任务说明：先给场景与状态，再给三步流程与按能力出现的提示。

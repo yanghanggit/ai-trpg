@@ -18,18 +18,12 @@ import { buildUnequipTool, parseUnequip } from "../src/game/actions/unequip";
 import { buildUseTool, parseUse, usableItemNames } from "../src/game/actions/use";
 import { buildWaitTool, parseWait } from "../src/game/actions/wait";
 import { buildWhisperTool, parseWhisper } from "../src/game/actions/whisper";
+import { describeSelf, describeStats } from "../src/game/actor-turn";
 import { formatForm } from "../src/game/appearance/form";
-import { toItemState } from "../src/game/item-state";
-import {
-  describeEquipment,
-  describeItems,
-  describeObservedActor,
-  describeSelf,
-  describeStageAnchors,
-  describeStats,
-  parseEndGame,
-  stageItemNames,
-} from "../src/game/plan";
+import { describeEquipment, describeItems, toItemState } from "../src/game/item-state";
+import { describeStageAnchors, stageItemNames } from "../src/game/stage-state";
+import { describeObservedActor } from "../src/game/stage-turn";
+import { parseEndGame } from "../src/game/world-turn";
 
 describe("action authorization", () => {
   it("权限报错直接写实体的名字", () => {

@@ -1,5 +1,5 @@
 import { isAlive } from "../apply/queries";
-import { describeStageAnchors } from "../plan";
+import { describeStageAnchors } from "../stage-state/describe";
 import type { GameStateSlice, StageState } from "../types";
 import { type StageTurnContext, stageTurnContext } from "./context";
 

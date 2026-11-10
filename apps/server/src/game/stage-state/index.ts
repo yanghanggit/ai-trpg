@@ -5,6 +5,7 @@
  * `actor-state/visit.ts`：那是 actor 的认知账本，不是地形。
  */
 
+export { describeStageAnchors, describeStageAnchorsSection, stageItemNames } from "./describe";
 export {
   assertEdgeShape,
   buildEdgeIndex,

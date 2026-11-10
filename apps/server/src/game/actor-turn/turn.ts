@@ -20,21 +20,6 @@ import { DEFAULT_ACTOR_MAX_ROUNDS } from "../default-rounds";
 import { GameError } from "../errors";
 import { loadAgentMemory } from "../memory";
 import { isPlayerControlled } from "../persistence/actor-controls";
-import {
-  buildActorLookTool,
-  buildKnowledgeTool,
-  buildRecallRouteTool,
-  buildRecognizeIdentityTool,
-  buildSelfInfoTool,
-  buildSubmitPlanTool,
-  buildVisitedStagesTool,
-  describeKnowledgeResults,
-  describeSelf,
-  describeStageForActor,
-  describeVisitedStages,
-  parseRecallRoute,
-  parseRecognizeIdentity,
-} from "../plan";
 import { getGameStateSlice, readTurnDelivery } from "../read/game-state";
 import {
   describeRoute,
@@ -49,6 +34,21 @@ import { describeNameCollision } from "./identity";
 import { createPlanSession } from "./plan-session";
 import { renderActorTurnInput } from "./prompt";
 import { ACTOR_ACTION_TOOLKITS } from "./toolkit";
+import {
+  buildActorLookTool,
+  buildKnowledgeTool,
+  buildRecallRouteTool,
+  buildRecognizeIdentityTool,
+  buildSelfInfoTool,
+  buildSubmitPlanTool,
+  buildVisitedStagesTool,
+  describeKnowledgeResults,
+  describeSelf,
+  describeStageForActor,
+  describeVisitedStages,
+  parseRecallRoute,
+  parseRecognizeIdentity,
+} from "./tools";
 
 export type ActorTurnOptions = {
   service: ChatCompletionService;

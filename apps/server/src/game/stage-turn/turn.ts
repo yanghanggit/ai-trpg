@@ -7,7 +7,6 @@ import type { ChatCompletionService } from "../../llm/protocol";
 import { DEFAULT_STAGE_MAX_ROUNDS } from "../default-rounds";
 import { GameError } from "../errors";
 import { loadAgentMemory } from "../memory";
-import { buildStageInspectTool, buildSubmitStagePlanTool, describeObservedActor } from "../plan";
 import { getGameStateSlice, readTurnDelivery } from "../read/game-state";
 import { findStage } from "../stage-state";
 import type { StageTurnResult } from "../types";
@@ -16,6 +15,7 @@ import { STAGE_ACTION_KINDS, stageTurnContext } from "./context";
 import { createStagePlanSession } from "./plan-session";
 import { renderStageTurnInput } from "./prompt";
 import { STAGE_ACTION_TOOLKITS } from "./toolkit";
+import { buildStageInspectTool, buildSubmitStagePlanTool, describeObservedActor } from "./tools";
 
 export type StageTurnOptions = {
   service: ChatCompletionService;

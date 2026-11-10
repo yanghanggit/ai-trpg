@@ -6,8 +6,8 @@ import { assertNotSelf, effectiveAgility, isAlive, listActorItems } from "../app
 import type { ActorWithStageRow, Executor, ResolvedInspect } from "../apply/types";
 import { GameError } from "../errors";
 import { toItemState } from "../item-state";
+import { describeItems } from "../item-state/describe";
 import { appendInspectObservations, appendStageMemory } from "../observations";
-import { describeItems } from "../plan/describe";
 import type { InspectAction } from "../types";
 
 /**
