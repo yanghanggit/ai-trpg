@@ -3,6 +3,7 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { DEMO_USER } from "../src/db/demo-fixture";
 import { TEST_WORLD } from "./test-world";
 import "../src/db/env";
+import { refreshAppearances } from "../src/cli/agent-game/commands/turn";
 import { type DatabaseHandle, openDatabase } from "../src/db/connect";
 import { resetDomainData, seedDemoData } from "../src/db/maintenance";
 import { runMigrations } from "../src/db/migrate";
@@ -14,7 +15,6 @@ import {
   playerLoot,
   playerStrike,
   playerWait,
-  refreshAppearances,
   releaseActorControl,
   runActorTurn,
   settleDeaths,
@@ -150,9 +150,6 @@ describe.skipIf(!testDatabaseUrl)("actor status", () => {
 class DeathAppearanceService implements ChatCompletionService {
   calls = 0;
   input = "";
-  private briefSubmitted = false;
-
-  constructor(private readonly brief?: string) {}
 
   async complete(request: Parameters<ChatCompletionService["complete"]>[0]) {
     const dropping = (request.tools ?? []).some((tool) => tool.function.name === "drop_materials");
@@ -175,25 +172,6 @@ class DeathAppearanceService implements ChatCompletionService {
     // 只有第一轮带 inputMessage，后续轮次沿用同一份 messages。
     if (this.input === "") {
       this.input = request.inputMessage;
-    }
-    if (this.brief && !this.briefSubmitted) {
-      this.briefSubmitted = true;
-      const briefCalls = [
-        {
-          id: "brief-1",
-          type: "function" as const,
-          function: {
-            name: "submit_appearance_brief",
-            arguments: JSON.stringify({ brief: this.brief }),
-          },
-        },
-      ];
-      return new ChatCompletionResult({
-        request,
-        aiMessage: { type: "ai", content: "", toolCalls: briefCalls },
-        finishReason: "tool_calls",
-        toolCalls: briefCalls,
-      });
     }
     const toolCalls = [
       {
@@ -266,7 +244,8 @@ describe.skipIf(!testDatabaseUrl)("death phase", () => {
     );
     expect(killed.ok).toBe(true);
     expect(service.calls).toBe(1);
-    expect(service.input).toContain("当前生命 0");
+    expect(service.input).toContain("你已经死亡");
+    expect(service.input).toContain("第三人称");
 
     const after = await getGameState(handle.db, created.game.slug);
     const monkAfter = after.world.stages
@@ -287,11 +266,17 @@ describe.skipIf(!testDatabaseUrl)("death phase", () => {
     expect(deathRows).toHaveLength(1);
     expect(deathRows[0]?.source).toBe("runtime");
     const deathInput = deathRows[0]?.input;
-    if (deathInput?.version !== 1 || deathInput.source === "seed") {
+    if (deathInput?.source !== "runtime") {
       throw new Error("缺少死亡外观输入快照");
     }
-    expect(deathInput.context.dead).toBe(true);
+    const context = deathInput.context;
+    if (context.task !== "death") {
+      throw new Error("死亡外观快照应记录 death 任务");
+    }
+    expect(context.base).toBeTruthy();
     expect(deathInput.prompt.inputMessage).toContain("尸体外观");
+    // 尸体刷新的底就是刷新前那份外观：任务输入里必须完整带着它。
+    expect(deathInput.prompt.inputMessage).toContain(context.base);
 
     // 收尾只跑一次：第二次扫描不再重复调用。
     const again = await settleDeaths(handle.db, created.game.id, { service });
@@ -299,16 +284,20 @@ describe.skipIf(!testDatabaseUrl)("death phase", () => {
     expect(service.calls).toBe(1);
   });
 
-  it("lets the dead actor submit a change brief before the corpse appearance", async () => {
+  it("refreshes the corpse from the pre-death appearance in one pass", async () => {
     const created = await createGame(handle.db, {
       username: DEMO_USER.username,
-      name: "死亡简报测试局",
+      name: "尸体刷新测试局",
       world: TEST_WORLD,
     });
+    const before = created.world.stages
+      .flatMap((stage) => stage.actors)
+      .find((actor) => actor.name === "提灯修士");
+    const preDeath = before?.appearance.text ?? "";
+    expect(preDeath.length).toBeGreaterThan(0);
     await takeActorControl(handle.db, created.game.slug, "守烬人");
 
-    const brief = "被松脂火把烧过，皮毛焦黑，口鼻沾着烟灰。";
-    const service = new DeathAppearanceService(brief);
+    const service = new DeathAppearanceService();
     await playerStrike(
       handle.db,
       created.game.slug,
@@ -331,23 +320,25 @@ describe.skipIf(!testDatabaseUrl)("death phase", () => {
     if (!monk) {
       throw new Error("缺少提灯修士");
     }
-    expect(service.calls).toBe(2);
+    // 只有一次推理：不再先让死者写一段变化简报。
+    expect(service.calls).toBe(1);
+    expect(service.input).toContain(preDeath);
 
     const rows = await handle.db
       .select()
       .from(appearances)
       .where(and(eq(appearances.signatureId, monk.signature.id), isNull(appearances.supersededAt)));
     expect(rows).toHaveLength(1);
-    expect(rows[0]?.source).toBe("runtime");
     const input = rows[0]?.input;
-    if (input?.version !== 1 || input.source === "seed") {
+    if (input?.source !== "runtime") {
       throw new Error("缺少死亡外观输入快照");
     }
-    expect(input.context.dead).toBe(true);
-    expect(input.context.brief).toBe(brief);
-    expect(
-      input.prompt.tools.some((tool) => tool.function.name === "submit_appearance_brief"),
-    ).toBe(true);
+    const context = input.context;
+    if (context.task !== "death") {
+      throw new Error("死亡外观快照应记录 death 任务");
+    }
+    expect(context.base).toBe(preDeath);
+    expect(input.prompt.tools.map((tool) => tool.function.name)).toEqual(["submit_appearance"]);
   });
 
   it("复活式写入把 hp 抬回正数后，收尾标记会被清空，下次死亡重新收尾", async () => {

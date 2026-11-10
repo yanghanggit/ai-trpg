@@ -1,4 +1,3 @@
-import type { ChatMessage, ToolDefinition } from "../llm/types";
 import type { Stats } from "./attributes";
 
 /** 公共消息的可见范围：场景公开或仅当事人可见。 */
@@ -29,43 +28,6 @@ export type AppearanceWornItem = {
   kind: ItemKind;
   description: string;
 };
-
-/**
- * 生成外观那一刻的输入快照。
- *
- * 运行时分支保存发给模型的完整 prompt 与结构化上下文；seed 分支只记录内容来源。
- */
-export type AppearanceInput =
-  | {
-      version: 1;
-      source: "seed";
-      contentKey: string;
-      contentVersion: string;
-      actorKey: string;
-      form: string;
-      /** 种子没写 appearance 时为 true，text 回退为 form。 */
-      fallback: boolean;
-    }
-  | {
-      version: 1;
-      source: "runtime";
-      /** provider 未暴露模型名时为 null。 */
-      model: string | null;
-      prompt: {
-        messages: readonly ChatMessage[];
-        inputMessage: string;
-        tools: readonly ToolDefinition[];
-        maxRounds: number;
-      };
-      context: {
-        form: string;
-        dead: boolean;
-        contentVersion: string;
-        worn: readonly AppearanceWornItem[];
-        /** 本次变化的可见简报；由角色自己或调用方提供。 */
-        brief?: string;
-      };
-    };
 
 /** 当前可见外观：id 用于追溯来源，text 是最终渲染值。 */
 export type AppearanceState = {

@@ -56,7 +56,6 @@ export async function createActors(
       actorId,
       text: resolveAppearance(actor.signature),
       input: {
-        version: 1,
         source: "seed",
         contentKey: world.contentKey,
         contentVersion: world.contentVersion,

@@ -19,9 +19,17 @@ export function renderAction(content: string, stageId: string): ObservationView 
 }
 
 /**
+ * 外观变化的两面：自己看是「你」，旁人看是观察者相对的引用。
+ *
+ * 外观本身在提交时已过世界面守卫，不含名字与系统引用；这里只换主语。
+ */
+export function appearanceChangeText(subject: string, appearance: string): string {
+  return `# 场景动态\n${subject}的可见外观变了：\n${appearance}`;
+}
+
+/**
  * 外观变化观察：句子只给观察者视角的引用，新外观另起一行。
  *
- * 外观本身在提交时已过世界面守卫，不含名字与系统引用；这里再按观察者渲染引用，
  * 没有名字的观察者只会看到 `#编号`。
  */
 export function renderAppearanceChange(
@@ -29,5 +37,5 @@ export function renderAppearanceChange(
   appearance: string,
   stageId: string,
 ): ObservationView {
-  return renderAction(`# 场景动态\n${mentionOf(address)}的可见外观变了：\n${appearance}`, stageId);
+  return renderAction(appearanceChangeText(mentionOf(address), appearance), stageId);
 }

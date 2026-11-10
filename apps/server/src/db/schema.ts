@@ -14,10 +14,10 @@ import {
   vector,
 } from "drizzle-orm/pg-core";
 import type { Stats } from "../game/attributes";
+import type { AppearanceInput } from "../game/persistence/appearances";
 import type { DialogueActionKind, DialogueCategory } from "../game/persistence/dialogue-blocks";
 import type {
   AffixTriggers,
-  AppearanceInput,
   CarriedActionKind,
   EquipmentSlots,
   InnateActionKind,

@@ -23,7 +23,7 @@ export const DEFAULT_STAGE_MAX_ROUNDS = MAX_STAGE_NOTIFICATIONS_PER_TURN + 5;
 /** world 的轮数预算：一次定位 + 全部写动作 + 提交 + 一次纠偏余量。 */
 export const DEFAULT_WORLD_MAX_ROUNDS = MAX_WORLD_ACTIONS_PER_TURN + 3;
 
-/** 外观推理 loop 的默认轮数；要额外请求变化简报时再加一轮。 */
+/** 外观推理 loop 的默认轮数：只有一个终止工具，留纠偏余量。 */
 export const DEFAULT_APPEARANCE_MAX_ROUNDS = 3;
 
 /** 掉落推理 loop 的默认轮数；只有一个终止工具，留一次纠偏。 */

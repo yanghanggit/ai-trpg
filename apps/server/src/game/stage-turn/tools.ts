@@ -22,7 +22,7 @@ export function buildStageInspectTool(availableTargetActorRefs: readonly string[
     function: {
       name: "inspect",
       description:
-        "检视本场景角色随身携带的物品（含已穿戴的）；只看得见物品，看不到对方的 stats、伤势或存活状态。只读。",
+        "检视本场景角色随身携带的物品（含已穿戴的）；只看得见物品，看不到对方的 stats 与存活状态。只读。",
       parameters: {
         type: "object",
         properties: {

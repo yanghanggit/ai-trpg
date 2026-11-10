@@ -106,7 +106,7 @@ export type Connection = {
  * World 内的初始 actor 定义。
  *
  * `signature` 是它开局时的形态与外观；`form` 必须写成 `种族:描述`，
- * 之后与装备、伤势一起渲染成 appearance。
+ * 之后与穿戴、记忆一起渲染成 appearance。
  */
 export type Actor = {
   /**

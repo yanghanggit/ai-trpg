@@ -1,4 +1,9 @@
-export { renderAction, renderAppearanceChange, renderEnvironmentChange } from "./action";
+export {
+  appearanceChangeText,
+  renderAction,
+  renderAppearanceChange,
+  renderEnvironmentChange,
+} from "./action";
 export { renderCall, renderCommunication } from "./communication";
 export { damageActionText, renderDamage } from "./damage";
 export { renderInspect, renderItemEvent } from "./items";

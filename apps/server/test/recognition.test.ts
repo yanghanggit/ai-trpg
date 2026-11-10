@@ -622,7 +622,6 @@ describe.skipIf(!testDatabaseUrl)("names and addresses", () => {
         actorId: odric.id,
         text: "一个蒙面人，斗篷把身形盖得严严实实。",
         input: {
-          version: 1,
           source: "seed",
           contentKey: "test",
           contentVersion: "test",

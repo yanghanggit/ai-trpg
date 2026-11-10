@@ -1,21 +1,16 @@
-export { setEquipmentSlot } from "./equipment";
-export { FORM_PATTERN, formatForm, isValidForm, resolveAppearance } from "./form";
+export { formatForm, isValidForm, resolveAppearance } from "./form";
 export {
-  type AppearanceBuildInput,
-  buildAppearanceTurnInput,
-  buildSubmitAppearanceBriefTool,
+  type AppearanceDeathInput,
+  type AppearanceUpdateInput,
+  buildAppearanceDeathInput,
+  buildAppearanceUpdateInput,
   buildSubmitAppearanceTool,
   parseAppearance,
-  parseAppearanceBrief,
 } from "./prompt";
 export {
-  type AppearanceRefreshOptions,
-  type AppearanceRefreshResult,
-  refreshAppearances,
-} from "./refresh";
-export {
-  type AppearanceTurnOptions,
-  type AppearanceTurnResult,
-  type EquipmentResult,
-  runAppearanceTurn,
+  type AppearanceOptions,
+  type AppearanceResult,
+  rebuildAppearance,
+  refreshCorpseAppearance,
+  updateAppearance,
 } from "./turn";

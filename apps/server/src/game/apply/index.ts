@@ -25,7 +25,7 @@ import { applyWhisper } from "../actions/whisper";
 import type { AddressLookup } from "../addressing";
 import { sanitizeActorFacingText } from "../addressing";
 import { type AffixRequest, agentAffixes, runAffixPhase } from "../affixes";
-import { runAppearanceTurn } from "../appearance";
+import { updateAppearance } from "../appearance";
 import { settleDeaths } from "../death";
 import type { DialogueJudge } from "../dialogue-audit";
 import { GameError } from "../errors";
@@ -476,7 +476,7 @@ export async function applyActorPlan(
     }
     let failed = false;
     try {
-      const appearance = await runAppearanceTurn(db, gameId, appearanceActorName, {
+      const appearance = await updateAppearance(db, gameId, appearanceActorName, {
         service: options.appearanceService,
         ...(options.logger ? { logger: options.logger } : {}),
         ...(options.trace ? { trace: options.trace } : {}),

@@ -62,7 +62,7 @@ describe.skipIf(!testDatabaseUrl)("actor signatures", () => {
       expect(rows[0]?.id).toBe(actor.appearance.id);
       expect(rows[0]?.source).toBe("seed");
       const input = rows[0]?.input;
-      if (input?.version !== 1 || input.source !== "seed") {
+      if (input?.source !== "seed") {
         throw new Error("缺少种子外观快照");
       }
       expect(input.actorKey).toBe(source.key);
@@ -95,13 +95,12 @@ describe.skipIf(!testDatabaseUrl)("actor signatures", () => {
         actorId: actor.id,
         text: "被雨淋透的旧斗篷。",
         input: {
-          version: 1,
           source: "runtime",
           model: null,
           prompt: { messages: [], inputMessage: "test", tools: [], maxRounds: 1 },
           context: {
+            task: "update",
             form: actor.signature.form,
-            dead: false,
             contentVersion: "test",
             worn: [],
           },

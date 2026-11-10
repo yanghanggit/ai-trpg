@@ -15,7 +15,23 @@ const FRAMEWORK_ROOTS = ["src", "scripts"];
 const CONCRETE_MECHANISM_SAMPLES = ["锁孔", "门闩", "铭文", "炉膛", "表面纹样"];
 
 /** 题材化的伤害类型与身体材料：换一个剧本就不再成立，prompt 里只能写语义。 */
-const GENRE_SAMPLES = ["灼烧", "冻伤", "腐蚀", "焦黑", "毛皮", "鳞片", "獠牙", "骨骸"];
+const GENRE_SAMPLES = [
+  "灼烧",
+  "冻伤",
+  "腐蚀",
+  "焦黑",
+  "毛皮",
+  "鳞片",
+  "獠牙",
+  "骨骸",
+  "血迹",
+  "伤口",
+  "伤疤",
+  "伤势",
+  "污渍",
+  "绷带",
+  "斗篷",
+];
 
 function storyTokens(): string[] {
   // 世界名同样不能出现在框架层提示词里。

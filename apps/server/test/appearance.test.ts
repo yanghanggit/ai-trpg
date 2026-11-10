@@ -13,7 +13,9 @@ import {
   getGameMemories,
   getGameState,
   parseAppearance,
-  setEquipmentSlot,
+  playerEquip,
+  playerUnequip,
+  takeActorControl,
 } from "../src/game";
 import { ChatCompletionResult, type ChatCompletionService, type ToolCall } from "../src/llm";
 
@@ -87,20 +89,28 @@ describe.skipIf(!testDatabaseUrl)("appearance fusion", () => {
       .find((actor) => actor.name === "奥德里克");
     expect(keeper?.appearance.text).toContain("斗篷");
 
+    await takeActorControl(handle.db, created.game.slug, "奥德里克");
+
+    // 换装走真实入口：玩家行动 → 落账穿戴 → 事务外补一次外观推理。
     const service = new AppearanceService("只穿旧衬衣，手背沾着新土。");
     await expect(
-      setEquipmentSlot(handle.db, created.game.slug, "奥德里克", "weapon", "补丁斗篷", {
-        service,
-      }),
+      playerEquip(
+        handle.db,
+        created.game.slug,
+        "奥德里克",
+        { slot: "weapon", itemName: "补丁斗篷" },
+        { appearanceService: service },
+      ),
     ).rejects.toThrow("不能放进武器槽");
-    const result = await setEquipmentSlot(handle.db, created.game.slug, "奥德里克", "armor", null, {
-      service,
-    });
+    const result = await playerUnequip(
+      handle.db,
+      created.game.slug,
+      "奥德里克",
+      { slot: "armor" },
+      { appearanceService: service },
+    );
 
     expect(result.ok).toBe(true);
-    expect(result.slot).toBe("armor");
-    expect(result.itemName).toBeNull();
-    expect(result.appearance).toBe("只穿旧衬衣，手背沾着新土。");
     expect(service.calls).toBe(1);
     expect(service.observation).toContain("人类:");
     // 战役设定在 actor 的宪法里，任务输入不重复下发。
@@ -130,11 +140,11 @@ describe.skipIf(!testDatabaseUrl)("appearance fusion", () => {
     expect(equipmentRow?.source).toBe("runtime");
     expect(equipmentRow?.supersededAt).toBeNull();
     const input = equipmentRow?.input;
-    if (input?.version !== 1 || input.source === "seed") {
+    if (input?.source !== "runtime") {
       throw new Error("缺少运行时外观输入快照");
     }
     expect(input.context.form).toContain("人类:");
-    expect(input.context.dead).toBe(false);
+    expect(input.context.task).toBe("update");
     expect(input.context.worn.some(({ name }) => name === "补丁斗篷")).toBe(false);
     expect(input.prompt.inputMessage).toContain("外观更新");
     expect(input.prompt.messages.length).toBeGreaterThan(0);
@@ -154,9 +164,16 @@ describe.skipIf(!testDatabaseUrl)("appearance fusion", () => {
       name: "槽位收敛测试局",
       world: BELL_MONASTERY_WORLD,
     });
+    await takeActorControl(handle.db, created.game.slug, "无名者");
     const service = new AppearanceService("裹着发黄的布，颈上的断链垂在锁骨前。");
     const wear = (slot: "armor" | "accessory", itemName: string) =>
-      setEquipmentSlot(handle.db, created.game.slug, "无名者", slot, itemName, { service });
+      playerEquip(
+        handle.db,
+        created.game.slug,
+        "无名者",
+        { slot, itemName },
+        { appearanceService: service },
+      );
 
     // 护甲槽只接受 equipment 大类。
     await expect(wear("armor", "颈上的断链")).rejects.toThrow("不能放进护甲槽");
@@ -204,13 +221,25 @@ describe.skipIf(!testDatabaseUrl)("appearance fusion", () => {
         ),
       );
 
+    await takeActorControl(handle.db, created.game.slug, "奥德里克");
     const service = new AppearanceService("斗篷下摆结着新泥，手背全是湿土。");
-    await setEquipmentSlot(handle.db, created.game.slug, "奥德里克", "armor", null, { service });
+    await playerUnequip(
+      handle.db,
+      created.game.slug,
+      "奥德里克",
+      { slot: "armor" },
+      { appearanceService: service },
+    );
 
     const memories = await getGameMemories(handle.db, created.game.id);
     const latest = memories.find((memory) => memory.name === "小狗“煤渣”")?.messages.at(-1);
     expect(latest?.content).toContain("斗篷下摆结着新泥，手背全是湿土。");
     expect(latest?.content).toContain(`#${odric.signature.seq}的可见外观变了`);
     expect(latest?.content).not.toContain("奥德里克");
+
+    // 外观变化也是自己的记忆事件：用「你」，不带名字。
+    const selfLatest = memories.find((memory) => memory.name === "奥德里克")?.messages.at(-1);
+    expect(selfLatest?.content).toContain("你的可见外观变了");
+    expect(selfLatest?.content).toContain("斗篷下摆结着新泥，手背全是湿土。");
   });
 });

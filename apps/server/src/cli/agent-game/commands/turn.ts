@@ -6,19 +6,25 @@
 
 import type { Command } from "commander";
 import { z } from "zod";
+import type { Database } from "../../../db/pool";
 import { DEEPSEEK_SERVICE } from "../../../deepseek";
 import {
+  findActorByName,
   getGameState,
   isAlive,
   listPlayerControlledActorIds,
-  refreshAppearances,
+  rebuildAppearance,
+  refreshCorpseAppearance,
   runActorTurn,
-  runAppearanceTurn,
   runStageTurn,
   runWorldTurn,
   settleDeaths,
+  updateAppearance,
 } from "../../../game";
+import { listActorsForAppearance } from "../../../game/persistence/actors";
 import type { ActorTurnResult, StageTurnResult, WorldTurnResult } from "../../../game/types";
+import type { ChatCompletionService } from "../../../llm/protocol";
+import type { Logger } from "../../../logging";
 import { gameOption, gameRef, optionalActorOption, optionalOption } from "../args";
 import { addCommand } from "../command";
 import type { CommandContext } from "../context";
@@ -26,6 +32,53 @@ import type { CommandContext } from "../context";
 const GROUP = "回合推进";
 
 const allOption = () => optionalOption("--all", "对同类实体逐个执行");
+
+export type AppearanceRefreshOptions = {
+  service: ChatCompletionService;
+  logger?: Logger;
+};
+
+export type AppearanceRefreshResult = {
+  /** 本次重推了外观的活人。 */
+  refreshed: string[];
+  /** 跳过的尸体：它们的外观由死亡阶段负责。 */
+  skippedCorpses: string[];
+};
+
+/**
+ * 批量重推外观：活人各推一次，尸体一律跳过。
+ *
+ * 尸体外观属于死亡阶段——那时才有尸体描写，也需要收尾标记保证只写一次；这里重推会绕过
+ * 那份幂等。想让整局「外观与死亡都跟当前状态一致」的是调试入口，它在这之后接着跑死亡阶段。
+ *
+ * 住在 CLI 是因为它只服务这一个维护命令：读全表、按生命状态分流，是最高层的编排；
+ * `appearance/` 只管被点名的那个 actor。
+ */
+export async function refreshAppearances(
+  db: Database,
+  gameId: string,
+  options: AppearanceRefreshOptions,
+): Promise<AppearanceRefreshResult> {
+  const result: AppearanceRefreshResult = { refreshed: [], skippedCorpses: [] };
+
+  for (const row of await listActorsForAppearance(db, gameId)) {
+    if (row.hp <= 0) {
+      result.skippedCorpses.push(row.name);
+      continue;
+    }
+    const appearance = await rebuildAppearance(db, gameId, row.name, {
+      service: options.service,
+      ...(options.logger ? { logger: options.logger } : {}),
+    });
+    if (appearance.ok) {
+      result.refreshed.push(row.name);
+    } else {
+      options.logger?.warn(`外观重推失败: ${row.name}`);
+    }
+  }
+
+  return result;
+}
 
 const npcInput = z
   .object({
@@ -177,9 +230,14 @@ export function registerTurnCommands(program: Command, ctx: CommandContext): voi
         });
       }
       const actor = input.actor;
-      const result = await ctx.db((db) =>
-        runAppearanceTurn(db, input.game, actor, { service: DEEPSEEK_SERVICE }),
-      );
+      const result = await ctx.db(async (db) => {
+        const state = await getGameState(db, input.game);
+        const target = findActorByName(state, actor).actor;
+        const options = { service: DEEPSEEK_SERVICE };
+        return isAlive(target)
+          ? updateAppearance(db, input.game, actor, options)
+          : refreshCorpseAppearance(db, input.game, actor, options);
+      });
       // 单点推送的成败由 payload 的 ok 表达，命令本身不失败（与批量入口一致）。
       return { ok: result.ok, actor, appearance: result.appearance };
     },

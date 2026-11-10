@@ -5,13 +5,12 @@ import { equippedItems } from "../item-state";
 import { type ActorState, type AppearanceWornItem, EQUIPMENT_SLOT_LABELS } from "../types";
 
 /**
- * 外观推理的提示词与工具契约：工具形状、参数校验，以及这一轮要模型看什么。
+ * 外观两个任务的输入，各是一个函数：`update` 重新生成，`death` 以当前外观为底刷新。
  *
- * 与其余 agent 一样，这一份只依赖角色状态（形态、穿戴、变化简报），不碰数据库；
- * 回合怎么跑、结果怎么写库在 `turn.ts`。
+ * 两个任务共用的只有穿戴解析、可见性规则与提交工具；任务文本各写各的，不靠开关拼。
  */
 
-/** 外观推理的终止工具。 */
+/** 外观推理的终止工具：两种任务都靠它提交结果。 */
 export function buildSubmitAppearanceTool(): ToolDefinition {
   return {
     type: "function",
@@ -32,39 +31,6 @@ export function buildSubmitAppearanceTool(): ToolDefinition {
   };
 }
 
-/** 先提交“本次变化”的简报；不是终止工具，提交后继续生成最终外观。 */
-export function buildSubmitAppearanceBriefTool(): ToolDefinition {
-  return {
-    type: "function",
-    function: {
-      name: "submit_appearance_brief",
-      description: "提交本次外观变化的第三人称简报。",
-      parameters: {
-        type: "object",
-        properties: {
-          brief: {
-            type: "string",
-            description: "一段第三人称可见变化，供随后生成最终外观参考",
-          },
-        },
-        required: ["brief"],
-      },
-    },
-  };
-}
-
-export function parseAppearanceBrief(
-  args: Record<string, unknown>,
-  actorNames: readonly string[] = [],
-): string {
-  const brief = typeof args.brief === "string" ? args.brief.trim() : "";
-  if (brief.length === 0) {
-    throw new GameError("invalid_action", "appearance brief 不能为空");
-  }
-  assertWorldFaceText(brief, actorNames, "appearance brief");
-  return brief;
-}
-
 export function parseAppearance(
   args: Record<string, unknown>,
   actorNames: readonly string[] = [],
@@ -78,49 +44,55 @@ export function parseAppearance(
   return appearance;
 }
 
-export type AppearanceBuildInput = {
+/**
+ * 参与外观推理的穿戴。
+ *
+ * 饰品不参与：这个大类在不同题材里语义漂移（它也可能指与外观无关的植入物），引擎只保留
+ * 槽位与穿戴索引，外观只消费武器与护甲两个槽。见 docs/data-driven.md。
+ */
+function wornForAppearance(actor: ActorState): AppearanceWornItem[] {
+  return equippedItems(actor)
+    .filter(({ slot }) => slot !== "accessory")
+    .map(({ slot, item }) => ({
+      slot,
+      itemId: item.id,
+      name: item.name,
+      kind: item.kind,
+      description: item.description,
+    }));
+}
+
+function renderWorn(worn: readonly AppearanceWornItem[]): string {
+  if (worn.length === 0) {
+    return "无";
+  }
+  return worn
+    .map(
+      ({ slot, name, kind, description }) =>
+        `- ${EQUIPMENT_SLOT_LABELS[slot]}：${name}（${kind}）：${description}`,
+    )
+    .join("\n");
+}
+
+/** 两个任务共用的可见性规则。 */
+const VISIBILITY_RULES = `只使用上面列出的穿戴项；没列出的装备不存在，不要虚构。形态里没写到的穿戴视为没有装备。形态已经写定的部分不要改写。
+
+穿戴不等于露出：只写从外面能看见的部分。被外层遮住的部分与收在里面看不见的东西不要提，也不为了提到它去改写外形。
+
+只写可见外观，不写心理、名字与规则；不要解释过程。完成后调用 submit_appearance 提交。`;
+
+export type AppearanceUpdateInput = {
   inputMessage: string;
-  context: {
-    form: string;
-    dead: boolean;
-    worn: AppearanceWornItem[];
-  };
+  form: string;
+  worn: AppearanceWornItem[];
 };
 
-export function buildAppearanceTurnInput(
-  actor: ActorState,
-  dead = false,
-  brief?: string,
-  requestBrief = false,
-): AppearanceBuildInput {
-  // 饰品不参与外观推理：这个大类在不同题材里语义漂移（它也可能指与外观无关的植入物），
-  // 引擎只保留槽位与穿戴索引，外观只消费衣物与武器。见 docs/data-driven.md。
-  const worn = equippedItems(actor).filter(({ slot }) => slot !== "accessory");
-  const wornLines =
-    worn.length === 0
-      ? "无"
-      : worn
-          .map(
-            ({ slot, item }) =>
-              `- ${EQUIPMENT_SLOT_LABELS[slot]}：${item.name}（${item.kind}）：${item.description}`,
-          )
-          .join("\n");
-  const wornSnapshot = worn.map(({ slot, item }) => ({
-    slot,
-    itemId: item.id,
-    name: item.name,
-    kind: item.kind,
-    description: item.description,
-  }));
-
-  const task = dead
-    ? `角色已经倒下（当前生命 0）。写一段尸体外观快照：姿势、伤口、血迹、衣物与装备的错位、周围的痕迹。
-记忆里若有可见的变化与痕迹，把它们写进尸体状态；仍不写动作、心理或后续，不把死亡写成原因，也不复述数值。`
-    : `结合你的记忆（伤势、血迹、灰尘、姿态、最近发生的事，以及记忆里出现的可见变化），把形态、当前穿戴与自身润色融合成一段第三人称外观快照。`;
-
+/** `update`：按形态与当前穿戴重新生成，不提供旧外观，免得模型复述旧值。 */
+export function buildAppearanceUpdateInput(actor: ActorState): AppearanceUpdateInput {
+  const worn = wornForAppearance(actor);
   const inputMessage = `# 外观更新
 
-你要为${actor.name}重新推理“当前可见外观”。
+重新推理你此刻的可见外观。
 
 ## 形态
 
@@ -128,22 +100,56 @@ ${actor.signature.form}
 
 ## 当前穿戴
 
-${wornLines}
-${brief ? `\n## 本次变化\n\n${brief}\n\n以下是本次事件已经确认的可见变化，作为参考；与形态、穿戴和记忆冲突时以事实为准，不要机械照抄。` : ""}
-${requestBrief && !brief ? `\n## 生成步骤\n\n先调用 submit_appearance_brief，用一小段第三人称可见事实写下本次变化（死因、伤口、可见损伤、姿势、衣物与装备的错位等）；然后再调用 submit_appearance 提交最终外观。简报只写可见结果，不写最终外观全文。` : ""}
+${renderWorn(worn)}
 
 # 本轮任务
 
-${task}
+写出此刻的可见外观：形态与穿戴，加上记忆里已经出现的可见变化，合成一段第三人称快照。
 
-只使用上面列出的穿戴；未列出的衣物与装备不存在，不要虚构。形态描述里没有写到的衣物视为没有穿上。不要改写种族与身体特征。
+${VISIBILITY_RULES}`;
+  return { inputMessage, form: actor.signature.form, worn };
+}
 
-穿戴不等于露出：只写从外面能看见的部分。被衣物、斗篷或绷带遮住的贴身物件与藏在衣兜里的东西不要提，也不为了提到它去改写衣着。
+export type AppearanceDeathInput = {
+  inputMessage: string;
+  form: string;
+  worn: AppearanceWornItem[];
+  base: string;
+};
 
-只写可见外观，不写心理、名字与规则；不要解释过程。完成后调用 submit_appearance 提交。`;
+/**
+ * `death`：以刷新前的当前外观为底，把「已经死亡」翻译成看得见的样子。
+ *
+ * 「死亡」「尸体」是跨题材通用的状态词，可以留在引擎；材质与痕迹不点名：任务只给
+ * 姿态、表面与结构三个维度，不说穿戴掉落在哪、也不说周围留下什么——那属于引擎没有
+ * 的机制，写进提示词等于教模型编造。见 docs/data-driven.md。
+ */
+export function buildAppearanceDeathInput(actor: ActorState, base: string): AppearanceDeathInput {
+  const worn = wornForAppearance(actor);
+  const inputMessage = `# 尸体外观
 
-  return {
-    inputMessage,
-    context: { form: actor.signature.form, dead, worn: wornSnapshot },
-  };
+你已经死亡。以你此刻的外观为底，用第三人称写出尸体现在的样子。
+
+## 形态
+
+${actor.signature.form}
+
+## 你此刻的外观
+
+${base}
+
+## 你身上的穿戴
+
+${renderWorn(worn)}
+
+# 本轮任务
+
+写出尸体此刻的样子：在现有外观上体现死亡带来的变化。
+
+- 记忆里若有造成这次死亡的可见事实，用它；没有就不要猜。
+- 只动姿态、表面与结构。
+- 不加原本没有的东西；形态与穿戴不变。
+
+${VISIBILITY_RULES}`;
+  return { inputMessage, form: actor.signature.form, worn, base };
 }

@@ -2,7 +2,7 @@ import type { Database } from "../../db/pool";
 import { type TraceContext, traceEvent } from "../../debug/trace";
 import type { ChatCompletionService } from "../../llm/protocol";
 import type { Logger } from "../../logging";
-import { runAppearanceTurn } from "../appearance";
+import { refreshCorpseAppearance } from "../appearance";
 import { runDropTurn } from "../drops";
 import { describeError } from "../errors";
 import {
@@ -118,12 +118,8 @@ async function runDeathPhase(
     await Promise.all(
       settled.map(async (actor) => {
         try {
-          const appearance = await runAppearanceTurn(db, gameId, actor.name, {
+          const appearance = await refreshCorpseAppearance(db, gameId, actor.name, {
             service,
-            // 先让死者自己写一段变化简报，再据此生成尸体外观。
-            requestBrief: true,
-            // 死亡已经广播过，尸体快照不再重复贴一条外观变化。
-            broadcast: false,
             ...(trace ? { trace } : {}),
           });
           if (!appearance.ok) {
