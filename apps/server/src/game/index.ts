@@ -8,7 +8,6 @@ export * from "./compact";
 export * from "./create-game";
 export * from "./death";
 export * from "./default-rounds";
-export * from "./drops";
 export * from "./errors";
 export * from "./limits";
 export * from "./memory";

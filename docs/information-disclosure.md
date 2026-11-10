@@ -29,6 +29,7 @@
 | world → stage | 世界裁决、跨场景变化，写进 stage memory | —（stage 对名字全知） |
 | world → player | 结局文案，只写 `game_messages` | —（不进任何 agent 的记忆与上下文） |
 | stage → world | 场景报告，可含名字 | 不构成对 actor 的下推 |
+| 引擎 → world | 引擎确认的事实（主角死亡），写进 world memory | 不替 world 写结局，也不结束整局 |
 | stage ↔ stage | 无事件/记忆通道 | — |
 
 世界面文本在写入时统一守卫，actor 读取 environment 时再按观察者渲染一次；控制面保留真名与稳定 id。玩家台词进入 actor→actor 通道前先过玩家对话审核。

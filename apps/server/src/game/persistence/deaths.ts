@@ -46,11 +46,19 @@ export async function resetRevivedDeathMarkers(
     );
 }
 
+/** 一个待收尾的死者：宣布与它之后的子阶段只需要这几个字段。 */
+export type PendingDeath = {
+  id: string;
+  name: string;
+  stageId: string;
+  isDefaultPlayer: boolean;
+};
+
 /** 本局里 hp 归零、且还没宣布过死亡的 actor。 */
 export async function listDeathsToSettle(
   executor: Executor,
   gameId: string,
-): Promise<{ id: string; name: string; stageId: string; isDefaultPlayer: boolean }[]> {
+): Promise<PendingDeath[]> {
   return executor
     .select({
       id: actors.id,

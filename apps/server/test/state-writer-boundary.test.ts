@@ -18,6 +18,17 @@ const STATE_WRITERS: readonly { name: string; allowed: readonly string[] }[] = [
   { name: "completeGameIfActive", allowed: ["world-turn/arbitrate.ts"] },
 ];
 
+/**
+ * 跨 owner 写记忆只有一条通道：world memory 只能由 world 自己的回合读，
+ * 其余的读都收在 `memory/world-channel.ts`。其他模块要告诉 world 什么，
+ * 只调通道函数，不自己 `loadAgentMemory` 再往里写。
+ */
+const WORLD_MEMORY_ACCESS: readonly string[] = [
+  "memory/world-channel.ts",
+  "world-turn/turn.ts",
+  "world-turn/arbitrate.ts",
+];
+
 function listTsFiles(dir: string, prefix = ""): string[] {
   return readdirSync(dir, { withFileTypes: true }).flatMap((entry) => {
     const relative = prefix ? `${prefix}/${entry.name}` : entry.name;
@@ -51,6 +62,15 @@ describe("状态写入边界", () => {
           callSites(relative, name).map((line) => `${relative}:${line} ${name}`),
         ),
     );
+
+    expect(offenders).toEqual([]);
+  });
+
+  it("keeps world memory behind the channel", () => {
+    const pattern = /loadAgentMemory\([^)]*"world"/;
+    const offenders = listTsFiles(GAME_DIR)
+      .filter((relative) => !WORLD_MEMORY_ACCESS.includes(relative))
+      .filter((relative) => pattern.test(readFileSync(join(GAME_DIR, relative), "utf8")));
 
     expect(offenders).toEqual([]);
   });

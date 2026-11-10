@@ -12,7 +12,7 @@ import {
   playerLoot,
   playerStrike,
   playerUse,
-  runDropTurn,
+  runDropPhase,
   settleDeaths,
   takeActorControl,
 } from "../src/game";
@@ -190,12 +190,12 @@ describe.skipIf(!testDatabaseUrl)("death drops", () => {
       world: TEST_WORLD,
     });
     const dropped = [{ name: "灰烬骨片", description: "碎得只剩边角。", count: 1 }];
-    const first = await runDropTurn(handle.db, created.game.slug, "提灯修士", {
+    const first = await runDropPhase(handle.db, created.game.slug, "提灯修士", {
       service: new MaterialDropService(dropped),
     });
     expect(first.dropped).toEqual(["灰烬骨片"]);
 
-    const second = await runDropTurn(handle.db, created.game.slug, "提灯修士", {
+    const second = await runDropPhase(handle.db, created.game.slug, "提灯修士", {
       service: new MaterialDropService(dropped),
     });
     expect(second.dropped).toEqual(["灰烬骨片"]);
@@ -214,12 +214,12 @@ describe.skipIf(!testDatabaseUrl)("death drops", () => {
       name: "无掉落测试局",
       world: TEST_WORLD,
     });
-    const result = await runDropTurn(handle.db, created.game.slug, "提灯修士", {
+    const result = await runDropPhase(handle.db, created.game.slug, "提灯修士", {
       service: new MaterialDropService([]),
     });
     expect(result.ok).toBe(true);
     expect(result.dropped).toEqual([]);
-    const monk = result.state.world.stages
+    const monk = (await getGameState(handle.db, created.game.slug)).world.stages
       .flatMap((stage) => stage.actors)
       .find((actor) => actor.name === "提灯修士");
     expect(monk?.items.filter((item) => item.kind === "material")).toEqual([]);

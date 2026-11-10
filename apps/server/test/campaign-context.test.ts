@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { buildAffixPrompt } from "../src/game/affixes";
 import { buildCompactionInput } from "../src/game/compact";
-import { buildDropTurnInput } from "../src/game/drops";
+import { buildDropInput } from "../src/game/death";
 import {
   buildActorSystemPrompt,
   buildStageSystemPrompt,
@@ -61,7 +61,7 @@ describe("runtime agents carry the campaign setting", () => {
   });
 
   it("掉落任务提示词只放本轮事实", () => {
-    const prompt = buildDropTurnInput(ACTOR, STAGE);
+    const prompt = buildDropInput(ACTOR, STAGE);
     expect(prompt).not.toContain(TEST_WORLD.campaignSetting);
   });
 

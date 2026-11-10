@@ -7,7 +7,7 @@ import { refreshAppearances } from "../src/cli/agent-game/commands/turn";
 import { type DatabaseHandle, openDatabase } from "../src/db/connect";
 import { resetDomainData, seedDemoData } from "../src/db/maintenance";
 import { runMigrations } from "../src/db/migrate";
-import { actors, appearances } from "../src/db/schema";
+import { actors, agentMemories, appearances } from "../src/db/schema";
 import {
   createGame,
   getGameState,
@@ -451,6 +451,36 @@ describe.skipIf(!testDatabaseUrl)("death phase", () => {
 
     const memory = await loadAgentMemory(handle.db, created.game.id, "world", created.world.id);
     expect(memory?.messages.some((message) => message.content.includes("# 主角死亡"))).toBe(true);
+  });
+
+  it("world 缺记忆时主角死亡照样宣布，通知失败不回滚认领", async () => {
+    const world = {
+      ...TEST_WORLD,
+      actors: TEST_WORLD.actors.map((actor) =>
+        actor.name === "提灯修士" ? { ...actor, isDefaultPlayer: true, hp: 0 } : actor,
+      ),
+    };
+    const created = await createGame(handle.db, {
+      username: DEMO_USER.username,
+      name: "主角死亡通知失败测试局",
+      world,
+    });
+    // world 聚合不完整：memory 行缺失。
+    await handle.db
+      .delete(agentMemories)
+      .where(and(eq(agentMemories.gameId, created.game.id), eq(agentMemories.ownerType, "world")));
+
+    const phase = await settleDeaths(handle.db, created.game.id);
+    expect(phase.settled).toEqual(["提灯修士"]);
+    expect(phase.failed).toEqual([]);
+
+    // 宣布与广播不依赖 world：认领已落账，下一次扫描不会把它当成待收尾的死者。
+    const state = await getGameState(handle.db, created.game.slug);
+    expect(state.messages.filter((message) => message.kind === "death")).toHaveLength(1);
+    expect((await settleDeaths(handle.db, created.game.id)).settled).toEqual([]);
+    expect(
+      await loadAgentMemory(handle.db, created.game.id, "world", created.world.id),
+    ).toBeUndefined();
   });
 
   it("外观失败不阻塞主角死亡的通知，失败结果交给调用方", async () => {
