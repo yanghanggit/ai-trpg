@@ -16,10 +16,10 @@ import { findActorByName } from "../actor-state";
 import { handleOf } from "../addressing";
 import { DEFAULT_ACTOR_MAX_ROUNDS } from "../default-rounds";
 import { GameError } from "../errors";
+import { getGameStateSlice, readTurnDelivery } from "../game-state";
 import { isAlive } from "../lookup";
 import { loadAgentMemory } from "../memory";
 import { isPlayerControlled } from "../persistence/actor-controls";
-import { getGameStateSlice, readTurnDelivery } from "../read/game-state";
 import {
   describeRoute,
   describeRouteFailure,

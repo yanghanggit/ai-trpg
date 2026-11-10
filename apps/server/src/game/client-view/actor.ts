@@ -6,8 +6,8 @@ import {
   visitedTeleportTargetsFor,
 } from "../actor-state";
 import { addressLookupFor, handleOf, refOf } from "../addressing";
+import { getGameStateSlice } from "../game-state";
 import { getMemoryState } from "../memory";
-import { getGameStateSlice } from "../read/game-state";
 import { adjacentStages } from "../stage-state";
 import { actorLog } from "./log";
 import { gameOf, viewerAnchors } from "./project";

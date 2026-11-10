@@ -5,9 +5,9 @@ import {
   type SessionEvent,
   saveSnapshot,
 } from "../../debug/snapshot";
+import { getGameStateSlice } from "../../game/game-state";
 import { getGameMemories } from "../../game/memory";
-import { listGameMessages } from "../../game/read/game-messages";
-import { getGameStateSlice } from "../../game/read/game-state";
+import { listGameMessages } from "../../game/persistence/game-messages";
 
 /**
  * 把一局落成文件快照：唯一入口是 `agent:game snapshot`。

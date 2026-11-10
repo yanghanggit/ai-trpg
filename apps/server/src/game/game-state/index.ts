@@ -15,6 +15,8 @@ import {
 } from "../../db/schema";
 import { GameError } from "../errors";
 import { toItemState } from "../item-state";
+import { latestMessageSequence, listGameMessages } from "../persistence/game-messages";
+import { findGame } from "../persistence/games";
 import { listSignatureNames } from "../persistence/signature-names";
 import { listCurrentSignatureViews } from "../persistence/signatures";
 import type {
@@ -28,8 +30,6 @@ import type {
   StageState,
   StageVisitState,
 } from "../types";
-import { findGame } from "./find-game";
-import { latestMessageSequence, listGameMessages } from "./game-messages";
 
 type GameRow = typeof games.$inferSelect;
 type PlayerRow = {

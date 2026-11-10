@@ -1,5 +1,6 @@
 import { and, eq } from "drizzle-orm";
 import { actors, stages, worlds } from "../../db/schema";
+import { GameError } from "../errors";
 import type { ActorRow, ActorWithStageRow, Executor } from "./rows";
 
 /**
@@ -7,11 +8,42 @@ import type { ActorRow, ActorWithStageRow, Executor } from "./rows";
  *
  * 玩法层（`actions/`、`items/`、`combat/`、`stage`/`world` 回合、死亡与外观）只调用这里的
  * 具名函数，不出现表名、列名或 SQL：规则与存储格式解耦。
- * 「必须存在、必须唯一」这类带校验的读取仍在 `lookup/`；这里是不带策略的读与写。
- * 命名约定：`load*` 是数据库读，`list*` 是数据库集合读，`set*` / `move*` / `mark*` 是写；
+ * 命名约定：`load*` 是不带策略的读（找不到返回 `undefined`），`resolve*` 是「必须存在、
+ * 必须唯一」的读（不满足抛 `GameError`），`list*` 是集合读，`set*` / `move*` / `mark*` 是写；
  * `find*` 留给 `actor-state/` 与 `stage-state/` 里对 `GameStateSlice` 的内存查找，避免两套东西同名。
+ *
+ * 完整性规则（存在 / 唯一）跟着表走：多个上层需要同一条裁决时放这里，只有玩法才需要的
+ * 动作语义解析才放 `lookup/`。
+ *
  * 所有函数都接受 `Executor`，在事务里传 `tx` 即可。
  */
+
+/**
+ * 在本 world 内按真名定位 actor 及其场景。
+ *
+ * 语义与 `actor-state/findActorByName` 一致：名字必须存在且唯一，不退回 id 或 `#编号`。
+ * 控制面入口与「只认真名」的动作共用这一条；actor-facing 目标仍要走地址表。
+ */
+export async function resolveActorByNameInWorld(
+  executor: Executor,
+  worldId: string,
+  name: string,
+): Promise<ActorWithStageRow> {
+  const rows = await executor
+    .select({ actor: actors, stage: stages })
+    .from(actors)
+    .innerJoin(stages, eq(actors.stageId, stages.id))
+    .where(and(eq(stages.worldId, worldId), eq(actors.name, name)))
+    .limit(2);
+  const [row] = rows;
+  if (!row) {
+    throw new GameError("not_found", `actor 不存在: ${name}`);
+  }
+  if (rows.length > 1) {
+    throw new GameError("invalid_action", `actor 名称不唯一: ${name}`);
+  }
+  return row;
+}
 
 /** 读一个 actor 及其所在场景，并限定在该 world 内。 */
 export async function loadActorWithStage(

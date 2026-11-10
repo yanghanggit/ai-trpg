@@ -2,7 +2,8 @@ import { and, eq } from "drizzle-orm";
 import type { Database } from "../../db/pool";
 import { actorControls } from "../../db/schema";
 import { GameError } from "../errors";
-import { getGameMeta, resolveActorIdByName } from "../read/game-meta";
+import { resolveActorByNameInWorld } from "./actors";
+import { getGameMeta } from "./games";
 
 /**
  * 接管关系（`actor_controls`）的具名读写：谁替这个 actor 决定回合。
@@ -22,9 +23,9 @@ async function resolveControlTarget(
   gameRef: string,
   actorRef: string,
 ): Promise<{ gameId: string; playerId: string; actor: { id: string; name: string } }> {
-  // 接管只需要两个 id；不要为此装配整个世界与事件流。
+  // 接管只需要几个 id；不要为此装配整个世界与事件流。
   const game = await getGameMeta(db, gameRef);
-  const actor = await resolveActorIdByName(db, game.id, actorRef);
+  const { actor } = await resolveActorByNameInWorld(db, game.worldId, actorRef);
   return { gameId: game.id, playerId: game.playerId, actor };
 }
 

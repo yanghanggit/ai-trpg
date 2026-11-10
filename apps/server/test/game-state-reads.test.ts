@@ -10,12 +10,12 @@ import {
   getGameMeta,
   getGameState,
   getGameStateSlice,
+  isUuidShaped,
   listGameMessages,
   playerMove,
-  resolveActorIdByName,
+  resolveActorByNameInWorld,
   takeActorControl,
 } from "../src/game";
-import { isUuidShaped } from "../src/game/read/find-game";
 import { TEST_WORLD } from "./test-world";
 
 const testDatabaseUrl = process.env.TEST_DATABASE_URL?.trim();
@@ -137,19 +137,20 @@ describe.skipIf(!testDatabaseUrl)("game state reads", () => {
       status: "active",
       contentVersion: full.game.contentVersion,
       playerId: full.player.id,
+      worldId: full.world.id,
     });
 
     const keeper = full.world.stages
       .flatMap((stage) => stage.actors.map((actor) => ({ stage, actor })))
       .find(({ actor }) => actor.name === "守烬人");
-    const actor = await resolveActorIdByName(handle.db, meta.id, "守烬人");
+    const { actor, stage } = await resolveActorByNameInWorld(handle.db, meta.worldId, "守烬人");
     expect(actor.id).toBe(keeper?.actor.id);
-    expect(actor.stageId).toBe(keeper?.stage.id);
+    expect(stage.id).toBe(keeper?.stage.id);
     expect(actor.seq).toBe(keeper?.actor.seq);
     expect(actor.name).toBe("守烬人");
 
     await expect(getGameMeta(handle.db, "不存在的一局")).rejects.toThrow(/游戏不存在/);
-    await expect(resolveActorIdByName(handle.db, meta.id, "不存在的人")).rejects.toThrow(
+    await expect(resolveActorByNameInWorld(handle.db, meta.worldId, "不存在的人")).rejects.toThrow(
       /actor 不存在/,
     );
   });

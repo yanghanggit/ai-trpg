@@ -1,8 +1,8 @@
 import type { Database } from "../../db/pool";
 import { findActorByName } from "../actor-state";
 import { GameError } from "../errors";
+import { getGameStateSlice } from "../game-state";
 import { type LoadedMemory, loadAgentMemory } from "../memory";
-import { getGameStateSlice } from "../read/game-state";
 import type { ActorState, GameStateSlice, StageState } from "../types";
 
 /**

@@ -1,7 +1,7 @@
 import type { Database } from "../../db/pool";
+import { getGameStateSlice } from "../game-state";
 import { isAlive } from "../lookup";
 import { getMemoryState } from "../memory";
-import { getGameStateSlice } from "../read/game-state";
 import { findStage, outgoingStages } from "../stage-state";
 import { stageLog } from "./log";
 import { gameOf, viewerAnchors } from "./project";

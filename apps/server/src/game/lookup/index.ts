@@ -22,7 +22,6 @@ import { addStats, type Stats } from "../attributes";
 import { GameError } from "../errors";
 import type {
   ActorRow,
-  ActorWithStageRow,
   Executor,
   ItemRow,
   StageItemRow,
@@ -34,9 +33,10 @@ import type { RouteWorld } from "../route";
 import { EQUIPMENT_SLOTS } from "../types";
 
 /**
- * 带策略的只读查询：解析动作与守卫要回答「必须存在、必须唯一、谁看得见、身上有什么」。
+ * 玩法侧带策略的只读查询：解析动作与守卫要回答「谁看得见、身上有什么、能不能到哪里」。
  *
- * 全部只读——写原语在 `persistence/`。玩法模块调这里，而不是自己拼 SQL。
+ * 全部只读——写原语在 `persistence/`。共用的行级完整性规则（例如按真名定位 actor）
+ * 跟着表走、在 `persistence/` 的 `resolve*`；这里只放动作语义需要的解析与判定。
  */
 
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -375,32 +375,6 @@ export async function resolveAdjacentStage(
     throw new GameError("invalid_action", `没有从 ${stage.name} 到 ${ref} 的通道`);
   }
   return target;
-}
-
-/**
- * 在本 world 内按真名定位 actor 及其场景。
- *
- * 只给控制面/测试动作使用：actor-facing 目标不能走裸真名。
- */
-export async function resolveActorByNameInWorld(
-  executor: Executor,
-  worldId: string,
-  name: string,
-): Promise<ActorWithStageRow> {
-  const rows = await executor
-    .select({ actor: actors, stage: stages })
-    .from(actors)
-    .innerJoin(stages, eq(actors.stageId, stages.id))
-    .where(and(eq(stages.worldId, worldId), eq(actors.name, name)))
-    .limit(2);
-  const [row] = rows;
-  if (!row) {
-    throw new GameError("invalid_action", `真名不存在: ${name}`);
-  }
-  if (rows.length > 1) {
-    throw new GameError("invalid_action", `真名不唯一: ${name}`);
-  }
-  return row;
 }
 
 /**

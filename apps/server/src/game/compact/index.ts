@@ -1,7 +1,7 @@
 import type { Database } from "../../db/pool";
+import { getGameStateSlice } from "../game-state";
 import { listMemoryOwners, resolveMemoryOwner } from "../memory";
 import { loadNameAuditInput } from "../persistence/name-audit";
-import { getGameStateSlice } from "../read/game-state";
 import { compactResolvedMemory } from "./store";
 import type { CompactMemoryOptions, CompactMemoryResult, CompactTarget } from "./types";
 

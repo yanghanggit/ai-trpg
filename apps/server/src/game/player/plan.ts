@@ -4,9 +4,9 @@ import { findActorByName, findActorByRef, stageOfActor } from "../actor-state";
 import { addressLookupFor } from "../addressing";
 import { dialogueContextFor, isDialogueAction } from "../dialogue-audit";
 import { GameError } from "../errors";
+import { getGameStateSlice, readTurnDelivery } from "../game-state";
 import { MEMORY_KINDS } from "../memory/kinds";
 import { isPlayerControlled } from "../persistence/actor-controls";
-import { getGameStateSlice, readTurnDelivery } from "../read/game-state";
 import { settleActorPlan } from "../settle";
 import type {
   ActorAction,

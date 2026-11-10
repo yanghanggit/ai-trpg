@@ -3,7 +3,7 @@ import { parseCall } from "../actions/call";
 import { parseTeleport } from "../actions/teleport";
 import { findActorByRef, stageOfActor } from "../actor-state";
 import { handleOf, parseSignatureName } from "../addressing";
-import { getGameStateSlice } from "../read/game-state";
+import { getGameStateSlice } from "../game-state";
 import { type RouteQuestion, resolveRouteQuestion } from "../route";
 import type { ActorAction, ActorPlan, ActorTurnResult } from "../types";
 import type {

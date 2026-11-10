@@ -2,8 +2,8 @@ import { createTurnTrace, traceEvent } from "../../debug/trace";
 import { agentLoop, DEFAULT_ERROR_RETRIES } from "../../llm";
 import { DEFAULT_STORY_MAX_ROUNDS } from "../default-rounds";
 import { GameError } from "../errors";
+import { getGameState } from "../game-state";
 import { getGameMemories } from "../memory";
-import { getGameState } from "../read/game-state";
 import { buildStoryInput, buildStorySystemPrompt } from "./prompt";
 import {
   buildListMemoriesTool,
