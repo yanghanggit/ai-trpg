@@ -15,7 +15,7 @@ import { STAGE_ACTION_KINDS, stageTurnContext } from "./context";
 import { createStagePlanSession } from "./plan-session";
 import { renderStageTurnInput } from "./prompt";
 import { STAGE_ACTION_TOOLKITS } from "./toolkit";
-import { buildStageInspectTool, buildSubmitStagePlanTool, describeObservedActor } from "./tools";
+import { buildSubmitStagePlanTool } from "./tools";
 
 export type StageTurnOptions = {
   service: ChatCompletionService;
@@ -50,7 +50,6 @@ export async function runStageTurn(
   });
 
   const context = stageTurnContext(state, stage);
-  const inspectTool = buildStageInspectTool(context.actorNames);
   const planTool = buildSubmitStagePlanTool();
   const session = createStagePlanSession();
 
@@ -71,21 +70,8 @@ export async function runStageTurn(
     name: stage.name,
     inputMessage: renderStageTurnInput(context),
     messages: memory.messages,
-    tools: [
-      inspectTool,
-      ...toolKinds.map((kind) => STAGE_ACTION_TOOLKITS[kind].build(context)),
-      planTool,
-    ],
+    tools: [...toolKinds.map((kind) => STAGE_ACTION_TOOLKITS[kind].build(context)), planTool],
     handlers: {
-      [inspectTool.function.name]: (args) => {
-        const targetActorRef =
-          typeof args.targetActorRef === "string" ? args.targetActorRef.trim() : "";
-        const target = stage.actors.find((actor) => actor.name === targetActorRef);
-        if (!target) {
-          return `错误：当前场景内找不到角色 ${targetActorRef}`;
-        }
-        return describeObservedActor(target);
-      },
       ...actionHandlers,
       [planTool.function.name]: () => {
         session.submit();

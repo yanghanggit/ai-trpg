@@ -1,42 +1,19 @@
-/**
- * stage 回合的工具契约：仲裁动作 + 只读查看，以及它们各自的解析器与结果渲染。
+/** stage 回合的工具契约：仲裁动作与它们的解析器。
  *
  * 这里只管形状与就地校验；语义（锚点是否重复、通道是否存在）在 `arbitrate.ts`
  * 落账时统一校验，免得同一套规则写两遍。装配见 `./toolkit.ts`，编排见 `./prompt.ts`。
  */
 
 import type { ToolDefinition } from "../../llm/types";
-import { type AddressLookup, refOf } from "../addressing";
 import { GameError } from "../errors";
-import { describeItems } from "../item-state/describe";
-import type { ActorState, StageAction } from "../types";
+import type { StageAction } from "../types";
 
-/**
- * 本场景小 GM 的只读查看：它对本场景的携带物本来就全知，因此不必行动。
- *
- * 与 actor 的 `inspect` 动作同名不同权：actor 要看别人的行囊得花一次行动，还要看敏捷。
+/*
+ * stage 对 actor 的只读 inspect 已停用：stage 对本场景的携带物本来就全知，只搬一份
+ * 物品清单没有业务用处；而它真正缺的 stats 与存活状态偏偏没给——看得到的和想看的
+ * 正好错开。要恢复时别只搬物品清单：把 `describeStats` 一起带上，并想清楚它和
+ * actor 自己的 `inspect`（占一次行动、留痕看敏捷）差在哪。
  */
-export function buildStageInspectTool(availableTargetActorRefs: readonly string[]): ToolDefinition {
-  return {
-    type: "function",
-    function: {
-      name: "inspect",
-      description:
-        "检视本场景角色随身携带的物品（含已穿戴的）；只看得见物品，看不到对方的 stats 与存活状态。只读。",
-      parameters: {
-        type: "object",
-        properties: {
-          targetActorRef: {
-            type: "string",
-            enum: availableTargetActorRefs,
-            description: "本场景角色名",
-          },
-        },
-        required: ["targetActorRef"],
-      },
-    },
-  };
-}
 
 export function buildSubmitEnvironmentTool(): ToolDefinition {
   return {
@@ -243,11 +220,4 @@ export function parseOpenPassage(args: Record<string, unknown>): StageAction {
     throw new GameError("invalid_action", "open_passage 需要非空 targetStageName");
   }
   return { kind: "open_passage", targetStageName };
-}
-
-/** 不传 address 时使用 god-view 真名（stage / world 与测试）；actor 路径必须传。 */
-export function describeObservedActor(actor: ActorState, address?: AddressLookup): string {
-  const ref = address ? refOf(address(actor.id)) : actor.name;
-  return `${ref}携带：
-${describeItems(actor)}`;
 }

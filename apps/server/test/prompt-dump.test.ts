@@ -14,7 +14,7 @@ import {
 const input = {
   world: { name: "枯钟修道院", contentVersion: "test.v1" },
   worldPrompt: "WORLD PROMPT",
-  functionPromptDumps: [{ name: "drops", prompt: "FUNCTION PROMPT" }],
+  functionPromptDumps: [{ name: "affixes", prompt: "FUNCTION PROMPT" }],
   actorPrompts: [{ name: "奥德里克", prompt: "ACTOR PROMPT" }],
   stagePrompts: [{ name: "灰烬门廊", prompt: "STAGE PROMPT" }],
 };
@@ -45,7 +45,7 @@ describe("prompt dump", () => {
     expect(await readFile(join(dir as string, "stages", "灰烬门廊.md"), "utf8")).toContain(
       "STAGE PROMPT",
     );
-    expect(await readFile(join(dir as string, "functions", "drops.md"), "utf8")).toContain(
+    expect(await readFile(join(dir as string, "functions", "affixes.md"), "utf8")).toContain(
       "FUNCTION PROMPT",
     );
   });

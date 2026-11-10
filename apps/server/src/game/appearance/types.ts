@@ -1,16 +1,8 @@
-import type { TraceContext } from "../../debug/trace";
-import type { agentLoop } from "../../llm/agent-loop";
-import type { ChatCompletionService } from "../../llm/protocol";
+import type { MemoryRenderOptions } from "../bypass";
 import type { AppearanceContext } from "../persistence/appearances";
 
-/** 外观推论的依赖：服务、轮数预算、日志与所属回合的轨迹。 */
-export type AppearanceOptions = {
-  service: ChatCompletionService;
-  maxRounds?: number;
-  logger?: Parameters<typeof agentLoop>[0]["logger"];
-  /** 所属回合的轨迹；有值则把这次推理并入该回合。 */
-  trace?: TraceContext;
-};
+/** 外观推论的依赖：旁路那份依赖，另加这一任务的轮数预算。 */
+export type AppearanceOptions = MemoryRenderOptions & { maxRounds?: number };
 
 /** 一次外观任务的成果：文本，或没生成时的原因。 */
 export type AppearanceOutcome = {

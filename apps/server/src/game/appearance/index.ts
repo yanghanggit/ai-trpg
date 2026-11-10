@@ -11,6 +11,5 @@ export {
 } from "./prompt";
 export { type AppearanceSnapshot, writeAppearanceSnapshot } from "./record";
 export { type RenderedAppearance, renderAppearance } from "./render";
-export { type AppearanceTarget, loadAppearanceTarget } from "./target";
 export { rebuildAppearance, updateAppearance } from "./turn";
 export type { AppearanceOptions, AppearanceOutcome, AppearanceTask } from "./types";

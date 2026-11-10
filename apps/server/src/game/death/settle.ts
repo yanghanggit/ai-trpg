@@ -12,7 +12,7 @@ import {
 import type { DeathSettlement } from "../types";
 import { refreshCorpseAppearance } from "./corpse-appearance";
 import { declareDeath } from "./declare";
-import { runDropPhase } from "./drop";
+import { dropCorpseMaterials } from "./drop";
 
 /**
  * 死亡收尾是逐人推进的：调用方先取名单，再对每个人调一次 `settleDeath`。
@@ -149,7 +149,7 @@ export async function settleDeath(
   }
 
   try {
-    const drop = await runDropPhase(db, gameId, actor.name, subPhaseOptions);
+    const drop = await dropCorpseMaterials(db, gameId, actor.name, subPhaseOptions);
     if (!drop.ok) {
       await fail("drop", drop.reason ?? "未知原因");
     } else {

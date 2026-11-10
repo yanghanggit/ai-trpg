@@ -6,25 +6,25 @@ import { getGameStateSlice } from "../read/game-state";
 import type { ActorState, GameStateSlice, StageState } from "../types";
 
 /**
- * 一次外观推论要读的全部东西：状态、当事人、所在场景、世界面名字表与它的记忆。
+ * 一次旁路推理要读的全部东西：状态、当事人、所在场景、世界面名字表与它的记忆。
  *
- * 由外观模块自己装配，而不是让调用方拼：借谁的记忆、守卫要哪些名字、游戏是否还在跑，
+ * 由旁路自己装配，而不是让调用方拼：借谁的记忆、守卫要哪些名字、游戏是否还在跑，
  * 都是这条能力自身的契约。调用方只需要拿到 `actor` 去组装自己的任务文本。
  */
-export type AppearanceTarget = {
+export type MemoryTarget = {
   state: GameStateSlice;
   actor: ActorState;
   stage: StageState;
-  /** 世界面守卫用的全量角色名：外观里不能出现名字与引用。 */
+  /** 世界面守卫用的全量角色名：产出里不能出现名字与引用。 */
   actorNames: string[];
   memory: LoadedMemory;
 };
 
-export async function loadAppearanceTarget(
+export async function loadMemoryTarget(
   db: Database,
   gameRef: string,
   actorRef: string,
-): Promise<AppearanceTarget> {
+): Promise<MemoryTarget> {
   const state = await getGameStateSlice(db, gameRef);
   if (state.game.status !== "active") {
     throw new GameError("invalid_state", `游戏已结束: ${state.game.status}`);

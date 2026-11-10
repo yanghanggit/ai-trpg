@@ -1,17 +1,17 @@
 import type { Database } from "../../db/pool";
 import type { TraceContext } from "../../debug/trace";
 import { bumpGameVersion } from "../apply/messages";
+import type { MemoryTarget } from "../bypass";
 import { GameError } from "../errors";
 import { appearanceChangeText, renderAppearanceChange } from "../observation-text";
 import { appendCustomStageObservation, appendSelfObservation } from "../observations";
 import { type AppearanceContext, recordAppearance } from "../persistence/appearances";
 import { lockGameRow } from "../persistence/games";
 import { buildSubmitAppearanceTool } from "./prompt";
-import type { AppearanceTarget } from "./target";
 
 /** 落账要写的东西：新外观 + 生成它的输入快照 + 广播策略。 */
 export type AppearanceSnapshot = {
-  target: AppearanceTarget;
+  target: MemoryTarget;
   appearance: string;
   /** 这次生成用的输入，原样进审计快照。 */
   inputMessage: string;

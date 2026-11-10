@@ -3,6 +3,7 @@ export * from "./actor-state";
 export * from "./actor-turn";
 export * from "./appearance";
 export * from "./apply";
+export * from "./bypass";
 export * from "./client-view";
 export * from "./compact";
 export * from "./create-game";

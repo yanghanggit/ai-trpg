@@ -1,8 +1,8 @@
 import type { Database } from "../../db/pool";
+import type { MemoryTarget } from "../bypass";
 import { DEFAULT_APPEARANCE_MAX_ROUNDS } from "../default-rounds";
 import { writeAppearanceSnapshot } from "./record";
 import { renderAppearance } from "./render";
-import type { AppearanceTarget } from "./target";
 import type { AppearanceOptions, AppearanceOutcome, AppearanceTask } from "./types";
 
 /**
@@ -13,7 +13,7 @@ import type { AppearanceOptions, AppearanceOutcome, AppearanceTask } from "./typ
  */
 export async function runAppearanceTask(
   db: Database,
-  target: AppearanceTarget,
+  target: MemoryTarget,
   task: AppearanceTask,
   options: AppearanceOptions,
 ): Promise<AppearanceOutcome> {

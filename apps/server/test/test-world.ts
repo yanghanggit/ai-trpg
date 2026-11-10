@@ -11,7 +11,6 @@ const TEST_CAMPAIGN_SETTING = "这是一个用于验证服务层行为的封闭�
 const TEST_GLOBAL_RULES = "角色只能沿场景连接移动；行动结果由服务层结算。";
 
 const TEST_WORLD_FUNCTIONS: Record<WorldFunction, string> = {
-  drops: "尸体留下的材料用灰烬与旧蜡的语汇。",
   affixes: "词缀后果用灰烬、旧蜡与铜锈的语汇。",
   story: "用克制的第三人称过去时讲述。",
   compact: "压缩时保住灰烬门廊与断钟中殿的原样。",

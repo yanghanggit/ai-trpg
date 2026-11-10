@@ -16,6 +16,10 @@ world 已有自己的 memory 与 system prompt，但探针目前只接 actor 与
 
 探针使用 memory 副本，不追加真实 memory，不写 `game_messages`，不递增 game version，不调用 apply 层，不修改 environment、物品、位置或 HP。探针的 LLM 通讯只进过程轨迹，不属于游戏 memory。
 
+## 归属
+
+探针是旁路的只读形态：与外观、尸体外观、掉落一样，它借目标自己的记忆、沿用目标的宪法，不新建实体也不写记忆。不同之处在产物：只回调用方，推理是一次 `complete`、不带工具，因此不经过 `bypass/` 的工具回路。分类见 [Agent 与工具](agents.md)。
+
 ## CLI
 
 `agent:game probe` 用 `--actor` 或 `--stage` 指定目标，`--message` 给问题；输出包含目标类型、目标名称、回答与 finish reason，不返回可变游戏状态。

@@ -48,13 +48,7 @@ export const EQUIPMENT_SLOT_KINDS: Record<EquipmentSlot, readonly ItemKind[]> = 
 };
 
 /** 世界职能：世界级单例，只有一份宪法文本，没有 memory。 */
-export const WORLD_FUNCTION_TYPES = [
-  "drops",
-  "affixes",
-  "story",
-  "compact",
-  "dialogueAudit",
-] as const;
+export const WORLD_FUNCTION_TYPES = ["affixes", "story", "compact", "dialogueAudit"] as const;
 
 export type WorldFunction = (typeof WORLD_FUNCTION_TYPES)[number];
 

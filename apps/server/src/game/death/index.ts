@@ -4,12 +4,7 @@ export {
   type CorpseAppearanceInput,
   refreshCorpseAppearance,
 } from "./corpse-appearance";
-export {
-  buildDropInput,
-  type DropPhaseOptions,
-  type DropPhaseResult,
-  runDropPhase,
-} from "./drop";
+export { buildDropInput, type DropOptions, type DropOutcome, dropCorpseMaterials } from "./drop";
 export { buildDropMaterialsTool, parseDrops } from "./drop-materials";
 export {
   type DeathSettlementOptions,

@@ -22,7 +22,6 @@ import { describeSelf, describeStats } from "../src/game/actor-turn";
 import { formatForm } from "../src/game/appearance/form";
 import { describeEquipment, describeItems, toItemState } from "../src/game/item-state";
 import { describeStageAnchors, stageItemNames } from "../src/game/stage-state";
-import { describeObservedActor } from "../src/game/stage-turn";
 import { parseEndGame } from "../src/game/world-turn";
 
 describe("action authorization", () => {
@@ -403,8 +402,6 @@ describe("read-only descriptions", () => {
     expect(describeEquipment(actor)).toContain("武器：裂齿短刃");
     expect(describeSelf(actor)).toContain("外观：披着旧斗篷。");
     expect(describeSelf(actor)).toContain("裂齿短刃");
-    expect(describeObservedActor(actor)).toContain("裂齿短刃");
-    expect(describeObservedActor(actor)).not.toContain("HP：");
 
     // 材料多带一个来源；其它大类不展示这个字段。
     const bag = {

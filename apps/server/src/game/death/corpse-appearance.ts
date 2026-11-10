@@ -2,12 +2,12 @@ import type { Database } from "../../db/pool";
 import {
   type AppearanceOptions,
   type AppearanceOutcome,
-  loadAppearanceTarget,
   renderWorn,
   runAppearanceTask,
   VISIBILITY_RULES,
   wornForAppearance,
 } from "../appearance";
+import { loadMemoryTarget } from "../bypass";
 import type { ActorState, AppearanceWornItem } from "../types";
 
 export type CorpseAppearanceInput = {
@@ -67,7 +67,7 @@ export async function refreshCorpseAppearance(
   actorRef: string,
   options: AppearanceOptions,
 ): Promise<AppearanceOutcome> {
-  const target = await loadAppearanceTarget(db, gameRef, actorRef);
+  const target = await loadMemoryTarget(db, gameRef, actorRef);
   const input = buildCorpseAppearanceInput(target.actor, target.actor.appearance.text);
   return runAppearanceTask(
     db,

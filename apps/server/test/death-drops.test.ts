@@ -7,12 +7,12 @@ import { resetDomainData, seedDemoData } from "../src/db/maintenance";
 import { runMigrations } from "../src/db/migrate";
 import {
   createGame,
+  dropCorpseMaterials,
   getGameState,
   parseDrops,
   playerLoot,
   playerStrike,
   playerUse,
-  runDropPhase,
   takeActorControl,
 } from "../src/game";
 import { loadAgentMemory } from "../src/game/memory";
@@ -27,6 +27,8 @@ const CORPSE_APPEARANCE = "他仰面倒在石阶上，灰袍翻起一角，指�
 class MaterialDropService implements ChatCompletionService {
   inputs: string[] = [];
   systemPrompts: string[] = [];
+  /** 掉落那一次带来的完整记忆文本（system + 历史）。 */
+  dropMemory: string[] = [];
 
   constructor(
     private readonly materials: unknown,
@@ -38,6 +40,9 @@ class MaterialDropService implements ChatCompletionService {
     this.systemPrompts.push(request.messages[0]?.content ?? "");
     const toolNames = (request.tools ?? []).map((tool) => tool.function.name);
     const dropping = toolNames.includes("drop_materials");
+    if (dropping) {
+      this.dropMemory.push(request.messages.map((message) => message.content).join("\n"));
+    }
     const toolCalls = [
       {
         id: "call-1",
@@ -133,13 +138,15 @@ describe.skipIf(!testDatabaseUrl)("death drops", () => {
     expect(declaredNames(hit.death ?? [])).toEqual(["提灯修士"]);
     expect(hit.death?.[0]?.dropped).toEqual(["浸血的灰袍碎片"]);
     expect(failureReasons(hit.death ?? [], "drop")).toEqual([]);
-    // 掉落推理的宪法自带该局设定与自己的口径；任务提示词只放本轮事实。
+    // 掉落是旁路：宪法就是死者自己的，不再另有一份职能文本；任务提示词只放本轮事实。
     expect(
       service.systemPrompts.some(
         (prompt) =>
-          prompt.includes(TEST_WORLD.campaignSetting) &&
-          prompt.includes(TEST_WORLD.functionPrompts.drops),
+          prompt.includes(TEST_WORLD.campaignSetting) && prompt.includes("你扮演角色: 提灯修士"),
       ),
+    ).toBe(true);
+    expect(
+      service.systemPrompts.every((prompt) => !prompt.includes("你是这个世界的一项职能")),
     ).toBe(true);
     const dropInputs = service.inputs.filter((input) => input.includes("尸体掉落"));
     expect(dropInputs.length).toBeGreaterThan(0);
@@ -157,9 +164,12 @@ describe.skipIf(!testDatabaseUrl)("death drops", () => {
     expect(material?.stats.damage).toBe(0);
     expect(material?.affixes).toEqual({});
 
-    // 场景小 GM 从场景事件里知道尸体上多了什么。
+    // 掉落不写过程：材料只进尸体背包，stage 记忆里不会多出一条「尸体遗留」。
     const memory = await loadAgentMemory(handle.db, created.game.id, "stage", gate?.id ?? "");
-    expect(memory?.messages.some((message) => message.content.includes("# 尸体遗留"))).toBe(true);
+    expect(memory?.messages.some((message) => message.content.includes("尸体遗留"))).toBe(false);
+    expect(memory?.messages.every((message) => !message.content.includes("浸血的灰袍碎片"))).toBe(
+      true,
+    );
 
     const looted = await playerLoot(handle.db, created.game.slug, "守烬人", {
       targetActorRef: "提灯修士",
@@ -190,12 +200,12 @@ describe.skipIf(!testDatabaseUrl)("death drops", () => {
       world: TEST_WORLD,
     });
     const dropped = [{ name: "灰烬骨片", description: "碎得只剩边角。", count: 1 }];
-    const first = await runDropPhase(handle.db, created.game.slug, "提灯修士", {
+    const first = await dropCorpseMaterials(handle.db, created.game.slug, "提灯修士", {
       service: new MaterialDropService(dropped),
     });
     expect(first.dropped).toEqual(["灰烬骨片"]);
 
-    const second = await runDropPhase(handle.db, created.game.slug, "提灯修士", {
+    const second = await dropCorpseMaterials(handle.db, created.game.slug, "提灯修士", {
       service: new MaterialDropService(dropped),
     });
     expect(second.dropped).toEqual(["灰烬骨片"]);
@@ -214,7 +224,7 @@ describe.skipIf(!testDatabaseUrl)("death drops", () => {
       name: "无掉落测试局",
       world: TEST_WORLD,
     });
-    const result = await runDropPhase(handle.db, created.game.slug, "提灯修士", {
+    const result = await dropCorpseMaterials(handle.db, created.game.slug, "提灯修士", {
       service: new MaterialDropService([]),
     });
     expect(result.ok).toBe(true);

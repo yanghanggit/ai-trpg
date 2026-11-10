@@ -38,7 +38,7 @@ export function renderStageTurnInput(context: StageTurnContext): string {
       ? [
           "environment 是本场景此刻可被观察到的状态：只有本轮已落账的动作结果真的改变了场景（物品移动、破坏、出现新的可作用点）才提交完整快照；台词、打算、观察与原地等待都不算。",
           "environment 是演员看得见的东西：不能写角色名或 #编号，也不要替演员说出未打通的通道对面是哪里——那是要他们自己发现、问到的事。",
-          "没有变化就不要提交 environment；只读工具的观察不是场景变化，角色携带的物品也不属于 environment。",
+          "没有变化就不要提交 environment；角色携带的物品不属于 environment。",
           "environment 是完整快照，不是差异；同一轮多次提交时后一次覆盖前一次。",
         ]
       : []),
@@ -55,7 +55,7 @@ export function renderStageTurnInput(context: StageTurnContext): string {
         ]
       : []),
     "读完就调用 submit_stage_plan 提交；写动作与提交可以放在同一次回复里，没有改动就提交空计划。",
-    "只读工具（inspect）可以在同一次回复里多次调用，不占写额度，但每一次回复都算一轮推理；本轮会写库的动作最多：environment 一次、锚点一次、通道一条、world 通知两条。",
+    "本轮会写库的动作最多：environment 一次、锚点一次、通道一条、world 通知两条。",
   ];
 
   return `# 当前场景

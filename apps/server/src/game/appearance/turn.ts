@@ -1,7 +1,7 @@
 import type { Database } from "../../db/pool";
+import { loadMemoryTarget } from "../bypass";
 import { runAppearanceTask } from "./compose";
 import { buildAppearanceUpdateInput } from "./prompt";
-import { loadAppearanceTarget } from "./target";
 import type { AppearanceOptions, AppearanceOutcome } from "./types";
 
 /**
@@ -16,7 +16,7 @@ export async function updateAppearance(
   actorRef: string,
   options: AppearanceOptions,
 ): Promise<AppearanceOutcome> {
-  const target = await loadAppearanceTarget(db, gameRef, actorRef);
+  const target = await loadMemoryTarget(db, gameRef, actorRef);
   const input = buildAppearanceUpdateInput(target.actor);
   return runAppearanceTask(
     db,
@@ -47,7 +47,7 @@ export async function rebuildAppearance(
   actorRef: string,
   options: AppearanceOptions,
 ): Promise<AppearanceOutcome> {
-  const target = await loadAppearanceTarget(db, gameRef, actorRef);
+  const target = await loadMemoryTarget(db, gameRef, actorRef);
   const input = buildAppearanceUpdateInput(target.actor);
   return runAppearanceTask(
     db,

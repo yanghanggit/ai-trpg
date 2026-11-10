@@ -8,7 +8,12 @@ import {
   buildWorldSystemPrompt,
 } from "../src/game/memory";
 import { buildStoryInput } from "../src/game/story";
-import type { ActorState, GameState, StageState } from "../src/game/types";
+import {
+  type ActorState,
+  type GameState,
+  type StageState,
+  WORLD_FUNCTION_TYPES,
+} from "../src/game/types";
 import { TEST_WORLD } from "./test-world";
 
 /**
@@ -53,14 +58,14 @@ const STATS = { maxHp: 10, strength: 4, wisdom: 2, agility: 3, damage: 5, block:
 
 describe("runtime agents carry the campaign setting", () => {
   it("世界职能 agent 的宪法携带设定、规则与自己的口径", () => {
-    for (const fn of ["drops", "affixes", "story", "compact", "dialogueAudit"] as const) {
+    for (const fn of WORLD_FUNCTION_TYPES) {
       const prompt = WORLD.functionPrompts[fn];
       expect(prompt).toContain(TEST_WORLD.campaignSetting);
       expect(prompt).toContain(TEST_WORLD.globalRules);
     }
   });
 
-  it("掉落任务提示词只放本轮事实", () => {
+  it("旁路（掉落）的任务提示词只放本轮事实", () => {
     const prompt = buildDropInput(ACTOR, STAGE);
     expect(prompt).not.toContain(TEST_WORLD.campaignSetting);
   });

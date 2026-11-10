@@ -2,7 +2,6 @@ import type { WorldFunction } from "../../../src/game/types";
 import { AFFIXES_SPEC } from "./affixes";
 import { COMPACT_SPEC } from "./compact";
 import { DIALOGUE_AUDIT_SPEC } from "./dialogue-audit";
-import { DROPS_SPEC } from "./drops";
 import type { WorldFunctionSpec, WorldFunctions } from "./spec";
 import { STORY_SPEC } from "./story";
 
@@ -12,7 +11,6 @@ import { STORY_SPEC } from "./story";
  * 新增或替换一个职能 = 在这里加一行并把键对上；顺序由 `WORLD_FUNCTION_TYPES` 决定。
  */
 export const WORLD_FUNCTIONS: WorldFunctions = {
-  drops: DROPS_SPEC,
   affixes: AFFIXES_SPEC,
   story: STORY_SPEC,
   compact: COMPACT_SPEC,
