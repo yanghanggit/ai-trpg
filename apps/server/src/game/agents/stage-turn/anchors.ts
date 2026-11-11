@@ -77,7 +77,7 @@ export function computeAnchorChange(
   const index = anchors.findIndex((anchor) => anchor.label === action.targetAnchor);
   const target = anchors[index];
   if (!target) {
-    throw new GameError("invalid_action", `当前场景没有这个可交互锚点: ${action.targetAnchor}`);
+    throw new GameError("invalid_action", `当前舞台没有这个可交互锚点: ${action.targetAnchor}`);
   }
   if (action.kind === "remove_anchor") {
     const removedItems = itemsByAnchor.get(target.key) ?? [];

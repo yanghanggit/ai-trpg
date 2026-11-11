@@ -39,9 +39,9 @@ export type World = {
   /** 开局时已经建立的名字绑定：观察者与对象都用 `Actor.key` 引用。 */
   signatureNames?: readonly WorldSignatureName[];
   /**
-   * 开局前就去过、但不是此刻所在的场景。
+   * 开局前就去过、但不是此刻所在的舞台。
    *
-   * 到访是记忆而不是通行证：它让演员在自己相邻的出口里认出一道封着的门
+   * 到访是记忆而不是通行证：它让角色在自己相邻的出口里认出一道封着的门
    * （写名字而不是编号），但 `sealed` 边仍然走不过去。
    */
   visitedStages?: readonly WorldVisitedStage[];
@@ -61,7 +61,7 @@ export type WorldSignatureName = {
   name: string;
 };
 
-/** 开局前就去过的场景：`actor` / `stage` 都用内容 key。 */
+/** 开局前就去过的舞台：`actor` / `stage` 都用内容 key。 */
 export type WorldVisitedStage = {
   actor: string;
   stage: string;
@@ -70,10 +70,10 @@ export type WorldVisitedStage = {
 /**
  * 内容层的锚点定义：锚点承载物品，物品不能脱离锚点。
  *
- * `key` 是场景内稳定标识，改 `label` 不会让挂在上面的物品失联。
+ * `key` 是舞台内稳定标识，改 `label` 不会让挂在上面的物品失联。
  */
 export type StageAnchorDefinition = {
-  /** 场景内稳定标识；改 label 不会让挂在上面的物品失联。 */
+  /** 舞台内稳定标识；改 label 不会让挂在上面的物品失联。 */
   key: string;
   label: string;
   description?: string;
@@ -81,21 +81,21 @@ export type StageAnchorDefinition = {
   items?: readonly ItemDefinition[];
 };
 
-/** World 内的初始场景定义；`key` 仅在创建时用于连接与 actor 归属。 */
+/** World 内的初始舞台定义；`key` 仅在创建时用于连接与 actor 归属。 */
 export type Stage = {
   key: string;
   name: string;
   profile: string;
   environment: string;
-  /** 场景内可交互的锚点；物品只能挂在锚点上。 */
+  /** 舞台内可交互的锚点；物品只能挂在锚点上。 */
   anchors?: readonly StageAnchorDefinition[];
-  /** 场景自身的能力清单；必须显式列出。 */
+  /** 舞台自身的能力清单；必须显式列出。 */
   actions: readonly StageActionKind[];
   /** 是否禁止 teleport 进出；普通 move 不受影响。 */
   teleportBlocked?: boolean;
 };
 
-/** 场景图的初始有向连接；两端引用 `Stage.key`，默认已通行。 */
+/** 舞台图的初始有向连接；两端引用 `Stage.key`，默认已通行。 */
 export type Connection = {
   from: string;
   to: string;
@@ -200,7 +200,7 @@ export type ItemDefinition = {
   stats?: Partial<Stats>;
   /** `cleave` 一次最多命中的目标数；只有 weapon 可声明，省略时物化为 1。 */
   maxTargets?: number;
-  /** 按触发场景声明的词缀；可省略，创建时归一化为空对象。 */
+  /** 按触发舞台声明的词缀；可省略，创建时归一化为空对象。 */
   affixes?: AffixTriggers;
   /** 物品能提供的携带者动作；穿戴中才借给角色。可省略，创建时归一化为空数组。 */
   actions?: readonly CarriedActionKind[];

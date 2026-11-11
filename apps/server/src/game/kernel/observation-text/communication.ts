@@ -4,12 +4,12 @@ import { withAppearances } from "./text";
 import type { CallObservation, CommunicationObservation, ObservationView, StageRef } from "./types";
 
 /**
- * 沟通文案：耳语只有对方视角，公开宣告没有目标，跨场景传音只写给目标。
+ * 沟通文案：耳语只有对方视角，公开宣告没有目标，跨舞台传音只写给目标。
  *
  * 传音不渲染发起人：发起者的身份只能由台词自己披露，结构层不替它宣布。
  */
 
-/** 跨场景传音：只有目标听见；不渲染发起人，避免结构层泄露来源。 */
+/** 跨舞台传音：只有目标听见；不渲染发起人，避免结构层泄露来源。 */
 export function renderCall(stage: StageRef, observation: CallObservation): ObservationView {
   return {
     content: `# 你听见\n一个声音隔空对你说话（你在${stage.name}）：${observation.message}`,
@@ -39,7 +39,7 @@ export function renderCommunication(
   if (observation.kind === "whisper") {
     return {
       content: withAppearances(
-        `# 你听见\n${sourceRef}对你耳语（场景：${stage.name}）：${message}`,
+        `# 你听见\n${sourceRef}对你耳语（舞台：${stage.name}）：${message}`,
         [sourceAddress],
       ),
       metadata: {
@@ -63,7 +63,7 @@ export function renderCommunication(
         : `${sourceRef}对${mentionOf(address(observation.target.id))}说`;
 
   return {
-    content: withAppearances(`# 你听见\n${heard}（场景：${stage.name}）：${message}`, [
+    content: withAppearances(`# 你听见\n${heard}（舞台：${stage.name}）：${message}`, [
       sourceAddress,
       ...(heardByTarget || targetAddress === null ? [] : [targetAddress]),
     ]),

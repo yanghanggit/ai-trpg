@@ -4,7 +4,7 @@ import { describeStageAnchors } from "../../stage-state/describe";
 import { type StageTurnContext, stageTurnContext } from "./context";
 
 /**
- * stage 小 GM 本轮的当前场景观察与仲裁规则；仲裁与探针共用。
+ * 舞台本轮的本舞台观察与仲裁规则；仲裁与探针共用。
  *
  * 规则按能力逐条出现：没有 notify_world 就不提通知，锚点不可改就说不可改。
  * 这些是「编排」而非工具契约，所以写在提示词里而不是每个工具的 description 里。
@@ -36,44 +36,44 @@ export function renderStageTurnInput(context: StageTurnContext): string {
   const taskLines = [
     ...(canSubmit
       ? [
-          "environment 是本场景此刻可被观察到的状态：只有本轮已落账的动作结果真的改变了场景（物品移动、破坏、出现新的可作用点）才提交完整快照；台词、打算、观察与原地等待都不算。",
-          "environment 是演员看得见的东西：不能写角色名或 #编号，也不要替演员说出未打通的通道对面是哪里——那是要他们自己发现、问到的事。",
+          "environment 是本舞台此刻可被观察到的状态：只有本轮已落账的动作结果真的改变了舞台（物品移动、破坏、出现新的可作用点）才提交完整快照；台词、打算、观察与原地等待都不算。",
+          "environment 是角色看得见的东西：不能写角色名或 #编号，也不要替角色说出未打通的通道对面是哪里——那是要他们自己发现、问到的事。",
           "没有变化就不要提交 environment；角色携带的物品不属于 environment。",
           "environment 是完整快照，不是差异；同一轮多次提交时后一次覆盖前一次。",
         ]
       : []),
     ...(anchorTools.length > 0
       ? [
-          `锚点是场景的可供性，可由你调整：${anchorTools.join(" / ")}。标签场景内唯一，总数有上限；移除锚点会连同其上的物品一起移除；改标签不影响挂在上面的物品。`,
-          "锚点不承载效果与后果；某个锚点要怎么才算可用（例如必须先完成某件事），写在本场景设定里，由你裁决。",
+          `锚点是舞台的可供性，可由你调整：${anchorTools.join(" / ")}。标签舞台内唯一，总数有上限；移除锚点会连同其上的物品一起移除；改标签不影响挂在上面的物品。`,
+          "锚点不承载效果与后果；某个锚点要怎么才算可用（例如必须先完成某件事），写在本舞台设定里，由你裁决。",
         ]
       : ["可交互锚点由内容层固定，本轮不提交、也不能修改；它们只是可供性，不是状态。"]),
-    ...(canOpen ? ["打开未开启的通道用 open_passage；它不通知世界，也不改变对面场景。"] : []),
+    ...(canOpen ? ["打开未开启的通道用 open_passage；它不通知世界，也不改变对面舞台。"] : []),
     ...(canNotify
       ? [
-          "需要向世界报告时用 notify_world，写清发生了什么与需要裁决什么；只更新 environment 不会让世界知道。本场景设定明确要求报告世界的事实，必须使用 notify_world。",
+          "需要向世界报告时用 notify_world，写清发生了什么与需要裁决什么；只更新 environment 不会让世界知道。本舞台设定明确要求报告世界的事实，必须使用 notify_world。",
         ]
       : []),
     "读完就调用 submit_stage_plan 提交；写动作与提交可以放在同一次回复里，没有改动就提交空计划。",
     "本轮会写库的动作最多：environment 一次、锚点一次、通道一条、world 通知两条。",
   ];
 
-  return `# 当前场景
+  return `# 当前舞台
 
-## 场景
+## 舞台
 ${stage.name}
 ${stage.profile}
 
 ## 当前环境
 ${stage.environment}
 
-## 同场景角色
+## 同舞台角色
 ${actorLines}
 
 ## 可交互锚点
 ${describeStageAnchors(stage.anchors)}
 
-## 可去场景
+## 可去舞台
 ${moveLines}
 
 ## 未开启的通道

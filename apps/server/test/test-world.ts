@@ -8,7 +8,7 @@ import type { World } from "../src/game/world-definition";
  * 能力清单和种子一样逐角色显式写出，便于断言“谁能做什么”。
  */
 const TEST_CAMPAIGN_SETTING = "这是一个用于验证服务层行为的封闭测试世界。";
-const TEST_GLOBAL_RULES = "角色只能沿场景连接移动；行动结果由服务层结算。";
+const TEST_GLOBAL_RULES = "角色只能沿舞台连接移动；行动结果由服务层结算。";
 
 const TEST_WORLD_FUNCTIONS: Record<WorldFunction, string> = {
   affixes: "词缀后果用灰烬、旧蜡与铜锈的语汇。",

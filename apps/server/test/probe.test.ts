@@ -94,7 +94,7 @@ describe.skipIf(!testDatabaseUrl)("agent probe", () => {
     expect(result.answer).toBe("探针回答");
     expect(result.targetName).toBe("守烬人");
     expect(service.request?.inputMessage).toContain("你现在记得自己刚刚做了什么吗？");
-    expect(service.request?.inputMessage).not.toContain("## 场景物品");
+    expect(service.request?.inputMessage).not.toContain("## 舞台物品");
     expect(
       service.request?.messages.some((message) =>
         message.content.includes("你从门闩上拾取了测试提灯。"),
@@ -130,12 +130,12 @@ describe.skipIf(!testDatabaseUrl)("agent probe", () => {
     const result = await runProbe(handle.db, slug, {
       service,
       target: { type: "stage", stageRef: "灰烬门廊" },
-      message: "你记得这个场景刚刚发生了什么吗？",
+      message: "你记得这个舞台刚刚发生了什么吗？",
     });
 
     expect(result.targetName).toBe("灰烬门廊");
-    expect(service.request?.inputMessage).toContain("你记得这个场景刚刚发生了什么吗？");
-    expect(service.request?.inputMessage).not.toContain("## 场景物品");
+    expect(service.request?.inputMessage).toContain("你记得这个舞台刚刚发生了什么吗？");
+    expect(service.request?.inputMessage).not.toContain("## 舞台物品");
     expect(
       service.request?.messages.some((message) =>
         message.content.includes("守烬人从门闩上拾取了测试提灯。"),

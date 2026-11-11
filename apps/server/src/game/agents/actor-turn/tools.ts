@@ -97,13 +97,13 @@ ${lines.join("\n")}
 检索结果只是世界层面的文本记载；不等于你亲眼所见，也不能据此知道角色秘密或当前状态。`;
 }
 
-/** 只读：让 NPC 回看自己去过的场景，不占行动名额。 */
+/** 只读：让 NPC 回看自己去过的舞台，不占行动名额。 */
 export function buildGetVisitedStagesTool(): ToolDefinition {
   return {
     type: "function",
     function: {
       name: "get_visited_stages",
-      description: "查看你去过的场景（含当前场景）。只读，不占行动名额。",
+      description: "查看你去过的舞台（含当前舞台）。只读，不占行动名额。",
       parameters: {
         type: "object",
         properties: {},
@@ -129,9 +129,9 @@ export function buildSubmitPlanTool(): ToolDefinition {
 }
 
 /**
- * actor 只能看自己所在的场景：工具不接受场景名，视野由回合状态决定。
+ * actor 只能看自己所在的舞台：工具不接受舞台名，视野由回合状态决定。
  *
- * 参数化场景名时，模型可以点名别的场景；这里直接把入口收窄到当前场景。
+ * 参数化舞台名时，模型可以点名别的舞台；这里直接把入口收窄到当前舞台。
  */
 export function buildActorLookStageTool(): ToolDefinition {
   return {
@@ -139,7 +139,7 @@ export function buildActorLookStageTool(): ToolDefinition {
     function: {
       name: "look_stage",
       description:
-        "重新查看你所在场景的环境、在场角色、可交互锚点及其上的物品与可去方向。只看得到本场景，看不了别的场景。只读，可多次调用。",
+        "重新查看你所在舞台的环境、在场角色、可交互锚点及其上的物品与可去方向。只看得到本舞台，看不了别的舞台。只读，可多次调用。",
       parameters: {
         type: "object",
         properties: {},
@@ -196,15 +196,15 @@ export function buildRecallRouteTool(): ToolDefinition {
       name: "recall_route",
       description: `回忆从 A 到 B 怎么走，结论会写进你自己的记忆（不占行动名额）。
 
-起点与终点都写场景真名，不能用 #序号（#序号 只是路上看得见、还没命名的站位）；中间站可以是不认识的地方，会写成 #序号。能走通就给整条路线；走不通时把断处标成 →[封着]→，可能给出多条。地名写错（没有这个场景）时，这次回忆会被记成「无法寻路」。`,
+起点与终点都写舞台真名，不能用 #序号（#序号 只是路上看得见、还没命名的站位）；中间站可以是不认识的地方，会写成 #序号。能走通就给整条路线；走不通时把断处标成 →[封着]→，可能给出多条。地名写错（没有这个舞台）时，这次回忆会被记成「无法寻路」。`,
       parameters: {
         type: "object",
         properties: {
           from: {
             type: "string",
-            description: "起点场景名；省略表示你当前所在的场景。不接受 #序号",
+            description: "起点舞台名；省略表示你当前所在的舞台。不接受 #序号",
           },
-          to: { type: "string", description: "终点场景名。不接受 #序号" },
+          to: { type: "string", description: "终点舞台名。不接受 #序号" },
         },
         required: ["to"],
       },
@@ -259,7 +259,7 @@ ${describeEquipment(actor)}
 ${describeItems(actor)}`;
 }
 
-/** actor 视角的场景视图：只读当前场景，名字走观察者相对的引用。 */
+/** actor 视角的舞台视图：只读当前舞台，名字走观察者相对的引用。 */
 export function describeStageForActor(state: GameStateSlice, current: ActorWithStage): string {
   const stage = current.stage;
   const address = addressLookupFor(state, current.actor, stage);
@@ -279,7 +279,7 @@ export function describeStageForActor(state: GameStateSlice, current: ActorWithS
             return `${refOf(address(actor.id))}${dead}${worn.length === 0 ? "" : `｜${worn}`}`;
           })
           .join("、");
-  return `场景：${stage.name}
+  return `舞台：${stage.name}
 ${renderStageEnvironmentForActor(state, current)}
 角色：${actors}
 ${describeStageAnchorsSection(stage.anchors)}
@@ -316,7 +316,7 @@ export const ACTOR_MEMORY_TOOL_NAMES: readonly string[] = [
 ].map((tool) => tool.function.name);
 
 /**
- * 去过哪些场景。顺序直接沿用 `state.visits`（并列时已按场景序号兜底），
+ * 去过哪些舞台。顺序直接沿用 `state.visits`（并列时已按舞台序号兜底），
  * 这里不再重排，避开两处排序规则漂移。
  */
 export function describeVisitedStages(
@@ -331,6 +331,6 @@ export function describeVisitedStages(
       : visited
           .map((stage) => `${stage.name}${stage.id === currentStageId ? "（当前）" : ""}`)
           .join("\n");
-  return `# 你去过的场景
+  return `# 你去过的舞台
 ${lines}`;
 }

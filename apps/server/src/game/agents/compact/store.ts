@@ -31,7 +31,7 @@ const PINNED_KINDS: readonly string[] = [MEMORY_KINDS.routeRecall, MEMORY_KINDS.
 /** 回填上限：压缩不能变成「什么都删不掉」。 */
 const MAX_PINNED_MESSAGES = 8;
 
-/** 去重键：成功的按终点场景 id，失败的按原始地名，都没有就退回正文。 */
+/** 去重键：成功的按终点舞台 id，失败的按原始地名，都没有就退回正文。 */
 function pinnedKey(message: ChatMessage): string {
   const routeTo = message.metadata?.routeTo;
   if (typeof routeTo === "string") {

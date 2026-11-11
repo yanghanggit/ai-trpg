@@ -17,7 +17,7 @@ import type {
  */
 
 /**
- * 查看行囊：目标收到「你被查看」，旁观者只看到场景动态。
+ * 查看行囊：目标收到「你被查看」，旁观者只看到舞台动态。
  *
  * 查看者自己不在收件人里——清单走他的行动反馈，同一事实只留一条。
  */
@@ -45,7 +45,7 @@ export function renderInspect(
   }
   return {
     content: withAppearances(
-      `# 场景动态\n${mentionOf(actorAddress)}查看了${mentionOf(targetAddress)}随身携带的东西。`,
+      `# 舞台动态\n${mentionOf(actorAddress)}查看了${mentionOf(targetAddress)}随身携带的东西。`,
       [actorAddress, targetAddress],
     ),
     metadata,
@@ -75,7 +75,7 @@ export function renderItemEvent(
   if (observation.event === "loot") {
     return {
       content: withAppearances(
-        `# 场景动态\n${actorRef}从${targetRef}的尸体上搜走了${observation.itemNames.join("、")}。`,
+        `# 舞台动态\n${actorRef}从${targetRef}的尸体上搜走了${observation.itemNames.join("、")}。`,
         [actorAddress, ...(targetAddress ? [targetAddress] : [])],
       ),
       metadata: {
@@ -122,7 +122,7 @@ export function renderItemEvent(
   switch (observation.event) {
     case "give":
       return {
-        content: withAppearances(`# 场景动态\n${actorRef}把${itemName}交给了${targetRef}。`, [
+        content: withAppearances(`# 舞台动态\n${actorRef}把${itemName}交给了${targetRef}。`, [
           actorAddress,
           ...(targetAddress ? [targetAddress] : []),
         ]),
@@ -131,7 +131,7 @@ export function renderItemEvent(
     case "pickup":
       return {
         content: withAppearances(
-          `# 场景动态\n${actorRef}从${observation.anchorLabel}上拾取了${itemName}。`,
+          `# 舞台动态\n${actorRef}从${observation.anchorLabel}上拾取了${itemName}。`,
           [actorAddress],
         ),
         metadata: { ...metadata, targetAnchor: observation.anchorLabel },
@@ -141,7 +141,7 @@ export function renderItemEvent(
         ? `对${targetRef}`
         : `在${stage.name}${observation.targetAnchor ? `的${observation.targetAnchor}` : ""}`;
       return {
-        content: withAppearances(`# 场景动态\n${actorRef}${where}使用了${itemName}。`, [
+        content: withAppearances(`# 舞台动态\n${actorRef}${where}使用了${itemName}。`, [
           actorAddress,
           ...(targetAddress ? [targetAddress] : []),
         ]),

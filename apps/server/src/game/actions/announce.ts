@@ -14,7 +14,7 @@ export function buildAnnounceTool(): ToolDefinition {
     type: "function",
     function: {
       name: "announce",
-      description: "把一次公开宣告加入计划：向当前场景的所有角色说话，没有指定对象。",
+      description: "把一次公开宣告加入计划：向当前舞台的所有角色说话，没有指定对象。",
       parameters: {
         type: "object",
         properties: {
@@ -74,9 +74,9 @@ export async function applyAnnounce(
     executor,
     gameId,
     resolved.stage.id,
-    `# 场景事件\n${source.name}公开说：${resolved.action.message}`,
+    `# 舞台事件\n${source.name}公开说：${resolved.action.message}`,
     { eventKind: "announce" },
     trace,
   );
-  return `# 行动结果\n你（场景：${resolved.stage.name}）公开说：${resolved.action.message}`;
+  return `# 行动结果\n你（舞台：${resolved.stage.name}）公开说：${resolved.action.message}`;
 }

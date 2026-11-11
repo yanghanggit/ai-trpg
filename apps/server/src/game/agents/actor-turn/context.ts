@@ -23,17 +23,17 @@ import { adjacentStageRefsForActor } from "./observed-stage";
 export type ActorTurnContext = {
   state: GameStateSlice;
   current: ActorWithStage;
-  /** 可移动到的相邻场景：去过的写名字，没走过的只给编号。 */
+  /** 可移动到的相邻舞台：去过的写名字，没走过的只给编号。 */
   stageRefs: string[];
-  /** 同场景的其他角色，尸体也在内。 */
+  /** 同舞台的其他角色，尸体也在内。 */
   others: ActorState[];
   /** 本 actor 视角的地址解析。 */
   address: AddressLookup;
   /** 自己的引用，写进提示词供模型在行动里指认自己。 */
   selfHandle: string;
-  /** 可作用对象：同场景他人在名单里的称呼。 */
+  /** 可作用对象：同舞台他人在名单里的称呼。 */
   targets: string[];
-  /** `use` 能指向的角色：自己与同场景他人。 */
+  /** `use` 能指向的角色：自己与同舞台他人。 */
   selfAndTargets: string[];
   /** 本轮真正会出现在工具列表里的动作：固有动作 ∪ 携带者授予。 */
   allowed: ActionKind[];

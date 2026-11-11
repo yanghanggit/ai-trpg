@@ -36,7 +36,7 @@ export function damageActionText(
  * 伤害观察：只有当事人带剩余生命，旁观者只知道这一下多疼、对方倒没倒下。
  *
  * 措词取自 `damageActionText`，标题跟着动作：`strike` / `brawl` 为「你被攻击 / 战斗」，
- * `use` 为「你被使用道具 / 场景动态」。
+ * `use` 为「你被使用道具 / 舞台动态」。
  */
 export function renderDamage(
   stage: StageRef,
@@ -54,7 +54,7 @@ export function renderDamage(
   // 挥击、顺劈与肉搏都是战斗；使用道具是另一件事。
   const heading =
     action === "use"
-      ? { target: "# 你被使用道具", bystander: "# 场景动态" }
+      ? { target: "# 你被使用道具", bystander: "# 舞台动态" }
       : { target: "# 你被攻击", bystander: "# 战斗" };
 
   if (observerId === target.id) {

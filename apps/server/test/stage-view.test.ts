@@ -52,7 +52,7 @@ class ScriptedStageService implements ChatCompletionService {
   }
 }
 
-/** stage 投影不复用 actor 的日志白名单；名字与出边按场景自己的可见性给。 */
+/** stage 投影不复用 actor 的日志白名单；名字与出边按舞台自己的可见性给。 */
 describe.skipIf(!testDatabaseUrl)("stage view", () => {
   let handle: DatabaseHandle;
 
@@ -67,10 +67,10 @@ describe.skipIf(!testDatabaseUrl)("stage view", () => {
     await handle.pool.end();
   });
 
-  it("projects the scene with real names and sealed exits", async () => {
+  it("projects the stage with real names and sealed exits", async () => {
     const created = await createGame(handle.db, {
       username: DEMO_USER.username,
-      name: "场景视图测试局",
+      name: "舞台视图测试局",
       world: BELL_MONASTERY_WORLD,
     });
 
@@ -79,29 +79,29 @@ describe.skipIf(!testDatabaseUrl)("stage view", () => {
       stageId: created.world.stages.find((stage) => stage.name === "墓园")?.id,
       name: "墓园",
     });
-    expect(graveyard.scene.environment).toBe(
+    expect(graveyard.stage.environment).toBe(
       created.world.stages.find((stage) => stage.name === "墓园")?.environment,
     );
-    // 场景看到的是真名，不做观察者遮罩。
-    expect(graveyard.scene.actors.map((actor) => actor.name).sort()).toEqual(
+    // 舞台看到的是真名，不做观察者遮罩。
+    expect(graveyard.stage.actors.map((actor) => actor.name).sort()).toEqual(
       ["小狗“煤渣”", "奥德里克", "小鼠“坏运气”"].sort(),
     );
-    expect(graveyard.scene.actors.every((actor) => actor.appearance.length > 0)).toBe(true);
-    expect(graveyard.scene.actors.find((actor) => actor.name === "奥德里克")?.appearance).toContain(
+    expect(graveyard.stage.actors.every((actor) => actor.appearance.length > 0)).toBe(true);
+    expect(graveyard.stage.actors.find((actor) => actor.name === "奥德里克")?.appearance).toContain(
       "铁锹",
     );
-    expect(graveyard.scene.exits.map((exit) => [exit.name, exit.passage]).sort()).toEqual([
+    expect(graveyard.stage.exits.map((exit) => [exit.name, exit.passage]).sort()).toEqual([
       ["地窖", "open"],
       ["焚尸房", "open"],
       ["铁闸门", "open"],
     ]);
-    expect(graveyard.scene.anchors).toEqual([
+    expect(graveyard.stage.anchors).toEqual([
       { key: "lock", label: "锁孔", description: "铁闸门上被干蜡塞住的锁孔。", items: [] },
     ]);
 
     // 铁闸门通往山道的边是 sealed：stage 自己就是开门的写入方，所以它要看到通行状态。
     const gate = await getStageView(handle.db, created.game.slug, "铁闸门");
-    expect(gate.scene.exits).toEqual(
+    expect(gate.stage.exits).toEqual(
       expect.arrayContaining([
         expect.objectContaining({ name: "墓园", passage: "open" }),
         expect.objectContaining({ name: "山道", passage: "sealed" }),
@@ -115,12 +115,12 @@ describe.skipIf(!testDatabaseUrl)("stage view", () => {
   it("logs the opening snapshot and only stage-owned memory kinds", async () => {
     const created = await createGame(handle.db, {
       username: DEMO_USER.username,
-      name: "场景视图日志测试局",
+      name: "舞台视图日志测试局",
       world: BELL_MONASTERY_WORLD,
     });
     const before = await getStageView(handle.db, created.game.slug, "墓园");
     const environment = "石灰被夜露打湿，枯草伏倒；北侧铁链上结了一层白霜。";
-    expect(environment).not.toBe(before.scene.environment);
+    expect(environment).not.toBe(before.stage.environment);
 
     await runStageTurn(handle.db, created.game.slug, "墓园", {
       service: new ScriptedStageService([environment]),
@@ -131,8 +131,8 @@ describe.skipIf(!testDatabaseUrl)("stage view", () => {
       "stage_opening_snapshot",
       "stage_observation",
     ]);
-    expect(after.log[0]?.content).toContain("# 本局开局场景");
-    expect(after.log[0]?.content).toContain(before.scene.environment);
+    expect(after.log[0]?.content).toContain("# 本局开局舞台");
+    expect(after.log[0]?.content).toContain(before.stage.environment);
     expect(after.log[1]?.eventKind).toBe("environment_change");
     expect(after.log[1]?.content).toContain(environment);
     // 日志只收 stage memory 自己的类别：actor 的私有观察、反馈与识名都不能混进来。
@@ -141,10 +141,10 @@ describe.skipIf(!testDatabaseUrl)("stage view", () => {
     );
   });
 
-  it("writes the baseline before the first scene event, even without arbitration", async () => {
+  it("writes the baseline before the first stage event, even without arbitration", async () => {
     const created = await createGame(handle.db, {
       username: DEMO_USER.username,
-      name: "场景基线先于事件测试局",
+      name: "舞台基线先于事件测试局",
       world: BELL_MONASTERY_WORLD,
     });
     const cellarEnvironment = created.world.stages.find(
@@ -167,7 +167,7 @@ describe.skipIf(!testDatabaseUrl)("stage view", () => {
     expect(cellar.log[0]?.content).toContain(cellarEnvironment);
     expect(cellar.log[1]?.eventKind).toBe("move_enter");
 
-    // 起点场景同样先落基线，再落离开事件。
+    // 起点舞台同样先落基线，再落离开事件。
     const graveyard = await getStageView(handle.db, created.game.slug, "墓园");
     expect(graveyard.log.map((entry) => entry.kind)).toEqual([
       "stage_opening_snapshot",

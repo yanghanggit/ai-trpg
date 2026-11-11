@@ -16,7 +16,7 @@ export function buildAffixTools(
       function: {
         name: "damage_target",
         description:
-          "对场景中的一个角色追加词缀伤害；amount 是本次追加值，不是最终总伤害，也不要重复静态结算。",
+          "对舞台中的一个角色追加词缀伤害；amount 是本次追加值，不是最终总伤害，也不要重复静态结算。",
         parameters: {
           type: "object",
           properties: {
@@ -48,7 +48,7 @@ export function buildAffixTools(
       type: "function",
       function: {
         name: "record_witness",
-        description: `把词缀造成的可见后果写进场景；不扣血、不改数值，最多 ${MAX_AFFIX_WITNESSES} 条。`,
+        description: `把词缀造成的可见后果写进舞台；不扣血、不改数值，最多 ${MAX_AFFIX_WITNESSES} 条。`,
         parameters: {
           type: "object",
           properties: {
@@ -74,7 +74,7 @@ export function buildAffixTools(
             visibility: {
               type: "string",
               enum: ["stage", "target"],
-              description: "可见范围：stage 全场景，target 只有当事人",
+              description: "可见范围：stage 全舞台，target 只有当事人",
             },
             template: {
               type: "string",

@@ -6,7 +6,7 @@ import type { RouteNode, RouteWorld } from "./types";
 /**
  * 路线回忆的渲染：把选好的结论写成 actor 记忆里那句话。
  *
- * 只做文字与称呼：链上的场景按观察者认知渲染，走过的写名字，否则写 `#序号`。
+ * 只做文字与称呼：链上的舞台按观察者认知渲染，走过的写名字，否则写 `#序号`。
  * 选路与断点选择在 `recall.ts`，遍历原语在 `stage-state/graph.ts`。
  */
 
@@ -14,7 +14,7 @@ function indexStages(world: RouteWorld): Map<string, RouteNode> {
   return new Map(world.stages.map((stage) => [stage.id, stage]));
 }
 
-/** 链上的场景按观察者认知渲染：走过的写名字，否则写 `#序号`。 */
+/** 链上的舞台按观察者认知渲染：走过的写名字，否则写 `#序号`。 */
 function renderChain(
   nodes: Map<string, RouteNode>,
   world: RouteWorld,
@@ -23,7 +23,7 @@ function renderChain(
   return path
     .map((id) => {
       const node = nodes.get(id);
-      assert(node, `场景索引缺少节点: ${id}`);
+      assert(node, `舞台索引缺少节点: ${id}`);
       return world.visited.has(id) ? node.name : `#${node.seq}`;
     })
     .join(" → ");
@@ -87,12 +87,12 @@ export function describeRouteFailure(world: RouteWorld, failure: RouteFailure): 
   const subject = failingFrom ? "起点" : "终点";
   const detail =
     failure.reason === "handle_ref"
-      ? `「${ref}」不是场景名，#序号 只是看得见、还没命名的站位`
+      ? `「${ref}」不是舞台名，#序号 只是看得见、还没命名的站位`
       : failure.reason === "ambiguous"
-        ? `「${ref}」对应多个场景，说不清是哪一个`
+        ? `「${ref}」对应多个舞台，说不清是哪一个`
         : failure.reason === "empty"
           ? `没有写${subject}`
-          : `没有叫「${ref}」的场景`;
+          : `没有叫「${ref}」的舞台`;
   const prefix = from ? `从${from.name}出发，` : "";
   return `${prefix}无法寻路：${detail}。`;
 }

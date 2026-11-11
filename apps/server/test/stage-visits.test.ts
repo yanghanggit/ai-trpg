@@ -72,7 +72,7 @@ describe.skipIf(!testDatabaseUrl)("stage visits", () => {
   });
 
   it("orders visits that share a timestamp by stage ordinal", async () => {
-    // 同一回合的多次到达共享同一个 now；并列时要按场景序号兜底，顺序才可复现。
+    // 同一回合的多次到达共享同一个 now；并列时要按舞台序号兜底，顺序才可复现。
     const world: World = {
       ...TEST_WORLD,
       contentVersion: "test-visits-order.v1",
@@ -99,7 +99,7 @@ describe.skipIf(!testDatabaseUrl)("stage visits", () => {
     const stageId = (key: string) => {
       const stage = state.world.stages.find((candidate) => candidate.key === key);
       if (!stage) {
-        throw new Error(`缺少场景: ${key}`);
+        throw new Error(`缺少舞台: ${key}`);
       }
       return stage.id;
     };
@@ -110,7 +110,7 @@ describe.skipIf(!testDatabaseUrl)("stage visits", () => {
       throw new Error("缺少测试数据");
     }
 
-    // 倒序写入同一时刻：读取顺序应来自场景序号，而不是写入先后。
+    // 倒序写入同一时刻：读取顺序应来自舞台序号，而不是写入先后。
     const sameNow = new Date(Date.now() + 60_000);
     await recordStageVisit(handle.db, state.game.id, keeper.id, stageId("crypt"), sameNow);
     await recordStageVisit(handle.db, state.game.id, keeper.id, stageId("nave"), sameNow);

@@ -32,7 +32,7 @@ export function renderActorTurnInput(
   return `${renderEnvironment(context)}\n\n${renderTask(context, maxRounds)}`;
 }
 
-/** 本轮可见事实：场景、状态、名单、可去方向；不含任何规则。 */
+/** 本轮可见事实：舞台、状态、名单、可去方向；不含任何规则。 */
 function renderEnvironment(context: ActorTurnContext): string {
   const { state, current } = context;
   const { actor, stage } = current;
@@ -54,14 +54,14 @@ function renderEnvironment(context: ActorTurnContext): string {
   // 两个可选小节各占一个插值位，各自带自己的空行：缺省时不留痕迹。
   return `# 当前环境
 
-## 场景
+## 舞台
 ${stage.name}
 ${renderStageEnvironmentForActor(state, current)}
 
 ## 你的状态
 ${actor.name}（你的引用：${context.selfHandle}）| HP ${actor.hp}/${actor.stats.maxHp} | ${STAT_LABELS.strength} ${shown.strength} | ${STAT_LABELS.agility} ${shown.agility}
 
-## 同场景角色（只列已穿戴的装备）
+## 同舞台角色（只列已穿戴的装备）
 ${renderActorList(context)}
 
 ## 可交互锚点
@@ -74,7 +74,7 @@ ${listOrNone(context.targets)}
 ${listOrNone(context.stageRefs)}${sealedSection}${teleportSection}`;
 }
 
-/** 同场景角色：引用 + 死亡标记 + 穿戴摘要；尸体也在名单里。 */
+/** 同舞台角色：引用 + 死亡标记 + 穿戴摘要；尸体也在名单里。 */
 function renderActorList(context: ActorTurnContext): string {
   if (context.others.length === 0) {
     return "无";

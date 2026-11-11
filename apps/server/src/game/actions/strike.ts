@@ -21,13 +21,13 @@ export function buildStrikeTool(targetActorHandles: readonly string[]): ToolDefi
     function: {
       name: "strike",
       description:
-        "把一次挥击加入计划：用 weapon 槽里装备的武器攻击同场景的一个角色；不判定命中与闪避，伤害由静态词缀直接结算。",
+        "把一次挥击加入计划：用 weapon 槽里装备的武器攻击同舞台的一个角色；不判定命中与闪避，伤害由静态词缀直接结算。",
       parameters: {
         type: "object",
         properties: {
           targetActorHandle: {
             type: "string",
-            description: "要攻击的同场景角色的引用（名字 或 #编号）；尸体也可以（伤害结算会空转）",
+            description: "要攻击的同舞台角色的引用（名字 或 #编号）；尸体也可以（伤害结算会空转）",
             ...(targetActorHandles.length > 0 ? { enum: [...targetActorHandles] } : {}),
           },
         },

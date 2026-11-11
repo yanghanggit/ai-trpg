@@ -24,7 +24,7 @@ export function buildCleaveTool(
     type: "function",
     function: {
       name: "cleave",
-      description: `把一次横扫加入计划：用 weapon 槽里装备的武器同时攻击同场景的 1–${maxTargets} 个角色；不判定命中与闪避，每个目标的伤害各自由静态词缀结算一次。`,
+      description: `把一次横扫加入计划：用 weapon 槽里装备的武器同时攻击同舞台的 1–${maxTargets} 个角色；不判定命中与闪避，每个目标的伤害各自由静态词缀结算一次。`,
       parameters: {
         type: "object",
         properties: {
@@ -33,7 +33,7 @@ export function buildCleaveTool(
             items: {
               type: "string",
               description:
-                "要攻击的同场景角色的引用（名字 或 #编号）；尸体也可以（伤害结算会空转）",
+                "要攻击的同舞台角色的引用（名字 或 #编号）；尸体也可以（伤害结算会空转）",
               ...(targetActorHandles.length > 0 ? { enum: [...targetActorHandles] } : {}),
             },
             minItems: 1,
@@ -117,7 +117,7 @@ export async function resolveCleave(
  * 应用 cleave：逐目标各结算一次静态词缀。
  *
  * 每个目标是一次独立的命中：伤害各自按该目标的 `block` 减伤，扣血、公共消息、
- * 伤害观察与场景记忆都由同一条 `applyHit` 落账，因此不会出现“一次横扫只算总伤害”。
+ * 伤害观察与舞台记忆都由同一条 `applyHit` 落账，因此不会出现“一次横扫只算总伤害”。
  *
  * 已知边界：agent 词缀阶段目前按「一个动作一个目标」建模（`AffixRequest` 只有一个
  * `targetActorId`），所以横扫只跑静态词缀，不追加推理端增量。要放开需要先把

@@ -10,10 +10,10 @@ import { isSameItem } from "./item-identity";
 import type { Executor, ItemRow, StageItemRow } from "./rows";
 
 /**
- * 物品与场景物品的读写操作：玩法层只表达「谁拿到什么」，不关心两张表怎么搬。
+ * 物品与舞台物品的读写操作：玩法层只表达「谁拿到什么」，不关心两张表怎么搬。
  */
 
-/** 读一个场景当前陈列的物品，按实体序号稳定排序。 */
+/** 读一个舞台当前陈列的物品，按实体序号稳定排序。 */
 export async function listStageItems(
   executor: Pick<Database, "select">,
   stageId: string,
@@ -53,7 +53,7 @@ export async function loadActorItem(
 }
 
 /**
- * 场景物品转入 actor 背包。
+ * 舞台物品转入 actor 背包。
  *
  * 背包里已有同名物品时：签名相同就并入 `count`（同一件东西的两份），
  * 签名不同说明是两件不同的东西，直接拒绝，避免覆盖或撞唯一索引。
@@ -133,7 +133,7 @@ export type MaterialDrop = { name: string; description: string; count: number };
 /**
  * 把掉落材料写进尸体背包。
  *
- * 掉在尸体上而不是地上：搜刮走 `steal`，`pickup` 只够得到场景物品。
+ * 掉在尸体上而不是地上：搜刮走 `steal`，`pickup` 只够得到舞台物品。
  * 同名材料并进已有那一行（材料可堆叠）；同名但不是材料说明尸体本来就有
  * 一件别的东西，跳过它，不去覆盖原有的物品。
  */

@@ -207,12 +207,12 @@ describe.skipIf(!testDatabaseUrl)("memory-driven NPC slice", () => {
     expect(monk?.messages[0]?.type).toBe("system");
     expect(
       keeper?.messages.some((message) =>
-        message.content.includes("提灯修士对你耳语（场景：灰烬门廊）：别回应它。"),
+        message.content.includes("提灯修士对你耳语（舞台：灰烬门廊）：别回应它。"),
       ),
     ).toBe(true);
     expect(
       monk?.messages.some((message) =>
-        message.content.includes("守烬人对你说（场景：灰烬门廊）：你听见钟声了吗？"),
+        message.content.includes("守烬人对你说（舞台：灰烬门廊）：你听见钟声了吗？"),
       ),
     ).toBe(true);
     // 过程轨迹不进长期记忆：loop 的 tool 调用与任务提示词只留在轨迹里。
@@ -311,7 +311,7 @@ describe.skipIf(!testDatabaseUrl)("memory-driven NPC slice", () => {
     expect(keeperService.tools).toContain("loot");
     expect(keeperService.tools).not.toContain("inspect");
     expect(keeperService.input).toContain("loot");
-    expect(keeperService.input).not.toContain("查看同场景目标随身携带的全部物品");
+    expect(keeperService.input).not.toContain("查看同舞台目标随身携带的全部物品");
     expect(keeperService.tools).toContain("get_self");
     expect(keeperService.tools).not.toContain("get_actor");
     expect(keeperService.tools).not.toContain("get_stats");
@@ -329,7 +329,7 @@ describe.skipIf(!testDatabaseUrl)("memory-driven NPC slice", () => {
     // 探囊把两个动作一起给：工具表里成对出现，说明也写进动作清单。
     expect(corpseService.tools).toContain("inspect");
     expect(corpseService.input).toContain("inspect");
-    expect(corpseService.input).toContain("查看同场景目标随身携带的全部物品");
+    expect(corpseService.input).toContain("查看同舞台目标随身携带的全部物品");
     // 察觉与成败写在任务提示词里：工具描述不再替别的工具或编排说话。
     expect(corpseService.input).toContain("查看与窃取比敏捷");
     expect(corpseService.input).not.toContain("在场的人都看得见");
@@ -504,7 +504,7 @@ describe.skipIf(!testDatabaseUrl)("memory-driven NPC slice", () => {
     ).toBe(true);
   });
 
-  it("materializes scene items and places the player in the coffin", async () => {
+  it("materializes stage items and places the player in the coffin", async () => {
     const created = await createGame(handle.db, {
       username: DEMO_USER.username,
       name: "故事结构测试局",
@@ -517,7 +517,7 @@ describe.skipIf(!testDatabaseUrl)("memory-driven NPC slice", () => {
       pyre?.anchors.flatMap((anchor) => anchor.items).map((item) => [item.name, item.kind]),
     ).toEqual([["松脂火把", "weapon"]]);
     expect(coffin?.actors.map((actor) => actor.name)).toEqual(["无名者"]);
-    // 建局不写开场消息：玩家从场景 environment 与角色自己的记忆里拼出开场。
+    // 建局不写开场消息：玩家从舞台 environment 与角色自己的记忆里拼出开场。
     expect(created.messages).toEqual([]);
   });
 
@@ -740,23 +740,23 @@ describe.skipIf(!testDatabaseUrl)("memory-driven NPC slice", () => {
     const scribe = memories.find((memory) => memory.name === "缄默抄经人");
     expect(
       observer?.messages.some((message) =>
-        message.content.includes("守烬人公开说（场景：灰烬门廊）：灰里有人。"),
+        message.content.includes("守烬人公开说（舞台：灰烬门廊）：灰里有人。"),
       ),
     ).toBe(true);
     expect(
       observer?.messages.some((message) =>
-        message.content.includes("守烬人对提灯修士说（场景：灰烬门廊）：只对你说。"),
+        message.content.includes("守烬人对提灯修士说（舞台：灰烬门廊）：只对你说。"),
       ),
     ).toBe(true);
     expect(observer?.messages.some((message) => message.content.includes("别回头"))).toBe(false);
     expect(
       monk?.messages.some((message) =>
-        message.content.includes("守烬人对你说（场景：灰烬门廊）：只对你说。"),
+        message.content.includes("守烬人对你说（舞台：灰烬门廊）：只对你说。"),
       ),
     ).toBe(true);
     expect(
       monk?.messages.some((message) =>
-        message.content.includes("守烬人对你耳语（场景：灰烬门廊）：别回头。"),
+        message.content.includes("守烬人对你耳语（舞台：灰烬门廊）：别回头。"),
       ),
     ).toBe(true);
     expect(

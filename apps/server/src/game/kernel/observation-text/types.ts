@@ -5,14 +5,14 @@ import type { ActionKind, CommunicationKind, ItemEventKind, MessageVisibility } 
  * 观察与伤害文案的输入/输出形状：纯数据，不含任何渲染。
  *
  * 两条约定写在这里，免得每个 renderer 各说一遍：
- * - 观察回答「谁看到了什么」，metadata 只带当事人与场景标识，不带规则数值；
+ * - 观察回答「谁看到了什么」，metadata 只带当事人与舞台标识，不带规则数值；
  * - 观察对象的投影只带 id（见 `ActorRef` / `StageRef`），名字必须由 `AddressLookup` 渲染。
  */
 
 /**
  * 观察类记忆消息的 metadata。
  *
- * 观察回答「谁看到了什么」，因此只带当事人与场景标识，不带规则数值：
+ * 观察回答「谁看到了什么」，因此只带当事人与舞台标识，不带规则数值：
  * 剩余生命这类数值只写进公共消息、舞台记忆与当事人自己的观察文本。
  */
 export type ObservationMetadata = {
@@ -39,7 +39,7 @@ export type ObservationMetadata = {
   targetAnchor?: string;
 };
 
-/** stage 自己记忆里的场景事件：`kind` 与 `stageId` 由写入方固定，调用方只说明事件类别。 */
+/** stage 自己记忆里的舞台事件：`kind` 与 `stageId` 由写入方固定，调用方只说明事件类别。 */
 export type StageEventMetadata = Omit<ObservationMetadata, "kind" | "visibility" | "stageId"> & {
   eventKind: string;
 };
@@ -52,10 +52,10 @@ export type StageEventMetadata = Omit<ObservationMetadata, "kind" | "visibility"
  */
 export type ActorRef = { id: string };
 
-/** 场景的最小投影：`id` 进 metadata，`name` 进文案。 */
+/** 舞台的最小投影：`id` 进 metadata，`name` 进文案。 */
 export type StageRef = { id: string; name: string };
 
-/** 观察者范围：整个场景，或只有指定的当事人。 */
+/** 观察者范围：整个舞台，或只有指定的当事人。 */
 export type Audience =
   | { readonly type: "stage" }
   | { readonly type: "only"; readonly actorId: string };
@@ -66,16 +66,16 @@ export type ObservationView = { content: string; metadata: ObservationMetadata }
 /**
  * 沟通观察的输入。
  *
- * 成员与同场景沟通动作对应：除公开宣告外都必须指定目标，
+ * 成员与同舞台沟通动作对应：除公开宣告外都必须指定目标，
  * 「say 忘了带目标」在这里是不能表示的状态，因此不需要运行期校验。
- * 跨场景的 `call` 不经过场景广播，单独用 `CallObservation`。
+ * 跨舞台的 `call` 不经过舞台广播，单独用 `CallObservation`。
  */
 export type CommunicationObservation = { source: ActorRef; message: string } & (
   | { kind: Exclude<CommunicationKind, "announce" | "call">; target: ActorRef }
   | { kind: "announce" }
 );
 
-/** 跨场景传音只写给目标；发起人不在结构里，只能由台词自己披露。 */
+/** 跨舞台传音只写给目标；发起人不在结构里，只能由台词自己披露。 */
 export type CallObservation = {
   target: ActorRef;
   message: string;

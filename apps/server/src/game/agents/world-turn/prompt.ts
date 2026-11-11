@@ -5,7 +5,7 @@ import { isAlive } from "../../lookup";
 /**
  * world 本轮的全局观察与裁决规则。
  *
- * 场景报告不在提示词里：它们已经写进 world memory，这一轮要读的是记忆。
+ * 舞台报告不在提示词里：它们已经写进 world memory，这一轮要读的是记忆。
  * 提示词只描述「世界此刻长什么样」与「哪些事算世界级」——后者是编排，不是工具契约。
  */
 export function buildWorldTurnInput(state: GameStateSlice): string {
@@ -32,13 +32,13 @@ ${stage.environment}
 ## 世界
 ${state.world.name}
 
-## 场景
+## 舞台
 ${stageLines}
 
 # 本轮任务
 
-读取 stage memory 中的场景通知，裁决世界级事实与跨场景后果。
-- 需要让某个场景知道世界级变化时，使用 notify_stage 写入该场景 memory。
+读取 stage memory 中的舞台通知，裁决世界级事实与跨舞台后果。
+- 需要让某个舞台知道世界级变化时，使用 notify_stage 写入该舞台 memory。
 - end_game 必须是本轮最后一个动作。
 - 本轮没有任何世界级事实需要裁决时，直接提交空计划结束；不要为了走完提交流程而编造通知。
 

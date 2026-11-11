@@ -31,7 +31,7 @@ import { signatureNamesFor } from "../persistence/signature-names";
 import type { ResolvedAction, ResolvedIdentity, ResolvedPlan } from "./types";
 
 /**
- * 顺序校验计划里的动作，并模拟移动后的场景，不写数据库。
+ * 顺序校验计划里的动作，并模拟移动后的舞台，不写数据库。
  *
  * 任何一条校验失败都会抛出 GameError，让整份计划不落地。
  */
@@ -125,7 +125,7 @@ export async function resolvePlan(
         );
         break;
       case "cleave": {
-        // 目标逐个解析：解析本身就保证了每个目标都在当前场景，且未跨 move 变更。
+        // 目标逐个解析：解析本身就保证了每个目标都在当前舞台，且未跨 move 变更。
         const targets: ActorRow[] = [];
         for (const handle of action.targetActorHandles) {
           targets.push(await visibleTarget(handle));
@@ -216,10 +216,10 @@ export async function resolvePlan(
     if (view.actor.id === actorRow.actor.id) {
       throw new GameError("invalid_action", "不能给自己起名");
     }
-    // 名字属于回合开始时的认知场景，不受本回合 move / teleport 改写；
+    // 名字属于回合开始时的认知舞台，不受本回合 move / teleport 改写；
     // 已经绑定的签名可以从记忆里更新，即使它不在场。
     if (view.actor.stageId !== actorRow.stage.id && !existingNames.has(view.signature.id)) {
-      throw new GameError("invalid_action", `只能给当前场景内的角色起名: ${binding.handle}`);
+      throw new GameError("invalid_action", `只能给当前舞台内的角色起名: ${binding.handle}`);
     }
     identities.push({
       handle: binding.handle,

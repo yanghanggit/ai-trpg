@@ -14,7 +14,7 @@ import type { ActorWithStageRow, Executor } from "../persistence/rows";
 import type { ResolvedLoot } from "../settle/types";
 
 /**
- * 搜刮尸体：与 `pickup` 平行的取物入口，对象只能是同场景的尸体。
+ * 搜刮尸体：与 `pickup` 平行的取物入口，对象只能是同舞台的尸体。
  *
  * 与 `steal` 的分工由对象决定：活人走 `steal`（私密、拿不走穿戴中的物品），
  * 尸体走 `loot`（公开、什么都能拿）。不传物品名即搜刮全部：背包没有上限，
@@ -26,13 +26,13 @@ export function buildLootTool(targetActorHandles: readonly string[]): ToolDefini
     function: {
       name: "loot",
       description:
-        "把一次搜刮加入计划：从同场景的尸体上取走物品（道具、材料、甚至它穿戴的东西），在场的人都看得见。省略 itemNames 就是搜刮全部。只能对尸体，活人用 steal。",
+        "把一次搜刮加入计划：从同舞台的尸体上取走物品（道具、材料、甚至它穿戴的东西），在场的人都看得见。省略 itemNames 就是搜刮全部。只能对尸体，活人用 steal。",
       parameters: {
         type: "object",
         properties: {
           targetActorHandle: {
             type: "string",
-            description: "被搜刮的同场景尸体的引用（名字 或 #编号）",
+            description: "被搜刮的同舞台尸体的引用（名字 或 #编号）",
             ...(targetActorHandles.length > 0 ? { enum: [...targetActorHandles] } : {}),
           },
           itemNames: {
@@ -160,7 +160,7 @@ export async function applyLoot(
     executor,
     gameId,
     resolved.stage.id,
-    `# 场景事件\n${content}`,
+    `# 舞台事件\n${content}`,
     {
       eventKind: "loot",
       targetActorId: corpse.id,

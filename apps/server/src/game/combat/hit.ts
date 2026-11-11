@@ -37,7 +37,7 @@ export type HitInput = {
 };
 
 /**
- * 中立的伤害写入器：扣血、公共消息、伤害观察、场景记忆、行动反馈。
+ * 中立的伤害写入器：扣血、公共消息、伤害观察、舞台记忆、行动反馈。
  *
  * 它不知道"物品"或"词缀"，只处理一次已经算好的命中；因此 `brawl` 与物品管线
  * 共用同一条落账路径，不会出现两套死亡/观察文案。
@@ -102,7 +102,7 @@ export async function applyHit(input: HitInput): Promise<HitOutcome> {
     executor,
     gameId,
     stage.id,
-    `# 场景事件\n${content}`,
+    `# 舞台事件\n${content}`,
     { eventKind: action, targetActorId: target.id },
     trace,
   );

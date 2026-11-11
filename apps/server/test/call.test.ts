@@ -61,7 +61,7 @@ describe.skipIf(!testDatabaseUrl)("cross-stage call", () => {
   };
 
   it("requires a true name, delivers only to an actor in another stage, and records the call", async () => {
-    const created = await createControlledGame("跨场景传音测试局", callWorld());
+    const created = await createControlledGame("跨舞台传音测试局", callWorld());
     const result = await playerCall(
       handle.db,
       created.game.slug,
@@ -108,7 +108,7 @@ describe.skipIf(!testDatabaseUrl)("cross-stage call", () => {
   });
 
   it("does not expose the initiator in target memory when the message does not name them", async () => {
-    const created = await createControlledGame("跨场景传音匿名来源测试局", callWorld(false));
+    const created = await createControlledGame("跨舞台传音匿名来源测试局", callWorld(false));
     await playerCall(
       handle.db,
       created.game.slug,
@@ -136,7 +136,7 @@ describe.skipIf(!testDatabaseUrl)("cross-stage call", () => {
           : actor,
       ),
     };
-    const created = await createControlledGame("跨场景传音目标权限测试局", world);
+    const created = await createControlledGame("跨舞台传音目标权限测试局", world);
     await expect(
       playerCall(
         handle.db,
@@ -149,7 +149,7 @@ describe.skipIf(!testDatabaseUrl)("cross-stage call", () => {
   });
 
   it("keeps the spoken self-name in the source feedback instead of turning it into a reference", async () => {
-    const created = await createControlledGame("跨场景传音台词保留测试局", callWorld());
+    const created = await createControlledGame("跨舞台传音台词保留测试局", callWorld());
     await playerCall(
       handle.db,
       created.game.slug,
@@ -167,7 +167,7 @@ describe.skipIf(!testDatabaseUrl)("cross-stage call", () => {
   });
 
   it("rejects handles and same-stage targets", async () => {
-    const created = await createControlledGame("跨场景传音拒绝测试局", callWorld());
+    const created = await createControlledGame("跨舞台传音拒绝测试局", callWorld());
     await expect(
       playerCall(
         handle.db,
@@ -186,7 +186,7 @@ describe.skipIf(!testDatabaseUrl)("cross-stage call", () => {
         { targetActorName: "提灯修士", message: "就在眼前。" },
         { judge: allowAllDialogue },
       ),
-    ).rejects.toThrow(/只能对不在当前场景/);
+    ).rejects.toThrow(/只能对不在当前舞台/);
 
     const state = await getGameState(handle.db, created.game.slug);
     expect(state.game.version).toBe(0);
@@ -194,7 +194,7 @@ describe.skipIf(!testDatabaseUrl)("cross-stage call", () => {
   });
 
   it("requires the call action", async () => {
-    const created = await createControlledGame("跨场景传音权限测试局", TEST_WORLD);
+    const created = await createControlledGame("跨舞台传音权限测试局", TEST_WORLD);
     await expect(
       playerCall(
         handle.db,

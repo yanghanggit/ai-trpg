@@ -6,7 +6,7 @@ import type { StageViewLogEntry, ViewerLogEntry } from "./types";
  * 「感知日志」：从 memory 里挑出这个观察者真的接收到的那几类。
  *
  * 两个白名单故意分开写：actor 与 stage 能收到的类别不同，混用一份会静默放过
- * 对方收不到的消息（例如把 world 通知当成场景观察显示给演员）。
+ * 对方收不到的消息（例如把 world 通知当成舞台观察显示给角色）。
  */
 const ACTOR_LOG_KINDS = new Set<string>([
   MEMORY_KINDS.environmentObservation,
@@ -66,7 +66,7 @@ export function actorLog(messages: readonly AgentMemoryMessageState[]): ViewerLo
   });
 }
 
-/** stage 的日志：场景事件与仲裁结论；场景事件额外带 `eventKind`。 */
+/** stage 的日志：舞台事件与仲裁结论；舞台事件额外带 `eventKind`。 */
 export function stageLog(messages: readonly AgentMemoryMessageState[]): StageViewLogEntry[] {
   return messages.flatMap((message) => {
     if (message.type !== "human") {

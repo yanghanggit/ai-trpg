@@ -154,7 +154,7 @@ describe.skipIf(!testDatabaseUrl)("death drops", () => {
 
     const state = await getGameState(handle.db, created.game.slug);
     const gate = state.world.stages.find((stage) => stage.name === "灰烬门廊");
-    // 材料在尸体背包里，不在场景里：因此不存在 pickup 这条路。
+    // 材料在尸体背包里，不在舞台里：因此不存在 pickup 这条路。
     expect(gate?.anchors.flatMap((anchor) => anchor.items)).toEqual([]);
     const corpse = gate?.actors.find((actor) => actor.name === "提灯修士");
     const material = corpse?.items.find((item) => item.name === "浸血的灰袍碎片");
@@ -218,7 +218,7 @@ describe.skipIf(!testDatabaseUrl)("death drops", () => {
     expect(rows[0]?.count).toBe(2);
   });
 
-  it("模型返回空数组时算成功，不写任何场景物品", async () => {
+  it("模型返回空数组时算成功，不写任何舞台物品", async () => {
     const created = await createGame(handle.db, {
       username: DEMO_USER.username,
       name: "无掉落测试局",

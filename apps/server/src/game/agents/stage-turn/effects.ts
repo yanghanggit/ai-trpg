@@ -17,11 +17,11 @@ import {
 } from "./anchors";
 
 /**
- * 一次场景级事件的三个落点：公共事件、场景记忆、轨迹。
+ * 一次舞台级事件的三个落点：公共事件、舞台记忆、轨迹。
  *
  * 仲裁的每个分支都要落这三样，顺序也固定；抽成一处，免得某个分支漏掉记忆或轨迹。
  */
-async function recordSceneEvent(
+async function recordStageEvent(
   tx: Executor,
   input: {
     gameId: string;
@@ -42,7 +42,7 @@ async function recordSceneEvent(
     tx,
     input.gameId,
     input.stageId,
-    `# 场景事件\n${input.content}`,
+    `# 舞台事件\n${input.content}`,
     input.meta,
     input.trace,
   );
@@ -76,7 +76,7 @@ export async function applyStageAction(
   if (action.kind === "submit_environment") {
     if (action.environment !== stage.environment) {
       await setStageEnvironment(tx, stage.id, action.environment);
-      await recordSceneEvent(tx, {
+      await recordStageEvent(tx, {
         gameId,
         stageId: stage.id,
         content: `${stage.name}的环境发生了变化。\n${action.environment}`,
@@ -91,13 +91,13 @@ export async function applyStageAction(
   if (action.kind === "open_passage") {
     const target = stageByName.get(action.targetStageName);
     if (!target) {
-      throw new GameError("invalid_state", `通道目标场景不存在: ${action.targetStageName}`);
+      throw new GameError("invalid_state", `通道目标舞台不存在: ${action.targetStageName}`);
     }
     const opened = await openPassage(tx, world.id, stage.id, target.id);
     if (!opened) {
       throw new GameError("invalid_state", `没有通往 ${target.name} 的未开启通道: ${stage.name}`);
     }
-    await recordSceneEvent(tx, {
+    await recordStageEvent(tx, {
       gameId,
       stageId: stage.id,
       content: `${stage.name}通往${target.name}的通道开启了。`,
@@ -116,7 +116,7 @@ export async function applyStageAction(
       await deleteStageItemsByAnchor(tx, stage.id, anchorChange.removedAnchorKey);
     }
     await setStageAnchors(tx, stage.id, anchorChange.anchors);
-    await recordSceneEvent(tx, {
+    await recordStageEvent(tx, {
       gameId,
       stageId: stage.id,
       content: `${stage.name}的可交互点发生了变化。\n${anchorChange.summary}\n${describeStoredAnchors(anchorChange.anchors)}`,
@@ -132,7 +132,7 @@ export async function applyStageAction(
     tx,
     gameId,
     stage.id,
-    `# 场景事件\n${stage.name}向世界发出通知：${action.notification}`,
+    `# 舞台事件\n${stage.name}向世界发出通知：${action.notification}`,
     { eventKind: "world_notification" },
     trace,
   );

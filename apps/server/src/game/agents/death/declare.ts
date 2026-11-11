@@ -16,7 +16,7 @@ import { bumpGameVersion } from "../../persistence/games";
 import { loadWorldByGame } from "../../persistence/worlds";
 
 /**
- * 宣布死亡：一个事务里认领死者、广播倒下、写场景事件与死者自己的记忆。
+ * 宣布死亡：一个事务里认领死者、广播倒下、写舞台事件与死者自己的记忆。
  *
  * 文件叫 `declare` 而不是 `announce`：`announce` 是角色动作的名字（`actions/announce.ts`），
  * 而这里写的是引擎认定的事实，两者不该同名。认领（`claimDeath`）是并发下的唯一裁决点：
@@ -62,7 +62,7 @@ export async function declareDeath(
       (_observerId, address) =>
         renderAction(
           withAppearances(
-            `# 场景动态\n${mentionOf(address(actor.id))}倒下了，不再有任何生命迹象。`,
+            `# 舞台动态\n${mentionOf(address(actor.id))}倒下了，不再有任何生命迹象。`,
             [address(actor.id)],
           ),
           actor.stageId,

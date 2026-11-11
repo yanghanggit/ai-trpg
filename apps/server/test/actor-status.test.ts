@@ -679,7 +679,7 @@ describe.skipIf(!testDatabaseUrl)("death phase does not block death", () => {
     ).toBe(monk.appearance.id);
   });
 
-  it("宣布死亡会写场景、旁观者与死者自己的记忆", async () => {
+  it("宣布死亡会写舞台、旁观者与死者自己的记忆", async () => {
     const created = await createGame(handle.db, {
       username: DEMO_USER.username,
       name: "死亡广播记忆测试局",
@@ -716,7 +716,7 @@ describe.skipIf(!testDatabaseUrl)("death phase does not block death", () => {
       const memory = await loadAgentMemory(handle.db, created.game.id, kind, id);
       return memory?.messages.map((message) => message.content).join("\n") ?? "";
     };
-    // 场景记忆与旁观者记忆都收到死亡事件。
+    // 舞台记忆与旁观者记忆都收到死亡事件。
     expect(await readMemory("stage", stageId)).toContain("提灯修士的生命归零");
     expect(await readMemory("actor", keeper.id)).toContain("倒下了，不再有任何生命迹象");
     // 死者自己也留一条，供未来的复活类扩展使用。
@@ -830,7 +830,7 @@ describe.skipIf(!testDatabaseUrl)("corpses can be operated on", () => {
   it("NPC 的工具目标与观察文本都包含尸体（只有一套规则）", async () => {
     const created = await killMonk("尸体也是合法目标测试局");
     const capture = new TargetCaptureService();
-    // 守烬人已经被玩家接管，改用同场景的旁观者视角检查工具枚举。
+    // 守烬人已经被玩家接管，改用同舞台的旁观者视角检查工具枚举。
     await takeActorControl(handle.db, created.game.slug, "守烬人");
     await releaseActorControl(handle.db, created.game.slug, "守烬人");
     await runActorTurn(handle.db, created.game.slug, "守烬人", { service: capture });
@@ -913,7 +913,7 @@ describe.skipIf(!testDatabaseUrl)("corpses can be operated on", () => {
     expect(victim).toContain("造成6点伤害");
     expect(victim).toContain("你剩余 HP 4/10");
 
-    // 同场景旁观者：知道这一下打得多重、对方有没有倒下，但不知道对方还剩多少生命。
+    // 同舞台旁观者：知道这一下打得多重、对方有没有倒下，但不知道对方还剩多少生命。
     const observer = await read(scribe.id);
     expect(observer).toContain("守烬人对提灯修士挥击");
     expect(observer).toContain("造成6点伤害");

@@ -11,8 +11,8 @@ export function hasStageOpeningSnapshot(memory: LoadedMemory): boolean {
 }
 
 /**
- * 幂等补写：只记录「这个场景第一次落记忆那一刻」的状态，不追现状；老局无需回填，
- * 从未被写过的场景也不付这条记忆。
+ * 幂等补写：只记录「这个舞台第一次落记忆那一刻」的状态，不追现状；老局无需回填，
+ * 从未被写过的舞台也不付这条记忆。
  */
 export async function ensureStageOpeningSnapshot(
   executor: MemoryExecutor,

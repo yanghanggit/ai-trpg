@@ -30,7 +30,7 @@ export async function compactMemory(
   return compactResolvedMemory(db, state.game.id, state.world, owner, options, auditInput);
 }
 
-/** 全量压缩：按 world → 各场景 → 各 actor 的固定顺序逐条跑。 */
+/** 全量压缩：按 world → 各舞台 → 各 actor 的固定顺序逐条跑。 */
 export async function compactAllMemories(
   db: Database,
   gameRef: string,

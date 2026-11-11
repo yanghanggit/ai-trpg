@@ -6,7 +6,7 @@ import type { PassageState, SignatureNameState } from "../kernel/types";
  * 这些类型是读侧契约：客户端只依赖它们，不依赖数据库形状。两条约定写在这里，
  * 免得每个字段的注释各说一遍：
  * - 引用（`token` / `ref`）由引擎按观察者渲染，客户端可以直接拿它提交行动；
- * - 公共标签（场景名、物品名、大类）不做观察者遮蔽，遮蔽只发生在引用与记忆上。
+ * - 公共标签（舞台名、物品名、大类）不做观察者遮蔽，遮蔽只发生在引用与记忆上。
  */
 
 export type ViewerAddress = {
@@ -30,14 +30,14 @@ export type ViewerAnchor = {
   items: ViewerItem[];
 };
 
-export type ViewerScene = {
+export type ViewerStage = {
   id: string;
   name: string;
   environment: string;
   /** 公共标签，不做观察者遮蔽。 */
   anchors: ViewerAnchor[];
   actors: ViewerAddress[];
-  /** 出口同时给真实场景名与 #实体序号，客户端可自行决定遮蔽。 */
+  /** 出口同时给真实舞台名与 #实体序号，客户端可自行决定遮蔽。 */
   exits: { stageId: string; name: string; ref: string }[];
   /** 去过、但现在封着的出口：认得出名字，但过不去。不是可移动目标。 */
   sealedExits: { stageId: string; name: string }[];
@@ -68,12 +68,12 @@ export type ActorView = {
     name: string;
     appearance: string;
   };
-  scene: ViewerScene | null;
+  stage: ViewerStage | null;
   /** 这个观察者给各签名的当前称呼；其它观察者的名字不出现。 */
   signatureNames: SignatureNameState[];
   /** 这个角色实际感知到的记忆，按发生顺序。 */
   log: ViewerLogEntry[];
-  /** 去过的场景（地图/记忆用）；不等于完整可传送列表。 */
+  /** 去过的舞台（地图/记忆用）；不等于完整可传送列表。 */
   visitedStages: { stageId: string; name: string }[];
   /** 已去过且未被 teleport_blocked 的候选；不是完整的可传送集合。 */
   teleportTargets: { stageId: string; name: string }[];
@@ -107,7 +107,7 @@ export type StageView = {
     stageId: string;
     name: string;
   };
-  scene: {
+  stage: {
     id: string;
     name: string;
     environment: string;

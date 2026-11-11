@@ -95,7 +95,7 @@ export async function createActors(
       },
       prompt,
     );
-    // 开局即在起始场景：起点算一次到访，起点名字从一开始就是 actor 的知识。
+    // 开局即在起始舞台：起点算一次到访，起点名字从一开始就是 actor 的知识。
     await recordStageVisit(tx, gameId, actorId, actorStageId, now);
   }
   return { actorRefs, prompts };
@@ -128,7 +128,7 @@ async function insertActor(
 }
 
 /**
- * 开局前就去过的场景：写一条到访，和真实走到那里一模一样。
+ * 开局前就去过的舞台：写一条到访，和真实走到那里一模一样。
  *
  * 它只影响记忆（认得出这道门、名字可用），不参与 move 权限；`sealed` 边该过不去还是过不去。
  */
@@ -149,7 +149,7 @@ export async function bindVisitedStages(
       throw new GameError("invalid_state", `visitedStages 引用了不存在的 actor: ${entry.actor}`);
     }
     if (!stageId) {
-      throw new GameError("invalid_state", `visitedStages 引用了不存在的场景: ${entry.stage}`);
+      throw new GameError("invalid_state", `visitedStages 引用了不存在的舞台: ${entry.stage}`);
     }
     await recordStageVisit(tx, input.gameId, actorRef.actorId, stageId, input.now);
   }

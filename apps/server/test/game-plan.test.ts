@@ -317,7 +317,7 @@ describe("action parsers", () => {
     expect(() =>
       parseUse({ itemName: "钥匙", targetActorHandle: "提灯修士", targetStageName: "铁闸门" }),
     ).toThrow("二选一");
-    // 具体是否为当前场景锚点由 resolveUse 校验；parseUse 只负责形状。
+    // 具体是否为当前舞台锚点由 resolveUse 校验；parseUse 只负责形状。
     expect(parseUse({ itemName: "钥匙", targetStageName: "铁闸门", targetAnchor: "锁孔" })).toEqual(
       {
         kind: "use",

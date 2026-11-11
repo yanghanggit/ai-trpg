@@ -1,7 +1,7 @@
 /**
  * 记忆快照导出：把某个 agent 当前的 memory 渲染成一份 Markdown。
  *
- * - 只读数据库里的 memory 投影，不含当前场景、observation、工具定义与本轮任务提示词。
+ * - 只读数据库里的 memory 投影，不含当前舞台、observation、工具定义与本轮任务提示词。
  * - 默认写到 `<repo>/logs/memories/<gameSlug>/`，`MEMORIES_DIR` 可覆盖根目录。
  * - 自动文件名：`<YYYYMMDD_HHmmss>-v<游戏版本>-<ownerType>-<ownerName>.md`；同一秒重复导出追加序号。
  */
@@ -61,7 +61,7 @@ export function memoryDumpFileName(
 
 const OWNER_LABELS: Record<string, string> = {
   actor: "角色",
-  stage: "场景",
+  stage: "舞台",
   world: "世界",
 };
 
@@ -145,7 +145,7 @@ export function renderMemoryMarkdown(input: MemoryDumpInput): string {
 
   let markdown = `# 记忆快照 · ${memory.name}
 
-> 数据库 memory 的原样投影，不含当前场景、observation、工具定义与本轮任务提示词。
+> 数据库 memory 的原样投影，不含当前舞台、observation、工具定义与本轮任务提示词。
 > 运行时（行动与探针）拿到的就是这些消息，顺序即 sequence。
 > 回读顺序：先看「索引」定位，再按序读「正文」；标题里的 \`#N\` 就是 memory 序号。
 

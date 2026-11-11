@@ -165,7 +165,7 @@ export function registerPlayerCommands(program: Command, ctx: CommandContext): v
   addCommand(program, ctx, {
     name: "player-say",
     group: GROUP,
-    summary: "对同场景目标说一句（占一个行动）",
+    summary: "对同舞台目标说一句（占一个行动）",
     options: [gameOption(), actorOption(), targetOption(), messageOption(), reasonOption()],
     schema: talkInput,
     run: async (input, ctx) =>
@@ -218,7 +218,7 @@ export function registerPlayerCommands(program: Command, ctx: CommandContext): v
   addCommand(program, ctx, {
     name: "player-call",
     group: GROUP,
-    summary: "跨场景传音：双方需会 call，目标必须用真名",
+    summary: "跨舞台传音：双方需会 call，目标必须用真名",
     options: [
       gameOption(),
       actorOption(),
@@ -242,7 +242,7 @@ export function registerPlayerCommands(program: Command, ctx: CommandContext): v
   addCommand(program, ctx, {
     name: "player-move",
     group: GROUP,
-    summary: "移动到相邻场景",
+    summary: "移动到相邻舞台",
     options: [gameOption(), actorOption(), requiredOption("--to <ref>", "stageId 或 stageName")],
     schema: moveInput,
     run: async (input, ctx) =>
@@ -254,7 +254,7 @@ export function registerPlayerCommands(program: Command, ctx: CommandContext): v
   addCommand(program, ctx, {
     name: "player-teleport",
     group: GROUP,
-    summary: "瞬移到任意场景（不校验相邻）",
+    summary: "瞬移到任意舞台（不校验相邻）",
     options: [gameOption(), actorOption(), requiredOption("--to <ref>", "stageId 或 stageName")],
     schema: moveInput,
     run: async (input, ctx) =>
@@ -349,7 +349,7 @@ export function registerPlayerCommands(program: Command, ctx: CommandContext): v
   addCommand(program, ctx, {
     name: "player-loot",
     group: GROUP,
-    summary: "搜刮同场景的尸体；不给 --item 就搜刮全部",
+    summary: "搜刮同舞台的尸体；不给 --item 就搜刮全部",
     options: [
       gameOption(),
       actorOption(),
@@ -388,7 +388,7 @@ export function registerPlayerCommands(program: Command, ctx: CommandContext): v
   addCommand(program, ctx, {
     name: "player-pickup",
     group: GROUP,
-    summary: "从当前场景的锚点上拾取物品",
+    summary: "从当前舞台的锚点上拾取物品",
     options: [
       gameOption(),
       actorOption(),
@@ -410,14 +410,14 @@ export function registerPlayerCommands(program: Command, ctx: CommandContext): v
   addCommand(program, ctx, {
     name: "player-use",
     group: GROUP,
-    summary: "使用物品：对目标 actor、对场景，或落在场景锚点上",
+    summary: "使用物品：对目标 actor、对舞台，或落在舞台锚点上",
     options: [
       gameOption(),
       actorOption(),
       itemOption(),
       optionalOption("--target <actorName>", "作用目标 actor"),
-      optionalOption("--stage <ref>", "作用目标场景（stageId 或 stageName）"),
-      optionalOption("--anchor <label>", "场景内的锚点，只能与 --stage 一起用"),
+      optionalOption("--stage <ref>", "作用目标舞台（stageId 或 stageName）"),
+      optionalOption("--anchor <label>", "舞台内的锚点，只能与 --stage 一起用"),
     ],
     schema: useInput,
     run: async (input, ctx) =>
@@ -508,8 +508,8 @@ export function registerPlayerCommands(program: Command, ctx: CommandContext): v
     options: [
       gameOption(),
       actorOption(),
-      optionalOption("--from <name>", "起点场景名，省略则用当前场景"),
-      requiredOption("--to <name>", "终点场景名（不接受 #序号）"),
+      optionalOption("--from <name>", "起点舞台名，省略则用当前舞台"),
+      requiredOption("--to <name>", "终点舞台名（不接受 #序号）"),
     ],
     schema: z.object({
       ...gameAndActor,
@@ -530,7 +530,7 @@ export function registerPlayerCommands(program: Command, ctx: CommandContext): v
   addCommand(program, ctx, {
     name: "visited-stages",
     group: GROUP,
-    summary: "列出 actor 去过的场景",
+    summary: "列出 actor 去过的舞台",
     options: [gameOption(), actorOption()],
     schema: controlInput,
     run: async (input, ctx) =>

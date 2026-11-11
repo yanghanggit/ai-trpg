@@ -221,7 +221,7 @@ describe("dark fantasy seed world", () => {
     expect(actionsOf("奥德里克")).not.toContain("steal");
     expect(actionsOf("奥德里克")).not.toContain("inspect");
 
-    // 所有场景都必须能更新 environment；向 world 报告的只有山道与钟窖，
+    // 所有舞台都必须能更新 environment；向 world 报告的只有山道与钟窖，
     // 能改变连通性的只有铁闸门与地窖。
     const reporting = new Set(["mountain-path", "bell-crypt"]);
     for (const item of stages) {
@@ -305,7 +305,7 @@ describe("dark fantasy seed world", () => {
     expect(king?.profile).toContain("对非同族只会发出低沉的鼠叫");
     expect(king?.profile).toContain("绝不说人话");
     expect(king?.profile).toContain("内心独白不受叫声限制");
-    expect(king?.openingBriefing).toContain("本场景内每一个非鼠类活物都必须被你杀死");
+    expect(king?.openingBriefing).toContain("本舞台内每一个非鼠类活物都必须被你杀死");
     expect(king?.openingBriefing).not.toContain("wait");
     expect(king?.openingBriefing).not.toContain("墓园 → 焚尸房");
   });
@@ -406,7 +406,7 @@ describe("dark fantasy seed world", () => {
         (connection) => connection.from === "bell-crypt" && connection.to === "cellar",
       ),
     ).toBe(true);
-    // 发现与触发都写在地窖的 GM 文本里：祭坛、钟舌、后墙；可观察文本不先把钟窖说出来。
+    // 发现与触发都写在地窖的舞台文本里：祭坛、钟舌、后墙；可观察文本不先把钟窖说出来。
     expect(stage("cellar").profile).toContain("钟形纹");
     expect(stage("cellar").profile).toContain("钟舌");
     expect(stage("cellar").environment).not.toContain("钟窖");

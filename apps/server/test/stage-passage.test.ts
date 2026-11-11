@@ -91,7 +91,7 @@ describe.skipIf(!testDatabaseUrl)("stage passage", () => {
   const stageIdOf = (state: Awaited<ReturnType<typeof getGameState>>, name: string) => {
     const stage = state.world.stages.find((candidate) => candidate.name === name);
     if (!stage) {
-      throw new Error(`缺少场景: ${name}`);
+      throw new Error(`缺少舞台: ${name}`);
     }
     return stage.id;
   };
@@ -143,7 +143,7 @@ describe.skipIf(!testDatabaseUrl)("stage passage", () => {
     const state = await getGameState(handle.db, created.game.slug);
     expect(passageBetween(state, GATE, PATH)).toBe("open");
     expect(adjacentStageNames(state, stageIdOf(state, GATE))).toContain(PATH);
-    // 连通性变化是场景级事件，不写 world memory。
+    // 连通性变化是舞台级事件，不写 world memory。
     expect(state.messages.some((message) => message.kind === "passage_change")).toBe(true);
 
     const memories = await getGameMemories(handle.db, created.game.id);
@@ -155,7 +155,7 @@ describe.skipIf(!testDatabaseUrl)("stage passage", () => {
     ).toBe(true);
     const worldMemory = memories.find((memory) => memory.ownerType === "world");
     expect(
-      worldMemory?.messages.some((message) => message.content.includes("来自场景的通知")),
+      worldMemory?.messages.some((message) => message.content.includes("来自舞台的通知")),
     ).toBe(false);
 
     // 单向：走出去之后回不来。
@@ -184,7 +184,7 @@ describe.skipIf(!testDatabaseUrl)("stage passage", () => {
     const gateTools = new ToolCaptureService();
     await runStageTurn(handle.db, created.game.slug, GATE, { service: gateTools });
     expect(gateTools.tools).toContain("submit_environment");
-    // 终结工具常驻：它不是场景能力，不随 stages.actions 变化。
+    // 终结工具常驻：它不是舞台能力，不随 stages.actions 变化。
     expect(gateTools.tools).toContain("submit_stage_plan");
     expect(gateTools.tools).not.toContain("notify_world");
     expect(gateTools.tools).not.toContain("open_passage"); // 边已打开，没有候选

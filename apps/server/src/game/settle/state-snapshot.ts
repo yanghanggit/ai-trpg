@@ -7,8 +7,8 @@ import type { Executor } from "../persistence/rows";
 /**
  * 行动落账后的“当时状态”，供 actor 长期 memory 使用。
  *
- * 只写观察者视角的地址、场景名与“锚点（其上的物品名）”；不写 environment、外观或背包，
- * 也不使用真实姓名或稳定 id。状态取落账后的最终场景，move / teleport 才不会写成起点。
+ * 只写观察者视角的地址、舞台名与“锚点（其上的物品名）”；不写 environment、外观或背包，
+ * 也不使用真实姓名或稳定 id。状态取落账后的最终舞台，move / teleport 才不会写成起点。
  */
 export async function describeMemoryState(
   executor: Executor,
@@ -49,7 +49,7 @@ export async function describeMemoryState(
           })
           .join("、");
   return `# 当时
-场景：${current.stage.name}
+舞台：${current.stage.name}
 在场：${actors}
 可交互：${anchors}`;
 }

@@ -28,7 +28,7 @@
 
 | 类别 | 目录 | 职责 |
 | ---- | ---- | ---- |
-| 记忆实体 | `agents/world-turn` / `agents/stage-turn` / `agents/actor-turn` | 世界、场景、角色各自的回合，各自推进 |
+| 记忆实体 | `agents/world-turn` / `agents/stage-turn` / `agents/actor-turn` | 世界、舞台、角色各自的回合，各自推进 |
 | 世界职能 | `agents/affixes` | 一次攻击里词缀造成了什么 |
 | 世界职能 | `agents/story` | 把记忆与事件流整理成故事 |
 | 世界职能 | `agents/compact` | 把超长记忆压成可继续用的短记忆 |
@@ -61,7 +61,7 @@
 
 工具形状一律由 `build*Tool()` 返回，零参的也写成 builder，不导出共享常量。判据是这个工具的可见范围会不会随回合变化：会变的必然是函数，而工具列表逐回合装配，混进单例就会让装配处多出一条「哪些能改、哪些不能改」的规则。
 
-参数只带本回合的可见范围（handles、场景名、槽位），builder 不自己读 state：读取归回合装配，工具只负责把拿到的范围写成 `enum`。零参 builder 今天没有参数，明天可能就有——常量改函数要动所有调用点，加参数不用。
+参数只带本回合的可见范围（handles、舞台名、槽位），builder 不自己读 state：读取归回合装配，工具只负责把拿到的范围写成 `enum`。零参 builder 今天没有参数，明天可能就有——常量改函数要动所有调用点，加参数不用。
 
 一个工具在代码里有三个名字，都要由 `function.name`（模型契约）派生，好让 trace 里看到的工具名能直接对上代码：builder 是 `build` + CamelCase，局部变量是 CamelCase + `Tool`、不缩写，多工具 bundle 的键名同局部变量。两个 agent 产出同名工具时，builder 加一个角色前缀区分。守卫是 `test/tool-naming.test.ts`。
 
@@ -83,4 +83,4 @@
 
 设定是约束，不是剧情事实：记忆实体与世界职能都经各自的 system prompt 携带（世界职能的宪法另加它自己的一份口径），旁路直接沿用目标的宪法。框架工具是唯一不注入的一组。任务提示词只放本轮事实——内容不进任务层。
 
-→ 参见：[数据库](database.md)、[Stage 小 GM](stage.md)、[Actor 记忆](actor-actions-memory.md)、[数据驱动](data-driven.md)
+→ 参见：[数据库](database.md)、[舞台](stage.md)、[Actor 记忆](actor-actions-memory.md)、[数据驱动](data-driven.md)

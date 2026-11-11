@@ -12,10 +12,10 @@ import type { RouteNode, RouteQuestion, RouteResolution, RouteWorld } from "./ty
  */
 
 /**
- * 把「场景、边、去过哪些场景」收成一次回忆的窄世界。
+ * 把「舞台、边、去过哪些舞台」收成一次回忆的窄世界。
  *
  * 两个入口共用这一份规则：实时工具从 `GameStateSlice` 来，结算事务从窄读来。
- * `visited` 恒含当前场景——站在这里就能看见它，即使到访表还没记过。
+ * `visited` 恒含当前舞台——站在这里就能看见它，即使到访表还没记过。
  */
 export function routeWorldOf(input: {
   stages: readonly { id: string; seq: number; name: string; ordinal: number }[];
@@ -46,7 +46,7 @@ export function routeWorldFromState(state: GameStateSlice, current: ActorWithSta
 /**
  * 把引用解析成端点 id。
  *
- * 只做输入判定：名字必须是能解析到场景的真名（`#序号` 不是名字）。**不查知识账**——
+ * 只做输入判定：名字必须是能解析到舞台的真名（`#序号` 不是名字）。**不查知识账**——
  * 问路是推理，不是位移；端点是不是自己去过，只影响链上写名字还是写 `#序号`。
  *
  * 解析不到时给出 `RouteFailure` 而不是抛错：这次回忆的结论就是「无法寻路」，

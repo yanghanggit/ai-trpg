@@ -9,7 +9,7 @@ import { FUNCTION_PROMPT_VARIANTS, WORLD_FUNCTION_TYPES } from "../kernel/types"
 import { equipmentSchema, itemSchema } from "./item-schema";
 
 /**
- * 世界内容的 zod 形状：场景、角色、连接与世界本身。
+ * 世界内容的 zod 形状：舞台、角色、连接与世界本身。
  *
  * 只描述「单看一个实体就能判」的约束。要看整张世界图才能判的规则在 `invariants.ts`，
  * 两者由 `index.ts` 串成一次解析。

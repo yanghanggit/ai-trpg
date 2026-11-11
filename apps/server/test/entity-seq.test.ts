@@ -22,7 +22,7 @@ const PICKUP_WORLD = {
               {
                 key: "test-torch",
                 name: "测试火把",
-                description: "测试用的场景武器。",
+                description: "测试用的舞台武器。",
                 kind: "weapon" as const,
                 count: 1,
                 stats: { damage: 7, block: 1 },

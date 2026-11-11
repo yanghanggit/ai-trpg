@@ -9,7 +9,7 @@ import { GameError } from "../../errors";
 import type { StageAction } from "../../kernel/types";
 
 /*
- * stage 对 actor 的只读 inspect 已停用：stage 对本场景的携带物本来就全知，只搬一份
+ * stage 对 actor 的只读 inspect 已停用：stage 对本舞台的携带物本来就全知，只搬一份
  * 物品清单没有业务用处；而它真正缺的 stats 与存活状态偏偏没给——看得到的和想看的
  * 正好错开。要恢复时别只搬物品清单：把 `describeStats` 一起带上，并想清楚它和
  * actor 自己的 `inspect`（占一次行动、留痕看敏捷）差在哪。
@@ -21,7 +21,7 @@ export function buildSubmitEnvironmentTool(): ToolDefinition {
     function: {
       name: "submit_environment",
       description:
-        "提交本场景 environment 的完整快照；它是普通写动作，不结束本轮。没有变化就不要调用。",
+        "提交本舞台 environment 的完整快照；它是普通写动作，不结束本轮。没有变化就不要调用。",
       parameters: {
         type: "object",
         properties: {
@@ -64,7 +64,7 @@ export function buildAddAnchorTool(): ToolDefinition {
     function: {
       name: "add_anchor",
       description:
-        "新增一个可交互锚点；标签场景内唯一，描述可选。锚点只是可供性，不承载效果与后果。",
+        "新增一个可交互锚点；标签舞台内唯一，描述可选。锚点只是可供性，不承载效果与后果。",
       parameters: {
         type: "object",
         properties: {
@@ -162,19 +162,19 @@ export function parseUpdateAnchor(args: Record<string, unknown>): StageAction {
   };
 }
 
-/** 把一条需要世界知晓的场景报告加入本轮计划。 */
+/** 把一条需要世界知晓的舞台报告加入本轮计划。 */
 export function buildNotifyWorldTool(): ToolDefinition {
   return {
     type: "function",
     function: {
       name: "notify_world",
-      description: `把一条需要世界知晓的场景报告加入本轮计划。报告只写本场景已发生的事实与需要裁决的问题，不写裁决、结论与后果；状态描述、担忧与请求知情都不是事实，不要报。`,
+      description: `把一条需要世界知晓的舞台报告加入本轮计划。报告只写本舞台已发生的事实与需要裁决的问题，不写裁决、结论与后果；状态描述、担忧与请求知情都不是事实，不要报。`,
       parameters: {
         type: "object",
         properties: {
           content: {
             type: "string",
-            description: "发给世界的场景报告。",
+            description: "发给世界的舞台报告。",
           },
         },
         required: ["content"],
@@ -191,19 +191,19 @@ export function parseWorldNotification(args: Record<string, unknown>): string {
   return content;
 }
 
-/** 候选只含本场景已声明、仍未开启的邻边。 */
+/** 候选只含本舞台已声明、仍未开启的邻边。 */
 export function buildOpenPassageTool(sealedStageNames: readonly string[]): ToolDefinition {
   return {
     type: "function",
     function: {
       name: "open_passage",
-      description: `把本场景通往某个尚未开启的相邻场景的通道打开，加入本轮计划。`,
+      description: `把本舞台通往某个尚未开启的相邻舞台的通道打开，加入本轮计划。`,
       parameters: {
         type: "object",
         properties: {
           targetStageName: {
             type: "string",
-            description: "要打开通道的相邻场景名；只能从尚未开启的通道中选择",
+            description: "要打开通道的相邻舞台名；只能从尚未开启的通道中选择",
             ...(sealedStageNames.length > 0 ? { enum: [...sealedStageNames] } : {}),
           },
         },

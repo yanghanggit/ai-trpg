@@ -6,7 +6,7 @@ import type { World } from "./types";
  * 世界定义的入口：zod 形状 + 跨实体不变量，最后收窄成 `World`。
  *
  * 分两层是因为两类规则需要的视野不同：单看一个实体就能判的形状在 `schema.ts`，
- * 要看整张图的规则（名字唯一、环境文本不点名未通场景、职能宪法齐全）在 `invariants.ts`。
+ * 要看整张图的规则（名字唯一、环境文本不点名未通舞台、职能宪法齐全）在 `invariants.ts`。
  * 这是内容层的唯一入口：CLI 的 `--world-file`、内容包与种子都经过 `parseWorldContent`。
  */
 

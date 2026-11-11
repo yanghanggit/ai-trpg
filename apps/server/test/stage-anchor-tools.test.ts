@@ -53,7 +53,7 @@ class ScriptedService implements ChatCompletionService {
 function stageByName(state: GameState, name: string) {
   const stage = state.world.stages.find((candidate) => candidate.name === name);
   if (!stage) {
-    throw new Error(`缺少场景: ${name}`);
+    throw new Error(`缺少舞台: ${name}`);
   }
   return stage;
 }
@@ -61,7 +61,7 @@ function stageByName(state: GameState, name: string) {
 const TORCH = {
   key: "torch",
   name: "测试火把",
-  description: "测试用的场景武器。",
+  description: "测试用的舞台武器。",
   kind: "weapon" as const,
   count: 1,
   stats: { damage: 7, block: 1 },
@@ -82,7 +82,7 @@ const ANCHORED_ITEM_WORLD: World = {
   ),
 };
 
-/** 没有锚点动作的场景：三个工具都不该出现。 */
+/** 没有锚点动作的舞台：三个工具都不该出现。 */
 const NO_MANAGE_WORLD: World = {
   ...TEST_WORLD,
   stages: TEST_WORLD.stages.map((stage) =>

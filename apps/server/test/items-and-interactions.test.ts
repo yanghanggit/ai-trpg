@@ -214,7 +214,7 @@ const ITEM_WORLD = {
               {
                 key: "test-torch",
                 name: "测试火把",
-                description: "测试用的场景武器。",
+                description: "测试用的舞台武器。",
                 kind: "weapon" as const,
                 count: 1,
                 stats: { damage: 7, block: 1 },
@@ -550,7 +550,7 @@ describe.skipIf(!testDatabaseUrl)("items and interactions", () => {
     expect(feedback).toContain("铅封提灯");
     expect(feedback).toContain("已穿戴");
 
-    // 守烬人敏捷 4 > 提灯修士 3：目标没有察觉；别的场景更收不到任何观察。
+    // 守烬人敏捷 4 > 提灯修士 3：目标没有察觉；别的舞台更收不到任何观察。
     const monkMemory = memories.find((memory) => memory.name === "提灯修士");
     expect(monkMemory?.messages.some((item) => item.content.includes("有人在查看你的物品"))).toBe(
       false,
@@ -910,7 +910,7 @@ describe.skipIf(!testDatabaseUrl)("items and interactions", () => {
     expect(contents.some((content) => content.includes("提灯修士"))).toBe(false);
   });
 
-  it("broadcasts the affix's visible consequence to the scene with names isolated", async () => {
+  it("broadcasts the affix's visible consequence to the stage with names isolated", async () => {
     const created = await createGame(handle.db, {
       username: DEMO_USER.username,
       name: "词缀后果记忆测试局",
@@ -1241,7 +1241,7 @@ describe.skipIf(!testDatabaseUrl)("items and interactions", () => {
     const stageMemory = (await getGameMemories(handle.db, created.game.id)).find(
       (memory) => memory.ownerType === "stage" && memory.ownerId === stage?.id,
     );
-    // 公共消息只写总数；逐条分解进场景记忆。
+    // 公共消息只写总数；逐条分解进舞台记忆。
     expect(stageMemory?.messages.some((message) => message.content.includes("崩口撕开皮肉"))).toBe(
       true,
     );
@@ -1567,7 +1567,7 @@ describe.skipIf(!testDatabaseUrl)("items and interactions", () => {
   it("records where an item was used on a stage without completing the game", async () => {
     const created = await createGame(handle.db, {
       username: DEMO_USER.username,
-      name: "场景使用描述测试局",
+      name: "舞台使用描述测试局",
       world: SEALED_WORLD,
     });
     await takeActorControl(handle.db, created.game.slug, "守烬人");
@@ -1595,7 +1595,7 @@ describe.skipIf(!testDatabaseUrl)("items and interactions", () => {
   it("only accepts anchors exposed by the current stage", async () => {
     const created = await createGame(handle.db, {
       username: DEMO_USER.username,
-      name: "场景锚点校验测试局",
+      name: "舞台锚点校验测试局",
       world: SEALED_WORLD,
     });
     await takeActorControl(handle.db, created.game.slug, "守烬人");
@@ -1603,8 +1603,8 @@ describe.skipIf(!testDatabaseUrl)("items and interactions", () => {
       targetStageRef: SEALED_STAGE_NAME,
     });
 
-    // 玩家入口绕过 parseUse，resolveUse 必须按当前场景的锚点集校验。
-    // 另一个场景的锚点、角色名字、系统引用都只是“不存在的锚点”。
+    // 玩家入口绕过 parseUse，resolveUse 必须按当前舞台的锚点集校验。
+    // 另一个舞台的锚点、角色名字、系统引用都只是“不存在的锚点”。
     for (const label of ["门闩", "守烬人的锁孔", "#12 的锁孔", "提灯修士的锁孔"]) {
       await expect(
         playerUse(handle.db, created.game.slug, "守烬人", {
@@ -1612,7 +1612,7 @@ describe.skipIf(!testDatabaseUrl)("items and interactions", () => {
           itemName: SEALED_KEY_NAME,
           targetAnchor: label,
         }),
-      ).rejects.toThrow("当前场景没有这个可交互锚点");
+      ).rejects.toThrow("当前舞台没有这个可交互锚点");
     }
 
     const state = await getGameState(handle.db, created.game.slug);
@@ -1627,7 +1627,7 @@ describe.skipIf(!testDatabaseUrl)("items and interactions", () => {
   it("rejects unknown anchors from NPC plans before writing memory", async () => {
     const created = await createGame(handle.db, {
       username: DEMO_USER.username,
-      name: "NPC 场景锚点测试局",
+      name: "NPC 舞台锚点测试局",
       world: SEALED_WORLD,
     });
     await takeActorControl(handle.db, created.game.slug, "守烬人");
@@ -1661,7 +1661,7 @@ describe.skipIf(!testDatabaseUrl)("items and interactions", () => {
       true,
     );
     expect(npcResult.ok).toBe(false);
-    expect(npcResult.rejection).toContain("当前场景没有这个可交互锚点");
+    expect(npcResult.rejection).toContain("当前舞台没有这个可交互锚点");
 
     const memories = await getGameMemories(handle.db, created.game.id);
     const keeperMemory = memories.find((memory) => memory.name === "守烬人");

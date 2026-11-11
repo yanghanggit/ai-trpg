@@ -4,7 +4,7 @@ import { MEMORY_KINDS } from "./kinds";
 import { appendMemoryMessages, loadAgentMemory } from "./store";
 
 /**
- * 跨 owner 写记忆的唯一通道：上调是场景报告与引擎确认的事实，下降是 world 裁决。
+ * 跨 owner 写记忆的唯一通道：上调是舞台报告与引擎确认的事实，下降是 world 裁决。
  *
  * 两端都写对方的 memory，谁都不进公共事件流——这条通道只在两个 agent 之间说话。
  * 「谁能写别人的记忆」只有这一个答案：其他模块要告诉别的 owner 什么，走这里的函数，
@@ -27,7 +27,7 @@ export async function appendWorldNotification(
   await appendMemoryMessages(executor, memory.row.id, [
     {
       type: "human",
-      content: `# 来自场景的通知\n场景：${stage.name}\n${content}`,
+      content: `# 来自舞台的通知\n舞台：${stage.name}\n${content}`,
       metadata: {
         kind: MEMORY_KINDS.worldNotification,
         stageId: stage.id,
@@ -40,14 +40,14 @@ export async function appendWorldNotification(
     via: "world-memory",
     kind: MEMORY_KINDS.worldNotification,
     stageId: stage.id,
-    content: `# 来自场景的通知\n场景：${stage.name}\n${content}`,
+    content: `# 来自舞台的通知\n舞台：${stage.name}\n${content}`,
   });
 }
 
 /**
  * 把引擎确认的事实写入 world memory。
  *
- * 与场景报告分开标记：这条不需要 stage 转述，也不带 stage 的口吻（当前只有主角死亡）。
+ * 与舞台报告分开标记：这条不需要 stage 转述，也不带 stage 的口吻（当前只有主角死亡）。
  */
 export async function appendWorldEvent(
   executor: Executor,

@@ -19,13 +19,13 @@ export function buildGiveTool(targetActorHandles: readonly string[]): ToolDefini
     function: {
       name: "give",
       description:
-        "把一次给予加入计划：把自己持有的一件物品交给同场景的一个角色，场景内其他角色也能看见。",
+        "把一次给予加入计划：把自己持有的一件物品交给同舞台的一个角色，舞台内其他角色也能看见。",
       parameters: {
         type: "object",
         properties: {
           targetActorHandle: {
             type: "string",
-            description: "接收物品的同场景角色的引用（名字 或 #编号）；尸体也可以",
+            description: "接收物品的同舞台角色的引用（名字 或 #编号）；尸体也可以",
             ...(targetActorHandles.length > 0 ? { enum: [...targetActorHandles] } : {}),
           },
           itemName: {
@@ -108,7 +108,7 @@ export async function applyGive(
     executor,
     gameId,
     resolved.stage.id,
-    `# 场景事件\n${content}`,
+    `# 舞台事件\n${content}`,
     {
       eventKind: "give",
       targetActorId: target.id,

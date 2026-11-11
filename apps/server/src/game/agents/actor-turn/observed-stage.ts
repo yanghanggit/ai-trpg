@@ -1,5 +1,5 @@
 /**
- * 这一轮里，这个 actor 看到的场景面：environment 文本、出口怎么叫、记得封着的门。
+ * 这一轮里，这个 actor 看到的舞台面：environment 文本、出口怎么叫、记得封着的门。
  *
  * 名字只来自到访（`stage_visits`），所以这里的写法与 `client-view/actor.ts` 的结构化视图是
  * 同一条规则的两个出口：查询共用 `actor-state` 的到访派生，渲染各管各的。
@@ -36,7 +36,7 @@ export function renderStageEnvironmentForActor(
 /**
  * actor 视角的可去方向：去过的写名字，没走过的只给实体编号。
  *
- * 名字只来自到访（`stage_visits`）：没走过的场景就是 `#序号`，即使离开场简报里
+ * 名字只来自到访（`stage_visits`）：没走过的舞台就是 `#序号`，即使离开场简报里
  * 或别人嘴里听过这个名字——文本不构成结构化的地名知识。
  */
 export function adjacentStageRefsForActor(

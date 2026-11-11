@@ -35,7 +35,7 @@ describe.skipIf(!testDatabaseUrl)("actor view", () => {
     await handle.pool.end();
   });
 
-  it("projects the scene and log through the viewer's knowledge", async () => {
+  it("projects the stage and log through the viewer's knowledge", async () => {
     const created = await createGame(handle.db, {
       username: DEMO_USER.username,
       name: "观看者投影测试局",
@@ -49,36 +49,36 @@ describe.skipIf(!testDatabaseUrl)("actor view", () => {
     // 煤渣认识奥德里克，但没见过无名者的名字。
     const view = await getActorView(handle.db, created.game.slug, "小狗“煤渣”");
     expect(view.viewer.name).toBe("小狗“煤渣”");
-    expect(view.scene?.name).toBe("墓园");
-    expect(view.scene?.exits.map((exit) => exit.name).sort()).toEqual(
+    expect(view.stage?.name).toBe("墓园");
+    expect(view.stage?.exits.map((exit) => exit.name).sort()).toEqual(
       ["地窖", "焚尸房", "铁闸门"].sort(),
     );
-    expect(view.scene?.exits.every((exit) => /^#\d+$/.test(exit.ref))).toBe(true);
+    expect(view.stage?.exits.every((exit) => /^#\d+$/.test(exit.ref))).toBe(true);
     // 锚点是公共标签，不走观察者遮蔽。
-    expect(view.scene?.anchors).toEqual([
+    expect(view.stage?.anchors).toEqual([
       { key: "lock", label: "锁孔", description: "铁闸门上被干蜡塞住的锁孔。", items: [] },
     ]);
 
-    const self = view.scene?.actors.find((actor) => actor.self);
+    const self = view.stage?.actors.find((actor) => actor.self);
     expect(self?.actorId).toBe(view.viewer.actorId);
     expect(self?.label).toBe("你自己");
     expect(self?.token).toBe("小狗“煤渣”");
 
-    const odric = view.scene?.actors.find((actor) => actor.token === "奥德里克");
+    const odric = view.stage?.actors.find((actor) => actor.token === "奥德里克");
     expect(odric?.label).toContain("奥德里克");
     expect(odric?.token).toBe("奥德里克");
 
-    const stranger = view.scene?.actors.find(
+    const stranger = view.stage?.actors.find(
       (actor) => !actor.self && actor.label.includes("裹尸布"),
     );
     expect(stranger?.token).toMatch(/^#\d+$/);
-    expect(view.scene?.actors.some((actor) => actor.label.includes("无名者"))).toBe(false);
+    expect(view.stage?.actors.some((actor) => actor.label.includes("无名者"))).toBe(false);
 
     const log = view.log.map((entry) => entry.content).join("\n");
     expect(log).toContain("裹尸布");
     expect(log).not.toContain("无名者");
     // 行动反馈与观察也走世界面：不会出现系统引用标记。
-    expect(log).not.toContain("场景.");
+    expect(log).not.toContain("舞台.");
     expect(view.signatureNames).toHaveLength(1);
   });
 
@@ -91,7 +91,7 @@ describe.skipIf(!testDatabaseUrl)("actor view", () => {
     await takeActorControl(handle.db, created.game.slug, "无名者");
 
     const before = await getActorView(handle.db, created.game.slug, "无名者");
-    const exit = before.scene?.exits.find((candidate) => candidate.name === "墓园");
+    const exit = before.stage?.exits.find((candidate) => candidate.name === "墓园");
     expect(exit?.stageId).toBeTruthy();
 
     const moved = await playerMove(handle.db, created.game.slug, "无名者", {
@@ -100,7 +100,7 @@ describe.skipIf(!testDatabaseUrl)("actor view", () => {
     expect(moved.ok).toBe(true);
 
     const after = await getActorView(handle.db, created.game.slug, "无名者");
-    expect(after.scene?.name).toBe("墓园");
+    expect(after.stage?.name).toBe("墓园");
 
     // 名字就是名字：视图里显示的 `焚尸房` 可以直接当移动目标。
     expect(
@@ -108,10 +108,10 @@ describe.skipIf(!testDatabaseUrl)("actor view", () => {
     ).toBe(true);
     await expect(
       playerMove(handle.db, created.game.slug, "无名者", { targetStageRef: "不存在的地方" }),
-    ).rejects.toThrow(/场景不存在/);
+    ).rejects.toThrow(/舞台不存在/);
   });
 
-  it("keeps scene items free of type prefixes", async () => {
+  it("keeps stage items free of type prefixes", async () => {
     const created = await createGame(handle.db, {
       username: DEMO_USER.username,
       name: "观看者物品测试局",
@@ -126,9 +126,9 @@ describe.skipIf(!testDatabaseUrl)("actor view", () => {
     });
 
     const view = await getActorView(handle.db, created.game.slug, "无名者");
-    expect(view.scene?.name).toBe("焚尸房");
+    expect(view.stage?.name).toBe("焚尸房");
     // 内容里是 `松脂火把`，角色看到的就是这个名字本身。
-    expect(view.scene?.anchors.flatMap((anchor) => anchor.items).map((item) => item.name)).toEqual([
+    expect(view.stage?.anchors.flatMap((anchor) => anchor.items).map((item) => item.name)).toEqual([
       "松脂火把",
     ]);
   });
@@ -145,12 +145,12 @@ describe.skipIf(!testDatabaseUrl)("actor view", () => {
 
     // 鼠王从钟窖里钻出来过：它记得那道门，所以看得到名字，但仍然过不去。
     const king = await getActorView(handle.db, slug, "鼠王");
-    expect(king.scene?.sealedExits.map((exit) => exit.name)).toEqual(["钟窖"]);
-    expect(king.scene?.exits.map((exit) => exit.name)).not.toContain("钟窖");
+    expect(king.stage?.sealedExits.map((exit) => exit.name)).toEqual(["钟窖"]);
+    expect(king.stage?.exits.map((exit) => exit.name)).not.toContain("钟窖");
 
     // 主角没去过：钟窖对它连「封着的出口」都不是。
     const player = await getActorView(handle.db, slug, "无名者");
-    expect(player.scene?.sealedExits).toEqual([]);
+    expect(player.stage?.sealedExits).toEqual([]);
 
     const state = await getGameState(handle.db, slug);
     const kingPrompt = buildActorTurnInput(state, findActorByName(state, "鼠王"));

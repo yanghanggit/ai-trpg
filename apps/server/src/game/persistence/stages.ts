@@ -2,7 +2,7 @@ import { and, eq } from "drizzle-orm";
 import { stages } from "../../db/schema";
 import type { Executor, StageRow } from "./rows";
 
-/** 读一个场景，并限定在该 world 内。 */
+/** 读一个舞台，并限定在该 world 内。 */
 export async function loadStageInWorld(
   executor: Executor,
   stageId: string,
@@ -16,7 +16,7 @@ export async function loadStageInWorld(
   return stage;
 }
 
-/** 按 id 读场景；stageId 唯一，不需要 world 限定。 */
+/** 按 id 读舞台；stageId 唯一，不需要 world 限定。 */
 export async function loadStageById(
   executor: Executor,
   stageId: string,
@@ -25,7 +25,7 @@ export async function loadStageById(
   return stage;
 }
 
-/** 读一个 world 的全部场景。 */
+/** 读一个 world 的全部舞台。 */
 export async function listStagesOfWorld(executor: Executor, worldId: string): Promise<StageRow[]> {
   return executor.select().from(stages).where(eq(stages.worldId, worldId));
 }
@@ -48,7 +48,7 @@ export async function setStageAnchors(
     .where(eq(stages.id, stageId));
 }
 
-/** 场景的写操作；stage 回合只调用这里，不直接拼 SQL。 */
+/** 舞台的写操作；stage 回合只调用这里，不直接拼 SQL。 */
 export async function setStageEnvironment(
   executor: Executor,
   stageId: string,

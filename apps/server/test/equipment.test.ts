@@ -186,7 +186,7 @@ describe.skipIf(!testDatabaseUrl)("equip and unequip actions", () => {
     expect(state.messages.map((message) => message.kind)).toEqual(["equip", "equip"]);
   });
 
-  it("同场景名单列出已穿戴装备，回合输入直接可读", async () => {
+  it("同舞台名单列出已穿戴装备，回合输入直接可读", async () => {
     const created = await createGame(handle.db, {
       username: DEMO_USER.username,
       name: "名单穿戴测试局",
@@ -210,7 +210,7 @@ describe.skipIf(!testDatabaseUrl)("equip and unequip actions", () => {
     expect(describeStageForActor(state, { actor: cinder, stage })).toContain("武器：掘墓人的铁锹");
   });
 
-  it("主角亮出武器后，同场景角色的名单与记忆都能看到", async () => {
+  it("主角亮出武器后，同舞台角色的名单与记忆都能看到", async () => {
     const created = await createGame(handle.db, {
       username: DEMO_USER.username,
       name: "亮武器测试局",
@@ -270,7 +270,7 @@ describe.skipIf(!testDatabaseUrl)("equip and unequip actions", () => {
     expect(keeper?.appearance.text).toBe("只穿旧衬衣，腰间别着铁锹。");
     expect(keeper?.equipment.armor).toBeUndefined();
 
-    // 新外观已广播给同场景知道名字的煤渣。
+    // 新外观已广播给同舞台知道名字的煤渣。
     const memories = await getGameMemories(handle.db, created.game.id);
     const seen =
       memories

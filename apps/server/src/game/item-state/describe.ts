@@ -2,7 +2,7 @@
  * 物品与穿戴的文本投影：同一份状态，给模型看的样子。
  *
  * 只做投影：不查库、不裁决。同一件东西会在三处被读（自己的 get_self、别人的 inspect、
- * 场景锚点上），所以只留这一份渲染，免得三处对同一件物品说法不一致。
+ * 舞台锚点上），所以只留这一份渲染，免得三处对同一件物品说法不一致。
  */
 
 import { STAT_LABELS } from "../kernel/attributes";
@@ -49,7 +49,7 @@ export function describeEquipment(actor: Pick<ActorState, "equipment">): string 
 }
 
 /**
- * 同场景角色名单里的穿戴摘要：一行只列已穿戴的槽位。
+ * 同舞台角色名单里的穿戴摘要：一行只列已穿戴的槽位。
  *
  * 与 `describeEquipment` 的区别是给名单内联用；没穿东西时返回空串。
  * 完整背包（含未穿戴物品与数值）走 `inspect` 动作。

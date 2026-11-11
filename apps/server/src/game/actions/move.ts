@@ -18,13 +18,13 @@ export function buildMoveTool(stageNames: readonly string[]): ToolDefinition {
     type: "function",
     function: {
       name: "move",
-      description: "把一次移动加入计划：沿场景连接前往一个相邻场景。",
+      description: "把一次移动加入计划：沿舞台连接前往一个相邻舞台。",
       parameters: {
         type: "object",
         properties: {
           targetStageName: {
             type: "string",
-            description: "要前往的相邻场景：场景名 或 #编号",
+            description: "要前往的相邻舞台：舞台名 或 #编号",
             ...(stageNames.length > 0 ? { enum: [...stageNames] } : {}),
           },
         },
@@ -62,7 +62,7 @@ export async function applyMove(
   trace?: TraceContext,
 ): Promise<string> {
   const target = resolved.targetStage;
-  // 离开观察要在移动前写：此时移动者仍在本场景，观察者才能拿到他的引用。
+  // 离开观察要在移动前写：此时移动者仍在本舞台，观察者才能拿到他的引用。
   await appendCustomStageObservation(
     executor,
     gameId,
@@ -71,7 +71,7 @@ export async function applyMove(
     (_observerId, address) =>
       renderAction(
         withAppearances(
-          `# 场景动态\n${mentionOf(address(actorRow.actor.id))}离开了${resolved.stage.name}。`,
+          `# 舞台动态\n${mentionOf(address(actorRow.actor.id))}离开了${resolved.stage.name}。`,
           [address(actorRow.actor.id)],
         ),
         resolved.stage.id,
@@ -87,11 +87,11 @@ export async function applyMove(
     visibility: "stage",
     content: `${actorRow.actor.name}从${resolved.stage.name}走向${target.name}。`,
   });
-  // 信息不对称：旧场景只知道「他走了」，新场景只知道「他来了」，完整路线只有移动者知道。
+  // 信息不对称：旧舞台只知道「他走了」，新舞台只知道「他来了」，完整路线只有移动者知道。
   const leaveText = `${actorRow.actor.name}离开了${resolved.stage.name}。`;
   const enterText = `${actorRow.actor.name}进入了${target.name}。`;
 
-  // 此时移动者已在目标场景，所以不会被自己收到。
+  // 此时移动者已在目标舞台，所以不会被自己收到。
   await appendCustomStageObservation(
     executor,
     gameId,
@@ -111,7 +111,7 @@ export async function applyMove(
     executor,
     gameId,
     resolved.stage.id,
-    `# 场景事件\n${leaveText}`,
+    `# 舞台事件\n${leaveText}`,
     {
       eventKind: "move_leave",
     },
@@ -121,7 +121,7 @@ export async function applyMove(
     executor,
     gameId,
     target.id,
-    `# 场景事件\n${enterText}`,
+    `# 舞台事件\n${enterText}`,
     {
       eventKind: "move_enter",
     },

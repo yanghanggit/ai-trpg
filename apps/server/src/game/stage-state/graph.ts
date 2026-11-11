@@ -3,7 +3,7 @@ import { GameError } from "../errors";
 import type { ConnectionState, PassageState } from "../kernel/types";
 
 /**
- * 场景之间的图：边的形状、按起点索引、以及在这张图上走路。
+ * 舞台之间的图：边的形状、按起点索引、以及在这张图上走路。
  *
  * 有向且**不做对称推导**：双向通行必须显式存在两条边。`sealed` 是剧情相连但当前不可通过，
  * 只能由持有相应能力的 stage 打开自己的出边。
@@ -59,7 +59,7 @@ export function sealedNeighborIds(index: EdgeIndex, fromStageId: string): string
 /** 校验一条待写入的边；跨 world 由调用方按 id 解析保证。 */
 export function assertEdgeShape(fromStageId: string, toStageId: string): void {
   if (fromStageId === toStageId) {
-    throw new GameError("invalid_state", "场景不能连接到自身");
+    throw new GameError("invalid_state", "舞台不能连接到自身");
   }
 }
 
@@ -72,7 +72,7 @@ export type GraphSearch = {
 export type SearchOptions = {
   /** 哪些边能走：邻接只看 `open`，问路也一样。 */
   passable: (edge: StageEdge) => boolean;
-  /** 同层的先后；调用方按场景序号给出，保证结果稳定。 */
+  /** 同层的先后；调用方按舞台序号给出，保证结果稳定。 */
   compare: (left: string, right: string) => number;
 };
 

@@ -136,6 +136,6 @@ describe("工具描述承接的单工具契约", () => {
   it("get_self / look_stage 说清范围与代价", () => {
     expect(descriptionOf(buildGetSelfTool())).toContain("全部物品");
     expect(descriptionOf(buildGetSelfTool())).toContain("不占行动名额");
-    expect(descriptionOf(buildActorLookStageTool())).toContain("看不了别的场景");
+    expect(descriptionOf(buildActorLookStageTool())).toContain("看不了别的舞台");
   });
 });

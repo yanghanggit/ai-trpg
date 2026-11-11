@@ -1,6 +1,6 @@
 import type { Stats } from "./attributes";
 
-/** 公共消息的可见范围：场景公开或仅当事人可见。 */
+/** 公共消息的可见范围：舞台公开或仅当事人可见。 */
 export type MessageVisibility = "stage" | "private";
 
 /** 物品大类；每个大类对应一个运行时子类。 */
@@ -71,26 +71,26 @@ export type FunctionPrompts = Record<WorldFunction, string> &
   Partial<Record<FunctionPromptVariant, string>>;
 
 /**
- * 场景内的可交互锚点：actor 能明确指认的位置或部位。
+ * 舞台内的可交互锚点：actor 能明确指认的位置或部位。
  *
- * 它只是可供性索引，不承载效果；`use` 只能从当前场景的锚点里选。
+ * 它只是可供性索引，不承载效果；`use` 只能从当前舞台的锚点里选。
  */
 export type StageAnchorState = {
-  /** 本场景内的稳定标识：物品挂在它上面，改显示名不换 key。 */
+  /** 本舞台内的稳定标识：物品挂在它上面，改显示名不换 key。 */
   key: string;
-  /** 世界面短标签，场景内唯一。 */
+  /** 世界面短标签，舞台内唯一。 */
   label: string;
   /** 可选的可观察细节；不写后果或机制。 */
   description?: string;
-  /** 挂在这个锚点上的场景物品，按实体序号排序。 */
+  /** 挂在这个锚点上的舞台物品，按实体序号排序。 */
   items: ItemState[];
 };
 
-/** 场景边的通行状态；sealed 表示两侧在剧情上相连，但当前不能通过。 */
+/** 舞台边的通行状态；sealed 表示两侧在剧情上相连，但当前不能通过。 */
 export type PassageState = "open" | "sealed";
 
 /**
- * 词缀：短名字 + 一段规则文本，按触发场景挂在物品上。
+ * 词缀：短名字 + 一段规则文本，按触发舞台挂在物品上。
  *
  * `mode` 省略等于 `static`：由引擎按 `ops` 纯计算，必然出结果；
  * `agent` 交给推理端判定，允许携带条件、能做工具允许的任何追加。
@@ -106,7 +106,7 @@ export type AffixStatRef = "attack" | "item.damage";
 /** 一次静态伤害贡献：常量或属性引用（可乘系数）。多条词缀的求和由结算统一做。 */
 export type DamageAmount = number | { ref: AffixStatRef; factor?: number };
 
-/** 静态词缀的指令；`witness` 用渲染后的文本写场景记忆与观察。 */
+/** 静态词缀的指令；`witness` 用渲染后的文本写舞台记忆与观察。 */
 export type AffixOp =
   | { kind: "damage"; amount: DamageAmount }
   | { kind: "witness"; template: string; visibility?: "stage" | "target" };
@@ -121,7 +121,7 @@ export type Affix = {
   ops?: readonly AffixOp[];
 };
 
-/** 物品按触发场景声明的词缀；空列表等于该触发不可用。 */
+/** 物品按触发舞台声明的词缀；空列表等于该触发不可用。 */
 export type AffixTriggers = {
   strike?: readonly Affix[];
   cleave?: readonly Affix[];
@@ -135,7 +135,7 @@ export type SayAction = {
   message: string;
 };
 
-/** 对同场景的一个角色耳语，只有对方能听见。 */
+/** 对同舞台的一个角色耳语，只有对方能听见。 */
 export type WhisperAction = {
   kind: "whisper";
   mind: string;
@@ -149,7 +149,7 @@ export type AnnounceAction = {
   message: string;
 };
 
-/** 用目标真名跨场景传话；双方都要有 call 能力，目标必须不在当前场景，只有目标听见。 */
+/** 用目标真名跨舞台传话；双方都要有 call 能力，目标必须不在当前舞台，只有目标听见。 */
 export type CallAction = {
   kind: "call";
   mind: string;
@@ -163,7 +163,7 @@ export type MoveAction = {
   targetStageName: string;
 };
 
-/** 传送到一个真名能解析到、且未被 teleport_blocked 的场景；一次一跳，不沿路径移动。 */
+/** 传送到一个真名能解析到、且未被 teleport_blocked 的舞台；一次一跳，不沿路径移动。 */
 export type TeleportAction = {
   kind: "teleport";
   targetStageName: string;
@@ -173,14 +173,14 @@ export type WaitAction = {
   kind: "wait";
 };
 
-/** 用武器攻击同场景角色；武器隐式取自 `equipment.weapon`，且必须提供 `strike`。 */
+/** 用武器攻击同舞台角色；武器隐式取自 `equipment.weapon`，且必须提供 `strike`。 */
 export type StrikeAction = {
   kind: "strike";
   targetActorHandle: string;
 };
 
 /**
- * 用武器同时攻击同场景的多个角色；武器隐式取自 `equipment.weapon`，且必须提供 `cleave`。
+ * 用武器同时攻击同舞台的多个角色；武器隐式取自 `equipment.weapon`，且必须提供 `cleave`。
  *
  * 目标是列表，但动作层不自己定上限：一次能命中几个由武器的 `maxTargets` 决定，
  * 结算端按每把武器静态复核。
@@ -190,7 +190,7 @@ export type CleaveAction = {
   targetActorHandles: string[];
 };
 
-/** 用身体攻击同场景角色；不读物品，伤害只来自自身 stats。 */
+/** 用身体攻击同舞台角色；不读物品，伤害只来自自身 stats。 */
 export type BrawlAction = {
   kind: "brawl";
   targetActorHandle: string;
@@ -203,10 +203,10 @@ export type StealAction = {
 };
 
 /**
- * 看同场景目标随身携带的全部物品；活人与尸体都可以看。
+ * 看同舞台目标随身携带的全部物品；活人与尸体都可以看。
  *
  * 名字不带对象，看的对象由参数说明：现在只有 `targetActorHandle`，
- * 以后要看锚点或场景时加对应字段即可，不必再造一个动作。
+ * 以后要看锚点或舞台时加对应字段即可，不必再造一个动作。
  *
  * 这是一次要占行动的动作，不是免费读取：它与 `steal` / `loot` 同组，
  * 得到的清单进自己的行动事实（写进记忆）；是否被察觉由敏捷决定。
@@ -217,7 +217,7 @@ export type InspectAction = {
 };
 
 /**
- * 从同场景的尸体上搜走物品；不点名就搜刮全部。
+ * 从同舞台的尸体上搜走物品；不点名就搜刮全部。
  *
  * 与 `steal` 按对象分工：`steal` 只对活人，`loot` 只对尸体；
  * 尸体上什么都能拿（含穿戴），而且是在场可见的公开行为。
@@ -229,7 +229,7 @@ export type LootAction = {
   itemNames?: string[];
 };
 
-/** 把自己持有的一件物品交给同场景的一个角色；尸体也可以是接收方。 */
+/** 把自己持有的一件物品交给同舞台的一个角色；尸体也可以是接收方。 */
 export type GiveAction = {
   kind: "give";
   targetActorHandle: string;
@@ -244,7 +244,7 @@ export type PickupAction = {
 };
 
 /**
- * 使用自己持有的一件物品，作用于一个角色或当前场景。
+ * 使用自己持有的一件物品，作用于一个角色或当前舞台。
  *
  * 所有引用物品的动作都遵循同一原则：动作是触发者，物品只是输入；
  * 每个动作最多引用一件物品，由动作声明是否必需与允许的类别。
@@ -254,7 +254,7 @@ export type UseAction = {
   itemName: string;
   targetActorHandle?: string;
   targetStageName?: string;
-  /** 当前场景的可交互锚点标签；必须来自该场景的 `anchors`。 */
+  /** 当前舞台的可交互锚点标签；必须来自该舞台的 `anchors`。 */
   targetAnchor?: string;
 };
 
@@ -322,7 +322,7 @@ export type StageAction =
   | { kind: "remove_anchor"; targetAnchor: string }
   | { kind: "update_anchor"; targetAnchor: string; label: string; description?: string };
 
-/** 场景作为小 GM 能执行的动作；能力清单成员，由 `StageAction` 派生。 */
+/** 舞台能执行的动作；能力清单成员，由 `StageAction` 派生。 */
 export type StageActionKind = StageAction["kind"];
 
 /** 把某个引用记成自己当前的称呼；只改自己的记忆。 */
@@ -339,13 +339,13 @@ export type RouteQuery = {
 };
 
 /**
- * 一次失败的路线回忆：端点真名解析不到场景。
+ * 一次失败的路线回忆：端点真名解析不到舞台。
  *
  * 只存结构（起点 id 或原始引用、终点原始引用、失败类别），文案由引擎在落账时渲染——
  * 记忆里不接模型转述的整句文本。
  */
 export type RouteFailure = {
-  /** 起点已解析时是场景 id；起点自己就解析失败时为 undefined。 */
+  /** 起点已解析时是舞台 id；起点自己就解析失败时为 undefined。 */
   fromStageId?: string;
   /** 起点原始引用；只在起点解析失败时有值。 */
   fromStageRef?: string;
@@ -359,13 +359,13 @@ export type ActorPlan = {
   actions: ActorAction[];
   /** 认知更新：与动作同事务落账，但不产生公共事件、不占行动名额。 */
   identities?: IdentityBinding[];
-  /** 路线回忆：同样是自己的认知，端点必须是已解析的场景 id。 */
+  /** 路线回忆：同样是自己的认知，端点必须是已解析的舞台 id。 */
   routes?: RouteQuery[];
-  /** 失败的路线回忆：终点真名查不到场景，留一条“寻路失败”的认知。 */
+  /** 失败的路线回忆：终点真名查不到舞台，留一条“寻路失败”的认知。 */
   routeFailures?: RouteFailure[];
 };
 
-/** stage 小 GM 的一轮仲裁计划：按提交顺序更新 environment 或向 world 发通知。 */
+/** 舞台的一轮仲裁计划：按提交顺序更新 environment 或向 world 发通知。 */
 export type StagePlan = {
   actions: StageAction[];
 };
@@ -394,7 +394,7 @@ export type ItemBaseState = {
   description: string;
   kind: ItemKind;
   count: number;
-  /** 按触发场景声明的词缀；`strike` / `cleave` / `use` 各自独立。 */
+  /** 按触发舞台声明的词缀；`strike` / `cleave` / `use` 各自独立。 */
   affixes: AffixTriggers;
   /** 物品能提供的动作；穿戴中才借给角色。没有携带者的角色只能做固有动作。 */
   actions: readonly CarriedActionKind[];
@@ -481,7 +481,7 @@ export type ActorState = {
 
 export type StageState = {
   id: string;
-  /** 本局内唯一的实体序号；未访问场景的 #seq 句柄由它派生。 */
+  /** 本局内唯一的实体序号；未访问舞台的 #seq 句柄由它派生。 */
   seq: number;
   /** 世界内稳定 key；旧数据缺失时回退到 name。 */
   key: string;
@@ -540,11 +540,11 @@ export type WorldState = {
 };
 
 /**
- * actor 去过哪些场景：场景认知的唯一账本，不是通行证。
+ * actor 去过哪些舞台：舞台认知的唯一账本，不是通行证。
  *
- * 建局时起点算一次到访，之后每次 move / teleport 到达都记一条（同一场景只刷新
- * `lastVisitedAt`）。名字认知只来自到访：没走过的场景对 actor 而言只有 `#序号`。
- * 它只影响地图、方向名显示与查看；move 的权限在邻接边，teleport 只要求真名能对应到场景。
+ * 建局时起点算一次到访，之后每次 move / teleport 到达都记一条（同一舞台只刷新
+ * `lastVisitedAt`）。名字认知只来自到访：没走过的舞台对 actor 而言只有 `#序号`。
+ * 它只影响地图、方向名显示与查看；move 的权限在邻接边，teleport 只要求真名能对应到舞台。
  */
 export type StageVisitState = {
   actorId: string;
@@ -573,7 +573,7 @@ export type GameState = {
   /** 本局全部签名称呼（god view）；渲染层按观察者过滤后才进提示词。 */
   signatureNames: SignatureNameState[];
   /**
-   * 访问历史，按 `firstVisitedAt` 升序；同一时刻并列时按场景序号兜底（可复现）。
+   * 访问历史，按 `firstVisitedAt` 升序；同一时刻并列时按舞台序号兜底（可复现）。
    * 用于地图、已访问候选与查看，不参与普通移动权限。
    */
   visits: StageVisitState[];

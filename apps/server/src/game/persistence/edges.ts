@@ -6,8 +6,8 @@ import type { Executor } from "./rows";
 /**
  * 把一条已存在、仍封闭的边打开；返回是否真的改动了行。
  *
- * 只改通行状态，不新建边：能连通哪些场景由内容层声明的边决定，
- * 运行时只能打开自己场景已有的出边。
+ * 只改通行状态，不新建边：能连通哪些舞台由内容层声明的边决定，
+ * 运行时只能打开自己舞台已有的出边。
  */
 export async function openPassage(
   executor: Executor,
@@ -53,10 +53,10 @@ export async function isPassageSealed(
 }
 
 /**
- * 从某个场景「走得到」的场景名：开着出入边的对面。
+ * 从某个舞台「走得到」的舞台名：开着出入边的对面。
  *
- * 这是环境文本唯一被允许点名的场景集合；`sealed` 边两侧彼此看不见名字，
- * 否则一句环境描写就等于替演员完成了发现。
+ * 这是环境文本唯一被允许点名的舞台集合；`sealed` 边两侧彼此看不见名字，
+ * 否则一句环境描写就等于替角色完成了发现。
  */
 export async function listOpenNeighborStageNames(
   executor: Executor,

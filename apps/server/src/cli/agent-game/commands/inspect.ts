@@ -112,7 +112,7 @@ export function registerInspectCommands(program: Command, ctx: CommandContext): 
     options: [
       gameOption(),
       optionalActorOption(),
-      optionalOption("--stage <ref>", "以场景 agent 为探针目标"),
+      optionalOption("--stage <ref>", "以舞台 agent 为探针目标"),
       requiredOption("--message <text>", "问题"),
     ],
     schema: probeInput,
@@ -133,7 +133,7 @@ export function registerInspectCommands(program: Command, ctx: CommandContext): 
     options: [
       gameOption(),
       optionalActorOption(),
-      optionalOption("--stage <ref>", "按场景取 memory"),
+      optionalOption("--stage <ref>", "按舞台取 memory"),
       optionalOption("--owner <owner>", `记忆所有者：${MEMORY_OWNER_TYPES.join(" / ")}`),
       optionalOption("--name <ref>", "配合 --owner actor/stage 使用"),
       optionalOption("--out <path>", "输出目录或 .md 路径"),

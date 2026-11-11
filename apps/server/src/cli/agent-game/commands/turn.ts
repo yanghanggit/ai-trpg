@@ -185,7 +185,7 @@ export function registerTurnCommands(program: Command, ctx: CommandContext): voi
   addCommand(program, ctx, {
     name: "stage",
     group: GROUP,
-    summary: "推进一个 / 全部场景回合",
+    summary: "推进一个 / 全部舞台回合",
     options: [gameOption(), optionalOption("--stage <ref>", "stageId 或 stageName"), allOption()],
     schema: stageInput,
     run: async (input, ctx) => {

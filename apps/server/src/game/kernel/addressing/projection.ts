@@ -30,7 +30,7 @@ export type AddressSubject = {
   appearance: string;
 };
 
-/** 引用无法解析（对方不在本场景）时的泛称：不可观测，也不编造外观。 */
+/** 引用无法解析（对方不在本舞台）时的泛称：不可观测，也不编造外观。 */
 export const UNKNOWN_LABEL = "某个不在场者";
 
 /**
@@ -190,7 +190,7 @@ function signatureNamesOf(
   return nameIndex(state).get(observerActorId) ?? EMPTY_NAMES;
 }
 
-/** actor 视角的引用表：主体取本场景的全部角色。 */
+/** actor 视角的引用表：主体取本舞台的全部角色。 */
 export function addressLookupFor(
   state: GameStateSlice,
   observer: ActorState,

@@ -19,7 +19,7 @@ export function buildPickupTool(
     function: {
       name: "pickup",
       description:
-        "把一次拾取加入计划：从当前场景的某个锚点上取下一件物品，放进自己的背包。锚点与物品必须匹配。",
+        "把一次拾取加入计划：从当前舞台的某个锚点上取下一件物品，放进自己的背包。锚点与物品必须匹配。",
       parameters: {
         type: "object",
         properties: {
@@ -59,7 +59,7 @@ export async function resolvePickup(
 ): Promise<ResolvedPickup> {
   const anchor = stage.anchors.find((candidate) => candidate.label === action.targetAnchor);
   if (!anchor) {
-    throw new GameError("invalid_action", `当前场景没有这个可交互锚点: ${action.targetAnchor}`);
+    throw new GameError("invalid_action", `当前舞台没有这个可交互锚点: ${action.targetAnchor}`);
   }
   const stageItem = await resolveStageItem(executor, stage.id, anchor, action.itemName);
   return { kind: "pickup", action, stage, stageItem, anchorLabel: anchor.label };
@@ -102,7 +102,7 @@ export async function applyPickup(
     executor,
     gameId,
     resolved.stage.id,
-    `# 场景事件\n${content}`,
+    `# 舞台事件\n${content}`,
     {
       eventKind: "pickup",
     },

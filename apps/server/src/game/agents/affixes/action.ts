@@ -77,7 +77,7 @@ export async function applyStaticItemAction(
         executor,
         gameId,
         stage.id,
-        `# 场景事件（词缀分解，减防前）\n${settlement.damageLines.map((line) => `- ${line}`).join("\n")}`,
+        `# 舞台事件（词缀分解，减防前）\n${settlement.damageLines.map((line) => `- ${line}`).join("\n")}`,
         { eventKind: action, targetActorId: target.id },
         input.trace,
       );

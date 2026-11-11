@@ -6,7 +6,7 @@ import type { ActorState, GameStateSlice, StageState } from "../../kernel/types"
 import { type LoadedMemory, loadAgentMemory } from "../../memory";
 
 /**
- * 一次旁路推理要读的全部东西：状态、当事人、所在场景、世界面名字表与它的记忆。
+ * 一次旁路推理要读的全部东西：状态、当事人、所在舞台、世界面名字表与它的记忆。
  *
  * 由旁路自己装配，而不是让调用方拼：借谁的记忆、守卫要哪些名字、游戏是否还在跑，
  * 都是这条能力自身的契约。调用方只需要拿到 `actor` 去组装自己的任务文本。

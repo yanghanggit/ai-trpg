@@ -14,10 +14,10 @@ import type { Executor, WorldRow } from "../persistence/rows";
 import type { ResolvedCall } from "../settle/types";
 
 /**
- * 用目标的真名跨场景传话。
+ * 用目标的真名跨舞台传话。
  *
  * 这是控制面/测试动作：目标必须写 `actors.name`（真名），不接受 #编号 或 id。
- * 目标必须在其他场景，且双方都必须拥有 `call` 能力。只有目标听见；
+ * 目标必须在其他舞台，且双方都必须拥有 `call` 能力。只有目标听见；
  * 传音不在结构上携带发起人：来源身份只能由发起人自己写进 message。
  */
 export function buildCallTool(): ToolDefinition {
@@ -26,7 +26,7 @@ export function buildCallTool(): ToolDefinition {
     function: {
       name: "call",
       description:
-        "把一次跨场景传音加入计划：只有目标能听见。传音不会自动暴露你是谁；想让对方知道，就把自称写进 message。",
+        "把一次跨舞台传音加入计划：只有目标能听见。传音不会自动暴露你是谁；想让对方知道，就把自称写进 message。",
       parameters: {
         type: "object",
         properties: {
@@ -36,7 +36,7 @@ export function buildCallTool(): ToolDefinition {
           },
           targetActorName: {
             type: "string",
-            description: "目标的真名（不在当前场景、具备远程通讯能力；不是引用或 id）",
+            description: "目标的真名（不在当前舞台、具备远程通讯能力；不是引用或 id）",
           },
           message: { type: "string", description: "你要说出的内容" },
         },
@@ -83,7 +83,7 @@ export async function resolveCall(
     throw new GameError("invalid_action", "call 的目标不能是自己");
   }
   if (target.stage.id === stage.id) {
-    throw new GameError("invalid_action", "call 只能对不在当前场景的角色使用");
+    throw new GameError("invalid_action", "call 只能对不在当前舞台的角色使用");
   }
   const targetGranted = (await resolveEquippedItems(executor, target.actor)).flatMap(
     (row) => row.actions,

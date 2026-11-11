@@ -18,7 +18,7 @@ actor 的 system prompt 用**开局签名**的 `form` 快照：跟着换装重�
 
 ## 推理
 
-「借谁的记忆跑一轮推理」在 `src/game/agents/bypass/`：`target.ts` 装配目标（当事人、所在场景、世界面名字表与它的记忆），`render.ts` 跑一轮并只认一个终止工具。外观是它的一层：分层在 `src/game/agents/appearance/`，`render.ts`（生成）、`record.ts`（落账 + 可选广播）是不带业务的基建；`compose.ts` 的 `runAppearanceTask` 是骨架，只调度「生成 → 落账」；`turn.ts` 只留活人两条业务入口。调用方控制的是选哪个任务、要不要广播，基建控制的是借谁的记忆、守卫怎么拦——输入由调用方给，守卫不跟着调用方走。任务文本归业务：`update` 在本模块，`death` 在 `agents/death/corpse-appearance.ts`，两边只共用提交工具、穿戴解析与可见性规则。
+「借谁的记忆跑一轮推理」在 `src/game/agents/bypass/`：`target.ts` 装配目标（当事人、所在舞台、世界面名字表与它的记忆），`render.ts` 跑一轮并只认一个终止工具。外观是它的一层：分层在 `src/game/agents/appearance/`，`render.ts`（生成）、`record.ts`（落账 + 可选广播）是不带业务的基建；`compose.ts` 的 `runAppearanceTask` 是骨架，只调度「生成 → 落账」；`turn.ts` 只留活人两条业务入口。调用方控制的是选哪个任务、要不要广播，基建控制的是借谁的记忆、守卫怎么拦——输入由调用方给，守卫不跟着调用方走。任务文本归业务：`update` 在本模块，`death` 在 `agents/death/corpse-appearance.ts`，两边只共用提交工具、穿戴解析与可见性规则。
 
 两个任务共用一把提交工具 `submit_appearance`：
 
@@ -27,14 +27,14 @@ actor 的 system prompt 用**开局签名**的 `form` 快照：跟着换装重�
 
 两边共用的约束：
 
-- 输入只到「角色自身」为止：不注入 stage 的 `environment` / `profile`，也不开放 `query`。外观是数据快照，追环境的实时变化没有稳定终点——「淋湿」要再推导「换到干燥场景后变干」，推不完。
+- 输入只到「角色自身」为止：不注入 stage 的 `environment` / `profile`，也不开放 `query`。外观是数据快照，追环境的实时变化没有稳定终点——「淋湿」要再推导「换到干燥舞台后变干」，推不完。
 - 战役设定与全局规则由 actor 的宪法携带，任务输入不重复下发。
 - 饰品（`accessory`）不参与：这个大类的语义随题材漂移，引擎只保留槽位与穿戴索引，外观只消费武器与护甲。内容定义因此渗不进引擎。
 - 提示词接在借来的记忆后面，所以一律用「你」称呼当事人；产出是第三人称、不带名字的可见描述，名字与引用由 `assertWorldFaceText` 拦下。
 - 推理不写 memory，也不改 system prompt。
 - 失败不写记录，当前外观保持不变。
 
-外层看到的变化要不要写成事件，由入口决定：`updateAppearance` 写（自己一条用「你」，同场景他人各一条用观察者相对的称呼或 `#编号`）；`rebuildAppearance` 不写——维护性重推的输入没变，不该产生事实；尸体的刷新也不写，它的通知已由死亡宣布覆盖。广播与落账在同一个事务里，不存在「外观变了但没人被通知」的中间态。
+外层看到的变化要不要写成事件，由入口决定：`updateAppearance` 写（自己一条用「你」，同舞台他人各一条用观察者相对的称呼或 `#编号`）；`rebuildAppearance` 不写——维护性重推的输入没变，不该产生事实；尸体的刷新也不写，它的通知已由死亡宣布覆盖。广播与落账在同一个事务里，不存在「外观变了但没人被通知」的中间态。
 
 ## 来源快照
 

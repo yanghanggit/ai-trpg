@@ -137,7 +137,7 @@ class RoundsService implements ChatCompletionService {
   }
 }
 
-describe.skipIf(!testDatabaseUrl)("stage mini-GM", () => {
+describe.skipIf(!testDatabaseUrl)("舞台", () => {
   let handle: DatabaseHandle;
 
   beforeAll(async () => {
@@ -151,10 +151,10 @@ describe.skipIf(!testDatabaseUrl)("stage mini-GM", () => {
     await handle.pool.end();
   });
 
-  it("records private whisper and movement at both scene memories", async () => {
+  it("records private whisper and movement at both stage memories", async () => {
     const created = await createGame(handle.db, {
       username: DEMO_USER.username,
-      name: "场景记忆测试局",
+      name: "舞台记忆测试局",
       world: TEST_WORLD,
     });
     const slug = created.game.slug;
@@ -179,12 +179,12 @@ describe.skipIf(!testDatabaseUrl)("stage mini-GM", () => {
     const scribe = memories.find((memory) => memory.name === "缄默抄经人");
 
     expect(gate?.ownerType).toBe("stage");
-    // 耳语内容只进发起者与目标的 memory，场景 memory 只记录“发生过一次耳语”。
+    // 耳语内容只进发起者与目标的 memory，舞台 memory 只记录“发生过一次耳语”。
     expect(
       gate?.messages.some((message) => message.content.includes("守烬人对提灯修士耳语。")),
     ).toBe(true);
     expect(gate?.messages.some((message) => message.content.includes("别回头"))).toBe(false);
-    // 信息不对称：旧场景只知道“离开”，新场景只知道“进入”，路线只有移动者自己知道。
+    // 信息不对称：旧舞台只知道“离开”，新舞台只知道“进入”，路线只有移动者自己知道。
     const gateText = gate?.messages.map((message) => message.content).join("\n") ?? "";
     const naveText = nave?.messages.map((message) => message.content).join("\n") ?? "";
     expect(gateText).toContain("守烬人离开了灰烬门廊");
@@ -198,7 +198,7 @@ describe.skipIf(!testDatabaseUrl)("stage mini-GM", () => {
   it("applies environment updates, observes them, and feeds them to the next actor turn", async () => {
     const created = await createGame(handle.db, {
       username: DEMO_USER.username,
-      name: "场景环境测试局",
+      name: "舞台环境测试局",
       world: TEST_WORLD,
     });
     const slug = created.game.slug;
@@ -224,7 +224,7 @@ describe.skipIf(!testDatabaseUrl)("stage mini-GM", () => {
     const keeper = memories.find((memory) => memory.name === "守烬人");
     expect(gate?.messages.some((message) => message.content.includes(environment))).toBe(true);
     expect(keeper?.messages.some((message) => message.content.includes(environment))).toBe(false);
-    // 过程轨迹不写进长期记忆：stage 记忆里只有 system、场景事件与仲裁结论，没有 loop 的 tool 轨迹。
+    // 过程轨迹不写进长期记忆：stage 记忆里只有 system、舞台事件与仲裁结论，没有 loop 的 tool 轨迹。
     expect(gate?.messages.some((message) => message.type === "tool")).toBe(false);
 
     const capturing = new CapturingWaitService();
@@ -232,10 +232,10 @@ describe.skipIf(!testDatabaseUrl)("stage mini-GM", () => {
     expect(capturing.inputMessage).toContain(environment);
   });
 
-  it("只在环境里点名走得到的场景，不替演员说出还没打通的通道对面", async () => {
+  it("只在环境里点名走得到的舞台，不替角色说出还没打通的通道对面", async () => {
     const created = await createGame(handle.db, {
       username: DEMO_USER.username,
-      name: "环境场景名守卫测试局",
+      name: "环境舞台名守卫测试局",
       world: {
         ...TEST_WORLD,
         contentVersion: "test-stage-name-guard.v1",
@@ -270,11 +270,11 @@ describe.skipIf(!testDatabaseUrl)("stage mini-GM", () => {
     ).toBe(TEST_WORLD.stages.find((stage) => stage.name === "灰烬门廊")?.environment);
     const memories = await getGameMemories(handle.db, created.game.id);
     const gate = memories.find((memory) => memory.name === "灰烬门廊");
-    expect(gate?.messages.some((message) => message.content.includes("尚未打通的场景名"))).toBe(
+    expect(gate?.messages.some((message) => message.content.includes("尚未打通的舞台名"))).toBe(
       true,
     );
 
-    // 走得到的邻居照旧可以点名：那是演员抬头就能看见的地方。
+    // 走得到的邻居照旧可以点名：那是角色抬头就能看见的地方。
     const allowed = "断钟中殿那边传来铜锈味，门廊里只剩冷灰。";
     const accepted = await runStageTurn(handle.db, slug, "灰烬门廊", {
       service: new ScriptedStageService([allowed]),
@@ -307,7 +307,7 @@ describe.skipIf(!testDatabaseUrl)("stage mini-GM", () => {
   it("提交相同环境快照时不写事件", async () => {
     const created = await createGame(handle.db, {
       username: DEMO_USER.username,
-      name: "场景快照无变化测试局",
+      name: "舞台快照无变化测试局",
       world: TEST_WORLD,
     });
     const before = await getGameState(handle.db, created.game.slug);
@@ -337,7 +337,7 @@ describe.skipIf(!testDatabaseUrl)("stage mini-GM", () => {
   it("空计划是合法回合：只调终结工具，不改状态也不写事件", async () => {
     const created = await createGame(handle.db, {
       username: DEMO_USER.username,
-      name: "场景空计划测试局",
+      name: "舞台空计划测试局",
       world: TEST_WORLD,
     });
     const before = await getGameState(handle.db, created.game.slug);
@@ -358,7 +358,7 @@ describe.skipIf(!testDatabaseUrl)("stage mini-GM", () => {
   it("没调终结工具时已写入的环境仍落账，但 loop 不算成功", async () => {
     const created = await createGame(handle.db, {
       username: DEMO_USER.username,
-      name: "场景缺终结工具测试局",
+      name: "舞台缺终结工具测试局",
       world: TEST_WORLD,
     });
     const environment = "风停了，灰烬沉在石阶缝里。";
@@ -376,7 +376,7 @@ describe.skipIf(!testDatabaseUrl)("stage mini-GM", () => {
   it("在第一次仲裁时把开局快照写进 stage memory，且只写一次", async () => {
     const created = await createGame(handle.db, {
       username: DEMO_USER.username,
-      name: "场景开局快照测试局",
+      name: "舞台开局快照测试局",
       world: TEST_WORLD,
     });
     const state = await getGameState(handle.db, created.game.slug);
@@ -401,7 +401,7 @@ describe.skipIf(!testDatabaseUrl)("stage mini-GM", () => {
           (message.metadata as { kind?: string } | undefined)?.kind === "stage_opening_snapshot",
       ) ?? [];
     expect(snapshots).toHaveLength(1);
-    expect(snapshots[0]?.content).toContain("# 本局开局场景");
+    expect(snapshots[0]?.content).toContain("# 本局开局舞台");
     expect(snapshots[0]?.content).toContain(gate.environment);
     expect(snapshots[0]?.content).toContain("门闩：门板上被灰烬塞住的门闩。");
     // 基线是 system 之后的第一条记忆：先有开局事实，再有事件。
@@ -426,10 +426,10 @@ describe.skipIf(!testDatabaseUrl)("stage mini-GM", () => {
     expect(result.state.game.version).toBe(1);
   });
 
-  it("rejects an environment that names an actor in the scene", async () => {
+  it("rejects an environment that names an actor in the stage", async () => {
     const created = await createGame(handle.db, {
       username: DEMO_USER.username,
-      name: "场景角色名测试局",
+      name: "舞台角色名测试局",
       world: TEST_WORLD,
     });
     const result = await runStageTurn(handle.db, created.game.slug, "灰烬门廊", {

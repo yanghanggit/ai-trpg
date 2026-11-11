@@ -33,7 +33,7 @@ const ITEM_WORLD: World = {
               {
                 key: "test-lantern",
                 name: "测试提灯",
-                description: "测试用的场景道具。",
+                description: "测试用的舞台道具。",
                 kind: "equipment",
               },
             ],
@@ -95,7 +95,7 @@ describe.skipIf(!testDatabaseUrl)("memory state snapshot", () => {
     return memory?.messages.at(-1)?.content ?? "";
   };
 
-  it("records the final scene, visible addresses and scene items after an action", async () => {
+  it("records the final stage, visible addresses and stage items after an action", async () => {
     const created = await createGame(handle.db, {
       username: DEMO_USER.username,
       name: "记忆状态快照测试局",
@@ -109,13 +109,13 @@ describe.skipIf(!testDatabaseUrl)("memory state snapshot", () => {
     const { actor } = await actorByName(created.game.slug, "守烬人");
     const content = await lastMemory(created.game.id, actor.id);
     expect(content).toContain("# 当时");
-    expect(content).toContain("场景：断钟中殿");
+    expect(content).toContain("舞台：断钟中殿");
     expect(content).toContain("在场：你、缄默抄经人");
     expect(content).toContain("可交互：无");
-    expect(content).not.toContain("场景：灰烬门廊\n");
+    expect(content).not.toContain("舞台：灰烬门廊\n");
   });
 
-  it("lists scene items by public name in the snapshot", async () => {
+  it("lists stage items by public name in the snapshot", async () => {
     const created = await createGame(handle.db, {
       username: DEMO_USER.username,
       name: "记忆状态快照物品局",
@@ -145,11 +145,11 @@ describe.skipIf(!testDatabaseUrl)("memory state snapshot", () => {
     const content = await lastMemory(created.game.id, actor.id);
     expect(content).toContain("# 行动结果\n行动被拒绝");
     expect(content).toContain("# 当时");
-    expect(content).toContain("场景：灰烬门廊");
+    expect(content).toContain("舞台：灰烬门廊");
     expect(content).toContain("在场：你、提灯修士");
   });
 
-  it("keeps the scene snapshot out of cognition memories", async () => {
+  it("keeps the stage snapshot out of cognition memories", async () => {
     const created = await createGame(handle.db, {
       username: DEMO_USER.username,
       name: "认知不带现场局",
@@ -183,7 +183,7 @@ describe.skipIf(!testDatabaseUrl)("memory state snapshot", () => {
     const stageId = (name: string) => {
       const stage = state.world.stages.find((item) => item.name === name);
       if (!stage) {
-        throw new Error(`缺少场景: ${name}`);
+        throw new Error(`缺少舞台: ${name}`);
       }
       return stage.id;
     };
@@ -220,7 +220,7 @@ describe.skipIf(!testDatabaseUrl)("memory state snapshot", () => {
     const content = await lastMemory(created.game.id, actor.id);
     expect(content).toContain("# 行动结果");
     expect(content).toContain("# 当时");
-    expect(content).toContain("场景：灰烬门廊");
+    expect(content).toContain("舞台：灰烬门廊");
     expect(content).toContain("在场：你、提灯修士");
   });
 });

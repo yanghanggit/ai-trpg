@@ -1,7 +1,7 @@
 /**
  * world 裁决动作的工具契约：模型看得见的形状 + 把参数变回 `WorldAction` 的解析器。
  *
- * 只读的 look_stage 也在这里，连同它读出来的场景文本：world 是 god view，读任意场景的
+ * 只读的 look_stage 也在这里，连同它读出来的舞台文本：world 是 god view，读任意舞台的
  * 完整视图（含 profile 与 environment），不按观察者脱敏。落账见 `./arbitrate.ts`，
  * 编排见 `./prompt.ts`。
  */
@@ -19,14 +19,14 @@ export function buildWorldLookStageTool(state: GameStateSlice): ToolDefinition {
     function: {
       name: "look_stage",
       description:
-        "查看当前世界中某个场景的设定、环境、角色、可交互锚点及其上的物品与可去方向。只读，可多次调用。",
+        "查看当前世界中某个舞台的设定、环境、角色、可交互锚点及其上的物品与可去方向。只读，可多次调用。",
       parameters: {
         type: "object",
         properties: {
           stageName: {
             type: "string",
             enum: state.world.stages.map((stage) => stage.name),
-            description: "要查看的场景名",
+            description: "要查看的舞台名",
           },
         },
         required: ["stageName"],
@@ -42,18 +42,18 @@ export function buildNotifyStageTool(stageNames: readonly string[]): ToolDefinit
     function: {
       name: "notify_stage",
       description:
-        "把一条世界裁决或世界级变化下发给指定场景，写入该场景 memory，供其下一回合读取。",
+        "把一条世界裁决或世界级变化下发给指定舞台，写入该舞台 memory，供其下一回合读取。",
       parameters: {
         type: "object",
         properties: {
           stageName: {
             type: "string",
-            description: "接收世界裁决的场景",
+            description: "接收世界裁决的舞台",
             ...(stageNames.length > 0 ? { enum: [...stageNames] } : {}),
           },
           content: {
             type: "string",
-            description: "世界裁决或跨场景变化；写清楚场景应知道什么。",
+            description: "世界裁决或跨舞台变化；写清楚舞台应知道什么。",
           },
         },
         required: ["stageName", "content"],
@@ -88,7 +88,7 @@ export function buildEndGameTool(): ToolDefinition {
           },
           message: {
             type: "string",
-            description: "世界内可见的结束文案，只收束已经发生的事实，不替场景补写细节",
+            description: "世界内可见的结束文案，只收束已经发生的事实，不替舞台补写细节",
           },
         },
         required: ["outcome", "message"],
@@ -126,11 +126,11 @@ export function buildSubmitWorldPlanTool(): ToolDefinition {
   };
 }
 
-/** world 视角：可查看任意场景，名字与 environment 原样输出。 */
+/** world 视角：可查看任意舞台，名字与 environment 原样输出。 */
 export function describeStageForWorld(state: GameStateSlice, stageName: string): string {
   const stage = findStageByName(state, stageName);
   if (!stage) {
-    return `错误：场景不存在 ${stageName}`;
+    return `错误：舞台不存在 ${stageName}`;
   }
   const moves = adjacentStageNames(state, stage.id);
   const actors =
@@ -139,7 +139,7 @@ export function describeStageForWorld(state: GameStateSlice, stageName: string):
       : stage.actors
           .map((actor) => `${actor.name}${isAlive(actor) ? "" : "（已死亡）"}`)
           .join("、");
-  return `场景：${stage.name}
+  return `舞台：${stage.name}
 ${stage.profile}
 ${stage.environment}
 角色：${actors}

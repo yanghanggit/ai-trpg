@@ -118,10 +118,10 @@ describe.skipIf(!testDatabaseUrl)("teleport", () => {
   });
 
   it("refuses a name that resolves to no stage", async () => {
-    const created = await createGameWith("传送未知场景测试局", teleportWorld());
+    const created = await createGameWith("传送未知舞台测试局", teleportWorld());
     await expect(
       playerTeleport(handle.db, created.game.slug, "守烬人", { targetStageRef: "没有这个地方" }),
-    ).rejects.toThrow(/目标场景不存在/);
+    ).rejects.toThrow(/目标舞台不存在/);
   });
 
   it("teleports to a visited, unblocked stage and records the arrival", async () => {

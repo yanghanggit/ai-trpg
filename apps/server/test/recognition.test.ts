@@ -434,7 +434,7 @@ describe.skipIf(!testDatabaseUrl)("names and addresses", () => {
     };
     const result = await settleActorPlan(handle.db, created.game.id, odric.id, plan, true);
     expect(result.ok).toBe(false);
-    expect(result.rejection).toMatch(/只能给当前场景内的角色起名/);
+    expect(result.rejection).toMatch(/只能给当前舞台内的角色起名/);
 
     const after = await getGameState(handle.db, created.game.slug);
     expect(
@@ -458,7 +458,7 @@ describe.skipIf(!testDatabaseUrl)("names and addresses", () => {
       throw new Error("缺少测试角色");
     }
 
-    // 煤渣在墓园看见坏运气，然后本回合走开；名字仍应来自出发时的场景。
+    // 煤渣在墓园看见坏运气，然后本回合走开；名字仍应来自出发时的舞台。
     const plan: ActorPlan = {
       actions: [{ kind: "move", targetStageName: "地窖" }],
       identities: [{ handle: handleOf(badLuck.signature.seq), name: "小东西" }],
@@ -730,7 +730,7 @@ describe.skipIf(!testDatabaseUrl)("names and addresses", () => {
       throw new Error("缺少开局角色");
     }
 
-    // 一份计划里给同场景两个角色起名，且奥德里克出现两次：后一次覆盖前一次。
+    // 一份计划里给同舞台两个角色起名，且奥德里克出现两次：后一次覆盖前一次。
     const plan: ActorPlan = {
       actions: [],
       identities: [

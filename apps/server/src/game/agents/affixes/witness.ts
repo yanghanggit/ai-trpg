@@ -115,7 +115,7 @@ export type AppendWitnessInput = {
 };
 
 /**
- * 写一次见证：公共事件流（可关）、stage memory、场景观察，并返回出手者的反馈句。
+ * 写一次见证：公共事件流（可关）、stage memory、舞台观察，并返回出手者的反馈句。
  *
  * 发起者不写 observation：他的认知走行动反馈，同一事实在记忆里只有一条。
  */
@@ -159,7 +159,7 @@ export async function appendWitnessEvent(input: AppendWitnessInput): Promise<str
     executor,
     gameId,
     stage.id,
-    `# 场景事件\n${godContent}`,
+    `# 舞台事件\n${godContent}`,
     {
       eventKind: action,
       ...(event.target?.kind === "actor" ? { targetActorId: event.target.actorId } : {}),

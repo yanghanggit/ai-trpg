@@ -84,7 +84,7 @@ export async function applyWorldPlan(
     const stageByName = new Map(stageRows.map((stage) => [stage.name, stage]));
     for (const action of actions) {
       if (action.kind === "notify_stage" && !stageByName.has(action.stageName)) {
-        return reject(`world 找不到目标场景: ${action.stageName}`);
+        return reject(`world 找不到目标舞台: ${action.stageName}`);
       }
     }
 
@@ -94,7 +94,7 @@ export async function applyWorldPlan(
       if (action.kind === "notify_stage") {
         const stage = stageByName.get(action.stageName);
         if (!stage) {
-          throw new GameError("invalid_state", `world 找不到目标场景: ${action.stageName}`);
+          throw new GameError("invalid_state", `world 找不到目标舞台: ${action.stageName}`);
         }
         await appendStageDirective(tx, gameId, stage.id, world.id, action.content, trace);
         await traceEvent(trace, {

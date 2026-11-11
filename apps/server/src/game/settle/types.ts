@@ -63,7 +63,7 @@ export type ResolvedAnnounce = {
   stage: StageRow;
 };
 
-/** 跨场景传音：source stage 与 target stage 分开保存，目标必须不在 source stage。 */
+/** 跨舞台传音：source stage 与 target stage 分开保存，目标必须不在 source stage。 */
 export type ResolvedCall = {
   kind: "call";
   action: CallAction;
@@ -168,7 +168,7 @@ export type ResolvedUse = {
   transferItem: ItemRow;
   target?: ActorRow;
   targetStage?: StageRow;
-  /** 已按当前场景锚点校验过的标签。 */
+  /** 已按当前舞台锚点校验过的标签。 */
   targetAnchor?: string;
 };
 

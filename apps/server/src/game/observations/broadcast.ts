@@ -19,12 +19,12 @@ import { STAGE_WIDE, writeObservations } from "./write";
 /**
  * 各类事实的广播入口：只决定收件范围，文案交给 `observation-text/`。
  *
- * 收件范围是这个文件唯一的判断：`steal` 与耳语只写给目标，其余按场景广播；
+ * 收件范围是这个文件唯一的判断：`steal` 与耳语只写给目标，其余按舞台广播；
  * 发起者的认知一律走行动反馈，不在观察通道里重复。
  */
 
 /**
- * 由调用方提供逐观察者渲染函数的一次场景广播。
+ * 由调用方提供逐观察者渲染函数的一次舞台广播。
  *
  * 需要把当事人写进句子（离开、穿上、倒下）时用它：文案必须按观察者重新取引用，
  * 不能拿拼好真名的字符串广播。
@@ -74,7 +74,7 @@ export async function appendDamageObservations(
   gameId: string,
   stage: StageRef,
   observation: DamageObservation & {
-    /** 谁收到伤害观察；省略时整个场景。 */
+    /** 谁收到伤害观察；省略时整个舞台。 */
     audience?: Audience;
   },
   trace?: TraceContext,
@@ -96,7 +96,7 @@ export async function appendDamageObservations(
 /**
  * 写入物品转移/拾取/使用事件的视角化记忆。
  *
- * `steal` 是私密事件，只有目标收到观察；其余按场景广播。
+ * `steal` 是私密事件，只有目标收到观察；其余按舞台广播。
  */
 export async function appendItemObservations(
   executor: Executor,
@@ -124,7 +124,7 @@ export async function appendItemObservations(
 /**
  * 写入「有人查看了自己的行囊」的观察。
  *
- * 查看者由行动反馈承载，这里写给目标与在场其余角色；尸体收到的也是一句场景动态，
+ * 查看者由行动反馈承载，这里写给目标与在场其余角色；尸体收到的也是一句舞台动态，
  * 清单本身既不进公共消息也不进任何观察。
  */
 export async function appendInspectObservations(

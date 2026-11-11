@@ -4,17 +4,17 @@ import { isHandleRef, parseHandle } from "../kernel/addressing";
 import type { ActorState, GameStateSlice, StageState } from "../kernel/types";
 
 /**
- * actor 的状态层定位：把引用解析成 `ActorState`（连同他所在的场景）。
+ * actor 的状态层定位：把引用解析成 `ActorState`（连同他所在的舞台）。
  *
  * 与行级读写（`persistence/actors.ts`）分开：这里只看已装载的状态，不碰数据库。
- * 包里两件事：这里认「哪一个 actor」，`visit.ts` 记「他去过哪些场景」。
+ * 包里两件事：这里认「哪一个 actor」，`visit.ts` 记「他去过哪些舞台」。
  *
  * 检索只保留两种语义入口：真名（这里）与签名（`lookup/`）。
  * id 是控制面的稳定身份，不作为 actor-facing 的检索键——只有 `stageOfActor`
  * 与 god-view 的 `#编号` 走它。
  */
 
-/** actor 与它所在场景：定位的结果总是成对出现，免得调用方再查一次。 */
+/** actor 与它所在舞台：定位的结果总是成对出现，免得调用方再查一次。 */
 export type ActorWithStage = {
   actor: ActorState;
   stage: StageState;
@@ -52,17 +52,17 @@ export function findActorBySignatureSeq(state: GameStateSlice, seq: number): Act
   return match;
 }
 
-/** 从 actor 定位他所在的场景；同一 actor 出现在两个场景是状态错误。 */
+/** 从 actor 定位他所在的舞台；同一 actor 出现在两个舞台是状态错误。 */
 export function stageOfActor(state: GameStateSlice, actorId: string): ActorWithStage {
   const matches = allActors(state).filter(({ actor }) => actor.id === actorId);
   if (matches.length === 0) {
-    throw new GameError("invalid_state", `actor 不属于任何场景: ${actorId}`);
+    throw new GameError("invalid_state", `actor 不属于任何舞台: ${actorId}`);
   }
   if (matches.length > 1) {
-    throw new GameError("invalid_state", `actor 同时出现在多个场景: ${actorId}`);
+    throw new GameError("invalid_state", `actor 同时出现在多个舞台: ${actorId}`);
   }
   const [match] = matches;
-  assert(match, `actor 场景定位结果为空: ${actorId}`);
+  assert(match, `actor 舞台定位结果为空: ${actorId}`);
   return match;
 }
 

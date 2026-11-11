@@ -21,7 +21,7 @@ import { TEST_WORLD } from "./test-world";
 
 const testDatabaseUrl = process.env.TEST_DATABASE_URL?.trim();
 
-/** 无名者开局在棺材：除了棺材，别的场景名都要显式授予。 */
+/** 无名者开局在棺材：除了棺材，别的舞台名都要显式授予。 */
 async function newGame(handle: DatabaseHandle, name: string) {
   const created = await createGame(handle.db, {
     username: DEMO_USER.username,
@@ -56,7 +56,7 @@ class RecallRouteService implements ChatCompletionService {
 }
 
 /**
- * 只关心图形状的小世界：前 `visitedCount` 个场景算走过，其余只给 `#序号`。
+ * 只关心图形状的小世界：前 `visitedCount` 个舞台算走过，其余只给 `#序号`。
  * 默认一个都没走过（开局只在 s0），全部走过时断言里就只剩路线本身。
  */
 function graphWorld(
@@ -67,7 +67,7 @@ function graphWorld(
 ): World {
   const template = TEST_WORLD.stages[0];
   if (!template) {
-    throw new Error("测试世界缺少场景模板");
+    throw new Error("测试世界缺少舞台模板");
   }
   const keys = stageNames.map((_, index) => `s${index}`);
   return {
@@ -78,7 +78,7 @@ function graphWorld(
       const from = keys[edge.from];
       const to = keys[edge.to];
       if (!from || !to) {
-        throw new Error("测试边指向不存在的场景");
+        throw new Error("测试边指向不存在的舞台");
       }
       return { from, to, ...(edge.sealed ? { passage: "sealed" as const } : {}) };
     }),
@@ -172,11 +172,11 @@ describe.skipIf(!testDatabaseUrl)("route recall", () => {
 
     const recall = await recallMemory(handle, slug, "无名者");
     expect(recall.at(-1)).toContain("无法寻路");
-    expect(recall.at(-1)).toContain("不是场景名");
+    expect(recall.at(-1)).toContain("不是舞台名");
   });
 
   it("records a failure memory when no stage has that name", async () => {
-    const slug = await newGame(handle, "路线未知场景测试局");
+    const slug = await newGame(handle, "路线未知舞台测试局");
 
     const turn = await playerRecallRoute(handle.db, slug, "无名者", {
       toStageRef: "根本没有这个地方",
@@ -184,7 +184,7 @@ describe.skipIf(!testDatabaseUrl)("route recall", () => {
     expect(turn.ok).toBe(true);
 
     const recall = await recallMemory(handle, slug, "无名者");
-    expect(recall.at(-1)).toContain("无法寻路：没有叫「根本没有这个地方」的场景");
+    expect(recall.at(-1)).toContain("无法寻路：没有叫「根本没有这个地方」的舞台");
   });
 
   it("writes walked waypoints by name and untouched ones by handle", async () => {
@@ -248,7 +248,7 @@ describe.skipIf(!testDatabaseUrl)("route recall", () => {
     ]);
 
     const recall = await recallMemory(handle, slug, "无名者");
-    expect(recall.at(-1)).toContain("无法寻路：没有叫「根本没有这个地方」的场景");
+    expect(recall.at(-1)).toContain("无法寻路：没有叫「根本没有这个地方」的舞台");
   });
 
   it("takes an open detour when the direct edge is sealed", async () => {

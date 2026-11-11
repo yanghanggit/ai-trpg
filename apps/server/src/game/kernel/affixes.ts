@@ -1,6 +1,6 @@
 import type { Affix, AffixMode, AffixTriggers } from "./types";
 
-/** 物品能触发的场景：三种动作各取自己的词缀列表；后续若要扩 `equip` 等，只加 key。 */
+/** 物品能触发的舞台：三种动作各取自己的词缀列表；后续若要扩 `equip` 等，只加 key。 */
 export type AffixTrigger = keyof AffixTriggers;
 
 /** 省略 `mode` 等于 static；物化时统一成显式值，避免等价判定被 `undefined` 干扰。 */

@@ -14,10 +14,10 @@ import { gameOf, viewerAnchors } from "./project";
 import type { ActorView, ViewerAddress } from "./types";
 
 /**
- * 一个 actor 看到的世界面：他自己的场景、名单、出口、记忆日志。
+ * 一个 actor 看到的世界面：他自己的舞台、名单、出口、记忆日志。
  *
  * 公共事件流的文本在写入时就已经带名字，无法可靠地事后脱敏；所以观看者视角直接
- * 读该 actor 的记忆——它本来就是为了这个观察者渲染的。这里只负责把记忆、场景与
+ * 读该 actor 的记忆——它本来就是为了这个观察者渲染的。这里只负责把记忆、舞台与
  * 引用整理成稳定形状，不做新的过滤规则。
  */
 export async function getActorView(
@@ -59,7 +59,7 @@ export async function getActorView(
       name: actor.name,
       appearance: actor.appearance.text,
     },
-    scene: {
+    stage: {
       id: stage.id,
       name: stage.name,
       environment: stage.environment,

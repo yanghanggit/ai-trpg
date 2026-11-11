@@ -27,7 +27,7 @@ export async function recordStageVisit(
     });
 }
 
-/** 本 actor 去过的场景 id；路线回忆据此决定链上写名字还是 `#序号`。 */
+/** 本 actor 去过的舞台 id；路线回忆据此决定链上写名字还是 `#序号`。 */
 export async function listVisitedStageIds(
   executor: Executor,
   gameId: string,

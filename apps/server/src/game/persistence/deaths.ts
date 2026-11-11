@@ -9,7 +9,7 @@ import type { Executor } from "./rows";
  * 的处理标记。这些谓词属于领域规则，集中在这里，死亡阶段只负责编排。
  */
 
-/** 本局所有场景 id：死亡扫描与收尾标记清理都只在局内生效。 */
+/** 本局所有舞台 id：死亡扫描与收尾标记清理都只在局内生效。 */
 export async function listStageIdsOfGame(executor: Executor, gameId: string): Promise<string[]> {
   const worldRows = await executor
     .select({ id: worlds.id })

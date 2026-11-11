@@ -188,7 +188,7 @@ describe("damage observations", () => {
     );
     expect(renderDamage(STAGE, using, "actor-3").content).toBe(
       withAppearances(
-        "# 场景动态\n守烬人对提灯修士使用松脂火把，造成13点伤害；提灯修士倒下了。",
+        "# 舞台动态\n守烬人对提灯修士使用松脂火把，造成13点伤害；提灯修士倒下了。",
         ACTOR_APPEARANCE,
         OTHER_APPEARANCE,
       ),
@@ -230,7 +230,7 @@ describe("item observations", () => {
     const bystander = renderItemEvent(STAGE, give, "actor-3");
     expect(bystander.content).toBe(
       withAppearances(
-        "# 场景动态\n守烬人把旧钥匙交给了提灯修士。",
+        "# 舞台动态\n守烬人把旧钥匙交给了提灯修士。",
         ACTOR_APPEARANCE,
         OTHER_APPEARANCE,
       ),
@@ -242,7 +242,7 @@ describe("item observations", () => {
     const observation = { actor: ACTOR, target: OTHER };
     expect(renderInspect(STAGE, observation, "actor-3").content).toBe(
       withAppearances(
-        "# 场景动态\n守烬人查看了提灯修士随身携带的东西。",
+        "# 舞台动态\n守烬人查看了提灯修士随身携带的东西。",
         ACTOR_APPEARANCE,
         OTHER_APPEARANCE,
       ),
@@ -264,7 +264,7 @@ describe("item observations", () => {
     const view = renderItemEvent(STAGE, loot, "actor-3");
     expect(view.content).toBe(
       withAppearances(
-        "# 场景动态\n守烬人从提灯修士的尸体上搜走了旧钥匙、半截铁钉。",
+        "# 舞台动态\n守烬人从提灯修士的尸体上搜走了旧钥匙、半截铁钉。",
         ACTOR_APPEARANCE,
         OTHER_APPEARANCE,
       ),
@@ -278,12 +278,12 @@ describe("item observations", () => {
   it("拾取没有目标，也不带当事人视角", () => {
     const view = renderItemEvent(STAGE, pickup, "actor-3");
     expect(view.content).toBe(
-      withAppearances("# 场景动态\n守烬人从锁孔上拾取了旧钥匙。", ACTOR_APPEARANCE),
+      withAppearances("# 舞台动态\n守烬人从锁孔上拾取了旧钥匙。", ACTOR_APPEARANCE),
     );
     expect(view.metadata.targetActorId).toBeUndefined();
   });
 
-  it("使用事件覆盖对人与对场景两种视角", () => {
+  it("使用事件覆盖对人与对舞台两种视角", () => {
     const onActor: ItemObservation = {
       actor: ACTOR,
       itemName: "火把",
@@ -295,7 +295,7 @@ describe("item observations", () => {
     );
     expect(renderItemEvent(STAGE, onActor, "actor-3").content).toBe(
       withAppearances(
-        "# 场景动态\n守烬人对提灯修士使用了火把。",
+        "# 舞台动态\n守烬人对提灯修士使用了火把。",
         ACTOR_APPEARANCE,
         OTHER_APPEARANCE,
       ),
@@ -310,7 +310,7 @@ describe("item observations", () => {
     };
     const view = renderItemEvent(STAGE, onStage, "actor-3");
     expect(view.content).toBe(
-      withAppearances("# 场景动态\n守烬人在灰烬门廊的东墙使用了火把。", ACTOR_APPEARANCE),
+      withAppearances("# 舞台动态\n守烬人在灰烬门廊的东墙使用了火把。", ACTOR_APPEARANCE),
     );
     expect(view.metadata).toMatchObject({ targetStageName: "灰烬门廊", targetAnchor: "东墙" });
     expect(view.metadata.targetActorId).toBeUndefined();
@@ -329,7 +329,7 @@ describe("communication observations", () => {
     };
     const view = renderCommunication(STAGE, whisper, OTHER.id);
     expect(view.content).toBe(
-      withAppearances("# 你听见\n守烬人对你耳语（场景：灰烬门廊）：别出声。", ACTOR_APPEARANCE),
+      withAppearances("# 你听见\n守烬人对你耳语（舞台：灰烬门廊）：别出声。", ACTOR_APPEARANCE),
     );
     expect(view.metadata).toMatchObject({ visibility: "private", targetActorId: OTHER.id });
   });
@@ -337,11 +337,11 @@ describe("communication observations", () => {
   it("公开说话区分受话者与旁观者", () => {
     const say: CommunicationObservation = { source: ACTOR, message, kind: "say", target: OTHER };
     expect(renderCommunication(STAGE, say, OTHER.id).content).toBe(
-      withAppearances("# 你听见\n守烬人对你说（场景：灰烬门廊）：别出声。", ACTOR_APPEARANCE),
+      withAppearances("# 你听见\n守烬人对你说（舞台：灰烬门廊）：别出声。", ACTOR_APPEARANCE),
     );
     expect(renderCommunication(STAGE, say, "actor-3").content).toBe(
       withAppearances(
-        "# 你听见\n守烬人对提灯修士说（场景：灰烬门廊）：别出声。",
+        "# 你听见\n守烬人对提灯修士说（舞台：灰烬门廊）：别出声。",
         ACTOR_APPEARANCE,
         OTHER_APPEARANCE,
       ),
@@ -360,7 +360,7 @@ describe("communication observations", () => {
       "actor-3",
     );
     expect(view.content).toBe(
-      withAppearances("# 你听见\n守烬人公开说（场景：灰烬门廊）：都别动。", ACTOR_APPEARANCE),
+      withAppearances("# 你听见\n守烬人公开说（舞台：灰烬门廊）：都别动。", ACTOR_APPEARANCE),
     );
     expect(view.metadata).not.toHaveProperty("targetActorId");
   });
@@ -372,7 +372,7 @@ describe("plain observations", () => {
       kind: MEMORY_KINDS.environmentObservation,
       stageId: STAGE.id,
     });
-    expect(renderAction("# 场景动态\n有人离开。", STAGE.id).metadata).toEqual({
+    expect(renderAction("# 舞台动态\n有人离开。", STAGE.id).metadata).toEqual({
       kind: MEMORY_KINDS.actionObservation,
       stageId: STAGE.id,
     });

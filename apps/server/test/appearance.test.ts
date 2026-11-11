@@ -25,7 +25,7 @@ describe("appearance input", () => {
   it("rejects handles and known actor names", () => {
     expect(() => parseAppearance({ appearance: "裹尸布上沾着石灰。" })).not.toThrow();
     expect(() => parseAppearance({ appearance: "#12 站在门口。" })).toThrow("编号引用");
-    // 场景与道具的名字是公共标签，写进外观的描述本身不算泄漏。
+    // 舞台与道具的名字是公共标签，写进外观的描述本身不算泄漏。
     expect(() => parseAppearance({ appearance: "煤渣倒在门口。" })).not.toThrow();
     expect(() => parseAppearance({ appearance: "煤渣倒在门口。" }, ["煤渣"])).toThrow(
       "不能包含角色名",

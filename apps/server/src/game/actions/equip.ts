@@ -105,7 +105,7 @@ export async function applyEquip(
     (_observerId, address) =>
       renderAction(
         withAppearances(
-          `# 场景动态\n${mentionOf(address(actor.id))}穿上了${item.name}（${label}）。`,
+          `# 舞台动态\n${mentionOf(address(actor.id))}穿上了${item.name}（${label}）。`,
           [address(actor.id)],
         ),
         resolved.stage.id,
@@ -116,7 +116,7 @@ export async function applyEquip(
     executor,
     gameId,
     resolved.stage.id,
-    `# 场景事件\n${content}`,
+    `# 舞台事件\n${content}`,
     {
       eventKind: "equip",
     },

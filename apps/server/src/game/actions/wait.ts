@@ -14,7 +14,7 @@ export function buildWaitTool(): ToolDefinition {
     type: "function",
     function: {
       name: "wait",
-      description: "把一次等待加入计划：留在原地继续观察，不改变场景、物品或角色状态。",
+      description: "把一次等待加入计划：留在原地继续观察，不改变舞台、物品或角色状态。",
       parameters: {
         type: "object",
         properties: {},
@@ -56,7 +56,7 @@ export async function applyWait(
     (_observerId, address) =>
       renderAction(
         withAppearances(
-          `# 场景动态\n${mentionOf(address(actorRow.actor.id))}留在原地，继续观察四周。`,
+          `# 舞台动态\n${mentionOf(address(actorRow.actor.id))}留在原地，继续观察四周。`,
           [address(actorRow.actor.id)],
         ),
         resolved.stage.id,
@@ -67,7 +67,7 @@ export async function applyWait(
     executor,
     gameId,
     resolved.stage.id,
-    `# 场景事件\n${content}`,
+    `# 舞台事件\n${content}`,
     {
       eventKind: "wait",
     },

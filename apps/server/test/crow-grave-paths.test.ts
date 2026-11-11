@@ -61,7 +61,7 @@ async function createCrowGraveGame(handle: DatabaseHandle, name: string) {
 /**
  * 鸦葬岗的 e2e：两条路线都从真实建局、真实玩家动作、真实 stage/world 回合走完。
  *
- * 推理端用 ScriptedService 固定成“场景小 GM 已经看懂事件”的那一步；
+ * 推理端用 ScriptedService 固定成“舞台已经看懂事件”的那一步；
  * 这里验证的是内容链路与引擎接线，不是 LLM 的临场判断。
  */
 describe.skipIf(!testDatabaseUrl)("crow grave e2e", () => {
@@ -89,7 +89,7 @@ describe.skipIf(!testDatabaseUrl)("crow grave e2e", () => {
     });
     expect(picked.ok).toBe(true);
 
-    // 对锁石使用窖钉：use 只写场景事件，开门留给鸦葬岗的 stage 回合。
+    // 对锁石使用窖钉：use 只写舞台事件，开门留给鸦葬岗的 stage 回合。
     const used = await playerUse(handle.db, slug, "拾骨人伊莱", {
       targetStageName: "鸦葬岗",
       itemName: "窖钉",
@@ -104,7 +104,7 @@ describe.skipIf(!testDatabaseUrl)("crow grave e2e", () => {
       true,
     );
 
-    // 鸦葬岗的小 GM 看到窖钉归位，才把石壁后的通道打开。
+    // 鸦葬岗这座舞台看到窖钉归位，才把石壁后的通道打开。
     const opened = await runStageTurn(handle.db, slug, "鸦葬岗", {
       service: new ScriptedService([
         call("open_passage", { targetStageName: "封尸窖" }),

@@ -20,13 +20,13 @@ export function buildBrawlTool(targetActorHandles: readonly string[]): ToolDefin
     function: {
       name: "brawl",
       description:
-        "把一次肉搏加入计划：用身体（拳脚等肢体）攻击同场景的一个角色。不使用任何物品，武器数值不参与结算；不判定命中与闪避，伤害由结果直接结算。",
+        "把一次肉搏加入计划：用身体（拳脚等肢体）攻击同舞台的一个角色。不使用任何物品，武器数值不参与结算；不判定命中与闪避，伤害由结果直接结算。",
       parameters: {
         type: "object",
         properties: {
           targetActorHandle: {
             type: "string",
-            description: "要攻击的同场景角色的引用（名字 或 #编号）；尸体也可以（伤害结算会空转）",
+            description: "要攻击的同舞台角色的引用（名字 或 #编号）；尸体也可以（伤害结算会空转）",
             ...(targetActorHandles.length > 0 ? { enum: [...targetActorHandles] } : {}),
           },
         },

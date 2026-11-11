@@ -6,9 +6,9 @@
 
 ## 目标
 
-支持 actor 与 stage。actor 探针只用 actor 的 system prompt 与 memory，不注入当前场景、自身物品或 observation；stage 探针只用 stage 的 system prompt 与 memory，不注入 environment、角色或场景物品。
+支持 actor 与 stage。actor 探针只用 actor 的 system prompt 与 memory，不注入当前舞台、自身物品或 observation；stage 探针只用 stage 的 system prompt 与 memory，不注入 environment、角色或舞台物品。
 
-这样探针答不上来就是正常信号：若结果没有进入 memory，探针应当无法回答，而不是被当前状态补齐。stage 探针能看到本场景的 private 事件，这是 stage memory 的既有可见性，不改变 actor 的可见范围。
+这样探针答不上来就是正常信号：若结果没有进入 memory，探针应当无法回答，而不是被当前状态补齐。stage 探针能看到本舞台的 private 事件，这是 stage memory 的既有可见性，不改变 actor 的可见范围。
 
 world 已有自己的 memory 与 system prompt，但探针目前只接 actor 与 stage。
 
@@ -24,4 +24,4 @@ world 已有自己的 memory 与 system prompt，但探针目前只接 actor 与
 
 `agent:game probe` 用 `--actor` 或 `--stage` 指定目标，`--message` 给问题；输出包含目标类型、目标名称、回答与 finish reason，不返回可变游戏状态。
 
-→ 参见：[开发期 Agent 工作流](debug-workflow.md)、[Stage 小 GM](stage.md)、[Actor 行动与记忆](actor-actions-memory.md)、[Agent 与工具](agents.md)
+→ 参见：[开发期 Agent 工作流](debug-workflow.md)、[舞台](stage.md)、[Actor 行动与记忆](actor-actions-memory.md)、[Agent 与工具](agents.md)

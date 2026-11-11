@@ -39,7 +39,7 @@ function normalizePlayerTargets(
       const target = findActorByRef(state, action.targetActorHandle);
       const token = address(target.id).token;
       if (token.length === 0) {
-        throw new GameError("invalid_action", `当前场景内找不到引用: ${action.targetActorHandle}`);
+        throw new GameError("invalid_action", `当前舞台内找不到引用: ${action.targetActorHandle}`);
       }
       return { ...action, targetActorHandle: token };
     }),

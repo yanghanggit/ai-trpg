@@ -40,7 +40,7 @@ export function buildUseTool(
     function: {
       name: "use",
       description:
-        "把一次使用道具加入计划：使用一件没穿戴的物品，作用于一个角色或当前场景（二选一）。",
+        "把一次使用道具加入计划：使用一件没穿戴的物品，作用于一个角色或当前舞台（二选一）。",
       parameters: {
         type: "object",
         properties: {
@@ -56,14 +56,14 @@ export function buildUseTool(
           },
           targetStageName: {
             type: "string",
-            description: "道具作用的场景",
+            description: "道具作用的舞台",
             enum: [currentStageName],
           },
           ...(stageAnchors.length > 0
             ? {
                 targetAnchor: {
                   type: "string",
-                  description: "当前场景的可交互锚点（仅配合 targetStageName）",
+                  description: "当前舞台的可交互锚点（仅配合 targetStageName）",
                   enum: [...stageAnchors],
                 },
               }
@@ -100,7 +100,7 @@ export function parseUse(args: Record<string, unknown>): UseAction {
   };
 }
 
-/** 静态词缀里是否有 damage op；`use` 指向场景时不成立。 */
+/** 静态词缀里是否有 damage op；`use` 指向舞台时不成立。 */
 function hasDamageOp(item: { affixes: ItemState["affixes"] }): boolean {
   return staticAffixes(item, "use").some((affix) =>
     (affix.ops ?? []).some((op) => op.kind === "damage"),
@@ -136,16 +136,16 @@ export async function resolveUse(
 
   if (action.targetStageName !== undefined) {
     if (action.targetStageName !== stage.name) {
-      throw new GameError("invalid_action", "只能对当前所在场景使用道具");
+      throw new GameError("invalid_action", "只能对当前所在舞台使用道具");
     }
     if (
       targetAnchor !== undefined &&
       !stage.anchors.some((anchor) => anchor.label === targetAnchor)
     ) {
-      throw new GameError("invalid_action", "当前场景没有这个可交互锚点");
+      throw new GameError("invalid_action", "当前舞台没有这个可交互锚点");
     }
     if (hasDamageOp(transferItem)) {
-      throw new GameError("invalid_action", "伤害词缀需要角色目标，不能作用于场景或锚点");
+      throw new GameError("invalid_action", "伤害词缀需要角色目标，不能作用于舞台或锚点");
     }
     targetStage = stage;
   } else {
@@ -218,7 +218,7 @@ async function recordUseEvent(
     executor,
     gameId,
     stage.id,
-    `# 场景事件\n${content}`,
+    `# 舞台事件\n${content}`,
     {
       eventKind: "use",
       ...(target ? { targetActorId: target.id } : {}),

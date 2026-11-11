@@ -22,7 +22,7 @@ export type PlayerAnnounceInput = {
   reason?: string;
 };
 
-/** 跨场景传音；`targetActorName` 必须是真名，不接受引用或 id。 */
+/** 跨舞台传音；`targetActorName` 必须是真名，不接受引用或 id。 */
 export type PlayerCallInput = {
   message: string;
   targetActorName: string;
@@ -30,12 +30,12 @@ export type PlayerCallInput = {
 };
 
 export type PlayerMoveInput = {
-  /** 场景 id、名字或 `#编号`。 */
+  /** 舞台 id、名字或 `#编号`。 */
   targetStageRef: string;
 };
 
 export type PlayerTeleportInput = {
-  /** 目标场景的真名；`#编号` 与 id 都不接受，服务端另校验「这个 actor 知道这个真名」。 */
+  /** 目标舞台的真名；`#编号` 与 id 都不接受，服务端另校验「这个 actor 知道这个真名」。 */
   targetStageRef: string;
 };
 

@@ -27,9 +27,9 @@ export type SealedChain = {
 };
 
 /**
- * 一次回忆的结论：同一场景、一条能走通的链、若干条断在封着的门前的链，或确实没有路。
+ * 一次回忆的结论：同一舞台、一条能走通的链、若干条断在封着的门前的链，或确实没有路。
  *
- * 只含场景 id，不含名字与文字——怎么称呼这些位置由渲染层按观察者认知决定。
+ * 只含舞台 id，不含名字与文字——怎么称呼这些位置由渲染层按观察者认知决定。
  */
 export type RoutePlan =
   | { kind: "here" }
@@ -117,6 +117,6 @@ function indexStages(world: RouteWorld): Map<string, RouteNode> {
 
 function ordinalOf(nodes: Map<string, RouteNode>, id: string): number {
   const node = nodes.get(id);
-  assert(node, `场景索引缺少节点: ${id}`);
+  assert(node, `舞台索引缺少节点: ${id}`);
   return node.ordinal;
 }

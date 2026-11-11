@@ -17,16 +17,16 @@ import type { Executor } from "../persistence/rows";
 import { loadStageById } from "../persistence/stages";
 
 /**
- * 不走场景广播的三条通道：写给当事人自己、写给单个远端 actor、写给 stage 自己。
+ * 不走舞台广播的三条通道：写给当事人自己、写给单个远端 actor、写给 stage 自己。
  *
- * 与广播相反，它们不按观察者渲染（跨场景没有共同的地址表），因此调用方必须已经
+ * 与广播相反，它们不按观察者渲染（跨舞台没有共同的地址表），因此调用方必须已经
  * 备好文本；这里只做 owner 定位、守卫、落账与轨迹。
  */
 
 /**
  * 只写给当事人自己的观察：死亡这类「旁观者知道结果、细节只属于自己」的事实。
  *
- * 与场景广播一样是尽力而为，缺 memory 时跳过。
+ * 与舞台广播一样是尽力而为，缺 memory 时跳过。
  */
 export async function appendSelfObservation(
   executor: Executor,
@@ -64,7 +64,7 @@ export async function appendSelfObservation(
 /**
  * 向单个 actor 写一条已经渲染好的观察。
  *
- * 跨场景传音的目标不在来源场景里，不能走场景 broadcaster；调用方负责按目标视角
+ * 跨舞台传音的目标不在来源舞台里，不能走舞台 broadcaster；调用方负责按目标视角
  * 渲染引用与内容，这里只做 owner 定位、落账与轨迹。
  */
 export async function appendDirectObservation(
@@ -90,10 +90,10 @@ export async function appendDirectObservation(
 }
 
 /**
- * 向 stage 自己的 memory 写入它看到的本场景事件。
+ * 向 stage 自己的 memory 写入它看到的本舞台事件。
  *
  * 与 actor 观察相反，stage 是单 owner 不变量：缺 memory 直接抛，不做尽力而为。
- * 它只需要 stageId：场景名不会出现在自己发给自己的事件里。
+ * 它只需要 stageId：舞台名不会出现在自己发给自己的事件里。
  */
 export async function appendStageMemory(
   executor: Executor,

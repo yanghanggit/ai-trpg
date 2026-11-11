@@ -19,7 +19,7 @@ import type { ActorRow, ActorWithStageRow, Executor } from "./rows";
  */
 
 /**
- * 在本 world 内按真名定位 actor 及其场景。
+ * 在本 world 内按真名定位 actor 及其舞台。
  *
  * 语义与 `actor-state/findActorByName` 一致：名字必须存在且唯一，不退回 id 或 `#编号`。
  * 控制面入口与「只认真名」的动作共用这一条；actor-facing 目标仍要走地址表。
@@ -45,7 +45,7 @@ export async function resolveActorByNameInWorld(
   return row;
 }
 
-/** 读一个 actor 及其所在场景，并限定在该 world 内。 */
+/** 读一个 actor 及其所在舞台，并限定在该 world 内。 */
 export async function loadActorWithStage(
   executor: Executor,
   actorId: string,
@@ -61,10 +61,10 @@ export async function loadActorWithStage(
 }
 
 /**
- * 按名字读同场景角色；找不到或名字不唯一时返回 undefined。
+ * 按名字读同舞台角色；找不到或名字不唯一时返回 undefined。
  *
  * 词缀落账是尽力而为：
- * 目标在计划提交与落账之间离开场景时应当跳过，而不是让整次结算失败。
+ * 目标在计划提交与落账之间离开舞台时应当跳过，而不是让整次结算失败。
  */
 export async function loadActorByNameInStage(
   executor: Executor,
@@ -79,7 +79,7 @@ export async function loadActorByNameInStage(
   return matches.length === 1 ? matches[0] : undefined;
 }
 
-/** 读一个场景里的全部 actor（含尸体）。 */
+/** 读一个舞台里的全部 actor（含尸体）。 */
 export async function listStageActors(executor: Executor, stageId: string): Promise<ActorRow[]> {
   return executor.select().from(actors).where(eq(actors.stageId, stageId));
 }
@@ -113,7 +113,7 @@ export async function setActorEquipment(
   await executor.update(actors).set({ equipment, updatedAt: now }).where(eq(actors.id, actorId));
 }
 
-/** 改变 actor 所在场景。 */
+/** 改变 actor 所在舞台。 */
 export async function moveActorToStage(
   executor: Executor,
   actorId: string,

@@ -20,14 +20,14 @@ function torch(key: string) {
   return {
     key,
     name: "测试火把",
-    description: "测试用的场景武器。",
+    description: "测试用的舞台武器。",
     kind: "weapon" as const,
     count: 1,
     stats: { damage: 7, block: 1 },
   };
 }
 
-/** 同一个场景的两个锚点各放一件同名物品：物品地址是 (锚点, 名字)。 */
+/** 同一个舞台的两个锚点各放一件同名物品：物品地址是 (锚点, 名字)。 */
 const TWO_ANCHOR_WORLD = {
   ...TEST_WORLD,
   stages: TEST_WORLD.stages.map((stage) =>

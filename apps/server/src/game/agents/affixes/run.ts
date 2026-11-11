@@ -80,7 +80,7 @@ async function evaluateAffix(
     return {
       actorName: actor.name,
       itemName: item.name,
-      evaluation: { kind: "noop", reason: "场景里没有可结算的角色" },
+      evaluation: { kind: "noop", reason: "舞台里没有可结算的角色" },
     };
   }
 
@@ -162,7 +162,7 @@ async function evaluateAffix(
           throw new GameError("invalid_action", "record_witness 需要角色或锚点二选一");
         }
         if (targetActorHandle.length > 0 && !targetNames.includes(targetActorHandle)) {
-          throw new GameError("invalid_action", "record_witness 的目标不在当前场景");
+          throw new GameError("invalid_action", "record_witness 的目标不在当前舞台");
         }
         if (targetAnchor.length > 0 && !stage.anchors.some((a) => a.label === targetAnchor)) {
           throw new GameError("invalid_action", "record_witness 的锚点不存在");

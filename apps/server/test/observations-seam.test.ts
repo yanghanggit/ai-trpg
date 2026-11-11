@@ -81,7 +81,7 @@ describe.skipIf(!testDatabaseUrl)("world-face write seams", () => {
     ).toBe(true);
 
     // stage 自己是上帝视角：名字与引用不出现在环境与下推里，但允许出现在它自己的记忆。
-    await appendStageMemory(handle.db, created.game.id, stage.id, "# 场景事件\n守烬人推开了门。", {
+    await appendStageMemory(handle.db, created.game.id, stage.id, "# 舞台事件\n守烬人推开了门。", {
       eventKind: "wait",
     });
     const stageMemory = (await getGameMemories(handle.db, created.game.id)).find(

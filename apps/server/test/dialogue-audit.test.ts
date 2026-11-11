@@ -39,7 +39,7 @@ const testDatabaseUrl = process.env.TEST_DATABASE_URL?.trim();
 const AUDIT_WORLD = {
   name: "枯钟修道院的故事",
   campaignSetting: "黑暗奇幻世界。",
-  globalRules: "角色只能沿场景连接移动。",
+  globalRules: "角色只能沿舞台连接移动。",
   functionPrompts: {
     drops: "",
     affixes: "",
@@ -47,7 +47,7 @@ const AUDIT_WORLD = {
     compact: "",
     dialogueAudit: renderFunctionPrompt(DIALOGUE_AUDIT_SPEC, {
       campaignSetting: "黑暗奇幻世界。",
-      globalRules: "角色只能沿场景连接移动。",
+      globalRules: "角色只能沿舞台连接移动。",
     }),
   },
 } as unknown as WorldState;

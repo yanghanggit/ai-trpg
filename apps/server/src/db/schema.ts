@@ -125,7 +125,7 @@ export const stages = pgTable(
   "stages",
   {
     id: uuid("id").primaryKey(),
-    /** 本局内唯一的实体序号；未访问场景的 #seq 句柄由它派生。 */
+    /** 本局内唯一的实体序号；未访问舞台的 #seq 句柄由它派生。 */
     seq: integer("seq").notNull().default(0),
     worldId: uuid("world_id")
       .notNull()
@@ -205,7 +205,7 @@ export const actors = pgTable("actors", {
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
 });
 
-/** actor 去过哪些场景；用于地图、已访问候选与查看，不参与普通 move 权限。 */
+/** actor 去过哪些舞台；用于地图、已访问候选与查看，不参与普通 move 权限。 */
 export const stageVisits = pgTable(
   "stage_visits",
   {
@@ -390,7 +390,7 @@ export const stageItems = pgTable(
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (table) => [
-    // 物品地址是 (场景, 锚点, 名字)：同一场景的不同锚点可以各放一件同名物品。
+    // 物品地址是 (舞台, 锚点, 名字)：同一舞台的不同锚点可以各放一件同名物品。
     uniqueIndex("stage_items_stage_anchor_name_unique").on(
       table.stageId,
       table.anchorKey,

@@ -206,7 +206,7 @@ describe("name audit", () => {
     const dialogue = "奥德里克，你听着。";
     const leaks = findNameLeaks(
       baseInput([
-        message(`# 你听见\n#3对你说（场景：墓园）：${dialogue}`, {
+        message(`# 你听见\n#3对你说（舞台：墓园）：${dialogue}`, {
           metadata: {
             kind: MEMORY_KINDS.communicationObservation,
             communicationKind: "say",
@@ -250,7 +250,7 @@ describe("name audit", () => {
     const dialogue = "你好。";
     const leaks = findNameLeaks(
       baseInput([
-        message(`# 你听见\n#3对你说（场景：墓园）：${dialogue}\n\n奥德里克站在旁边。`, {
+        message(`# 你听见\n#3对你说（舞台：墓园）：${dialogue}\n\n奥德里克站在旁边。`, {
           metadata: {
             kind: MEMORY_KINDS.communicationObservation,
             communicationKind: "say",
@@ -270,7 +270,7 @@ describe("name audit", () => {
     const dialogue = "奥德里克，你听着。";
     const result = findNameAudit(
       baseInput([
-        message(`# 行动结果\n你对#3说（场景：墓园）：${dialogue}`, {
+        message(`# 行动结果\n你对#3说（舞台：墓园）：${dialogue}`, {
           metadata: {
             kind: MEMORY_KINDS.actionFeedback,
             communicationKind: "say",
@@ -304,7 +304,7 @@ describe("name audit", () => {
   it("alerts when a communication observation lacks dialogue structure", () => {
     const result = findNameAudit(
       baseInput([
-        message("# 你听见\n#3对你说（场景：墓园）：奥德里克。", {
+        message("# 你听见\n#3对你说（舞台：墓园）：奥德里克。", {
           metadata: { kind: MEMORY_KINDS.communicationObservation },
         }),
       ]),

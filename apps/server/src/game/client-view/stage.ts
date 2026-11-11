@@ -8,10 +8,10 @@ import { gameOf, viewerAnchors } from "./project";
 import type { StageView } from "./types";
 
 /**
- * 一个场景小 GM 看到的世界面：本场景、在场角色、全部出边（含封着的）、记忆日志。
+ * 舞台看到的世界面：本舞台、在场角色、全部出边（含封着的）、记忆日志。
  *
- * 与 actor 视图的区别在出口：小 GM 要裁决 open_passage，所以它需要看见封着的边，
- * 而不像演员那样只看见能走的。日志同样按 stage 自己的白名单挑。
+ * 与 actor 视图的区别在出口：舞台要裁决 open_passage，所以它需要看见封着的边，
+ * 而不像角色那样只看见能走的。日志同样按 stage 自己的白名单挑。
  */
 export async function getStageView(
   db: Database,
@@ -25,7 +25,7 @@ export async function getStageView(
   return {
     game: gameOf(state),
     viewer: { stageId: stage.id, name: stage.name },
-    scene: {
+    stage: {
       id: stage.id,
       name: stage.name,
       environment: stage.environment,

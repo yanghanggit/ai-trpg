@@ -169,7 +169,7 @@ export async function getGameStateSlice(db: Database, ref: string): Promise<Game
 /** 行 → 状态；纯函数，不读库也不做业务判定。 */
 function assembleState(rows: StateRows): GameStateSlice {
   const visits = assembleVisits(rows.stages, rows.visits);
-  // 场景物品挂在锚点上：按 (stage, anchorKey) 分组，读侧还原成树。
+  // 舞台物品挂在锚点上：按 (stage, anchorKey) 分组，读侧还原成树。
   const itemsByAnchor = new Map<string, ItemState[]>();
   for (const item of rows.stageItems) {
     const id = `${item.stageId}:${item.anchorKey}`;
@@ -184,7 +184,7 @@ function assembleState(rows: StateRows): GameStateSlice {
     if (!anchorKeysByStage.get(item.stageId)?.has(item.anchorKey)) {
       throw new GameError(
         "invalid_state",
-        `场景物品 ${item.name} 挂在未声明的锚点上: ${item.anchorKey}`,
+        `舞台物品 ${item.name} 挂在未声明的锚点上: ${item.anchorKey}`,
       );
     }
   }
@@ -310,7 +310,7 @@ function assembleState(rows: StateRows): GameStateSlice {
 /**
  * 访问历史按首次到访排序。
  *
- * 同一回合的多次到达共享同一个 `now`，时间并列时用场景序号兜底，保证读出的顺序可复现。
+ * 同一回合的多次到达共享同一个 `now`，时间并列时用舞台序号兜底，保证读出的顺序可复现。
  */
 function assembleVisits(stages: readonly StageRow[], rows: readonly VisitRow[]): StageVisitState[] {
   const stageOrdinal = new Map(stages.map((stage) => [stage.id, stage.ordinal]));
@@ -318,7 +318,7 @@ function assembleVisits(stages: readonly StageRow[], rows: readonly VisitRow[]):
     const ordinal = stageOrdinal.get(stageId);
     // 到访记录由外键指向 stages，actor 又属于本 world，所以这里不可能缺失；
     // 真缺失说明数据被改坏，宁可当场炸，也不排序成 0 悄悄混进列表开头。
-    assert(ordinal !== undefined, `访问历史指向了本局之外的场景: ${stageId}`);
+    assert(ordinal !== undefined, `访问历史指向了本局之外的舞台: ${stageId}`);
     return ordinal;
   };
   return rows

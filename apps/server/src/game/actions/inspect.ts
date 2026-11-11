@@ -20,7 +20,7 @@ import type { ResolvedInspect } from "../settle/types";
  * 一次查看要占掉本轮唯一的行动，而且能不能不被察觉要看敏捷——
  * 先侦察再动手的代价被摆回台面上。清单本身只有查看者自己知道。
  *
- * 动作名不带对象：`targetActorHandle` 已经说明这次看的是角色，以后要看锚点或场景，
+ * 动作名不带对象：`targetActorHandle` 已经说明这次看的是角色，以后要看锚点或舞台，
  * 在参数里加对应的 target 即可，不需要再添一个 `inspect_xxx` 动作。
  */
 export function buildInspectTool(targetActorHandles: readonly string[]): ToolDefinition {
@@ -28,13 +28,13 @@ export function buildInspectTool(targetActorHandles: readonly string[]): ToolDef
     type: "function",
     function: {
       name: "inspect",
-      description: `把一次查看加入计划：看同场景目标随身携带的全部物品（含已穿戴的），活人与尸体都能看。${awarenessRuleText("inspect")}它占本轮行动名额。`,
+      description: `把一次查看加入计划：看同舞台目标随身携带的全部物品（含已穿戴的），活人与尸体都能看。${awarenessRuleText("inspect")}它占本轮行动名额。`,
       parameters: {
         type: "object",
         properties: {
           targetActorHandle: {
             type: "string",
-            description: "被查看的同场景角色的引用（名字 或 #编号）",
+            description: "被查看的同舞台角色的引用（名字 或 #编号）",
             ...(targetActorHandles.length > 0 ? { enum: [...targetActorHandles] } : {}),
           },
         },
@@ -99,7 +99,7 @@ export async function applyInspect(
   const inspector = { id: actorRow.actor.id, name: actorRow.actor.name };
   const target = { id: resolved.target.id, name: resolved.target.name };
 
-  // 查看不改物品归属，但它是发生过的事：公共事件流与场景记忆都记一笔，
+  // 查看不改物品归属，但它是发生过的事：公共事件流与舞台记忆都记一笔，
   // 目标与旁观者也因此知道有人翻看过行囊。
   await bumpGameVersion(executor, gameId, now);
   const content = `${inspector.name}查看了${target.name}随身携带的东西。`;
@@ -110,7 +110,7 @@ export async function applyInspect(
     visibility: "stage",
     content,
   });
-  // 不被察觉的查看不写任何观察；公共流与场景记忆仍是上帝视角。
+  // 不被察觉的查看不写任何观察；公共流与舞台记忆仍是上帝视角。
   if (resolved.noticed) {
     await appendInspectObservations(
       executor,
@@ -124,7 +124,7 @@ export async function applyInspect(
     executor,
     gameId,
     resolved.stage.id,
-    `# 场景事件\n${content}`,
+    `# 舞台事件\n${content}`,
     { eventKind: "inspect", targetActorId: target.id },
     trace,
   );

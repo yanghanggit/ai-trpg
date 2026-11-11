@@ -8,7 +8,7 @@ import type { World } from "../world-definition";
 /**
  * 建局的根：game 行、player 行、world 行与 world 记忆。
  *
- * 先有这三行，场景与角色才有挂载点；world 的 system prompt 同时返回，供建局后导出。
+ * 先有这三行，舞台与角色才有挂载点；world 的 system prompt 同时返回，供建局后导出。
  */
 export async function createGameWorld(
   tx: Executor,

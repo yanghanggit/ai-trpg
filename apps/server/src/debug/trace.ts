@@ -151,12 +151,12 @@ export type TraceEvent =
     }
   | {
       event: "observed";
-      /** 观察去向：场景内广播 / stage 自己的记忆 / 只给当事人自己。 */
+      /** 观察去向：舞台内广播 / stage 自己的记忆 / 只给当事人自己。 */
       via: "stage-actors" | "stage-memory" | "world-memory" | "self" | "direct";
       kind: string;
       stageId?: string;
       sourceActorId?: string;
-      /** 发起者已离开场景（如 move）时可能缺失；以 id 为准。 */
+      /** 发起者已离开舞台（如 move）时可能缺失；以 id 为准。 */
       sourceActorName?: string;
       /** 每个收件人实际看到的内容（当事人与旁观者措辞不同）。 */
       recipients?: readonly { actorId: string; actorName: string; content: string }[];

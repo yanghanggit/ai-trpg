@@ -99,7 +99,7 @@ describe.skipIf(!testDatabaseUrl)("bell monastery crypt ending", () => {
     });
     expect(looted.ok).toBe(true);
 
-    // 对祭坛使用钟舌：use 只写场景事件，开门的决定留给地窖的 stage 回合。
+    // 对祭坛使用钟舌：use 只写舞台事件，开门的决定留给地窖的 stage 回合。
     const used = await playerUse(handle.db, slug, "无名者", {
       targetStageName: "地窖",
       itemName: "旧钟的钟舌",
@@ -112,7 +112,7 @@ describe.skipIf(!testDatabaseUrl)("bell monastery crypt ending", () => {
     const cellarMemory = memoriesAfterUse.find((memory) => memory.name === "地窖");
     expect(cellarMemory?.messages.some((message) => message.content.includes("祭坛"))).toBe(true);
 
-    // 地窖的小 GM 看到钟舌归位，才把后墙的通道打开。
+    // 地窖这座舞台看到钟舌归位，才把后墙的通道打开。
     const opened = await runStageTurn(handle.db, slug, "地窖", {
       service: new ScriptedService([
         call("open_passage", { targetStageName: "钟窖" }),

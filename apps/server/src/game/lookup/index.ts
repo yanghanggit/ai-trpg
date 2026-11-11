@@ -39,7 +39,7 @@ import { signatureNamesFor } from "../persistence/signature-names";
 
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
-/** 场景 ref：id、名字或实体编号；编号与签名共用实体序号，按调用上下文区分。 */
+/** 舞台 ref：id、名字或实体编号；编号与签名共用实体序号，按调用上下文区分。 */
 function stageRefCondition(ref: string) {
   const seq = parseHandle(ref);
   if (seq !== null) {
@@ -62,7 +62,7 @@ function currentSignature(actorIdColumn: typeof actors.id) {
   return and(eq(actorSignatures.actorId, actorIdColumn), isNull(actorSignatures.endedAt));
 }
 
-/** 本场景全部角色及其当前签名。 */
+/** 本舞台全部角色及其当前签名。 */
 export async function listStageActorViews(
   executor: Executor,
   stageId: string,
@@ -112,7 +112,7 @@ export async function listActorNamesInWorld(
     .where(eq(stages.worldId, worldId));
 }
 
-/** 按签名编号在本场景内定位当前签名；只做签名查找，不查名字。 */
+/** 按签名编号在本舞台内定位当前签名；只做签名查找，不查名字。 */
 export async function resolveSignatureInStage(
   executor: Executor,
   stageId: string,
@@ -128,7 +128,7 @@ export async function resolveSignatureInStage(
 }
 
 /**
- * 某个观察者在当前场景里的引用表。
+ * 某个观察者在当前舞台里的引用表。
  *
  * 自己固定解析为「你自己」：自己的名字属于自知，不查名字表。
  * actor-facing 的目标解析不直接用这张表查名字，而是走签名 / 名字两个入口，
@@ -169,8 +169,8 @@ export async function stageAddressLookup(
 /**
  * actor-facing 的唯一目标入口，只允许两条路：
  *
- * - `#编号`：在本场景按签名查，永远不需要先知道名字；
- * - 名字：查观察者当前给本场景签名起的名字；自己按真名匹配。
+ * - `#编号`：在本舞台按签名查，永远不需要先知道名字；
+ * - 名字：查观察者当前给本舞台签名起的名字；自己按真名匹配。
  *
  * id 属于控制面，不从这里进入。名字就是地址，所以没有第二套写法。
  */
@@ -189,7 +189,7 @@ export async function resolveVisibleActor(
   if (isHandleRef(value)) {
     const view = await resolveSignatureInStage(executor, input.stageId, value);
     if (!view) {
-      throw new GameError("invalid_action", `当前场景内找不到这个编号: ${value}`);
+      throw new GameError("invalid_action", `当前舞台内找不到这个编号: ${value}`);
     }
     return view.actor;
   }
@@ -213,16 +213,16 @@ export async function resolveVisibleActor(
     const candidates = matches.map((view) => handleOf(view.signature.seq)).join("、");
     throw new GameError(
       "invalid_action",
-      `「${name}」在当前场景里对应多个对象（${candidates}）；用编号指认其中一个: ${value}`,
+      `「${name}」在当前舞台里对应多个对象（${candidates}）；用编号指认其中一个: ${value}`,
     );
   }
   if (!match) {
-    throw new GameError("invalid_action", `当前场景内找不到这个引用: ${value}`);
+    throw new GameError("invalid_action", `当前舞台内找不到这个引用: ${value}`);
   }
   return match.actor;
 }
 
-/** 本场景角色的 id 与名字；文本脱敏只需要这两项。 */
+/** 本舞台角色的 id 与名字；文本脱敏只需要这两项。 */
 export async function listStageActorRefs(
   executor: Executor,
   stageId: string,
@@ -314,7 +314,7 @@ export async function listActorItems(executor: Executor, actorId: string): Promi
   return executor.select().from(items).where(eq(items.actorId, actorId)).orderBy(asc(items.seq));
 }
 
-/** 场景物品按 (场景, 锚点, 名字) 定位：锚点内名字唯一由写入侧保证。 */
+/** 舞台物品按 (舞台, 锚点, 名字) 定位：锚点内名字唯一由写入侧保证。 */
 export async function resolveStageItem(
   executor: Executor,
   stageId: string,
@@ -339,7 +339,7 @@ export async function resolveStageItem(
   return item;
 }
 
-/** 读取与当前场景相邻的目标场景；必须存在**已通行**的连接。 */
+/** 读取与当前舞台相邻的目标舞台；必须存在**已通行**的连接。 */
 export async function resolveAdjacentStage(
   executor: Executor,
   world: WorldRow,
@@ -353,7 +353,7 @@ export async function resolveAdjacentStage(
     .where(and(eq(stages.worldId, world.id), stageRefCondition(ref)))
     .limit(1);
   if (!target) {
-    throw new GameError("invalid_action", `目标场景不存在（需要 id、名字或 #编号）: ${ref}`);
+    throw new GameError("invalid_action", `目标舞台不存在（需要 id、名字或 #编号）: ${ref}`);
   }
   const [connection] = await executor
     .select()
@@ -375,7 +375,7 @@ export async function resolveAdjacentStage(
 }
 
 /**
- * 只按真名定位场景。
+ * 只按真名定位舞台。
  *
  * 传送只认名字：`#编号` 是「看得见还没命名」的站位，id 是控制面身份，两者都不该
  * 变成传送地址——否则知识门槛会被一个编号绕过去，拒绝文案也会把名字泄出来。

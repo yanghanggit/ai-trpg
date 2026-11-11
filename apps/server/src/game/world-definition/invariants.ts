@@ -12,13 +12,13 @@ import type { Actor, World } from "../world-definition";
 export function checkWorldInvariants(world: World, ctx: z.RefinementCtx): void {
   // 职能宪法由内容层定档，但框架要确认它真的带上了这一局的设定与规则。
   checkFunctionPrompts(world, ctx);
-  // 名字就是名字：角色与场景在 world 内全局唯一，且不能带系统标记字符。
+  // 名字就是名字：角色与舞台在 world 内全局唯一，且不能带系统标记字符。
   checkEntityNamesUnique(world, ctx);
   // key 是内容引用实体的唯一方式：重复会静默指向另一样东西，宁可解析失败也不猜。
   checkKeysUnique(world, ctx);
   const actorNames = world.actors.map((actor) => actor.name);
   const stageNames = world.stages.map((stage) => stage.name);
-  // 环境文本只能点名「从本场景走得到的场景」；未通的通道对面叫什么，要靠发现与对话浮出来。
+  // 环境文本只能点名「从本舞台走得到的舞台」；未通的通道对面叫什么，要靠发现与对话浮出来。
   const visibleStageNames = (stageKey: string): Set<string> => {
     const visible = new Set<string>();
     for (const stage of world.stages) {
@@ -50,7 +50,7 @@ export function checkWorldInvariants(world: World, ctx: z.RefinementCtx): void {
     if (leaks.length > 0) {
       ctx.addIssue({
         code: "custom",
-        message: `environment 不能包含角色名、编号引用或尚未打通的场景名: ${leaks
+        message: `environment 不能包含角色名、编号引用或尚未打通的舞台名: ${leaks
           .map((leak) => leak.token)
           .join("、")}`,
         path: ["stages", index, "environment"],
@@ -59,7 +59,7 @@ export function checkWorldInvariants(world: World, ctx: z.RefinementCtx): void {
     if (!stage.actions.includes("submit_environment")) {
       ctx.addIssue({
         code: "custom",
-        message: "每个场景都必须声明 submit_environment",
+        message: "每个舞台都必须声明 submit_environment",
         path: ["stages", index, "actions"],
       });
     }
@@ -272,9 +272,9 @@ function checkKeysUnique(world: World, ctx: z.RefinementCtx): void {
 }
 
 /**
- * 角色名与场景名在 world 内全局唯一；撞名会让名字地址产生歧义。
+ * 角色名与舞台名在 world 内全局唯一；撞名会让名字地址产生歧义。
  *
- * 道具按持有者 / 场景作用域唯一，不参与这条检查。
+ * 道具按持有者 / 舞台作用域唯一，不参与这条检查。
  */
 function checkEntityNamesUnique(
   value: Pick<World, "stages" | "actors">,
@@ -285,7 +285,7 @@ function checkEntityNamesUnique(
     seen.set(name, [...(seen.get(name) ?? []), kind]);
   };
   for (const stage of value.stages) {
-    add(stage.name, "场景");
+    add(stage.name, "舞台");
   }
   for (const actor of value.actors) {
     add(actor.name, "角色");

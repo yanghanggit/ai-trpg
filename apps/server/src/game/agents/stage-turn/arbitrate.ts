@@ -19,9 +19,9 @@ import { type AnchorWrite, computeAnchorChange, isAnchorWrite, type StoredAnchor
 import { applyStageAction } from "./effects";
 
 /**
- * environment / 锚点文本的写入守卫：角色名、编号，以及「还没打通的场景名」。
+ * environment / 锚点文本的写入守卫：角色名、编号，以及「还没打通的舞台名」。
  *
- * 演员能看见的只有从本场景走得到的地方；未开启通道对面叫什么，要靠发现和对话浮出来，
+ * 角色能看见的只有从本舞台走得到的地方；未开启通道对面叫什么，要靠发现和对话浮出来，
  * 不能由一句环境描写替你宣布。允许点名的集合在写入时现查，跟着通道开合一起变。
  */
 function stageFacingGuard(input: {
@@ -101,7 +101,7 @@ export async function applyStagePlan(
       action.kind === "open_passage" ? [action.targetStageName] : [],
     );
     const anchorWrites = plan.actions.filter(isAnchorWrite);
-    // 允许点名的场景：本场景自己的名字，加上开着的出入边对面，以及本轮就要打开的那条。
+    // 允许点名的舞台：本舞台自己的名字，加上开着的出入边对面，以及本轮就要打开的那条。
     // 边表只有本 world 的十几行，跟着回合查一次比按需缓存更好读。
     const guardStageFacing = stageFacingGuard({
       actorNames,
@@ -125,10 +125,10 @@ export async function applyStagePlan(
       );
     }
     if (notifications.length > 0 && !stageActions.includes("notify_world")) {
-      return reject("通知被拒绝：本场景没有 notify_world 能力。", MEMORY_KINDS.actionRejected);
+      return reject("通知被拒绝：本舞台没有 notify_world 能力。", MEMORY_KINDS.actionRejected);
     }
     if (passages.length > 0 && !stageActions.includes("open_passage")) {
-      return reject("通道变更被拒绝：本场景没有 open_passage 能力。", MEMORY_KINDS.actionRejected);
+      return reject("通道变更被拒绝：本舞台没有 open_passage 能力。", MEMORY_KINDS.actionRejected);
     }
     if (anchorWrites.length > MAX_STAGE_ANCHOR_WRITES_PER_TURN) {
       return reject(
@@ -139,7 +139,7 @@ export async function applyStagePlan(
     for (const action of anchorWrites) {
       if (!stageActions.includes(action.kind)) {
         return reject(
-          `锚点变更被拒绝：本场景没有 ${action.kind} 能力。`,
+          `锚点变更被拒绝：本舞台没有 ${action.kind} 能力。`,
           MEMORY_KINDS.actionRejected,
         );
       }
@@ -179,7 +179,7 @@ export async function applyStagePlan(
     for (const targetStageName of passages) {
       const target = stageByName.get(targetStageName);
       if (!target) {
-        return reject("通道变更被拒绝：目标场景不存在。", MEMORY_KINDS.actionRejected);
+        return reject("通道变更被拒绝：目标舞台不存在。", MEMORY_KINDS.actionRejected);
       }
       if (!(await isPassageSealed(tx, world.id, stage.id, target.id))) {
         return reject(

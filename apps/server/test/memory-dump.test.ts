@@ -49,7 +49,7 @@ const actorMemory: AgentMemoryState = {
     {
       sequence: 3,
       type: "human",
-      content: "# 你听见\n#19公开说（场景：墓园）：我叫无名者。",
+      content: "# 你听见\n#19公开说（舞台：墓园）：我叫无名者。",
       metadata: {
         kind: "communication_observation",
         visibility: "stage",
@@ -75,7 +75,7 @@ const actorMemory: AgentMemoryState = {
     {
       sequence: 5,
       type: "tool",
-      content: "场景：墓园\n角色：你、#19",
+      content: "舞台：墓园\n角色：你、#19",
       toolCallId: "call-1",
       createdAt: "2026-11-03T12:00:04.000Z",
     },
@@ -228,7 +228,7 @@ describe.skipIf(!testDatabaseUrl)("memory dump from database", () => {
     expect(text).toContain("action_feedback");
     expect(text).toContain("你留在原地");
     // probe / memory dump 不注入当前 observation。
-    expect(text).not.toContain("## 场景物品");
+    expect(text).not.toContain("## 舞台物品");
 
     const after = await getGameState(handle.db, slug);
     const afterOwner = resolveMemoryOwner(after, "actor", "守烬人");

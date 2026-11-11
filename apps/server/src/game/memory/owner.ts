@@ -52,7 +52,7 @@ export function resolveMemoryOwner(
 }
 
 /**
- * 一局全部记忆所有者，顺序固定：world → 各场景 → 各 actor。
+ * 一局全部记忆所有者，顺序固定：world → 各舞台 → 各 actor。
  *
  * 批量维护（压缩、导出）按这个顺序逐条跑，复盘时同一局的输出顺序可复现。
  */

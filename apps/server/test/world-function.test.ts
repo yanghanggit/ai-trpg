@@ -24,9 +24,9 @@ describe("world function prompt", () => {
   });
 
   it("prefers the per-owner variant only for that owner", () => {
-    const world = worldWith({ "compact.actor": "演员专属压缩口径" });
+    const world = worldWith({ "compact.actor": "角色专属压缩口径" });
 
-    expect(worldFunctionPrompt(world, "compact", "actor")).toBe("演员专属压缩口径");
+    expect(worldFunctionPrompt(world, "compact", "actor")).toBe("角色专属压缩口径");
     expect(worldFunctionPrompt(world, "compact", "stage")).toBe(TEST_WORLD.functionPrompts.compact);
     expect(worldFunctionPrompt(world, "compact", "world")).toBe(TEST_WORLD.functionPrompts.compact);
   });

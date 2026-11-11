@@ -116,7 +116,7 @@ describe.skipIf(!testDatabaseUrl)("memory compaction", () => {
     await appendMemoryMessages(handle.db, keeper?.id as string, [
       {
         type: "human",
-        content: "# 行动结果\n你留在原地。\n\n# 当时\n场景：灰烬门廊",
+        content: "# 行动结果\n你留在原地。\n\n# 当时\n舞台：灰烬门廊",
       },
     ]);
 

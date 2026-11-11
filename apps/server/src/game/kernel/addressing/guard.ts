@@ -35,8 +35,8 @@ function escapeRegExp(value: string): string {
 /**
  * 找出文本里不应出现在世界面的内容。
  *
- * 场景名、道具名是公共标签，出现在自然叙述里合法；这里只拦编号与角色本名。
- * 场景名的泄漏与否要看连通性，单独走 `findStageNameLeaks`。
+ * 舞台名、道具名是公共标签，出现在自然叙述里合法；这里只拦编号与角色本名。
+ * 舞台名的泄漏与否要看连通性，单独走 `findStageNameLeaks`。
  */
 export function findTextLeaks(
   text: string,
@@ -62,11 +62,11 @@ export function findTextLeaks(
 }
 
 /**
- * 场景名泄漏：相邻场景的真名能不能写进可观察文本，取决于那条边通没通。
+ * 舞台名泄漏：相邻舞台的真名能不能写进可观察文本，取决于那条边通没通。
  *
- * 「北面的门缠着三圈铁链」这种话本身就是环境；但一句话就把还没打通、演员根本不知道
- * 存在的场景点出来，等于替演员做了发现。所以 environment / 锚点文本只能点名
- * 「从本场景走得到的场景」，本场景自己的名字与写作者显式放行的名单不受限制。
+ * 「北面的门缠着三圈铁链」这种话本身就是环境；但一句话就把还没打通、角色根本不知道
+ * 存在的舞台点出来，等于替角色做了发现。所以 environment / 锚点文本只能点名
+ * 「从本舞台走得到的舞台」，本舞台自己的名字与写作者显式放行的名单不受限制。
  */
 export function findStageNameLeaks(
   text: string,
@@ -109,10 +109,10 @@ export function assertWorldFaceText(
 }
 
 /**
- * 场景侧写入守卫：在角色名 / 编号之外，再拦住「演员本来不知道的场景名」。
+ * 舞台侧写入守卫：在角色名 / 编号之外，再拦住「角色本来不知道的舞台名」。
  *
- * 只能点名「从本场景走得到的场景」；未通的边对面叫什么，得靠发现与对话浮出来，
- * 不能由环境文本替演员宣布。
+ * 只能点名「从本舞台走得到的舞台」；未通的边对面叫什么，得靠发现与对话浮出来，
+ * 不能由环境文本替角色宣布。
  */
 export function assertStageFacingText(
   text: string,
@@ -130,7 +130,7 @@ export function assertStageFacingText(
   if (leaks.length > 0) {
     throw new GameError(
       "invalid_action",
-      `${input.label} 不能包含角色名、编号引用或尚未打通的场景名: ${leaks
+      `${input.label} 不能包含角色名、编号引用或尚未打通的舞台名: ${leaks
         .map((leak) => leak.token)
         .join("、")}`,
     );

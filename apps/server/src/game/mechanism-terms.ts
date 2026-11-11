@@ -25,9 +25,9 @@ const MECHANISM_ONLY_TERMS = [
   "搜刮", // loot 的短称：动作标签写的是「搜走物品」
   "挥击", // strike：单体武器攻击
   "横扫", // cleave：多目标武器攻击
-  "传音", // call：跨场景传话
+  "传音", // call：跨舞台传话
   "真名", // teleport / call 的寻址规则，不是世界的设定
-  "禁传", // teleport 的可用性，来自场景声明
+  "禁传", // teleport 的可用性，来自舞台声明
 ] as const;
 
 /**

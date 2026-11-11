@@ -14,7 +14,7 @@ export function buildWhisperTool(targets: readonly string[]): ToolDefinition {
     type: "function",
     function: {
       name: "whisper",
-      description: "把一次耳语加入计划：对当前场景的一个角色低声说话，只有对方能听见。",
+      description: "把一次耳语加入计划：对当前舞台的一个角色低声说话，只有对方能听见。",
       parameters: {
         type: "object",
         properties: {
@@ -24,7 +24,7 @@ export function buildWhisperTool(targets: readonly string[]): ToolDefinition {
           },
           targetActorHandle: {
             type: "string",
-            description: "当前场景内唯一的耳语对象：用同场景角色列表里的名字 或 #编号 引用",
+            description: "当前舞台内唯一的耳语对象：用同舞台角色列表里的名字 或 #编号 引用",
             ...(targets.length > 0 ? { enum: [...targets] } : {}),
           },
           message: { type: "string", description: "你要说出的内容" },
@@ -101,9 +101,9 @@ export async function applyWhisper(
     executor,
     gameId,
     resolved.stage.id,
-    `# 场景事件\n${source.name}对${target.name}耳语。`,
+    `# 舞台事件\n${source.name}对${target.name}耳语。`,
     { eventKind: "whisper" },
     trace,
   );
-  return `# 行动结果\n你对${actionRef(address(target.id))}耳语（场景：${resolved.stage.name}）：${resolved.action.message}`;
+  return `# 行动结果\n你对${actionRef(address(target.id))}耳语（舞台：${resolved.stage.name}）：${resolved.action.message}`;
 }

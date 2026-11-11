@@ -18,5 +18,5 @@ export type ActorRow = typeof actors.$inferSelect;
 export type ItemRow = typeof items.$inferSelect;
 export type StageItemRow = typeof stageItems.$inferSelect;
 
-/** 「角色 + 它所在的场景」：动作与仲裁几乎总是同时要这两行。 */
+/** 「角色 + 它所在的舞台」：动作与仲裁几乎总是同时要这两行。 */
 export type ActorWithStageRow = { actor: ActorRow; stage: StageRow };

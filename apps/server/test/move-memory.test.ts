@@ -49,7 +49,7 @@ describe.skipIf(!testDatabaseUrl)("move writes memory on both sides", () => {
     if (!gate || !nave) {
       throw new Error("缺少测试数据");
     }
-    // ActorState 不带 stageId：按所在场景确认移动结果。
+    // ActorState 不带 stageId：按所在舞台确认移动结果。
     const keeper = nave.actors.find((a) => a.name === "守烬人");
     const monk = gate.actors.find((a) => a.name === "提灯修士");
     const scribe = nave.actors.find((a) => a.name === "缄默抄经人");
@@ -67,7 +67,7 @@ describe.skipIf(!testDatabaseUrl)("move writes memory on both sides", () => {
     const own = await read("actor", keeper.id);
     expect(own).toContain("你从灰烬门廊抵达了断钟中殿");
 
-    // 旧场景：只知道“他走了”，不知道他去了哪。
+    // 旧舞台：只知道“他走了”，不知道他去了哪。
     const gateStage = await read("stage", gate.id);
     const monkMemory = await read("actor", monk.id);
     expect(gateStage).toContain("守烬人离开了灰烬门廊");
@@ -75,7 +75,7 @@ describe.skipIf(!testDatabaseUrl)("move writes memory on both sides", () => {
     expect(gateStage).not.toContain("断钟中殿");
     expect(monkMemory).not.toContain("断钟中殿");
 
-    // 新场景：只知道“他来了”，不知道他从哪来。
+    // 新舞台：只知道“他来了”，不知道他从哪来。
     const naveStage = await read("stage", nave.id);
     const scribeMemory = await read("actor", scribe.id);
     expect(naveStage).toContain("守烬人进入了断钟中殿");

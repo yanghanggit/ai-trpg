@@ -70,7 +70,7 @@ ${staticFacts}
 ${input.defaultFeedback}
 
 ## 结算对象
-场景：${input.stageName}
+舞台：${input.stageName}
 触发：${input.trigger}
 持有者：${input.actorName}（${statsText(input.actorStats)}）
 物品：${input.itemName}（${statsText(input.itemStats)}）

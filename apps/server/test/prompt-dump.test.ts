@@ -66,7 +66,7 @@ describe("prompt dump", () => {
   });
 
   it("sanitizes names and renders the world prompt", () => {
-    expect(safeFileName("场景/奥德里克 的墓园")).toBe("场景_奥德里克_的墓园");
+    expect(safeFileName("舞台/奥德里克 的墓园")).toBe("舞台_奥德里克_的墓园");
     expect(safeFileName("")).toBe("unnamed");
     expect(timestampName(new Date("2026-01-02T03:04:05"))).toBe("20260102_030405");
     expect(promptsRoot(root)).toBe(root);

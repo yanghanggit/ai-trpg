@@ -8,7 +8,7 @@ import type { AppearanceOptions, AppearanceOutcome } from "./types";
  * 活人的外观：按形态 + 穿戴 + 记忆重新生成，覆盖当前记录，并广播这次可见变化。
  *
  * 只更新运行时外观，不改 system prompt：签名上的 `form` 才是稳定身份。写回后把这次
- * 可见变化写进记忆：自己一条、同场景他人各一条。
+ * 可见变化写进记忆：自己一条、同舞台他人各一条。
  */
 export async function updateAppearance(
   db: Database,

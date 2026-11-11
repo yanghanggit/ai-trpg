@@ -15,7 +15,7 @@ import { MAX_STAGE_NOTIFICATIONS_PER_TURN, MAX_WORLD_ACTIONS_PER_TURN } from "./
 export const DEFAULT_ACTOR_MAX_ROUNDS = 4;
 
 /**
- * stage 小 GM 的轮数预算：environment + 锚点一次 + open_passage + 两条通知 +
+ * 舞台的轮数预算：environment + 锚点一次 + open_passage + 两条通知 +
  * submit_stage_plan，再加一次纠偏。
  */
 export const DEFAULT_STAGE_MAX_ROUNDS = MAX_STAGE_NOTIFICATIONS_PER_TURN + 5;

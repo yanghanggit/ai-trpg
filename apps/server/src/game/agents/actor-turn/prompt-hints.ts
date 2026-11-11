@@ -10,7 +10,7 @@ import type { ActorTurnContext } from "./context";
  * 管不了的事——跨工具的先后顺序（先 inspect 再取、先 unequip 再 attack），以及本轮
  * 没有对应工具可调时的取舍（没武器也没 brawl 就说清不能攻击）。
  *
- * 一个 hint 只由 `allowed` / `targets` 决定，不看 state；需要场景事实的写进环境段。
+ * 一个 hint 只由 `allowed` / `targets` 决定，不看 state；需要舞台事实的写进环境段。
  * 顺序即提示词里的顺序，新加一条加进 `HINTS`，不要写回 `prompt.ts` 的模板。
  */
 
@@ -22,13 +22,13 @@ function attackKinds(context: ActorTurnContext): readonly ("strike" | "cleave")[
 }
 
 const knowledgeHint: Hint = () =>
-  "当问题涉及任何进入该世界的人都可能观察、询问或从公开记载中得知的固定事实，而当前场景与记忆无法直接确认时，必须先调用 query 检索，再回答或行动；不要用常识补全，也不要把检索结果当成亲眼所见。query 只读、不占行动名额，不提供角色秘密或当前状态。";
+  "当问题涉及任何进入该世界的人都可能观察、询问或从公开记载中得知的固定事实，而当前舞台与记忆无法直接确认时，必须先调用 query 检索，再回答或行动；不要用常识补全，也不要把检索结果当成亲眼所见。query 只读、不占行动名额，不提供角色秘密或当前状态。";
 
 // 只有名单里还有 `#编号` 时才提醒起名；已有名字也可以按 # 重新记录来更新称呼。
 const identityHint: Hint = (context) => {
   const unknownTargets = context.targets.filter(isHandleRef);
   const base =
-    "行动对象写你对它的称呼（名单里的名字）；还不知道名字、或者两个人同名时写 `#编号`。编号是系统占位，绝不能说出口。use 的 targetAnchor 只能从当前场景的「可交互锚点」里选，不能自己写位置描述。";
+    "行动对象写你对它的称呼（名单里的名字）；还不知道名字、或者两个人同名时写 `#编号`。编号是系统占位，绝不能说出口。use 的 targetAnchor 只能从当前舞台的「可交互锚点」里选，不能自己写位置描述。";
   return unknownTargets.length === 0
     ? base
     : `${base}名单里还有 \`#编号\`：可以用 recognize_identity 把它记成你认得的称呼；需要改名时对同一个编号再记一次。`;

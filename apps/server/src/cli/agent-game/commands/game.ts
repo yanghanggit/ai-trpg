@@ -1,5 +1,5 @@
 /**
- * 建局与读状态：`create` / `status` / `scene-map` / `snapshot` / `story`。
+ * 建局与读状态：`create` / `status` / `stage-map` / `snapshot` / `story`。
  *
  * 读命令不调用 LLM、不改状态；`create` 必须显式给出内容来源，不做隐式默认。
  */
@@ -146,17 +146,17 @@ export function registerGameCommands(program: Command, ctx: CommandContext): voi
   });
 
   addCommand(program, ctx, {
-    name: "scene-map",
+    name: "stage-map",
     group: GROUP,
-    summary: "按场景列出 actor 名字",
+    summary: "按舞台列出 actor 名字",
     options: [gameOption()],
     schema: z.object({ game: z.string() }),
     run: async (input, ctx) => {
       const state = await ctx.db((db) => getGameState(db, input.game));
-      const scenes = Object.fromEntries(
+      const stages = Object.fromEntries(
         state.world.stages.map((stage) => [stage.name, stage.actors.map((actor) => actor.name)]),
       );
-      return { scenes };
+      return { stages };
     },
   });
 
