@@ -5,7 +5,6 @@ import { DEMO_USER } from "../src/db/demo-fixture";
 import { resetDomainData, seedDemoData } from "../src/db/maintenance";
 import { runMigrations } from "../src/db/migrate";
 import {
-  buildActorTurnInput,
   createGame,
   getActorView,
   getGameState,
@@ -16,6 +15,7 @@ import {
 
 import { visitedTeleportTargetsFor } from "../src/game/actor-state";
 import type { World } from "../src/game/world-definition";
+import { buildActorTurnInput } from "./actor-turn-input";
 import { TEST_WORLD } from "./test-world";
 
 const testDatabaseUrl = process.env.TEST_DATABASE_URL?.trim();

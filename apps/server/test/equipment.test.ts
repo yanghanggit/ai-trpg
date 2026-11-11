@@ -8,7 +8,6 @@ import { type DatabaseHandle, openDatabase } from "../src/db/connect";
 import { resetDomainData, seedDemoData } from "../src/db/maintenance";
 import { runMigrations } from "../src/db/migrate";
 import {
-  buildActorTurnInput,
   createGame,
   getGameMemories,
   getGameState,
@@ -21,6 +20,7 @@ import {
 
 import { describeStageForActor } from "../src/game/agents/actor-turn";
 import { ChatCompletionResult, type ChatCompletionService, type ToolCall } from "../src/llm";
+import { buildActorTurnInput } from "./actor-turn-input";
 
 const testDatabaseUrl = process.env.TEST_DATABASE_URL?.trim();
 

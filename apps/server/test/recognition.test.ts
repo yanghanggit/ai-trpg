@@ -10,7 +10,6 @@ import { runMigrations } from "../src/db/migrate";
 import { stages } from "../src/db/schema";
 import {
   type ActorPlan,
-  buildActorTurnInput,
   createGame,
   getGameState,
   playerMove,
@@ -31,6 +30,7 @@ import { recordAppearance } from "../src/game/persistence/appearances";
 import { allocateEntitySeq } from "../src/game/persistence/entity-seq";
 import { insertSignature, switchCurrentSignature } from "../src/game/persistence/signatures";
 import { ChatCompletionResult, type ChatCompletionService } from "../src/llm";
+import { buildActorTurnInput } from "./actor-turn-input";
 import { allowAllDialogue } from "./test-dialogue-judge";
 import { TEST_WORLD } from "./test-world";
 

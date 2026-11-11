@@ -6,7 +6,6 @@ import { DEMO_USER } from "../src/db/demo-fixture";
 import { resetDomainData, seedDemoData } from "../src/db/maintenance";
 import { runMigrations } from "../src/db/migrate";
 import {
-  buildActorTurnInput,
   createGame,
   findActorByName,
   getActorView,
@@ -14,6 +13,7 @@ import {
   playerMove,
   takeActorControl,
 } from "../src/game";
+import { buildActorTurnInput } from "./actor-turn-input";
 
 const testDatabaseUrl = process.env.TEST_DATABASE_URL?.trim();
 

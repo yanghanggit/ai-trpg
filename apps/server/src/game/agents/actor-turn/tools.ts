@@ -286,6 +286,21 @@ ${describeStageAnchorsSection(stage.anchors)}
 }
 
 /**
+ * 任务提示词里「读」那一步要列出的只读工具，顺序即提示词的顺序。
+ *
+ * 名字从工具定义取，不手抄一份：改名只改 `function.name`，提示词自动跟随。
+ * 新增只读工具时加进这个数组：`prompt.ts` 的「读」那一步与用例都读它。
+ */
+export const ACTOR_READ_ONLY_TOOL_NAMES: readonly string[] = [
+  buildActorLookTool(),
+  buildSelfInfoTool(),
+  buildVisitedStagesTool(),
+  buildRecallRouteTool(),
+  buildKnowledgeTool(),
+  buildRecognizeIdentityTool([]),
+].map((tool) => tool.function.name);
+
+/**
  * 去过哪些场景。顺序直接沿用 `state.visits`（并列时已按场景序号兜底），
  * 这里不再重排，避开两处排序规则漂移。
  */

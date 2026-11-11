@@ -4,16 +4,11 @@ import { type DatabaseHandle, openDatabase } from "../src/db/connect";
 import { DEMO_USER } from "../src/db/demo-fixture";
 import { resetDomainData, seedDemoData } from "../src/db/maintenance";
 import { runMigrations } from "../src/db/migrate";
-import {
-  buildActorTurnInput,
-  createGame,
-  getGameState,
-  playerMove,
-  takeActorControl,
-} from "../src/game";
+import { createGame, getGameState, playerMove, takeActorControl } from "../src/game";
 import { buildVisitedStagesTool, describeVisitedStages } from "../src/game/agents/actor-turn";
 import { recordStageVisit } from "../src/game/persistence/visits";
 import type { World } from "../src/game/world-definition";
+import { buildActorTurnInput } from "./actor-turn-input";
 import { TEST_WORLD } from "./test-world";
 
 const testDatabaseUrl = process.env.TEST_DATABASE_URL?.trim();
