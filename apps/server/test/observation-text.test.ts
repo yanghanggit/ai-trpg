@@ -1,6 +1,5 @@
 import { describe, expect, it } from "vitest";
-import type { AddressLookup } from "../src/game/addressing";
-import { MEMORY_KINDS } from "../src/game/memory/kinds";
+import type { AddressLookup } from "../src/game/kernel/addressing";
 import {
   type CommunicationObservation,
   type DamageObservation,
@@ -12,7 +11,8 @@ import {
   renderEnvironmentChange,
   renderInspect as renderInspectRaw,
   renderItemEvent as renderItemEventRaw,
-} from "../src/game/observation-text";
+} from "../src/game/kernel/observation-text";
+import { MEMORY_KINDS } from "../src/game/memory/kinds";
 
 const STAGE = { id: "stage-1", name: "灰烬门廊" };
 const ACTOR = { id: "actor-1", name: "守烬人" };

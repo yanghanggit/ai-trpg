@@ -1,11 +1,11 @@
 import { z } from "zod";
 import { INNATE_ACTION_KINDS } from "../actions";
-import { NAME_MARKER_PATTERN } from "../addressing";
-import { isValidForm } from "../appearance/form";
-import { statsSchema } from "../attributes";
-import { MAX_STAGE_ANCHORS } from "../limits";
-import type { StageActionKind, WorldActionKind, WorldFunction } from "../types";
-import { WORLD_FUNCTION_TYPES } from "../types";
+import { isValidForm } from "../agents/appearance/form";
+import { NAME_MARKER_PATTERN } from "../kernel/addressing";
+import { statsSchema } from "../kernel/attributes";
+import { MAX_STAGE_ANCHORS } from "../kernel/limits";
+import type { StageActionKind, WorldActionKind, WorldFunction } from "../kernel/types";
+import { WORLD_FUNCTION_TYPES } from "../kernel/types";
 import { equipmentSchema, itemSchema } from "./item-schema";
 
 /**

@@ -12,10 +12,13 @@ const GAME_DIR = fileURLToPath(new URL("../src/game", import.meta.url));
  * 新增状态时，要么在这里登记它的唯一写者，要么先想清楚为什么它需要多个写者。
  */
 const STATE_WRITERS: readonly { name: string; allowed: readonly string[] }[] = [
-  { name: "setStageEnvironment", allowed: ["stage-turn/effects.ts"] },
-  { name: "recordAppearance", allowed: ["appearance/record.ts", "create-game/actors.ts"] },
-  { name: "openPassage", allowed: ["stage-turn/effects.ts"] },
-  { name: "completeGameIfActive", allowed: ["world-turn/arbitrate.ts"] },
+  { name: "setStageEnvironment", allowed: ["agents/stage-turn/effects.ts"] },
+  {
+    name: "recordAppearance",
+    allowed: ["agents/appearance/record.ts", "create-game/actors.ts"],
+  },
+  { name: "openPassage", allowed: ["agents/stage-turn/effects.ts"] },
+  { name: "completeGameIfActive", allowed: ["agents/world-turn/arbitrate.ts"] },
 ];
 
 /**
@@ -25,8 +28,8 @@ const STATE_WRITERS: readonly { name: string; allowed: readonly string[] }[] = [
  */
 const WORLD_MEMORY_ACCESS: readonly string[] = [
   "memory/world-channel.ts",
-  "world-turn/turn.ts",
-  "world-turn/arbitrate.ts",
+  "agents/world-turn/turn.ts",
+  "agents/world-turn/arbitrate.ts",
 ];
 
 /**

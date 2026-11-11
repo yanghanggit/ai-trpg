@@ -1,4 +1,4 @@
-import type { ConnectionState, RouteFailure, RouteQuery } from "../types";
+import type { ConnectionState, RouteFailure, RouteQuery } from "../kernel/types";
 
 /**
  * 路线回忆的输入与中间形状。

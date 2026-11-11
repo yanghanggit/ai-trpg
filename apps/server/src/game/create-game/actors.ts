@@ -1,8 +1,8 @@
 import { randomUUID } from "node:crypto";
 import { actors, items } from "../../db/schema";
-import { resolveAppearance } from "../appearance/form";
-import { toStats } from "../attributes";
+import { resolveAppearance } from "../agents/appearance/form";
 import { GameError } from "../errors";
+import { toStats } from "../kernel/attributes";
 import { buildActorSystemPrompt, createActorMemory } from "../memory";
 import { recordAppearance } from "../persistence/appearances";
 import { allocateEntitySeq } from "../persistence/entity-seq";

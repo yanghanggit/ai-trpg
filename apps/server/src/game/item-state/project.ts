@@ -1,12 +1,12 @@
-import { normalizeAffixTriggers } from "../affixes";
-import { type Stats, toStats } from "../attributes";
+import { normalizeAffixTriggers } from "../kernel/affixes";
+import { type Stats, toStats } from "../kernel/attributes";
 import type {
   AffixTriggers,
   CarriedActionKind,
   ItemKind,
   ItemState,
   WearableItemState,
-} from "../types";
+} from "../kernel/types";
 
 /**
  * 物品状态的投影：数据库那行 → `ItemState`，以及「它能不能穿」。

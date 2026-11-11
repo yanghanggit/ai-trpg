@@ -9,6 +9,7 @@ import {
   stages,
   worlds,
 } from "../../db/schema";
+import { GameError } from "../errors";
 import {
   type AddressLookup,
   handleOf,
@@ -16,9 +17,9 @@ import {
   makeAddressLookup,
   parseHandle,
   withSelf,
-} from "../addressing";
-import { addStats, type Stats } from "../attributes";
-import { GameError } from "../errors";
+} from "../kernel/addressing";
+import { addStats, type Stats } from "../kernel/attributes";
+import { EQUIPMENT_SLOTS } from "../kernel/types";
 import type {
   ActorRow,
   Executor,
@@ -28,7 +29,6 @@ import type {
   WorldRow,
 } from "../persistence/rows";
 import { signatureNamesFor } from "../persistence/signature-names";
-import { EQUIPMENT_SLOTS } from "../types";
 
 /**
  * 玩法侧带策略的只读查询：解析动作与守卫要回答「谁看得见、身上有什么、能不能到哪里」。

@@ -1,5 +1,5 @@
 import type { z } from "zod";
-import { findStageNameLeaks, findTextLeaks, NAME_MARKER_PATTERN } from "../addressing";
+import { findStageNameLeaks, findTextLeaks, NAME_MARKER_PATTERN } from "../kernel/addressing";
 import type { Actor, World } from "../world-definition";
 
 /**

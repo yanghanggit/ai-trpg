@@ -1,4 +1,4 @@
-import { addStats, type Stats } from "../attributes";
+import { addStats, type Stats } from "../kernel/attributes";
 import { resolveEquippedStats } from "../lookup";
 import type { ActorRow, Executor } from "../persistence/rows";
 

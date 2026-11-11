@@ -1,11 +1,11 @@
 import { describe, expect, it } from "vitest";
 import { BELL_MONASTERY_WORLD } from "../seeds/dark-fantasy";
+import { WORLD_FUNCTION_TYPES } from "../src/game/kernel/types";
 import {
   buildActorSystemPrompt,
   buildStageSystemPrompt,
   buildWorldSystemPrompt,
 } from "../src/game/memory";
-import { WORLD_FUNCTION_TYPES } from "../src/game/types";
 
 /**
  * 导出的 system prompt 是 Markdown 文件（`logs/prompts/`），会被人直接打开阅读。

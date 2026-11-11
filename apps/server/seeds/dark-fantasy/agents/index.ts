@@ -1,4 +1,4 @@
-import type { WorldFunction } from "../../../src/game/types";
+import type { WorldFunction } from "../../../src/game/kernel/types";
 import { AFFIXES_SPEC } from "./affixes";
 import { COMPACT_SPEC } from "./compact";
 import { DIALOGUE_AUDIT_SPEC } from "./dialogue-audit";

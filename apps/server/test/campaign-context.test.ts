@@ -1,19 +1,19 @@
 import { describe, expect, it } from "vitest";
-import { buildAffixPrompt } from "../src/game/affixes";
-import { buildCompactionInput } from "../src/game/compact";
-import { buildDropInput } from "../src/game/death";
-import {
-  buildActorSystemPrompt,
-  buildStageSystemPrompt,
-  buildWorldSystemPrompt,
-} from "../src/game/memory";
-import { buildStoryInput } from "../src/game/story";
+import { buildAffixPrompt } from "../src/game/agents/affixes";
+import { buildCompactionInput } from "../src/game/agents/compact";
+import { buildDropInput } from "../src/game/agents/death";
+import { buildStoryInput } from "../src/game/agents/story";
 import {
   type ActorState,
   type GameState,
   type StageState,
   WORLD_FUNCTION_TYPES,
-} from "../src/game/types";
+} from "../src/game/kernel/types";
+import {
+  buildActorSystemPrompt,
+  buildStageSystemPrompt,
+  buildWorldSystemPrompt,
+} from "../src/game/memory";
 import { TEST_WORLD } from "./test-world";
 
 /**

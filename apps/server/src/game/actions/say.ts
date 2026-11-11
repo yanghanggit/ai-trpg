@@ -1,13 +1,13 @@
 import type { TraceContext } from "../../debug/trace";
 import type { ToolDefinition } from "../../llm/types";
-import { type AddressLookup, actionRef, assertNoSystemReference } from "../addressing";
 import { GameError } from "../errors";
+import { type AddressLookup, actionRef, assertNoSystemReference } from "../kernel/addressing";
+import type { SayAction } from "../kernel/types";
 import { appendCommunicationObservations, appendStageMemory } from "../observations";
 import { appendPublicMessage } from "../persistence/game-messages";
 import { bumpGameVersion } from "../persistence/games";
 import type { ActorWithStageRow, Executor } from "../persistence/rows";
 import type { ResolvedSay } from "../settle/types";
-import type { SayAction } from "../types";
 
 export function buildSayTool(targets: readonly string[]): ToolDefinition {
   return {

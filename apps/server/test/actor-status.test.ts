@@ -19,8 +19,8 @@ import {
   runActorTurn,
   takeActorControl,
 } from "../src/game";
-import { describeStats } from "../src/game/actor-turn";
-import { formatForm } from "../src/game/appearance/form";
+import { describeStats } from "../src/game/agents/actor-turn";
+import { formatForm } from "../src/game/agents/appearance/form";
 import { loadAgentMemory } from "../src/game/memory";
 import { claimDeath } from "../src/game/persistence/deaths";
 import { ChatCompletionResult, type ChatCompletionService } from "../src/llm";

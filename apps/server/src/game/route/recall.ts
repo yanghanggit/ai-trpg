@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import type { RouteQuery } from "../kernel/types";
 import {
   buildEdgeIndex,
   distanceOf,
@@ -7,7 +8,6 @@ import {
   type StageEdge,
   search,
 } from "../stage-state";
-import type { RouteQuery } from "../types";
 import type { RouteNode, RouteWorld } from "./types";
 
 /**

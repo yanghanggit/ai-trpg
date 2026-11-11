@@ -1,6 +1,10 @@
 import type { Database } from "../../db/pool";
 import { type TraceContext, traceEvent } from "../../debug/trace";
-import { auditPlayerDialogue, type DialogueContext, type DialogueJudge } from "../dialogue-audit";
+import {
+  auditPlayerDialogue,
+  type DialogueContext,
+  type DialogueJudge,
+} from "../agents/dialogue-audit";
 import { DialogueBlockedError } from "../errors";
 
 /**

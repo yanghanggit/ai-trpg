@@ -1,8 +1,9 @@
 import type { TraceContext } from "../../debug/trace";
 import type { ToolDefinition } from "../../llm/types";
-import { type AddressLookup, actionRef } from "../addressing";
 import { GameError } from "../errors";
 import { withoutEquippedItem } from "../item-state";
+import { type AddressLookup, actionRef } from "../kernel/addressing";
+import type { GiveAction } from "../kernel/types";
 import { assertNotSelf, resolveActorItem } from "../lookup";
 import { appendItemObservations, appendStageMemory } from "../observations";
 import { setActorEquipment } from "../persistence/actors";
@@ -11,7 +12,6 @@ import { bumpGameVersion } from "../persistence/games";
 import { transferItemToActor } from "../persistence/items";
 import type { ActorWithStageRow, Executor } from "../persistence/rows";
 import type { ResolvedGive } from "../settle/types";
-import type { GiveAction } from "../types";
 
 export function buildGiveTool(targetActorHandles: readonly string[]): ToolDefinition {
   return {

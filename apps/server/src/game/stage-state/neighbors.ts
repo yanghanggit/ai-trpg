@@ -1,4 +1,4 @@
-import type { GameStateSlice, PassageState, StageState } from "../types";
+import type { GameStateSlice, PassageState, StageState } from "../kernel/types";
 import { buildEdgeIndex, openNeighborIds, sealedNeighborIds } from "./graph";
 
 /**

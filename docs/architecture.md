@@ -13,6 +13,10 @@
 
 服务端内部再分一层：**玩法模块不写 SQL**。动作、物品效果、stage / world 回合、死亡与外观只调用 `game/persistence/` 的具名读写原语；解析动作的只读查询在 `game/lookup/`，事务边界在 `game/settle/`（`plan.ts` 计算端、`increment.ts` 推理端），行投影与事务执行器在 `game/persistence/rows.ts`，建局在 `game/create-game/`，整局状态的装配在 `game/game-state/`，事件流与游戏行的读写都在 `game/persistence/`。`test/persistence-boundary.test.ts` 用源码扫描守住这条边界。
 
+`game/` 是业务层：不含 HTTP 适配（`fastify` 零引用，入口在 `routes/` 与 `plugins/`）、进程与调度（`cli/`、`jobs/`）、外部服务客户端（`llm/`、`deepseek/`、`rag/`、`imagegen`），只消费它们的类型、常量与默认实例；`db/` 与 `debug/` 同理，可以调具名函数，不持有连接、不自己开副作用。
+
+`game/` 内部再分两层，判据是「谁驱动谁」而不是「属于哪个主题」：`game/kernel/` 放内容形状与文本渲染（`types`、`attributes`、`limits`、`addressing`、`observation-text`、`affixes`），零 I/O，除 `errors` 与 `memory/kinds` 外不 import 游戏模块；`game/agents/` 放吃世界宪法的那一组（三个回合、四个世界职能、三个旁路与 `bypass` 回路），只被外面驱动，反向调用只有结算、动作、台词准入与建局四组。分类判据与登记表见 [Agent 与工具](agents.md)。
+
 → 参见：[开发规范](conventions.md)
 
 ## 契约链
@@ -30,6 +34,10 @@
 ## 请求生命周期
 
 页面经 `openapi-fetch` 客户端发请求；服务端用 Zod 校验输入并序列化输出；业务错误统一转成结构化响应。传输字段统一 camelCase，错误码是机器可读枚举、保持 snake_case。
+
+`game/` 是业务层：不含 HTTP 适配（`fastify` 零引用，入口在 `routes/` 与 `plugins/`）、进程与调度（`cli/`、`jobs/`）、外部服务客户端（`llm/`、`deepseek/`、`rag/`、`imagegen`），只消费它们的类型、常量与默认实例；`db/` 与 `debug/` 同理，可以调具名函数，不持有连接、不自己开副作用。
+
+`game/` 内部再分两层，判据是「谁驱动谁」而不是「属于哪个主题」：`game/kernel/` 放内容形状与文本渲染（`types`、`attributes`、`limits`、`addressing`、`observation-text`、`affixes`），零 I/O，除 `errors` 与 `memory/kinds` 外不 import 游戏模块；`game/agents/` 放吃世界宪法的那一组（三个回合、四个世界职能、三个旁路与 `bypass` 回路），只被外面驱动，反向调用只有结算、动作、台词准入与建局四组。分类判据与登记表见 [Agent 与工具](agents.md)。
 
 → 参见：[开发规范](conventions.md)
 

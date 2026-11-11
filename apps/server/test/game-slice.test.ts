@@ -21,7 +21,7 @@ import {
   runActorTurn,
   settleActorPlan,
 } from "../src/game";
-import { formatForm } from "../src/game/appearance/form";
+import { formatForm } from "../src/game/agents/appearance/form";
 import { ChatCompletionResult, type ChatCompletionService, type ToolCall } from "../src/llm";
 
 const testDatabaseUrl = process.env.TEST_DATABASE_URL?.trim();

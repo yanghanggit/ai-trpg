@@ -6,7 +6,7 @@ import { dumpSystemPrompts } from "../../debug/prompt-dump";
 import type { Logger } from "../../logging";
 import { GameError } from "../errors";
 import { getGameState } from "../game-state";
-import type { GameState } from "../types";
+import type { GameState } from "../kernel/types";
 import { parseWorldContent } from "../world-definition";
 import { bindSignatureNames, bindVisitedStages, createActors } from "./actors";
 import { buildFunctionPromptDumps } from "./prompts";

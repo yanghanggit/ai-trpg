@@ -11,10 +11,10 @@ const GAME_DIR = fileURLToPath(new URL("../src/game", import.meta.url));
  * - `settle/`：计划解析与结算事务边界（计算端 + 推理端）；
  * - `lookup/`：解析动作用的带策略只读查询；
  * - `persistence/`：具名读写原语，含玩家接管关系；
- * - `memory/` / `compact/`：记忆读写（行映射、存储、注入文本）与压缩；
+ * - `memory/` / `agents/compact/`：记忆读写（行映射、存储、注入文本）与压缩；
  * - `create-game/`：建局（内容 → 行的物化）；`game-state/`：整局状态装配。
  *
- * 玩法模块（`actions/`、`items/`、`combat/`、`stage`/`world` 回合、死亡、外观、观察）不在名单里，
+ * 玩法模块（`actions/`、`combat/`、`agents/` 下的回合与旁路、`observations/`、`kernel/`）不在名单里，
  * 它们只调用具名函数。
  */
 const ALLOWED = [
@@ -23,7 +23,7 @@ const ALLOWED = [
   "persistence/",
   "game-state/",
   "memory/",
-  "compact/",
+  "agents/compact/",
   "create-game/",
 ];
 

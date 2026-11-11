@@ -1,7 +1,7 @@
 import { allActors, findActorByName } from "../actor-state";
 import { GameError } from "../errors";
+import type { GameStateSlice } from "../kernel/types";
 import { findStage } from "../stage-state";
-import type { GameStateSlice } from "../types";
 import { MEMORY_OWNER_TYPES, type MemoryOwnerType } from "./types";
 
 /**

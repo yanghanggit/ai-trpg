@@ -1,9 +1,10 @@
 import type { TraceContext } from "../../debug/trace";
 import type { ToolDefinition } from "../../llm/types";
-import { mentionOf } from "../addressing";
 import { GameError } from "../errors";
+import { mentionOf } from "../kernel/addressing";
+import { renderAction, renderEnvironmentChange, withAppearances } from "../kernel/observation-text";
+import type { MoveAction } from "../kernel/types";
 import { resolveAdjacentStage } from "../lookup";
-import { renderAction, renderEnvironmentChange, withAppearances } from "../observation-text";
 import { appendCustomStageObservation, appendStageMemory } from "../observations";
 import { moveActorToStage } from "../persistence/actors";
 import { appendPublicMessage } from "../persistence/game-messages";
@@ -11,7 +12,6 @@ import { bumpGameVersion } from "../persistence/games";
 import type { ActorWithStageRow, Executor, WorldRow } from "../persistence/rows";
 import { recordStageVisit } from "../persistence/visits";
 import type { ResolvedMove } from "../settle/types";
-import type { MoveAction } from "../types";
 
 export function buildMoveTool(stageNames: readonly string[]): ToolDefinition {
   return {

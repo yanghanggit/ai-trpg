@@ -1,6 +1,6 @@
 import { and, eq, inArray, or } from "drizzle-orm";
 import { stageConnections, stages } from "../../db/schema";
-import type { PassageState } from "../types";
+import type { PassageState } from "../kernel/types";
 import type { Executor } from "./rows";
 
 /**

@@ -1,8 +1,8 @@
 import { describe, expect, it } from "vitest";
-import { formatForm, isValidForm, resolveAppearance } from "../src/game/appearance/form";
-import { addStats, EMPTY_STATS, toStats } from "../src/game/attributes";
+import { formatForm, isValidForm, resolveAppearance } from "../src/game/agents/appearance/form";
 import { guardPower, strengthToDamage, weaponAttackPower } from "../src/game/combat/attack";
 import { equippedSlotOf, toItemState } from "../src/game/item-state";
+import { addStats, EMPTY_STATS, toStats } from "../src/game/kernel/attributes";
 
 const ROW = {
   id: "item-1",

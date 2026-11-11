@@ -2,7 +2,7 @@ import { randomUUID } from "node:crypto";
 import { and, asc, eq, gt, max, sql } from "drizzle-orm";
 import type { Database } from "../../db/pool";
 import { gameMessages } from "../../db/schema";
-import type { MessageState, MessageVisibility } from "../types";
+import type { MessageState, MessageVisibility } from "../kernel/types";
 import type { Executor } from "./rows";
 
 /**

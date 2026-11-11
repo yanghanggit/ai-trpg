@@ -5,7 +5,7 @@ import { DEMO_USER } from "../src/db/demo-fixture";
 import { resetDomainData, seedDemoData } from "../src/db/maintenance";
 import { runMigrations } from "../src/db/migrate";
 import { createGame, getGameState, playerPickup, takeActorControl } from "../src/game";
-import type { GameState } from "../src/game/types";
+import type { GameState } from "../src/game/kernel/types";
 import { TEST_WORLD } from "./test-world";
 
 const testDatabaseUrl = process.env.TEST_DATABASE_URL?.trim();

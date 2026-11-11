@@ -1,10 +1,10 @@
 import type { Database } from "../../db/pool";
 import { traceEvent } from "../../debug/trace";
-import { runAffixPhase } from "../affixes";
-import { updateAppearance } from "../appearance";
-import { scanDeathsToSettle, settleDeath } from "../death";
+import { runAffixPhase } from "../agents/affixes";
+import { updateAppearance } from "../agents/appearance";
+import { scanDeathsToSettle, settleDeath } from "../agents/death";
 import { describeError, GameError } from "../errors";
-import type { DeathSettlement } from "../types";
+import type { DeathSettlement } from "../kernel/types";
 import type { IncrementOptions, SettlePlanResult } from "./types";
 
 /**

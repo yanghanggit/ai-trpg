@@ -1,6 +1,6 @@
-import type { DialogueJudge } from "../dialogue-audit";
+import type { DialogueJudge } from "../agents/dialogue-audit";
+import type { EquipmentSlot } from "../kernel/types";
 import type { SettleActorPlanOptions } from "../settle";
-import type { EquipmentSlot } from "../types";
 
 /**
  * 玩家入口的服务层输入。

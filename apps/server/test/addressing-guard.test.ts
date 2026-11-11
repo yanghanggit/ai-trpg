@@ -3,7 +3,7 @@ import {
   assertWorldFaceText,
   findTextLeaks,
   sanitizeActorFacingText,
-} from "../src/game/addressing";
+} from "../src/game/kernel/addressing";
 
 describe("world text guard", () => {
   it("finds handles and actor names", () => {

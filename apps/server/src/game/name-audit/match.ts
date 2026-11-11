@@ -1,6 +1,6 @@
+import type { CommunicationKind } from "../kernel/types";
 import type { AgentMemoryMessageState, AgentMemoryState } from "../memory";
 import { MEMORY_KINDS } from "../memory/kinds";
-import type { CommunicationKind } from "../types";
 import { DEFAULT_SKIP_KINDS } from "./config";
 import { subjectGroups } from "./subjects";
 import type {

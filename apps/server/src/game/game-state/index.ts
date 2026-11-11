@@ -15,10 +15,6 @@ import {
 } from "../../db/schema";
 import { GameError } from "../errors";
 import { toItemState } from "../item-state";
-import { latestMessageSequence, listGameMessages } from "../persistence/game-messages";
-import { findGame } from "../persistence/games";
-import { listSignatureNames } from "../persistence/signature-names";
-import { listCurrentSignatureViews } from "../persistence/signatures";
 import type {
   ActorState,
   ConnectionState,
@@ -29,7 +25,11 @@ import type {
   SignatureNameState,
   StageState,
   StageVisitState,
-} from "../types";
+} from "../kernel/types";
+import { latestMessageSequence, listGameMessages } from "../persistence/game-messages";
+import { findGame } from "../persistence/games";
+import { listSignatureNames } from "../persistence/signature-names";
+import { listCurrentSignatureViews } from "../persistence/signatures";
 
 type GameRow = typeof games.$inferSelect;
 type PlayerRow = {

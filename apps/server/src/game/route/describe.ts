@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import type { RouteFailure, RouteQuery } from "../types";
+import type { RouteFailure, RouteQuery } from "../kernel/types";
 import { findRoute, type SealedChain } from "./recall";
 import type { RouteNode, RouteWorld } from "./types";
 

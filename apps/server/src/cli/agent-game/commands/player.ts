@@ -34,8 +34,8 @@ import {
   takeActorControl,
 } from "../../../game";
 import { visitedStagesForActor } from "../../../game/actor-state";
-import type { ActorTurnResult } from "../../../game/types";
-import { EQUIPMENT_SLOTS } from "../../../game/types";
+import type { ActorTurnResult } from "../../../game/kernel/types";
+import { EQUIPMENT_SLOTS } from "../../../game/kernel/types";
 import {
   actorOption,
   actorRef,

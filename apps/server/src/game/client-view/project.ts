@@ -1,4 +1,4 @@
-import type { GameStateSlice, StageState } from "../types";
+import type { GameStateSlice, StageState } from "../kernel/types";
 import type { ViewerAnchor, ViewerGame } from "./types";
 
 /**

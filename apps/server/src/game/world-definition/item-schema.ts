@@ -4,9 +4,9 @@ import {
   CARRIED_ACTIONS_BY_ITEM_KIND,
   carriedActionsForKind,
 } from "../actions";
-import { NAME_MARKER_PATTERN } from "../addressing";
-import { statsSchema } from "../attributes";
-import type { ActionKind, AffixStatRef, DamageAmount, ItemKind } from "../types";
+import { NAME_MARKER_PATTERN } from "../kernel/addressing";
+import { statsSchema } from "../kernel/attributes";
+import type { ActionKind, AffixStatRef, DamageAmount, ItemKind } from "../kernel/types";
 
 /**
  * 物品定义的内容校验：只查这件物品自己的字段是否自洽。

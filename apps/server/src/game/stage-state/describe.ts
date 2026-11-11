@@ -6,7 +6,7 @@
  */
 
 import { itemSourceNote } from "../item-state/describe";
-import type { StageAnchorState, StageState } from "../types";
+import type { StageAnchorState, StageState } from "../kernel/types";
 
 /** 场景锚点的统一渲染：stage 与 actor 都看同一份公开列表，物品作为子项挂在锚点下。 */
 export function describeStageAnchors(anchors: readonly StageAnchorState[]): string {

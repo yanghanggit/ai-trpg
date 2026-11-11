@@ -1,17 +1,17 @@
 import type { TraceContext } from "../../debug/trace";
 import type { ToolDefinition } from "../../llm/types";
 import { allowedActionKinds } from "../actions";
-import { assertNoSystemReference, isHandleRef } from "../addressing";
 import { GameError } from "../errors";
+import { assertNoSystemReference, isHandleRef } from "../kernel/addressing";
+import { renderCall } from "../kernel/observation-text";
+import type { CallAction } from "../kernel/types";
 import { resolveEquippedItems } from "../lookup";
-import { renderCall } from "../observation-text";
 import { appendDirectObservation } from "../observations";
 import { resolveActorByNameInWorld } from "../persistence/actors";
 import { appendPublicMessage } from "../persistence/game-messages";
 import { bumpGameVersion } from "../persistence/games";
 import type { Executor, WorldRow } from "../persistence/rows";
 import type { ResolvedCall } from "../settle/types";
-import type { CallAction } from "../types";
 
 /**
  * 用目标的真名跨场景传话。

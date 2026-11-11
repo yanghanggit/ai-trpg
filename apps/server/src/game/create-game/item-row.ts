@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
-import { normalizeAffixTriggers } from "../affixes";
-import { toStats } from "../attributes";
+import { normalizeAffixTriggers } from "../kernel/affixes";
+import { toStats } from "../kernel/attributes";
 import type { ItemDefinition } from "../world-definition";
 
 /**

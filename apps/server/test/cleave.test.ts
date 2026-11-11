@@ -8,7 +8,7 @@ import {
   runActorTurn,
   settleActorPlan,
 } from "../src/game";
-import { formatForm } from "../src/game/appearance/form";
+import { formatForm } from "../src/game/agents/appearance/form";
 import type { World } from "../src/game/world-definition";
 import { ChatCompletionResult, type ChatCompletionService, type ToolCall } from "../src/llm";
 import { TEST_WORLD } from "./test-world";

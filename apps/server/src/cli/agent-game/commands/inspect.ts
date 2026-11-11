@@ -20,8 +20,8 @@ import {
   resolveMemoryOwner,
   runProbe,
 } from "../../../game";
+import type { ProbeTarget } from "../../../game/agents/probe";
 import type { NameLeakReport } from "../../../game/name-audit";
-import type { ProbeTarget } from "../../../game/probe";
 import {
   gameOption,
   gameRef,

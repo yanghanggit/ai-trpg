@@ -22,13 +22,13 @@ import {
   settleDeath,
   updateAppearance,
 } from "../../../game";
-import { listActorsForAppearance } from "../../../game/persistence/actors";
 import type {
   ActorTurnResult,
   DeathSettlement,
   StageTurnResult,
   WorldTurnResult,
-} from "../../../game/types";
+} from "../../../game/kernel/types";
+import { listActorsForAppearance } from "../../../game/persistence/actors";
 import type { ChatCompletionService } from "../../../llm/protocol";
 import type { Logger } from "../../../logging";
 import { gameOption, gameRef, optionalActorOption, optionalOption } from "../args";

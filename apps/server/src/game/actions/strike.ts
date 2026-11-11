@@ -1,12 +1,13 @@
 import type { TraceContext } from "../../debug/trace";
 import type { ToolDefinition } from "../../llm/types";
-import type { AddressLookup } from "../addressing";
-import { applyStaticItemAction, hasAffixes, type StaticItemActionResult } from "../affixes";
+import { applyStaticItemAction, type StaticItemActionResult } from "../agents/affixes";
 import { GameError } from "../errors";
+import type { AddressLookup } from "../kernel/addressing";
+import { hasAffixes } from "../kernel/affixes";
+import type { StrikeAction } from "../kernel/types";
 import { assertNotSelf, resolveEquippedItems } from "../lookup";
 import type { ActorWithStageRow, Executor } from "../persistence/rows";
 import type { ResolvedStrike } from "../settle/types";
-import type { StrikeAction } from "../types";
 
 /**
  * 武器动作：动作本身不带物品参数，武器隐式来自 `weapon` 槽。

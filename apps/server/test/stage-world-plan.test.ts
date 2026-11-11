@@ -1,11 +1,11 @@
 import { describe, expect, it } from "vitest";
+import { createStagePlanSession } from "../src/game/agents/stage-turn";
+import { createWorldPlanSession } from "../src/game/agents/world-turn";
 import {
   MAX_STAGE_ANCHOR_WRITES_PER_TURN,
   MAX_STAGE_NOTIFICATIONS_PER_TURN,
   MAX_WORLD_ACTIONS_PER_TURN,
-} from "../src/game/limits";
-import { createStagePlanSession } from "../src/game/stage-turn";
-import { createWorldPlanSession } from "../src/game/world-turn";
+} from "../src/game/kernel/limits";
 
 describe("stage plan session", () => {
   it("environment 是快照：同一轮写两次只留后一次", () => {

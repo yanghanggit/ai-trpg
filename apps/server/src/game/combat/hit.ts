@@ -1,6 +1,6 @@
 import type { TraceContext } from "../../debug/trace";
-import { type AddressLookup, actionRef } from "../addressing";
-import { damageActionText } from "../observation-text";
+import { type AddressLookup, actionRef } from "../kernel/addressing";
+import { damageActionText } from "../kernel/observation-text";
 import { appendDamageObservations, appendStageMemory } from "../observations";
 import { damageActor } from "../persistence/actors";
 import { appendPublicMessage } from "../persistence/game-messages";

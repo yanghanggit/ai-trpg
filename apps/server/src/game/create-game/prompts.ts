@@ -1,4 +1,4 @@
-import { WORLD_FUNCTION_TYPES } from "../types";
+import { WORLD_FUNCTION_TYPES } from "../kernel/types";
 import type { World } from "../world-definition";
 import type { PromptDump } from "./types";
 

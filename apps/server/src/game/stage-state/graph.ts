@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { GameError } from "../errors";
-import type { ConnectionState, PassageState } from "../types";
+import type { ConnectionState, PassageState } from "../kernel/types";
 
 /**
  * 场景之间的图：边的形状、按起点索引、以及在这张图上走路。

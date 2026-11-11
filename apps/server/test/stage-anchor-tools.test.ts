@@ -12,7 +12,7 @@ import {
   getGameState,
   runStageTurn,
 } from "../src/game";
-import type { GameState } from "../src/game/types";
+import type { GameState } from "../src/game/kernel/types";
 import type { World } from "../src/game/world-definition";
 import { ChatCompletionResult, type ChatCompletionService, type ToolCall } from "../src/llm";
 import { TEST_WORLD } from "./test-world";

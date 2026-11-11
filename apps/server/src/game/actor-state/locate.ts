@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
-import { isHandleRef, parseHandle } from "../addressing";
 import { GameError } from "../errors";
-import type { ActorState, GameStateSlice, StageState } from "../types";
+import { isHandleRef, parseHandle } from "../kernel/addressing";
+import type { ActorState, GameStateSlice, StageState } from "../kernel/types";
 
 /**
  * actor 的状态层定位：把引用解析成 `ActorState`（连同他所在的场景）。

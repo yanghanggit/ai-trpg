@@ -1,5 +1,5 @@
+import type { ActorState, GameStateSlice, StageState } from "../kernel/types";
 import { sealedStages } from "../stage-state";
-import type { ActorState, GameStateSlice, StageState } from "../types";
 import type { ActorWithStage } from "./locate";
 
 type StageIdIndex = Map<string, Set<string>>;

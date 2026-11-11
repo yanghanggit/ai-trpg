@@ -1,5 +1,5 @@
 import { GameError } from "../errors";
-import type { ActionKind, CarriedActionKind, InnateActionKind, ItemKind } from "../types";
+import type { ActionKind, CarriedActionKind, InnateActionKind, ItemKind } from "../kernel/types";
 
 /**
  * 携带者授予的动作：只能由穿戴中的物品提供，角色无法固有声明。

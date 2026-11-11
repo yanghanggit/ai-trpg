@@ -20,16 +20,12 @@ import { applyUnequip } from "../actions/unequip";
 import { applyUse } from "../actions/use";
 import { applyWait } from "../actions/wait";
 import { applyWhisper } from "../actions/whisper";
-import type { AddressLookup } from "../addressing";
-import { sanitizeActorFacingText } from "../addressing";
-import {
-  type AffixRequest,
-  agentAffixes,
-  type StaticOutcome,
-  type StaticSettlement,
-} from "../affixes";
+import type { AffixRequest, StaticOutcome, StaticSettlement } from "../agents/affixes";
 import { GameError } from "../errors";
-import { MAX_ACTIONS_PER_TURN } from "../limits";
+import { type AddressLookup, sanitizeActorFacingText } from "../kernel/addressing";
+import { agentAffixes } from "../kernel/affixes";
+import { MAX_ACTIONS_PER_TURN } from "../kernel/limits";
+import type { ActorPlan, CommunicationKind } from "../kernel/types";
 import { isAlive, listStageActorRefs, stageAddressLookup } from "../lookup";
 import { appendMemoryMessages, loadAgentMemory } from "../memory";
 import { MEMORY_KINDS } from "../memory/kinds";
@@ -37,7 +33,6 @@ import { bumpGameVersion } from "../persistence/games";
 import type { ActorWithStageRow, Executor } from "../persistence/rows";
 import { upsertSignatureName } from "../persistence/signature-names";
 import { describeRoute, describeRouteFailure, loadRouteWorld } from "../route";
-import type { ActorPlan, CommunicationKind } from "../types";
 import { resolvePlan } from "./resolve";
 import { describeMemoryState } from "./state-snapshot";
 import type { ResolvedAction, SettlePlanResult } from "./types";

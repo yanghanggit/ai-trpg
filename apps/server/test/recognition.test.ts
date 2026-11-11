@@ -23,9 +23,9 @@ import {
 import { parseAnnounce } from "../src/game/actions/announce";
 import { parseSay } from "../src/game/actions/say";
 import { parseWhisper } from "../src/game/actions/whisper";
-import { parseRecognizeIdentity } from "../src/game/actor-turn";
-import { addressLookupFor, handleOf, isHandleRef, refOf } from "../src/game/addressing";
-import { formatForm } from "../src/game/appearance/form";
+import { parseRecognizeIdentity } from "../src/game/agents/actor-turn";
+import { formatForm } from "../src/game/agents/appearance/form";
+import { addressLookupFor, handleOf, isHandleRef, refOf } from "../src/game/kernel/addressing";
 import { resolveVisibleActor } from "../src/game/lookup";
 import { recordAppearance } from "../src/game/persistence/appearances";
 import { allocateEntitySeq } from "../src/game/persistence/entity-seq";

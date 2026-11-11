@@ -7,8 +7,8 @@ import type {
   EquipmentSlots,
   ItemKind,
   WearableItemState,
-} from "../types";
-import { EQUIPMENT_SLOT_KINDS, EQUIPMENT_SLOT_LABELS, EQUIPMENT_SLOTS } from "../types";
+} from "../kernel/types";
+import { EQUIPMENT_SLOT_KINDS, EQUIPMENT_SLOT_LABELS, EQUIPMENT_SLOTS } from "../kernel/types";
 import { isWearable } from "./project";
 
 /**

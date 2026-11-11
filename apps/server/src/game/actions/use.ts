@@ -1,26 +1,22 @@
 import type { TraceContext } from "../../debug/trace";
 import type { ToolDefinition } from "../../llm/types";
-import { type AddressLookup, actionRef } from "../addressing";
-import {
-  applyStaticItemAction,
-  hasAffixes,
-  type StaticItemActionResult,
-  staticAffixes,
-} from "../affixes";
+import { applyStaticItemAction, type StaticItemActionResult } from "../agents/affixes";
 import { GameError } from "../errors";
 import { equippedSlotOf } from "../item-state";
+import { type AddressLookup, actionRef } from "../kernel/addressing";
+import { hasAffixes, staticAffixes } from "../kernel/affixes";
+import {
+  EQUIPMENT_SLOT_LABELS,
+  type EquipmentSlots,
+  type ItemState,
+  type UseAction,
+} from "../kernel/types";
 import { resolveActorItem } from "../lookup";
 import { appendItemObservations, appendStageMemory } from "../observations";
 import { appendPublicMessage } from "../persistence/game-messages";
 import { bumpGameVersion } from "../persistence/games";
 import type { ActorWithStageRow, Executor } from "../persistence/rows";
 import type { ResolvedUse } from "../settle/types";
-import {
-  EQUIPMENT_SLOT_LABELS,
-  type EquipmentSlots,
-  type ItemState,
-  type UseAction,
-} from "../types";
 
 /**
  * `use` 的候选物品：声明了 `affixes.use`，且此刻没被穿戴。

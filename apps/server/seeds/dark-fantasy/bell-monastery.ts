@@ -1,4 +1,4 @@
-import { formatForm } from "../../src/game/appearance/form";
+import { formatForm } from "../../src/game/agents/appearance/form";
 import type { Script } from "../assemble";
 import { GLOBAL_RULES } from "../global-rules";
 import { renderFunctionPrompts } from "./agents";

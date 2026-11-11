@@ -2,10 +2,10 @@ import type { Database } from "../../db/pool";
 import { parseCall } from "../actions/call";
 import { parseTeleport } from "../actions/teleport";
 import { findActorByRef, stageOfActor } from "../actor-state";
-import { handleOf, parseSignatureName } from "../addressing";
 import { getGameStateSlice } from "../game-state";
+import { handleOf, parseSignatureName } from "../kernel/addressing";
+import type { ActorAction, ActorPlan, ActorTurnResult } from "../kernel/types";
 import { type RouteQuestion, resolveRouteQuestion } from "../route";
-import type { ActorAction, ActorPlan, ActorTurnResult } from "../types";
 import type {
   PlayerActionOptions,
   PlayerAnnounceInput,

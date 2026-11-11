@@ -1,8 +1,7 @@
 import type { TraceContext } from "../../debug/trace";
 import type { ChatCompletionService } from "../../llm/protocol";
 import type { Logger } from "../../logging";
-import type { AffixRequest } from "../affixes";
-import type { ActorRow, ItemRow, StageItemRow, StageRow } from "../persistence/rows";
+import type { AffixRequest } from "../agents/affixes";
 import type {
   AnnounceAction,
   BrawlAction,
@@ -25,7 +24,8 @@ import type {
   UseAction,
   WaitAction,
   WhisperAction,
-} from "../types";
+} from "../kernel/types";
+import type { ActorRow, ItemRow, StageItemRow, StageRow } from "../persistence/rows";
 
 /** 已解析的名字绑定：句柄换成签名 id，写入时不再依赖可变的展示名。 */
 export type ResolvedIdentity = {

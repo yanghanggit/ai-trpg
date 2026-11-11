@@ -1,5 +1,5 @@
-import { formatForm } from "../src/game/appearance/form";
-import type { WorldFunction } from "../src/game/types";
+import { formatForm } from "../src/game/agents/appearance/form";
+import type { WorldFunction } from "../src/game/kernel/types";
 import type { World } from "../src/game/world-definition";
 
 /**

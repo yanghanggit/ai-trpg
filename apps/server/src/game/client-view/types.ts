@@ -1,4 +1,4 @@
-import type { PassageState, SignatureNameState } from "../types";
+import type { PassageState, SignatureNameState } from "../kernel/types";
 
 /**
  * 客户端用的「世界面」投影形状。

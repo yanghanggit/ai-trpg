@@ -5,8 +5,13 @@
  * 场景锚点上），所以只留这一份渲染，免得三处对同一件物品说法不一致。
  */
 
-import { STAT_LABELS } from "../attributes";
-import { type ActorState, EQUIPMENT_SLOT_LABELS, EQUIPMENT_SLOTS, type ItemState } from "../types";
+import { STAT_LABELS } from "../kernel/attributes";
+import {
+  type ActorState,
+  EQUIPMENT_SLOT_LABELS,
+  EQUIPMENT_SLOTS,
+  type ItemState,
+} from "../kernel/types";
 
 /** 材料的来源只对 material 有意义；其它大类不展示多余的字段。 */
 export function itemSourceNote(item: ItemState): string {

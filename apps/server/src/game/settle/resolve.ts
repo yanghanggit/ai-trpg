@@ -16,8 +16,9 @@ import { resolveUnequip } from "../actions/unequip";
 import { resolveUse } from "../actions/use";
 import { resolveWait } from "../actions/wait";
 import { resolveWhisper } from "../actions/whisper";
-import { assertNoSystemReference } from "../addressing";
 import { GameError } from "../errors";
+import { assertNoSystemReference } from "../kernel/addressing";
+import type { ActorPlan } from "../kernel/types";
 import { findSignatureByHandleInWorld, resolveEquippedItems, resolveVisibleActor } from "../lookup";
 import type {
   ActorRow,
@@ -27,7 +28,6 @@ import type {
   WorldRow,
 } from "../persistence/rows";
 import { signatureNamesFor } from "../persistence/signature-names";
-import type { ActorPlan } from "../types";
 import type { ResolvedAction, ResolvedIdentity, ResolvedPlan } from "./types";
 
 /**

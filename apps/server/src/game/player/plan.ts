@@ -1,13 +1,10 @@
 import type { Database } from "../../db/pool";
 import { createTurnTrace, traceEvent } from "../../debug/trace";
 import { findActorByName, findActorByRef, stageOfActor } from "../actor-state";
-import { addressLookupFor } from "../addressing";
-import { dialogueContextFor, isDialogueAction } from "../dialogue-audit";
+import { dialogueContextFor, isDialogueAction } from "../agents/dialogue-audit";
 import { GameError } from "../errors";
 import { getGameStateSlice, readTurnDelivery } from "../game-state";
-import { MEMORY_KINDS } from "../memory/kinds";
-import { isPlayerControlled } from "../persistence/actor-controls";
-import { settleActorPlan } from "../settle";
+import { addressLookupFor } from "../kernel/addressing";
 import type {
   ActorAction,
   ActorPlan,
@@ -15,7 +12,10 @@ import type {
   ActorTurnResult,
   GameStateSlice,
   StageState,
-} from "../types";
+} from "../kernel/types";
+import { MEMORY_KINDS } from "../memory/kinds";
+import { isPlayerControlled } from "../persistence/actor-controls";
+import { settleActorPlan } from "../settle";
 import { auditDialogueOrThrow } from "./audit";
 import type { PlayerActionOptions } from "./inputs";
 

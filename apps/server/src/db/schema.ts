@@ -13,9 +13,7 @@ import {
   uuid,
   vector,
 } from "drizzle-orm/pg-core";
-import type { Stats } from "../game/attributes";
-import type { AppearanceInput } from "../game/persistence/appearances";
-import type { DialogueActionKind, DialogueCategory } from "../game/persistence/dialogue-blocks";
+import type { Stats } from "../game/kernel/attributes";
 import type {
   AffixTriggers,
   CarriedActionKind,
@@ -27,7 +25,9 @@ import type {
   StageAnchorState,
   WorldActionKind,
   WorldFunction,
-} from "../game/types";
+} from "../game/kernel/types";
+import type { AppearanceInput } from "../game/persistence/appearances";
+import type { DialogueActionKind, DialogueCategory } from "../game/persistence/dialogue-blocks";
 import type { JobStatus } from "../jobs/types";
 import { EMBEDDING_DIMENSIONS } from "../rag/constants";
 import type { RagMetadata } from "../rag/types";

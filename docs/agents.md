@@ -26,17 +26,24 @@
 
 | 类别 | 目录 | 职责 |
 | ---- | ---- | ---- |
-| 记忆实体 | `world-turn` / `stage-turn` / `actor-turn` | 世界、场景、角色各自的回合，各自推进 |
-| 世界职能 | `affixes` | 一次攻击里词缀造成了什么 |
-| 世界职能 | `story` | 把记忆与事件流整理成故事 |
-| 世界职能 | `compact` | 把超长记忆压成可继续用的短记忆 |
-| 世界职能 | `dialogue-audit` | 一句玩家台词能不能进入这个世界 |
-| 旁路 | `appearance` | 借角色记忆生成或刷新可见外观（活人重算 / 尸体刷新），写回实体 |
-| 旁路 | `death`（掉落） | 借死者记忆生成尸体留下的材料，写进尸体背包 |
-| 旁路 | `probe` | 借 actor / stage 记忆只读回答，只回调用方 |
+| 记忆实体 | `agents/world-turn` / `agents/stage-turn` / `agents/actor-turn` | 世界、场景、角色各自的回合，各自推进 |
+| 世界职能 | `agents/affixes` | 一次攻击里词缀造成了什么 |
+| 世界职能 | `agents/story` | 把记忆与事件流整理成故事 |
+| 世界职能 | `agents/compact` | 把超长记忆压成可继续用的短记忆 |
+| 世界职能 | `agents/dialogue-audit` | 一句玩家台词能不能进入这个世界 |
+| 旁路 | `agents/appearance` | 借角色记忆生成或刷新可见外观（活人重算 / 尸体刷新），写回实体 |
+| 旁路 | `agents/death`（掉落） | 借死者记忆生成尸体留下的材料，写进尸体背包 |
+| 旁路 | `agents/probe` | 借 actor / stage 记忆只读回答，只回调用方 |
 | 框架工具 | `name-audit` | 检查 actor 记忆里的真名泄漏，无 LLM |
 
-`game/` 下不在本表的目录都不是 agent：结算与动作、状态层、读取与持久化、内容校验、客户端读模型各有自己的文档。分类也不看目录位置——框架文本审查在 `dev/`，文生图按要不要题材风格暂归世界职能。
+`game/` 分两层：本表前四类都在 `game/agents/`（`bypass/` 是旁路共用的推理回路，跟着一起）；其余平铺在 `game/` 根与 `game/kernel/`。
+
+- `game/kernel/`：零 I/O 的内容形状与文本渲染——`types.ts`、`attributes.ts`、`limits.ts`、`addressing/`（谁能叫出谁）、`observation-text/`（观察文本）、`affixes.ts`（词缀形状归一）。除 `errors.ts` 与 `memory/kinds.ts` 两个零依赖常量外，它不 import 任何游戏模块；玩法与 agent 都可以依赖它，它不依赖回来。
+- `game/` 根：动作与结算（`actions` / `settle` / `combat`）、状态投影（`actor-state` / `stage-state` / `item-state`）、观察（`observations`）、读侧与寻址（`lookup` / `client-view` / `route`）、持久化与装配（`persistence` / `memory` / `game-state` / `create-game`）、内容校验（`world-definition`）、玩家接管（`player`）、框架工具（`name-audit`）。
+
+`agents/` 只被外面驱动，反向调用只有四组：`settle/` 调 `affixes` / `appearance` / `death`（推理端增量），`actions/` 调 `affixes`（静态词缀），`player/` 调 `dialogue-audit`（台词准入），`create-game/` 与 `world-definition/` 调 `appearance/form`（外观可用性校验）。新增反向边时改这一句——它登记的是「谁借了 agent 的一段纯逻辑」，不是允许 agent 反过来写状态。
+
+分类也不看目录位置——框架文本审查在 `dev/`，文生图按要不要题材风格暂归世界职能，所以 `name-audit` 留在 `game/` 根、`imagegen` 在 `src/imagegen/`。
 
 前两类有编译期枚举（`MEMORY_OWNER_TYPES` / `WORLD_FUNCTION_TYPES`），旁路没有：新增一个 LLM 调用时，先在这张表里定类，再决定它带不带 memory。
 

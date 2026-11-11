@@ -1,16 +1,16 @@
 import type { TraceContext } from "../../debug/trace";
 import type { ToolDefinition } from "../../llm/types";
-import { type AddressLookup, actionRef } from "../addressing";
 import { GameError } from "../errors";
 import { toItemState } from "../item-state";
 import { describeItems } from "../item-state/describe";
+import { type AddressLookup, actionRef } from "../kernel/addressing";
+import type { InspectAction } from "../kernel/types";
 import { assertNotSelf, effectiveAgility, isAlive, listActorItems } from "../lookup";
 import { appendInspectObservations, appendStageMemory } from "../observations";
 import { appendPublicMessage } from "../persistence/game-messages";
 import { bumpGameVersion } from "../persistence/games";
 import type { ActorWithStageRow, Executor } from "../persistence/rows";
 import type { ResolvedInspect } from "../settle/types";
-import type { InspectAction } from "../types";
 
 /**
  * 查看他人随身携带的物品：与 `steal` / `loot` 同组的动作，不是免费读取。

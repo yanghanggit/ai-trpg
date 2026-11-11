@@ -1,12 +1,12 @@
 import type { TraceContext } from "../../debug/trace";
 import type { ToolDefinition } from "../../llm/types";
-import type { AddressLookup } from "../addressing";
 import { applyUnarmedHit } from "../combat/unarmed";
 import { GameError } from "../errors";
+import type { AddressLookup } from "../kernel/addressing";
+import type { BrawlAction } from "../kernel/types";
 import { assertNotSelf } from "../lookup";
 import type { ActorWithStageRow, Executor } from "../persistence/rows";
 import type { ResolvedBrawl } from "../settle/types";
-import type { BrawlAction } from "../types";
 
 /**
  * 身体动作：不读任何物品，伤害只来自行动者自身 stats。

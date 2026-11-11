@@ -1,6 +1,6 @@
 import type { Database } from "../src/db/pool";
 import { type DeathSettlementOptions, scanDeathsToSettle, settleDeath } from "../src/game";
-import type { DeathSettlement } from "../src/game/types";
+import type { DeathSettlement } from "../src/game/kernel/types";
 
 /**
  * 用例侧的收尾推进：按调用方（行动落账、CLI）的方式取名单再逐个推进。

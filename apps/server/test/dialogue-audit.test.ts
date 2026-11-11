@@ -23,9 +23,9 @@ import {
   DIALOGUE_AUDIT_UNAVAILABLE_REASON,
   type DialogueJudge,
   DialogueJudgeError,
-} from "../src/game/dialogue-audit";
+} from "../src/game/agents/dialogue-audit";
 import { DialogueBlockedError } from "../src/game/errors";
-import type { WorldState } from "../src/game/types";
+import type { WorldState } from "../src/game/kernel/types";
 import {
   ChatCompletionResult,
   type ChatCompletionService,

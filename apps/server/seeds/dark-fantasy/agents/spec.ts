@@ -1,4 +1,4 @@
-import type { WorldFunction } from "../../../src/game/types";
+import type { WorldFunction } from "../../../src/game/kernel/types";
 
 /**
  * 一个世界职能的全部文本；职能名就是它在 `WORLD_FUNCTIONS` 里的键。

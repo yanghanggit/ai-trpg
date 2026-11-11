@@ -1,12 +1,13 @@
 import type { TraceContext } from "../../debug/trace";
 import type { ToolDefinition } from "../../llm/types";
-import type { AddressLookup } from "../addressing";
-import { applyStaticItemAction, hasAffixes } from "../affixes";
+import { applyStaticItemAction } from "../agents/affixes";
 import { GameError } from "../errors";
+import type { AddressLookup } from "../kernel/addressing";
+import { hasAffixes } from "../kernel/affixes";
+import type { CleaveAction } from "../kernel/types";
 import { assertNotSelf, resolveEquippedItems } from "../lookup";
 import type { ActorRow, ActorWithStageRow, Executor } from "../persistence/rows";
 import type { ResolvedCleave } from "../settle/types";
-import type { CleaveAction } from "../types";
 
 /**
  * 武器动作：一次挥击命中多个目标，动作本身不带物品参数，武器隐式来自 `weapon` 槽。

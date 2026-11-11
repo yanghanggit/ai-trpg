@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { BELL_MONASTERY_KNOWLEDGE, BELL_MONASTERY_WORLD } from "../seeds/dark-fantasy";
-import { resolveAppearance } from "../src/game/appearance/form";
+import { resolveAppearance } from "../src/game/agents/appearance/form";
 import { buildWorldSystemPrompt } from "../src/game/memory";
 import { actorInnateActions, parseWorldContent } from "../src/game/world-definition";
 

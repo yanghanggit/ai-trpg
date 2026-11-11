@@ -1,7 +1,7 @@
 import type { Database } from "../../db/pool";
 import { traceEvent } from "../../debug/trace";
+import type { ActorPlan } from "../kernel/types";
 import { auditTurnNameLeaks, nameAuditEnabled, nameAuditSince } from "../name-audit";
-import type { ActorPlan } from "../types";
 import { runIncrementPhases } from "./increment";
 import { settlePlan } from "./plan";
 import type { SettleActorPlanOptions, SettlePlanResult } from "./types";

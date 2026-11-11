@@ -1,13 +1,13 @@
 import type { TraceContext } from "../../debug/trace";
 import type { ToolDefinition } from "../../llm/types";
-import { mentionOf } from "../addressing";
-import { renderAction, withAppearances } from "../observation-text";
+import { mentionOf } from "../kernel/addressing";
+import { renderAction, withAppearances } from "../kernel/observation-text";
+import type { WaitAction } from "../kernel/types";
 import { appendCustomStageObservation, appendStageMemory } from "../observations";
 import { appendPublicMessage } from "../persistence/game-messages";
 import { bumpGameVersion } from "../persistence/games";
 import type { ActorWithStageRow, Executor } from "../persistence/rows";
 import type { ResolvedWait } from "../settle/types";
-import type { WaitAction } from "../types";
 
 export function buildWaitTool(): ToolDefinition {
   return {

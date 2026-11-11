@@ -1,5 +1,5 @@
+import type { CommunicationKind } from "../kernel/types";
 import type { AgentMemoryMessageState, AgentMemoryState } from "../memory";
-import type { CommunicationKind } from "../types";
 
 /**
  * 名字审计的输入、命中与报告形状。

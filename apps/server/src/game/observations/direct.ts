@@ -1,5 +1,10 @@
 import { type TraceContext, traceEvent } from "../../debug/trace";
-import { assertWorldFaceText } from "../addressing";
+import { assertWorldFaceText } from "../kernel/addressing";
+import type {
+  ObservationMetadata,
+  ObservationView,
+  StageEventMetadata,
+} from "../kernel/observation-text";
 import { listStageActorViews } from "../lookup";
 import {
   appendMemoryMessages,
@@ -8,7 +13,6 @@ import {
   loadAgentMemory,
 } from "../memory";
 import { MEMORY_KINDS } from "../memory/kinds";
-import type { ObservationMetadata, ObservationView, StageEventMetadata } from "../observation-text";
 import type { Executor } from "../persistence/rows";
 import { loadStageById } from "../persistence/stages";
 

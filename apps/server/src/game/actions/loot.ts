@@ -1,8 +1,9 @@
 import type { TraceContext } from "../../debug/trace";
 import type { ToolDefinition } from "../../llm/types";
-import { type AddressLookup, actionRef } from "../addressing";
 import { GameError } from "../errors";
 import { withoutEquippedItem } from "../item-state";
+import { type AddressLookup, actionRef } from "../kernel/addressing";
+import type { LootAction } from "../kernel/types";
 import { assertNotSelf, isAlive, listActorItems } from "../lookup";
 import { appendItemObservations, appendStageMemory } from "../observations";
 import { setActorEquipment } from "../persistence/actors";
@@ -11,7 +12,6 @@ import { bumpGameVersion } from "../persistence/games";
 import { transferItemToActor } from "../persistence/items";
 import type { ActorWithStageRow, Executor } from "../persistence/rows";
 import type { ResolvedLoot } from "../settle/types";
-import type { LootAction } from "../types";
 
 /**
  * 搜刮尸体：与 `pickup` 平行的取物入口，对象只能是同场景的尸体。

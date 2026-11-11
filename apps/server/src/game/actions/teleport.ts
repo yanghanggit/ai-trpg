@@ -1,9 +1,10 @@
 import type { TraceContext } from "../../debug/trace";
 import type { ToolDefinition } from "../../llm/types";
-import { isHandleRef, mentionOf } from "../addressing";
 import { GameError } from "../errors";
+import { isHandleRef, mentionOf } from "../kernel/addressing";
+import { renderAction, renderEnvironmentChange, withAppearances } from "../kernel/observation-text";
+import type { TeleportAction } from "../kernel/types";
 import { findStageByNameInWorld } from "../lookup";
-import { renderAction, renderEnvironmentChange, withAppearances } from "../observation-text";
 import { appendCustomStageObservation, appendStageMemory } from "../observations";
 import { moveActorToStage } from "../persistence/actors";
 import { appendPublicMessage } from "../persistence/game-messages";
@@ -11,7 +12,6 @@ import { bumpGameVersion } from "../persistence/games";
 import type { ActorWithStageRow, Executor, WorldRow } from "../persistence/rows";
 import { recordStageVisit } from "../persistence/visits";
 import type { ResolvedTeleport } from "../settle/types";
-import type { TeleportAction } from "../types";
 
 export function buildTeleportTool(): ToolDefinition {
   return {

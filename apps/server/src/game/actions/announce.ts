@@ -1,13 +1,13 @@
 import type { TraceContext } from "../../debug/trace";
 import type { ToolDefinition } from "../../llm/types";
-import { assertNoSystemReference } from "../addressing";
 import { GameError } from "../errors";
+import { assertNoSystemReference } from "../kernel/addressing";
+import type { AnnounceAction } from "../kernel/types";
 import { appendCommunicationObservations, appendStageMemory } from "../observations";
 import { appendPublicMessage } from "../persistence/game-messages";
 import { bumpGameVersion } from "../persistence/games";
 import type { ActorWithStageRow, Executor } from "../persistence/rows";
 import type { ResolvedAnnounce } from "../settle/types";
-import type { AnnounceAction } from "../types";
 
 export function buildAnnounceTool(): ToolDefinition {
   return {

@@ -5,7 +5,7 @@
  * 状态侧用 id。形状在 `schema.ts`，跨实体规则在 `invariants.ts`，入口在 `index.ts`。
  */
 
-import type { Stats } from "../attributes";
+import type { Stats } from "../kernel/attributes";
 import type {
   AffixTriggers,
   CarriedActionKind,
@@ -16,7 +16,7 @@ import type {
   StageActionKind,
   WorldActionKind,
   WorldFunction,
-} from "../types";
+} from "../kernel/types";
 
 export type World = {
   contentVersion: string;

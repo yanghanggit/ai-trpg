@@ -9,7 +9,7 @@ import { resetDomainData, seedDemoData } from "../src/db/maintenance";
 import { runMigrations } from "../src/db/migrate";
 import { readTurn, type TraceContext } from "../src/debug/trace";
 import { createGame } from "../src/game";
-import { type AffixRequest, runAffixPhase } from "../src/game/affixes";
+import { type AffixRequest, runAffixPhase } from "../src/game/agents/affixes";
 import type { ChatCompletionService } from "../src/llm";
 import { TEST_WORLD } from "./test-world";
 

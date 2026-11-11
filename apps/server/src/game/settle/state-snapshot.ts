@@ -1,4 +1,4 @@
-import { mentionOf } from "../addressing";
+import { mentionOf } from "../kernel/addressing";
 import { isAlive, listStageActorViews, stageAddressLookup } from "../lookup";
 import { loadActorWithStage } from "../persistence/actors";
 import { listStageItems } from "../persistence/items";

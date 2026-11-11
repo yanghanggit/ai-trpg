@@ -4,10 +4,10 @@ import {
   type AddressSubject,
   makeAddressLookup,
   withSelf,
-} from "../addressing";
+} from "../kernel/addressing";
+import type { Audience, ObservationView } from "../kernel/observation-text";
 import { listStageActorViews } from "../lookup";
 import { appendMemoryMessages, loadAgentMemory } from "../memory";
-import type { Audience, ObservationView } from "../observation-text";
 import type { ActorRow, Executor } from "../persistence/rows";
 import { listSignatureNames } from "../persistence/signature-names";
 

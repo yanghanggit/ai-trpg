@@ -1,4 +1,4 @@
-import { MAX_STAGE_NOTIFICATIONS_PER_TURN, MAX_WORLD_ACTIONS_PER_TURN } from "./limits";
+import { MAX_STAGE_NOTIFICATIONS_PER_TURN, MAX_WORLD_ACTIONS_PER_TURN } from "./kernel/limits";
 
 /**
  * 每个推理 loop 的默认轮数预算：调用点的 `maxRounds` 可以覆盖，不给就用这里的值。

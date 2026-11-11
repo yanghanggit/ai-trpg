@@ -1,6 +1,7 @@
 import type { TraceContext } from "../../debug/trace";
 import type { ToolDefinition } from "../../llm/types";
 import { GameError } from "../errors";
+import type { PickupAction } from "../kernel/types";
 import { resolveStageItem } from "../lookup";
 import { appendItemObservations, appendStageMemory } from "../observations";
 import { appendPublicMessage } from "../persistence/game-messages";
@@ -8,7 +9,6 @@ import { bumpGameVersion } from "../persistence/games";
 import { moveStageItemToActor } from "../persistence/items";
 import type { ActorWithStageRow, Executor } from "../persistence/rows";
 import type { ResolvedPickup } from "../settle/types";
-import type { PickupAction } from "../types";
 
 export function buildPickupTool(
   availableAnchors: readonly string[] = [],

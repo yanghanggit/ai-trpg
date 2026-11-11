@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { ACTION_KINDS } from "../src/game/actions";
-import { ACTOR_ACTION_TOOLKITS, createPlanSession } from "../src/game/actor-turn";
-import { MAX_ACTIONS_PER_TURN } from "../src/game/limits";
+import { ACTOR_ACTION_TOOLKITS, createPlanSession } from "../src/game/agents/actor-turn";
+import { MAX_ACTIONS_PER_TURN } from "../src/game/kernel/limits";
 
 const wait = () => ({ kind: "wait" }) as const;
 

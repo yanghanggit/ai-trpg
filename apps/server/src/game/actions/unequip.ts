@@ -1,21 +1,21 @@
 import type { TraceContext } from "../../debug/trace";
 import type { ToolDefinition } from "../../llm/types";
-import { mentionOf } from "../addressing";
 import { GameError } from "../errors";
 import { unequipSlot } from "../item-state";
-import { renderAction, withAppearances } from "../observation-text";
+import { mentionOf } from "../kernel/addressing";
+import { renderAction, withAppearances } from "../kernel/observation-text";
+import {
+  EQUIPMENT_SLOT_LABELS,
+  EQUIPMENT_SLOTS,
+  type EquipmentSlot,
+  type UnequipAction,
+} from "../kernel/types";
 import { appendCustomStageObservation, appendStageMemory } from "../observations";
 import { setActorEquipment } from "../persistence/actors";
 import { appendPublicMessage } from "../persistence/game-messages";
 import { bumpGameVersion } from "../persistence/games";
 import type { ActorWithStageRow, Executor } from "../persistence/rows";
 import type { ResolvedUnequip } from "../settle/types";
-import {
-  EQUIPMENT_SLOT_LABELS,
-  EQUIPMENT_SLOTS,
-  type EquipmentSlot,
-  type UnequipAction,
-} from "../types";
 import { parseSlot } from "./equip";
 
 const SLOT_LABELS = EQUIPMENT_SLOTS.map((slot) => `${slot}（${EQUIPMENT_SLOT_LABELS[slot]}）`).join(
