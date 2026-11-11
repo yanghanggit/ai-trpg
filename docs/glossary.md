@@ -49,4 +49,4 @@
 - **签名切换只有数据原语**：`insertSignature` / `switchCurrentSignature` 与「名字按签名存」已经就位并有测试，但还没有游戏内的伪装 / 变身入口。
 - **名字获取靠扮演层自律**：引擎只拦 `#编号` 与空名字；名字是否来自真实认知，由提示词与对话约束，不做真名校验。
 
-→ 参见：[信息披露](information-disclosure.md)、[Actor 行动与记忆](actor-actions-memory.md)、[外观](appearance.md)、[数据库](database.md)
+→ 参见：[信息披露](information-disclosure.md)、[Actor 行动与记忆](actor-actions-memory.md)、[外观](appearance.md)、[数据库](database.md)、[引擎概念用词](terminology.md)

@@ -16,7 +16,7 @@
 
 ## 命名
 
-服务端与共享包用 kebab-case，客户端组件 PascalCase、hook 与工具函数 camelCase，测试跟随被测模块的大小写，位置见下文「测试」。同一角色只允许一种写法，例如服务端不得同时存在 `error-handler.ts` 与 `errorHandler.ts`；分区与例外归 `biome.json`。
+服务端与共享包用 kebab-case，客户端组件 PascalCase、hook 与工具函数 camelCase，测试跟随被测模块的大小写，位置见下文「测试」。同一角色只允许一种写法，例如服务端不得同时存在 `error-handler.ts` 与 `errorHandler.ts`；分区与例外归 `biome.json`。概念用词同样只有一种写法，正名与废弃说法归[引擎概念用词](terminology.md)。
 
 ## API 字段
 
