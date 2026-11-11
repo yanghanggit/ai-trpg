@@ -4,7 +4,7 @@
 >
 > 场景图、角色与物品数值、能力声明以同目录 `bell-monastery.ts` 为准，本文只写它表达不出来的东西：剧情意图、验收口径与删除条件。
 
-内容版本 `dark-fantasy.v16`，`contentKey` 为 `bell-monastery`。测试世界使用独立的小型 `TEST_WORLD`，不随本剧本变化。
+内容版本 `bell-monastery.v16`，`contentKey` 为 `bell-monastery`。测试世界使用独立的小型 `TEST_WORLD`，不随本剧本变化。
 
 ## 背景
 

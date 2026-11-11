@@ -4,7 +4,7 @@
  * 评测数据在 `seeds/<战役>/<剧本>.eval.ts`，与知识库同目录维护；这个脚本只是 runner。
  * 用法：
  *   pnpm rag:eval                    # 遍历全部已注册的评测集
- *   pnpm rag:eval --seed dark-fantasy
+ *   pnpm rag:eval --seed dark-fantasy:bell-monastery
  *   pnpm rag:eval --reindex          # 先按 seed 同步 collection
  *   pnpm rag:eval --database TEST_DATABASE_URL --top-k 10
  *   pnpm rag:eval --check            # 门槛校验，失败时非零退出（给 CI 用）

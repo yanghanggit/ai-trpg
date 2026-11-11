@@ -20,7 +20,7 @@ describe("story dump", () => {
       gameName: "主角死亡故事 E2E",
       gameSlug: "player-death-story-e2e",
       gameStatus: "completed",
-      contentVersion: "dark-fantasy.v11",
+      contentVersion: "bell-monastery.v16",
       version: 4,
       story: "奥德里克把无名者击倒在墓园里。",
       rounds: 5,

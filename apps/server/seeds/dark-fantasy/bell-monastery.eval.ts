@@ -53,7 +53,7 @@ export const BELL_MONASTERY_EVAL: RagEvalSet = {
     {
       question: "瘟疫期间死者用棺材下葬吗",
       keywords: "棺材 粗麻布 木牌",
-      expect: "不给死者用棺材",
+      expect: "下葬不用棺材",
     },
   ],
   negative: [

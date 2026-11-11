@@ -11,7 +11,7 @@ import { parseWorldContent } from "../src/game/world-definition";
  */
 const packs = Object.entries(CONTENT_PACKS);
 
-describe.each(packs)("content pack %s", (_name, pack) => {
+describe.each(packs)("content pack %s", (name, pack) => {
   const world = parseWorldContent(pack.world);
   const items = [
     ...world.actors.flatMap((actor) => actor.inventory),
@@ -19,6 +19,19 @@ describe.each(packs)("content pack %s", (_name, pack) => {
       (stage.anchors ?? []).flatMap((anchor) => anchor.items ?? []),
     ),
   ];
+
+  it("is named <campaign>:<content key>", () => {
+    const [campaign, contentKey, ...rest] = name.split(":");
+    expect(rest).toHaveLength(0);
+    expect(campaign).toBeTruthy();
+    expect(contentKey).toBe(world.contentKey);
+  });
+
+  it("versions content under its own content key", () => {
+    const prefix = `${world.contentKey}.v`;
+    expect(world.contentVersion.startsWith(prefix)).toBe(true);
+    expect(world.contentVersion.slice(prefix.length)).toMatch(/^\d+$/);
+  });
 
   it("keeps carried actions on weapons, never on actors", () => {
     for (const item of items) {

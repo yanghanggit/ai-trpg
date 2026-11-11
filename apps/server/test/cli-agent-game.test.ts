@@ -109,7 +109,15 @@ describe("agent-game CLI", () => {
       error: "player-use 需要 --target 或 --stage 二选一",
     });
 
-    const create = await run(["create", "--user", "u", "--seed", "dark-fantasy", "--world", "{}"]);
+    const create = await run([
+      "create",
+      "--user",
+      "u",
+      "--seed",
+      "dark-fantasy:bell-monastery",
+      "--world",
+      "{}",
+    ]);
     expect(create.code).toBe(2);
     expect(jsonOf(create).error).toContain("只能四选一");
   });

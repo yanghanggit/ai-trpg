@@ -9,12 +9,12 @@ import {
 /**
  * 显式内容注册表；CLI 通过名称选取，不在框架层写死故事路径。
  *
- * 一个条目 = 一个剧本（World + 与它 1:1 绑定的知识库）。`dark-fantasy` 是战役名，
- * 指向该战役的第一个剧本「枯钟修道院」；同一战役的后续剧本在同一个目录里，
- * 用带战役前缀的条目名注册。
+ * 一个条目 = 一个剧本（World + 与它 1:1 绑定的知识库），条目名统一写成
+ * `<战役>:<剧本>`。`dark-fantasy` 是战役名，不是内容包：它下面的每个剧本各自注册，
+ * 不把战役名当第一个剧本的别名——名称与目录结构保持同一套读法。
  */
 export const CONTENT_PACKS = {
-  "dark-fantasy": {
+  "dark-fantasy:bell-monastery": {
     world: BELL_MONASTERY_WORLD,
     knowledge: BELL_MONASTERY_KNOWLEDGE,
   },

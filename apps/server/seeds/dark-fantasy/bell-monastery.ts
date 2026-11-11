@@ -13,7 +13,7 @@ import { DARK_FANTASY_SETTING } from "./campaign";
 
 /** 剧本「枯钟修道院」：黑暗奇幻战役下的第一个故事切片。 */
 export const BELL_MONASTERY: Script = {
-  contentVersion: "dark-fantasy.v16",
+  contentVersion: "bell-monastery.v16",
   contentKey: "bell-monastery",
   worldName: "枯钟修道院的故事",
   functionPrompts: renderFunctionPrompts({

@@ -88,7 +88,7 @@ const game = {
   slug: "probe-recognition",
   status: "active",
   version: 2,
-  contentVersion: "dark-fantasy.v15",
+  contentVersion: "bell-monastery.v16",
 };
 
 describe("memory dump render", () => {
