@@ -1,4 +1,5 @@
 import type { WorldFunction } from "../../../src/game/kernel/types";
+import type { MemoryOwnerType } from "../../../src/game/memory";
 
 /**
  * 一个世界职能的全部文本；职能名就是它在 `WORLD_FUNCTIONS` 里的键。
@@ -15,6 +16,12 @@ export type WorldFunctionSpec = {
   profile: string;
   /** 不可协商的约束：说错了会真的出错的边界。能被 schema 或守卫强制的，不在这里复述。 */
   constraints?: string;
+  /**
+   * 按记忆主体细分的口径：只覆盖 `profile` 与 `constraints`，职责与排版共用。
+   *
+   * 目前只有压缩需要——三类主体记住的东西不同，值得留下的也就不一样。
+   */
+  variants?: Partial<Record<MemoryOwnerType, { profile?: string; constraints?: string }>>;
 };
 
 /** 职能名到它的文本；缺一个职能就是编译错误，不用等到运行时才发现。 */

@@ -1,4 +1,8 @@
-import type { WorldFunction } from "../../../src/game/kernel/types";
+import type {
+  FunctionPrompts,
+  FunctionPromptVariant,
+  WorldFunction,
+} from "../../../src/game/kernel/types";
 import { AFFIXES_SPEC } from "./affixes";
 import { COMPACT_SPEC } from "./compact";
 import { DIALOGUE_AUDIT_SPEC } from "./dialogue-audit";
@@ -51,14 +55,20 @@ ${source.globalRules}
 ${spec.profile}${tail}`;
 }
 
-/** 把清单里每个职能都装配一次，得到一个职能 → 宪法的映射。 */
-export function renderFunctionPrompts(source: WorldFunctionSource): Record<WorldFunction, string> {
-  const prompts = {} as Record<WorldFunction, string>;
+/** 把清单里每个职能都装配一次，得到一个职能 → 宪法的映射（含按主体细分的那些）。 */
+export function renderFunctionPrompts(source: WorldFunctionSource): FunctionPrompts {
+  const prompts = {} as FunctionPrompts;
   for (const [fn, spec] of Object.entries(WORLD_FUNCTIONS) as [
     WorldFunction,
     WorldFunctionSpec,
   ][]) {
     prompts[fn] = renderFunctionPrompt(spec, source);
+    for (const [ownerType, variant] of Object.entries(spec.variants ?? {})) {
+      prompts[`${fn}.${ownerType}` as FunctionPromptVariant] = renderFunctionPrompt(
+        { ...spec, ...variant },
+        source,
+      );
+    }
   }
   return prompts;
 }

@@ -170,6 +170,23 @@ function affixRequestFor(
   };
 }
 
+/** 认知条目只记结论，不拼「落账后的状态」。 */
+const COGNITION_KINDS: readonly string[] = [
+  MEMORY_KINDS.identityUpdate,
+  MEMORY_KINDS.routeRecall,
+  MEMORY_KINDS.routeFailed,
+];
+
+/**
+ * 认知是「谁叫什么」「某地怎么走」这类不随现场变化的结论；`# 当时` 记的是场景、在场者与
+ * 可交互物，随时间与人员变动失真，拼在认知里只会误导。真正的「当时」需要世界级的时间
+ * 与推进计数，等那套标记落地再补，现在不在认知条目上假装有时态。
+ */
+function isCognition(metadata: Record<string, unknown>): boolean {
+  const kind = metadata.kind;
+  return typeof kind === "string" && COGNITION_KINDS.includes(kind);
+}
+
 /** 一次计划落账的产出：结果，加上主体名（提交后的外观阶段要用）。 */
 export type PlanSettlement = {
   result: SettlePlanResult;
@@ -366,27 +383,36 @@ export async function settlePlan(
     }
 
     // 路线回忆只写自己的记忆：与动作同事务，引擎重算，不采信模型或调用方转述的文本。
+    // `routeTo` / `routeToRef` 是压缩回收时的去重键：同一目的地只留最新一条结论。
     if (knowledge) {
       for (const route of resolved.routes) {
         pendingMemory.push({
           content: `# 认知\n${describeRoute(knowledge, route)}`,
-          metadata: { kind: MEMORY_KINDS.routeRecall },
+          metadata: {
+            kind: MEMORY_KINDS.routeRecall,
+            routeFrom: route.fromStageId,
+            routeTo: route.toStageId,
+          },
         });
       }
       // 寻路失败也是一次回忆的结论：“这里我认不出来”。不透露地形，只说输入对不上。
       for (const failure of resolved.routeFailures) {
         pendingMemory.push({
           content: `# 认知\n${describeRouteFailure(knowledge, failure)}`,
-          metadata: { kind: MEMORY_KINDS.routeFailed },
+          metadata: {
+            kind: MEMORY_KINDS.routeFailed,
+            ...(failure.fromStageId === undefined ? {} : { routeFrom: failure.fromStageId }),
+            routeToRef: failure.toStageRef,
+          },
         });
       }
     }
 
-    // 一次计划的最后一条 memory 带落账后的状态；识名更新也算计划结果的一部分。
+    // 落账后的状态挂在最后一条行动记忆上；整轮只有认知时不挂。
     const state = await describeMemoryState(tx, gameId, actorId, world.id);
-    const last = pendingMemory.at(-1);
-    if (last && state) {
-      last.content = `${last.content}\n\n${state}`;
+    const carrier = [...pendingMemory].reverse().find((message) => !isCognition(message.metadata));
+    if (carrier && state) {
+      carrier.content = `${carrier.content}\n\n${state}`;
     }
     if (pendingMemory.length > 0) {
       await appendMemoryMessages(

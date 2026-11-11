@@ -5,7 +5,7 @@ import { NAME_MARKER_PATTERN } from "../kernel/addressing";
 import { statsSchema } from "../kernel/attributes";
 import { MAX_STAGE_ANCHORS } from "../kernel/limits";
 import type { StageActionKind, WorldActionKind, WorldFunction } from "../kernel/types";
-import { WORLD_FUNCTION_TYPES } from "../kernel/types";
+import { FUNCTION_PROMPT_VARIANTS, WORLD_FUNCTION_TYPES } from "../kernel/types";
 import { equipmentSchema, itemSchema } from "./item-schema";
 
 /**
@@ -114,12 +114,18 @@ export const worldSchema = z.object({
   profile: z.string().min(1),
   campaignSetting: z.string(),
   globalRules: z.string(),
-  /** 世界职能宪法：内容层在剧本构建时定档，每个职能恰好一段；缺一个就是解析失败。 */
-  functionPrompts: z.object(
-    Object.fromEntries(WORLD_FUNCTION_TYPES.map((fn) => [fn, z.string().min(1)])) as {
+  /**
+   * 世界职能宪法：内容层在剧本构建时定档，每个职能恰好一段；缺一个就是解析失败。
+   * 细分键（`compact.<主体>`）可选，不写就回落到该职能的主宪法。
+   */
+  functionPrompts: z.object({
+    ...(Object.fromEntries(WORLD_FUNCTION_TYPES.map((fn) => [fn, z.string().min(1)])) as {
       [K in WorldFunction]: z.ZodString;
-    },
-  ),
+    }),
+    ...(Object.fromEntries(
+      FUNCTION_PROMPT_VARIANTS.map((key) => [key, z.string().min(1).optional()]),
+    ) as { [K in (typeof FUNCTION_PROMPT_VARIANTS)[number]]: z.ZodOptional<z.ZodString> }),
+  }),
   stages: z.array(stageSchema).min(1),
   connections: z.array(
     z.object({

@@ -24,7 +24,7 @@ export async function summarizeMemory(
     new ChatCompletionRequest({
       label: `compact:${owner.ownerType}:${owner.name}`,
       inputMessage: buildCompactionInput(owner, transcript),
-      messages: [{ type: "system", content: buildCompactSystemPrompt(world) }],
+      messages: [{ type: "system", content: buildCompactSystemPrompt(world, owner.ownerType) }],
     }),
   );
   if (result.error) {

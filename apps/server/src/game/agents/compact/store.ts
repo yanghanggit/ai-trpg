@@ -1,6 +1,7 @@
 import { and, eq, gte } from "drizzle-orm";
 import type { Database } from "../../../db/pool";
 import { agentMemories, agentMemoryMessages, games } from "../../../db/schema";
+import type { ChatMessage } from "../../../llm";
 import { GameError } from "../../errors";
 import type { WorldState } from "../../kernel/types";
 import type { MemoryOwnerRef } from "../../memory";
@@ -17,6 +18,51 @@ import type { CompactMemoryOptions, CompactMemoryResult } from "./types";
  * 压缩后 memory 回到 [system, human] 的闭环；旧消息不丢，作为 `compactedMessages`
  * 挂在新的摘要节点上，形成可回溯树。
  */
+
+/**
+ * 压缩后按原文回填的认知类别。
+ *
+ * 路线结论在结构里没有副本（名字有 `signatureNames`，路线只有这一段记忆），被摘要改写
+ * 就等于丢了「某地怎么走、哪个地名认不认得」。摘要由模型写，不保证逐字保住，所以这里
+ * 把原文带回，让摘要只负责叙述。
+ */
+const PINNED_KINDS: readonly string[] = [MEMORY_KINDS.routeRecall, MEMORY_KINDS.routeFailed];
+
+/** 回填上限：压缩不能变成「什么都删不掉」。 */
+const MAX_PINNED_MESSAGES = 8;
+
+/** 去重键：成功的按终点场景 id，失败的按原始地名，都没有就退回正文。 */
+function pinnedKey(message: ChatMessage): string {
+  const routeTo = message.metadata?.routeTo;
+  if (typeof routeTo === "string") {
+    return `to:${routeTo}`;
+  }
+  const routeToRef = message.metadata?.routeToRef;
+  if (typeof routeToRef === "string") {
+    return `ref:${routeToRef}`;
+  }
+  return `text:${message.content}`;
+}
+
+/**
+ * 挑出要回填的认知：同一目的地只留最新一条（更早的结论会过期），整体只留最近的若干条。
+ *
+ * `delete` 后再 `set` 是故意的：Map 因此按「最后一次出现」排序，`slice(-N)` 取到的才是
+ * 最近的 N 条，而不是最早出现过的 N 条。
+ */
+function pinnedMessages(messages: readonly ChatMessage[]): ChatMessage[] {
+  const byKey = new Map<string, ChatMessage>();
+  for (const message of messages) {
+    const kind = message.metadata?.kind;
+    if (typeof kind !== "string" || !PINNED_KINDS.includes(kind)) {
+      continue;
+    }
+    const key = pinnedKey(message);
+    byKey.delete(key);
+    byKey.set(key, message);
+  }
+  return [...byKey.values()].slice(-MAX_PINNED_MESSAGES);
+}
 
 function validateMinRatio(minRatio: number | undefined): void {
   if (minRatio === undefined) {
@@ -68,6 +114,7 @@ export async function compactResolvedMemory(
     };
   }
 
+  const pinned = pinnedMessages(memory.messages.slice(1));
   const summary = await summarizeMemory(owner, memory.messages, options.service, world);
   if (owner.ownerType === "actor") {
     if (!auditInput) {
@@ -114,6 +161,12 @@ export async function compactResolvedMemory(
           compactedAt: new Date().toISOString(),
         },
       },
+      // 回填的认知保留原 kind（读侧按 kind 过滤），只加一个来源标记。
+      ...pinned.map((message) => ({
+        type: "human" as const,
+        content: message.content,
+        metadata: { ...message.metadata, pinned: true },
+      })),
     ]);
     await tx
       .update(agentMemories)
@@ -124,7 +177,8 @@ export async function compactResolvedMemory(
   return {
     ...base,
     skipped: false,
-    afterMessages: 2,
+    afterMessages: 2 + pinned.length,
+    pinnedCount: pinned.length,
     summary,
   };
 }

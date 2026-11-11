@@ -1,6 +1,6 @@
 import { type ChatMessage, getBufferString } from "../../../llm";
 import type { WorldState } from "../../kernel/types";
-import type { MemoryOwnerRef } from "../../memory";
+import type { MemoryOwnerRef, MemoryOwnerType } from "../../memory";
 import { worldFunctionPrompt } from "../../world-function";
 
 /**
@@ -44,7 +44,12 @@ export function renderTranscript(messages: readonly ChatMessage[]): string {
     .trim();
 }
 
-/** 记忆压缩的宪法：建局时装配好的完整文本。 */
-export function buildCompactSystemPrompt(world: WorldState): string {
-  return worldFunctionPrompt(world, "compact");
+/**
+ * 记忆压缩的宪法：建局时装配好的完整文本。
+ *
+ * 按记忆主体取：内容层可能为 `compact.<主体>` 单独定档（actor 与 stage/world 记住的东西
+ * 不同），没写就回落到 `compact` 那一份。
+ */
+export function buildCompactSystemPrompt(world: WorldState, ownerType: MemoryOwnerType): string {
+  return worldFunctionPrompt(world, "compact", ownerType);
 }

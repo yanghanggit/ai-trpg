@@ -47,10 +47,28 @@ export const EQUIPMENT_SLOT_KINDS: Record<EquipmentSlot, readonly ItemKind[]> = 
   accessory: ["accessory"],
 };
 
-/** 世界职能：世界级单例，只有一份宪法文本，没有 memory。 */
+/**
+ * 世界职能：世界级单例，只有一份宪法文本，没有 memory。
+ *
+ * 例外是压缩——它作用于某个主体的记忆，而三类主体记住的东西不同（actor 是感知与认知、
+ * stage 是环境仲裁、world 是通知与裁决），所以宪法可再按 `compact.<主体>` 细分。
+ */
 export const WORLD_FUNCTION_TYPES = ["affixes", "story", "compact", "dialogueAudit"] as const;
 
 export type WorldFunction = (typeof WORLD_FUNCTION_TYPES)[number];
+
+/** 按记忆主体细分的职能宪法键；内容层不写就回落到该职能的主宪法。 */
+export const FUNCTION_PROMPT_VARIANTS = [
+  "compact.actor",
+  "compact.stage",
+  "compact.world",
+] as const;
+
+export type FunctionPromptVariant = (typeof FUNCTION_PROMPT_VARIANTS)[number];
+
+/** 每个职能必有一份主宪法，压缩还允许再按主体分口径。 */
+export type FunctionPrompts = Record<WorldFunction, string> &
+  Partial<Record<FunctionPromptVariant, string>>;
 
 /**
  * 场景内的可交互锚点：actor 能明确指认的位置或部位。
@@ -514,7 +532,7 @@ export type WorldState = {
   campaignSetting: string;
   globalRules: string;
   /** 开局时定档的世界职能宪法：每个职能一份完整 system prompt，运行时直接用。 */
-  functionPrompts: Record<WorldFunction, string>;
+  functionPrompts: FunctionPrompts;
   actions: WorldActionKind[];
   stages: StageState[];
   connections: ConnectionState[];

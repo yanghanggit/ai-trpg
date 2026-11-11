@@ -131,6 +131,121 @@ describe.skipIf(!testDatabaseUrl)("memory compaction", () => {
     expect(service.inputs[0]).not.toMatch(/^# 当时/m);
   });
 
+  it("keeps route cognition verbatim and dedupes by destination", async () => {
+    const created = await createGame(handle.db, {
+      username: DEMO_USER.username,
+      name: "路线认知回填局",
+      world: TEST_WORLD,
+    });
+    const memories = await getGameMemories(handle.db, created.game.id);
+    const keeper = memories.find((memory) => memory.name === "守烬人");
+    const memoryId = keeper?.id as string;
+
+    await appendMemoryMessages(handle.db, memoryId, [
+      {
+        type: "human",
+        content: "# 认知\n从灰烬门廊到断钟中殿：灰烬门廊 → 断钟中殿（旧结论）",
+        metadata: { kind: "route_recall", routeFrom: "stage-gate", routeTo: "stage-nave" },
+      },
+      {
+        type: "human",
+        content: "# 认知\n从灰烬门廊到断钟中殿：灰烬门廊 → 断钟中殿（新结论）",
+        metadata: { kind: "route_recall", routeFrom: "stage-gate", routeTo: "stage-nave" },
+      },
+      {
+        type: "human",
+        content: "# 认知\n从灰烬门廊到墓室：灰烬门廊 → 墓室",
+        metadata: { kind: "route_recall", routeFrom: "stage-gate", routeTo: "stage-crypt" },
+      },
+      {
+        type: "human",
+        content: "# 认知\n你认不出「不存在的塔」这个地方，这次回忆只记下这一点。",
+        metadata: { kind: "route_failed", routeToRef: "不存在的塔" },
+      },
+    ]);
+
+    const service = new SummaryService();
+    const result = await compactMemory(
+      handle.db,
+      created.game.slug,
+      { ownerType: "actor", ref: "守烬人" },
+      { service },
+    );
+
+    expect(result.skipped).toBe(false);
+    // 摘要 + 三条回填（同一目的地只留最新结论）
+    expect(result.pinnedCount).toBe(3);
+    expect(result.afterMessages).toBe(5);
+
+    const [memory] = (await getGameMemories(handle.db, created.game.id)).filter(
+      (item) => item.id === memoryId,
+    );
+    const messages = memory?.messages ?? [];
+    expect(messages.map((message) => message.type)).toEqual([
+      "system",
+      "human",
+      "human",
+      "human",
+      "human",
+    ]);
+    expect(messages[1]?.metadata).toMatchObject({ kind: "compacted_memory" });
+
+    const pinned = messages.slice(2);
+    const meta = (message: (typeof messages)[number]) =>
+      message.metadata as Record<string, unknown> | undefined;
+    expect(pinned.every((message) => meta(message)?.pinned === true)).toBe(true);
+    expect(pinned.map((message) => message.content)).toEqual([
+      "# 认知\n从灰烬门廊到断钟中殿：灰烬门廊 → 断钟中殿（新结论）",
+      "# 认知\n从灰烬门廊到墓室：灰烬门廊 → 墓室",
+      "# 认知\n你认不出「不存在的塔」这个地方，这次回忆只记下这一点。",
+    ]);
+    // 原 kind 保留，读侧按 kind 过滤仍然认得出这是认知
+    expect(pinned.map((message) => meta(message)?.kind)).toEqual([
+      "route_recall",
+      "route_recall",
+      "route_failed",
+    ]);
+    // 摘要只由模型写一次，回填不经过 service
+    expect(service.calls).toBe(1);
+  });
+
+  it("caps pinned routes so compaction still shortens memory", async () => {
+    const created = await createGame(handle.db, {
+      username: DEMO_USER.username,
+      name: "路线回填上限局",
+      world: TEST_WORLD,
+    });
+    const memories = await getGameMemories(handle.db, created.game.id);
+    const memoryId = memories.find((memory) => memory.name === "守烬人")?.id as string;
+
+    await appendMemoryMessages(
+      handle.db,
+      memoryId,
+      Array.from({ length: 12 }, (_, index) => ({
+        type: "human" as const,
+        content: `# 认知\n第 ${index + 1} 条路线`,
+        metadata: { kind: "route_recall", routeTo: `stage-${index + 1}` },
+      })),
+    );
+
+    const result = await compactMemory(
+      handle.db,
+      created.game.slug,
+      { ownerType: "actor", ref: "守烬人" },
+      { service: new SummaryService() },
+    );
+
+    expect(result.pinnedCount).toBe(8);
+    const [memory] = (await getGameMemories(handle.db, created.game.id)).filter(
+      (item) => item.id === memoryId,
+    );
+    const pinned = (memory?.messages ?? []).slice(2);
+    // 只留最近的 8 条：第 5..12 条
+    expect(pinned.map((message) => message.content)).toEqual(
+      Array.from({ length: 8 }, (_, index) => `# 认知\n第 ${index + 5} 条路线`),
+    );
+  });
+
   it("rejects an actor summary that mentions an unknown true name", async () => {
     const world = {
       ...TEST_WORLD,

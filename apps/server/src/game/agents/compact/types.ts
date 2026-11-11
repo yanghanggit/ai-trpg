@@ -28,5 +28,7 @@ export type CompactMemoryResult = {
   contextUsageRatio: number;
   beforeMessages: number;
   afterMessages: number;
+  /** 压缩后按原文回填的路线认知条数；摘要之外单独计数，便于核对回填是否生效。 */
+  pinnedCount?: number;
   summary?: string;
 };

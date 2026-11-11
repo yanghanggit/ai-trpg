@@ -10,12 +10,12 @@ import type {
   AffixTriggers,
   CarriedActionKind,
   EquipmentSlots,
+  FunctionPrompts,
   InnateActionKind,
   ItemKind,
   PassageState,
   StageActionKind,
   WorldActionKind,
-  WorldFunction,
 } from "../kernel/types";
 
 export type World = {
@@ -32,7 +32,7 @@ export type World = {
    *
    * 与 `globalRules` 一样属于开局快照：改代码或内容不影响已存在的局。
    */
-  functionPrompts: Record<WorldFunction, string>;
+  functionPrompts: FunctionPrompts;
   stages: readonly Stage[];
   connections: readonly Connection[];
   actors: readonly Actor[];

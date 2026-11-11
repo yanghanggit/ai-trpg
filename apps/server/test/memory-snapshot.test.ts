@@ -5,10 +5,14 @@ import { DEMO_USER } from "../src/db/demo-fixture";
 import { resetDomainData, seedDemoData } from "../src/db/maintenance";
 import { runMigrations } from "../src/db/migrate";
 import {
+  applyPlayerPlan,
   createGame,
+  getGameMemories,
   getGameState,
   loadAgentMemory,
   playerMove,
+  playerRecallRoute,
+  playerRecognizeIdentity,
   playerWait,
   runActorTurn,
   takeActorControl,
@@ -143,6 +147,62 @@ describe.skipIf(!testDatabaseUrl)("memory state snapshot", () => {
     expect(content).toContain("# 当时");
     expect(content).toContain("场景：灰烬门廊");
     expect(content).toContain("在场：你、提灯修士");
+  });
+
+  it("keeps the scene snapshot out of cognition memories", async () => {
+    const created = await createGame(handle.db, {
+      username: DEMO_USER.username,
+      name: "认知不带现场局",
+      world: TEST_WORLD,
+    });
+    await takeActorControl(handle.db, created.game.slug, "守烬人");
+    await playerRecallRoute(handle.db, created.game.slug, "守烬人", { toStageRef: "断钟中殿" });
+
+    const { actor } = await actorByName(created.game.slug, "守烬人");
+    const routeMemory = await lastMemory(created.game.id, actor.id);
+    expect(routeMemory).toContain("# 认知");
+    expect(routeMemory).not.toContain("# 当时");
+
+    await playerRecognizeIdentity(handle.db, created.game.slug, "守烬人", {
+      targetActorRef: "缄默抄经人",
+      name: "提灯修士",
+    });
+    const identityMemory = await lastMemory(created.game.id, actor.id);
+    expect(identityMemory).toContain("# 认知");
+    expect(identityMemory).not.toContain("# 当时");
+  });
+
+  it("still attaches the snapshot to the action result in a mixed turn", async () => {
+    const created = await createGame(handle.db, {
+      username: DEMO_USER.username,
+      name: "认知与动作混合局",
+      world: TEST_WORLD,
+    });
+    await takeActorControl(handle.db, created.game.slug, "守烬人");
+    const state = await getGameState(handle.db, created.game.slug);
+    const stageId = (name: string) => {
+      const stage = state.world.stages.find((item) => item.name === name);
+      if (!stage) {
+        throw new Error(`缺少场景: ${name}`);
+      }
+      return stage.id;
+    };
+    // 一个计划里既有动作又有认知：状态块挂在行动结果上，认知各自干净
+    await applyPlayerPlan(handle.db, created.game.slug, "守烬人", {
+      actions: [{ kind: "wait" }],
+      routes: [{ fromStageId: stageId("灰烬门廊"), toStageId: stageId("断钟中殿") }],
+    });
+
+    const memories = await getGameMemories(handle.db, created.game.id);
+    const contents = (memories.find((memory) => memory.name === "守烬人")?.messages ?? []).map(
+      (message) => message.content,
+    );
+    const actionResult = contents.find((content) => content.startsWith("# 行动结果"));
+    const cognition = contents.filter((content) => content.startsWith("# 认知"));
+
+    expect(actionResult).toContain("# 当时");
+    expect(cognition.length).toBeGreaterThan(0);
+    expect(cognition.every((content) => !content.includes("# 当时"))).toBe(true);
   });
 
   it("gives an autonomous NPC the same state snapshot", async () => {
