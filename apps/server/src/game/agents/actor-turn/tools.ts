@@ -4,6 +4,9 @@
  * 与 stage / world 的 `tools.ts` 同层：这里只管模型看得见的形状、就地校验，
  * 以及该工具把自己读到的东西渲染成什么文本。动作工具不在这里——它们与玩家入口
  * 共用，留在 `actions/*`；装配见 `./toolkit.ts`，编排见 `./prompt.ts`。
+ *
+ * 零参的工具也写成 builder、不导出共享常量：工具形状按回合装配，参数里带本回合的
+ * 可见范围。判据与代价见 `docs/agents.md` 的「工具构造」。
  */
 
 import type { ToolDefinition } from "../../../llm/types";
@@ -54,7 +57,7 @@ export function buildKnowledgeTool(): ToolDefinition {
     function: {
       name: "query",
       description:
-        "检索当前世界的公共知识库：任何进入该世界的人都可能知道的固定事实。公共事实由它供给，不由角色编造；推断、意见与猜测仍是扮演的合法部分。只读，可多次调用，不占行动。",
+        "检索当前世界的公共知识库：任何进入该世界的人都可能知道的固定事实。公共事实由它供给，不由角色编造；推断、意见与猜测仍是扮演的合法部分。只读，可多次调用，不占行动名额。",
       parameters: {
         type: "object",
         properties: {
@@ -93,13 +96,13 @@ ${lines.join("\n")}
 检索结果只是文本参考资料；公共知识不等于你亲眼所见，也不能据此知道角色秘密或当前状态。`;
 }
 
-/** 只读：让 NPC 回看自己去过的场景，不占行动。 */
+/** 只读：让 NPC 回看自己去过的场景，不占行动名额。 */
 export function buildVisitedStagesTool(): ToolDefinition {
   return {
     type: "function",
     function: {
       name: "get_visited_stages",
-      description: "查看你去过的场景（含当前场景）。只读，不占行动。",
+      description: "查看你去过的场景（含当前场景）。只读，不占行动名额。",
       parameters: {
         type: "object",
         properties: {},
