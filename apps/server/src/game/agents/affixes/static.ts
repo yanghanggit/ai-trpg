@@ -28,7 +28,7 @@ export type StaticSettlement = {
   witnesses: StaticWitness[];
   /** 逐条渲染后的词缀文本，供 agent prompt 使用。 */
   rendered: string[];
-  /** 含 damage op 的词缀文本；公共消息只写总数，逐条分解进舞台记忆。 */
+  /** 含 damage op 的词缀文本；公共事件只写总数，逐条分解进舞台记忆。 */
   damageLines: string[];
 };
 

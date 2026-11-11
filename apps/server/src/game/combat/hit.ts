@@ -37,7 +37,7 @@ export type HitInput = {
 };
 
 /**
- * 中立的伤害写入器：扣血、公共消息、伤害观察、舞台记忆、行动反馈。
+ * 中立的伤害写入器：扣血、公共事件、伤害观察、舞台记忆、行动反馈。
  *
  * 它不知道"道具"或"词缀"，只处理一次已经算好的命中；因此 `brawl` 与道具管线
  * 共用同一条落账路径，不会出现两套死亡/观察文案。
@@ -67,12 +67,12 @@ export async function applyHit(input: HitInput): Promise<HitOutcome> {
   const targetDied = remainingHp <= 0;
   await bumpGameVersion(executor, gameId, now);
 
-  // 公共消息是上帝视角：句首与结局都用名字，不混入观察者相对的引用。
+  // 公共事件是上帝视角：句首与结局都用名字，不混入观察者相对的引用。
   const outcome =
     remainingHp <= 0
       ? `；${target.name}倒下了。`
       : `；${target.name}剩余 HP ${remainingHp}/${current.stats.maxHp}。`;
-  // 句式由动作锁定：公共消息、舞台记忆、观察与反馈用的是同一个动作短语。
+  // 句式由动作锁定：公共事件、舞台记忆、观察与反馈用的是同一个动作短语。
   const actionText = damageActionText(action, itemName);
   const damageText = via === "affix" ? `词缀追加${damage}点伤害` : `造成${damage}点伤害`;
   const content = `${actorRow.actor.name}对${target.name}${actionText}，${damageText}${outcome}`;
@@ -106,7 +106,7 @@ export async function applyHit(input: HitInput): Promise<HitOutcome> {
     { eventKind: action, targetActorId: target.id },
     trace,
   );
-  // 出手者只知道这一下打得多重、对方有没有倒下；对方剩余生命只写进公共消息（上帝视角）
+  // 出手者只知道这一下打得多重、对方有没有倒下；对方剩余生命只写进公共事件（上帝视角）
   // 与受害者自己，不进出手者的记忆。
   const feedback = `你对${ref(input.address)}${actionText}，${damageText}`;
   return {

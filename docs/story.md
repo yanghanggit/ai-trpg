@@ -24,6 +24,6 @@
 
 这是开发期观察工具，不是玩家可见功能；不自动在游戏结束时触发；不把故事写回数据库；不展开归档，除非显式要求；不做「故事是否优秀」的自动评分；不参与任何状态推进或结算。
 
-测试用脚本化 fake LLM 走完整工具链，断言不改变 game version、公共消息与 memory。
+测试用脚本化 fake LLM 走完整工具链，断言不改变 game version、公共事件与 memory。
 
 → 参见：[开发期 Agent 工作流](debug-workflow.md)、[Actor 行动与记忆](actor-actions-memory.md)

@@ -128,7 +128,7 @@ describe.skipIf(!testDatabaseUrl)("cleave", () => {
     expect(result.ok).toBe(true);
 
     const state = await stateOf(created.game.slug);
-    // 一个动作、两个目标：各自一条公共消息；kind 跟着动作走，文案是「顺劈」。
+    // 一个动作、两个目标：各自一条公共事件；kind 跟着动作走，文案是「顺劈」。
     const events = state.messages.filter((message) => message.kind === "cleave");
     expect(events).toHaveLength(2);
     expect(events.every((message) => message.content.includes("顺劈"))).toBe(true);

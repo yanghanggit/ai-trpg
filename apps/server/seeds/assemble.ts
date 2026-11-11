@@ -4,7 +4,7 @@ import { GLOBAL_RULES } from "./global-rules";
 /**
  * 战役级、跨剧本不变的内容。
  *
- * 世界观给题材与边界；世界职能 agent 的文本在 `dark-fantasy/agents/` 下。
+ * 战役设定给题材与边界；世界职能 agent 的文本在 `dark-fantasy/agents/` 下。
  */
 export type Campaign = {
   campaignSetting: string;

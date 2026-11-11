@@ -14,7 +14,7 @@
 
 → 参见：[Agent 与工具](agents.md)
 
-内容集中在 `seeds/dark-fantasy/`：`campaign.ts` 写跨剧本的世界观，`agents/` 下一个文件一个世界职能 agent（文本、职责与不可协商的约束同处一处），全局规则（global rules）在 `seeds/global-rules.ts`，每个剧本一个文件，知识库与检索评测集同目录 1:1 绑定，`index.ts` 用 `assembleWorld()` 拼成 `World`，最后由 `seeds/index.ts` 注册为 `ContentPack`。世界职能的宪法由剧本自己定档，`assembleWorld()` 只补战役级字段、不代劳写内容；框架只校验它确实带上了这一局的设定与规则。
+内容集中在 `seeds/dark-fantasy/`：`campaign.ts` 写跨剧本的战役设定，`agents/` 下一个文件一个世界职能 agent（文本、职责与不可协商的约束同处一处），全局规则（global rules）在 `seeds/global-rules.ts`，每个剧本一个文件，知识库与检索评测集同目录 1:1 绑定，`index.ts` 用 `assembleWorld()` 拼成 `World`，最后由 `seeds/index.ts` 注册为 `ContentPack`。世界职能的宪法由剧本自己定档，`assembleWorld()` 只补战役级字段、不代劳写内容；框架只校验它确实带上了这一局的设定与规则。
 
 ## 隔离边界
 

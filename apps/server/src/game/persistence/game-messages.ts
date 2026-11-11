@@ -12,7 +12,7 @@ import type { Executor } from "./rows";
  * 读整局状态，不读事件流；只有控制面（快照、事件回顾、按游标增量拉）才需要这里的读。
  */
 
-/** 一条公共消息；`kind` 归业务，存储层不枚举。 */
+/** 一条公共事件；`kind` 归业务，存储层不枚举。 */
 export type PublicMessage = {
   kind: string;
   stageId: string | null;
@@ -29,7 +29,7 @@ export type GameMessageQuery = {
 };
 
 /**
- * 追加一条公共消息，序号取当前最大值 + 1。
+ * 追加一条公共事件，序号取当前最大值 + 1。
  *
  * 同一局的写入由调用方串行化（回合持有 game 行锁）；这里不做重试，冲突显式失败。
  */

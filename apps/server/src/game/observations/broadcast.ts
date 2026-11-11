@@ -125,7 +125,7 @@ export async function appendItemObservations(
  * 写入「有人查看了自己的行囊」的观察。
  *
  * 查看者由行动反馈承载，这里写给目标与在场其余角色；尸体收到的也是一句舞台动态，
- * 清单本身既不进公共消息也不进任何观察。
+ * 清单本身既不进公共事件也不进任何观察。
  */
 export async function appendInspectObservations(
   executor: Executor,

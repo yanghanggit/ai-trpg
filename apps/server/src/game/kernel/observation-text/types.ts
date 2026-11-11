@@ -13,7 +13,7 @@ import type { ActionKind, CommunicationKind, ItemEventKind, MessageVisibility } 
  * 观察类记忆消息的 metadata。
  *
  * 观察回答「谁看到了什么」，因此只带当事人与舞台标识，不带规则数值：
- * 剩余生命这类数值只写进公共消息、舞台记忆与当事人自己的观察文本。
+ * 剩余生命这类数值只写进公共事件、舞台记忆与当事人自己的观察文本。
  */
 export type ObservationMetadata = {
   /** 记忆类别，取 `MEMORY_KINDS` 里的观察类值。 */

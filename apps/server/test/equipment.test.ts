@@ -82,7 +82,7 @@ describe.skipIf(!testDatabaseUrl)("equip and unequip actions", () => {
     expect(keeper?.appearance.text).toBe(appearanceBefore);
     expect(state.messages.map((message) => message.kind)).toEqual(["unequip", "equip"]);
 
-    // 写进 actor 记忆的反馈已经脱敏：道具名就是名字本身（公共消息仍是上帝视角）。
+    // 写进 actor 记忆的反馈已经脱敏：道具名就是名字本身（公共事件仍是上帝视角）。
     const memories = await getGameMemories(handle.db, created.game.id);
     const feedback =
       memories

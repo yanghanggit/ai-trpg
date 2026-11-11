@@ -119,7 +119,7 @@ export async function applyStageAction(
     await recordStageEvent(tx, {
       gameId,
       stageId: stage.id,
-      content: `${stage.name}的可交互点发生了变化。\n${anchorChange.summary}\n${describeStoredAnchors(anchorChange.anchors)}`,
+      content: `${stage.name}的锚点发生了变化。\n${anchorChange.summary}\n${describeStoredAnchors(anchorChange.anchors)}`,
       meta: { eventKind: "anchor_change" },
       actionKind: action.kind,
       trace,

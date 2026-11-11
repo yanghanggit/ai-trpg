@@ -1,6 +1,6 @@
 import type { Stats } from "./attributes";
 
-/** 公共消息的可见范围：舞台公开或仅当事人可见。 */
+/** 公共事件的可见范围：舞台公开或仅当事人可见。 */
 export type MessageVisibility = "stage" | "private";
 
 /** 道具大类；每个大类对应一个运行时子类。 */

@@ -1176,7 +1176,7 @@ describe.skipIf(!testDatabaseUrl)("items and interactions", () => {
       .find((actor) => actor.name === "提灯修士");
     expect(monk?.hp).toBe(7);
     expect(state.messages.at(-1)?.kind).toBe("brawl");
-    // 公共消息是上帝视角：双方都用名字，结局不混入观察者相对的指代。
+    // 公共事件是上帝视角：双方都用名字，结局不混入观察者相对的指代。
     expect(state.messages.at(-1)?.content).toBe(
       "守烬人对提灯修士肉搏，造成3点伤害；提灯修士剩余 HP 7/10。",
     );
@@ -1241,7 +1241,7 @@ describe.skipIf(!testDatabaseUrl)("items and interactions", () => {
     const stageMemory = (await getGameMemories(handle.db, created.game.id)).find(
       (memory) => memory.ownerType === "stage" && memory.ownerId === stage?.id,
     );
-    // 公共消息只写总数；逐条分解进舞台记忆。
+    // 公共事件只写总数；逐条分解进舞台记忆。
     expect(stageMemory?.messages.some((message) => message.content.includes("崩口撕开皮肉"))).toBe(
       true,
     );
