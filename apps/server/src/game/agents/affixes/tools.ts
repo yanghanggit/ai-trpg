@@ -1,17 +1,17 @@
 import type { ToolDefinition } from "../../../llm/types";
 import { MAX_AFFIX_WITNESSES } from "../../kernel/limits";
 
-export function buildTools(
+export function buildAffixTools(
   targetNames: readonly string[],
   affixNames: readonly string[],
   anchorLabels: readonly string[],
 ): {
-  damage: ToolDefinition;
-  record: ToolDefinition;
-  submit: ToolDefinition;
+  damageTarget: ToolDefinition;
+  recordWitness: ToolDefinition;
+  submitAffix: ToolDefinition;
 } {
   return {
-    damage: {
+    damageTarget: {
       type: "function",
       function: {
         name: "damage_target",
@@ -44,7 +44,7 @@ export function buildTools(
         },
       },
     },
-    record: {
+    recordWitness: {
       type: "function",
       function: {
         name: "record_witness",
@@ -86,7 +86,7 @@ export function buildTools(
         },
       },
     },
-    submit: {
+    submitAffix: {
       type: "function",
       function: {
         name: "submit_affix",

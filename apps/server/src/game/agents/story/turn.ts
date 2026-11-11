@@ -44,36 +44,36 @@ export async function runStory(
     contentVersion: state.game.contentVersion,
   });
 
-  const listTool = buildListMemoriesTool();
-  const readTool = buildReadMemoryTool();
-  const eventsTool = buildReadEventsTool();
-  const submitTool = buildSubmitStoryTool();
+  const listMemoriesTool = buildListMemoriesTool();
+  const readMemoryTool = buildReadMemoryTool();
+  const readEventsTool = buildReadEventsTool();
+  const submitStoryTool = buildSubmitStoryTool();
 
   const loop = await agentLoop({
     name: "story",
     inputMessage: buildStoryInput(state, memories),
     messages: [{ type: "system", content: buildStorySystemPrompt(state.world) }],
-    tools: [listTool, readTool, eventsTool, submitTool],
-    terminalTools: [submitTool],
+    tools: [listMemoriesTool, readMemoryTool, readEventsTool, submitStoryTool],
+    terminalTools: [submitStoryTool],
     maxRounds: options.maxRounds ?? DEFAULT_STORY_MAX_ROUNDS,
     service: options.service,
     errorRetries: DEFAULT_ERROR_RETRIES,
     ...(options.logger ? { logger: options.logger } : {}),
     ...(trace ? { trace } : {}),
     handlers: {
-      [listTool.function.name]: () => renderMemoryList(memories),
-      [readTool.function.name]: (args) => {
+      [listMemoriesTool.function.name]: () => renderMemoryList(memories),
+      [readMemoryTool.function.name]: (args) => {
         const ownerType = typeof args.ownerType === "string" ? args.ownerType : "";
         const name = typeof args.name === "string" ? args.name : "";
         const memory = resolveMemory(memories, ownerType, name);
         readKeys.add(memoryKey(memory.ownerType, memory.name));
         return renderMemoryRead(state, memory, args.includeArchived === true);
       },
-      [eventsTool.function.name]: () => {
+      [readEventsTool.function.name]: () => {
         eventsRead = true;
         return renderEventStream(state);
       },
-      [submitTool.function.name]: (args) => {
+      [submitStoryTool.function.name]: (args) => {
         const text = typeof args.story === "string" ? args.story.trim() : "";
         if (text.length === 0) {
           throw new GameError("invalid_action", "submit_story 需要非空 story");

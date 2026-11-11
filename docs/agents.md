@@ -61,6 +61,8 @@
 
 参数只带本回合的可见范围（handles、场景名、槽位），builder 不自己读 state：读取归回合装配，工具只负责把拿到的范围写成 `enum`。零参 builder 今天没有参数，明天可能就有——常量改函数要动所有调用点，加参数不用。
 
+一个工具在代码里有三个名字，都要由 `function.name`（模型契约）派生，好让 trace 里看到的工具名能直接对上代码：builder 是 `build` + CamelCase，局部变量是 CamelCase + `Tool`、不缩写，多工具 bundle 的键名同局部变量。两个 agent 产出同名工具时，builder 加一个角色前缀区分。守卫是 `test/tool-naming.test.ts`。
+
 永远不变、单用途、只有一个固定调用点的内部工具才用常量，如 `dialogue-audit` 的 `VERDICT_TOOL`。
 
 ## 记忆模块

@@ -50,7 +50,7 @@ export async function runStageTurn(
   });
 
   const context = stageTurnContext(state, stage);
-  const planTool = buildSubmitStagePlanTool();
+  const submitStagePlanTool = buildSubmitStagePlanTool();
   const session = createStagePlanSession();
 
   // 能力清单是上限，具体工具还要看此刻有没有用武之地（例如通道全开着就没有 open_passage）。
@@ -70,15 +70,18 @@ export async function runStageTurn(
     name: stage.name,
     inputMessage: renderStageTurnInput(context),
     messages: memory.messages,
-    tools: [...toolKinds.map((kind) => STAGE_ACTION_TOOLKITS[kind].build(context)), planTool],
+    tools: [
+      ...toolKinds.map((kind) => STAGE_ACTION_TOOLKITS[kind].build(context)),
+      submitStagePlanTool,
+    ],
     handlers: {
       ...actionHandlers,
-      [planTool.function.name]: () => {
+      [submitStagePlanTool.function.name]: () => {
         session.submit();
         return "计划已提交";
       },
     },
-    terminalTools: [planTool],
+    terminalTools: [submitStagePlanTool],
     service: options.service,
     maxRounds: options.maxRounds ?? DEFAULT_STAGE_MAX_ROUNDS,
     errorRetries: DEFAULT_ERROR_RETRIES,

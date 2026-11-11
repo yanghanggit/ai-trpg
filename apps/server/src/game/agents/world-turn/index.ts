@@ -3,9 +3,9 @@ export { createWorldPlanSession, type WorldPlanSession } from "./plan-session";
 export { buildWorldTurnInput } from "./prompt";
 export {
   buildEndGameTool,
-  buildLookTool,
   buildNotifyStageTool,
   buildSubmitWorldPlanTool,
+  buildWorldLookStageTool,
   describeStageForWorld,
   parseEndGame,
   parseNotifyStage,

@@ -35,13 +35,13 @@ import { createPlanSession } from "./plan-session";
 import { renderActorTurnInput } from "./prompt";
 import { ACTOR_ACTION_TOOLKITS } from "./toolkit";
 import {
-  buildActorLookTool,
-  buildKnowledgeTool,
+  buildActorLookStageTool,
+  buildGetSelfTool,
+  buildGetVisitedStagesTool,
+  buildQueryTool,
   buildRecallRouteTool,
   buildRecognizeIdentityTool,
-  buildSelfInfoTool,
   buildSubmitPlanTool,
-  buildVisitedStagesTool,
   describeKnowledgeResults,
   describeSelf,
   describeStageForActor,
@@ -114,18 +114,18 @@ export async function runActorTurn(
   };
 
   // 公共知识库检索是所有 actor 都能用的只读工具，不按角色开关。
-  const knowledgeTool = buildKnowledgeTool();
+  const queryTool = buildQueryTool();
   // 真实 provider 由调用方注入假实现覆盖：检索是只读工具，不按角色开关。
   const knowledgeProvider = options.knowledgeProvider ?? new TransformersEmbeddingProvider();
-  const lookTool = buildActorLookTool();
-  const selfTool = buildSelfInfoTool();
-  const visitedStagesTool = buildVisitedStagesTool();
-  const routeTool = buildRecallRouteTool();
+  const lookStageTool = buildActorLookStageTool();
+  const getSelfTool = buildGetSelfTool();
+  const getVisitedStagesTool = buildGetVisitedStagesTool();
+  const recallRouteTool = buildRecallRouteTool();
   // 编号始终可见：既能给新签名起名，也能对已有名字重新记录来更新称呼。
-  const recognizeTool = buildRecognizeIdentityTool(
+  const recognizeIdentityTool = buildRecognizeIdentityTool(
     context.others.map((actor) => handleOf(actor.signature.seq)),
   );
-  const submitTool = buildSubmitPlanTool();
+  const submitPlanTool = buildSubmitPlanTool();
 
   let routeWorld: RouteWorld | undefined;
   const routeWorldOnce = () => (routeWorld ??= routeWorldFromState(state, current));
@@ -160,21 +160,21 @@ export async function runActorTurn(
     inputMessage: renderActorTurnInput(context, maxRounds),
     messages: memory.messages,
     tools: [
-      lookTool,
-      selfTool,
-      visitedStagesTool,
-      routeTool,
-      knowledgeTool,
-      recognizeTool,
+      lookStageTool,
+      getSelfTool,
+      getVisitedStagesTool,
+      recallRouteTool,
+      queryTool,
+      recognizeIdentityTool,
       ...context.allowed.map((kind) => ACTOR_ACTION_TOOLKITS[kind].build(context)),
-      submitTool,
+      submitPlanTool,
     ],
     handlers: {
-      [lookTool.function.name]: () => describeStageForActor(state, current),
-      [selfTool.function.name]: () => describeSelf(current.actor),
-      [visitedStagesTool.function.name]: () =>
+      [lookStageTool.function.name]: () => describeStageForActor(state, current),
+      [getSelfTool.function.name]: () => describeSelf(current.actor),
+      [getVisitedStagesTool.function.name]: () =>
         describeVisitedStages(state, current.actor.id, current.stage.id),
-      [knowledgeTool.function.name]: async (args: Record<string, unknown>) => {
+      [queryTool.function.name]: async (args: Record<string, unknown>) => {
         const keywords = typeof args.keywords === "string" ? args.keywords.trim() : "";
         if (keywords.length === 0) {
           throw new GameError("invalid_action", "keywords 不能为空");
@@ -193,7 +193,7 @@ export async function runActorTurn(
         return describeKnowledgeResults(keywords, results);
       },
       ...actionHandlers,
-      [routeTool.function.name]: (args) => {
+      [recallRouteTool.function.name]: (args) => {
         const resolution = resolveRouteQuestion(state, current, parseRecallRoute(args));
         if (!resolution.ok) {
           // 失败的回忆也要进认知：同一轮内同一句问题只记一次。
@@ -204,13 +204,13 @@ export async function runActorTurn(
         session.noteRoute(resolution.query);
         return `# 路线\n${describeRoute(routeWorldOnce(), resolution.query)}`;
       },
-      [recognizeTool.function.name]: (args) => addIdentity(args),
-      [submitTool.function.name]: () => {
+      [recognizeIdentityTool.function.name]: (args) => addIdentity(args),
+      [submitPlanTool.function.name]: () => {
         session.submit();
         return "计划已提交";
       },
     },
-    terminalTools: [submitTool],
+    terminalTools: [submitPlanTool],
     service: options.service,
     maxRounds,
     finalRoundHint:

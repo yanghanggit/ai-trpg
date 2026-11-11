@@ -14,9 +14,9 @@ import { createWorldPlanSession } from "./plan-session";
 import { buildWorldTurnInput } from "./prompt";
 import {
   buildEndGameTool,
-  buildLookTool,
   buildNotifyStageTool,
   buildSubmitWorldPlanTool,
+  buildWorldLookStageTool,
   describeStageForWorld,
   parseEndGame,
   parseNotifyStage,
@@ -50,10 +50,10 @@ export async function runWorldTurn(
     contentVersion: state.game.contentVersion,
   });
 
-  const lookTool = buildLookTool(state);
-  const notifyTool = buildNotifyStageTool(state.world.stages.map((stage) => stage.name));
-  const endTool = buildEndGameTool();
-  const submitTool = buildSubmitWorldPlanTool();
+  const lookStageTool = buildWorldLookStageTool(state);
+  const notifyStageTool = buildNotifyStageTool(state.world.stages.map((stage) => stage.name));
+  const endGameTool = buildEndGameTool();
+  const submitWorldPlanTool = buildSubmitWorldPlanTool();
   const session = createWorldPlanSession();
   const canNotify = state.world.actions.includes("notify_stage");
   const canEnd = state.world.actions.includes("end_game");
@@ -62,15 +62,20 @@ export async function runWorldTurn(
     name: state.world.name,
     inputMessage: buildWorldTurnInput(state),
     messages: memory.messages,
-    tools: [lookTool, ...(canNotify ? [notifyTool] : []), ...(canEnd ? [endTool] : []), submitTool],
+    tools: [
+      lookStageTool,
+      ...(canNotify ? [notifyStageTool] : []),
+      ...(canEnd ? [endGameTool] : []),
+      submitWorldPlanTool,
+    ],
     handlers: {
-      [lookTool.function.name]: (args) => {
+      [lookStageTool.function.name]: (args) => {
         const stageName = typeof args.stageName === "string" ? args.stageName : "";
         return describeStageForWorld(state, stageName);
       },
       ...(canNotify
         ? {
-            [notifyTool.function.name]: (args: Record<string, unknown>) => {
+            [notifyStageTool.function.name]: (args: Record<string, unknown>) => {
               const action: WorldAction = parseNotifyStage(args);
               session.add(action);
               return `${action.kind} 已加入计划`;
@@ -79,20 +84,20 @@ export async function runWorldTurn(
         : {}),
       ...(canEnd
         ? {
-            [endTool.function.name]: (args: Record<string, unknown>) => {
+            [endGameTool.function.name]: (args: Record<string, unknown>) => {
               const action: WorldAction = parseEndGame(args);
               session.add(action);
               return `${action.kind} 已加入计划`;
             },
           }
         : {}),
-      [submitTool.function.name]: () => {
+      [submitWorldPlanTool.function.name]: () => {
         const empty = session.plan === null;
         session.submit();
         return empty ? "世界计划已提交：本轮无世界级变更" : "世界计划已提交";
       },
     },
-    terminalTools: [submitTool],
+    terminalTools: [submitWorldPlanTool],
     service: options.service,
     maxRounds: options.maxRounds ?? DEFAULT_WORLD_MAX_ROUNDS,
     errorRetries: DEFAULT_ERROR_RETRIES,

@@ -5,7 +5,7 @@ import { DEMO_USER } from "../src/db/demo-fixture";
 import { resetDomainData, seedDemoData } from "../src/db/maintenance";
 import { runMigrations } from "../src/db/migrate";
 import { createGame, getGameState, playerMove, takeActorControl } from "../src/game";
-import { buildVisitedStagesTool, describeVisitedStages } from "../src/game/agents/actor-turn";
+import { buildGetVisitedStagesTool, describeVisitedStages } from "../src/game/agents/actor-turn";
 import { recordStageVisit } from "../src/game/persistence/visits";
 import type { World } from "../src/game/world-definition";
 import { buildActorTurnInput } from "./actor-turn-input";
@@ -48,7 +48,7 @@ describe.skipIf(!testDatabaseUrl)("stage visits", () => {
 
     expect(describeVisitedStages(before, keeper.id, gate.id)).toContain("灰烬门廊（当前）");
     expect(describeVisitedStages(before, keeper.id, gate.id)).not.toContain("断钟中殿");
-    expect(buildVisitedStagesTool().function.name).toBe("get_visited_stages");
+    expect(buildGetVisitedStagesTool().function.name).toBe("get_visited_stages");
 
     const moved = await playerMove(handle.db, created.game.slug, "守烬人", {
       targetStageRef: `#${nave.seq}`,

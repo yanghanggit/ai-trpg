@@ -13,7 +13,7 @@ import { isAlive } from "../../lookup";
 import { adjacentStageNames, findStageByName } from "../../stage-state";
 import { describeStageAnchorsSection } from "../../stage-state/describe";
 
-export function buildLookTool(state: GameStateSlice): ToolDefinition {
+export function buildWorldLookStageTool(state: GameStateSlice): ToolDefinition {
   return {
     type: "function",
     function: {

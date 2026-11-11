@@ -34,7 +34,7 @@ import {
   sealedVisitedStageRefsForActor,
 } from "./observed-stage";
 
-export function buildSelfInfoTool(): ToolDefinition {
+export function buildGetSelfTool(): ToolDefinition {
   return {
     type: "function",
     function: {
@@ -51,7 +51,7 @@ export function buildSelfInfoTool(): ToolDefinition {
 }
 
 /** 只读工具，不占动作名额。 */
-export function buildKnowledgeTool(): ToolDefinition {
+export function buildQueryTool(): ToolDefinition {
   return {
     type: "function",
     function: {
@@ -97,7 +97,7 @@ ${lines.join("\n")}
 }
 
 /** 只读：让 NPC 回看自己去过的场景，不占行动名额。 */
-export function buildVisitedStagesTool(): ToolDefinition {
+export function buildGetVisitedStagesTool(): ToolDefinition {
   return {
     type: "function",
     function: {
@@ -132,7 +132,7 @@ export function buildSubmitPlanTool(): ToolDefinition {
  *
  * 参数化场景名时，模型可以点名别的场景；这里直接把入口收窄到当前场景。
  */
-export function buildActorLookTool(): ToolDefinition {
+export function buildActorLookStageTool(): ToolDefinition {
   return {
     type: "function",
     function: {
@@ -298,10 +298,10 @@ ${describeStageAnchorsSection(stage.anchors)}
  * 名字从工具定义取，不手抄一份：改名只改 `function.name`，提示词自动跟随。
  */
 export const ACTOR_READ_ONLY_TOOL_NAMES: readonly string[] = [
-  buildActorLookTool(),
-  buildSelfInfoTool(),
-  buildVisitedStagesTool(),
-  buildKnowledgeTool(),
+  buildActorLookStageTool(),
+  buildGetSelfTool(),
+  buildGetVisitedStagesTool(),
+  buildQueryTool(),
 ].map((tool) => tool.function.name);
 
 /** 只在落账时写自己认知的工具：查的时候不占名额，写的时候也不产生公共事件。 */

@@ -20,7 +20,7 @@ import type { Executor, StageRow } from "../../persistence/rows";
 import { loadWorldByGame } from "../../persistence/worlds";
 import { hasOnlyKnownPlaceholders } from "../../world-definition/item-schema";
 import { buildAffixPrompt, buildAffixSystemPrompt } from "./prompt";
-import { buildTools } from "./tools";
+import { buildAffixTools } from "./tools";
 import type { AffixOperation, AffixRequest } from "./types";
 import { appendWitnessEvent, type WitnessTarget } from "./witness";
 
@@ -83,7 +83,7 @@ async function evaluateAffix(
     };
   }
 
-  const tools = buildTools(
+  const tools = buildAffixTools(
     targetNames,
     affixes.map((affix) => affix.name),
     stage.anchors.map((anchor) => anchor.label),
@@ -103,7 +103,7 @@ async function evaluateAffix(
       defaultFeedback: request.defaultFeedback,
       ...(request.staticSettlement ? { staticSettlement: request.staticSettlement } : {}),
       ...(request.staticOutcome ? { staticOutcome: request.staticOutcome } : {}),
-      terminalToolName: tools.submit.function.name,
+      terminalToolName: tools.submitAffix.function.name,
       stageName: stage.name,
       ...(target
         ? {
@@ -116,9 +116,9 @@ async function evaluateAffix(
       ...(target ? { targetHp: `${target.hp}/${target.stats.maxHp}` } : {}),
     }),
     messages: [{ type: "system", content: buildAffixSystemPrompt(state.world) }],
-    tools: [tools.damage, tools.record, tools.submit],
+    tools: [tools.damageTarget, tools.recordWitness, tools.submitAffix],
     handlers: {
-      [tools.damage.function.name]: (args) => {
+      [tools.damageTarget.function.name]: (args) => {
         if (submitted) {
           throw new GameError("invalid_action", "计划已提交");
         }
@@ -143,7 +143,7 @@ async function evaluateAffix(
         });
         return `已记录对 ${targetActorHandle} 的 ${amount} 点补充伤害`;
       },
-      [tools.record.function.name]: (args) => {
+      [tools.recordWitness.function.name]: (args) => {
         if (submitted) {
           throw new GameError("invalid_action", "计划已提交");
         }
@@ -194,12 +194,12 @@ async function evaluateAffix(
         });
         return "已记录可见后果";
       },
-      [tools.submit.function.name]: () => {
+      [tools.submitAffix.function.name]: () => {
         submitted = true;
         return "词缀补充效果已提交";
       },
     },
-    terminalTools: [tools.submit],
+    terminalTools: [tools.submitAffix],
     service,
     maxRounds: 3,
     // 词缀是静态结算后的补充：失败只等于少一次追加，不为它额外等待重试。

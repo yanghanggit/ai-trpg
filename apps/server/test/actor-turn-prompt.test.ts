@@ -4,12 +4,12 @@ import { buildLootTool } from "../src/game/actions/loot";
 import { buildStealTool } from "../src/game/actions/steal";
 import type { ActorTurnContext } from "../src/game/agents/actor-turn";
 import {
-  buildActorLookTool,
-  buildKnowledgeTool,
+  buildActorLookStageTool,
+  buildGetSelfTool,
+  buildGetVisitedStagesTool,
+  buildQueryTool,
   buildRecallRouteTool,
   buildRecognizeIdentityTool,
-  buildSelfInfoTool,
-  buildVisitedStagesTool,
 } from "../src/game/agents/actor-turn";
 import { renderTask } from "../src/game/agents/actor-turn/prompt";
 import { renderHints } from "../src/game/agents/actor-turn/prompt-hints";
@@ -39,10 +39,10 @@ function descriptionOf(tool: { function: { description: string } }): string {
 describe("actor 任务提示词", () => {
   it("把工具按副作用分成只读与写认知两组，名字与工具定义同源", () => {
     const readOnly = [
-      buildActorLookTool(),
-      buildSelfInfoTool(),
-      buildVisitedStagesTool(),
-      buildKnowledgeTool(),
+      buildActorLookStageTool(),
+      buildGetSelfTool(),
+      buildGetVisitedStagesTool(),
+      buildQueryTool(),
     ].map((tool) => tool.function.name);
     const memory = [buildRecallRouteTool(), buildRecognizeIdentityTool(["#1"])].map(
       (tool) => tool.function.name,
@@ -134,8 +134,8 @@ describe("工具描述承接的单工具契约", () => {
   });
 
   it("get_self / look_stage 说清范围与代价", () => {
-    expect(descriptionOf(buildSelfInfoTool())).toContain("全部物品");
-    expect(descriptionOf(buildSelfInfoTool())).toContain("不占行动名额");
-    expect(descriptionOf(buildActorLookTool())).toContain("看不了别的场景");
+    expect(descriptionOf(buildGetSelfTool())).toContain("全部物品");
+    expect(descriptionOf(buildGetSelfTool())).toContain("不占行动名额");
+    expect(descriptionOf(buildActorLookStageTool())).toContain("看不了别的场景");
   });
 });
