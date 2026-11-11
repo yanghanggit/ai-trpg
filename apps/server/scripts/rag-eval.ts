@@ -1,5 +1,5 @@
 /**
- * 公共知识检索评测：遍历已注册的评测集，给每个剧本算 recall@k 与 MRR@5。
+ * 世界知识检索评测：遍历已注册的评测集，给每个剧本算 recall@k 与 MRR@5。
  *
  * 评测数据在 `seeds/<战役>/<剧本>.eval.ts`，与知识库同目录维护；这个脚本只是 runner。
  * 用法：
@@ -17,9 +17,11 @@ import type { ContentPack } from "../src/content-pack";
 import { openDatabase } from "../src/db/connect";
 import type { Database } from "../src/db/pool";
 import {
+  canReadKnowledge,
   countCollection,
   type EmbeddingDtype,
   indexKnowledgeBase,
+  knowledgeFacts,
   searchDocuments,
   TransformersEmbeddingProvider,
   worldCollection,
@@ -110,9 +112,9 @@ function resolveSeedNames(value: string | boolean | undefined): string[] {
  * 同时检查覆盖度——每条知识至少要被一个正例命中，否则新增知识不会进入评测。
  */
 function assertEvalSetMatchesKnowledge(name: string, seed: ContentPack, evalSet: RagEvalSet): void {
-  const contents = Object.values(seed.knowledge).flat();
+  const facts = knowledgeFacts(seed.knowledge);
   const stale = evalSet.positive.filter(
-    (testCase) => !contents.some((content) => content.includes(testCase.expect)),
+    (testCase) => !facts.some((fact) => fact.content.includes(testCase.expect)),
   );
   if (stale.length > 0) {
     throw new Error(
@@ -121,13 +123,32 @@ function assertEvalSetMatchesKnowledge(name: string, seed: ContentPack, evalSet:
         .join("、")}；改文案后请同步更新评测集`,
     );
   }
-  const uncovered = contents.filter(
-    (content) => !evalSet.positive.some((testCase) => content.includes(testCase.expect)),
+  // 用例的受众必须读得到它期待的条目，否则无论检索多好都会 miss。
+  const unreadable = evalSet.positive.filter((testCase) => {
+    const audience = testCase.access ?? [];
+    return !facts.some(
+      (fact) => fact.content.includes(testCase.expect) && canReadKnowledge(fact.access, audience),
+    );
+  });
+  if (unreadable.length > 0) {
+    throw new Error(
+      `${name}: 有正例的受众读不到 expect 所在的条目：${unreadable
+        .map((testCase) => `「${testCase.expect}」`)
+        .join("、")}；补上 access 或调整门槛`,
+    );
+  }
+  const uncovered = facts.filter(
+    (fact) =>
+      !evalSet.positive.some(
+        (testCase) =>
+          canReadKnowledge(fact.access, testCase.access ?? []) &&
+          fact.content.includes(testCase.expect),
+      ),
   );
   if (uncovered.length > 0) {
     throw new Error(
       `${name}: 有 ${uncovered.length} 条知识没有评测用例覆盖：${uncovered
-        .map((content) => `「${content.slice(0, 24)}…」`)
+        .map((fact) => `「${fact.content.slice(0, 24)}…」`)
         .join("、")}；请为它们补正例`,
     );
   }
@@ -186,7 +207,12 @@ async function evaluateSet(input: {
     const misses: VariantReport["misses"] = [];
     for (const testCase of evalSet.positive) {
       const query = variantQuery(testCase, variant);
-      const results = await searchDocuments(db, provider, { collection, query, topK });
+      const results = await searchDocuments(db, provider, {
+        collection,
+        query,
+        topK,
+        access: testCase.access ?? [],
+      });
       const hit = rankOf(results, testCase.expect);
       hits.push(hit);
       if (hit.similarity !== null) {
@@ -204,7 +230,12 @@ async function evaluateSet(input: {
     const negatives: VariantReport["negatives"] = [];
     for (const testCase of evalSet.negative) {
       const query = variantQuery(testCase, variant);
-      const results = await searchDocuments(db, provider, { collection, query, topK });
+      const results = await searchDocuments(db, provider, {
+        collection,
+        query,
+        topK,
+        access: testCase.access ?? [],
+      });
       const top = results[0];
       negatives.push({
         query,

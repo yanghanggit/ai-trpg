@@ -113,7 +113,7 @@ export async function runActorTurn(
     ...(options.auditNameLeaks === undefined ? {} : { auditNameLeaks: options.auditNameLeaks }),
   };
 
-  // 公共知识库检索是所有 actor 都能用的只读工具，不按角色开关。
+  // 世界知识检索是所有 actor 都能用的只读工具，不按角色开关；返回范围由知识标签决定。
   const queryTool = buildQueryTool();
   // 真实 provider 由调用方注入假实现覆盖：检索是只读工具，不按角色开关。
   const knowledgeProvider = options.knowledgeProvider ?? new TransformersEmbeddingProvider();
@@ -186,9 +186,10 @@ export async function runActorTurn(
           collection,
           query: keywords,
           topK: DEFAULT_RAG_TOP_K,
+          access: current.actor.knowledgeAccess,
         });
         if (results.length === 0 && (await countCollection(db, collection)) === 0) {
-          return `# 公共知识检索\n检索词：${keywords}\n（这个世界没有可检索的公共知识）`;
+          return `# 世界知识检索\n检索词：${keywords}\n（这个世界没有可检索的知识）`;
         }
         return describeKnowledgeResults(keywords, results);
       },

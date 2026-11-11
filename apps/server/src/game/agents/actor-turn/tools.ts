@@ -57,7 +57,7 @@ export function buildQueryTool(): ToolDefinition {
     function: {
       name: "query",
       description:
-        "检索当前世界的公共知识库：任何进入该世界的人都可能知道的固定事实。公共事实由它供给，不由角色编造；推断、意见与猜测仍是扮演的合法部分。只读，可多次调用，不占行动名额。",
+        "检索当前世界中你有条件知道的固定事实：常识，以及你的出身与训练让你读得懂的部分。世界事实由它供给，不由角色编造；查不到的，只代表你不知道，不代表世界没有，不要替它补写。只读，可多次调用，不占行动名额。",
       parameters: {
         type: "object",
         properties: {
@@ -78,7 +78,7 @@ export function describeKnowledgeResults(
   results: readonly RagSearchResult[],
 ): string {
   if (results.length === 0) {
-    return `# 公共知识检索
+    return `# 世界知识检索
 检索词：${keywords}
 （知识库中未检索到相关信息）`;
   }
@@ -89,11 +89,11 @@ export function describeKnowledgeResults(
     const label = typeof category === "string" && category.length > 0 ? `（${category}）` : "";
     return `${index + 1}. ${label}${result.content}`;
   });
-  return `# 公共知识检索
+  return `# 世界知识检索
 检索词：${keywords}
 ${lines.join("\n")}
 
-检索结果只是文本参考资料；公共知识不等于你亲眼所见，也不能据此知道角色秘密或当前状态。`;
+检索结果只是世界层面的文本记载；不等于你亲眼所见，也不能据此知道角色秘密或当前状态。`;
 }
 
 /** 只读：让 NPC 回看自己去过的场景，不占行动名额。 */

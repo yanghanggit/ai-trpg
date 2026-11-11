@@ -42,6 +42,7 @@ export const CROW_GRAVE_EVAL: RagEvalSet = {
       question: "收尸人的骨牌是做什么的",
       keywords: "收尸人 尸车 骨牌",
       expect: "每收一具就划一道",
+      access: ["收尸人"],
     },
     {
       question: "收尸人为什么不打开石窖",

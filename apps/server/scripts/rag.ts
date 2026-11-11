@@ -9,7 +9,9 @@ import {
   deleteCollection,
   type EmbeddingDtype,
   indexKnowledgeBase,
+  knowledgeFacts,
   listCollectionDocuments,
+  sameKnowledgeAccess,
   searchDocuments,
   TransformersEmbeddingProvider,
   worldCollection,
@@ -25,6 +27,8 @@ const options = {
   "top-k": { type: "string" },
   "doc-type": { type: "string" },
   "min-similarity": { type: "string" },
+  access: { type: "string" },
+  as: { type: "string" },
   dtype: { type: "string" },
   yes: { type: "boolean" },
 } as const;
@@ -41,7 +45,7 @@ function usage(): void {
     ok: true,
     usage: [
       "pnpm rag ingest (--seed <name> | --file <content-pack.json>) [--collection <name>] [--dtype q8]",
-      "pnpm rag search --seed <name> --query <text> [--top-k 5] [--min-similarity 0.3]",
+      "pnpm rag search --seed <name> --query <text> [--top-k 5] [--min-similarity 0.3] [--access all|none|<tag,...>|--as <actorKey>]",
       "pnpm rag search --collection <name> --query <text>",
       "pnpm rag check (--seed <name> | --file <content-pack.json>) | --collection <name>",
       "pnpm rag delete --collection <name> --yes",
@@ -128,6 +132,48 @@ function parseMinSimilarity(value: string | boolean | undefined): number | undef
   return parsed;
 }
 
+function resolveSearchAccess(
+  values: Record<string, string | boolean | undefined>,
+  source: ContentSource | undefined,
+): { access?: readonly string[]; reported: unknown } {
+  const asValue = values.as;
+  const accessValue = values.access;
+  if (typeof asValue === "string" && typeof accessValue === "string") {
+    throw new Error("--as 与 --access 只能二选一");
+  }
+  if (typeof asValue === "string") {
+    if (!source) {
+      throw new Error("--as 需要 --seed 或 --file");
+    }
+    const actorKey = asValue.trim();
+    const actor = source.pack.world.actors.find((candidate) => candidate.key === actorKey);
+    if (!actor) {
+      throw new Error(`内容包里没有 actor: ${actorKey}`);
+    }
+    const access = [...(actor.knowledgeAccess ?? [])];
+    return { access, reported: { as: actorKey, access } };
+  }
+  // 缺省是全量（管理端调试）；要模拟角色用 --as 或 --access none / 标签列表。
+  if (accessValue === undefined || accessValue === "all") {
+    return { access: undefined, reported: "all" };
+  }
+  if (typeof accessValue !== "string") {
+    throw new Error("--access 需要 all / none / 标签列表");
+  }
+  if (accessValue === "none") {
+    return { access: [], reported: "none" };
+  }
+  const access = [
+    ...new Set(
+      accessValue
+        .split(",")
+        .map((tag) => tag.trim())
+        .filter(Boolean),
+    ),
+  ];
+  return { access, reported: access.length === 0 ? "none" : access };
+}
+
 function makeProvider(value: string | boolean | undefined): TransformersEmbeddingProvider {
   if (value === undefined) {
     return new TransformersEmbeddingProvider();
@@ -186,17 +232,30 @@ async function main(): Promise<void> {
       }
       // 对账：内容包是唯一事实源，库里多出来的（orphan）与少掉的（missing）都要报出来。
       const expected = new Map(
-        Object.values(source.pack.knowledge)
-          .flat()
-          .map((content) => [contentHash(content), content] as const),
+        knowledgeFacts(source.pack.knowledge).map(
+          (fact) => [contentHash(fact.content), fact] as const,
+        ),
       );
       const actual = new Map(documents.map((doc) => [doc.contentHash, doc] as const));
       const missing = [...expected.entries()]
         .filter(([hash]) => !actual.has(hash))
-        .map(([, content]) => content);
+        .map(([, fact]) => fact.content);
       const orphan = [...actual.entries()]
         .filter(([hash]) => !expected.has(hash))
         .map(([, doc]) => doc.content);
+      const accessDrift = [...expected.values()].flatMap((fact) => {
+        const doc = actual.get(contentHash(fact.content));
+        if (!doc || sameKnowledgeAccess(doc.access, fact.access)) {
+          return [];
+        }
+        return [
+          {
+            content: fact.content.slice(0, 40),
+            expected: fact.access,
+            actual: doc.access,
+          },
+        ];
+      });
       const model = new TransformersEmbeddingProvider().model;
       const staleModel = documents.filter((doc) => doc.embeddingModel !== model).length;
       emit({
@@ -207,8 +266,13 @@ async function main(): Promise<void> {
         expected: expected.size,
         missing: { count: missing.length, samples: missing.slice(0, 5) },
         orphan: { count: orphan.length, samples: orphan.slice(0, 5) },
+        accessDrift: { count: accessDrift.length, samples: accessDrift.slice(0, 5) },
         staleModel,
-        inSync: missing.length === 0 && orphan.length === 0 && staleModel === 0,
+        inSync:
+          missing.length === 0 &&
+          orphan.length === 0 &&
+          accessDrift.length === 0 &&
+          staleModel === 0,
       });
     } finally {
       await pool.end();
@@ -250,6 +314,7 @@ async function main(): Promise<void> {
   const provider = makeProvider(values.dtype);
   const topK = parseTopK(values["top-k"]);
   const minSimilarity = parseMinSimilarity(values["min-similarity"]);
+  const searchAccess = resolveSearchAccess(values, source);
   const { db, pool } = openDatabase();
   try {
     const results = await searchDocuments(db, provider, {
@@ -258,6 +323,7 @@ async function main(): Promise<void> {
       ...(topK !== undefined ? { topK } : {}),
       ...(minSimilarity !== undefined ? { minSimilarity } : {}),
       ...(typeof values["doc-type"] === "string" ? { docType: values["doc-type"] } : {}),
+      ...(searchAccess.access !== undefined ? { access: searchAccess.access } : {}),
     });
     emit({
       ok: true,
@@ -265,6 +331,7 @@ async function main(): Promise<void> {
       collection,
       model: provider.model,
       query: values.query,
+      access: searchAccess.reported,
       results,
     });
   } finally {

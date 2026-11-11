@@ -197,6 +197,8 @@ export const actors = pgTable("actors", {
   /** 默认玩家角色；该角色死亡时整局结束。 */
   isDefaultPlayer: boolean("is_default_player").notNull().default(false),
   equipment: jsonb("equipment").$type<EquipmentSlots>().notNull().default({}),
+  /** 角色可以读取的受限知识标签；空数组 = 只读无门槛知识。 */
+  knowledgeAccess: text("knowledge_access").array().notNull().default(sql`'{}'::text[]`),
   /** 角色固有动作；携带者（武器）授予的动作不入库。 */
   actions: jsonb("actions").$type<InnateActionKind[]>().notNull().default([]),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
@@ -430,6 +432,8 @@ export const vectorDocuments = pgTable(
     title: text("title"),
     content: text("content").notNull(),
     contentHash: text("content_hash").notNull(),
+    /** 读取该条所需标签；空数组 = 人人可知。 */
+    access: text("access").array().notNull().default(sql`'{}'::text[]`),
     metadata: jsonb("metadata").$type<RagMetadata>().notNull().default({}),
     embedding: vector("embedding", { dimensions: EMBEDDING_DIMENSIONS }).notNull(),
     embeddingModel: text("embedding_model").notNull(),

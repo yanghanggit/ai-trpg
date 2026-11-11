@@ -121,6 +121,7 @@ async function insertActor(
     hp: actor.hp ?? stats.maxHp,
     isDefaultPlayer: actor.isDefaultPlayer ?? false,
     equipment: actor.equipment ?? {},
+    knowledgeAccess: [...(actor.knowledgeAccess ?? [])],
     actions: actorInnateActions(actor),
   });
   return actorId;

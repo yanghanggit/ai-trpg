@@ -226,6 +226,7 @@ function assembleState(rows: StateRows): GameStateSlice {
       hp: actor.hp,
       isDefaultPlayer: actor.isDefaultPlayer,
       equipment: actor.equipment,
+      knowledgeAccess: actor.knowledgeAccess,
       items: itemsByActor.get(actor.id) ?? [],
       actions: actor.actions,
     });

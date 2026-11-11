@@ -54,7 +54,7 @@
 | [名字审计](name-audit.md)                | actor 记忆的真名泄漏检查、CLI 与回合级 trace     |
 | [玩家对话审核](dialogue-audit.md)        | 玩家台词的无状态审核、失败关闭与被拒记录         |
 | [数据库](database.md)                    | PostgreSQL 聚合归属、不变式、读取与写入边界      |
-| [公共知识检索](rag.md)                   | 知识边界、向量存储、query 工具与评测基线         |
+| [世界知识检索](rag.md)                   | 知识边界、访问门槛、向量存储、query 工具与评测   |
 | [Actor 记忆](actor-actions-memory.md)    | actor 控制、行动事实、过程轨迹与接管             |
 | [外观](appearance.md)                    | 形态、穿戴、外观推理、来源快照与换装入口         |
 | [物品](items.md)                         | 大类与词缀、可见性归属、取物与搜刮、掉落         |

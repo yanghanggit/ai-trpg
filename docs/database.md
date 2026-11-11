@@ -11,9 +11,9 @@ PostgreSQL 是游戏状态的唯一真相：回合从库里读状态与 memory�
 - **角色**：`actors` 依附场景；可变生命值与恒定属性分开存，`hp` 归零就是死亡，没有死亡状态列，收尾是归零之后的派生流程、与行动事务解耦；形态与外观各有自己的记录，穿戴是 actor 上的槽位索引；actor 本身不存视觉字段。
 - **名字**：签名称呼按「观察者 × 签名」记录，再次写入覆盖；换签名即失去旧称呼。它只存观察者当前的叫法，不做名字抽取。
 - **事件与记忆**：公共事件流只追加、带可见性与游标，供拉取与审计；私有记忆按 actor / stage / world 分开，压缩只重写自己的记忆。两者不合并：`mind` 只进记忆。
-- **向量**：只装公共知识，collection 与模型分开隔离；不承载私有记忆或剧情秘密。
+- **向量**：只装世界知识，`access` 列承载阅读门槛，collection 与模型分开隔离；不承载私有记忆或剧情秘密。
 
-→ 参见：[Actor 行动与记忆](actor-actions-memory.md)、[外观](appearance.md)、[物品](items.md)、[Stage 小 GM](stage.md)、[公共知识检索](rag.md)
+→ 参见：[Actor 行动与记忆](actor-actions-memory.md)、[外观](appearance.md)、[物品](items.md)、[Stage 小 GM](stage.md)、[世界知识检索](rag.md)
 
 ## 读取分层
 

@@ -141,6 +141,13 @@ export type Actor = {
   /** 随身携带的道具；建局时物化成 `items` 行。 */
   inventory: readonly ItemDefinition[];
   /**
+   * 出身带来的知识标签：读取受限知识时任一命中即可。
+   *
+   * 建局时随 `World` 物化进 actor 行；它不是运行时状态，内容改了也不回改已建的局。
+   * 空/缺省 = 只读无门槛知识。
+   */
+  knowledgeAccess?: readonly string[];
+  /**
    * 成套的技艺：一项技艺可以带几个动作，建局时并入 `actions`。
    *
    * 它只是内容层的分组，不落库、不在运行时存在；物化后剩下的就是动作本身。

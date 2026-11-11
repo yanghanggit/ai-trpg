@@ -4,7 +4,7 @@
 
 ## 结论
 
-`World`、`Stage`、`Actor`、`ItemDefinition` 是内容定义；`WorldState`、`StageState`、`ActorState`、`ItemState` 是运行时状态。故事文本、角色关系、场景图、物品、能力与使用描述由内容输入提供，不写进 `game` 服务。内容输入的单位是**内容包** `{ world, knowledge }`：`seeds/` 只是内置内容包的一个 provider，外部 JSON 走同一个契约。
+`World`、`Stage`、`Actor`、`ItemDefinition` 是内容定义；`WorldState`、`StageState`、`ActorState`、`ItemState` 是运行时状态。故事文本、角色关系、场景图、物品、能力与使用描述由内容输入提供，不写进 `game` 服务。内容输入的单位是**内容包** `{ world, knowledge }`：`seeds/` 只是内置内容包的一个 provider，外部 JSON 走同一个契约。知识条目可以带访问标签，actor 内容声明自己具备的标签；建局时标签随 actor 物化，检索按它过滤。
 
 术语上，一个 `World` 就是一局故事的世界，基本等于一个剧本；跨剧本共用的是**战役内容**：战役设定（题材与边界）与世界职能口径（词缀、故事、压缩、对话审核各自在本题材下的规矩与口味），剧本不能覆盖它们，只能按条覆盖职能口径。全局规则另属一层：它描述的是引擎已有的事实（游戏实体、名字与引用、场景跳跃），对所有游戏内实体共同成立，所有战役共用，只有一个所有者。数值的含义在 `get_self` 与攻击工具的契约里，知识来源由检索工具自己说明，两者都不在全局规则里。
 
@@ -54,9 +54,9 @@
 
 `seeds/index.ts` 暴露 `CONTENT_PACKS` 与 `getContentPack(name)`，只做显式 `name → { world, knowledge }` 映射，不提供隐式默认值。
 
-建局必须显式给内容来源，没有默认故事：内置 seed、外部内容包（与 seed 等价）或只给 world 文件（该世界没有公共知识）。外部内容先经 `parseContentPack` / `parseWorldContent` 校验才进入 `createGame`；知识库要另外显式 ingest，不随建局自动入库。
+建局必须显式给内容来源，没有默认故事：内置 seed、外部内容包（与 seed 等价）或只给 world 文件（该世界没有知识库）。外部内容先经 `parseContentPack` / `parseWorldContent` 校验才进入 `createGame`；知识库要另外显式 ingest，不随建局自动入库。
 
-→ 参见：[公共知识检索](rag.md)、[开发期 Agent 工作流](debug-workflow.md)
+→ 参见：[世界知识检索](rag.md)、[开发期 Agent 工作流](debug-workflow.md)
 
 ## 检查方法
 

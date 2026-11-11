@@ -359,6 +359,7 @@ describe("read-only descriptions", () => {
       stats: { maxHp: 12, strength: 3, wisdom: 2, agility: 4, damage: 3, block: 2 },
       isDefaultPlayer: false,
       equipment: { weapon: "裂齿短刃" },
+      knowledgeAccess: [],
       actions: ["say", "whisper", "announce", "move", "wait", "give", "pickup", "use"] as const,
       items: [
         {

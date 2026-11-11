@@ -55,6 +55,41 @@ describe("content pack", () => {
     expect(() => parseContentPack({ world: withoutActions, knowledge: pack.knowledge })).toThrow();
   });
 
+  it("parses gated knowledge and rejects unreachable or conflicting access", () => {
+    const world = {
+      ...TEST_WORLD,
+      actors: TEST_WORLD.actors.map((actor, index) =>
+        index === 0 ? { ...actor, knowledgeAccess: ["识字"] } : actor,
+      ),
+    };
+    const parsed = parseContentPack({
+      world,
+      knowledge: { 地理: [{ content: "旧钟铭文只给识字的人看。", access: ["识字"] }] },
+    });
+    expect(parsed.knowledge.地理).toEqual([
+      { content: "旧钟铭文只给识字的人看。", access: ["识字"] },
+    ]);
+
+    expect(() =>
+      parseContentPack({
+        world: TEST_WORLD,
+        knowledge: { 地理: [{ content: "没有人能读到。", access: ["无人"] }] },
+      }),
+    ).toThrow(/没有任何 actor/);
+
+    expect(() =>
+      parseContentPack({
+        world,
+        knowledge: {
+          地理: [
+            { content: "同一事实。", access: ["识字"] },
+            { content: "同一事实。", access: [] },
+          ],
+        },
+      }),
+    ).toThrow(/不同访问门槛/);
+  });
+
   it("reads the same pack from a JSON file", async () => {
     const dir = await mkdtemp(join(tmpdir(), "ai-trpg-pack-"));
     try {

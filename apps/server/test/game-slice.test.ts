@@ -321,7 +321,7 @@ describe.skipIf(!testDatabaseUrl)("memory-driven NPC slice", () => {
     expect(keeperService.tools).toContain("equip");
     expect(keeperService.tools).toContain("unequip");
 
-    // 公共知识库检索对所有 actor 开放，不按角色开关。
+    // 世界知识检索对所有 actor 开放，不按角色开关；返回范围由知识标签决定。
     const corpseService = new ToolCaptureService();
     await runActorTurn(handle.db, created.game.slug, "无名者", { service: corpseService });
     expect(corpseService.tools).toContain("steal");

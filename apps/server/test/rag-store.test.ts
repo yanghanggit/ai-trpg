@@ -15,6 +15,7 @@ const testDatabaseUrl = process.env.TEST_DATABASE_URL?.trim();
 const baseCollection = `test:rag:${Date.now()}:${Math.random().toString(36).slice(2)}`;
 const otherCollection = `${baseCollection}:other`;
 const syncCollection = `${baseCollection}:sync`;
+const accessCollection = `${baseCollection}:access`;
 
 function vector(values: Record<number, number>): number[] {
   return Array.from({ length: EMBEDDING_DIMENSIONS }, (_, index) => values[index] ?? 0);
@@ -47,12 +48,14 @@ describe.skipIf(!testDatabaseUrl)("pgvector rag store", () => {
     await deleteCollection(handle.db, baseCollection);
     await deleteCollection(handle.db, otherCollection);
     await deleteCollection(handle.db, syncCollection);
+    await deleteCollection(handle.db, accessCollection);
   });
 
   afterAll(async () => {
     await deleteCollection(handle.db, baseCollection);
     await deleteCollection(handle.db, otherCollection);
     await deleteCollection(handle.db, syncCollection);
+    await deleteCollection(handle.db, accessCollection);
     await handle.pool.end();
   });
 
@@ -167,5 +170,65 @@ describe.skipIf(!testDatabaseUrl)("pgvector rag store", () => {
     expect(result.written).toBe(0);
     expect(result.removed).toBe(2);
     expect(await countCollection(handle.db, syncCollection)).toBe(0);
+  });
+
+  it("filters by access tags with OR semantics and updates them on resync", async () => {
+    await indexDocuments(handle.db, provider, accessCollection, [
+      { content: "alpha" },
+      { content: "beta", access: ["医者"] },
+      { content: "gamma", access: ["学者"] },
+    ]);
+
+    const common = await searchDocuments(handle.db, provider, {
+      collection: accessCollection,
+      query: "query",
+      topK: 3,
+      access: [],
+    });
+    expect(common.map((result) => result.content)).toEqual(["alpha"]);
+
+    const healer = await searchDocuments(handle.db, provider, {
+      collection: accessCollection,
+      query: "query",
+      topK: 3,
+      access: ["医者"],
+    });
+    expect(healer.map((result) => result.content)).toEqual(["alpha", "beta"]);
+
+    const scholar = await searchDocuments(handle.db, provider, {
+      collection: accessCollection,
+      query: "query",
+      topK: 3,
+      access: ["学者"],
+    });
+    expect(scholar.map((result) => result.content)).toEqual(["alpha", "gamma"]);
+
+    // 缺省访问 = 管理端全量。
+    const admin = await searchDocuments(handle.db, provider, {
+      collection: accessCollection,
+      query: "query",
+      topK: 3,
+    });
+    expect(admin.map((result) => result.content)).toEqual(["alpha", "gamma", "beta"]);
+
+    // 只改门槛不改正文时，upsert 也要把 access 更新掉。
+    await indexDocuments(
+      handle.db,
+      provider,
+      accessCollection,
+      [
+        { content: "alpha", access: ["识字"] },
+        { content: "beta", access: ["医者"] },
+        { content: "gamma", access: ["学者"] },
+      ],
+      { pruneMissing: true },
+    );
+    const commonAfter = await searchDocuments(handle.db, provider, {
+      collection: accessCollection,
+      query: "query",
+      topK: 3,
+      access: [],
+    });
+    expect(commonAfter).toEqual([]);
   });
 });

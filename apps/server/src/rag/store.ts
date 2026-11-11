@@ -1,8 +1,9 @@
 import { createHash } from "node:crypto";
-import { and, cosineDistance, eq, gte, notInArray, sql } from "drizzle-orm";
+import { and, arrayOverlaps, cosineDistance, eq, gte, notInArray, or, sql } from "drizzle-orm";
 import type { Database } from "../db/pool";
 import { vectorDocuments } from "../db/schema";
 import { DEFAULT_RAG_TOP_K, MAX_RAG_TOP_K } from "./constants";
+import { knowledgeFacts, sameKnowledgeAccess } from "./facts";
 import type {
   EmbeddingProvider,
   IndexDocumentsOptions,
@@ -23,6 +24,14 @@ export function contentHash(content: string): string {
   return createHash("sha256").update(normalizeContent(content), "utf8").digest("hex");
 }
 
+function normalizeAccess(access: readonly string[] | undefined): string[] {
+  const normalized = [...new Set((access ?? []).map((tag) => tag.trim()))];
+  if (normalized.some((tag) => tag.length === 0)) {
+    throw new Error("知识文档的 access 标签不能为空");
+  }
+  return normalized;
+}
+
 function normalizeDocument(document: RagDocumentInput): RagDocumentInput {
   const content = normalizeContent(document.content);
   if (content.length === 0) {
@@ -30,6 +39,7 @@ function normalizeDocument(document: RagDocumentInput): RagDocumentInput {
   }
   return {
     content,
+    access: normalizeAccess(document.access),
     ...(document.title?.trim() ? { title: document.title.trim() } : {}),
     ...(document.source?.trim() ? { source: document.source.trim() } : {}),
     ...(document.docType?.trim() ? { docType: document.docType.trim() } : {}),
@@ -42,14 +52,13 @@ export function knowledgeBaseDocuments(
   knowledgeBase: KnowledgeBase,
   defaults: Pick<RagDocumentInput, "source" | "docType"> = {},
 ): RagDocumentInput[] {
-  return Object.entries(knowledgeBase).flatMap(([category, entries]) =>
-    entries.map((content) => ({
-      content,
-      ...(defaults.source ? { source: defaults.source } : {}),
-      docType: defaults.docType ?? "knowledge",
-      metadata: { category },
-    })),
-  );
+  return knowledgeFacts(knowledgeBase).map((fact) => ({
+    content: fact.content,
+    access: fact.access,
+    ...(defaults.source ? { source: defaults.source } : {}),
+    docType: defaults.docType ?? "knowledge",
+    metadata: { category: fact.category },
+  }));
 }
 
 function assertCollection(collection: string): string {
@@ -79,9 +88,14 @@ export async function indexDocuments(
   const unique = new Map<string, RagDocumentInput>();
   for (const document of normalized) {
     const hash = contentHash(document.content);
-    if (!unique.has(hash)) {
-      unique.set(hash, document);
+    const previous = unique.get(hash);
+    if (previous) {
+      if (!sameKnowledgeAccess(previous.access ?? [], document.access ?? [])) {
+        throw new Error(`同一段正文出现不同访问门槛: ${document.content.slice(0, 24)}…`);
+      }
+      continue;
     }
+    unique.set(hash, document);
   }
   const documentsToWrite = [...unique.values()];
 
@@ -108,6 +122,7 @@ export async function indexDocuments(
       title: document.title ?? null,
       content: document.content,
       contentHash: contentHash(document.content),
+      access: normalizeAccess(document.access),
       metadata: (document.metadata ?? {}) as RagMetadata,
       embedding,
       embeddingModel: provider.model,
@@ -132,6 +147,7 @@ export async function indexDocuments(
             docType: sql`excluded.doc_type`,
             title: sql`excluded.title`,
             metadata: sql`excluded.metadata`,
+            access: sql`excluded.access`,
             embedding: sql`excluded.embedding`,
             embeddingModel: sql`excluded.embedding_model`,
             updatedAt: sql`excluded.updated_at`,
@@ -157,15 +173,16 @@ export async function indexDocuments(
   return { collection: targetCollection, written: rows.length, removed };
 }
 
-/** collection 里现有文档的 hash / 模型 / 内容，用于入库对账。 */
+/** collection 里现有文档的 hash / 模型 / 正文 / 门槛，用于入库对账。 */
 export async function listCollectionDocuments(
   db: Database,
   collection: string,
-): Promise<{ contentHash: string; content: string; embeddingModel: string }[]> {
+): Promise<{ contentHash: string; content: string; access: string[]; embeddingModel: string }[]> {
   return db
     .select({
       contentHash: vectorDocuments.contentHash,
       content: vectorDocuments.content,
+      access: vectorDocuments.access,
       embeddingModel: vectorDocuments.embeddingModel,
     })
     .from(vectorDocuments)
@@ -206,6 +223,19 @@ export async function searchDocuments(
   if (options.docType) {
     conditions.push(eq(vectorDocuments.docType, options.docType.trim()));
   }
+  if (options.access !== undefined) {
+    const access = normalizeAccess(options.access);
+    const readable =
+      access.length === 0
+        ? sql`cardinality(${vectorDocuments.access}) = 0`
+        : or(
+            sql`cardinality(${vectorDocuments.access}) = 0`,
+            arrayOverlaps(vectorDocuments.access, access),
+          );
+    if (readable) {
+      conditions.push(readable);
+    }
+  }
   if (minSimilarity !== undefined) {
     conditions.push(gte(similarity, minSimilarity));
   }
@@ -214,6 +244,7 @@ export async function searchDocuments(
     .select({
       id: vectorDocuments.id,
       content: vectorDocuments.content,
+      access: vectorDocuments.access,
       title: vectorDocuments.title,
       source: vectorDocuments.source,
       docType: vectorDocuments.docType,
@@ -228,6 +259,7 @@ export async function searchDocuments(
   return rows.map((row) => ({
     id: row.id,
     content: row.content,
+    access: row.access,
     title: row.title,
     source: row.source,
     docType: row.docType,

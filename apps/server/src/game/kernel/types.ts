@@ -473,6 +473,8 @@ export type ActorState = {
   /** 是否为默认玩家角色；主角死亡时只通知 world，收尾由 world 回合决定。 */
   isDefaultPlayer: boolean;
   equipment: EquipmentSlots;
+  /** 出身带来的知识标签；读取受限知识时任一命中即可。 */
+  knowledgeAccess: readonly string[];
   items: ItemState[];
   /** 角色固有的动作；携带者（武器）授予的动作不在这里，要从穿戴中取。 */
   actions: readonly InnateActionKind[];

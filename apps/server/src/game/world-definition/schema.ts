@@ -103,6 +103,11 @@ const actorSchema = z.object({
   hp: z.number().optional(),
   isDefaultPlayer: z.boolean().optional(),
   inventory: z.array(itemSchema),
+  /** 该角色出身带来的知识标签；空/缺省 = 只读无门槛知识。 */
+  knowledgeAccess: z
+    .array(z.string().trim().min(1))
+    .refine((tags) => new Set(tags).size === tags.length, "knowledgeAccess 不能重复")
+    .optional(),
   proficiencies: z.array(skillSchema).optional(),
   actions: z.array(actionKindSchema),
 });

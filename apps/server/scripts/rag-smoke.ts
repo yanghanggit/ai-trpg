@@ -5,6 +5,7 @@ import {
   countCollection,
   deleteCollection,
   indexKnowledgeBase,
+  knowledgeFacts,
   searchDocuments,
   TransformersEmbeddingProvider,
 } from "../src/rag";
@@ -14,10 +15,9 @@ async function main(): Promise<void> {
   if (!pack) {
     throw new Error("没有可用的内容包");
   }
-  const documents = Object.values(pack.knowledge).flat();
-  const query = documents[0];
+  const query = knowledgeFacts(pack.knowledge)[0]?.content;
   if (!query) {
-    throw new Error("内容包没有可检索的公共知识");
+    throw new Error("内容包没有可检索的知识");
   }
   const collection = `smoke:${Date.now()}`;
   const provider = new TransformersEmbeddingProvider();

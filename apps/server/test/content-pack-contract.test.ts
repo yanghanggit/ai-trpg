@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { CONTENT_PACKS } from "../seeds";
 import { CARRIED_ACTION_KINDS, INNATE_ACTION_KINDS } from "../src/game/actions";
 import { parseWorldContent } from "../src/game/world-definition";
+import { knowledgeFacts } from "../src/rag";
 
 /**
  * 内容包契约：与具体剧本无关的结构约束，对仓库里每一个剧本都跑一遍。
@@ -31,6 +32,19 @@ describe.each(packs)("content pack %s", (name, pack) => {
     const prefix = `${world.contentKey}.v`;
     expect(world.contentVersion.startsWith(prefix)).toBe(true);
     expect(world.contentVersion.slice(prefix.length)).toMatch(/^\d+$/);
+  });
+
+  it("keeps every knowledge access tag reachable", () => {
+    const facts = knowledgeFacts(pack.knowledge);
+    const actorTags = new Set(world.actors.flatMap((actor) => actor.knowledgeAccess ?? []));
+    const documentTags = new Set(facts.flatMap((fact) => fact.access));
+    // 文档门槛没有 actor 持有 = 永远读不到；actor 标签没有文档使用 = 拼错或死标签。
+    for (const tag of documentTags) {
+      expect(actorTags.has(tag)).toBe(true);
+    }
+    for (const tag of actorTags) {
+      expect(documentTags.has(tag)).toBe(true);
+    }
   });
 
   it("keeps carried actions on weapons, never on actors", () => {
