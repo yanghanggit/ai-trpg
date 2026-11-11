@@ -19,18 +19,18 @@ export function buildGiveTool(targetActorHandles: readonly string[]): ToolDefini
     function: {
       name: "give",
       description:
-        "把一次给予加入计划：把自己持有的一件物品交给同舞台的一个角色，舞台内其他角色也能看见。",
+        "把一次给予加入计划：把自己持有的一件道具交给同舞台的一个角色，舞台内其他角色也能看见。",
       parameters: {
         type: "object",
         properties: {
           targetActorHandle: {
             type: "string",
-            description: "接收物品的同舞台角色的引用（名字 或 #编号）；尸体也可以",
+            description: "接收道具的同舞台角色的引用（名字 或 #编号）；尸体也可以",
             ...(targetActorHandles.length > 0 ? { enum: [...targetActorHandles] } : {}),
           },
           itemName: {
             type: "string",
-            description: "要交出的自己持有的物品名",
+            description: "要交出的自己持有的道具名",
           },
         },
         required: ["targetActorHandle", "itemName"],
@@ -49,7 +49,7 @@ export function parseGive(args: Record<string, unknown>): GiveAction {
   return { kind: "give", targetActorHandle, itemName };
 }
 
-/** 校验 give：目标不是自己，自己确实持有该物品；尸体也可以是接收方。 */
+/** 校验 give：目标不是自己，自己确实持有该道具；尸体也可以是接收方。 */
 export async function resolveGive(
   executor: Executor,
   stage: ResolvedGive["stage"],

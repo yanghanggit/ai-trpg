@@ -108,7 +108,7 @@ describe("dark fantasy seed world", () => {
     });
     expect(king?.signature.form.startsWith("鼠:")).toBe(true);
     expect(king?.hp).toBeGreaterThan(keeper?.hp ?? 0);
-    // 角色只带源属性：攻击力来自力量，防御来自穿戴的厚皮（终值在物品上）。
+    // 角色只带源属性：攻击力来自力量，防御来自穿戴的厚皮（终值在道具上）。
     expect(king?.stats.strength).toBeGreaterThan(20);
     expect(king?.stats.damage).toBe(0);
     expect(king?.stats.block).toBe(0);

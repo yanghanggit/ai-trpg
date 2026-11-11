@@ -248,7 +248,7 @@ export function assertNotSelf(target: ActorRow, actorId: string): void {
   }
 }
 
-/** 按槽位索引解析出穿戴中的物品行；指向不存在物品的悬空索引直接跳过。 */
+/** 按槽位索引解析出穿戴中的道具行；指向不存在道具的悬空索引直接跳过。 */
 export async function resolveEquippedItems(
   executor: Executor,
   actor: ActorRow,
@@ -272,7 +272,7 @@ export async function resolveEquippedItems(
 }
 
 /**
- * 现值计算的输入：本体属性、穿戴槽与在穿的物品行。
+ * 现值计算的输入：本体属性、穿戴槽与在穿的道具行。
  *
  * 怎么分「源属性」与「终值」归玩法层（`gameplay/effective.ts`）；这里只负责把行取齐，
  * 面板与结算因此永远读同一份来源。
@@ -286,7 +286,7 @@ export async function wearerView(executor: Executor, actor: ActorRow): Promise<W
 }
 
 /**
- * 按名字取 actor 名下的一件物品。
+ * 按名字取 actor 名下的一件道具。
  *
  * 一个名字在一个作用域里只有一行，由写入侧保证（等价的并入 `count`，不等价的拒绝）。
  * 历史数据若仍有重复，取序号最早的那一行——名字是唯一的地址，读取不该因为脏数据
@@ -304,17 +304,17 @@ export async function resolveActorItem(
     .orderBy(asc(items.seq))
     .limit(1);
   if (!item) {
-    throw new GameError("invalid_action", `actor 没有这件物品: ${itemName}`);
+    throw new GameError("invalid_action", `actor 没有这件道具: ${itemName}`);
   }
   return item;
 }
 
-/** 某个角色名下的全部物品；搜刮尸体要用整份清单，按序号稳定排序。 */
+/** 某个角色名下的全部道具；搜刮尸体要用整份清单，按序号稳定排序。 */
 export async function listActorItems(executor: Executor, actorId: string): Promise<ItemRow[]> {
   return executor.select().from(items).where(eq(items.actorId, actorId)).orderBy(asc(items.seq));
 }
 
-/** 舞台物品按 (舞台, 锚点, 名字) 定位：锚点内名字唯一由写入侧保证。 */
+/** 舞台道具按 (舞台, 锚点, 名字) 定位：锚点内名字唯一由写入侧保证。 */
 export async function resolveStageItem(
   executor: Executor,
   stageId: string,

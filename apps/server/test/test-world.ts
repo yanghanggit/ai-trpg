@@ -141,7 +141,7 @@ export const TEST_WORLD: World = {
           kind: "weapon" as const,
           count: 1,
           stats: { damage: 3, block: 0 },
-          // 裂齿短刃提供 strike：装备中才把挥击借给角色；卸下后也能当道具使用。
+          // 裂齿短刃提供 strike：装备中才把挥击借给角色；卸下后也能走 use。
           actions: ["strike"],
           affixes: {
             strike: [

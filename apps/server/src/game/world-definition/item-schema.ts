@@ -9,12 +9,12 @@ import { statsSchema } from "../kernel/attributes";
 import type { ActionKind, AffixStatRef, DamageAmount, ItemKind } from "../kernel/types";
 
 /**
- * 物品定义的内容校验：只查这件物品自己的字段是否自洽。
+ * 道具定义的内容校验：只查这件道具自己的字段是否自洽。
  *
  * 需要看整张世界的规则（名字、文本泄漏、能力清单）在 `./invariants.ts`。
  */
 
-/** 物品大类清单；`satisfies` 保证这里的每一项都在运行时 `ItemKind` 里。 */
+/** 道具大类清单；`satisfies` 保证这里的每一项都在运行时 `ItemKind` 里。 */
 const ITEM_KINDS = [
   "weapon",
   "equipment",
@@ -26,10 +26,10 @@ const ITEM_KINDS = [
 
 const itemKindSchema = z.enum(ITEM_KINDS);
 
-/** 物品只能声明携带者动作；固有动作不属于任何物品。 */
+/** 道具只能声明携带者动作；固有动作不属于任何道具。 */
 const affixActionKindSchema = z.enum(CARRIED_ACTION_KINDS satisfies readonly ActionKind[]);
 
-/** 静态词缀能引用的数值全集：攻击力在结算期现算，物品终值取自本条物品。 */
+/** 静态词缀能引用的数值全集：攻击力在结算期现算，道具终值取自本条道具。 */
 const statRefValues = ["attack", "item.damage"] as const satisfies readonly AffixStatRef[];
 
 const statRefSchema = z.enum(statRefValues);
@@ -129,7 +129,7 @@ export const itemSchema = z
       ctx.addIssue({ code: "custom", message: "只有 material 可以声明 source", path: ["source"] });
     }
     // 动作挂在携带者上，哪些大类能携带由 `CARRIED_ACTIONS_BY_ITEM_KIND` 决定；
-    // 没登记的物品类声明动作一定是内容写错了，而不是“暂时不生效”。
+    // 没登记的道具类声明动作一定是内容写错了，而不是“暂时不生效”。
     const grantable = carriedActionsForKind(item.kind);
     const unknown = (item.actions ?? []).filter((kind) => !grantable.includes(kind));
     if (unknown.length > 0) {

@@ -15,7 +15,7 @@ import { adjacentStageRefsForActor } from "./observed-stage";
 /**
  * 一轮 actor 回合里「看得到什么、能做什么」的全部派生结果。
  *
- * 任务提示词与工具表都从这里取：同一份 targets / allowed / 物品名不会各算一遍，
+ * 任务提示词与工具表都从这里取：同一份 targets / allowed / 道具名不会各算一遍，
  * 也就不会出现提示词里说能做、工具里却没有的错位。
  *
  * 只有读取，不含任何 LLM 或写入：测试可以直接构造 state 断言这里的输出。
@@ -37,9 +37,9 @@ export type ActorTurnContext = {
   selfAndTargets: string[];
   /** 本轮真正会出现在工具列表里的动作：固有动作 ∪ 携带者授予。 */
   allowed: ActionKind[];
-  /** 背包里能当道具的物品名：未穿戴，且声明了 use 词缀。 */
+  /** 背包里能当道具的道具名：未穿戴，且声明了 use 词缀。 */
   usableItemNames: string[];
-  /** 能穿到槽位上的物品名。 */
+  /** 能穿到槽位上的道具名。 */
   wearableItemNames: string[];
   /** 已占用的槽位。 */
   occupiedSlots: EquipmentSlot[];

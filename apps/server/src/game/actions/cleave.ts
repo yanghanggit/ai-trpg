@@ -10,7 +10,7 @@ import type { ActorRow, ActorWithStageRow, Executor } from "../persistence/rows"
 import type { ResolvedCleave } from "../settle/types";
 
 /**
- * 武器动作：一次挥击命中多个目标，动作本身不带物品参数，武器隐式来自 `weapon` 槽。
+ * 武器动作：一次挥击命中多个目标，动作本身不带道具参数，武器隐式来自 `weapon` 槽。
  *
  * 与 `strike` 的分工只有目标数：`strike` 恒为单体，`cleave` 的上限由武器的
  * `maxTargets` 给出。工具形状里写 `maxItems` 只是给模型看的形状，
@@ -90,7 +90,7 @@ export async function resolveCleave(
         : `weapon 槽的武器没有提供 cleave: ${weaponName}`,
     );
   }
-  // 横扫有自己的触发：同一个动作最多引用一件物品，后果全由该触发的词缀承担。
+  // 横扫有自己的触发：同一个动作最多引用一件道具，后果全由该触发的词缀承担。
   if (!hasAffixes(item, "cleave")) {
     throw new GameError("invalid_action", `weapon 槽的武器没有横扫词缀: ${item.name}`);
   }

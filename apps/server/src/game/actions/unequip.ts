@@ -27,7 +27,7 @@ export function buildUnequipTool(occupiedSlots: readonly EquipmentSlot[]): ToolD
     type: "function",
     function: {
       name: "unequip",
-      description: `卸下某个槽位的装备：${SLOT_LABELS}。卸下的物品仍留在背包里。`,
+      description: `卸下某个槽位的装备：${SLOT_LABELS}。卸下的道具仍留在背包里。`,
       parameters: {
         type: "object",
         properties: {

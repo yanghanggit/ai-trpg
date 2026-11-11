@@ -51,7 +51,7 @@ export type NameLeakOptions = {
   skipKinds?: readonly string[];
   /** 只扫这些记忆类别；设置后优先于 `skipKinds`。 */
   onlyKinds?: readonly string[];
-  /** 内容层豁免的名字（常用词、与地点/物品撞名的角色名等）。 */
+  /** 内容层豁免的名字（常用词、与地点/道具撞名的角色名等）。 */
   allowNames?: readonly string[];
   /** 命中片段的上下文半径，默认 24 个字符。 */
   excerptRadius?: number;

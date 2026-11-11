@@ -169,7 +169,7 @@ export async function getGameStateSlice(db: Database, ref: string): Promise<Game
 /** 行 → 状态；纯函数，不读库也不做业务判定。 */
 function assembleState(rows: StateRows): GameStateSlice {
   const visits = assembleVisits(rows.stages, rows.visits);
-  // 舞台物品挂在锚点上：按 (stage, anchorKey) 分组，读侧还原成树。
+  // 舞台道具挂在锚点上：按 (stage, anchorKey) 分组，读侧还原成树。
   const itemsByAnchor = new Map<string, ItemState[]>();
   for (const item of rows.stageItems) {
     const id = `${item.stageId}:${item.anchorKey}`;
@@ -184,7 +184,7 @@ function assembleState(rows: StateRows): GameStateSlice {
     if (!anchorKeysByStage.get(item.stageId)?.has(item.anchorKey)) {
       throw new GameError(
         "invalid_state",
-        `舞台物品 ${item.name} 挂在未声明的锚点上: ${item.anchorKey}`,
+        `舞台道具 ${item.name} 挂在未声明的锚点上: ${item.anchorKey}`,
       );
     }
   }

@@ -19,16 +19,16 @@ export function buildStealTool(targetActorHandles: readonly string[]): ToolDefin
     type: "function",
     function: {
       name: "steal",
-      description: `把一次窃取加入计划：从同舞台的活人身上取走一件背包里的物品，拿不走目标穿戴中的东西。${awarenessRuleText("steal")}尸体不能偷，用 loot。`,
+      description: `把一次窃取加入计划：从同舞台的活人身上取走一件背包里的道具，拿不走目标穿戴中的东西。${awarenessRuleText("steal")}尸体不能偷，用 loot。`,
       parameters: {
         type: "object",
         properties: {
           targetActorHandle: {
             type: "string",
-            description: "被取走物品的同舞台角色的引用（名字 或 #编号）",
+            description: "被取走道具的同舞台角色的引用（名字 或 #编号）",
             ...(targetActorHandles.length > 0 ? { enum: [...targetActorHandles] } : {}),
           },
-          itemName: { type: "string", description: "要取走的物品名" },
+          itemName: { type: "string", description: "要取走的道具名" },
         },
         required: ["targetActorHandle", "itemName"],
       },
@@ -78,7 +78,7 @@ export async function resolveSteal(
   if (Object.values(target.equipment).includes(transferItem.name)) {
     throw new GameError(
       "invalid_action",
-      `${target.name}还活着，拿不走已装备的物品: ${transferItem.name}`,
+      `${target.name}还活着，拿不走已装备的道具: ${transferItem.name}`,
     );
   }
   return {

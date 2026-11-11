@@ -8,7 +8,7 @@ import { getGameMeta } from "./games";
 /**
  * 接管关系（`actor_controls`）的具名读写：谁替这个 actor 决定回合。
  *
- * 控制者不是 actor 的属性，而是座位与 actor 的绑定——接管不改变身份、舞台、物品或 memory，
+ * 控制者不是 actor 的属性，而是座位与 actor 的绑定——接管不改变身份、舞台、道具或 memory，
  * 释放后原地继续，所以这张表独立于 actor 本体。
  *
  * 两侧的入参形状不同，是刻意的：写侧面对外部入口（CLI / web 只给 slug 与名字），

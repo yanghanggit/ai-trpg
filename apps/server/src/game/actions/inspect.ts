@@ -14,7 +14,7 @@ import type { ActorWithStageRow, Executor } from "../persistence/rows";
 import type { ResolvedInspect } from "../settle/types";
 
 /**
- * 查看他人随身携带的物品：与 `steal` / `loot` 同组的动作，不是免费读取。
+ * 查看他人随身携带的道具：与 `steal` / `loot` 同组的动作，不是免费读取。
  *
  * 理由：背包清单是对方的私有信息，白拿清单等于让窃取没有风险。把它做成动作之后，
  * 一次查看要占掉本轮唯一的行动，而且能不能不被察觉要看敏捷——
@@ -28,7 +28,7 @@ export function buildInspectTool(targetActorHandles: readonly string[]): ToolDef
     type: "function",
     function: {
       name: "inspect",
-      description: `把一次查看加入计划：看同舞台目标随身携带的全部物品（含已穿戴的），活人与尸体都能看。${awarenessRuleText("inspect")}它占本轮行动名额。`,
+      description: `把一次查看加入计划：看同舞台目标随身携带的全部道具（含已穿戴的），活人与尸体都能看。${awarenessRuleText("inspect")}它占本轮行动名额。`,
       parameters: {
         type: "object",
         properties: {
@@ -99,7 +99,7 @@ export async function applyInspect(
   const inspector = { id: actorRow.actor.id, name: actorRow.actor.name };
   const target = { id: resolved.target.id, name: resolved.target.name };
 
-  // 查看不改物品归属，但它是发生过的事：公共事件流与舞台记忆都记一笔，
+  // 查看不改道具归属，但它是发生过的事：公共事件流与舞台记忆都记一笔，
   // 目标与旁观者也因此知道有人翻看过行囊。
   await bumpGameVersion(executor, gameId, now);
   const content = `${inspector.name}查看了${target.name}随身携带的东西。`;

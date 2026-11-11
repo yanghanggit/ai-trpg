@@ -814,7 +814,7 @@ describe.skipIf(!testDatabaseUrl)("corpses can be operated on", () => {
     expect(after.messages.filter((message) => message.kind === "death")).toHaveLength(1);
   });
 
-  it("物品可以交给尸体（为复活类玩法留口）", async () => {
+  it("道具可以交给尸体（为复活类玩法留口）", async () => {
     const created = await killMonk("给予尸体测试局");
     const given = await playerGive(handle.db, created.game.slug, "守烬人", {
       targetActorRef: "提灯修士",

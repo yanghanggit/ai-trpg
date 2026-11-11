@@ -135,7 +135,7 @@ export const stages = pgTable(
     name: text("name").notNull(),
     profile: text("profile").notNull(),
     environment: text("environment").notNull(),
-    /** 只存身份与文本；物品在 `stage_items`，靠 `anchor_key` 挂回。 */
+    /** 只存身份与文本；道具在 `stage_items`，靠 `anchor_key` 挂回。 */
     anchors: jsonb("anchors")
       .$type<Pick<StageAnchorState, "key" | "label" | "description">[]>()
       .notNull()
@@ -373,7 +373,7 @@ export const stageItems = pgTable(
       .notNull()
       .references(() => stages.id, { onDelete: "cascade" }),
     key: text("key"),
-    /** 承载这件物品的锚点：物品不能脱离锚点，key 由内容层声明。 */
+    /** 承载这件道具的锚点：道具不能脱离锚点，key 由内容层声明。 */
     anchorKey: text("anchor_key").notNull(),
     name: text("name").notNull(),
     description: text("description").notNull(),
@@ -390,7 +390,7 @@ export const stageItems = pgTable(
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (table) => [
-    // 物品地址是 (舞台, 锚点, 名字)：同一舞台的不同锚点可以各放一件同名物品。
+    // 道具地址是 (舞台, 锚点, 名字)：同一舞台的不同锚点可以各放一件同名道具。
     uniqueIndex("stage_items_stage_anchor_name_unique").on(
       table.stageId,
       table.anchorKey,

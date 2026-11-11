@@ -22,7 +22,7 @@ const trace: TraceContext = {
   turnKind: "actor",
 };
 
-/** 词缀阶段的输入只要形状正确；这条测试不落到任何物品上。 */
+/** 词缀阶段的输入只要形状正确；这条测试不落到任何道具上。 */
 const REQUEST: AffixRequest = {
   actorId: "00000000-0000-4000-8000-000000000001",
   itemId: "00000000-0000-4000-8000-000000000002",
@@ -82,7 +82,7 @@ describe.skipIf(!testDatabaseUrl)("词缀阶段的兜底", () => {
     expect(phase?.detail).toMatchObject({ reason: "未配置 LLM service" });
   });
 
-  it("抛错只落一条 failed，不外抛；下一件物品照常结算", async () => {
+  it("抛错只落一条 failed，不外抛；下一件道具照常结算", async () => {
     const created = await createGame(handle.db, {
       username: DEMO_USER.username,
       name: "词缀独立测试局",

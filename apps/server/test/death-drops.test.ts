@@ -190,7 +190,7 @@ describe.skipIf(!testDatabaseUrl)("death drops", () => {
         itemName: "浸血的灰袍碎片",
         targetStageName: "灰烬门廊",
       }),
-    ).rejects.toThrow(/物品没有可用的使用词缀/);
+    ).rejects.toThrow(/道具没有可用的使用词缀/);
   });
 
   it("同名材料再掉一次只增加数量，不加新行", async () => {
@@ -218,7 +218,7 @@ describe.skipIf(!testDatabaseUrl)("death drops", () => {
     expect(rows[0]?.count).toBe(2);
   });
 
-  it("模型返回空数组时算成功，不写任何舞台物品", async () => {
+  it("模型返回空数组时算成功，不写任何舞台道具", async () => {
     const created = await createGame(handle.db, {
       username: DEMO_USER.username,
       name: "无掉落测试局",

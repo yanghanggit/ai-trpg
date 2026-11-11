@@ -19,18 +19,18 @@ export function buildPickupTool(
     function: {
       name: "pickup",
       description:
-        "把一次拾取加入计划：从当前舞台的某个锚点上取下一件物品，放进自己的背包。锚点与物品必须匹配。",
+        "把一次拾取加入计划：从当前舞台的某个锚点上取下一件道具，放进自己的背包。锚点与道具必须匹配。",
       parameters: {
         type: "object",
         properties: {
           targetAnchor: {
             type: "string",
-            description: "物品所在的锚点标签",
+            description: "道具所在的锚点标签",
             ...(availableAnchors.length > 0 ? { enum: [...availableAnchors] } : {}),
           },
           itemName: {
             type: "string",
-            description: "要拾取的、挂在该锚点上的物品名",
+            description: "要拾取的、挂在该锚点上的道具名",
             ...(availableItemNames.length > 0 ? { enum: [...new Set(availableItemNames)] } : {}),
           },
         },

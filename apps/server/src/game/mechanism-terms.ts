@@ -22,7 +22,7 @@ import { STAT_LABELS } from "./kernel/attributes";
  */
 const MECHANISM_ONLY_TERMS = [
   "窃取", // steal 的短称：动作标签写的是「取物」
-  "搜刮", // loot 的短称：动作标签写的是「搜走物品」
+  "搜刮", // loot 的短称：动作标签写的是「搜走道具」
   "挥击", // strike：单体武器攻击
   "横扫", // cleave：多目标武器攻击
   "传音", // call：跨舞台传话

@@ -13,7 +13,7 @@ import { addStats, EMPTY_STATS, toStats } from "../src/game/kernel/attributes";
 const ROW = {
   id: "item-1",
   seq: 1,
-  name: "测试物品",
+  name: "测试道具",
   description: "测试描述",
   count: 1,
 };
@@ -59,7 +59,7 @@ describe("stats", () => {
 });
 
 describe("item state", () => {
-  it("所有物品都携带归一化后的完整属性", () => {
+  it("所有道具都携带归一化后的完整属性", () => {
     const item = toItemState({
       ...ROW,
       kind: "weapon",
@@ -67,7 +67,7 @@ describe("item state", () => {
     });
     expect(item).toMatchObject({
       id: "item-1",
-      name: "测试物品",
+      name: "测试道具",
       description: "测试描述",
       kind: "weapon",
       count: 1,
@@ -83,7 +83,7 @@ describe("item state", () => {
     }
   });
 
-  it("非战斗物品同样有 stats，只是全为 0", () => {
+  it("非战斗道具同样有 stats，只是全为 0", () => {
     const key = toItemState({ ...ROW, kind: "accessory", stats: toStats(undefined) });
     expect(key.stats).toEqual(EMPTY_STATS);
     expect("equipped" in key).toBe(false);
@@ -91,7 +91,7 @@ describe("item state", () => {
 });
 
 describe("equipment index", () => {
-  it("按物品名定位槽位，没穿戴时没有槽位", () => {
+  it("按道具名定位槽位，没穿戴时没有槽位", () => {
     expect(equippedSlotOf({ weapon: "裂齿短刃", armor: "旧斗篷" }, "裂齿短刃")).toBe("weapon");
     expect(equippedSlotOf({ weapon: "裂齿短刃" }, "旧斗篷")).toBeUndefined();
     expect(equippedSlotOf({}, "裂齿短刃")).toBeUndefined();

@@ -10,13 +10,13 @@ import { itemValues } from "./item-row";
 import type { PromptDump } from "./types";
 
 /**
- * 物化舞台：舞台行、舞台物品、舞台记忆与舞台图。
+ * 物化舞台：舞台行、舞台道具、舞台记忆与舞台图。
  *
- * 顺序是强制的：先有 stage id 才能挂物品与记忆；连接必须等两端都建好，
+ * 顺序是强制的：先有 stage id 才能挂道具与记忆；连接必须等两端都建好，
  * 否则只能在写了一半的图上做引用校验。
  */
 
-/** 物化舞台与舞台物品；key 的唯一性由 `parseWorldContent` 保证。 */
+/** 物化舞台与舞台道具；key 的唯一性由 `parseWorldContent` 保证。 */
 export async function createStages(
   tx: Executor,
   input: { gameId: string; worldId: string; world: World },
@@ -73,7 +73,7 @@ async function insertStage(
     name: stage.name,
     profile: stage.profile,
     environment: stage.environment,
-    // 锚点行只存身份与文本；物品在 stage_items，靠 anchor_key 挂回去。
+    // 锚点行只存身份与文本；道具在 stage_items，靠 anchor_key 挂回去。
     anchors: (stage.anchors ?? []).map((anchor) => ({
       key: anchor.key,
       label: anchor.label,

@@ -111,7 +111,7 @@ export function checkWorldInvariants(world: World, ctx: z.RefinementCtx): void {
 }
 
 /**
- * 角色只带源属性：`damage` / `block` 是终值，结算期由源属性现算，只有物品能声明。
+ * 角色只带源属性：`damage` / `block` 是终值，结算期由源属性现算，只有道具能声明。
  *
  * 允许内容写下去会得到「写了却不生效」的静默错，所以直接拒绝——防御来自穿戴、
  * 攻击力来自力量这类口径归玩法层，不归内容。
@@ -123,7 +123,7 @@ function checkActorSourcesOnly(actor: Actor, actorIndex: number, ctx: z.Refineme
     }
     ctx.addIssue({
       code: "custom",
-      message: `角色不能自带终值 ${key}：它由源属性现算，终值只属于物品`,
+      message: `角色不能自带终值 ${key}：它由源属性现算，终值只属于道具`,
       path: ["actors", actorIndex, "stats", key],
     });
   }
@@ -180,9 +180,9 @@ function checkEntityName(raw: string, path: (string | number)[], ctx: z.Refineme
 }
 
 /**
- * 一个作用域（一个背包、一个锚点）里物品名唯一。
+ * 一个作用域（一个背包、一个锚点）里道具名唯一。
  *
- * 物品名就是地址，同名即无法指认；等价的多件是同一件东西的几份，用 `count` 表达。
+ * 道具名就是地址，同名即无法指认；等价的多件是同一件东西的几份，用 `count` 表达。
  */
 function checkItemNamesUnique(
   items: readonly { name: string }[],
@@ -195,7 +195,7 @@ function checkItemNamesUnique(
     if (seen.has(item.name)) {
       ctx.addIssue({
         code: "custom",
-        message: `同一个作用域里的物品名重复: ${item.name}（等价的多件请用 count）`,
+        message: `同一个作用域里的道具名重复: ${item.name}（等价的多件请用 count）`,
         path: [...path, index, "name"],
       });
     }
@@ -207,7 +207,7 @@ function checkItemNamesUnique(
  * 内容 key 的唯一性。
  *
  * key 是内容引用 actor / stage / item 的唯一方式（行为与内容判定都按 key 找），重复会
- * 静默指向另一样东西，所以这里一并拒绝。物品 key 跨锚点与背包全局唯一，与「物品名按
+ * 静默指向另一样东西，所以这里一并拒绝。道具 key 跨锚点与背包全局唯一，与「道具名按
  * 作用域唯一」是两条不同的规则：名字是地址，key 是引用。
  */
 function checkKeysUnique(world: World, ctx: z.RefinementCtx): void {
@@ -261,11 +261,11 @@ function checkKeysUnique(world: World, ctx: z.RefinementCtx): void {
   for (const { item, path } of items) {
     const key = item.key.trim();
     if (key.length === 0) {
-      ctx.addIssue({ code: "custom", message: "物品 key 不能为空", path });
+      ctx.addIssue({ code: "custom", message: "道具 key 不能为空", path });
       continue;
     }
     if (seenItems.has(key)) {
-      ctx.addIssue({ code: "custom", message: `重复的物品 key: ${key}`, path });
+      ctx.addIssue({ code: "custom", message: `重复的道具 key: ${key}`, path });
     }
     seenItems.add(key);
   }

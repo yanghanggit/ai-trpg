@@ -58,7 +58,7 @@ export type PlayerInspectInput = {
 
 export type PlayerLootInput = {
   targetActorRef: string;
-  /** 省略表示搜刮尸体身上的全部物品。 */
+  /** 省略表示搜刮尸体身上的全部道具。 */
   itemNames?: string[];
 };
 

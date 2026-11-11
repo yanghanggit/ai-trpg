@@ -67,7 +67,7 @@ const TORCH = {
   stats: { damage: 7, block: 1 },
 };
 
-/** 门闩上挂着物品：用来验证「改名不动物品、带物品不能移除」。 */
+/** 门闩上挂着道具：用来验证「改名不动道具、带道具不能移除」。 */
 const ANCHORED_ITEM_WORLD: World = {
   ...TEST_WORLD,
   stages: TEST_WORLD.stages.map((stage) =>
@@ -263,7 +263,7 @@ describe.skipIf(!testDatabaseUrl)("stage anchor tools", () => {
   it("removes an anchor together with the items hanging on it", async () => {
     const created = await createGame(handle.db, {
       username: DEMO_USER.username,
-      name: "移除带物品锚点测试局",
+      name: "移除带道具锚点测试局",
       world: ANCHORED_ITEM_WORLD,
     });
     const result = await runStageTurn(handle.db, created.game.slug, "灰烬门廊", {
@@ -276,7 +276,7 @@ describe.skipIf(!testDatabaseUrl)("stage anchor tools", () => {
     expect(result.ok).toBe(true);
     const gate = await gateOf(created.game.slug);
     expect(gate?.anchors).toEqual([]);
-    // 物品随锚点一起移除，事件里要写清带走了什么。
+    // 道具随锚点一起移除，事件里要写清带走了什么。
     const messages = (await getGameState(handle.db, created.game.slug)).messages;
     expect(messages.at(-1)?.content).toContain("带走 测试火把");
     const memory = (await getGameMemories(handle.db, created.game.id)).find(

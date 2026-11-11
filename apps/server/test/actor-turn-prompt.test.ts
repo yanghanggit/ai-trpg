@@ -89,10 +89,10 @@ describe("actor 任务提示词", () => {
       stubContext({ allowed: ["strike", "cleave", "inspect", "steal", "loot", "use"] }),
     );
 
-    // 取物前的顺序、查看与窃取的判定、已穿戴物品的替代动作。
+    // 取物前的顺序、查看与窃取的判定、已穿戴道具的替代动作。
     expect(hints).toContain("先 inspect 看清");
     expect(hints).toContain("查看与窃取比敏捷");
-    expect(hints).toContain("已穿戴的物品不能用 use");
+    expect(hints).toContain("已穿戴的道具不能用 use");
     // 有武器时不再劝 brawl，也不说无法攻击。
     expect(hints).not.toContain("brawl");
     expect(hints).not.toContain("无法发起攻击");
@@ -134,7 +134,7 @@ describe("工具描述承接的单工具契约", () => {
   });
 
   it("get_self / look_stage 说清范围与代价", () => {
-    expect(descriptionOf(buildGetSelfTool())).toContain("全部物品");
+    expect(descriptionOf(buildGetSelfTool())).toContain("全部道具");
     expect(descriptionOf(buildGetSelfTool())).toContain("不占行动名额");
     expect(descriptionOf(buildActorLookStageTool())).toContain("看不了别的舞台");
   });

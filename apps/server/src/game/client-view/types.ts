@@ -6,7 +6,7 @@ import type { PassageState, SignatureNameState } from "../kernel/types";
  * 这些类型是读侧契约：客户端只依赖它们，不依赖数据库形状。两条约定写在这里，
  * 免得每个字段的注释各说一遍：
  * - 引用（`token` / `ref`）由引擎按观察者渲染，客户端可以直接拿它提交行动；
- * - 公共标签（舞台名、物品名、大类）不做观察者遮蔽，遮蔽只发生在引用与记忆上。
+ * - 公共标签（舞台名、道具名、大类）不做观察者遮蔽，遮蔽只发生在引用与记忆上。
  */
 
 export type ViewerAddress = {
@@ -22,7 +22,7 @@ export type ViewerAddress = {
 
 export type ViewerItem = { name: string; kind: string; description: string };
 
-/** 锚点连它承载的物品一起给；物品不再有独立的扁平列表。 */
+/** 锚点连它承载的道具一起给；道具不再有独立的扁平列表。 */
 export type ViewerAnchor = {
   key: string;
   label: string;

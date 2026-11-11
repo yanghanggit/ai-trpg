@@ -51,7 +51,7 @@ export async function resolvePlan(
       stageId: stage.id,
       ref,
     });
-  // 物品提供的动作与角色固有动作同权：穿戴中的物品把自己的动作借给角色。
+  // 道具提供的动作与角色固有动作同权：穿戴中的道具把自己的动作借给角色。
   // 装备变更在本轮解析期不回灌，所以「本回合卸下/换上武器」要到下一回合才影响可用动作。
   const granted = (await resolveEquippedItems(executor, actorRow.actor)).flatMap(
     (row) => row.actions,

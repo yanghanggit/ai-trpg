@@ -84,7 +84,7 @@ describe("combat conversions", () => {
 });
 
 describe("source and final collection", () => {
-  it("源属性现值只并穿戴中物品的源属性，终值与背包物品不进来", () => {
+  it("源属性现值只并穿戴中道具的源属性，终值与背包道具不进来", () => {
     expect(effectiveSourcesOf(wearer)).toEqual({
       ...EMPTY_STATS,
       maxHp: 12,
@@ -97,7 +97,7 @@ describe("source and final collection", () => {
     expect(equipmentFinalsOf(wearer)).toEqual({ ...EMPTY_STATS, damage: 2, block: 3 });
   });
 
-  it("本次动用的物品只算一次：在槽里走装备，在背包里补进来", () => {
+  it("本次动用的道具只算一次：在槽里走装备，在背包里补进来", () => {
     const torch = item("背包里的火把", { damage: 8 });
     // 背包里的道具被 `use`：补进终值。
     expect(equipmentFinalsOf(wearer, torch)).toEqual({ ...EMPTY_STATS, damage: 10, block: 3 });

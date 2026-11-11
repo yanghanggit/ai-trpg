@@ -16,7 +16,7 @@ import { equipmentSchema, itemSchema } from "./item-schema";
  */
 
 /**
- * 角色只能声明固有动作；携带者动作（`strike` / `cleave`）由物品授予，
+ * 角色只能声明固有动作；携带者动作（`strike` / `cleave`）由道具授予，
  * 写进 `actor.actions` 会在建局前被拒，而不是等回合里失败。
  */
 const actionKindSchema = z.enum(INNATE_ACTION_KINDS);

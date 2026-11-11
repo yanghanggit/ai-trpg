@@ -19,7 +19,7 @@ describe("world content validation", () => {
     };
     expect(() => parseWorldContent(withActorDamage)).toThrow(/角色不能自带终值 damage/);
 
-    // 终值只属于物品：同一份数值写在物品上是合法的。
+    // 终值只属于道具：同一份数值写在道具上是合法的。
     const withItemBlock = {
       ...TEST_WORLD,
       actors: TEST_WORLD.actors.map((actor) =>
@@ -147,7 +147,7 @@ describe("world content validation", () => {
       ...TEST_WORLD,
       actors: [first, { ...second, inventory: [...second.inventory, ...first.inventory] }, ...rest],
     };
-    expect(() => parseWorldContent(world)).toThrow(/重复的物品 key/);
+    expect(() => parseWorldContent(world)).toThrow(/重复的道具 key/);
   });
 
   it("rejects an environment that names an actor", () => {
@@ -167,7 +167,7 @@ describe("world content validation", () => {
         index === 0 ? { ...actor, inventory: [...actor.inventory, ...actor.inventory] } : actor,
       ),
     };
-    expect(() => parseWorldContent(world)).toThrow(/物品名重复/);
+    expect(() => parseWorldContent(world)).toThrow(/道具名重复/);
   });
 
   it("rejects an environment with a system handle", () => {
@@ -332,7 +332,7 @@ describe("world content validation", () => {
         })),
       }),
     ).toThrow();
-    // source 只属于材料；别的物品声明它会被拒绝，而不是被静默忽略。
+    // source 只属于材料；别的道具声明它会被拒绝，而不是被静默忽略。
     expect(() =>
       parseWorldContent({
         ...world,
@@ -439,7 +439,7 @@ describe("world content validation", () => {
         ),
       ).toThrow(/技艺 key 重复/);
 
-      // 技艺只能带固有动作；武器授予的 strike 由物品借出，不能写进技艺。
+      // 技艺只能带固有动作；武器授予的 strike 由道具借出，不能写进技艺。
       expect(() => parseWorldContent(withSkill([{ ...skill, actions: ["strike"] }]))).toThrow(
         /actions/,
       );
@@ -448,7 +448,7 @@ describe("world content validation", () => {
     });
 
     it("rejects innate actions declared on items", () => {
-      // 物品只能携带武器类动作；把 say / use 挂到物品上是另一类写错。
+      // 道具只能携带武器类动作；把 say / use 挂到道具上是另一类写错。
       const broken = {
         ...TEST_WORLD,
         actors: TEST_WORLD.actors.map((actor) =>

@@ -12,9 +12,9 @@ import { EQUIPMENT_SLOT_KINDS, EQUIPMENT_SLOT_LABELS, EQUIPMENT_SLOTS } from "..
 import { isWearable } from "./project";
 
 /**
- * 穿戴：谁此刻穿着什么、槽位索引怎么改、穿戴中的物品授予了哪些动作。
+ * 穿戴：谁此刻穿着什么、槽位索引怎么改、穿戴中的道具授予了哪些动作。
  *
- * 槽里只存物品名，物品自己不记 `equipped`——所以指向不存在物品的槽位一律当作没穿。
+ * 槽里只存道具名，道具自己不记 `equipped`——所以指向不存在道具的槽位一律当作没穿。
  * 授予只认携带者表，表外的动作写了也不生效。
  */
 
@@ -24,10 +24,10 @@ export type EquippedItemState = {
 };
 
 /**
- * 从 actor 的槽位索引解析出当前穿戴中的物品。
+ * 从 actor 的槽位索引解析出当前穿戴中的道具。
  *
- * 槽里只存物品名；物品自身不记录 `equipped`。物品被转移或改名后，
- * 索引可能暂时指向不存在的物品，这里直接跳过。
+ * 槽里只存道具名；道具自身不记录 `equipped`。道具被转移或改名后，
+ * 索引可能暂时指向不存在的道具，这里直接跳过。
  */
 export function equippedItems(actor: Pick<ActorState, "items" | "equipment">): EquippedItemState[] {
   const byName = new Map(actor.items.map((item) => [item.name, item]));
@@ -45,7 +45,7 @@ export function equippedItems(actor: Pick<ActorState, "items" | "equipment">): E
   return equipped;
 }
 
-/** 穿戴中的物品实际授予给角色的动作，带来源：哪一件、在哪个槽。 */
+/** 穿戴中的道具实际授予给角色的动作，带来源：哪一件、在哪个槽。 */
 export type ActionGrant = {
   kind: CarriedActionKind;
   slot: EquipmentSlot;
@@ -77,7 +77,7 @@ export function carriedActions(actor: Pick<ActorState, "items" | "equipment">): 
   return grants;
 }
 
-/** 穿戴中的物品提供的动作；槽位索引指向不存在的物品时不授予。 */
+/** 穿戴中的道具提供的动作；槽位索引指向不存在的道具时不授予。 */
 export function equippedItemActions(
   actor: Pick<ActorState, "items" | "equipment">,
 ): CarriedActionKind[] {
@@ -109,7 +109,7 @@ export function equipSlot(
   if (!EQUIPMENT_SLOT_KINDS[slot].includes(item.kind)) {
     throw new GameError(
       "invalid_action",
-      `物品不能放进${EQUIPMENT_SLOT_LABELS[slot]}槽: ${item.name}`,
+      `道具不能放进${EQUIPMENT_SLOT_LABELS[slot]}槽: ${item.name}`,
     );
   }
   const next = withoutEquippedItem(equipment, item.name);
@@ -117,14 +117,14 @@ export function equipSlot(
   return next;
 }
 
-/** 卸下槽位；物品本身不动，只是不再被索引。 */
+/** 卸下槽位；道具本身不动，只是不再被索引。 */
 export function unequipSlot(equipment: EquipmentSlots, slot: EquipmentSlot): EquipmentSlots {
   const next = { ...equipment };
   delete next[slot];
   return next;
 }
 
-/** 物品当前占据的槽位；没被穿戴时返回 undefined。槽里只存名字，所以按名字查。 */
+/** 道具当前占据的槽位；没被穿戴时返回 undefined。槽里只存名字，所以按名字查。 */
 export function equippedSlotOf(
   equipment: EquipmentSlots,
   itemName: string,

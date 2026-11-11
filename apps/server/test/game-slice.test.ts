@@ -311,7 +311,7 @@ describe.skipIf(!testDatabaseUrl)("memory-driven NPC slice", () => {
     expect(keeperService.tools).toContain("loot");
     expect(keeperService.tools).not.toContain("inspect");
     expect(keeperService.input).toContain("loot");
-    expect(keeperService.input).not.toContain("查看同舞台目标随身携带的全部物品");
+    expect(keeperService.input).not.toContain("查看同舞台目标随身携带的全部道具");
     expect(keeperService.tools).toContain("get_self");
     expect(keeperService.tools).not.toContain("get_actor");
     expect(keeperService.tools).not.toContain("get_stats");
@@ -329,7 +329,7 @@ describe.skipIf(!testDatabaseUrl)("memory-driven NPC slice", () => {
     // 探囊把两个动作一起给：工具表里成对出现，说明也写进动作清单。
     expect(corpseService.tools).toContain("inspect");
     expect(corpseService.input).toContain("inspect");
-    expect(corpseService.input).toContain("查看同舞台目标随身携带的全部物品");
+    expect(corpseService.input).toContain("查看同舞台目标随身携带的全部道具");
     // 察觉与成败写在任务提示词里：工具描述不再替别的工具或编排说话。
     expect(corpseService.input).toContain("查看与窃取比敏捷");
     expect(corpseService.input).not.toContain("在场的人都看得见");

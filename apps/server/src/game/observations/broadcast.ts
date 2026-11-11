@@ -94,7 +94,7 @@ export async function appendDamageObservations(
 }
 
 /**
- * 写入物品转移/拾取/使用事件的视角化记忆。
+ * 写入道具转移/拾取/使用事件的视角化记忆。
  *
  * `steal` 是私密事件，只有目标收到观察；其余按舞台广播。
  */

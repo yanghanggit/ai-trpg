@@ -34,7 +34,7 @@ const identityHint: Hint = (context) => {
     : `${base}名单里还有 \`#编号\`：可以用 recognize_identity 把它记成你认得的称呼；需要改名时对同一个编号再记一次。`;
 };
 
-// 已穿戴物品不能 use 是动作自身的约束；用哪个动作替代属于流程，放在任务提示词。
+// 已穿戴道具不能 use 是动作自身的约束；用哪个动作替代属于流程，放在任务提示词。
 const useFlowHint: Hint = (context) => {
   if (!context.allowed.includes("use")) {
     return "";
@@ -46,7 +46,7 @@ const useFlowHint: Hint = (context) => {
       ? [kinds.length > 0 ? "其余先 unequip" : "先 unequip"]
       : []),
   ];
-  return `已穿戴的物品不能用 use${alternatives.length > 0 ? `；${alternatives.join("；")}` : ""}。`;
+  return `已穿戴的道具不能用 use${alternatives.length > 0 ? `；${alternatives.join("；")}` : ""}。`;
 };
 
 // 攻击是能力面：引擎不自动授予 brawl，没武器时能用什么完全由角色固有声明决定。
@@ -64,7 +64,7 @@ const unarmedHint: Hint = (context) => {
 const inspectHint: Hint = (context) =>
   context.allowed.includes("inspect") &&
   (context.allowed.includes("steal") || context.allowed.includes("loot"))
-    ? "不知道对方身上有什么、或者记不准物品名时，先 inspect 看清，下个回合再取。"
+    ? "不知道对方身上有什么、或者记不准道具名时，先 inspect 看清，下个回合再取。"
     : "";
 
 // 察觉与成败都看敏捷：自己这一侧的数值在「你的状态」里，对方的敏捷只能靠试。

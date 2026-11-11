@@ -1,7 +1,7 @@
 /**
- * 物品等价判定：两件东西是不是「同一种」。
+ * 道具等价判定：两件东西是不是「同一种」。
  *
- * 一个作用域里一个物品名只有一行（见 `docs/items.md`）：等价的两份并进 `count`，
+ * 一个作用域里一个道具名只有一行（见 `docs/items.md`）：等价的两份并进 `count`，
  * 不等价的直接拒绝。判定只读会影响玩法与展示的字段——`seq`、`count`、归属与内容键
  * 都是来源信息，不参与比较。
  *
@@ -9,13 +9,13 @@
  * 不是玩法判定。
  */
 
-/** 参与等价判定的字段；物品行与内容声明都能满足这个形状。 */
+/** 参与等价判定的字段；道具行与内容声明都能满足这个形状。 */
 export type ItemIdentity = {
   kind: string;
   name: string;
   description: string;
   stats: unknown;
-  /** `cleave` 的目标上限跟着物品走：两件只有上限不同的武器不同价。 */
+  /** `cleave` 的目标上限跟着道具走：两件只有上限不同的武器不同价。 */
   maxTargets?: number | null;
   affixes: unknown;
   actions: unknown;
@@ -41,7 +41,7 @@ function actionsOf(value: ItemIdentity["actions"]): readonly string[] {
   return Array.isArray(value) ? [...(value as readonly string[])].sort() : [];
 }
 
-/** 两件物品是不是同一种：可以并成一行、共用 `count`。 */
+/** 两件道具是不是同一种：可以并成一行、共用 `count`。 */
 export function isSameItem(a: ItemIdentity, b: ItemIdentity): boolean {
   return (
     a.kind === b.kind &&

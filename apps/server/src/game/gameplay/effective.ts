@@ -4,7 +4,7 @@ import type { EquipmentSlots } from "../kernel/types";
 /**
  * 属性来源的收集：哪些东西算进「角色」，哪些只算进「装备」。
  *
- * 规则只有一条：源属性归角色（本体 + 穿戴物品的源属性加成），终值归物品
+ * 规则只有一条：源属性归角色（本体 + 穿戴道具的源属性加成），终值归道具
  * （穿戴中的 `damage` / `block`，加上本次动手而没在穿戴中的那件）。两类分开收集，
  * 不再并进同一个 `Stats` 桶——分层见 `docs/attributes.md`。
  *
@@ -15,10 +15,10 @@ import type { EquipmentSlots } from "../kernel/types";
  * `stats.maxHp`，展示与判活都按那个数。
  */
 
-/** 一件被穿戴或动用的物品；数据库行与运行时状态都满足这个形状。 */
+/** 一件被穿戴或动用的道具；数据库行与运行时状态都满足这个形状。 */
 export type Wearable = { readonly name: string; readonly stats: Stats };
 
-/** 现值计算的输入：本体属性、穿戴槽与在穿的物品。 */
+/** 现值计算的输入：本体属性、穿戴槽与在穿的道具。 */
 export type Wearer = {
   readonly stats: Stats;
   readonly equipment: EquipmentSlots;
@@ -36,7 +36,7 @@ export function effectiveSourcesOf(wearer: Wearer): Stats {
 /**
  * 装备终值：穿戴中的 `damage` / `block` 之和。
  *
- * `instrument` 是本次动手用的那件物品。它已经在穿戴槽里时不再重复相加；
+ * `instrument` 是本次动手用的那件道具。它已经在穿戴槽里时不再重复相加；
  * 在背包里（`use`）才补进来——「谁被拿来动手」始终只算一次。
  */
 export function equipmentFinalsOf(wearer: Wearer, instrument?: Wearable): Stats {
@@ -55,7 +55,7 @@ function isWorn(wearer: Wearer, item: Wearable): boolean {
   return wornNamesOf(wearer.equipment).has(item.name);
 }
 
-/** 槽位 → 物品名的索引；指向不存在物品的悬空槽位由调用方的过滤自然跳过。 */
+/** 槽位 → 道具名的索引；指向不存在道具的悬空槽位由调用方的过滤自然跳过。 */
 function wornNamesOf(equipment: EquipmentSlots): ReadonlySet<string> {
   return new Set(Object.values(equipment).filter((name): name is string => name !== undefined));
 }

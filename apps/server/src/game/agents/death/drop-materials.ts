@@ -60,7 +60,7 @@ export function buildDropMaterialsTool(): ToolDefinition {
 /**
  * 掉落物只能是非空、不超长的材料；任一条不合法整批拒绝，不静默截断。
  *
- * 材料会成为物品状态，任何在场者都能观察到；物品名与描述因此不得含角色名与 `#` 编号。
+ * 材料会成为道具状态，任何在场者都能观察到；道具名与描述因此不得含角色名与 `#` 编号。
  */
 export function parseDrops(
   args: Record<string, unknown>,

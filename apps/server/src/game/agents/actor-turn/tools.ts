@@ -41,7 +41,7 @@ export function buildGetSelfTool(): ToolDefinition {
     function: {
       name: "get_self",
       description:
-        "查看自己的外观、数值、存活状态、穿戴槽与全部物品。数值里的力量与敏捷是源属性（含穿戴加成）；伤害与格挡是结算口径的现值：力量换算成伤害，再加上装备的伤害；格挡全部来自穿戴的装备。敏捷决定查看与窃取是否被察觉、窃取能否得手。这些是结算的读数，不是面板上限。只读，不占行动名额。",
+        "查看自己的外观、数值、存活状态、穿戴槽与全部道具。数值里的力量与敏捷是源属性（含穿戴加成）；伤害与格挡是结算口径的现值：力量换算成伤害，再加上装备的伤害；格挡全部来自穿戴的装备。敏捷决定查看与窃取是否被察觉、窃取能否得手。这些是结算的读数，不是面板上限。只读，不占行动名额。",
       parameters: {
         type: "object",
         properties: {},
@@ -139,7 +139,7 @@ export function buildActorLookStageTool(): ToolDefinition {
     function: {
       name: "look_stage",
       description:
-        "重新查看你所在舞台的环境、在场角色、可交互锚点及其上的物品与可去方向。只看得到本舞台，看不了别的舞台。只读，可多次调用。",
+        "重新查看你所在舞台的环境、在场角色、可交互锚点及其上的道具与可去方向。只看得到本舞台，看不了别的舞台。只读，可多次调用。",
       parameters: {
         type: "object",
         properties: {},

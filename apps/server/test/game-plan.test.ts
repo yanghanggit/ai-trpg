@@ -136,7 +136,7 @@ describe("use candidates", () => {
         use: [
           {
             name: "使用",
-            content: "使用物品",
+            content: "使用道具",
             ops: [{ kind: "witness" as const, template: "{source}使用了{item}" }],
           },
         ],
@@ -157,7 +157,7 @@ describe("use candidates", () => {
       actions: [],
     });
 
-  it("排除穿戴中的物品与没有可执行效果的物品", () => {
+  it("排除穿戴中的道具与没有可执行效果的道具", () => {
     const candidates = usableItemNames(
       [
         item("裂齿短刃", "weapon", "damage"),
@@ -217,12 +217,12 @@ describe("action parsers", () => {
     });
     expect(() => parseTeleport({ targetStageName: "#12" })).toThrow(/真名/);
     expect(parseWait()).toEqual({ kind: "wait" });
-    // strike 不再接收物品名：武器由 weapon 槽决定。
+    // strike 不再接收道具名：武器由 weapon 槽决定。
     expect(parseStrike({ targetActorHandle: " 提灯修士 ", itemName: "裂齿短刃" })).toEqual({
       kind: "strike",
       targetActorHandle: "提灯修士",
     });
-    // 肉搏同样只接收目标：身体不是物品，没有可指定的武器。
+    // 肉搏同样只接收目标：身体不是道具，没有可指定的武器。
     expect(parseBrawl({ targetActorHandle: " 提灯修士 ", itemName: "裂齿短刃" })).toEqual({
       kind: "brawl",
       targetActorHandle: "提灯修士",
@@ -397,10 +397,10 @@ describe("read-only descriptions", () => {
     expect(describeStats(actor)).not.toContain("defense：");
     expect(describeStats(actor)).toContain("状态：存活");
     expect(describeItems(actor)).toContain("裂齿短刃（weapon，count 1，已穿戴）：刃口崩了三处。");
-    // 物品数值同样用中文名，不再出现 damage / block。
+    // 道具数值同样用中文名，不再出现 damage / block。
     expect(describeItems(actor)).toContain("伤害 3");
     expect(describeItems(actor)).not.toContain("damage ");
-    expect(describeItems({ items: [], equipment: {} })).toBe("物品：无");
+    expect(describeItems({ items: [], equipment: {} })).toBe("道具：无");
     expect(describeEquipment(actor)).toContain("武器：裂齿短刃");
     expect(describeSelf(actor)).toContain("外观：披着旧斗篷。");
     expect(describeSelf(actor)).toContain("裂齿短刃");
@@ -432,7 +432,7 @@ describe("read-only descriptions", () => {
 });
 
 describe("stage anchors", () => {
-  it("把物品渲染在锚点下面，并给出可拾取名", () => {
+  it("把道具渲染在锚点下面，并给出可拾取名", () => {
     const torch = toItemState({
       id: "item-1",
       seq: 7,

@@ -7,7 +7,7 @@ import type { Executor } from "../persistence/rows";
 /**
  * 行动落账后的“当时状态”，供 actor 长期 memory 使用。
  *
- * 只写观察者视角的地址、舞台名与“锚点（其上的物品名）”；不写 environment、外观或背包，
+ * 只写观察者视角的地址、舞台名与“锚点（其上的道具名）”；不写 environment、外观或背包，
  * 也不使用真实姓名或稳定 id。状态取落账后的最终舞台，move / teleport 才不会写成起点。
  */
 export async function describeMemoryState(

@@ -246,7 +246,7 @@ if (!TEST_BLADE) {
   throw new Error("测试世界缺少裂齿短刃");
 }
 
-/** 提灯修士背包里先放着同一件短刃：用来验证“等价物品并进 count”。 */
+/** 提灯修士背包里先放着同一件短刃：用来验证“等价道具并进 count”。 */
 const SHARED_BLADE = {
   key: "cracked-blade-copy",
   name: "裂齿短刃",
@@ -542,7 +542,7 @@ describe.skipIf(!testDatabaseUrl)("items and interactions", () => {
     expect(message?.content).toBe("守烬人查看了提灯修士随身携带的东西。");
     expect(message?.content).not.toContain("铅封提灯");
 
-    // 清单只出现在查看者自己的行动事实里，连同物品描述与穿戴标记。
+    // 清单只出现在查看者自己的行动事实里，连同道具描述与穿戴标记。
     const memories = await getGameMemories(handle.db, created.game.id);
     const keeperMemory = memories.find((memory) => memory.name === "守烬人");
     const feedback = keeperMemory?.messages.map((item) => item.content).join("\n") ?? "";
@@ -552,7 +552,7 @@ describe.skipIf(!testDatabaseUrl)("items and interactions", () => {
 
     // 守烬人敏捷 4 > 提灯修士 3：目标没有察觉；别的舞台更收不到任何观察。
     const monkMemory = memories.find((memory) => memory.name === "提灯修士");
-    expect(monkMemory?.messages.some((item) => item.content.includes("有人在查看你的物品"))).toBe(
+    expect(monkMemory?.messages.some((item) => item.content.includes("有人在查看你的道具"))).toBe(
       false,
     );
     const otherStageMemory = memories.find((memory) => memory.name === "缄默抄经人");
@@ -582,7 +582,7 @@ describe.skipIf(!testDatabaseUrl)("items and interactions", () => {
     expect(
       memories
         .find((memory) => memory.name === "提灯修士")
-        ?.messages.some((item) => item.content.includes("有人在查看你的物品")),
+        ?.messages.some((item) => item.content.includes("有人在查看你的道具")),
     ).toBe(true);
     expect(
       memories
@@ -645,7 +645,7 @@ describe.skipIf(!testDatabaseUrl)("items and interactions", () => {
         targetActorRef: "提灯修士",
         itemName: "铅封提灯",
       }),
-    ).rejects.toThrow("拿不走已装备的物品");
+    ).rejects.toThrow("拿不走已装备的道具");
   });
 
   it("loots a worn item from a corpse and clears the corpse's slot", async () => {
@@ -709,7 +709,7 @@ describe.skipIf(!testDatabaseUrl)("items and interactions", () => {
     expect(corpse?.equipment.armor).toBeUndefined();
 
     const lootMessage = state.messages.find((message) => message.kind === "loot");
-    // 一次动作一条消息，物品用顿号并列，不拆成多条。
+    // 一次动作一条消息，道具用顿号并列，不拆成多条。
     expect(lootMessage?.content).toContain("搜走了铅封提灯、裂齿短刃");
   });
 
@@ -726,7 +726,7 @@ describe.skipIf(!testDatabaseUrl)("items and interactions", () => {
         targetActorRef: "提灯修士",
         itemNames: ["不存在的物件"],
       }),
-    ).rejects.toThrow("身上没有这些物品: 不存在的物件");
+    ).rejects.toThrow("身上没有这些道具: 不存在的物件");
   });
 
   it("keeps steal and loot apart by target: corpses are not stealable", async () => {
@@ -773,15 +773,15 @@ describe.skipIf(!testDatabaseUrl)("items and interactions", () => {
     ).rejects.toThrow("不能使用动作: steal");
   });
 
-  it("拒绝使用正被穿戴的物品", async () => {
+  it("拒绝使用正被穿戴的道具", async () => {
     const created = await createGame(handle.db, {
       username: DEMO_USER.username,
-      name: "使用穿戴中物品测试局",
+      name: "使用穿戴中道具测试局",
       world: WEAPON_WORLD,
     });
     await takeActorControl(handle.db, created.game.slug, "守烬人");
 
-    // 裂齿短刃在武器槽里：它归 strike 或被动装备，不能当道具使用。
+    // 裂齿短刃在武器槽里：它归 strike 或被动装备，不能走 use。
     await expect(
       playerUse(handle.db, created.game.slug, "守烬人", {
         itemName: "裂齿短刃",
@@ -790,7 +790,7 @@ describe.skipIf(!testDatabaseUrl)("items and interactions", () => {
     ).rejects.toThrow("正装备在武器槽，先卸下再使用");
   });
 
-  it("卸下武器后可以把它当道具使用", async () => {
+  it("卸下武器后可以走 use", async () => {
     const created = await createGame(handle.db, {
       username: DEMO_USER.username,
       name: "使用卸下武器测试局",
@@ -1360,7 +1360,7 @@ describe.skipIf(!testDatabaseUrl)("items and interactions", () => {
       { service },
     );
     expect(brawled.ok).toBe(true);
-    // 词缀挂在武器上，肉搏没有物品可挂，LLM 一次都不该被调用。
+    // 词缀挂在武器上，肉搏没有道具可挂，LLM 一次都不该被调用。
     expect(service.calls).toBe(0);
 
     const state = await getGameState(handle.db, created.game.slug);
@@ -1493,7 +1493,7 @@ describe.skipIf(!testDatabaseUrl)("items and interactions", () => {
 
     const memories = await getGameMemories(handle.db, created.game.id);
     const monkMemory = memories.find((memory) => memory.name === "提灯修士");
-    expect(monkMemory?.messages.some((message) => message.content.includes("你收到物品"))).toBe(
+    expect(monkMemory?.messages.some((message) => message.content.includes("你收到道具"))).toBe(
       true,
     );
   });
@@ -1501,7 +1501,7 @@ describe.skipIf(!testDatabaseUrl)("items and interactions", () => {
   it("merges an equivalent item into the receiver's count instead of a second row", async () => {
     const created = await createGame(handle.db, {
       username: DEMO_USER.username,
-      name: "物品并堆测试局",
+      name: "道具并堆测试局",
       world: MERGE_WORLD,
     });
     await takeActorControl(handle.db, created.game.slug, "守烬人");
@@ -1535,7 +1535,7 @@ describe.skipIf(!testDatabaseUrl)("items and interactions", () => {
         targetActorRef: "提灯修士",
         itemName: "裂齿短刃",
       }),
-    ).rejects.toThrow(/同名的另一件物品/);
+    ).rejects.toThrow(/同名的另一件道具/);
   });
 
   it("picks up a stage item into the actor inventory", async () => {

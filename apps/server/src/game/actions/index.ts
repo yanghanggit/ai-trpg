@@ -2,7 +2,7 @@ import { GameError } from "../errors";
 import type { ActionKind, CarriedActionKind, InnateActionKind, ItemKind } from "../kernel/types";
 
 /**
- * 携带者授予的动作：只能由穿戴中的物品提供，角色无法固有声明。
+ * 携带者授予的动作：只能由穿戴中的道具提供，角色无法固有声明。
  *
  * 目前唯一的携带者是武器；新增携带者动作时先加在这里，内容校验、工具装配与
  * 授权合并都从这一份派生。
@@ -63,16 +63,16 @@ export type ActionKindSourceCoverage = [
 ];
 
 /**
- * 携带者规则：哪种物品能授予哪些动作。
+ * 携带者规则：哪种道具能授予哪些动作。
  *
  * 现在只有武器；未来的携带者（如工具、法器）只在这里加一行，内容校验与运行时
- * 授权同时生效，不需要再改授权链。没登记的物品类不能授予任何动作。
+ * 授权同时生效，不需要再改授权链。没登记的道具类不能授予任何动作。
  */
 export const CARRIED_ACTIONS_BY_ITEM_KIND = {
   weapon: CARRIED_ACTION_KINDS,
 } as const satisfies Partial<Record<ItemKind, readonly CarriedActionKind[]>>;
 
-/** 某种物品能授予的动作；没登记的物品类返回空清单。 */
+/** 某种道具能授予的动作；没登记的道具类返回空清单。 */
 export function carriedActionsForKind(kind: ItemKind): readonly CarriedActionKind[] {
   const table: Partial<Record<ItemKind, readonly CarriedActionKind[]>> =
     CARRIED_ACTIONS_BY_ITEM_KIND;
@@ -91,12 +91,12 @@ export const ACTION_SUMMARIES: Record<ActionKind, string> = {
   cleave: "用装备的武器同时攻击同舞台的多个目标",
   brawl: "用身体与同舞台目标肉搏",
   steal: "从活着的目标身上取物",
-  inspect: "查看同舞台目标随身携带的全部物品（察觉看敏捷）",
-  loot: "从同舞台的尸体上搜走物品（默认全部）",
-  give: "把自己的物品交给目标",
-  pickup: "拾起舞台物品",
-  use: "用自己的物品作用于角色或舞台",
-  equip: "把背包里的物品穿到槽位",
+  inspect: "查看同舞台目标随身携带的全部道具（察觉看敏捷）",
+  loot: "从同舞台的尸体上搜走道具（默认全部）",
+  give: "把自己的道具交给目标",
+  pickup: "拾起舞台道具",
+  use: "用自己的道具作用于角色或舞台",
+  equip: "把背包里的道具穿到槽位",
   unequip: "卸下某个槽位的装备",
 };
 

@@ -140,7 +140,7 @@ export type ResolvedLoot = {
   action: LootAction;
   stage: StageRow;
   target: ActorRow;
-  /** 本次搜走的物品，按请求顺序；省略名单时是尸体身上的全部。 */
+  /** 本次搜走的道具，按请求顺序；省略名单时是尸体身上的全部。 */
   items: ItemRow[];
 };
 
@@ -157,7 +157,7 @@ export type ResolvedPickup = {
   action: PickupAction;
   stage: StageRow;
   stageItem: StageItemRow;
-  /** 物品所在的锚点标签；反馈与观察要写出「从哪儿取下」。 */
+  /** 道具所在的锚点标签；反馈与观察要写出「从哪儿取下」。 */
   anchorLabel: string;
 };
 

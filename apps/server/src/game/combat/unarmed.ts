@@ -11,9 +11,9 @@ import type { ActorRow, ActorWithStageRow, Executor, StageRow } from "../persist
 import { applyHit } from "./hit";
 
 /**
- * 肉搏：不读任何物品，攻击力只取源属性算出的 `damage`，减伤只减目标的装备格挡。
+ * 肉搏：不读任何道具，攻击力只取源属性算出的 `damage`，减伤只减目标的装备格挡。
  *
- * 这是引擎原生的攻击路径：不借用物品、词缀或 `actions` 的任何概念。
+ * 这是引擎原生的攻击路径：不借用道具、词缀或 `actions` 的任何概念。
  * 数值全部来自玩法层，这里只负责把结果交给落账。
  */
 export async function applyUnarmedHit(

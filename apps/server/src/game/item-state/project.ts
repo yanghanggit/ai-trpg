@@ -9,7 +9,7 @@ import type {
 } from "../kernel/types";
 
 /**
- * 物品状态的投影：数据库那行 → `ItemState`，以及「它能不能穿」。
+ * 道具状态的投影：数据库那行 → `ItemState`，以及「它能不能穿」。
  *
  * 这里只做形状与归一（缺省字段、旧值兜底），不判断身份与归属。穿戴在 `slots.ts`。
  */
@@ -56,7 +56,7 @@ export function toItemState(row: {
       return { ...base, kind: "material", source: row.source ?? null };
     default: {
       const exhaustive: never = row.kind;
-      throw new Error(`未知物品类型: ${String(exhaustive)}`);
+      throw new Error(`未知道具类型: ${String(exhaustive)}`);
     }
   }
 }

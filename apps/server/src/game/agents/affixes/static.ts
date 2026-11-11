@@ -34,7 +34,7 @@ export type StaticSettlement = {
 
 type StaticContext = {
   actorRow: ActorWithStageRow;
-  /** 本次攻击的攻击力：源属性现算 + 装备终值（含本次物品），与防御同一口径。 */
+  /** 本次攻击的攻击力：源属性现算 + 装备终值（含本次道具），与防御同一口径。 */
   attack: number;
   item: { name: string; stats: ActorWithStageRow["actor"]["stats"]; affixes: AffixTriggers };
 };
@@ -44,7 +44,7 @@ type StaticContext = {
  *
  * `attack` 不是某个字段，而是结算期算出来的攻击力（源属性现算 + 装备终值），
  * 所以 `{{attack}}` 的文本值与实际扣血始终是同一个数。
- * 另一个引用 `item.damage` 是物品终值原值，不换算；角色没有 `damage` 可引用。
+ * 另一个引用 `item.damage` 是道具终值原值，不换算；角色没有 `damage` 可引用。
  */
 function statValue(context: StaticContext, ref: AffixStatRef): number {
   return ref === "attack" ? context.attack : context.item.stats.damage;
@@ -57,7 +57,7 @@ function resolveAmount(context: StaticContext, amount: DamageAmount): number {
   return Math.round(statValue(context, amount.ref) * (amount.factor ?? 1));
 }
 
-/** `{{attack}}` / `{{item.damage}}` 只插数值与公共物品名；名字不允许出现。 */
+/** `{{attack}}` / `{{item.damage}}` 只插数值与公共道具名；名字不允许出现。 */
 function renderStaticContent(context: StaticContext, content: string): string {
   return content.replace(/\{\{([^}]+)\}\}/g, (_match, token: string) => {
     const key = token.trim();

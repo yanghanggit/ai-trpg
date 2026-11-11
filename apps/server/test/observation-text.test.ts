@@ -225,7 +225,7 @@ describe("item observations", () => {
 
   it("给予事件分当事人与旁观两版", () => {
     expect(renderItemEvent(STAGE, give, OTHER.id).content).toBe(
-      withAppearances("# 你收到物品\n守烬人把旧钥匙交给了你。", ACTOR_APPEARANCE),
+      withAppearances("# 你收到道具\n守烬人把旧钥匙交给了你。", ACTOR_APPEARANCE),
     );
     const bystander = renderItemEvent(STAGE, give, "actor-3");
     expect(bystander.content).toBe(
@@ -249,12 +249,12 @@ describe("item observations", () => {
     );
     const asTarget = renderInspect(STAGE, observation, OTHER.id);
     expect(asTarget.content).toBe(
-      withAppearances("# 有人在查看你的物品\n守烬人查看了你随身携带的东西。", ACTOR_APPEARANCE),
+      withAppearances("# 有人在查看你的道具\n守烬人查看了你随身携带的东西。", ACTOR_APPEARANCE),
     );
     expect(asTarget.metadata.targetActorId).toBe(OTHER.id);
   });
 
-  it("搜刮是公开事件，物品用列表写进同一句", () => {
+  it("搜刮是公开事件，道具用列表写进同一句", () => {
     const loot: ItemObservation = {
       actor: ACTOR,
       event: "loot",

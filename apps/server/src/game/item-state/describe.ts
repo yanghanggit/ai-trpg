@@ -1,8 +1,8 @@
 /**
- * 物品与穿戴的文本投影：同一份状态，给模型看的样子。
+ * 道具与穿戴的文本投影：同一份状态，给模型看的样子。
  *
  * 只做投影：不查库、不裁决。同一件东西会在三处被读（自己的 get_self、别人的 inspect、
- * 舞台锚点上），所以只留这一份渲染，免得三处对同一件物品说法不一致。
+ * 舞台锚点上），所以只留这一份渲染，免得三处对同一件道具说法不一致。
  */
 
 import { STAT_LABELS } from "../kernel/attributes";
@@ -20,7 +20,7 @@ export function itemSourceNote(item: ItemState): string {
 
 export function describeItems(actor: Pick<ActorState, "items" | "equipment">): string {
   if (actor.items.length === 0) {
-    return "物品：无";
+    return "道具：无";
   }
   const lines = actor.items.map((item) => {
     const { damage, block } = item.stats;
@@ -28,7 +28,7 @@ export function describeItems(actor: Pick<ActorState, "items" | "equipment">): s
     if (damage > 0 || block > 0) {
       notes.push(`${STAT_LABELS.damage} ${damage}`, `${STAT_LABELS.block} ${block}`);
     }
-    // 物品提供的动作只在穿戴时生效；写出来，模型才知道能否挥击、卸下会失去什么。
+    // 道具提供的动作只在穿戴时生效；写出来，模型才知道能否挥击、卸下会失去什么。
     if (item.actions.length > 0) {
       notes.push(`提供 ${item.actions.join("、")}`);
     }
@@ -36,7 +36,7 @@ export function describeItems(actor: Pick<ActorState, "items" | "equipment">): s
     const worn = Object.values(actor.equipment).includes(item.name) ? "，已穿戴" : "";
     return `- ${item.name}（${item.kind}，count ${item.count}${itemSourceNote(item)}${worn}）：${item.description}${stats}`;
   });
-  return `物品：
+  return `道具：
 ${lines.join("\n")}`;
 }
 
@@ -52,7 +52,7 @@ export function describeEquipment(actor: Pick<ActorState, "equipment">): string 
  * 同舞台角色名单里的穿戴摘要：一行只列已穿戴的槽位。
  *
  * 与 `describeEquipment` 的区别是给名单内联用；没穿东西时返回空串。
- * 完整背包（含未穿戴物品与数值）走 `inspect` 动作。
+ * 完整背包（含未穿戴道具与数值）走 `inspect` 动作。
  */
 export function describeEquipmentBrief(actor: Pick<ActorState, "equipment">): string {
   return EQUIPMENT_SLOTS.flatMap((slot) => {

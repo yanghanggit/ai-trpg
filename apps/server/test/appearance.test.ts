@@ -182,7 +182,7 @@ describe.skipIf(!testDatabaseUrl)("appearance fusion", () => {
     await expect(wear("armor", "颈上的断链")).rejects.toThrow("不能放进护甲槽");
 
     expect((await wear("accessory", "颈上的断链")).ok).toBe(true);
-    // 饰品可以穿戴，但不参与外观推理：输入里没有这个槽位，也没有它的物品。
+    // 饰品可以穿戴，但不参与外观推理：输入里没有这个槽位，也没有它的道具。
     expect(service.observation).not.toContain("饰品");
     expect(service.observation).not.toContain("颈上的断链");
 

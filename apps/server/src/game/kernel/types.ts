@@ -3,7 +3,7 @@ import type { Stats } from "./attributes";
 /** 公共消息的可见范围：舞台公开或仅当事人可见。 */
 export type MessageVisibility = "stage" | "private";
 
-/** 物品大类；每个大类对应一个运行时子类。 */
+/** 道具大类；每个大类对应一个运行时子类。 */
 export type ItemKind =
   | "weapon"
   | "equipment"
@@ -13,14 +13,14 @@ export type ItemKind =
   | "material";
 
 /**
- * actor 的穿戴槽：槽里只记录物品名，物品自身不知道被谁穿戴。
+ * actor 的穿戴槽：槽里只记录道具名，道具自身不知道被谁穿戴。
  * 开发期只保留一武器、一护甲（合并副手/头/身体/足部）、一饰品。
  */
 export const EQUIPMENT_SLOTS = ["weapon", "armor", "accessory"] as const;
 export type EquipmentSlot = (typeof EQUIPMENT_SLOTS)[number];
 export type EquipmentSlots = Partial<Record<EquipmentSlot, string>>;
 
-/** 快照里的穿戴项；物品之后可能改名或删除，所以必须存当时的副本。 */
+/** 快照里的穿戴项；道具之后可能改名或删除，所以必须存当时的副本。 */
 export type AppearanceWornItem = {
   slot: EquipmentSlot;
   itemId: string;
@@ -76,13 +76,13 @@ export type FunctionPrompts = Record<WorldFunction, string> &
  * 它只是可供性索引，不承载效果；`use` 只能从当前舞台的锚点里选。
  */
 export type StageAnchorState = {
-  /** 本舞台内的稳定标识：物品挂在它上面，改显示名不换 key。 */
+  /** 本舞台内的稳定标识：道具挂在它上面，改显示名不换 key。 */
   key: string;
   /** 世界面短标签，舞台内唯一。 */
   label: string;
   /** 可选的可观察细节；不写后果或机制。 */
   description?: string;
-  /** 挂在这个锚点上的舞台物品，按实体序号排序。 */
+  /** 挂在这个锚点上的舞台道具，按实体序号排序。 */
   items: ItemState[];
 };
 
@@ -90,7 +90,7 @@ export type StageAnchorState = {
 export type PassageState = "open" | "sealed";
 
 /**
- * 词缀：短名字 + 一段规则文本，按触发舞台挂在物品上。
+ * 词缀：短名字 + 一段规则文本，按触发舞台挂在道具上。
  *
  * `mode` 省略等于 `static`：由引擎按 `ops` 纯计算，必然出结果；
  * `agent` 交给推理端判定，允许携带条件、能做工具允许的任何追加。
@@ -99,7 +99,7 @@ export type AffixMode = "static" | "agent";
 
 /**
  * 词缀可引用的数值：`attack` 是结算期的攻击力（源属性现算 + 装备终值），
- * `item.damage` 是物品终值原值。角色没有 `damage`——它是顺时输出，不能当输入引用。
+ * `item.damage` 是道具终值原值。角色没有 `damage`——它是顺时输出，不能当输入引用。
  */
 export type AffixStatRef = "attack" | "item.damage";
 
@@ -121,7 +121,7 @@ export type Affix = {
   ops?: readonly AffixOp[];
 };
 
-/** 物品按触发舞台声明的词缀；空列表等于该触发不可用。 */
+/** 道具按触发舞台声明的词缀；空列表等于该触发不可用。 */
 export type AffixTriggers = {
   strike?: readonly Affix[];
   cleave?: readonly Affix[];
@@ -190,7 +190,7 @@ export type CleaveAction = {
   targetActorHandles: string[];
 };
 
-/** 用身体攻击同舞台角色；不读物品，伤害只来自自身 stats。 */
+/** 用身体攻击同舞台角色；不读道具，伤害只来自自身 stats。 */
 export type BrawlAction = {
   kind: "brawl";
   targetActorHandle: string;
@@ -203,7 +203,7 @@ export type StealAction = {
 };
 
 /**
- * 看同舞台目标随身携带的全部物品；活人与尸体都可以看。
+ * 看同舞台目标随身携带的全部道具；活人与尸体都可以看。
  *
  * 名字不带对象，看的对象由参数说明：现在只有 `targetActorHandle`，
  * 以后要看锚点或舞台时加对应字段即可，不必再造一个动作。
@@ -217,7 +217,7 @@ export type InspectAction = {
 };
 
 /**
- * 从同舞台的尸体上搜走物品；不点名就搜刮全部。
+ * 从同舞台的尸体上搜走道具；不点名就搜刮全部。
  *
  * 与 `steal` 按对象分工：`steal` 只对活人，`loot` 只对尸体；
  * 尸体上什么都能拿（含穿戴），而且是在场可见的公开行为。
@@ -225,11 +225,11 @@ export type InspectAction = {
 export type LootAction = {
   kind: "loot";
   targetActorHandle: string;
-  /** 要取走的物品名；省略表示搜刮尸体身上的全部物品。 */
+  /** 要取走的道具名；省略表示搜刮尸体身上的全部道具。 */
   itemNames?: string[];
 };
 
-/** 把自己持有的一件物品交给同舞台的一个角色；尸体也可以是接收方。 */
+/** 把自己持有的一件道具交给同舞台的一个角色；尸体也可以是接收方。 */
 export type GiveAction = {
   kind: "give";
   targetActorHandle: string;
@@ -238,16 +238,16 @@ export type GiveAction = {
 
 export type PickupAction = {
   kind: "pickup";
-  /** 物品所在的锚点标签：物品地址是 (锚点, 物品名)。 */
+  /** 道具所在的锚点标签：道具地址是 (锚点, 道具名)。 */
   targetAnchor: string;
   itemName: string;
 };
 
 /**
- * 使用自己持有的一件物品，作用于一个角色或当前舞台。
+ * 使用自己持有的一件道具，作用于一个角色或当前舞台。
  *
- * 所有引用物品的动作都遵循同一原则：动作是触发者，物品只是输入；
- * 每个动作最多引用一件物品，由动作声明是否必需与允许的类别。
+ * 所有引用道具的动作都遵循同一原则：动作是触发者，道具只是输入；
+ * 每个动作最多引用一件道具，由动作声明是否必需与允许的类别。
  */
 export type UseAction = {
   kind: "use";
@@ -296,7 +296,7 @@ export type ActionKind = ActorAction["kind"];
  * 动作的两个来源，也是权限模型的唯一分界：
  *
  * - `InnateActionKind`：角色自身固有，由内容层逐角色显式声明；
- * - `CarriedActionKind`：由外部携带者授予，只有穿戴中的物品能提供，角色无法固有声明。
+ * - `CarriedActionKind`：由外部携带者授予，只有穿戴中的道具能提供，角色无法固有声明。
  *
  * 目前唯一的携带者是武器（`strike` / `cleave`）；新增携带者动作只改
  * `CARRIED_ACTION_KINDS`，授权、工具装配、内容校验都从这一份派生。
@@ -310,7 +310,7 @@ export type InnateActionKind = Exclude<ActionKind, CarriedActionKind>;
  */
 export type CommunicationKind = Extract<ActionKind, "say" | "whisper" | "announce" | "call">;
 
-/** 会改变物品归属或使用状态的五个动作；物品观察按这组分叉文本。 */
+/** 会改变道具归属或使用状态的五个动作；道具观察按这组分叉文本。 */
 export type ItemEventKind = Extract<ActionKind, "steal" | "loot" | "give" | "pickup" | "use">;
 
 /** stage 的一次仲裁动作；与 actor / world 的计划同构，都是有序动作列表。 */
@@ -383,7 +383,7 @@ export type WorldPlan = {
   actions: WorldAction[];
 };
 
-/** 所有物品状态的公共根字段：身份、分类、数量与属性。 */
+/** 所有道具状态的公共根字段：身份、分类、数量与属性。 */
 export type ItemBaseState = {
   id: string;
   /** 本局内唯一的排序号；身份仍用 id。 */
@@ -396,9 +396,9 @@ export type ItemBaseState = {
   count: number;
   /** 按触发舞台声明的词缀；`strike` / `cleave` / `use` 各自独立。 */
   affixes: AffixTriggers;
-  /** 物品能提供的动作；穿戴中才借给角色。没有携带者的角色只能做固有动作。 */
+  /** 道具能提供的动作；穿戴中才借给角色。没有携带者的角色只能做固有动作。 */
   actions: readonly CarriedActionKind[];
-  /** 归一化后的完整属性；五种物品都携带，未用到的字段为 0。 */
+  /** 归一化后的完整属性；五种道具都携带，未用到的字段为 0。 */
   stats: Stats;
   /**
    * `cleave` 一次最多命中的目标数；只有武器会大于 1，其余大类恒为 1。
@@ -413,16 +413,16 @@ export type WeaponState = ItemBaseState & { kind: "weapon" };
 /** 装备：不能用于出手，但穿戴后 `block` 计入减伤。 */
 export type EquipmentState = ItemBaseState & { kind: "equipment" };
 
-/** 饰品：随身携带的非战斗物品。 */
+/** 饰品：随身携带的非战斗道具。 */
 export type AccessoryState = ItemBaseState & { kind: "accessory" };
 
-/** 可穿戴物品状态的联合，用于外观推理筛选。 */
+/** 可穿戴道具状态的联合，用于外观推理筛选。 */
 export type WearableItemState = WeaponState | EquipmentState | AccessoryState;
 
 /** 消耗品：数量语义保留；当前 `use` 不自动扣除 count。 */
 export type ConsumableState = ItemBaseState & { kind: "consumable" };
 
-/** 贵重物品：无战斗数值的剧情物品。 */
+/** 贵重道具：无战斗数值的剧情道具。 */
 export type ValuableState = ItemBaseState & { kind: "valuable" };
 
 /** 材料：尸体留下的物理素材；不可穿戴、词缀为空，只能搬运与堆叠。 */

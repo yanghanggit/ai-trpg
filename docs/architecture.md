@@ -11,7 +11,7 @@
 
 目标拓扑是「客户端 ⇄ 业务服务端 ⇄ PostgreSQL」。`agent:game` 与 HTTP 路由复用同一 `game` 服务层；服务端不保留跨请求的权威世界对象。
 
-服务端内部再分一层：**玩法模块不写 SQL**。动作、物品效果、stage / world 回合、死亡与外观只调用 `game/persistence/` 的具名读写原语；解析动作的只读查询在 `game/lookup/`，事务边界在 `game/settle/`（`plan.ts` 计算端、`increment.ts` 推理端），行投影与事务执行器在 `game/persistence/rows.ts`，建局在 `game/create-game/`，整局状态的装配在 `game/game-state/`，事件流与游戏行的读写都在 `game/persistence/`。`test/persistence-boundary.test.ts` 用源码扫描守住这条边界。
+服务端内部再分一层：**玩法模块不写 SQL**。动作、道具效果、stage / world 回合、死亡与外观只调用 `game/persistence/` 的具名读写原语；解析动作的只读查询在 `game/lookup/`，事务边界在 `game/settle/`（`plan.ts` 计算端、`increment.ts` 推理端），行投影与事务执行器在 `game/persistence/rows.ts`，建局在 `game/create-game/`，整局状态的装配在 `game/game-state/`，事件流与游戏行的读写都在 `game/persistence/`。`test/persistence-boundary.test.ts` 用源码扫描守住这条边界。
 
 `game/` 是业务层：不含 HTTP 适配（`fastify` 零引用，入口在 `routes/` 与 `plugins/`）、进程与调度（`cli/`、`jobs/`）、外部服务客户端（`llm/`、`deepseek/`、`rag/`、`imagegen`），只消费它们的类型、常量与默认实例；`db/` 与 `debug/` 同理，可以调具名函数，不持有连接、不自己开副作用。
 
@@ -59,7 +59,7 @@
 
 身份用 UUID；排序另有一条每局递增的实体序号。world / stage / actor / signature / item 在创建时从本局计数器取号，所以同一局内任意两个实体都能比较，同一份内容重复开局会得到相同的序号。
 
-序号只服务于确定性排序与复现：它不表达叙事顺序，也不是外键，解析实体仍然用 UUID；物品换归属时沿用原序号，不会因为被拾取而跳到列表末尾。已有局在迁移时按固定规则回填，计数器随后从最大号继续。
+序号只服务于确定性排序与复现：它不表达叙事顺序，也不是外键，解析实体仍然用 UUID；道具换归属时沿用原序号，不会因为被拾取而跳到列表末尾。已有局在迁移时按固定规则回填，计数器随后从最大号继续。
 
 → 参见：[Actor 行动与记忆](actor-actions-memory.md)
 
@@ -69,7 +69,7 @@
 
 四条约束，新增能力时都要满足：
 
-- 状态只由拥有它的回合写：environment 与通道归 stage 回合，可交互锚点及其上的物品由内容层在建局时赋予、运行时不写，外观归外观阶段，结局归 world。
+- 状态只由拥有它的回合写：environment 与通道归 stage 回合，可交互锚点及其上的道具由内容层在建局时赋予、运行时不写，外观归外观阶段，结局归 world。
 - 推理端只读控制面，不把未经观察者渲染的他人名字或他人私有信息写进 actor 记忆，也不直接产出面向 actor 的上下文；它只产出结构化见证：来源、目标与文本分开，名字与指代一律由引擎按观察者渲染。actor 自己行动的数值后果经既有伤害通道写回它自己的行动反馈；舞台可见的见证同时写公共流与舞台观察，只写给目标的见证只进目标观察；发起者不重复写 observation。actor 侧的知识一律由 actor pull，compact 只把同一主体的记忆改写成摘要。
 - 引擎把事件追加到对应 owner 的 memory：不更新状态，也不唤醒 agent。跨 owner 写记忆只有 `memory/world-channel.ts` 一个入口（舞台报告、引擎事实、world 裁决），其他模块要告诉别的 owner 什么就走通道，不自建写入路径。
 - actor / stage / world 都显式推动；唯一自动的是提交后的增量阶段（agent 词缀、死亡后的外观与掉落），只追加、不回滚、不触发另一个 agent。

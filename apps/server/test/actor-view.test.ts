@@ -114,7 +114,7 @@ describe.skipIf(!testDatabaseUrl)("actor view", () => {
   it("keeps stage items free of type prefixes", async () => {
     const created = await createGame(handle.db, {
       username: DEMO_USER.username,
-      name: "观看者物品测试局",
+      name: "观看者道具测试局",
       world: BELL_MONASTERY_WORLD,
     });
     await takeActorControl(handle.db, created.game.slug, "无名者");

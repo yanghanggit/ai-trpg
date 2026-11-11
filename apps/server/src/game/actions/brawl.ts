@@ -9,7 +9,7 @@ import type { ActorWithStageRow, Executor } from "../persistence/rows";
 import type { ResolvedBrawl } from "../settle/types";
 
 /**
- * 身体动作：不读任何物品，伤害只来自行动者自身 stats。
+ * 身体动作：不读任何道具，伤害只来自行动者自身 stats。
  *
  * 与 `strike` 分开是因为触发条件不同：挥击要求 `weapon` 槽有提供 strike 的武器，
  * 肉搏只要求角色自己的 actions 里有 `brawl`。
@@ -20,7 +20,7 @@ export function buildBrawlTool(targetActorHandles: readonly string[]): ToolDefin
     function: {
       name: "brawl",
       description:
-        "把一次肉搏加入计划：用身体（拳脚等肢体）攻击同舞台的一个角色。不使用任何物品，武器数值不参与结算；不判定命中与闪避，伤害由结果直接结算。",
+        "把一次肉搏加入计划：用身体（拳脚等肢体）攻击同舞台的一个角色。不使用任何道具，武器数值不参与结算；不判定命中与闪避，伤害由结果直接结算。",
       parameters: {
         type: "object",
         properties: {
@@ -56,7 +56,7 @@ export function resolveBrawl(
   return { kind: "brawl", action, stage, target };
 }
 
-/** 应用 brawl：不带物品，交给引擎原生的肉搏路径结算。 */
+/** 应用 brawl：不带道具，交给引擎原生的肉搏路径结算。 */
 export async function applyBrawl(
   executor: Executor,
   gameId: string,

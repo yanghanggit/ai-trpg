@@ -228,7 +228,7 @@ describe.skipIf(!testDatabaseUrl)("memory dump from database", () => {
     expect(text).toContain("action_feedback");
     expect(text).toContain("你留在原地");
     // probe / memory dump 不注入当前 observation。
-    expect(text).not.toContain("## 舞台物品");
+    expect(text).not.toContain("## 舞台道具");
 
     const after = await getGameState(handle.db, slug);
     const afterOwner = resolveMemoryOwner(after, "actor", "守烬人");

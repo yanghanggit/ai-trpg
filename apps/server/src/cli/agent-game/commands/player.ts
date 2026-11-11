@@ -70,7 +70,7 @@ const messageOption = () => requiredOption("--message <text>", "内容文本");
 const targetOption = (flags = "--target <actorName>", description = "目标 actor 名称") =>
   requiredOption(flags, description);
 
-const itemOption = () => requiredOption("--item <name>", "物品名");
+const itemOption = () => requiredOption("--item <name>", "道具名");
 
 const slotOption = () =>
   choiceOption("--slot <slot>", `装备槽：${EQUIPMENT_SLOTS.join(" / ")}`, EQUIPMENT_SLOTS);
@@ -298,7 +298,7 @@ export function registerPlayerCommands(program: Command, ctx: CommandContext): v
   addCommand(program, ctx, {
     name: "player-brawl",
     group: GROUP,
-    summary: "空手攻击目标（不读物品）",
+    summary: "空手攻击目标（不读道具）",
     options: [gameOption(), actorOption(), targetOption()],
     schema: targetInput,
     run: async (input, ctx) =>
@@ -318,7 +318,7 @@ export function registerPlayerCommands(program: Command, ctx: CommandContext): v
   addCommand(program, ctx, {
     name: "player-steal",
     group: GROUP,
-    summary: "从目标身上偷一件物品",
+    summary: "从目标身上偷一件道具",
     options: [gameOption(), actorOption(), targetOption(), itemOption()],
     schema: targetItemInput,
     run: async (input, ctx) =>
@@ -335,7 +335,7 @@ export function registerPlayerCommands(program: Command, ctx: CommandContext): v
   addCommand(program, ctx, {
     name: "player-inspect",
     group: GROUP,
-    summary: "查看目标随身携带的全部物品（占一次行动；察觉看敏捷）",
+    summary: "查看目标随身携带的全部道具（占一次行动；察觉看敏捷）",
     options: [gameOption(), actorOption(), targetOption()],
     schema: targetInput,
     run: async (input, ctx) =>
@@ -354,7 +354,7 @@ export function registerPlayerCommands(program: Command, ctx: CommandContext): v
       gameOption(),
       actorOption(),
       targetOption(),
-      optionalOption("--item <names...>", "要搜刮的物品名；省略表示搜刮全部"),
+      optionalOption("--item <names...>", "要搜刮的道具名；省略表示搜刮全部"),
     ],
     schema: lootInput,
     run: async (input, ctx) =>
@@ -371,7 +371,7 @@ export function registerPlayerCommands(program: Command, ctx: CommandContext): v
   addCommand(program, ctx, {
     name: "player-give",
     group: GROUP,
-    summary: "把自己的物品给目标",
+    summary: "把自己的道具给目标",
     options: [gameOption(), actorOption(), targetOption(), itemOption()],
     schema: targetItemInput,
     run: async (input, ctx) =>
@@ -388,11 +388,11 @@ export function registerPlayerCommands(program: Command, ctx: CommandContext): v
   addCommand(program, ctx, {
     name: "player-pickup",
     group: GROUP,
-    summary: "从当前舞台的锚点上拾取物品",
+    summary: "从当前舞台的锚点上拾取道具",
     options: [
       gameOption(),
       actorOption(),
-      optionalOption("--anchor <label>", "物品所在的锚点标签"),
+      optionalOption("--anchor <label>", "道具所在的锚点标签"),
       itemOption(),
     ],
     schema: pickupInput,
@@ -410,7 +410,7 @@ export function registerPlayerCommands(program: Command, ctx: CommandContext): v
   addCommand(program, ctx, {
     name: "player-use",
     group: GROUP,
-    summary: "使用物品：对目标 actor、对舞台，或落在舞台锚点上",
+    summary: "使用道具：对目标 actor、对舞台，或落在舞台锚点上",
     options: [
       gameOption(),
       actorOption(),
@@ -442,7 +442,7 @@ export function registerPlayerCommands(program: Command, ctx: CommandContext): v
   addCommand(program, ctx, {
     name: "player-equip",
     group: GROUP,
-    summary: "把物品穿到指定槽位",
+    summary: "把道具穿到指定槽位",
     options: [gameOption(), actorOption(), slotOption(), itemOption()],
     schema: equipInput,
     run: async (input, ctx) =>

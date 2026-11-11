@@ -10,8 +10,8 @@ import type { StageAction } from "../../kernel/types";
 
 /*
  * stage 对 actor 的只读 inspect 已停用：stage 对本舞台的携带物本来就全知，只搬一份
- * 物品清单没有业务用处；而它真正缺的 stats 与存活状态偏偏没给——看得到的和想看的
- * 正好错开。要恢复时别只搬物品清单：把 `describeStats` 一起带上，并想清楚它和
+ * 道具清单没有业务用处；而它真正缺的 stats 与存活状态偏偏没给——看得到的和想看的
+ * 正好错开。要恢复时别只搬道具清单：把 `describeStats` 一起带上，并想清楚它和
  * actor 自己的 `inspect`（占一次行动、留痕看敏捷）差在哪。
  */
 
@@ -82,7 +82,7 @@ export function buildRemoveAnchorTool(availableAnchors: readonly string[]): Tool
     type: "function",
     function: {
       name: "remove_anchor",
-      description: "移除一个可交互锚点；它上面的物品会一起移除。",
+      description: "移除一个可交互锚点；它上面的道具会一起移除。",
       parameters: {
         type: "object",
         properties: {
@@ -104,7 +104,7 @@ export function buildUpdateAnchorTool(availableAnchors: readonly string[]): Tool
     function: {
       name: "update_anchor",
       description:
-        "改写一个可交互锚点：提交它的完整文本，省略 description 表示没有描述；改标签不影响挂在上面的物品。",
+        "改写一个可交互锚点：提交它的完整文本，省略 description 表示没有描述；改标签不影响挂在上面的道具。",
       parameters: {
         type: "object",
         properties: {

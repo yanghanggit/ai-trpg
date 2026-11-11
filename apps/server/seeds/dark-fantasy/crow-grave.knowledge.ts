@@ -7,7 +7,7 @@ import type { KnowledgeBase } from "../../src/rag/types";
  * 黑疖病留下的处理方式与公开记载。大部分是常识；需要行当知识的条目写 `access`，
  * 只返回给具备对应标签的 actor。
  *
- * 不收录环境描写与舞台内可移动的物品（尸车里的窖钉、小棺上的木哨等）：它们由
+ * 不收录环境描写与舞台内可移动的道具（尸车里的窖钉、小棺上的木哨等）：它们由
  * stage 的 profile / environment 与 stage_items 表达。也不写角色身世、秘密、钥匙
  * 归属与封尸窖里的东西；这些属于 actor 的 profile / memory，或只能靠故事中的发现获得。
  */

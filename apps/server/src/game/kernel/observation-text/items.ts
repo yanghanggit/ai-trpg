@@ -10,10 +10,10 @@ import type {
 } from "./types";
 
 /**
- * 物品事件与查看行囊的文案。
+ * 道具事件与查看行囊的文案。
  *
  * `steal` 只有当事人视角（写入层已把观察范围收敛成「只有目标」），所以没有旁观分支；
- * 清单只回给查看者自己，`inspect` 的观察不带任何物品名。
+ * 清单只回给查看者自己，`inspect` 的观察不带任何道具名。
  */
 
 /**
@@ -37,7 +37,7 @@ export function renderInspect(
   if (observerId === observation.target.id) {
     return {
       content: withAppearances(
-        `# 有人在查看你的物品\n${mentionOf(actorAddress)}查看了你随身携带的东西。`,
+        `# 有人在查看你的道具\n${mentionOf(actorAddress)}查看了你随身携带的东西。`,
         [actorAddress],
       ),
       metadata,
@@ -53,7 +53,7 @@ export function renderInspect(
 }
 
 /**
- * 物品观察：当事人视角与旁观视角分开给。
+ * 道具观察：当事人视角与旁观视角分开给。
  *
  * `steal` 只有当事人视角——它的观察范围在写入层已经收敛成「只有目标」，
  * 所以这里不保留旁观分支。
@@ -105,7 +105,7 @@ export function renderItemEvent(
 
   if (observation.event === "give" && observerId === observation.target.id) {
     return {
-      content: withAppearances(`# 你收到物品\n${actorRef}把${itemName}交给了你。`, [actorAddress]),
+      content: withAppearances(`# 你收到道具\n${actorRef}把${itemName}交给了你。`, [actorAddress]),
       metadata,
     };
   }

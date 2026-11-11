@@ -10,7 +10,7 @@ import type { ActorWithStageRow, Executor } from "../persistence/rows";
 import type { ResolvedStrike } from "../settle/types";
 
 /**
- * 武器动作：动作本身不带物品参数，武器隐式来自 `weapon` 槽。
+ * 武器动作：动作本身不带道具参数，武器隐式来自 `weapon` 槽。
  *
  * 这个工具只在武器穿戴中、且那把武器声明了 `affixes.strike` 时才会被装配进工具列表，
  * 所以模型看到它时就已经有武器可用；结算端仍要独立复核一次。

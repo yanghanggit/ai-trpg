@@ -34,7 +34,7 @@ ${briefing}`;
 }
 
 /**
- * 舞台的开局基线：t0 的 environment、锚点与锚点上的物品。不含在场角色——名单易变，
+ * 舞台的开局基线：t0 的 environment、锚点与锚点上的道具。不含在场角色——名单易变，
  * 且环境文本不允许出现角色名。
  */
 export function buildStageOpeningSnapshot(stage: {

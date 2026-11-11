@@ -10,10 +10,10 @@ import { isSameItem } from "./item-identity";
 import type { Executor, ItemRow, StageItemRow } from "./rows";
 
 /**
- * 物品与舞台物品的读写操作：玩法层只表达「谁拿到什么」，不关心两张表怎么搬。
+ * 道具与舞台道具的读写操作：玩法层只表达「谁拿到什么」，不关心两张表怎么搬。
  */
 
-/** 读一个舞台当前陈列的物品，按实体序号稳定排序。 */
+/** 读一个舞台当前陈列的道具，按实体序号稳定排序。 */
 export async function listStageItems(
   executor: Pick<Database, "select">,
   stageId: string,
@@ -25,7 +25,7 @@ export async function listStageItems(
     .orderBy(asc(stageItems.seq));
 }
 
-/** 移除锚点上的全部物品；返回被移除的行数。 */
+/** 移除锚点上的全部道具；返回被移除的行数。 */
 export async function deleteStageItemsByAnchor(
   executor: Executor,
   stageId: string,
@@ -38,7 +38,7 @@ export async function deleteStageItemsByAnchor(
   return removed.length;
 }
 
-/** 读某个 actor 名下的某件物品（按稳定 id，不按名字）。 */
+/** 读某个 actor 名下的某件道具（按稳定 id，不按名字）。 */
 export async function loadActorItem(
   executor: Executor,
   actorId: string,
@@ -53,9 +53,9 @@ export async function loadActorItem(
 }
 
 /**
- * 舞台物品转入 actor 背包。
+ * 舞台道具转入 actor 背包。
  *
- * 背包里已有同名物品时：签名相同就并入 `count`（同一件东西的两份），
+ * 背包里已有同名道具时：签名相同就并入 `count`（同一件东西的两份），
  * 签名不同说明是两件不同的东西，直接拒绝，避免覆盖或撞唯一索引。
  */
 export async function moveStageItemToActor(
@@ -70,7 +70,7 @@ export async function moveStageItemToActor(
     .limit(1);
   if (existing) {
     if (!isSameItem(existing, stageItem)) {
-      throw new GameError("invalid_action", `你已经有同名物品: ${stageItem.name}`);
+      throw new GameError("invalid_action", `你已经有同名道具: ${stageItem.name}`);
     }
     await executor
       .update(items)
@@ -82,7 +82,7 @@ export async function moveStageItemToActor(
   await executor.delete(stageItems).where(eq(stageItems.id, stageItem.id));
   await executor.insert(items).values({
     id: randomUUID(),
-    // 换归属不是新建实体：保留原序号，避免拾取后物品在列表里跳到末尾。
+    // 换归属不是新建实体：保留原序号，避免拾取后道具在列表里跳到末尾。
     seq: stageItem.seq,
     actorId,
     key: stageItem.key,
@@ -98,9 +98,9 @@ export async function moveStageItemToActor(
 }
 
 /**
- * 物品在 actor 之间转移；`items.actor_id` 就是归属本身。
+ * 道具在 actor 之间转移；`items.actor_id` 就是归属本身。
  *
- * 与拾取同一条规则：一个作用域里一个名字只有一行。背包里已有同名物品时，
+ * 与拾取同一条规则：一个作用域里一个名字只有一行。背包里已有同名道具时，
  * 签名相同就并入 `count`（同一件东西的两份），签名不同说明是两件不同的东西，
  * 直接拒绝——否则后到的那件永远排不到名字地址，等于拿不到。
  */
@@ -119,7 +119,7 @@ export async function transferItemToActor(
     return;
   }
   if (!isSameItem(existing, item)) {
-    throw new GameError("invalid_action", `目标已经有同名的另一件物品: ${item.name}`);
+    throw new GameError("invalid_action", `目标已经有同名的另一件道具: ${item.name}`);
   }
   await executor
     .update(items)
@@ -133,9 +133,9 @@ export type MaterialDrop = { name: string; description: string; count: number };
 /**
  * 把掉落材料写进尸体背包。
  *
- * 掉在尸体上而不是地上：搜刮走 `steal`，`pickup` 只够得到舞台物品。
+ * 掉在尸体上而不是地上：搜刮走 `steal`，`pickup` 只够得到舞台道具。
  * 同名材料并进已有那一行（材料可堆叠）；同名但不是材料说明尸体本来就有
- * 一件别的东西，跳过它，不去覆盖原有的物品。
+ * 一件别的东西，跳过它，不去覆盖原有的道具。
  */
 export async function addActorMaterials(
   executor: Executor,
@@ -172,7 +172,7 @@ export async function addActorMaterials(
   for (const material of materials) {
     const existing = existingByName.get(material.name);
     if (existing?.kind === "material") {
-      // 同一批材料按签名堆叠：名字相同但描述 / 来源不同的，视为不同物品。
+      // 同一批材料按签名堆叠：名字相同但描述 / 来源不同的，视为不同道具。
       const candidate = {
         kind: "material" as const,
         name: material.name,

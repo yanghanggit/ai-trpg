@@ -28,7 +28,7 @@ export function buildStoryInput(state: GameState, memories: readonly AgentMemory
 
 # 本轮任务
 
-写一段完整、连贯的故事：开头、发展、冲突与当前阶段的收束，能解释关键角色为什么行动；保留关键因果、关系、物品、地点与结局。
+写一段完整、连贯的故事：开头、发展、冲突与当前阶段的收束，能解释关键角色为什么行动；保留关键因果、关系、道具、地点与结局。
 
 1. list_memories；
 2. 对每一个 world / stage / actor 调用 read_memory；如果摘要不足以理解关键因果，可用 includeArchived 展开归档；

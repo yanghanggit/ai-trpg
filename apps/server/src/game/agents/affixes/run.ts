@@ -60,7 +60,7 @@ async function evaluateAffix(
   );
   const item = actor?.items.find((candidate) => candidate.id === request.itemId);
   if (!actor || !stage || !item) {
-    return { evaluation: { kind: "noop", reason: "物品或持有者已不存在" } };
+    return { evaluation: { kind: "noop", reason: "道具或持有者已不存在" } };
   }
   const affixes = agentAffixes(item, request.trigger);
   if (affixes.length === 0) {
@@ -353,7 +353,7 @@ async function resolveWitnessActor(
 }
 
 /**
- * 执行一个物品的补充 affix agent；静态词缀已提交后调用。
+ * 执行一个道具的补充 affix agent；静态词缀已提交后调用。
  *
  * 约束：任何失败都只等于「这次没有补伤害」，不外抛，也不影响已提交的静态结果。
  */

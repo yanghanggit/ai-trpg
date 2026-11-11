@@ -1,7 +1,7 @@
 import { z } from "zod";
 
 /**
- * 角色与物品共用的唯一属性结构。
+ * 角色与道具共用的唯一属性结构。
  *
  * 六个字段都是恒定配置：可逐字段相加、可继承、可覆盖。当前生命是可变运行时
  * 状态而不是属性，所以不在 `Stats` 里，放在 `ActorState.hp` / `actors.hp`。
@@ -18,14 +18,14 @@ import { z } from "zod";
  * 由 `gameplay/rules.ts` 的开关决定，数据块只保证一份形状。
  *
  * 字段按所有者分两层：`maxHp` / `strength` / `wisdom` / `agility` 是角色拥有的源属性
- * （装备写它们是对穿戴者的加成），`damage` / `block` 是物品固有的终值——角色身上那
+ * （装备写它们是对穿戴者的加成），`damage` / `block` 是道具固有的终值——角色身上那
  * 两个字段只是结算期的顺时输出。分层与结算顺序见 `docs/attributes.md`。
  */
 
 /** 角色拥有、由内容写进角色的字段。 */
 const SOURCE_STAT_KEYS = ["maxHp", "strength", "wisdom", "agility"] as const;
 
-/** 物品固有的终值；角色身上只是结算期的顺时输出。 */
+/** 道具固有的终值；角色身上只是结算期的顺时输出。 */
 const FINAL_STAT_KEYS = ["damage", "block"] as const;
 
 /** 属性的展示顺序；渲染 prompt 等只读用途直接复用，避免再抄一份字段列表。 */

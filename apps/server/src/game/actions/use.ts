@@ -19,9 +19,9 @@ import type { ActorWithStageRow, Executor } from "../persistence/rows";
 import type { ResolvedUse } from "../settle/types";
 
 /**
- * `use` 的候选物品：声明了 `affixes.use`，且此刻没被穿戴。
+ * `use` 的候选道具：声明了 `affixes.use`，且此刻没被穿戴。
  *
- * 与 `resolveUse` 的拒绝条件同源：候选里没有的物品，即使被模型点名也会在解析阶段失败。
+ * 与 `resolveUse` 的拒绝条件同源：候选里没有的道具，即使被模型点名也会在解析阶段失败。
  */
 export function usableItemNames(items: readonly ItemState[], equipment: EquipmentSlots): string[] {
   return items
@@ -40,13 +40,13 @@ export function buildUseTool(
     function: {
       name: "use",
       description:
-        "把一次使用道具加入计划：使用一件没穿戴的物品，作用于一个角色或当前舞台（二选一）。",
+        "把一次使用道具加入计划：使用一件没穿戴的道具，作用于一个角色或当前舞台（二选一）。",
       parameters: {
         type: "object",
         properties: {
           itemName: {
             type: "string",
-            description: "要使用的自己持有的物品名",
+            description: "要使用的自己持有的道具名",
             ...(availableItemNames.length > 0 ? { enum: [...availableItemNames] } : {}),
           },
           targetActorHandle: {
@@ -115,7 +115,7 @@ export async function resolveUse(
   targetActor?: ResolvedUse["target"],
 ): Promise<ResolvedUse> {
   const transferItem = await resolveActorItem(executor, actorRow.actor.id, action.itemName);
-  // 动作由物品状态唯一决定：装备中的物品归 strike 或被动装备，不能当道具使用。
+  // 动作由道具状态唯一决定：装备中的道具归 strike 或被动装备，不能走 use。
   const slot = equippedSlotOf(actorRow.actor.equipment, transferItem.name);
   if (slot) {
     throw new GameError(
@@ -124,7 +124,7 @@ export async function resolveUse(
     );
   }
   if (!hasAffixes(transferItem, "use")) {
-    throw new GameError("invalid_action", `物品没有可用的使用词缀: ${transferItem.name}`);
+    throw new GameError("invalid_action", `道具没有可用的使用词缀: ${transferItem.name}`);
   }
   const targetAnchor = action.targetAnchor?.trim();
   if (targetAnchor && action.targetStageName === undefined) {
@@ -170,7 +170,7 @@ export async function resolveUse(
 /**
  * `use` 的基础事件：引擎行为，不依赖词缀。
  *
- * 没有词缀的物品也可能被“使用”（例如把钟舌放回祭坛），这条记录保证动作在世界里
+ * 没有词缀的道具也可能被“使用”（例如把钟舌放回祭坛），这条记录保证动作在世界里
  * 留下痕迹；可见后果由 witness 额外追加。
  */
 async function recordUseEvent(

@@ -30,7 +30,7 @@ export type ObservationMetadata = {
   attackerActorId?: string;
   targetActorId?: string;
   itemName?: string;
-  /** 一次动作取走多件物品时用（目前只有搜刮尸体）。 */
+  /** 一次动作取走多件道具时用（目前只有搜刮尸体）。 */
   itemNames?: readonly string[];
   affixName?: string;
   witness?: boolean;
@@ -85,12 +85,12 @@ export type CallObservation = {
  * 查看他人行囊的观察输入。
  *
  * 清单只回给查看者自己的行动事实；目标与旁观者看到的只是「有人在翻看」，
- * 所以这条观察不带任何物品名。
+ * 所以这条观察不带任何道具名。
  */
 export type InspectObservation = { actor: ActorRef; target: ActorRef };
 
 /**
- * 物品观察的输入。
+ * 道具观察的输入。
  *
  * 成员与 `ItemEventKind` 对应：`target` 的有无由动作本身决定，不交给调用方记，
  * 于是文案里不再有「某人」这类兜底。
@@ -117,7 +117,7 @@ export type DamageObservation = {
   action: Extract<ActionKind, "strike" | "cleave" | "brawl" | "use">;
   attacker: ActorRef;
   target: ActorRef & { maxHp: number };
-  /** 本次动作用到的物品名；`strike` 必填，`use` 省略表示空手。 */
+  /** 本次动作用到的道具名；`strike` 必填，`use` 省略表示空手。 */
   itemName?: string;
   /** 词缀追加的伤害；默认效果省略。 */
   via?: "affix";

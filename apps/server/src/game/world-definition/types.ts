@@ -68,16 +68,16 @@ export type WorldVisitedStage = {
 };
 
 /**
- * 内容层的锚点定义：锚点承载物品，物品不能脱离锚点。
+ * 内容层的锚点定义：锚点承载道具，道具不能脱离锚点。
  *
- * `key` 是舞台内稳定标识，改 `label` 不会让挂在上面的物品失联。
+ * `key` 是舞台内稳定标识，改 `label` 不会让挂在上面的道具失联。
  */
 export type StageAnchorDefinition = {
-  /** 舞台内稳定标识；改 label 不会让挂在上面的物品失联。 */
+  /** 舞台内稳定标识；改 label 不会让挂在上面的道具失联。 */
   key: string;
   label: string;
   description?: string;
-  /** 开局就摆在这个锚点上的物品；建局时物化为 `stage_items.anchor_key`。 */
+  /** 开局就摆在这个锚点上的道具；建局时物化为 `stage_items.anchor_key`。 */
   items?: readonly ItemDefinition[];
 };
 
@@ -87,7 +87,7 @@ export type Stage = {
   name: string;
   profile: string;
   environment: string;
-  /** 舞台内可交互的锚点；物品只能挂在锚点上。 */
+  /** 舞台内可交互的锚点；道具只能挂在锚点上。 */
   anchors?: readonly StageAnchorDefinition[];
   /** 舞台自身的能力清单；必须显式列出。 */
   actions: readonly StageActionKind[];
@@ -127,7 +127,7 @@ export type Actor = {
     form: string;
     appearance?: string;
   };
-  /** 初始穿戴：槽位 → 物品名；物品本身不记录穿戴状态。 */
+  /** 初始穿戴：槽位 → 道具名；道具本身不记录穿戴状态。 */
   equipment?: EquipmentSlots;
   /**
    * 属性；省略的字段按 0 补齐。角色只写源属性（`maxHp` / `strength` / `wisdom` /
@@ -165,7 +165,7 @@ export type Actor = {
 /**
  * 一项技艺：把几个动作捆在一个名字下的内容单元。
  *
- * 和物品的 `actions` 同形，但物品的授予随穿戴借还，技艺在开局时就变成角色自己的本事。
+ * 和道具的 `actions` 同形，但道具的授予随穿戴借还，技艺在开局时就变成角色自己的本事。
  * 名字是给内容与读者看的（「探囊」），机制只看 `actions`。
  */
 export type SkillDefinition = {
@@ -188,7 +188,7 @@ export function actorInnateActions(
   return [...new Set(merged)];
 }
 
-/** Actor 的初始物品定义；创建后物化为 `items` 或 `stage_items` 行。 */
+/** Actor 的初始道具定义；创建后物化为 `items` 或 `stage_items` 行。 */
 export type ItemDefinition = {
   /** 世界内稳定 key；行为与内容判定用它，不用展示名。 */
   key: string;
@@ -202,7 +202,7 @@ export type ItemDefinition = {
   maxTargets?: number;
   /** 按触发舞台声明的词缀；可省略，创建时归一化为空对象。 */
   affixes?: AffixTriggers;
-  /** 物品能提供的携带者动作；穿戴中才借给角色。可省略，创建时归一化为空数组。 */
+  /** 道具能提供的携带者动作；穿戴中才借给角色。可省略，创建时归一化为空数组。 */
   actions?: readonly CarriedActionKind[];
   /** 材料来源；只有 `material` 可以声明，其它大类声明会被内容校验拒绝。 */
   source?: string;

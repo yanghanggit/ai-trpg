@@ -103,7 +103,7 @@ export async function listActorsForAppearance(
     .orderBy(actors.name);
 }
 
-/** 覆盖穿戴索引（槽位 → 物品名）。 */
+/** 覆盖穿戴索引（槽位 → 道具名）。 */
 export async function setActorEquipment(
   executor: Executor,
   actorId: string,

@@ -82,7 +82,7 @@ describe.skipIf(!testDatabaseUrl)("equip and unequip actions", () => {
     expect(keeper?.appearance.text).toBe(appearanceBefore);
     expect(state.messages.map((message) => message.kind)).toEqual(["unequip", "equip"]);
 
-    // 写进 actor 记忆的反馈已经脱敏：物品名就是名字本身（公共消息仍是上帝视角）。
+    // 写进 actor 记忆的反馈已经脱敏：道具名就是名字本身（公共消息仍是上帝视角）。
     const memories = await getGameMemories(handle.db, created.game.id);
     const feedback =
       memories
@@ -94,7 +94,7 @@ describe.skipIf(!testDatabaseUrl)("equip and unequip actions", () => {
     expect(feedback).toContain("你卸下了补丁斗篷");
   });
 
-  it("物品仍在背包里，只是不再计入穿戴", async () => {
+  it("道具仍在背包里，只是不再计入穿戴", async () => {
     const created = await createKeeperGame("卸下后仍在背包测试局");
     const removed = await playerUnequip(handle.db, created.game.slug, "奥德里克", {
       slot: "weapon",

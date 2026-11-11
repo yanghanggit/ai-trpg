@@ -16,8 +16,8 @@ import type { ResolvedLoot } from "../settle/types";
 /**
  * 搜刮尸体：与 `pickup` 平行的取物入口，对象只能是同舞台的尸体。
  *
- * 与 `steal` 的分工由对象决定：活人走 `steal`（私密、拿不走穿戴中的物品），
- * 尸体走 `loot`（公开、什么都能拿）。不传物品名即搜刮全部：背包没有上限，
+ * 与 `steal` 的分工由对象决定：活人走 `steal`（私密、拿不走穿戴中的道具），
+ * 尸体走 `loot`（公开、什么都能拿）。不传道具名即搜刮全部：背包没有上限，
  * 逐件取走只是噪声，所以一次动作会把尸体搬空。
  */
 export function buildLootTool(targetActorHandles: readonly string[]): ToolDefinition {
@@ -26,7 +26,7 @@ export function buildLootTool(targetActorHandles: readonly string[]): ToolDefini
     function: {
       name: "loot",
       description:
-        "把一次搜刮加入计划：从同舞台的尸体上取走物品（道具、材料、甚至它穿戴的东西），在场的人都看得见。省略 itemNames 就是搜刮全部。只能对尸体，活人用 steal。",
+        "把一次搜刮加入计划：从同舞台的尸体上取走道具（材料、穿戴的东西也算），在场的人都看得见。省略 itemNames 就是搜刮全部。只能对尸体，活人用 steal。",
       parameters: {
         type: "object",
         properties: {
@@ -39,7 +39,7 @@ export function buildLootTool(targetActorHandles: readonly string[]): ToolDefini
             type: "array",
             items: { type: "string" },
             minItems: 1,
-            description: "要取走的物品名列表；省略或留空表示把尸体身上的东西全搜走，按列表顺序结算",
+            description: "要取走的道具名列表；省略或留空表示把尸体身上的东西全搜走，按列表顺序结算",
           },
         },
         required: ["targetActorHandle"],
@@ -60,7 +60,7 @@ export function parseLoot(args: Record<string, unknown>): LootAction {
     return { kind: "loot", targetActorHandle };
   }
   if (!Array.isArray(raw)) {
-    throw new GameError("invalid_action", "loot 的 itemNames 必须是物品名数组");
+    throw new GameError("invalid_action", "loot 的 itemNames 必须是道具名数组");
   }
   const itemNames = raw.map((value) => (typeof value === "string" ? value.trim() : ""));
   if (itemNames.some((name) => name.length === 0)) {
@@ -95,19 +95,19 @@ export async function resolveLoot(
   const byName = new Map(owned.map((row) => [row.name, row] as const));
   if (action.itemNames === undefined) {
     if (owned.length === 0) {
-      throw new GameError("invalid_action", `${target.name}身上没有可搜刮的物品`);
+      throw new GameError("invalid_action", `${target.name}身上没有可搜刮的道具`);
     }
     return { kind: "loot", action, stage, target, items: owned };
   }
   const missing = action.itemNames.filter((name) => !byName.has(name));
   if (missing.length > 0) {
-    throw new GameError("invalid_action", `${target.name}身上没有这些物品: ${missing.join("、")}`);
+    throw new GameError("invalid_action", `${target.name}身上没有这些道具: ${missing.join("、")}`);
   }
   const items = action.itemNames.map((name) => {
     const item = byName.get(name);
     if (!item) {
       // 上面已整批校验过，这里只防同一事务里被写走。
-      throw new GameError("invalid_action", `${target.name}身上没有这件物品: ${name}`);
+      throw new GameError("invalid_action", `${target.name}身上没有这件道具: ${name}`);
     }
     return item;
   });

@@ -44,8 +44,8 @@ export function describeStoredAnchors(anchors: readonly StoredAnchor[]): string 
 }
 
 /**
- * 纯计算：校验一条锚点变更并返回新列表与摘要。物品挂在锚点的 key 上：
- * 改写标签不换 key，移除锚点则连带移除它上面的物品。
+ * 纯计算：校验一条锚点变更并返回新列表与摘要。道具挂在锚点的 key 上：
+ * 改写标签不换 key，移除锚点则连带移除它上面的道具。
  */
 export function computeAnchorChange(
   current: readonly StoredAnchor[],

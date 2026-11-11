@@ -15,13 +15,13 @@ import { itemValues } from "./item-row";
 import type { OpeningActorRef, PromptDump } from "./types";
 
 /**
- * 物化 actor：角色行、开局签名、外观快照、随身物品、记忆与起始到访。
+ * 物化 actor：角色行、开局签名、外观快照、随身道具、记忆与起始到访。
  *
  * 开局只有一个签名（伪装 / 变身后才会插入新的）；外观与起始到访共享同一个时间戳，
  * 免得同一批数据出现先后差异。
  */
 
-/** 物化 actor、开局签名、外观、随身物品、记忆与起始到访。 */
+/** 物化 actor、开局签名、外观、随身道具、记忆与起始到访。 */
 export async function createActors(
   tx: Executor,
   input: {

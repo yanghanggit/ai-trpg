@@ -73,7 +73,7 @@ ${input.defaultFeedback}
 舞台：${input.stageName}
 触发：${input.trigger}
 持有者：${input.actorName}（${statsText(input.actorStats)}）
-物品：${input.itemName}（${statsText(input.itemStats)}）
+道具：${input.itemName}（${statsText(input.itemStats)}）
 ${input.itemDescription}
 词缀：
 ${input.affixes.map((affix) => `- [${affix.name}]${affix.content}`).join("\n")}

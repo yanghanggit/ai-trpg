@@ -118,7 +118,7 @@ describe.skipIf(!testDatabaseUrl)("memory state snapshot", () => {
   it("lists stage items by public name in the snapshot", async () => {
     const created = await createGame(handle.db, {
       username: DEMO_USER.username,
-      name: "记忆状态快照物品局",
+      name: "记忆状态快照道具局",
       world: ITEM_WORLD,
     });
     await takeActorControl(handle.db, created.game.slug, "守烬人");

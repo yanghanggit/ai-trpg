@@ -29,7 +29,7 @@ export async function runIncrementPhases(
   options: IncrementOptions,
 ): Promise<IncrementResult> {
   if (result.affixRequests && result.affixRequests.length > 0) {
-    // 每个物品各自结算：一个失败只丢自己的增量，不影响其余，也不影响已提交的默认效果。
+    // 每个道具各自结算：一个失败只丢自己的增量，不影响其余，也不影响已提交的默认效果。
     for (const request of result.affixRequests) {
       await runAffixPhase(db, gameId, request, options.service, options.trace, options.logger);
     }

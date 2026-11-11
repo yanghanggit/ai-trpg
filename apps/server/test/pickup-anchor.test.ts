@@ -27,7 +27,7 @@ function torch(key: string) {
   };
 }
 
-/** 同一个舞台的两个锚点各放一件同名物品：物品地址是 (锚点, 名字)。 */
+/** 同一个舞台的两个锚点各放一件同名道具：道具地址是 (锚点, 名字)。 */
 const TWO_ANCHOR_WORLD = {
   ...TEST_WORLD,
   stages: TEST_WORLD.stages.map((stage) =>
@@ -89,7 +89,7 @@ describe.skipIf(!testDatabaseUrl)("pickup anchors (db)", () => {
     });
     await takeActorControl(handle.db, created.game.slug, "守烬人");
 
-    // 同名物品必须靠锚点区分：先拿门闩上的那件，壁龛上的不能被顺手带走。
+    // 同名道具必须靠锚点区分：先拿门闩上的那件，壁龛上的不能被顺手带走。
     const first = await playerPickup(handle.db, created.game.slug, "守烬人", {
       targetAnchor: "门闩",
       itemName: "测试火把",
@@ -114,7 +114,7 @@ describe.skipIf(!testDatabaseUrl)("pickup anchors (db)", () => {
     const keeperMemory = memories.find((memory) => memory.name === "守烬人");
     expect(keeperMemory?.messages.at(-1)?.content).toContain("「壁龛」上没有");
 
-    // 壁龛上的另一件同名物品仍然可取，并与背包里的等价物品合并。
+    // 壁龛上的另一件同名道具仍然可取，并与背包里的等价道具合并。
     const second = await playerPickup(handle.db, created.game.slug, "守烬人", {
       targetAnchor: "壁龛",
       itemName: "测试火把",
