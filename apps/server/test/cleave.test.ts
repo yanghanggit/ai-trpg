@@ -77,7 +77,7 @@ const CLEAVE_WORLD: World = {
         appearance: "袖口烧出许多小洞。",
       },
       hp: 6,
-      stats: { maxHp: 6, strength: 1, wisdom: 2, agility: 5, damage: 1, block: 0 },
+      stats: { maxHp: 6, strength: 2, wisdom: 2, agility: 5, damage: 0, block: 0 },
       actions: ["say", "wait"],
       inventory: [],
     },
@@ -142,7 +142,7 @@ describe.skipIf(!testDatabaseUrl)("cleave", () => {
     const strongWorld: World = {
       ...CLEAVE_WORLD,
       actors: CLEAVE_WORLD.actors.map((actor) =>
-        actor.name === "守烬人" ? { ...actor, stats: { ...actor.stats, strength: 3 } } : actor,
+        actor.name === "守烬人" ? { ...actor, stats: { ...actor.stats, strength: 9 } } : actor,
       ),
     };
     const { created, keeperId } = await startGame(strongWorld, "横扫力量加成测试局");
@@ -157,7 +157,7 @@ describe.skipIf(!testDatabaseUrl)("cleave", () => {
     expect(result.ok).toBe(true);
 
     const state = await stateOf(created.game.slug);
-    // 每个目标按自己的 1v1 结算：力量 3 + damage 6 + 武器 3 = 12，各减自己的 block。
+    // 每个目标按自己的 1v1 结算：力量 9（本体 6 + 这次加成 3）+ 武器终值 3 = 12，各减自己的装备格挡。
     expect(hpOf(state, "提灯修士")).toBe(1);
     expect(hpOf(state, "缄默抄经人")).toBe(1);
   });

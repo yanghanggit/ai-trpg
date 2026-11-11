@@ -1,11 +1,12 @@
 import type { TraceContext } from "../../debug/trace";
 import type { ToolDefinition } from "../../llm/types";
 import { GameError } from "../errors";
+import { awarenessRuleText, effectiveSourcesOf, inspectNoticed } from "../gameplay";
 import { toItemState } from "../item-state";
 import { describeItems } from "../item-state/describe";
 import { type AddressLookup, actionRef } from "../kernel/addressing";
 import type { InspectAction } from "../kernel/types";
-import { assertNotSelf, effectiveAgility, isAlive, listActorItems } from "../lookup";
+import { assertNotSelf, isAlive, listActorItems, wearerView } from "../lookup";
 import { appendInspectObservations, appendStageMemory } from "../observations";
 import { appendPublicMessage } from "../persistence/game-messages";
 import { bumpGameVersion } from "../persistence/games";
@@ -27,8 +28,7 @@ export function buildInspectTool(targetActorHandles: readonly string[]): ToolDef
     type: "function",
     function: {
       name: "inspect",
-      description:
-        "把一次查看加入计划：看同场景目标随身携带的全部物品（含已穿戴的），活人与尸体都能看。你的敏捷高于目标时无人察觉；否则对方知道你在看他的东西。它占本轮行动名额。",
+      description: `把一次查看加入计划：看同场景目标随身携带的全部物品（含已穿戴的），活人与尸体都能看。${awarenessRuleText("inspect")}它占本轮行动名额。`,
       parameters: {
         type: "object",
         properties: {
@@ -56,8 +56,8 @@ export function parseInspect(args: Record<string, unknown>): InspectAction {
 /**
  * 目标可以活着也可以死了：尸体上有什么，正是搜刮前要知道的。
  *
- * 察觉看敏捷：高于目标时这一眼不留痕迹，持平或不如目标时对方会知道；
- * 尸体不会察觉，查看尸体永远不留观察。
+ * 察觉与否由玩法层判定（`gameplay/awareness.ts`）：尸体不会察觉，活人那一眼算不算
+ * 痕迹不在这个动作里定。
  */
 export async function resolveInspect(
   executor: Executor,
@@ -67,16 +67,23 @@ export async function resolveInspect(
   target: ResolvedInspect["target"],
 ): Promise<ResolvedInspect> {
   assertNotSelf(target, actorRow.actor.id);
-  const [inspectorAgility, targetAgility] = await Promise.all([
-    effectiveAgility(executor, actorRow.actor),
-    effectiveAgility(executor, target),
+  const [inspector, targetView] = await Promise.all([
+    wearerView(executor, actorRow.actor),
+    wearerView(executor, target),
   ]);
+  const [inspectorSources, targetSources] = [
+    effectiveSourcesOf(inspector),
+    effectiveSourcesOf(targetView),
+  ];
   return {
     kind: "inspect",
     action,
     stage,
     target,
-    noticed: isAlive(target) && inspectorAgility <= targetAgility,
+    noticed: inspectNoticed(
+      { self: inspectorSources.agility, target: targetSources.agility },
+      isAlive(target),
+    ),
   };
 }
 

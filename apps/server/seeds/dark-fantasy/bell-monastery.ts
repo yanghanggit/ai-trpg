@@ -219,7 +219,7 @@ export const BELL_MONASTERY: Script = {
           "旧呢斗篷上沾着石灰与新土，下摆结着一片洗不掉的暗褐血渍；背后斜靠一把磨亮的铁锹。",
       },
       hp: 14,
-      stats: { maxHp: 14, strength: 5, wisdom: 2, agility: 3, damage: 5, block: 2 },
+      stats: { maxHp: 14, strength: 10, wisdom: 2, agility: 3, damage: 0, block: 0 },
       equipment: {
         weapon: "掘墓人的铁锹",
         armor: "补丁斗篷",
@@ -271,7 +271,7 @@ export const BELL_MONASTERY: Script = {
           description: "厚重的旧呢斗篷，补丁上结着石灰与新土，下摆有一片洗不掉的暗褐血渍。",
           kind: "equipment" as const,
           count: 1,
-          stats: { block: 1 },
+          stats: { block: 3 },
         },
       ],
       // 人类：会说话、走动、战斗，也操作道具、穿脱装备；不会探囊。
@@ -310,7 +310,7 @@ export const BELL_MONASTERY: Script = {
         ),
       },
       hp: 10,
-      stats: { maxHp: 10, strength: 7, wisdom: 1, agility: 7, damage: 7, block: 1 },
+      stats: { maxHp: 10, strength: 14, wisdom: 1, agility: 7, damage: 0, block: 0 },
       inventory: [],
       // 动物：会说话、走动与战斗，但不操作道具。
       actions: ["say", "whisper", "announce", "move", "wait", "brawl"],
@@ -334,7 +334,7 @@ export const BELL_MONASTERY: Script = {
         ),
       },
       hp: 4,
-      stats: { maxHp: 4, strength: 1, wisdom: 0, agility: 10, damage: 1, block: 0 },
+      stats: { maxHp: 4, strength: 2, wisdom: 0, agility: 10, damage: 0, block: 0 },
       inventory: [],
       // 幼崽只会说话、走动与躲避；不会战斗，也不操作道具。
       actions: ["say", "whisper", "announce", "move", "wait"],
@@ -359,7 +359,7 @@ export const BELL_MONASTERY: Script = {
           "身上裹着半幅发黄的裹尸布，布角拖过石灰；皮肤灰白，指甲缝里塞着干涸的黑蜡与棺木屑，锁骨上留着被锁链磨出的暗红旧痕；走路时关节会发出干涩的响声。",
       },
       hp: 20,
-      stats: { maxHp: 20, strength: 6, wisdom: 2, agility: 3, damage: 6, block: 2 },
+      stats: { maxHp: 20, strength: 12, wisdom: 2, agility: 3, damage: 0, block: 0 },
       isDefaultPlayer: true,
       equipment: {
         armor: "发黄的裹尸布",
@@ -372,7 +372,7 @@ export const BELL_MONASTERY: Script = {
           description: "半幅发黄的粗麻裹尸布，布角沾着湿泥与石灰，还留着尸坑的霉味。",
           kind: "equipment" as const,
           count: 1,
-          stats: { block: 0 },
+          stats: { block: 2 },
         },
         {
           key: "broken-neck-chain",
@@ -446,8 +446,18 @@ export const BELL_MONASTERY: Script = {
       hp: 120,
       // 鼠王比默认玩家快：活着的钟舌偷不到，设计上就是打死它再 `loot`。
       // 它是「沉睡 → 猎杀」与火把词缀追加伤害的测试对象，不是给人偷的。
-      stats: { maxHp: 120, strength: 60, wisdom: 100, agility: 8, damage: 60, block: 100 },
+      // 皮糙肉厚是它身上那层硬皮：防御是装备终值，不是角色自身的数值。
+      equipment: { armor: "结痂的厚皮" },
+      stats: { maxHp: 120, strength: 120, wisdom: 100, agility: 8, damage: 0, block: 0 },
       inventory: [
+        {
+          key: "rat-king-hide",
+          name: "结痂的厚皮",
+          description: "毛根里结着骨渣、旧血与碎钟铜，硬得刀锋一滑就偏开；只有火能烧穿它。",
+          kind: "equipment" as const,
+          count: 1,
+          stats: { block: 100 },
+        },
         {
           key: "rat-king-clapper",
           name: "旧钟的钟舌",

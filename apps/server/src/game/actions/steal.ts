@@ -1,10 +1,11 @@
 import type { TraceContext } from "../../debug/trace";
 import type { ToolDefinition } from "../../llm/types";
 import { GameError } from "../errors";
+import { awarenessRuleText, effectiveSourcesOf, stealOutcome } from "../gameplay";
 import { withoutEquippedItem } from "../item-state";
 import { type AddressLookup, actionRef } from "../kernel/addressing";
 import type { StealAction } from "../kernel/types";
-import { assertNotSelf, effectiveAgility, isAlive, resolveActorItem } from "../lookup";
+import { assertNotSelf, isAlive, resolveActorItem, wearerView } from "../lookup";
 import { appendItemObservations, appendStageMemory } from "../observations";
 import { setActorEquipment } from "../persistence/actors";
 import { appendPublicMessage } from "../persistence/game-messages";
@@ -18,8 +19,7 @@ export function buildStealTool(targetActorHandles: readonly string[]): ToolDefin
     type: "function",
     function: {
       name: "steal",
-      description:
-        "把一次窃取加入计划：从同场景的活人身上取走一件背包里的物品，拿不走目标穿戴中的东西。你比目标敏捷时无人察觉；持平也能得手，但对方会察觉；不如目标敏捷时一定失手。尸体不能偷，用 loot。",
+      description: `把一次窃取加入计划：从同场景的活人身上取走一件背包里的物品，拿不走目标穿戴中的东西。${awarenessRuleText("steal")}尸体不能偷，用 loot。`,
       parameters: {
         type: "object",
         properties: {
@@ -49,8 +49,7 @@ export function parseSteal(args: Record<string, unknown>): StealAction {
 /**
  * 偷窃只看活人：死者的东西走 loot，两边的拒绝文案互相指路。
  *
- * 敏捷决定成败与痕迹：不如目标敏捷时摸不到东西（整份计划被拒）；
- * 比目标敏捷时不写对方的观察，持平则照常通知。
+ * 成败与痕迹由玩法层判定（`gameplay/awareness.ts`），这里只把结论落成拒绝或 `noticed`。
  */
 export async function resolveSteal(
   executor: Executor,
@@ -63,11 +62,16 @@ export async function resolveSteal(
   if (!isAlive(target)) {
     throw new GameError("invalid_action", `${target.name}已经死了，搜刮尸体用 loot`);
   }
-  const [thiefAgility, targetAgility] = await Promise.all([
-    effectiveAgility(executor, actorRow.actor),
-    effectiveAgility(executor, target),
+  const [thief, targetView] = await Promise.all([
+    wearerView(executor, actorRow.actor),
+    wearerView(executor, target),
   ]);
-  if (thiefAgility < targetAgility) {
+  const [thiefSources, targetSources] = [effectiveSourcesOf(thief), effectiveSourcesOf(targetView)];
+  const outcome = stealOutcome({
+    self: thiefSources.agility,
+    target: targetSources.agility,
+  });
+  if (!outcome.allowed) {
     throw new GameError("invalid_action", `${target.name}比你敏捷，你没能得手`);
   }
   const transferItem = await resolveActorItem(executor, target.id, action.itemName);
@@ -83,7 +87,7 @@ export async function resolveSteal(
     stage,
     target,
     transferItem,
-    noticed: thiefAgility === targetAgility,
+    noticed: outcome.noticed,
   };
 }
 

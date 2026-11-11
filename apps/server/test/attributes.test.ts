@@ -1,6 +1,12 @@
 import { describe, expect, it } from "vitest";
 import { formatForm, isValidForm, resolveAppearance } from "../src/game/agents/appearance/form";
-import { guardPower, strengthToDamage, weaponAttackPower } from "../src/game/combat/attack";
+import {
+  attackPower,
+  effectiveSourcesOf,
+  equipmentFinalsOf,
+  guardPower,
+  strengthToDamage,
+} from "../src/game/gameplay";
 import { equippedSlotOf, toItemState } from "../src/game/item-state";
 import { addStats, EMPTY_STATS, toStats } from "../src/game/kernel/attributes";
 
@@ -39,13 +45,16 @@ describe("stats", () => {
   });
 
   it("结算期才换算攻击力与格挡，属性本身不落成面板值", () => {
-    // 本期换算取相等：力量 1:1 进伤害，block 原样当格挡。
+    // 本期换算取相等：力量 1:1 进伤害；格挡只来自装备终值。
     expect(strengthToDamage(7)).toBe(7);
-    expect(weaponAttackPower({ ...EMPTY_STATS, strength: 3, damage: 4 })).toBe(7);
-    expect(
-      weaponAttackPower({ ...EMPTY_STATS, strength: 3, damage: 4 }, { ...EMPTY_STATS, damage: 2 }),
-    ).toBe(9);
-    expect(guardPower({ ...EMPTY_STATS, block: 5 })).toBe(5);
+    // 角色自己带 damage / block 也不参与：它们不是角色身上的输入。
+    const wearer = {
+      stats: { ...EMPTY_STATS, strength: 3, damage: 4, block: 5 },
+      equipment: { weapon: "测试短刃" },
+      items: [{ name: "测试短刃", stats: { ...EMPTY_STATS, damage: 2 } }],
+    };
+    expect(attackPower(effectiveSourcesOf(wearer), equipmentFinalsOf(wearer))).toBe(5);
+    expect(guardPower(equipmentFinalsOf(wearer))).toBe(0);
   });
 });
 

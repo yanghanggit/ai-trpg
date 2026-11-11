@@ -173,7 +173,11 @@ describe.skipIf(!testDatabaseUrl)("equip and unequip actions", () => {
       .find((actor) => actor.name === "守烬人");
     expect(keeper?.equipment.weapon).toBe("裂齿短刃");
     // 被替换下来的装备仍在背包里，没有丢也没有重复穿戴。
-    expect(keeper?.items.map((item) => item.name).sort()).toEqual(["备用短刀", "裂齿短刃"]);
+    expect(keeper?.items.map((item) => item.name).sort()).toEqual([
+      "备用短刀",
+      "旧羊毛斗篷",
+      "裂齿短刃",
+    ]);
     expect(Object.values(keeper?.equipment ?? {}).filter((name) => name === "备用短刀")).toEqual(
       [],
     );

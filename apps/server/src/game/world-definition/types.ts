@@ -130,8 +130,8 @@ export type Actor = {
   /** 初始穿戴：槽位 → 物品名；物品本身不记录穿戴状态。 */
   equipment?: EquipmentSlots;
   /**
-   * 完整属性；`maxHp` / `strength` / `wisdom` / `agility` / `damage` / `block` 全部显式写出。
-   * 结算只读 `maxHp` / `damage` / `block`；力量 / 智慧 / 敏捷是保留属性，暂无读取点。
+   * 属性；省略的字段按 0 补齐。角色只写源属性（`maxHp` / `strength` / `wisdom` /
+   * `agility`）：`damage` / `block` 是终值，结算期由源属性现算，写上会被校验拒绝。
    */
   stats: Stats;
   /** 初始当前生命；省略时等于 `stats.maxHp`。`hp` 为 0 就是尸体。 */

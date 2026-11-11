@@ -29,12 +29,8 @@ const itemKindSchema = z.enum(ITEM_KINDS);
 /** 物品只能声明携带者动作；固有动作不属于任何物品。 */
 const affixActionKindSchema = z.enum(CARRIED_ACTION_KINDS satisfies readonly ActionKind[]);
 
-/** 静态词缀能引用的属性全集；结算时从当前 actor / item 行读取。 */
-const statRefValues = [
-  "attack",
-  "actor.damage",
-  "item.damage",
-] as const satisfies readonly AffixStatRef[];
+/** 静态词缀能引用的数值全集：攻击力在结算期现算，物品终值取自本条物品。 */
+const statRefValues = ["attack", "item.damage"] as const satisfies readonly AffixStatRef[];
 
 const statRefSchema = z.enum(statRefValues);
 

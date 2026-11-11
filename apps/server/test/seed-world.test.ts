@@ -86,7 +86,7 @@ describe("dark fantasy seed world", () => {
     expect(keeper?.inventory.find((item) => item.name === "补丁斗篷")).toMatchObject({
       key: "patched-cloak",
       kind: "equipment",
-      stats: { block: 1 },
+      stats: { block: 3 },
     });
     // 钥匙是剧情道具（valuable），不在穿戴槽里，所以活着时也能被窃取。
     expect(keeper?.inventory.find((item) => item.name === "闸门钥匙")).toMatchObject({
@@ -108,8 +108,15 @@ describe("dark fantasy seed world", () => {
     });
     expect(king?.signature.form.startsWith("鼠:")).toBe(true);
     expect(king?.hp).toBeGreaterThan(keeper?.hp ?? 0);
-    expect(king?.stats.damage).toBeGreaterThan(20);
-    expect(king?.stats.block).toBeGreaterThan(king?.stats.damage ?? 0);
+    // 角色只带源属性：攻击力来自力量，防御来自穿戴的厚皮（终值在物品上）。
+    expect(king?.stats.strength).toBeGreaterThan(20);
+    expect(king?.stats.damage).toBe(0);
+    expect(king?.stats.block).toBe(0);
+    expect(king?.inventory.find((item) => item.name === "结痂的厚皮")).toMatchObject({
+      kind: "equipment",
+      stats: { block: 100 },
+    });
+    expect(king?.equipment).toEqual({ armor: "结痂的厚皮" });
     expect(king?.profile).not.toContain("沉睡在地窖");
     expect(king?.openingBriefing).toContain("你正沉睡在地窖");
     expect(king?.openingBriefing).toContain("苏醒前你只能留在原地");

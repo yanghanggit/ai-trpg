@@ -1,5 +1,6 @@
 import type { z } from "zod";
 import { findStageNameLeaks, findTextLeaks, NAME_MARKER_PATTERN } from "../kernel/addressing";
+import { FINAL_STAT_KEYS } from "../kernel/attributes";
 import type { Actor, World } from "../world-definition";
 
 /**
@@ -105,7 +106,27 @@ export function checkWorldInvariants(world: World, ctx: z.RefinementCtx): void {
     checkEntityName(actor.name, ["actors", index, "name"], ctx);
     checkItemNamesUnique(actor.inventory, ["actors", index, "inventory"], ctx);
     checkProficiencies(actor, index, ctx);
+    checkActorSourcesOnly(actor, index, ctx);
   });
+}
+
+/**
+ * 角色只带源属性：`damage` / `block` 是终值，结算期由源属性现算，只有物品能声明。
+ *
+ * 允许内容写下去会得到「写了却不生效」的静默错，所以直接拒绝——防御来自穿戴、
+ * 攻击力来自力量这类口径归玩法层，不归内容。
+ */
+function checkActorSourcesOnly(actor: Actor, actorIndex: number, ctx: z.RefinementCtx): void {
+  for (const key of FINAL_STAT_KEYS) {
+    if (actor.stats[key] === 0) {
+      continue;
+    }
+    ctx.addIssue({
+      code: "custom",
+      message: `角色不能自带终值 ${key}：它由源属性现算，终值只属于物品`,
+      path: ["actors", actorIndex, "stats", key],
+    });
+  }
 }
 
 /**

@@ -866,7 +866,7 @@ describe.skipIf(!testDatabaseUrl)("corpses can be operated on", () => {
             appearance: "只看得见一双贴在石墙后的眼睛。",
           },
           hp: 8,
-          stats: { maxHp: 8, strength: 1, wisdom: 1, agility: 2, damage: 1, block: 1 },
+          stats: { maxHp: 8, strength: 2, wisdom: 1, agility: 2, damage: 0, block: 0 },
           inventory: [],
           actions: ["say", "whisper", "move", "wait"] as const,
         },

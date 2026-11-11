@@ -98,11 +98,10 @@ export type PassageState = "open" | "sealed";
 export type AffixMode = "static" | "agent";
 
 /**
- * 静态词缀能读取的数值引用。
- *
- * `attack` 是结算期的攻击力（由属性换算，含本次物品）；另两个是属性原值。
+ * 词缀可引用的数值：`attack` 是结算期的攻击力（源属性现算 + 装备终值），
+ * `item.damage` 是物品终值原值。角色没有 `damage`——它是顺时输出，不能当输入引用。
  */
-export type AffixStatRef = "attack" | "actor.damage" | "item.damage";
+export type AffixStatRef = "attack" | "item.damage";
 
 /** 一次静态伤害贡献：常量或属性引用（可乘系数）。多条词缀的求和由结算统一做。 */
 export type DamageAmount = number | { ref: AffixStatRef; factor?: number };

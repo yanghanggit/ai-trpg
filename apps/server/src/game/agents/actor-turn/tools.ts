@@ -17,6 +17,7 @@ import {
   visitedTeleportTargetsFor,
 } from "../../actor-state";
 import { GameError } from "../../errors";
+import { attackPower, effectiveSourcesOf, equipmentFinalsOf, guardPower } from "../../gameplay";
 import {
   describeEquipment,
   describeEquipmentBrief,
@@ -40,7 +41,7 @@ export function buildGetSelfTool(): ToolDefinition {
     function: {
       name: "get_self",
       description:
-        "查看自己的外观、stats、存活状态、穿戴槽与全部物品。stats 的字段是 strength / agility / wisdom / damage / block，依次对应力量 / 敏捷 / 智慧 / 伤害 / 格挡；伤害与力量一起构成挥击与横扫的攻击力，格挡构成防御，敏捷决定查看与窃取是否被察觉、窃取能否得手。数值是结算的输入，不是面板上限。只读，不占行动名额。",
+        "查看自己的外观、数值、存活状态、穿戴槽与全部物品。数值里的力量与敏捷是源属性（含穿戴加成）；伤害与格挡是结算口径的现值：力量换算成伤害，再加上装备的伤害；格挡全部来自穿戴的装备。敏捷决定查看与窃取是否被察觉、窃取能否得手。这些是结算的读数，不是面板上限。只读，不占行动名额。",
       parameters: {
         type: "object",
         properties: {},
@@ -234,16 +235,20 @@ export function parseRecognizeIdentity(args: Record<string, unknown>): {
 /**
  * 只列参与结算的属性，免得模型据此推断出不存在的机制。
  *
+ * 力量与敏捷是源属性现值（本体 + 穿戴加成）；伤害与格挡是顺时终值，现算出来给模型看，
+ * 不在角色身上存储。HP 上限仍取角色自身的 `maxHp`，装备的 `maxHp` 加成没有读取点。
  * 渲染统一用中文名：字段名与中文的对应只在工具契约里说一次，这里不再中英混排。
- * 力量进攻击力、敏捷管察觉与窃取成败，智慧没有读取点，所以不给它一行。
+ * 智慧没有读取点，所以不给它一行。
  */
 export function describeStats(actor: ActorState): string {
+  const sources = effectiveSourcesOf(actor);
+  const finals = equipmentFinalsOf(actor);
   return `角色：${actor.name}
 HP：${actor.hp}/${actor.stats.maxHp}
-${STAT_LABELS.strength}：${actor.stats.strength}
-${STAT_LABELS.agility}：${actor.stats.agility}
-${STAT_LABELS.damage}：${actor.stats.damage}
-${STAT_LABELS.block}：${actor.stats.block}
+${STAT_LABELS.strength}：${sources.strength}
+${STAT_LABELS.agility}：${sources.agility}
+${STAT_LABELS.damage}：${attackPower(sources, finals)}
+${STAT_LABELS.block}：${guardPower(finals)}
 状态：${isAlive(actor) ? "存活" : "已死亡"}`;
 }
 

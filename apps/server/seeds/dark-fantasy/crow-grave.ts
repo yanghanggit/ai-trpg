@@ -193,7 +193,7 @@ export const CROW_GRAVE: Script = {
           "浸过石灰的粗布围裙上结着黑蜡与骨渣，肩带被汗浸得发黑；腰间挂着一串骨牌，走路时互相碰撞，发出干燥的响声。左眼被一块黑蜡封住，右眼白得发亮，看人时像在辨认一件旧工具。",
       },
       hp: 60,
-      stats: { maxHp: 60, strength: 18, wisdom: 2, agility: 5, damage: 6, block: 4 },
+      stats: { maxHp: 60, strength: 24, wisdom: 2, agility: 5, damage: 0, block: 0 },
       equipment: {
         weapon: "封尸锤",
         armor: "尸布围裙",
@@ -256,7 +256,7 @@ export const CROW_GRAVE: Script = {
           description: "浸过石灰的粗布围裙，前襟结着一层黑蜡与骨渣，肩带被汗浸得发黑。",
           kind: "equipment" as const,
           count: 1,
-          stats: { block: 1 },
+          stats: { block: 5 },
         },
         {
           key: "corpse-tallies",
@@ -292,7 +292,7 @@ export const CROW_GRAVE: Script = {
           "黑羽与旧皮缝成的短斗篷下是磨得发亮的皮甲，右手戴着一只铁爪套，左耳挂着一枚磨亮的骨片；走路时几乎听不见脚步，只有铁爪偶尔碰到斗篷上的铁片。",
       },
       hp: 32,
-      stats: { maxHp: 32, strength: 8, wisdom: 6, agility: 12, damage: 8, block: 4 },
+      stats: { maxHp: 32, strength: 16, wisdom: 6, agility: 12, damage: 0, block: 0 },
       equipment: {
         weapon: "鸦啄",
         armor: "鸦羽斗篷",
@@ -328,7 +328,7 @@ export const CROW_GRAVE: Script = {
           description: "黑羽与旧皮缝成的短斗篷，下摆缀着一圈铁片；动起来像一群鸦从肩上飞起。",
           kind: "equipment" as const,
           count: 1,
-          stats: { block: 4 },
+          stats: { block: 8 },
         },
         {
           key: "old-bone-whistle",
@@ -404,7 +404,7 @@ export const CROW_GRAVE: Script = {
           "粗布外衣上结着骨粉与蜡，左肩挂着一只补过三次的骨袋，袋口露出半截麻绳；脖子后面有一块发黑的旧疤。手指关节粗大，指甲缝里嵌着洗不掉的骨粉。",
       },
       hp: 20,
-      stats: { maxHp: 20, strength: 5, wisdom: 4, agility: 6, damage: 5, block: 2 },
+      stats: { maxHp: 20, strength: 10, wisdom: 4, agility: 6, damage: 0, block: 0 },
       isDefaultPlayer: true,
       equipment: {
         weapon: "拾骨钩",
@@ -443,7 +443,7 @@ export const CROW_GRAVE: Script = {
             "粗布围裙上结着一层骨粉与蜡，前襟硬得像块板；挡不住刀，但能挡住溅起来的骨渣。",
           kind: "equipment" as const,
           count: 1,
-          stats: { block: 1 },
+          stats: { block: 3 },
         },
         {
           key: "bone-sack",

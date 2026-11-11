@@ -200,6 +200,10 @@ const testDatabaseUrl = process.env.TEST_DATABASE_URL?.trim();
 
 const ITEM_WORLD = {
   ...TEST_WORLD,
+  // 窃取用例针对背包里那盏提灯：先把它从穿戴槽里取下来，穿戴中的东西本来就不该能被偷。
+  actors: TEST_WORLD.actors.map((actor) =>
+    actor.name === "提灯修士" ? { ...actor, equipment: {} } : actor,
+  ),
   stages: TEST_WORLD.stages.map((stage) =>
     stage.key === "gate"
       ? {
@@ -292,8 +296,9 @@ const WEAPON_WORLD = {
       ? {
           ...actor,
           equipment: { armor: "铅封提灯" },
+          // 格挡全部来自装备：旧的角色 block 3 + 提灯 2 一起写在这件装备上。
           inventory: actor.inventory.map((item) =>
-            item.name === "铅封提灯" ? { ...item, stats: { ...item.stats, block: 2 } } : item,
+            item.name === "铅封提灯" ? { ...item, stats: { ...item.stats, block: 5 } } : item,
           ),
         }
       : actor,
@@ -834,8 +839,10 @@ describe.skipIf(!testDatabaseUrl)("items and interactions", () => {
     // 仲裁 agent 是控制面读者：目标用名字寻址，而不是出手者视角的引用。
     expect(service.input).toContain("目标：提灯修士");
     // 属性在 agent 文本里一律用中文名，字段名只在工具契约里出现。
-    expect(service.input).toContain("伤害 6");
-    expect(service.input).toContain("格挡 2");
+    // 持有者只带源属性：攻击力与格挡由静态结算现算，不写在角色身上。
+    expect(service.input).toContain("力量 6");
+    // 目标格挡取装备终值：提灯修士穿着铅封提灯。
+    expect(service.input).toContain("格挡：3");
     expect(service.input).not.toContain("damage ");
     // 静态结算的真实结果作为 agent 输入：6 点全部落到目标身上，未致死。
     expect(service.input).toContain("实际造成伤害：6");
@@ -1138,7 +1145,7 @@ describe.skipIf(!testDatabaseUrl)("items and interactions", () => {
     const monk = state.world.stages
       .flatMap((stage) => stage.actors)
       .find((actor) => actor.name === "提灯修士");
-    // 6（守烬人自身 damage）+ 3（装备武器的 damage，裂齿短刃已装备）- 3（修士 block）- 2（铅封提灯 block）= 4
+    // 6（守护力量现算的伤害）+ 3（已装备武器终值）- 3（修士装备格挡）- 2（铅封提灯格挡）= 4
     expect(monk?.hp).toBe(6);
     expect(state.messages.at(-1)?.content).toContain("造成4点伤害");
   });
@@ -1157,7 +1164,7 @@ describe.skipIf(!testDatabaseUrl)("items and interactions", () => {
     });
     await takeActorControl(handle.db, created.game.slug, "守烬人");
 
-    // 没有装备武器也能肉搏：6（自身 damage）- 3（修士 block）= 3。
+    // 没有装备武器也能肉搏：6（力量现算的伤害，不吃装备终值）- 3（修士装备格挡）= 3。
     const brawled = await playerBrawl(handle.db, created.game.slug, "守烬人", {
       targetActorRef: "提灯修士",
     });
@@ -1179,7 +1186,7 @@ describe.skipIf(!testDatabaseUrl)("items and interactions", () => {
     const strongWorld = {
       ...TEST_WORLD,
       actors: TEST_WORLD.actors.map((actor) =>
-        actor.name === "守烬人" ? { ...actor, stats: { ...actor.stats, strength: 2 } } : actor,
+        actor.name === "守烬人" ? { ...actor, stats: { ...actor.stats, strength: 8 } } : actor,
       ),
     };
     const created = await createGame(handle.db, {
@@ -1192,7 +1199,7 @@ describe.skipIf(!testDatabaseUrl)("items and interactions", () => {
     await playerStrike(handle.db, created.game.slug, "守烬人", { targetActorRef: "提灯修士" });
 
     const state = await getGameState(handle.db, created.game.slug);
-    // 力量 2 + 自身 damage 6 + 武器 3 = 11，减目标 block 3 = 8。
+    // 力量 8（本体 6 + 这次加成 2）+ 武器终值 3 = 11，减目标的装备格挡 3 = 8。
     expect(state.messages.at(-1)?.content).toContain("造成8点伤害");
     const monk = state.world.stages
       .flatMap((stage) => stage.actors)
@@ -1224,7 +1231,7 @@ describe.skipIf(!testDatabaseUrl)("items and interactions", () => {
     const monk = state.world.stages
       .flatMap((stage) => stage.actors)
       .find((actor) => actor.name === "提灯修士");
-    // 6（自身）+ 3（短刃）- 3（修士 block）= 6。
+    // 6（力量现算的伤害）+ 3（短刃终值）- 3（修士装备格挡）= 6。
     expect(monk?.hp).toBe(4);
     expect(state.messages.some((message) => message.content.includes("造成6点伤害"))).toBe(true);
 
@@ -1360,7 +1367,7 @@ describe.skipIf(!testDatabaseUrl)("items and interactions", () => {
     const monk = state.world.stages
       .flatMap((stage) => stage.actors)
       .find((actor) => actor.name === "提灯修士");
-    // 6（自身 damage）- 3（修士 block）= 3；武器伤害与词缀都不参与。
+    // 6（力量现算的伤害）- 3（修士装备格挡）= 3；武器终值与词缀都不参与。
     expect(monk?.hp).toBe(7);
   });
 
@@ -1509,7 +1516,7 @@ describe.skipIf(!testDatabaseUrl)("items and interactions", () => {
     const actors = state.world.stages.flatMap((stage) => stage.actors);
     const keeper = actors.find((actor) => actor.name === "守烬人");
     const monk = actors.find((actor) => actor.name === "提灯修士");
-    expect(keeper?.items).toEqual([]);
+    expect(keeper?.items.map((item) => item.name)).toEqual(["旧羊毛斗篷"]);
     const blades = monk?.items.filter((item) => item.name === "裂齿短刃") ?? [];
     expect(blades).toHaveLength(1);
     expect(blades[0]).toMatchObject({ count: 3 });

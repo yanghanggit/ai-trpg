@@ -8,18 +8,34 @@ import { z } from "zod";
  * 新增属性只改 `STAT_KEYS`，类型自动跟着变。
  *
  * `Stats` 是属性容器，不是面板读数：一次攻击打多少、一次格挡挡多少，都在结算
- * 那一刻由属性换算成临时值（见 `combat/attack.ts`），用完即弃。
+ * 那一刻由属性换算成临时值（见 `gameplay/combat.ts`），用完即弃。
  *
- * 结算读四项：`damage` 与 `strength` 进攻击力，`block` 进格挡，
- * `agility` 决定查看与窃取是否被察觉、窃取是否得手。
+ * 结算期的读法：`strength` 换算成角色的 `damage`，装备的 `damage` 加进来成为攻击力；
+ * `block` 只取装备终值当格挡；`agility` 决定查看与窃取是否被察觉、窃取是否得手。
  * `wisdom`（智慧）目前没有任何读取点——写进内容也不会影响游戏。
+ *
+ * 这些读点与换算属玩法数值层（`gameplay/`），不是属性本身的性质：哪个字段影响什么
+ * 由 `gameplay/rules.ts` 的开关决定，数据块只保证一份形状。
+ *
+ * 字段按所有者分两层：`maxHp` / `strength` / `wisdom` / `agility` 是角色拥有的源属性
+ * （装备写它们是对穿戴者的加成），`damage` / `block` 是物品固有的终值——角色身上那
+ * 两个字段只是结算期的顺时输出。分层与结算顺序见 `docs/attributes.md`。
  */
-const STAT_KEYS = ["maxHp", "strength", "wisdom", "agility", "damage", "block"] as const;
+
+/** 角色拥有、由内容写进角色的字段。 */
+const SOURCE_STAT_KEYS = ["maxHp", "strength", "wisdom", "agility"] as const;
+
+/** 物品固有的终值；角色身上只是结算期的顺时输出。 */
+const FINAL_STAT_KEYS = ["damage", "block"] as const;
 
 /** 属性的展示顺序；渲染 prompt 等只读用途直接复用，避免再抄一份字段列表。 */
-export { STAT_KEYS };
+const STAT_KEYS = [...SOURCE_STAT_KEYS, ...FINAL_STAT_KEYS] as const;
+
+export { FINAL_STAT_KEYS, SOURCE_STAT_KEYS, STAT_KEYS };
 
 export type StatKey = (typeof STAT_KEYS)[number];
+export type SourceStatKey = (typeof SOURCE_STAT_KEYS)[number];
+export type FinalStatKey = (typeof FINAL_STAT_KEYS)[number];
 export type Stats = Record<StatKey, number>;
 
 /**
@@ -73,6 +89,22 @@ export function toStats(stats: Partial<Stats> | undefined): Stats {
     damage: stats?.damage ?? 0,
     block: stats?.block ?? 0,
   };
+}
+
+/** 取一份属性里的源属性，终值清零。 */
+export function sourcesOf(stats: Stats): Stats {
+  return {
+    ...EMPTY_STATS,
+    maxHp: stats.maxHp,
+    strength: stats.strength,
+    wisdom: stats.wisdom,
+    agility: stats.agility,
+  };
+}
+
+/** 取一份属性里的终值，源属性清零。 */
+export function finalsOf(stats: Stats): Stats {
+  return { ...EMPTY_STATS, damage: stats.damage, block: stats.block };
 }
 
 /** 逐字段相加：装备加成与临时修正都走这里，全局只有这一条加法规则。 */

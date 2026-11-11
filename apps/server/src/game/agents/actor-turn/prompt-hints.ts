@@ -1,3 +1,4 @@
+import { GAMEPLAY_RULES } from "../../gameplay";
 import { isHandleRef } from "../../kernel/addressing";
 import type { ActorTurnContext } from "./context";
 
@@ -67,7 +68,11 @@ const inspectHint: Hint = (context) =>
     : "";
 
 // 察觉与成败都看敏捷：自己这一侧的数值在「你的状态」里，对方的敏捷只能靠试。
+// 规则开关归玩法层；关掉时两件事都不再有代价，也就不必再提示。
 const agilityHint: Hint = (context) => {
+  if (!GAMEPLAY_RULES.agilityGovernsAwareness) {
+    return "";
+  }
   if (context.allowed.includes("steal")) {
     return "查看与窃取比敏捷：你比目标敏捷时两件事都不留痕迹；持平能偷到，但对方会察觉；不如对方时偷不到，查看也会被发现。";
   }

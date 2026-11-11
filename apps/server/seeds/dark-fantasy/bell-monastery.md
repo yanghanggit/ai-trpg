@@ -55,8 +55,8 @@
 | 尸体掉落 | 死亡阶段第三步 | 只产 `material` 并写进尸体背包；同名材料合并；重推外观不会再次掉落；搜刮走 `loot` |
 | 使用钥匙 | `use` + `targetAnchor` | 锚点从场景的 `锁孔` 枚举中选择；只写场景事件，不改连通性、不通知 world；开门由铁闸门下一轮裁决 |
 | 游戏结束 | world `end_game` | 只有 world 收尾，写 `game_completed` 与它自己命名的 `outcome` |
-| 普通挥击 Boss | `strike` | 鼠王 block 100，只有火把的武器伤害打不穿，靠词缀由 LLM 额外放大 |
-| 鼠王攻击 | 苏醒后推进鼠王 | 用 `brawl`，damage 60 秒杀普通角色；清场后自行搜索下一个场景 |
+| 普通挥击 Boss | `strike` | 鼠王身上那层硬皮 block 100，只有火把的武器伤害打不穿，靠词缀由 LLM 额外放大 |
+| 鼠王攻击 | 苏醒后推进鼠王 | 用 `brawl`，力量 120 一口秒杀普通角色；清场后自行搜索下一个场景 |
 | 窝中钟舌 | 尸体 `loot`；活着要 `steal`，敏捷得高于鼠王 | `valuable` + `event`，可在 `祭坛` 锚点上 `use`；不是身体材料 |
 | 钟窖收束 | 钟舌 + `祭坛` 锚点 + 地窖 `open_passage` + 钟窖 `notify_world` + world 回合 | 世界收尾为「钟窖被打开」，写 `game_completed`；这是第三种结局 |
 | stage 记忆 / 环境 | 私密沟通、移动、stage 回合 | 起点与终点 stage 都写 memory；environment 只描述当前可见状态 |

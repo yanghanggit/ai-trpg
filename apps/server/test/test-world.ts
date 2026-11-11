@@ -105,10 +105,11 @@ export const TEST_WORLD: World = {
         appearance: "斗篷边缘被烧焦，脸上覆着一层洗不净的灰。",
       },
       hp: 12,
-      // 力量留 0：默认攻击力恰好等于 damage + 武器伤害，数值断言不被力量加成干扰；
+      // 攻击力全部来自源属性：力量 6 = 旧的 strength 0 + damage 6，数值断言不变；
       // 力量如何进入挥击/横扫由专门的用例覆盖。敏捷按 4，用于察觉与窃取的比较。
-      stats: { maxHp: 12, strength: 0, wisdom: 2, agility: 4, damage: 6, block: 2 },
-      equipment: { weapon: "裂齿短刃" },
+      // 防御只能来自装备：旧的角色 block 2 落在那件斗篷上。
+      stats: { maxHp: 12, strength: 6, wisdom: 2, agility: 4, damage: 0, block: 0 },
+      equipment: { weapon: "裂齿短刃", armor: "旧羊毛斗篷" },
       // 测试世界里的玩家角色额外拥有 loot 与「探囊」，用于验证取物的三条通道。
       proficiencies: [
         {
@@ -159,6 +160,14 @@ export const TEST_WORLD: World = {
             ],
           },
         },
+        {
+          key: "burnt-wool-cloak",
+          name: "旧羊毛斗篷",
+          description: "边角被烧焦，灰渍渗进纤维，披上能挡一点钝击。",
+          kind: "equipment" as const,
+          count: 1,
+          stats: { block: 2 },
+        },
       ],
     },
     {
@@ -171,7 +180,9 @@ export const TEST_WORLD: World = {
         appearance: "灰袍下摆浸着泥水，右手始终握着灯柄。",
       },
       hp: 10,
-      stats: { maxHp: 10, strength: 5, wisdom: 3, agility: 3, damage: 5, block: 3 },
+      // 力量 10 = 旧的 strength 5 + damage 5；防御全在穿戴的提灯上。
+      stats: { maxHp: 10, strength: 10, wisdom: 3, agility: 3, damage: 0, block: 0 },
+      equipment: { armor: "铅封提灯" },
       actions: [
         "say",
         "whisper",
@@ -192,7 +203,7 @@ export const TEST_WORLD: World = {
           description: "灯罩外缠着三道铅封。",
           kind: "equipment" as const,
           count: 1,
-          stats: { block: 2 },
+          stats: { block: 3 },
         },
       ],
     },
@@ -206,7 +217,9 @@ export const TEST_WORLD: World = {
         appearance: "指节沾满黑蜡，膝上摊着一卷空白经页。",
       },
       hp: 9,
-      stats: { maxHp: 9, strength: 4, wisdom: 4, agility: 2, damage: 4, block: 4 },
+      // 力量 8 = 旧的 strength 4 + damage 4；防御来自穿戴的经页。
+      stats: { maxHp: 9, strength: 8, wisdom: 4, agility: 2, damage: 0, block: 0 },
+      equipment: { armor: "无字经页" },
       actions: [
         "say",
         "whisper",
@@ -227,7 +240,7 @@ export const TEST_WORLD: World = {
           description: "纸面空白，边缘却密密写着被擦去的指印。",
           kind: "equipment" as const,
           count: 1,
-          stats: { block: 2 },
+          stats: { block: 4 },
         },
       ],
     },

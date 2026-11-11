@@ -1,6 +1,7 @@
 import { ACTION_SUMMARIES } from "../../actions";
 import { visitedTeleportTargetsFor } from "../../actor-state";
 import { DEFAULT_ACTOR_MAX_ROUNDS } from "../../default-rounds";
+import { effectiveSourcesOf } from "../../gameplay";
 import { describeEquipmentBrief } from "../../item-state/describe";
 import { refOf } from "../../kernel/addressing";
 import { STAT_LABELS } from "../../kernel/attributes";
@@ -35,6 +36,8 @@ export function renderActorTurnInput(
 function renderEnvironment(context: ActorTurnContext): string {
   const { state, current } = context;
   const { actor, stage } = current;
+  // 面板与结算用同一份源属性：本体加穿戴加成，终值由它们现算。
+  const shown = effectiveSourcesOf(actor);
   // 去过、但现在封着的出口：记忆里的一道门。它不能走，只是认得出来。
   const remembered = sealedVisitedStageRefsForActor(state, current);
   const sealedSection =
@@ -56,7 +59,7 @@ ${stage.name}
 ${renderStageEnvironmentForActor(state, current)}
 
 ## 你的状态
-${actor.name}（你的引用：${context.selfHandle}）| HP ${actor.hp}/${actor.stats.maxHp} | ${STAT_LABELS.strength} ${actor.stats.strength} | ${STAT_LABELS.agility} ${actor.stats.agility}
+${actor.name}（你的引用：${context.selfHandle}）| HP ${actor.hp}/${actor.stats.maxHp} | ${STAT_LABELS.strength} ${shown.strength} | ${STAT_LABELS.agility} ${shown.agility}
 
 ## 同场景角色（只列已穿戴的装备）
 ${renderActorList(context)}

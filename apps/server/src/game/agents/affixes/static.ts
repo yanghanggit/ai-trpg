@@ -1,7 +1,14 @@
-import { defenderBlock, weaponAttackPower } from "../../combat/attack";
 import { GameError } from "../../errors";
+import {
+  attackPower,
+  effectiveSourcesOf,
+  equipmentFinalsOf,
+  guardPower,
+  mitigatedDamage,
+} from "../../gameplay";
 import { type AffixTrigger, staticAffixes } from "../../kernel/affixes";
 import type { AffixStatRef, AffixTriggers, DamageAmount } from "../../kernel/types";
+import { wearerView } from "../../lookup";
 import type { ActorRow, ActorWithStageRow, Executor } from "../../persistence/rows";
 
 /** 静态见证：文本与目标由动作层补齐后交给 witness 渲染。 */
@@ -27,22 +34,20 @@ export type StaticSettlement = {
 
 type StaticContext = {
   actorRow: ActorWithStageRow;
+  /** 本次攻击的攻击力：源属性现算 + 装备终值（含本次物品），与防御同一口径。 */
+  attack: number;
   item: { name: string; stats: ActorWithStageRow["actor"]["stats"]; affixes: AffixTriggers };
 };
 
 /**
  * 词缀可引用的数值。
  *
- * `attack` 不是某个字段，而是结算期算出来的攻击力（力量换算 + 自身与本次物品的
- * `damage`），所以 `{{attack}}` 的文本值与实际扣血始终是同一个数。
- * 其余两个引用是属性原值：`actor.damage` / `item.damage` 只取那一项，不换算。
+ * `attack` 不是某个字段，而是结算期算出来的攻击力（源属性现算 + 装备终值），
+ * 所以 `{{attack}}` 的文本值与实际扣血始终是同一个数。
+ * 另一个引用 `item.damage` 是物品终值原值，不换算；角色没有 `damage` 可引用。
  */
 function statValue(context: StaticContext, ref: AffixStatRef): number {
-  if (ref === "attack") {
-    return weaponAttackPower(context.actorRow.actor.stats, context.item.stats);
-  }
-  const [owner] = ref.split(".") as ["actor" | "item"];
-  return (owner === "actor" ? context.actorRow.actor.stats : context.item.stats).damage;
+  return ref === "attack" ? context.attack : context.item.stats.damage;
 }
 
 function resolveAmount(context: StaticContext, amount: DamageAmount): number {
@@ -59,7 +64,7 @@ function renderStaticContent(context: StaticContext, content: string): string {
     if (key === "item.name") {
       return context.item.name;
     }
-    if (key === "attack" || /^(actor|item)\.damage$/.test(key)) {
+    if (key === "attack" || key === "item.damage") {
       return String(statValue(context, key as AffixStatRef));
     }
     throw new GameError("invalid_state", `词缀文本引用了未知属性: ${key}`);
@@ -80,7 +85,12 @@ export async function settleStaticAffixes(input: {
   target?: ActorRow;
 }): Promise<StaticSettlement> {
   const { executor, actorRow, item, trigger, target } = input;
-  const context: StaticContext = { actorRow, item };
+  const attacker = await wearerView(executor, actorRow.actor);
+  const context: StaticContext = {
+    actorRow,
+    attack: attackPower(effectiveSourcesOf(attacker), equipmentFinalsOf(attacker, item)),
+    item,
+  };
   let rawDamage = 0;
   let hasDamageOps = false;
   const witnesses: StaticWitness[] = [];
@@ -111,8 +121,14 @@ export async function settleStaticAffixes(input: {
   if (hasDamageOps && !target) {
     throw new GameError("invalid_action", "伤害词缀需要角色目标");
   }
+  // 减伤只有玩法层那一个入口：先求和，再减一次目标的装备格挡。
   const damage =
-    hasDamageOps && target ? Math.max(0, rawDamage - (await defenderBlock(executor, target))) : 0;
+    hasDamageOps && target
+      ? mitigatedDamage(
+          rawDamage,
+          guardPower(equipmentFinalsOf(await wearerView(executor, target))),
+        )
+      : 0;
 
   return {
     hasDamageOps,

@@ -41,7 +41,7 @@
 `game/` 分两层：本表前四类都在 `game/agents/`（`bypass/` 是旁路共用的推理回路，跟着一起）；其余平铺在 `game/` 根与 `game/kernel/`。
 
 - `game/kernel/`：零 I/O 的内容形状与文本渲染——`types.ts`、`attributes.ts`、`limits.ts`、`addressing/`（谁能叫出谁）、`observation-text/`（观察文本）、`affixes.ts`（词缀形状归一）。除 `errors.ts` 与 `memory/kinds.ts` 两个零依赖常量外，它不 import 任何游戏模块；玩法与 agent 都可以依赖它，它不依赖回来。
-- `game/` 根：动作与结算（`actions` / `settle` / `combat`）、状态投影（`actor-state` / `stage-state` / `item-state`）、观察（`observations`）、读侧与寻址（`lookup` / `client-view` / `route`）、持久化与装配（`persistence` / `memory` / `game-state` / `create-game`）、内容校验（`world-definition`）、玩家接管（`player`）、框架工具（`name-audit`）。
+- `game/` 根：动作与结算（`actions` / `settle` / `combat`）、属性换算与数值对抗（`gameplay`）、状态投影（`actor-state` / `stage-state` / `item-state`）、观察（`observations`）、读侧与寻址（`lookup` / `client-view` / `route`）、持久化与装配（`persistence` / `memory` / `game-state` / `create-game`）、内容校验（`world-definition`）、玩家接管（`player`）、框架工具（`name-audit`）。
 
 `agents/` 只被外面驱动，反向调用只有四组：`settle/` 调 `affixes` / `appearance` / `death`（推理端增量），`actions/` 调 `affixes`（静态词缀），`player/` 调 `dialogue-audit`（台词准入），`create-game/` 与 `world-definition/` 调 `appearance/form`（外观可用性校验）。新增反向边时改这一句——它登记的是「谁借了 agent 的一段纯逻辑」，不是允许 agent 反过来写状态。
 

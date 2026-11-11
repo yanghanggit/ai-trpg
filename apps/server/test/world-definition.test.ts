@@ -10,6 +10,34 @@ describe("world content validation", () => {
     expect("extra" in world).toBe(false);
   });
 
+  it("rejects actor final values: damage / block are derived, not stored", () => {
+    const withActorDamage = {
+      ...TEST_WORLD,
+      actors: TEST_WORLD.actors.map((actor) =>
+        actor.name === "守烬人" ? { ...actor, stats: { ...actor.stats, damage: 3 } } : actor,
+      ),
+    };
+    expect(() => parseWorldContent(withActorDamage)).toThrow(/角色不能自带终值 damage/);
+
+    // 终值只属于物品：同一份数值写在物品上是合法的。
+    const withItemBlock = {
+      ...TEST_WORLD,
+      actors: TEST_WORLD.actors.map((actor) =>
+        actor.name === "守烬人"
+          ? {
+              ...actor,
+              inventory: actor.inventory.map((item) =>
+                item.name === "旧羊毛斗篷" ? { ...item, stats: { ...item.stats, block: 4 } } : item,
+              ),
+            }
+          : actor,
+      ),
+    };
+    const parsed = parseWorldContent(withItemBlock);
+    const keeper = parsed.actors.find((actor) => actor.name === "守烬人");
+    expect(keeper?.inventory.find((item) => item.name === "旧羊毛斗篷")?.stats?.block).toBe(4);
+  });
+
   it("requires each world function prompt to carry the world constitution", () => {
     const broken = {
       ...TEST_WORLD,

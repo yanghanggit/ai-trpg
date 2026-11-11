@@ -7,6 +7,7 @@ import type { Logger } from "../../../logging";
 import { applyHit } from "../../combat/hit";
 import { describeError, GameError } from "../../errors";
 import { getGameStateSlice } from "../../game-state";
+import { effectiveSourcesOf, equipmentFinalsOf, guardPower } from "../../gameplay";
 import { findTextLeaks, NAME_MARKER_PATTERN } from "../../kernel/addressing";
 import { agentAffixes } from "../../kernel/affixes";
 import { MAX_AFFIX_WITNESSES } from "../../kernel/limits";
@@ -94,7 +95,8 @@ async function evaluateAffix(
     name: `${item.name}词缀`,
     inputMessage: buildAffixPrompt({
       actorName: actor.name,
-      actorStats: actor.stats,
+      // 面板给源属性；终值不在角色身上，攻击力由静态结算现算。
+      actorStats: effectiveSourcesOf(actor),
       itemName: item.name,
       itemDescription: item.description,
       itemStats: item.stats,
@@ -112,7 +114,7 @@ async function evaluateAffix(
             targetAppearance: target.appearance.text,
           }
         : {}),
-      ...(target ? { targetBlock: target.stats.block } : {}),
+      ...(target ? { targetBlock: guardPower(equipmentFinalsOf(target)) } : {}),
       ...(target ? { targetHp: `${target.hp}/${target.stats.maxHp}` } : {}),
     }),
     messages: [{ type: "system", content: buildAffixSystemPrompt(state.world) }],

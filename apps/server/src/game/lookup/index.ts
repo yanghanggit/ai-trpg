@@ -10,6 +10,7 @@ import {
   worlds,
 } from "../../db/schema";
 import { GameError } from "../errors";
+import type { Wearer } from "../gameplay";
 import {
   type AddressLookup,
   handleOf,
@@ -18,7 +19,6 @@ import {
   parseHandle,
   withSelf,
 } from "../kernel/addressing";
-import { addStats, type Stats } from "../kernel/attributes";
 import { EQUIPMENT_SLOTS } from "../kernel/types";
 import type {
   ActorRow,
@@ -271,19 +271,18 @@ export async function resolveEquippedItems(
   });
 }
 
-/** 装备加成只有这一条来源。 */
-export async function resolveEquippedStats(executor: Executor, actor: ActorRow): Promise<Stats> {
-  const worn = await resolveEquippedItems(executor, actor);
-  return addStats(...worn.map((item) => item.stats));
-}
-
 /**
- * 敏捷比较用的现值：自身属性 + 穿戴物品加成，与防御同一条「现读」规则。
+ * 现值计算的输入：本体属性、穿戴槽与在穿的物品行。
  *
- * 偷取与查看都拿它和目标比，避免「面板一个数、结算另一个数」。
+ * 怎么分「源属性」与「终值」归玩法层（`gameplay/effective.ts`）；这里只负责把行取齐，
+ * 面板与结算因此永远读同一份来源。
  */
-export async function effectiveAgility(executor: Executor, actor: ActorRow): Promise<number> {
-  return addStats(actor.stats, await resolveEquippedStats(executor, actor)).agility;
+export async function wearerView(executor: Executor, actor: ActorRow): Promise<Wearer> {
+  return {
+    stats: actor.stats,
+    equipment: actor.equipment,
+    items: await resolveEquippedItems(executor, actor),
+  };
 }
 
 /**

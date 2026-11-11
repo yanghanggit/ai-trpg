@@ -476,7 +476,7 @@ describe.skipIf(!testDatabaseUrl)("memory-driven NPC slice", () => {
     const state = await getGameState(handle.db, created.game.slug);
     expect(state.game.version).toBe(1);
     expect(state.messages.map((message) => message.kind)).toEqual(["strike"]);
-    // 守烬人装备了裂齿短刃：6（自身 damage）+ 3（武器 damage）- 3（修士 block）= 6 点伤害。
+    // 守烬人装备了裂齿短刃：6（力量现算的伤害）+ 3（武器终值）- 3（修士装备格挡）= 6 点伤害。
     expect(state.messages[0]?.content).toContain(
       "守烬人对提灯修士挥击（使用裂齿短刃），造成6点伤害",
     );
@@ -672,7 +672,7 @@ describe.skipIf(!testDatabaseUrl)("memory-driven NPC slice", () => {
             appearance: "只看得见一双贴在石墙后的眼睛。",
           },
           hp: 8,
-          stats: { maxHp: 8, strength: 1, wisdom: 1, agility: 2, damage: 1, block: 1 },
+          stats: { maxHp: 8, strength: 2, wisdom: 1, agility: 2, damage: 0, block: 0 },
           inventory: [],
           actions: ["say", "whisper", "move", "wait"] as const,
         },

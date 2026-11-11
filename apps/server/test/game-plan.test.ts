@@ -356,7 +356,7 @@ describe("read-only descriptions", () => {
         form: formatForm("人类", "瘦削，手腕有旧绳痕。"),
       },
       hp: 12,
-      stats: { maxHp: 12, strength: 3, wisdom: 2, agility: 4, damage: 3, block: 2 },
+      stats: { maxHp: 12, strength: 3, wisdom: 2, agility: 4, damage: 0, block: 0 },
       isDefaultPlayer: false,
       equipment: { weapon: "裂齿短刃" },
       knowledgeAccess: [],
@@ -387,10 +387,11 @@ describe("read-only descriptions", () => {
     };
 
     expect(describeStats(actor)).toContain("HP：12/12");
+    // 面板与结算同口径：伤害 = 力量现算 3 + 武器终值 3，格挡只来自装备（这里没穿护甲）。
     expect(describeStats(actor)).toContain("力量：3");
     expect(describeStats(actor)).toContain("敏捷：4");
-    expect(describeStats(actor)).toContain("伤害：3");
-    expect(describeStats(actor)).toContain("格挡：2");
+    expect(describeStats(actor)).toContain("伤害：6");
+    expect(describeStats(actor)).toContain("格挡：0");
     // attack / defense 保留在数据里，但不再对外展示。
     expect(describeStats(actor)).not.toContain("attack：");
     expect(describeStats(actor)).not.toContain("defense：");
