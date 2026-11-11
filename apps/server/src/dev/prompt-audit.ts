@@ -1,22 +1,23 @@
 /**
  * 框架层提示词的语义审查：从源码里取出字面文本，交给一个内部审查 agent
- * 判断它是否依赖具体题材。
+ * 判断它是否依赖某个内容包的实例（判据见 `docs/data-driven.md` 的「题材包络」）。
  *
  * 只读源码模板，不读运行时 prompt：运行时 prompt 本来就包含内容包文本，
  * 无法区分“框架写死的设定”与“内容自带的世界”。插值在审查前折叠成占位符，
  * 审查对象就只剩框架自己的措辞。
  *
- * 结果按“文本 + 模型 + 规则版本”缓存；规则改动时递增
- * `AUDIT_RUBRIC_VERSION`，让旧结论失效。
+ * 结果按“文本 + 模型 + rubric 正文”缓存：rubric 里含机制词汇表，改词表即失效；
+ * `AUDIT_RUBRIC_VERSION` 用于判据没变、但结论含义变了的场合。
  */
 
 import { createHash } from "node:crypto";
 import { mkdirSync, readdirSync, readFileSync, statSync, writeFileSync } from "node:fs";
 import { join, relative } from "node:path";
 import ts from "typescript";
+import { renderMechanismTerms } from "../game/mechanism-terms";
 import { ChatCompletionRequest } from "../llm";
 
-export const AUDIT_RUBRIC_VERSION = "4";
+export const AUDIT_RUBRIC_VERSION = "5";
 export const DEFAULT_AUDIT_BATCH_SIZE = 6;
 
 const MIN_LITERAL_LENGTH = 24;
@@ -40,19 +41,24 @@ export type RawFinding = {
 
 export type AuditFinding = RawFinding & PromptSnippet;
 
-export const AUDIT_SYSTEM_PROMPT = `你是框架层文本审查器。判断一段框架文本是否把某个具体世界的设定写成了通用说明。标准只有一条：把内容包换成完全不同的题材后，这段文字是否仍然成立。
+/**
+ * 审查口径：判据是「这段文字依赖了某个内容包的实例吗」，不是「换任意题材是否成立」。
+ *
+ * 后者过严——它会把框架的机制词汇一起报掉（`brawl` 是工具名、`窃取` 是 `steal` 的短称、
+ * `敏捷` 是属性名），只能靠人肉豁免清单兜底。判据与机制词汇表同源于
+ * `docs/data-driven.md` 的「题材包络」，词表由 `game/mechanism-terms.ts` 维护并注入。
+ */
+export const AUDIT_SYSTEM_PROMPT = `你是框架层文本审查器。判据只有一条：这段框架文本是否依赖某个内容包的具体实例——故事专名、特有材料、特有机关部件、特有效果或伤害分类、特有职业与机构。依赖就是泄漏；不依赖就是通用。
 
-引擎自身的上位概念不算泄漏：角色、场景、物品、背包、装备、槽位、武器、伤害、生命、尸体、外观、穿戴、记忆、计划、工具与参数名、事件流、通道、环境、动作、回合、词缀、结算，以及 world / stage / actor 这类分层名。它们属于框架，换题材照常存在。
+机制词汇一律不算泄漏。框架用词只要指的是引擎自己的机制，即使词面带某类题材的味道也照样通用：内容包能换的只有「开不开这个能力」，换不掉这些词指的机制。工具名是标识符、不是散文——提示词里出现 brawl / steal / strike 是因为模型必须按这些名字调用工具，不表示这个世界有格斗或犯罪。下面是本框架的机制词汇表，命中即通过：
 
-只有“某一类世界才成立的具体实例”才算泄漏：
-- 具体的效果或伤害分类（不是“伤害”这个上位概念，而是某种元素、能量或伤痕的名字）；
-- 具体的生物材料或器官（不是“材料”这个上位概念）；
-- 具体的职业、机构、道具或故事专名；
-- 只属于某类世界的机关、部件或习俗。
+${renderMechanismTerms()}
 
-不要报告：通用物理与叙事事实（时间、位置、可见变化、颜色、声音）；占位符 ⟨…⟩；只是措辞具体但没有题材依赖的句子。拿不准时不要报告。
+属于内容侧的例子（用于对照，不是穷举）：灼烧、冻伤、腐蚀、焦黑、毛皮、鳞片、獠牙、血迹、伤口、斗篷、锁孔、门闩、铭文、炉膛。它们指材质、效果分类或具体机关，换一份内容包就不再成立。
 
-每个问题给出：原文引用、类别（effect-type / material / profession / proper-noun / other）、严重度（high = 换题材会明显错位；low = 只是偏具体）、一句理由、保持原意但题材中立的改写建议。没有问题的片段不输出。
+不要报告：通用物理与叙事事实（时间、位置、可见变化、颜色、声音）；占位符 ⟨…⟩；只是措辞具体、但没有指向内容包实例的句子。拿不准时不要报告。
+
+每个问题给出：原文引用、类别（effect-type / material / profession / proper-noun / other）、严重度（high = 换到包络内的另一题材会明显错位；low = 只是偏具体但确实指向了内容实例）、一句理由、保持原意但内容中立的改写建议。没有问题的片段不输出。
 
 只输出 JSON，不要额外文字：
 {"findings":[{"id":"s1","quote":"原文","category":"effect-type|material|profession|proper-noun|other","severity":"high|low","reason":"理由","suggestion":"建议"}]}`;
@@ -138,8 +144,16 @@ export function collectPromptSnippets(input: { dir: string; repoRoot: string }):
     .sort((a, b) => a.file.localeCompare(b.file) || a.line - b.line);
 }
 
+/**
+ * 缓存键：文本 + 模型 + rubric 正文。
+ *
+ * 正文里含机制词汇表，所以改词表或改判据都会让旧结论失效，不必依赖谁记得升
+ * `AUDIT_RUBRIC_VERSION`；版本号仍然保留，用于「判据没变但结论的含义变了」这种改动。
+ */
 export function auditCacheKey(text: string, model: string): string {
-  return createHash("sha256").update(`${AUDIT_RUBRIC_VERSION}\n${model}\n${text}`).digest("hex");
+  return createHash("sha256")
+    .update(`${AUDIT_RUBRIC_VERSION}\n${AUDIT_SYSTEM_PROMPT}\n${model}\n${text}`)
+    .digest("hex");
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {

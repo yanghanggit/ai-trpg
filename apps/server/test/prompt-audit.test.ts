@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  AUDIT_SYSTEM_PROMPT,
   auditCacheKey,
   buildAuditRequest,
   extractPromptSnippets,
@@ -46,6 +47,16 @@ describe("prompt audit", () => {
 
   it("rejects replies without a JSON object", () => {
     expect(() => parseAuditResponse("没有 JSON，只有一段说明")).toThrow();
+  });
+
+  it("judges content-instance dependence, not arbitrary genre fit", () => {
+    // 判据换成「是否依赖内容包实例」之后，机制词汇表必须一起注入：
+    // 否则审查器又会把 brawl / 窃取 / 敏捷 之类报成题材耦合。
+    expect(AUDIT_SYSTEM_PROMPT).toContain("机制词汇一律不算泄漏");
+    expect(AUDIT_SYSTEM_PROMPT).toContain("brawl");
+    expect(AUDIT_SYSTEM_PROMPT).toContain("窃取");
+    expect(AUDIT_SYSTEM_PROMPT).toContain("属性名：");
+    expect(AUDIT_SYSTEM_PROMPT).not.toContain("换成完全不同的题材");
   });
 
   it("keys the cache by text, model and rubric version", () => {
