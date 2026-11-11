@@ -30,7 +30,7 @@ const identityHint: Hint = (context) => {
     "行动对象写你对它的称呼（名单里的名字）；还不知道名字、或者两个人同名时写 `#编号`。编号是系统占位，绝不能说出口。use 的 targetAnchor 只能从当前场景的「可交互锚点」里选，不能自己写位置描述。";
   return unknownTargets.length === 0
     ? base
-    : `${base}名单里还有 \`#编号\`：可以用 recognize_identity 把它记成你认得的称呼；需要改名时对同一个编号再记一次（不占行动名额）。`;
+    : `${base}名单里还有 \`#编号\`：可以用 recognize_identity 把它记成你认得的称呼；需要改名时对同一个编号再记一次。`;
 };
 
 // 已穿戴物品不能 use 是动作自身的约束；用哪个动作替代属于流程，放在任务提示词。

@@ -10,7 +10,7 @@ import { describeStageAnchors } from "../../stage-state/describe";
 import type { ActorTurnContext } from "./context";
 import { renderStageEnvironmentForActor, sealedVisitedStageRefsForActor } from "./observed-stage";
 import { renderHints } from "./prompt-hints";
-import { ACTOR_READ_ONLY_TOOL_NAMES } from "./tools";
+import { ACTOR_MEMORY_TOOL_NAMES, ACTOR_READ_ONLY_TOOL_NAMES } from "./tools";
 
 /**
  * actor 本轮的输入：`# 当前环境`（本轮事实）+ `# 本轮任务`（调度顺序与能力提示）。
@@ -85,7 +85,7 @@ function renderActorList(context: ActorTurnContext): string {
     .join("\n");
 }
 
-/** 调度顺序：三步流程 + 按能力出现的提示；名单空则写「无」。 */
+/** 调度顺序：三步流程（查与记 → 做 → 提交）+ 按能力出现的提示；名单空则写「无」。 */
 export function renderTask(context: ActorTurnContext, maxRounds: number): string {
   const actionList = context.allowed
     .map((kind) => `${kind}（${ACTION_SUMMARIES[kind]}）`)
@@ -95,8 +95,8 @@ export function renderTask(context: ActorTurnContext, maxRounds: number): string
 
 本轮只有一件事要做：决定并提交 ${MAX_ACTIONS_PER_TURN} 个行动。流程分三步：
 
-1. 读：${ACTOR_READ_ONLY_TOOL_NAMES.join("、")}。都是只读的，一次回复里能问完就问完，不需要为每项信息单独占一轮。本回合的推理预算是 ${maxRounds} 轮，因此写和提交要把最后几轮留出来。
-2. 写：${actionList}。一次回复只提交 ${MAX_ACTIONS_PER_TURN} 个行动——说话、移动、动手都算。动作工具只把动作暂存进计划，不会落账。
+1. 先弄清再动手：不知道的先查（${ACTOR_READ_ONLY_TOOL_NAMES.join("、")}，只读）；以后还要用的顺手记下（${ACTOR_MEMORY_TOOL_NAMES.join("、")}：结论写进你自己的认知，只有你自己知道）。两类都不占行动名额，一次回复里能问完就问完，不必为每项信息单独占一轮。本回合的推理预算是 ${maxRounds} 轮，查与记要在前几轮里做完。
+2. 做一件：${actionList}。一次回复只提交 ${MAX_ACTIONS_PER_TURN} 个行动——说话、移动、动手都算。动作工具只把动作暂存进计划，不会落账。
 3. 提交：submit_plan。必须与那一个动作工具放在同一次回复里调用；只调动作不提交，这一轮就什么都没发生。
 
 ${renderHints(context)}`;

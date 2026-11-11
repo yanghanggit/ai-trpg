@@ -13,7 +13,10 @@ import {
 } from "../src/game/agents/actor-turn";
 import { renderTask } from "../src/game/agents/actor-turn/prompt";
 import { renderHints } from "../src/game/agents/actor-turn/prompt-hints";
-import { ACTOR_READ_ONLY_TOOL_NAMES } from "../src/game/agents/actor-turn/tools";
+import {
+  ACTOR_MEMORY_TOOL_NAMES,
+  ACTOR_READ_ONLY_TOOL_NAMES,
+} from "../src/game/agents/actor-turn/tools";
 import type { ActionKind } from "../src/game/kernel/types";
 
 /**
@@ -34,22 +37,37 @@ function descriptionOf(tool: { function: { description: string } }): string {
 }
 
 describe("actor 任务提示词", () => {
-  it("只读工具名与工具定义同源", () => {
-    const declared = [
+  it("把工具按副作用分成只读与写认知两组，名字与工具定义同源", () => {
+    const readOnly = [
       buildActorLookTool(),
       buildSelfInfoTool(),
       buildVisitedStagesTool(),
-      buildRecallRouteTool(),
       buildKnowledgeTool(),
-      buildRecognizeIdentityTool(["#1"]),
     ].map((tool) => tool.function.name);
+    const memory = [buildRecallRouteTool(), buildRecognizeIdentityTool(["#1"])].map(
+      (tool) => tool.function.name,
+    );
 
-    expect(ACTOR_READ_ONLY_TOOL_NAMES).toEqual(declared);
-    // 「读」那一步必须把每个只读工具都点名，否则模型不知道能问什么。
+    expect(ACTOR_READ_ONLY_TOOL_NAMES).toEqual(readOnly);
+    expect(ACTOR_MEMORY_TOOL_NAMES).toEqual(memory);
+
+    // 两组都要在「先弄清再动手」那一步点名，否则模型不知道能问什么、能记什么。
     const task = renderTask(stubContext({}), 3);
-    for (const name of declared) {
+    for (const name of [...readOnly, ...memory]) {
       expect(task).toContain(name);
     }
+  });
+
+  it("不把会写记忆的工具说成只读", () => {
+    const task = renderTask(stubContext({}), 3);
+    const step1 = task.slice(task.indexOf("1. "), task.indexOf("2. "));
+
+    // recall_route 落账写路线记忆、recognize_identity 写 signatureNames，
+    // 两者都不是只读：只读的定语必须只落在前一组上。
+    expect(step1).toContain(`${ACTOR_READ_ONLY_TOOL_NAMES.join("、")}，只读`);
+    expect(step1).toContain("写进你自己的认知");
+    expect(step1).not.toContain(`${ACTOR_MEMORY_TOOL_NAMES.join("、")}，只读`);
+    expect(step1).toContain("都不占行动名额");
   });
 
   it("提示不复述单个工具的契约", () => {
@@ -90,14 +108,14 @@ describe("actor 任务提示词", () => {
     expect(renderHints(stubContext({ targets: ["守墓人", "#7"] }))).toContain("recognize_identity");
   });
 
-  it("三步流程带上轮数预算与本轮可用的动作", () => {
+  it("三步流程按「查与记 → 做 → 提交」给出轮数预算与本轮可用的动作", () => {
     const task = renderTask(stubContext({ allowed: ["say", "move"] }), 5);
 
     expect(task).toContain("# 本轮任务");
     expect(task).toContain("本轮只有一件事要做：决定并提交 1 个行动");
-    expect(task).toContain("1. 读：");
+    expect(task).toContain("1. 先弄清再动手");
     expect(task).toContain("本回合的推理预算是 5 轮");
-    expect(task).toContain("2. 写：say（");
+    expect(task).toContain("2. 做一件：say（");
     expect(task).toContain("move（");
     expect(task).toContain("3. 提交：submit_plan");
   });

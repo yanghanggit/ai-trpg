@@ -286,17 +286,24 @@ ${describeStageAnchorsSection(stage.anchors)}
 }
 
 /**
- * 任务提示词里「读」那一步要列出的只读工具，顺序即提示词的顺序。
+ * 任务提示词「先弄清再动手」那一步的两组工具，组内顺序即提示词的顺序。
+ *
+ * 共同点：不受能力开关限制、不占本轮行动名额、不进公共事件流。区别是副作用——
+ * 第一组只读；第二组在计划落账时写自己的认知（`signatureNames` 与路线记忆），
+ * 所以提示词不能把它们统称「只读」。
  *
  * 名字从工具定义取，不手抄一份：改名只改 `function.name`，提示词自动跟随。
- * 新增只读工具时加进这个数组：`prompt.ts` 的「读」那一步与用例都读它。
  */
 export const ACTOR_READ_ONLY_TOOL_NAMES: readonly string[] = [
   buildActorLookTool(),
   buildSelfInfoTool(),
   buildVisitedStagesTool(),
-  buildRecallRouteTool(),
   buildKnowledgeTool(),
+].map((tool) => tool.function.name);
+
+/** 只在落账时写自己认知的工具：查的时候不占名额，写的时候也不产生公共事件。 */
+export const ACTOR_MEMORY_TOOL_NAMES: readonly string[] = [
+  buildRecallRouteTool(),
   buildRecognizeIdentityTool([]),
 ].map((tool) => tool.function.name);
 

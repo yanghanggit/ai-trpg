@@ -9,6 +9,7 @@ export { createPlanSession, type TurnPlanSession } from "./plan-session";
 export { renderActorTurnInput } from "./prompt";
 export { ACTOR_ACTION_TOOLKITS, type ActorActionToolkit } from "./toolkit";
 export {
+  ACTOR_MEMORY_TOOL_NAMES,
   ACTOR_READ_ONLY_TOOL_NAMES,
   buildActorLookTool,
   buildKnowledgeTool,
