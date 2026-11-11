@@ -19,7 +19,8 @@ import { ACTOR_READ_ONLY_TOOL_NAMES } from "./tools";
  *
  * - 环境段只放本轮可见事实，一律从 state / context 派生，不写规则；
  * - 流程段只放「先读、再写、再提交」这类跨工具的先后顺序——工具描述只说自己做什么；
- * - 提示段（`./prompt-hints.ts`）只放「这个能力怎么用、和别的动作怎么排」。
+ * - 提示段（`./prompt-hints.ts`）只放跨工具的先后顺序与取舍；单个工具的契约、参数与代价
+ *   写在工具描述里，不在这里复述。
  *
  * 渲染只读 state 与已算好的 context：没有 I/O，也没有写入。
  */
@@ -41,16 +42,13 @@ function renderEnvironment(context: ActorTurnContext): string {
       ? ""
       : `\n\n## 记得封着的出口（认得出，但过不去）\n${remembered.join("、")}`;
   const teleportTargets = visitedTeleportTargetsFor(state, actor, stage);
-  // 传送小节只带一个前导换行：另一个由模板里那一行的换行提供。
   const teleportSection = actor.actions.includes("teleport")
-    ? `\n## 可传送（写对真名即可；下列是去过的、未禁传的）\n${listOrNone(
+    ? `\n\n## 可传送（写对真名即可；下列是去过的、未禁传的）\n${listOrNone(
         teleportTargets.map((item) => item.name),
       )}`
     : "";
 
-  // 两个可选小节各占一个插值位：`sealedSection` 自带两个换行、`teleportSection` 自带一个，
-  // 另一个换行来自下面模板那一行——保持既有输出的空行布局。
-  // 已知遗留：关掉传送时 `# 本轮任务` 前会多一个空行；改它属于 prompt 内容变更，单独处理。
+  // 两个可选小节各占一个插值位，各自带自己的空行：缺省时不留痕迹。
   return `# 当前环境
 
 ## 场景
@@ -60,7 +58,7 @@ ${renderStageEnvironmentForActor(state, current)}
 ## 你的状态
 ${actor.name}（你的引用：${context.selfHandle}）| HP ${actor.hp}/${actor.stats.maxHp} | ${STAT_LABELS.strength} ${actor.stats.strength} | ${STAT_LABELS.agility} ${actor.stats.agility}
 
-## 同场景角色
+## 同场景角色（只列已穿戴的装备）
 ${renderActorList(context)}
 
 ## 可交互锚点
@@ -70,8 +68,7 @@ ${describeStageAnchors(stage.anchors)}
 ${listOrNone(context.targets)}
 
 ## 可移动至
-${listOrNone(context.stageRefs)}${sealedSection}
-${teleportSection}`;
+${listOrNone(context.stageRefs)}${sealedSection}${teleportSection}`;
 }
 
 /** 同场景角色：引用 + 死亡标记 + 穿戴摘要；尸体也在名单里。 */

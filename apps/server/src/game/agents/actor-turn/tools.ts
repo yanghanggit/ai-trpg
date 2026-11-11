@@ -37,7 +37,7 @@ export function buildSelfInfoTool(): ToolDefinition {
     function: {
       name: "get_self",
       description:
-        "查看自己的外观、stats、存活状态、穿戴槽与全部物品。stats 的字段是 strength / agility / wisdom / damage / block，依次对应力量 / 敏捷 / 智慧 / 伤害 / 格挡；伤害与力量一起构成挥击与横扫的攻击力，格挡构成防御，敏捷决定查看与窃取是否被察觉、窃取能否得手。数值是结算的输入，不是面板上限。只读。",
+        "查看自己的外观、stats、存活状态、穿戴槽与全部物品。stats 的字段是 strength / agility / wisdom / damage / block，依次对应力量 / 敏捷 / 智慧 / 伤害 / 格挡；伤害与力量一起构成挥击与横扫的攻击力，格挡构成防御，敏捷决定查看与窃取是否被察觉、窃取能否得手。数值是结算的输入，不是面板上限。只读，不占行动名额。",
       parameters: {
         type: "object",
         properties: {},
@@ -135,7 +135,7 @@ export function buildActorLookTool(): ToolDefinition {
     function: {
       name: "look_stage",
       description:
-        "重新查看你所在场景的环境、在场角色、可交互锚点及其上的物品与可去方向。只读，可多次调用。",
+        "重新查看你所在场景的环境、在场角色、可交互锚点及其上的物品与可去方向。只看得到本场景，看不了别的场景。只读，可多次调用。",
       parameters: {
         type: "object",
         properties: {},

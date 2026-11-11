@@ -26,7 +26,7 @@ export function buildLootTool(targetActorHandles: readonly string[]): ToolDefini
     function: {
       name: "loot",
       description:
-        "把一次搜刮加入计划：从同场景的尸体上取走物品（道具、材料、甚至它穿戴的东西），在场的人都看得见。省略 itemNames 就是搜刮全部；只能对尸体。",
+        "把一次搜刮加入计划：从同场景的尸体上取走物品（道具、材料、甚至它穿戴的东西），在场的人都看得见。省略 itemNames 就是搜刮全部。只能对尸体，活人用 steal。",
       parameters: {
         type: "object",
         properties: {

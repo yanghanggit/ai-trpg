@@ -25,7 +25,8 @@ export function buildCallTool(): ToolDefinition {
     type: "function",
     function: {
       name: "call",
-      description: "把一次跨场景传音加入计划：只有目标能听见。",
+      description:
+        "把一次跨场景传音加入计划：只有目标能听见。传音不会自动暴露你是谁；想让对方知道，就把自称写进 message。",
       parameters: {
         type: "object",
         properties: {

@@ -19,7 +19,7 @@ export function buildStealTool(targetActorHandles: readonly string[]): ToolDefin
     function: {
       name: "steal",
       description:
-        "把一次窃取加入计划：从同场景的活人身上取走一件背包里的物品。你比目标敏捷时无人察觉；持平也能得手，但对方会察觉；不如目标敏捷时一定失手。",
+        "把一次窃取加入计划：从同场景的活人身上取走一件背包里的物品，拿不走目标穿戴中的东西。你比目标敏捷时无人察觉；持平也能得手，但对方会察觉；不如目标敏捷时一定失手。尸体不能偷，用 loot。",
       parameters: {
         type: "object",
         properties: {
