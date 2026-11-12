@@ -1,6 +1,8 @@
 import type { TraceContext } from "../../debug/trace";
 import type { ToolDefinition } from "../../llm/types";
 import { applyStaticItemAction } from "../agents/affixes";
+import type { StaticSettlement } from "../agents/affixes/static";
+import type { StaticOutcome } from "../agents/affixes/types";
 import { GameError } from "../errors";
 import type { AddressLookup } from "../kernel/addressing";
 import { hasAffixes } from "../kernel/affixes";
@@ -119,10 +121,16 @@ export async function resolveCleave(
  * 每个目标是一次独立的命中：伤害各自按该目标的 `block` 减伤，扣血、公共事件、
  * 伤害观察与舞台记忆都由同一条 `applyHit` 落账，因此不会出现“一次横扫只算总伤害”。
  *
- * 已知边界：agent 词缀阶段目前按「一个动作一个目标」建模（`AffixRequest` 只有一个
- * `targetActorId`），所以横扫只跑静态词缀，不追加推理端增量。要放开需要先把
- * 词缀请求扩成多目标。
+ * 推理端拿到的是一份目标名单：每个被扫到的人带自己的静态实际结果，追加的
+ * damage / witness op 按角色点名，落地时各算各的。
  */
+/** 横扫的静态结果：逐目标的命中结果，供推理端按角色对齐。 */
+export type CleaveResult = {
+  feedback: string;
+  settlement: StaticSettlement;
+  outcomes: readonly StaticOutcome[];
+};
+
 export async function applyCleave(
   executor: Executor,
   gameId: string,
@@ -131,8 +139,10 @@ export async function applyCleave(
   now: Date,
   address: AddressLookup,
   trace?: TraceContext,
-): Promise<string> {
+): Promise<CleaveResult> {
   const lines: string[] = [];
+  const outcomes: StaticOutcome[] = [];
+  let settlement: StaticSettlement | undefined;
   for (const target of resolved.targets) {
     const result = await applyStaticItemAction({
       executor,
@@ -148,7 +158,23 @@ export async function applyCleave(
       ...(trace ? { trace } : {}),
     });
     lines.push(result.feedback);
+    settlement ??= result.settlement;
+    if (result.outcome) {
+      outcomes.push(result.outcome);
+    }
   }
   // 逐目标的句子并排；一次横扫是一条行动事实。
-  return lines.join("\n");
+  return {
+    feedback: lines.join("\n"),
+    // 静态结算逐目标同形：取第一个目标的结算描述就够，它只描述这次动作。
+    settlement: settlement ?? {
+      hasDamageOps: false,
+      rawDamage: 0,
+      damage: 0,
+      witnesses: [],
+      rendered: [],
+      damageLines: [],
+    },
+    outcomes,
+  };
 }

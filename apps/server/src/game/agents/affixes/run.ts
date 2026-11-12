@@ -22,7 +22,7 @@ import { loadWorldByGame } from "../../persistence/worlds";
 import { hasOnlyKnownPlaceholders } from "../../world-definition/item-schema";
 import { buildAffixPrompt, buildAffixSystemPrompt } from "./prompt";
 import { buildAffixTools } from "./tools";
-import type { AffixOperation, AffixRequest } from "./types";
+import type { AffixOperation, AffixRequest, StaticOutcome } from "./types";
 import { appendWitnessEvent, type WitnessTarget } from "./witness";
 
 /** 一次词缀判定的结果；只有 `applied` 才需要落账。 */
@@ -30,6 +30,15 @@ type AffixEvaluation =
   | { kind: "applied"; operations: AffixOperation[] }
   | { kind: "noop"; reason: string }
   | { kind: "failed"; reason: string; detail?: Record<string, unknown> };
+
+/** 按角色对齐静态结果：多目标不靠顺序，只认 actorId。 */
+function findOutcome(
+  outcomes: readonly StaticOutcome[],
+  actorId: string,
+): { outcome?: StaticOutcome } {
+  const outcome = outcomes.find((candidate) => candidate.actorId === actorId);
+  return outcome ? { outcome } : {};
+}
 
 type EvaluatedAffix = {
   actorName?: string;
@@ -70,11 +79,17 @@ async function evaluateAffix(
       evaluation: { kind: "noop", reason: "没有需要 LLM 的词缀" },
     };
   }
-  const target = request.targetActorId
-    ? state.world.stages
-        .flatMap((candidate) => candidate.actors)
-        .find((candidate) => candidate.id === request.targetActorId)
-    : undefined;
+  // 目标是一份名单：单体动作传一项，多目标动作传全部；文案与事实按名单渲染。
+  const targets = (request.targetActorIds ?? []).flatMap((id) => {
+    const found = state.world.stages
+      .flatMap((candidate) => candidate.actors)
+      .find((candidate) => candidate.id === id);
+    return found ? [found] : [];
+  });
+  // 名单里的人必须仍在这个舞台：一次动作的后果不跨舞台兑现。
+  if (targets.length !== (request.targetActorIds ?? []).length) {
+    return { evaluation: { kind: "noop", reason: "目标已不在本舞台" } };
+  }
   const targetNames = stage.actors.map((candidate) => candidate.name);
   if (targetNames.length === 0) {
     return {
@@ -104,18 +119,17 @@ async function evaluateAffix(
       affixes,
       defaultFeedback: request.defaultFeedback,
       ...(request.staticSettlement ? { staticSettlement: request.staticSettlement } : {}),
-      ...(request.staticOutcome ? { staticOutcome: request.staticOutcome } : {}),
+      ...(request.staticOutcomes ? { staticOutcomes: request.staticOutcomes } : {}),
       terminalToolName: tools.submitAffix.function.name,
       stageName: stage.name,
-      ...(target
-        ? {
-            targetName: target.name,
-            targetForm: target.signature.form,
-            targetAppearance: target.appearance.text,
-          }
-        : {}),
-      ...(target ? { targetBlock: guardPower(equipmentFinalsOf(target)) } : {}),
-      ...(target ? { targetHp: `${target.hp}/${target.stats.maxHp}` } : {}),
+      targets: targets.map((target) => ({
+        name: target.name,
+        form: target.signature.form,
+        appearance: target.appearance.text,
+        block: guardPower(equipmentFinalsOf(target)),
+        hp: `${target.hp}/${target.stats.maxHp}`,
+        ...(request.staticOutcomes ? findOutcome(request.staticOutcomes, target.id) : {}),
+      })),
     }),
     messages: [{ type: "system", content: buildAffixSystemPrompt(state.world) }],
     tools: [tools.damageTarget, tools.recordWitness, tools.submitAffix],

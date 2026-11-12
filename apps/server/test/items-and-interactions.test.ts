@@ -843,7 +843,7 @@ describe.skipIf(!testDatabaseUrl)("items and interactions", () => {
     expect(service.input).toContain("形态：人类:中等身量，右手虎口有一圈烫疤，指节被灯烟熏黄。");
     expect(service.input).toContain("外观：灰袍下摆浸着泥水，右手始终握着灯柄。");
     // 仲裁 agent 是控制面读者：目标用名字寻址，而不是出手者视角的引用。
-    expect(service.input).toContain("目标：提灯修士");
+    expect(service.input).toContain("- 提灯修士｜");
     // 属性在 agent 文本里一律用中文名，字段名只在工具契约里出现。
     // 持有者只带源属性：攻击力与格挡由静态结算现算，不写在角色身上。
     expect(service.input).toContain("力量 6");
@@ -851,8 +851,7 @@ describe.skipIf(!testDatabaseUrl)("items and interactions", () => {
     expect(service.input).toContain("格挡：3");
     expect(service.input).not.toContain("damage ");
     // 静态结算的真实结果作为 agent 输入：6 点全部落到目标身上，未致死。
-    expect(service.input).toContain("实际造成伤害：6");
-    expect(service.input).toContain("目标 HP 归零：否");
+    expect(service.input).toContain("静态实际造成伤害：6，HP 归零：否");
 
     const state = await getGameState(handle.db, created.game.slug);
     const monk = state.world.stages
@@ -1041,8 +1040,7 @@ describe.skipIf(!testDatabaseUrl)("items and interactions", () => {
     // 判定照常发生（LLM 仍可能改打别人），只是目标已经倒下，落账跳过。
     expect(service.calls).toBe(1);
     // 6 点伤害只扣掉剩余的 5 点；静态结果如实报告“实际 5 点、已归零”。
-    expect(service.input).toContain("实际造成伤害：5");
-    expect(service.input).toContain("目标 HP 归零：是");
+    expect(service.input).toContain("静态实际造成伤害：5，HP 归零：是");
 
     const state = await getGameState(handle.db, created.game.slug);
     const strikeMessages = state.messages

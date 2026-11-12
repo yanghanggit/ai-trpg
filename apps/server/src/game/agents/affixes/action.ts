@@ -29,7 +29,8 @@ export type StaticItemActionInput = {
 export type StaticItemActionResult = {
   feedback: string;
   settlement: StaticSettlement;
-  outcome: StaticOutcome;
+  /** 只有真的出了命中才有结果；没有角色目标的动作不带。 */
+  outcome?: StaticOutcome;
 };
 
 /**
@@ -50,7 +51,7 @@ export async function applyStaticItemAction(
     ...(target ? { target } : {}),
   });
   const lines: string[] = [];
-  let outcome: StaticOutcome = { dealtDamage: 0, targetDied: false };
+  let outcome: StaticOutcome | undefined;
 
   // 有的触发没有伤害 op 也算“打了”；其余触发只在声明了 damage op 时出命中。
   if (triggerAlwaysHits(trigger) || settlement.hasDamageOps) {
@@ -71,7 +72,7 @@ export async function applyStaticItemAction(
       ...(input.trace ? { trace: input.trace } : {}),
     });
     lines.push(hit.feedback);
-    outcome = { dealtDamage: hit.dealtDamage, targetDied: hit.targetDied };
+    outcome = { actorId: target.id, dealtDamage: hit.dealtDamage, targetDied: hit.targetDied };
     if (settlement.damageLines.length > 0) {
       await appendStageMemory(
         executor,

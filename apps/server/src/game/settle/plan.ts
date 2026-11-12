@@ -220,9 +220,10 @@ export async function settlePlan(
       applied.push({ event: "applied", actionKind: action.kind, feedback });
       const affixRequest = actionSpec(action.kind).affixRequest?.(action, {
         actorId: actorRow.actor.id,
-        defaultFeedback: feedback,
+        // 提示词自己排「动作结果」段，交进去的是句子，不带记忆标题。
+        defaultFeedback: result.feedback,
         ...(result.staticSettlement ? { staticSettlement: result.staticSettlement } : {}),
-        ...(result.staticOutcome ? { staticOutcome: result.staticOutcome } : {}),
+        ...(result.staticOutcomes ? { staticOutcomes: result.staticOutcomes } : {}),
       });
       if (affixRequest) {
         affixRequests.push(affixRequest);

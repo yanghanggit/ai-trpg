@@ -8,7 +8,7 @@ import { GameError } from "../errors";
 import type { AddressLookup } from "../kernel/addressing";
 import { assertNoSystemReference } from "../kernel/addressing";
 import { agentAffixes } from "../kernel/affixes";
-import type { ActionKind, ActorAction, AffixTriggers } from "../kernel/types";
+import type { ActionKind, ActorAction, AffixTrigger, AffixTriggers } from "../kernel/types";
 import type {
   ActorRow,
   ActorWithStageRow,
@@ -69,14 +69,15 @@ export type ApplyContext = {
 export type ActionResult = {
   feedback: string;
   staticSettlement?: StaticSettlement;
-  staticOutcome?: StaticOutcome;
+  /** 每个目标的静态实际结果；单体动作至多一项，多目标动作一项一个。 */
+  staticOutcomes?: readonly StaticOutcome[];
 };
 
 export type AffixRequestInput = {
   actorId: string;
   defaultFeedback: string;
   staticSettlement?: StaticSettlement;
-  staticOutcome?: StaticOutcome;
+  staticOutcomes?: readonly StaticOutcome[];
 };
 
 export type ActorActionSpec<K extends ActionKind = ActionKind> = {
@@ -240,18 +241,11 @@ export const ACTOR_ACTIONS = {
       return {
         feedback: result.feedback,
         staticSettlement: result.settlement,
-        staticOutcome: result.outcome,
+        ...(result.outcome ? { staticOutcomes: [result.outcome] } : {}),
       };
     },
     affixRequest: (resolved, input) =>
-      itemAffixRequest(
-        "strike",
-        resolved.item,
-        {
-          targetActorId: resolved.target.id,
-        },
-        input,
-      ),
+      itemAffixRequest("strike", resolved.item, { targetActorIds: [resolved.target.id] }, input),
   },
   cleave: {
     buildTool: (context) => buildCleaveTool(context.targets, context.actionCaps.cleave ?? 1),
@@ -264,8 +258,8 @@ export const ACTOR_ACTIONS = {
       }
       return resolveCleave(context.executor, context.stage, context.actorRow, action, targets);
     },
-    apply: feedbackOnly<Parameters<typeof applyCleave>[3]>(async (context, resolved) =>
-      applyCleave(
+    apply: async (context, resolved) => {
+      const result = await applyCleave(
         context.executor,
         context.gameId,
         context.actorRow,
@@ -273,8 +267,21 @@ export const ACTOR_ACTIONS = {
         context.now,
         context.address,
         context.trace,
+      );
+      return {
+        feedback: result.feedback,
+        staticSettlement: result.settlement,
+        ...(result.outcomes.length > 0 ? { staticOutcomes: result.outcomes } : {}),
+      };
+    },
+    // 目标是名单：单体的 strike 传一项，横扫把每个被扫到的人都交出去。
+    affixRequest: (resolved, input) =>
+      itemAffixRequest(
+        "cleave",
+        resolved.item,
+        { targetActorIds: resolved.targets.map((target) => target.id) },
+        input,
       ),
-    ),
   },
   brawl: {
     buildTool: (context) => buildBrawlTool(context.targets),
@@ -430,7 +437,7 @@ export const ACTOR_ACTIONS = {
       return {
         feedback: result.feedback,
         staticSettlement: result.settlement,
-        staticOutcome: result.outcome,
+        ...(result.outcome ? { staticOutcomes: [result.outcome] } : {}),
       };
     },
     // 授权来自道具而非角色天赋：玩家入口绕过工具列表，不可用时要说明原因。
@@ -440,7 +447,7 @@ export const ACTOR_ACTIONS = {
         "use",
         resolved.transferItem,
         {
-          ...(resolved.target ? { targetActorId: resolved.target.id } : {}),
+          ...(resolved.target ? { targetActorIds: [resolved.target.id] } : {}),
           ...(resolved.targetStage ? { targetStageId: resolved.targetStage.id } : {}),
           ...(resolved.targetAnchor !== undefined ? { targetAnchor: resolved.targetAnchor } : {}),
         },
@@ -466,11 +473,8 @@ export const ACTOR_ACTIONS = {
         context.address,
         context.trace,
       );
-      return {
-        feedback: result.feedback,
-        staticSettlement: result.settlement,
-        staticOutcome: result.outcome,
-      };
+      // 对上只指向锚点：没有角色目标，也就没有静态结果要交回。
+      return { feedback: result.feedback, staticSettlement: result.settlement };
     },
     affixRequest: (resolved, input) =>
       itemAffixRequest("fit", resolved.transferItem, { targetAnchor: resolved.anchorLabel }, input),
@@ -509,7 +513,7 @@ export const ACTOR_ACTIONS = {
 
 /** 词缀请求的目标：角色、舞台或锚点，按动作各自给得出哪个填哪个。 */
 type AffixTargetRefs = {
-  targetActorId?: string;
+  targetActorIds?: readonly string[];
   targetStageId?: string;
   targetAnchor?: string;
 };
@@ -517,10 +521,10 @@ type AffixTargetRefs = {
 /**
  * 道具触发的动作要不要交给推理端补词缀：有 agent 词缀才交。
  *
- * 三个带道具的触发共用这一份判断，目标由调用方给。
+ * 每个带道具的触发共用这一份判断，目标由调用方给（单体一项，多目标一份名单）。
  */
 function itemAffixRequest(
-  trigger: "strike" | "use" | "fit",
+  trigger: AffixTrigger,
   item: { id: string; affixes: AffixTriggers },
   target: AffixTargetRefs,
   input: AffixRequestInput,
@@ -535,7 +539,7 @@ function itemAffixRequest(
     ...target,
     defaultFeedback: input.defaultFeedback,
     ...(input.staticSettlement ? { staticSettlement: input.staticSettlement } : {}),
-    ...(input.staticOutcome ? { staticOutcome: input.staticOutcome } : {}),
+    ...(input.staticOutcomes ? { staticOutcomes: input.staticOutcomes } : {}),
   };
 }
 

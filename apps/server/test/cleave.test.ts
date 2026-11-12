@@ -85,6 +85,43 @@ const CLEAVE_WORLD: World = {
   ],
 };
 
+/** 横扫的推理端：只给缄默抄经人追加 3 点，验证目标是从名单里挑的。 */
+class CleaveAffixService implements ChatCompletionService {
+  static calls = 0;
+  static input = "";
+
+  async complete(request: Parameters<ChatCompletionService["complete"]>[0]) {
+    CleaveAffixService.calls += 1;
+    CleaveAffixService.input = request.inputMessage;
+    const toolCalls: ToolCall[] = [
+      {
+        id: randomUUID(),
+        type: "function" as const,
+        function: {
+          name: "damage_target",
+          arguments: JSON.stringify({
+            affixName: "扫断膝盖",
+            targetActorHandle: "缄默抄经人",
+            amount: 3,
+            reason: "站不稳摔了一下",
+          }),
+        },
+      },
+      {
+        id: randomUUID(),
+        type: "function" as const,
+        function: { name: "submit_affix", arguments: "{}" },
+      },
+    ];
+    return new ChatCompletionResult({
+      request,
+      aiMessage: { type: "ai", content: "", toolCalls },
+      finishReason: "tool_calls",
+      toolCalls,
+    });
+  }
+}
+
 describe.skipIf(!testDatabaseUrl)("cleave", () => {
   let handle: DatabaseHandle;
 
@@ -114,6 +151,67 @@ describe.skipIf(!testDatabaseUrl)("cleave", () => {
   const stateOf = (slug: string) => getGameState(handle.db, slug);
   const hpOf = (state: Awaited<ReturnType<typeof stateOf>>, name: string) =>
     state.world.stages.flatMap((stage) => stage.actors).find((actor) => actor.name === name)?.hp;
+
+  it("hands every target to the reasoning phase, each with its own static result", async () => {
+    const world: World = {
+      ...CLEAVE_WORLD,
+      contentKey: "test-world-cleave-agent",
+      worldName: "灰烬测试局（横扫推理词缀）",
+      actors: CLEAVE_WORLD.actors.map((actor) =>
+        actor.key === "ember-keeper"
+          ? {
+              ...actor,
+              inventory: actor.inventory.map((item) =>
+                item.key === "cracked-blade"
+                  ? {
+                      ...item,
+                      affixes: {
+                        ...item.affixes,
+                        cleave: [
+                          ...(item.affixes?.cleave ?? []),
+                          {
+                            name: "扫断膝盖",
+                            mode: "agent" as const,
+                            content: "被扫中的人只要腿上有伤，这一下就站不稳。",
+                          },
+                        ],
+                      },
+                    }
+                  : item,
+              ),
+            }
+          : actor,
+      ),
+    };
+    const { created, keeperId } = await startGame(world, "横扫推理词缀测试局");
+
+    const result = await settleActorPlan(
+      handle.db,
+      created.game.id,
+      keeperId,
+      cleavePlan("提灯修士", "缄默抄经人"),
+      true,
+      { service: new CleaveAffixService() },
+    );
+    expect(result.ok).toBe(true);
+
+    const state = await stateOf(created.game.slug);
+    // 名单里的每个人都带自己的静态实际结果，推理端按角色追加。
+    expect(CleaveAffixService.input).toContain("- 提灯修士｜");
+    expect(CleaveAffixService.input).toContain("- 缄默抄经人｜");
+    expect(CleaveAffixService.input).toMatch(/- 缄默抄经人｜.*静态实际造成伤害：\d+/);
+    // 追加只落在被点名的那个人身上，且是独立的一次写入。
+    expect(CleaveAffixService.calls).toBe(1);
+    const scribe = state.world.stages
+      .flatMap((stage) => stage.actors)
+      .find((actor) => actor.name === "缄默抄经人");
+    const appended = state.messages.filter((message) =>
+      message.content.includes("词缀追加3点伤害"),
+    );
+    expect(appended).toHaveLength(1);
+    expect(appended[0]?.targetActorId).toBe(scribe?.id);
+    expect(appended[0]?.kind).toBe("cleave");
+  });
 
   it("hits every listed target once and settles each one separately", async () => {
     const { created, keeperId } = await startGame(CLEAVE_WORLD, "横扫多目标测试局");
