@@ -13,6 +13,7 @@ import type { ToolDefinition } from "../../../llm/types";
 import type { RagSearchResult } from "../../../rag";
 import {
   type ActorWithStage,
+  perceivedActorsFor,
   visitedStagesForActor,
   visitedTeleportTargetsFor,
 } from "../../actor-state";
@@ -249,7 +250,7 @@ ${STAT_LABELS.strength}：${sources.strength}
 ${STAT_LABELS.agility}：${sources.agility}
 ${STAT_LABELS.damage}：${attackPower(sources, finals)}
 ${STAT_LABELS.block}：${guardPower(finals)}
-状态：${isAlive(actor) ? "存活" : "已死亡"}`;
+状态：${isAlive(actor) ? "存活" : "已死亡"}${actor.concealed ? "（隐匿）" : ""}`;
 }
 
 export function describeSelf(actor: ActorState): string {
@@ -272,7 +273,7 @@ export function describeStageForActor(state: GameStateSlice, current: ActorWithS
   const actors =
     stage.actors.length === 0
       ? "无"
-      : stage.actors
+      : perceivedActorsFor(stage, current.actor.id)
           .map((actor) => {
             const worn = describeEquipmentBrief(actor);
             const dead = isAlive(actor) ? "" : "（已死亡）";

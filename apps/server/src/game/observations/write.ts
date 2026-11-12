@@ -50,17 +50,33 @@ export async function writeObservations(
   trace?: TraceContext,
 ): Promise<void> {
   const views = await listStageActorViews(executor, spec.stageId);
+  const source = views.find((view) => view.actor.id === spec.excludeActorId)?.actor;
+  // 隐匿中的发起者不向舞台广播；只给明确目标的私密观察仍可送达（如匿名的查看提醒）。
+  if (source?.concealed && spec.audience.type === "stage") {
+    await traceEvent(trace, {
+      event: "observed",
+      via: "stage-actors",
+      kind: "concealed",
+      stageId: spec.stageId,
+      sourceActorId: spec.excludeActorId,
+      sourceActorName: source.name,
+      recipients: [],
+    });
+    return;
+  }
   const signatureNameRows = await listSignatureNames(executor, gameId);
-  // 主体表：舞台内每个角色当前的可见外观；名字按观察者各自过滤。
+  // 主体表：只放这个舞台里能被看见的角色；隐匿者不提供外观与引用。
   const subjects = new Map<string, AddressSubject>(
-    views.map(({ actor, signature, appearance }) => [
-      actor.id,
-      {
-        signatureId: signature.id,
-        signatureSeq: signature.seq,
-        appearance: appearance.text,
-      },
-    ]),
+    views
+      .filter(({ actor }) => !actor.concealed)
+      .map(({ actor, signature, appearance }) => [
+        actor.id,
+        {
+          signatureId: signature.id,
+          signatureSeq: signature.seq,
+          appearance: appearance.text,
+        },
+      ]),
   );
   const recipients: { actorId: string; actorName: string; content: string }[] = [];
   let kind = "unknown";
@@ -89,7 +105,6 @@ export async function writeObservations(
   }
 
   // 收件人为空也记一条：谁都没看到，本身就是一次可归因的事实。
-  const source = views.find((view) => view.actor.id === spec.excludeActorId)?.actor;
   await traceEvent(trace, {
     event: "observed",
     via: "stage-actors",

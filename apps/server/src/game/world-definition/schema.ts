@@ -99,6 +99,8 @@ const actorSchema = z.object({
   stats: statsSchema,
   hp: z.number().optional(),
   isDefaultPlayer: z.boolean().optional(),
+  /** 开局是否对旁人隐匿；省略为 false。 */
+  concealed: z.boolean().optional(),
   inventory: z.array(itemSchema),
   /** 该角色出身带来的知识标签；空/缺省 = 只读无门槛知识。 */
   knowledgeAccess: z

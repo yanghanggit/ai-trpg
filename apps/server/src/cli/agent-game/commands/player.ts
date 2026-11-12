@@ -17,12 +17,14 @@ import {
   playerEquip,
   playerFit,
   playerGive,
+  playerHide,
   playerInspect,
   playerLoot,
   playerMove,
   playerPickup,
   playerRecallRoute,
   playerRecognizeIdentity,
+  playerReveal,
   playerSay,
   playerSteal,
   playerStrike,
@@ -280,6 +282,26 @@ export function registerPlayerCommands(program: Command, ctx: CommandContext): v
     schema: controlInput,
     run: async (input, ctx) =>
       turnOutput(await ctx.db((db) => playerWait(db, input.game, input.actor))),
+  });
+
+  addCommand(program, ctx, {
+    name: "player-hide",
+    group: GROUP,
+    summary: "隐入暗处：旁人不再被动看见你",
+    options: [gameOption(), actorOption()],
+    schema: controlInput,
+    run: async (input, ctx) =>
+      turnOutput(await ctx.db((db) => playerHide(db, input.game, input.actor))),
+  });
+
+  addCommand(program, ctx, {
+    name: "player-reveal",
+    group: GROUP,
+    summary: "从暗处现身，让同舞台旁人看见",
+    options: [gameOption(), actorOption()],
+    schema: controlInput,
+    run: async (input, ctx) =>
+      turnOutput(await ctx.db((db) => playerReveal(db, input.game, input.actor))),
   });
 
   addCommand(program, ctx, {

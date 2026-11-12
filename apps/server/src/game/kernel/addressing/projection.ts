@@ -119,17 +119,19 @@ export function makeAddressLookup(
   };
 }
 
-/** 一组 actor 的当前签名；未提供时应视为不可见。 */
-export function subjectsOf(stage: StageState): Map<string, AddressSubject> {
+/** 一组 actor 的当前签名；未提供 observer 时保留全部，提供时去掉对方看不见的隐匿者。 */
+export function subjectsOf(stage: StageState, observerId?: string): Map<string, AddressSubject> {
   return new Map(
-    stage.actors.map((actor) => [
-      actor.id,
-      {
-        signatureId: actor.signature.id,
-        signatureSeq: actor.signature.seq,
-        appearance: actor.appearance.text,
-      },
-    ]),
+    stage.actors
+      .filter((actor) => observerId === undefined || actor.id === observerId || !actor.concealed)
+      .map((actor) => [
+        actor.id,
+        {
+          signatureId: actor.signature.id,
+          signatureSeq: actor.signature.seq,
+          appearance: actor.appearance.text,
+        },
+      ]),
   );
 }
 
@@ -190,14 +192,16 @@ function signatureNamesOf(
   return nameIndex(state).get(observerActorId) ?? EMPTY_NAMES;
 }
 
-/** actor 视角的引用表：主体取本舞台的全部角色。 */
+/** actor 视角的引用表：主体去掉观察者看不见的隐匿者。 */
 export function addressLookupFor(
   state: GameStateSlice,
   observer: ActorState,
   stage: StageState,
 ): AddressLookup {
   return withSelf(
-    makeAddressLookup(signatureNamesOf(state, observer.id), subjectsOf(stage), [observer.name]),
+    makeAddressLookup(signatureNamesOf(state, observer.id), subjectsOf(stage, observer.id), [
+      observer.name,
+    ]),
     { id: observer.id, name: observer.name, appearance: observer.appearance.text },
   );
 }

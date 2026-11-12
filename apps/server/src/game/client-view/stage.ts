@@ -35,6 +35,7 @@ export async function getStageView(
         name: actor.name,
         appearance: actor.appearance.text,
         alive: isAlive(actor),
+        concealed: actor.concealed,
       })),
       exits: outgoingStages(state, stage.id).map(({ stage: target, passage }) => ({
         stageId: target.id,

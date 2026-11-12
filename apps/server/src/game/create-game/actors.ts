@@ -120,6 +120,7 @@ async function insertActor(
     // 内容只声明 hp：hp 为 0 就是尸体，没有单独的死亡状态可写。
     hp: actor.hp ?? stats.maxHp,
     isDefaultPlayer: actor.isDefaultPlayer ?? false,
+    concealed: actor.concealed ?? false,
     equipment: actor.equipment ?? {},
     knowledgeAccess: [...(actor.knowledgeAccess ?? [])],
     actions: actorInnateActions(actor),

@@ -11,9 +11,9 @@ export {
   findActorByName,
   findActorByRef,
   findActorBySignatureSeq,
-  otherActorsInStage,
   stageOfActor,
 } from "./locate";
+export { isPerceivedBy, perceivedActorsFor, perceivedOthersInStage } from "./perception";
 export {
   sealedVisitedStagesForActor,
   visitedStageIds,

@@ -239,7 +239,7 @@ describe("item observations", () => {
   });
 
   it("查看行囊只写「有人在看」，清单不进观察", () => {
-    const observation = { actor: ACTOR, target: OTHER };
+    const observation = { actor: ACTOR, target: OTHER, concealed: false };
     expect(renderInspect(STAGE, observation, "actor-3").content).toBe(
       withAppearances(
         "# 舞台动态\n守烬人查看了提灯修士随身携带的东西。",

@@ -10,6 +10,7 @@ import {
   appendSelfObservation,
   appendStageMemory,
 } from "../../observations";
+import { setActorConcealed } from "../../persistence/actors";
 import { claimDeath, type PendingDeath } from "../../persistence/deaths";
 import { appendPublicMessage } from "../../persistence/game-messages";
 import { bumpGameVersion } from "../../persistence/games";
@@ -39,6 +40,8 @@ export async function declareDeath(
     if (!(await claimDeath(tx, actor.id, now))) {
       return false;
     }
+    // 死亡是终点：隐匿者倒下后必须能被发现与搜刮，尸体不再继承隐匿。
+    await setActorConcealed(tx, actor.id, false, now);
     await appendPublicMessage(tx, gameId, null, {
       kind: "death",
       stageId: actor.stageId,

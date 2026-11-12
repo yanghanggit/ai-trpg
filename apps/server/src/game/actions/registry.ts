@@ -26,10 +26,12 @@ import { applyCleave, buildCleaveTool, parseCleave, resolveCleave } from "./clea
 import { applyEquip, buildEquipTool, parseEquip, resolveEquip } from "./equip";
 import { applyFit, buildFitTool, parseFit, resolveFit } from "./fit";
 import { applyGive, buildGiveTool, parseGive, resolveGive } from "./give";
+import { applyHide, buildHideTool, parseHide, resolveHide } from "./hide";
 import { applyInspect, buildInspectTool, parseInspect, resolveInspect } from "./inspect";
 import { applyLoot, buildLootTool, parseLoot, resolveLoot } from "./loot";
 import { applyMove, buildMoveTool, parseMove, resolveMove } from "./move";
 import { applyPickup, buildPickupTool, parsePickup, resolvePickup } from "./pickup";
+import { applyReveal, buildRevealTool, parseReveal, resolveReveal } from "./reveal";
 import { applySay, buildSayTool, parseSay, resolveSay } from "./say";
 import { applySteal, buildStealTool, parseSteal, resolveSteal } from "./steal";
 import { applyStrike, buildStrikeTool, parseStrike, resolveStrike } from "./strike";
@@ -99,6 +101,10 @@ export type ActorActionSpec<K extends ActionKind = ActionKind> = {
   ) => Promise<ActionResult>;
   /** 这个动作不在可用清单里时的定向说明；省略则用通用文案。 */
   blockedReason?: (actorName: string) => string;
+  /** 隐匿中执行时是否先解除隐匿；省略为否。判定可依赖解析结果。 */
+  reveals?: (resolved: Extract<ResolvedAction, { kind: K }>) => boolean;
+  /** 自动现身时是否另补一条舞台可见的现身事件；动作自身写给舞台时省略。 */
+  revealEvent?: boolean;
   /** 要不要把静态结果交给推理端补词缀；不实现就是不补。 */
   affixRequest?: (
     resolved: Extract<ResolvedAction, { kind: K }>,
@@ -124,6 +130,7 @@ export const ACTOR_ACTIONS = {
         action,
         await context.visible(action.targetActorHandle),
       ),
+    reveals: () => true,
     apply: feedbackOnly<Extract<ResolvedAction, { kind: "say" }>>(async (context, resolved) =>
       applySay(
         context.executor,
@@ -145,6 +152,8 @@ export const ACTOR_ACTIONS = {
         action,
         await context.visible(action.targetActorHandle),
       ),
+    reveals: () => true,
+    revealEvent: true,
     apply: feedbackOnly<Extract<ResolvedAction, { kind: "whisper" }>>(async (context, resolved) =>
       applyWhisper(
         context.executor,
@@ -163,6 +172,7 @@ export const ACTOR_ACTIONS = {
       assertNoSystemReference(action.message);
       return { kind: "announce", action, stage: context.stage };
     },
+    reveals: () => true,
     apply: feedbackOnly<Extract<ResolvedAction, { kind: "announce" }>>(async (context, resolved) =>
       applyAnnounce(context.executor, context.gameId, context.actorRow, resolved, context.trace),
     ),
@@ -222,6 +232,29 @@ export const ACTOR_ACTIONS = {
       applyWait(context.executor, context.gameId, context.actorRow, resolved, context.trace),
     ),
   },
+  hide: {
+    buildTool: () => buildHideTool(),
+    parse: () => parseHide(),
+    resolve: async (context, action) => resolveHide(context.stage, action),
+    apply: feedbackOnly<Extract<ResolvedAction, { kind: "hide" }>>(async (context) =>
+      applyHide(context.executor, context.actorRow, context.now),
+    ),
+  },
+  reveal: {
+    buildTool: () => buildRevealTool(),
+    parse: () => parseReveal(),
+    resolve: async (context, action) => resolveReveal(context.stage, action),
+    apply: feedbackOnly<Extract<ResolvedAction, { kind: "reveal" }>>(async (context, resolved) =>
+      applyReveal(
+        context.executor,
+        context.gameId,
+        context.actorRow,
+        resolved,
+        context.now,
+        context.trace,
+      ),
+    ),
+  },
   strike: {
     buildTool: (context) => buildStrikeTool(context.targets),
     parse: parseStrike,
@@ -233,6 +266,7 @@ export const ACTOR_ACTIONS = {
         action,
         await context.visible(action.targetActorHandle),
       ),
+    reveals: () => true,
     apply: async (context, resolved) => {
       const result = await applyStrike(
         context.executor,
@@ -263,6 +297,7 @@ export const ACTOR_ACTIONS = {
       }
       return resolveCleave(context.executor, context.stage, context.actorRow, action, targets);
     },
+    reveals: () => true,
     apply: async (context, resolved) => {
       const result = await applyCleave(
         context.executor,
@@ -298,6 +333,7 @@ export const ACTOR_ACTIONS = {
         action,
         await context.visible(action.targetActorHandle),
       ),
+    reveals: () => true,
     apply: feedbackOnly<Extract<ResolvedAction, { kind: "brawl" }>>(async (context, resolved) =>
       applyBrawl(
         context.executor,
@@ -321,6 +357,8 @@ export const ACTOR_ACTIONS = {
         action,
         await context.visible(action.targetActorHandle),
       ),
+    reveals: (resolved) => resolved.noticed,
+    revealEvent: true,
     apply: feedbackOnly<Extract<ResolvedAction, { kind: "steal" }>>(async (context, resolved) =>
       applySteal(
         context.executor,
@@ -366,6 +404,7 @@ export const ACTOR_ACTIONS = {
         action,
         await context.visible(action.targetActorHandle),
       ),
+    reveals: () => true,
     apply: feedbackOnly<Extract<ResolvedAction, { kind: "loot" }>>(async (context, resolved) =>
       applyLoot(
         context.executor,
@@ -389,6 +428,7 @@ export const ACTOR_ACTIONS = {
         action,
         await context.visible(action.targetActorHandle),
       ),
+    reveals: () => true,
     apply: (context, resolved) =>
       applyGive(
         context.executor,
@@ -408,6 +448,7 @@ export const ACTOR_ACTIONS = {
       ),
     parse: parsePickup,
     resolve: async (context, action) => resolvePickup(context.executor, context.stage, action),
+    reveals: () => true,
     apply: feedbackOnly<Extract<ResolvedAction, { kind: "pickup" }>>(async (context, resolved) =>
       applyPickup(context.executor, context.gameId, context.actorRow, resolved, context.trace),
     ),
@@ -428,6 +469,7 @@ export const ACTOR_ACTIONS = {
         : undefined;
       return resolveUse(context.executor, context.stage, context.actorRow, action, target);
     },
+    reveals: () => true,
     apply: async (context, resolved) => {
       const result = await applyUse(
         context.executor,
@@ -467,6 +509,7 @@ export const ACTOR_ACTIONS = {
     parse: parseFit,
     resolve: async (context, action) =>
       resolveFit(context.executor, context.stage, context.actorRow, action),
+    reveals: () => true,
     apply: async (context, resolved) => {
       const result = await applyFit(
         context.executor,

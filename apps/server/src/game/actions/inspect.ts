@@ -113,7 +113,7 @@ export async function applyInspect(
       executor,
       gameId,
       resolved.stage,
-      { actor: inspector, target },
+      { actor: inspector, target, concealed: actorRow.actor.concealed },
       trace,
     );
   }

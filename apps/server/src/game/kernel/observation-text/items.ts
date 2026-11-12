@@ -18,6 +18,7 @@ import type {
 
 /**
  * 查看行囊：目标收到「你被查看」，旁观者只看到舞台动态。
+ * 隐匿中的查看不暴露身份：被察觉时只让目标知道「有人」，不写名字与外观。
  *
  * 查看者自己不在收件人里——清单走他的行动反馈，同一事实只留一条。
  */
@@ -27,13 +28,23 @@ export function renderInspect(
   observerId: string,
   address: AddressLookup,
 ): ObservationView {
-  const actorAddress = address(observation.actor.id);
   const targetAddress = address(observation.target.id);
   const metadata: ObservationMetadata = {
     kind: MEMORY_KINDS.actionObservation,
     stageId: stage.id,
     targetActorId: observation.target.id,
   };
+  // 隐匿中的查看者不暴露身份：被察觉时只让目标知道“有人”，不写名字与外观。
+  if (observation.concealed) {
+    return {
+      content:
+        observerId === observation.target.id
+          ? "# 有人在查看你的道具\n有人翻看了你随身携带的东西。"
+          : `# 舞台动态\n有人翻看了${mentionOf(targetAddress)}随身携带的东西。`,
+      metadata,
+    };
+  }
+  const actorAddress = address(observation.actor.id);
   if (observerId === observation.target.id) {
     return {
       content: withAppearances(

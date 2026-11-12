@@ -63,7 +63,8 @@ export async function writeAppearanceSnapshot(
       },
       now,
     });
-    if (notify) {
+    // 隐匿中的外观变化不广播：旁人看不见当事人，也就不存在「外观变了」这条事实。
+    if (notify && !actor.concealed) {
       // 外观已写库：渲染取到的是新值。自己看是「你」，旁人看是观察者相对的引用。
       await appendSelfObservation(
         tx,

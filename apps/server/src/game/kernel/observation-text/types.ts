@@ -87,7 +87,7 @@ export type CallObservation = {
  * 清单只回给查看者自己的行动事实；目标与旁观者看到的只是「有人在翻看」，
  * 所以这条观察不带任何道具名。
  */
-export type InspectObservation = { actor: ActorRef; target: ActorRef };
+export type InspectObservation = { actor: ActorRef; target: ActorRef; concealed: boolean };
 
 /**
  * 道具观察的输入。

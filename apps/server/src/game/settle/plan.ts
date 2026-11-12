@@ -1,8 +1,9 @@
 import { and, eq } from "drizzle-orm";
 import type { Database } from "../../db/pool";
 import { actors, games, stages, worlds } from "../../db/schema";
-import type { TraceContext } from "../../debug/trace";
+import { type TraceContext, traceEvent } from "../../debug/trace";
 import { type ActionResult, type ApplyContext, actionSpec } from "../actions/registry";
+import { announceReveal } from "../actions/reveal";
 import type { AffixRequest } from "../agents/affixes";
 import { GameError } from "../errors";
 import { type AddressLookup, sanitizeActorFacingText } from "../kernel/addressing";
@@ -11,6 +12,7 @@ import type { ActorPlan, CommunicationKind } from "../kernel/types";
 import { isAlive, listStageActorRefs, stageAddressLookup } from "../lookup";
 import { appendMemoryMessages, loadAgentMemory } from "../memory";
 import { MEMORY_KINDS } from "../memory/kinds";
+import { setActorConcealed } from "../persistence/actors";
 import { bumpGameVersion } from "../persistence/games";
 import type { ActorWithStageRow, Executor } from "../persistence/rows";
 import { upsertSignatureName } from "../persistence/signature-names";
@@ -209,28 +211,54 @@ export async function settlePlan(
     }
 
     const now = new Date();
-    const address = await stageAddressLookup(tx, gameId, actorRow.actor.id, actorRow.stage.id);
-    const stageActorRefs = await listStageActorRefs(tx, actorRow.stage.id);
     const applied: {
       event: "applied";
       actionKind: string;
       feedback: string;
       affectsAppearance?: boolean;
+      revealed?: boolean;
     }[] = [];
     const pendingMemory: { content: string; metadata: Record<string, unknown> }[] = [];
     for (const action of resolved.actions) {
+      const spec = actionSpec(action.kind);
+      // 逐动作取当时的舞台地址：动作组合里先 move / teleport 再说话时，后一个动作的
+      // 引用必须按它自己的舞台重算；上限放开后也不会拿旧舞台的地址表落账。
+      const address = await stageAddressLookup(tx, gameId, actorRow.actor.id, action.stage.id);
+      const stageActorRefs = await listStageActorRefs(tx, action.stage.id);
+      // 隐式前置：隐匿中执行会暴露的动作，先解除隐匿再落账；不占行动名额，也不插入
+      // 一条真实的 reveal 动作。动作本身写给舞台时由它的观察承载，只写给目标时补一条
+      // 舞台可见的「现身」事实。
+      const revealed = actorRow.actor.concealed && (spec.reveals?.(action) ?? false);
+      if (revealed) {
+        await setActorConcealed(tx, actorRow.actor.id, false, now);
+        actorRow.actor.concealed = false;
+        if (spec.revealEvent) {
+          await announceReveal(tx, gameId, actorRow, action.stage, trace);
+        }
+      }
       const result = await applyResolvedAction(tx, gameId, actorRow, action, now, address, trace);
+      if (revealed) {
+        result.feedback = `${result.feedback}\n你从暗处现身了。`;
+        await traceEvent(trace, {
+          event: "phase",
+          name: "concealment",
+          status: "ok",
+          actorName: actorRow.actor.name,
+          detail: { actionKind: action.kind, concealed: false, via: "auto" },
+        });
+      }
       // 一次行动一条记忆：标题只写一次，多目标的句子并排在同一块里。
       const feedback = `# 行动结果\n${result.feedback}`;
       applied.push({
         event: "applied",
         actionKind: action.kind,
         feedback,
+        ...(revealed ? { revealed: true } : {}),
         ...(result.affectsAppearance === undefined
           ? {}
           : { affectsAppearance: result.affectsAppearance }),
       });
-      const affixRequest = actionSpec(action.kind).affixRequest?.(action, {
+      const affixRequest = spec.affixRequest?.(action, {
         actorId: actorRow.actor.id,
         // 提示词自己排「动作结果」段，交进去的是句子，不带记忆标题。
         defaultFeedback: result.feedback,

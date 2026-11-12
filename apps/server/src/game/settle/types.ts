@@ -11,10 +11,12 @@ import type {
   EquipAction,
   FitAction,
   GiveAction,
+  HideAction,
   InspectAction,
   LootAction,
   MoveAction,
   PickupAction,
+  RevealAction,
   RouteFailure,
   RouteQuery,
   SayAction,
@@ -90,6 +92,18 @@ export type ResolvedTeleport = {
 export type ResolvedWait = {
   kind: "wait";
   action: WaitAction;
+  stage: StageRow;
+};
+
+export type ResolvedHide = {
+  kind: "hide";
+  action: HideAction;
+  stage: StageRow;
+};
+
+export type ResolvedReveal = {
+  kind: "reveal";
+  action: RevealAction;
   stage: StageRow;
 };
 
@@ -206,6 +220,8 @@ export type ResolvedAction =
   | ResolvedMove
   | ResolvedTeleport
   | ResolvedWait
+  | ResolvedHide
+  | ResolvedReveal
   | ResolvedStrike
   | ResolvedCleave
   | ResolvedBrawl
@@ -250,6 +266,8 @@ export type SettlePlanResult = {
     feedback: string;
     /** 这次落账是否可能改变可见外观；见 `ActionResult.affectsAppearance`。 */
     affectsAppearance?: boolean;
+    /** 这次动作是否先解除了隐匿；自动现身不额外占行动名额。 */
+    revealed?: boolean;
   }[];
   /** 这次行动之后逐个收尾的死者；失败不回滚这次行动。 */
   death?: DeathSettlement[];

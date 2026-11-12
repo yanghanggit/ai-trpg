@@ -70,7 +70,11 @@ export async function resolvePlan(
     }
     // 名字属于回合开始时的认知舞台，不受本回合 move / teleport 改写；
     // 已经绑定的签名可以从记忆里更新，即使它不在场。
-    if (view.actor.stageId !== actorRow.stage.id && !existingNames.has(view.signature.id)) {
+    const alreadyNamed = existingNames.has(view.signature.id);
+    if (view.actor.concealed && !alreadyNamed) {
+      throw new GameError("invalid_action", `当前舞台内找不到这个编号: ${binding.handle}`);
+    }
+    if (view.actor.stageId !== actorRow.stage.id && !alreadyNamed) {
       throw new GameError("invalid_action", `只能给当前舞台内的角色起名: ${binding.handle}`);
     }
     identities.push({

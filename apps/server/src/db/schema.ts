@@ -196,6 +196,8 @@ export const actors = pgTable("actors", {
   deathSettledAt: timestamp("death_settled_at", { withTimezone: true }),
   /** 默认玩家角色；该角色死亡时整局结束。 */
   isDefaultPlayer: boolean("is_default_player").notNull().default(false),
+  /** 对旁人隐匿：不进入 actor 名单与被动观察；仍由自己行动。 */
+  concealed: boolean("concealed").notNull().default(false),
   equipment: jsonb("equipment").$type<EquipmentSlots>().notNull().default({}),
   /** 角色可以读取的受限知识标签；空数组 = 只读无门槛知识。 */
   knowledgeAccess: text("knowledge_access").array().notNull().default(sql`'{}'::text[]`),

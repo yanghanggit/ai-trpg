@@ -146,10 +146,11 @@ export async function stageAddressLookup(
   const views = await listStageActorViews(executor, stageId);
   const names = await signatureNamesFor(executor, gameId, observerId);
   const self = views.find((view) => view.actor.id === observerId);
+  const perceived = views.filter((view) => view.actor.id === observerId || !view.actor.concealed);
   const base = makeAddressLookup(
     names,
     new Map(
-      views.map(({ actor, signature, appearance }) => [
+      perceived.map(({ actor, signature, appearance }) => [
         actor.id,
         {
           signatureId: signature.id,
@@ -188,10 +189,10 @@ export async function resolveVisibleActor(
 ): Promise<ActorRow> {
   const value = input.ref.trim();
 
-  // 签名入口：#编号只按当前签名查，不需要先知道名字。
+  // 签名入口：#编号只按当前签名查，不需要先知道名字；隐匿者不算可见。
   if (isHandleRef(value)) {
     const view = await resolveSignatureInStage(executor, input.stageId, value);
-    if (!view) {
+    if (!view || (view.actor.concealed && view.actor.id !== input.observerId)) {
       throw new GameError("invalid_action", `当前舞台内找不到这个编号: ${value}`);
     }
     return view.actor;
@@ -205,7 +206,10 @@ export async function resolveVisibleActor(
     listStageActorViews(executor, input.stageId),
     signatureNamesFor(executor, input.gameId, input.observerId),
   ]);
-  const matches = views.filter((view) =>
+  const perceived = views.filter(
+    (view) => view.actor.id === input.observerId || !view.actor.concealed,
+  );
+  const matches = perceived.filter((view) =>
     view.actor.id === input.observerId
       ? view.actor.name === name
       : names.get(view.signature.id) === name,

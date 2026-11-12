@@ -1,5 +1,5 @@
 import { ACTION_KINDS, allowedActionKinds } from "../../actions";
-import { type ActorWithStage, otherActorsInStage } from "../../actor-state";
+import { type ActorWithStage, perceivedOthersInStage } from "../../actor-state";
 import {
   actionMaxTargets,
   equippedItemActions,
@@ -59,7 +59,7 @@ export type ActorTurnContext = {
 };
 
 export function actorTurnContext(state: GameStateSlice, current: ActorWithStage): ActorTurnContext {
-  const others = otherActorsInStage(current.stage, current.actor.id);
+  const others = perceivedOthersInStage(current.stage, current.actor.id);
   const address = addressLookupFor(state, current.actor, current.stage);
   const targets = others.map((actor) => address(actor.id).token);
   const slotActions = equippedItemActions(current.actor);

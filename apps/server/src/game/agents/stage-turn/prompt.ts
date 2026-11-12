@@ -22,15 +22,26 @@ export function renderStageTurnInput(context: StageTurnContext): string {
   const anchorTools = (["add_anchor", "remove_anchor", "update_anchor"] as const).filter((kind) =>
     allowed.includes(kind),
   );
+  const visibleActors = stage.actors.filter((actor) => !actor.concealed);
+  const concealedActors = stage.actors.filter((actor) => actor.concealed);
   const actorLines =
-    stage.actors.length === 0
+    visibleActors.length === 0
       ? "无"
-      : stage.actors
+      : visibleActors
           .map(
             (actor) =>
               `${actor.name}：${actor.appearance.text}${isAlive(actor) ? "" : "（已死亡）"}`,
           )
           .join("\n");
+  const concealedLines =
+    concealedActors.length === 0
+      ? ""
+      : `
+
+## 隐匿中的角色（不在角色视野内）
+${concealedActors.map((actor) => `${actor.name}（隐匿）`).join("\n")}
+
+这些角色不在任何角色的视野里：不要写进 environment，不要让他们出现在角色可见的叙述中，也不要替其他角色对他们说话或行动。他们做出会暴露自己的动作后，才按普通角色处理。`;
   const moveLines = context.moves.length === 0 ? "无" : context.moves.join("、");
   const sealedLines = context.sealed.length === 0 ? "无" : context.sealed.join("、");
   const taskLines = [
@@ -68,7 +79,7 @@ ${stage.profile}
 ${stage.environment}
 
 ## 同舞台角色
-${actorLines}
+${actorLines}${concealedLines}
 
 ## 可交互锚点
 ${describeStageAnchors(stage.anchors)}

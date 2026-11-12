@@ -93,6 +93,16 @@ describe("crow-grave seed world", () => {
     );
   });
 
+  it("starts the crow hunter concealed and gives her hide / reveal", () => {
+    const vela = actor("vela");
+    expect(world.contentVersion).toBe("crow-grave.v3");
+    expect(vela.concealed).toBe(true);
+    expect(actorInnateActions(vela)).toEqual(expect.arrayContaining(["hide", "reveal"]));
+    // 两个可见角色开局都只看见另一个人，不知道薇拉伏在坡上。
+    expect(actor("karl").openingBriefing).not.toContain("戴鸦羽的女人");
+    expect(actor("eli").openingBriefing).not.toContain("戴鸦羽的女人");
+  });
+
   it("gives the crow hunter an old bone whistle and a remembered name, but keeps the player ignorant", () => {
     const vela = actor("vela");
     expect(vela.inventory.find((item) => item.name === "旧骨哨")).toMatchObject({
@@ -108,7 +118,8 @@ describe("crow-grave seed world", () => {
     // 只有薇拉开局记得卡尔；卡尔疯了不认人，伊莱谁都不认识。
     expect(world.signatureNames).toEqual([{ observer: "vela", subject: "karl", name: "卡尔" }]);
     expect(actor("karl").profile).toContain("你疯了之后不再认人");
-    expect(actor("eli").openingBriefing).toContain("你都不认识");
+    expect(actor("eli").openingBriefing).toContain("你不认识他");
+    expect(actor("eli").openingBriefing).not.toContain("戴鸦羽的女人");
   });
 
   it("binds the attack to the weapon and keeps brawl innate", () => {

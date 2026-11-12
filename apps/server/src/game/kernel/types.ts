@@ -289,7 +289,13 @@ export type UnequipAction = {
   slot: EquipmentSlot;
 };
 
-/** 一次 actor 行动；十九个具体动作平级，不再有中间分类层。 */
+/** 隐匿起来：旁人不再被动看见你；移动、传送、等待、换装与查看不破隐。 */
+export type HideAction = { kind: "hide" };
+
+/** 主动现身：解除隐匿，并让同舞台旁人看见。 */
+export type RevealAction = { kind: "reveal" };
+
+/** 一次 actor 行动；具体动作平级，不再有中间分类层。 */
 export type ActorAction =
   | SayAction
   | WhisperAction
@@ -298,6 +304,8 @@ export type ActorAction =
   | MoveAction
   | TeleportAction
   | WaitAction
+  | HideAction
+  | RevealAction
   | StrikeAction
   | CleaveAction
   | BrawlAction
@@ -502,6 +510,8 @@ export type ActorState = {
   stats: Stats;
   /** 当前生命；扣血只写这个字段，不再重写整块属性。`hp === 0` 即死亡。 */
   hp: number;
+  /** 是否对旁人隐匿：不进名单与被动观察，但仍能自己行动。 */
+  concealed: boolean;
   /** 是否为默认玩家角色；主角死亡时只通知 world，收尾由 world 回合决定。 */
   isDefaultPlayer: boolean;
   equipment: EquipmentSlots;

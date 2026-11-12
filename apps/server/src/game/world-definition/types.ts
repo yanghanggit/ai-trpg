@@ -138,6 +138,11 @@ export type Actor = {
   hp?: number;
   /** 是否为默认玩家角色；主角死亡时只通知 world，收尾由 world 回合决定。 */
   isDefaultPlayer?: boolean;
+  /**
+   * 开局是否对旁人隐匿。隐匿中的角色不进同舞台名单、不产生被动观察，
+   * 仍能自己行动；移动、传送、等待、换装、查看与远端传话不破隐，其余交互动作会先暴露。
+   */
+  concealed?: boolean;
   /** 随身携带的道具；建局时物化成 `items` 行。 */
   inventory: readonly ItemDefinition[];
   /**

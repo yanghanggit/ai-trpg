@@ -1,6 +1,7 @@
 import type { Database } from "../../db/pool";
 import {
   findActorByName,
+  perceivedActorsFor,
   sealedVisitedStagesForActor,
   visitedStagesForActor,
   visitedTeleportTargetsFor,
@@ -30,7 +31,7 @@ export async function getActorView(
   const memory = await getMemoryState(db, state.game.id, "actor", actor.id);
   const address = addressLookupFor(state, actor, stage);
 
-  const actors: ViewerAddress[] = stage.actors.map((candidate) => {
+  const actors: ViewerAddress[] = perceivedActorsFor(stage, actor.id).map((candidate) => {
     const entry = address(candidate.id);
     return {
       actorId: candidate.id,
@@ -58,6 +59,7 @@ export async function getActorView(
       signatureId: actor.signature.id,
       name: actor.name,
       appearance: actor.appearance.text,
+      concealed: actor.concealed,
     },
     stage: {
       id: stage.id,

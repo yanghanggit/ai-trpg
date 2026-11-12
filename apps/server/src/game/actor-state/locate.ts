@@ -66,10 +66,6 @@ export function stageOfActor(state: GameStateSlice, actorId: string): ActorWithS
   return match;
 }
 
-export function otherActorsInStage(stage: StageState, actorId: string): ActorState[] {
-  return stage.actors.filter((actor) => actor.id !== actorId);
-}
-
 /**
  * god-view 解析：真名或 `#签名序号` → actor。
  *

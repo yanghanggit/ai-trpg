@@ -113,6 +113,16 @@ export async function setActorEquipment(
   await executor.update(actors).set({ equipment, updatedAt: now }).where(eq(actors.id, actorId));
 }
 
+/** 改变隐匿状态；显式 hide / reveal 与自动破隐共用这一条写。 */
+export async function setActorConcealed(
+  executor: Executor,
+  actorId: string,
+  concealed: boolean,
+  now: Date,
+): Promise<void> {
+  await executor.update(actors).set({ concealed, updatedAt: now }).where(eq(actors.id, actorId));
+}
+
 /** 改变 actor 所在舞台。 */
 export async function moveActorToStage(
   executor: Executor,

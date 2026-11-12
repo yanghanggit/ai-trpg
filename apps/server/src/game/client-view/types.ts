@@ -67,6 +67,8 @@ export type ActorView = {
     /** 自己的本名；自知不查名字表。 */
     name: string;
     appearance: string;
+    /** 自己是否处于隐匿；只有自己看得到这个状态。 */
+    concealed: boolean;
   };
   stage: ViewerStage | null;
   /** 这个观察者给各签名的当前称呼；其它观察者的名字不出现。 */
@@ -93,6 +95,8 @@ export type StageViewActor = {
   name: string;
   appearance: string;
   alive: boolean;
+  /** 舞台全知，因此看得到哪些角色正隐匿。 */
+  concealed: boolean;
 };
 
 export type StageViewExit = {

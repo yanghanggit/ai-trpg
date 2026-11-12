@@ -135,6 +135,28 @@ export async function playerWait(
   return submit(db, gameRef, actorRef, action, options);
 }
 
+/** 隐入暗处：不占旁人感知；移动、等待、换装、查看与远端传话不会暴露。 */
+export async function playerHide(
+  db: Database,
+  gameRef: string,
+  actorRef: string,
+  options: PlayerActionOptions = {},
+): Promise<ActorTurnResult> {
+  const action: ActorAction = { kind: "hide" };
+  return submit(db, gameRef, actorRef, action, options);
+}
+
+/** 主动现身：解除隐匿并让同舞台旁人看见。 */
+export async function playerReveal(
+  db: Database,
+  gameRef: string,
+  actorRef: string,
+  options: PlayerActionOptions = {},
+): Promise<ActorTurnResult> {
+  const action: ActorAction = { kind: "reveal" };
+  return submit(db, gameRef, actorRef, action, options);
+}
+
 export async function playerStrike(
   db: Database,
   gameRef: string,

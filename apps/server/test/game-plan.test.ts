@@ -359,6 +359,7 @@ describe("read-only descriptions", () => {
         form: formatForm("人类", "瘦削，手腕有旧绳痕。"),
       },
       hp: 12,
+      concealed: false,
       stats: { maxHp: 12, strength: 3, wisdom: 2, agility: 4, damage: 0, block: 0 },
       isDefaultPlayer: false,
       equipment: { weapon: "裂齿短刃" },

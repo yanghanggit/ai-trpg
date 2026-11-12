@@ -1,0 +1,1 @@
+ALTER TABLE "actors" ADD COLUMN "concealed" boolean DEFAULT false NOT NULL;

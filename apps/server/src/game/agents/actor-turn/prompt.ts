@@ -61,7 +61,7 @@ ${renderStageEnvironmentForActor(state, current)}
 ## 你的状态
 ${actor.name}（你的引用：${context.selfHandle}）| HP ${actor.hp}/${actor.stats.maxHp} | ${STAT_LABELS.strength} ${shown.strength} | ${STAT_LABELS.agility} ${shown.agility}
 
-## 同舞台角色（只列旁人被动看得见的穿戴）
+## 同舞台角色（只列你看得见的角色与穿戴）
 ${renderActorList(context)}
 
 ## 可交互锚点
@@ -93,6 +93,9 @@ export function renderTask(context: ActorTurnContext, maxRounds: number): string
   const actionList = context.allowed
     .map((kind) => `${kind}（${ACTION_SUMMARIES[kind]}）`)
     .join("、");
+  const concealment = context.current?.actor.concealed
+    ? "\n你现在处于隐匿中：移动、传送、等待、换装、查看与远端传话不会暴露你；说话、攻击、递物、拾取、搜刮、使用、对上会先暴露你。"
+    : "";
 
   return `# 本轮任务
 
@@ -101,6 +104,7 @@ export function renderTask(context: ActorTurnContext, maxRounds: number): string
 1. 先弄清再动手：不知道的先查（${ACTOR_READ_ONLY_TOOL_NAMES.join("、")}，只读）；以后还要用的顺手记下（${ACTOR_MEMORY_TOOL_NAMES.join("、")}：结论写进你自己的认知，只有你自己知道）。两类都不占行动名额，一次回复里能问完就问完，不必为每项信息单独占一轮。本回合的推理预算是 ${maxRounds} 轮，查与记要在前几轮里做完。
 2. 做一件：${actionList}。一次回复只提交 ${MAX_ACTIONS_PER_TURN} 个行动——说话、移动、动手都算。动作工具只把动作暂存进计划，不会落账。
 3. 提交：submit_plan。必须与那一个动作工具放在同一次回复里调用；只调动作不提交，这一轮就什么都没发生。
+${concealment}
 
 ${renderHints(context)}`;
 }
