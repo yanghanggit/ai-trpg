@@ -1,4 +1,4 @@
-import { allowedActionKinds } from "../../actions";
+import { ACTION_KINDS, allowedActionKinds } from "../../actions";
 import { type ActorWithStage, otherActorsInStage } from "../../actor-state";
 import {
   actionMaxTargets,
@@ -54,8 +54,8 @@ export type ActorTurnContext = {
   wearableItemNames: string[];
   /** 已占用的槽位。 */
   occupiedSlots: EquipmentSlot[];
-  /** 各动作的目标上限：由授予那个动作的道具声明，没授予者时回落到 1。 */
-  actionCaps: Partial<Record<ActionKind, number>>;
+  /** 每个动作的目标上限：由授予那个动作的道具声明，没授予者或没声明时为 1。 */
+  actionCaps: Record<ActionKind, number>;
 };
 
 export function actorTurnContext(state: GameStateSlice, current: ActorWithStage): ActorTurnContext {
@@ -80,7 +80,7 @@ export function actorTurnContext(state: GameStateSlice, current: ActorWithStage)
     wearableItemNames: current.actor.items.filter(isWearable).map((item) => item.name),
     occupiedSlots: EQUIPMENT_SLOTS.filter((slot) => current.actor.equipment[slot] !== undefined),
     actionCaps: Object.fromEntries(
-      slotActions.map((kind) => [kind, actionMaxTargets(current.actor, kind)]),
-    ),
+      ACTION_KINDS.map((kind) => [kind, actionMaxTargets(current.actor, kind)]),
+    ) as Record<ActionKind, number>,
   };
 }

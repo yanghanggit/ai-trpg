@@ -119,7 +119,7 @@ export const ACTOR_ACTIONS = {
         action,
         await context.visible(action.targetActorHandle),
       ),
-    apply: feedbackOnly<Parameters<typeof applySay>[3]>(async (context, resolved) =>
+    apply: feedbackOnly<Extract<ResolvedAction, { kind: "say" }>>(async (context, resolved) =>
       applySay(
         context.executor,
         context.gameId,
@@ -140,7 +140,7 @@ export const ACTOR_ACTIONS = {
         action,
         await context.visible(action.targetActorHandle),
       ),
-    apply: feedbackOnly<Parameters<typeof applyWhisper>[3]>(async (context, resolved) =>
+    apply: feedbackOnly<Extract<ResolvedAction, { kind: "whisper" }>>(async (context, resolved) =>
       applyWhisper(
         context.executor,
         context.gameId,
@@ -158,7 +158,7 @@ export const ACTOR_ACTIONS = {
       assertNoSystemReference(action.message);
       return { kind: "announce", action, stage: context.stage };
     },
-    apply: feedbackOnly<Parameters<typeof applyAnnounce>[3]>(async (context, resolved) =>
+    apply: feedbackOnly<Extract<ResolvedAction, { kind: "announce" }>>(async (context, resolved) =>
       applyAnnounce(context.executor, context.gameId, context.actorRow, resolved, context.trace),
     ),
   },
@@ -173,7 +173,7 @@ export const ACTOR_ACTIONS = {
         context.actorRow.actor.id,
         action,
       ),
-    apply: feedbackOnly<Parameters<typeof applyCall>[2]>(async (context, resolved) =>
+    apply: feedbackOnly<Extract<ResolvedAction, { kind: "call" }>>(async (context, resolved) =>
       applyCall(context.executor, context.gameId, resolved, context.trace),
     ),
   },
@@ -182,7 +182,7 @@ export const ACTOR_ACTIONS = {
     parse: parseMove,
     resolve: async (context, action) =>
       resolveMove(context.executor, context.world, context.stage, action),
-    apply: feedbackOnly<Parameters<typeof applyMove>[3]>(async (context, resolved) =>
+    apply: feedbackOnly<Extract<ResolvedAction, { kind: "move" }>>(async (context, resolved) =>
       applyMove(
         context.executor,
         context.gameId,
@@ -198,7 +198,7 @@ export const ACTOR_ACTIONS = {
     parse: parseTeleport,
     resolve: async (context, action) =>
       resolveTeleport(context.executor, context.world, context.stage, action),
-    apply: feedbackOnly<Parameters<typeof applyTeleport>[3]>(async (context, resolved) =>
+    apply: feedbackOnly<Extract<ResolvedAction, { kind: "teleport" }>>(async (context, resolved) =>
       applyTeleport(
         context.executor,
         context.gameId,
@@ -213,7 +213,7 @@ export const ACTOR_ACTIONS = {
     buildTool: () => buildWaitTool(),
     parse: () => parseWait(),
     resolve: async (context, action) => resolveWait(context.stage, action),
-    apply: feedbackOnly<Parameters<typeof applyWait>[3]>(async (context, resolved) =>
+    apply: feedbackOnly<Extract<ResolvedAction, { kind: "wait" }>>(async (context, resolved) =>
       applyWait(context.executor, context.gameId, context.actorRow, resolved, context.trace),
     ),
   },
@@ -248,7 +248,7 @@ export const ACTOR_ACTIONS = {
       itemAffixRequest("strike", resolved.item, { targetActorIds: [resolved.target.id] }, input),
   },
   cleave: {
-    buildTool: (context) => buildCleaveTool(context.targets, context.actionCaps.cleave ?? 1),
+    buildTool: (context) => buildCleaveTool(context.targets, context.actionCaps.cleave),
     parse: parseCleave,
     resolve: async (context, action) => {
       // 目标逐个解析：每个目标都在当前舞台，且不受本回合位移影响。
@@ -270,7 +270,7 @@ export const ACTOR_ACTIONS = {
       );
       return {
         feedback: result.feedback,
-        staticSettlement: result.settlement,
+        ...(result.settlement ? { staticSettlement: result.settlement } : {}),
         ...(result.outcomes.length > 0 ? { staticOutcomes: result.outcomes } : {}),
       };
     },
@@ -293,7 +293,7 @@ export const ACTOR_ACTIONS = {
         action,
         await context.visible(action.targetActorHandle),
       ),
-    apply: feedbackOnly<Parameters<typeof applyBrawl>[3]>(async (context, resolved) =>
+    apply: feedbackOnly<Extract<ResolvedAction, { kind: "brawl" }>>(async (context, resolved) =>
       applyBrawl(
         context.executor,
         context.gameId,
@@ -316,7 +316,7 @@ export const ACTOR_ACTIONS = {
         action,
         await context.visible(action.targetActorHandle),
       ),
-    apply: feedbackOnly<Parameters<typeof applySteal>[3]>(async (context, resolved) =>
+    apply: feedbackOnly<Extract<ResolvedAction, { kind: "steal" }>>(async (context, resolved) =>
       applySteal(
         context.executor,
         context.gameId,
@@ -339,7 +339,7 @@ export const ACTOR_ACTIONS = {
         action,
         await context.visible(action.targetActorHandle),
       ),
-    apply: feedbackOnly<Parameters<typeof applyInspect>[3]>(async (context, resolved) =>
+    apply: feedbackOnly<Extract<ResolvedAction, { kind: "inspect" }>>(async (context, resolved) =>
       applyInspect(
         context.executor,
         context.gameId,
@@ -361,7 +361,7 @@ export const ACTOR_ACTIONS = {
         action,
         await context.visible(action.targetActorHandle),
       ),
-    apply: feedbackOnly<Parameters<typeof applyLoot>[3]>(async (context, resolved) =>
+    apply: feedbackOnly<Extract<ResolvedAction, { kind: "loot" }>>(async (context, resolved) =>
       applyLoot(
         context.executor,
         context.gameId,
@@ -384,7 +384,7 @@ export const ACTOR_ACTIONS = {
         action,
         await context.visible(action.targetActorHandle),
       ),
-    apply: feedbackOnly<Parameters<typeof applyGive>[3]>(async (context, resolved) =>
+    apply: feedbackOnly<Extract<ResolvedAction, { kind: "give" }>>(async (context, resolved) =>
       applyGive(
         context.executor,
         context.gameId,
@@ -404,7 +404,7 @@ export const ACTOR_ACTIONS = {
       ),
     parse: parsePickup,
     resolve: async (context, action) => resolvePickup(context.executor, context.stage, action),
-    apply: feedbackOnly<Parameters<typeof applyPickup>[3]>(async (context, resolved) =>
+    apply: feedbackOnly<Extract<ResolvedAction, { kind: "pickup" }>>(async (context, resolved) =>
       applyPickup(context.executor, context.gameId, context.actorRow, resolved, context.trace),
     ),
   },
@@ -483,7 +483,7 @@ export const ACTOR_ACTIONS = {
     buildTool: (context) => buildEquipTool(context.wearableItemNames),
     parse: parseEquip,
     resolve: async (context, action) => resolveEquip(context.executor, context.actorRow, action),
-    apply: feedbackOnly<Parameters<typeof applyEquip>[3]>(async (context, resolved) =>
+    apply: feedbackOnly<Extract<ResolvedAction, { kind: "equip" }>>(async (context, resolved) =>
       applyEquip(
         context.executor,
         context.gameId,
@@ -498,7 +498,7 @@ export const ACTOR_ACTIONS = {
     buildTool: (context) => buildUnequipTool(context.occupiedSlots),
     parse: parseUnequip,
     resolve: async (context, action) => resolveUnequip(context.actorRow, action),
-    apply: feedbackOnly<Parameters<typeof applyUnequip>[3]>(async (context, resolved) =>
+    apply: feedbackOnly<Extract<ResolvedAction, { kind: "unequip" }>>(async (context, resolved) =>
       applyUnequip(
         context.executor,
         context.gameId,

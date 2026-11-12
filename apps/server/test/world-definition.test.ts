@@ -568,7 +568,7 @@ describe("world content validation", () => {
       ).toThrow(/affixes.cleave/);
     });
 
-    it("keeps the target cap on weapons", () => {
+    it("keeps the target cap on items that grant actions", () => {
       const broken = {
         ...TEST_WORLD,
         actors: TEST_WORLD.actors.map((actor) =>
@@ -578,7 +578,7 @@ describe("world content validation", () => {
         ),
       };
       // 上限只属于「授予动作」的道具：不授予动作的东西写目标数没有意义。
-      expect(() => parseWorldContent(broken)).toThrow(/maxTargets 只对授予槽位动作的道具成立/);
+      expect(() => parseWorldContent(broken)).toThrow(/maxTargets 只对声明了 actions 的道具成立/);
     });
   });
 });

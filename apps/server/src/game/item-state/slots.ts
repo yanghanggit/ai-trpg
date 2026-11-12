@@ -2,6 +2,7 @@ import { carriedActionsForKind, isSlotActionKind } from "../actions";
 import { GameError } from "../errors";
 import { hasAffixes } from "../kernel/affixes";
 import type {
+  ActionKind,
   ActorState,
   EquipmentSlot,
   EquipmentSlots,
@@ -98,16 +99,19 @@ export function heldItemActions(actor: Pick<ActorState, "items" | "equipment">):
 }
 
 /**
- * 某件道具授予的动作最多能指向几个目标：读那件道具自己的 `maxTargets`，与动作名无关。
+ * 一个动作最多能指向几个目标：读授予它的那件道具自己的 `maxTargets`。
  *
- * 没有携带者时回落到 1——这也是工具形状的描述值，真正的授权由 `allowedActionKinds` 与
- * 结算端复核决定。
+ * 授予者不分槽位携带与持有携带——动作的来源就是道具，上限跟着来源走。没有授予者
+ * （固有动作）或道具没声明时为 1，这也是工具形状的描述值：真正的授权由
+ * `allowedActionKinds` 与结算端复核决定。多件道具授予同一动作时取第一件。
  */
 export function actionMaxTargets(
   actor: Pick<ActorState, "items" | "equipment">,
-  kind: SlotActionKind,
+  kind: ActionKind,
 ): number {
-  const grant = carriedActions(actor).find((candidate) => candidate.kind === kind);
+  const grant =
+    carriedActions(actor).find((candidate) => candidate.kind === kind) ??
+    heldActions(actor).find((candidate) => candidate.kind === kind);
   if (!grant) {
     return 1;
   }

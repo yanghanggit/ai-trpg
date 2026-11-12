@@ -127,7 +127,7 @@ export const itemSchema = z
     kind: itemKindSchema,
     count: z.number().int().positive().optional(),
     stats: statsSchema.optional(),
-    /** `cleave` 一次最多命中的目标数；只有武器可声明，省略时物化为 1。 */
+    /** 这件道具授予的动作最多指向几个目标；省略时物化为 1，大于 1 需要多目标动作。 */
     maxTargets: z.number().int().min(1).optional(),
     affixes: affixTriggersSchema.optional(),
     actions: z.array(affixActionKindSchema).optional(),
@@ -179,7 +179,7 @@ export const itemSchema = z
     if (item.maxTargets !== undefined && declared.length === 0) {
       ctx.addIssue({
         code: "custom",
-        message: "maxTargets 只对授予槽位动作的道具成立",
+        message: "maxTargets 只对声明了 actions 的道具成立",
         path: ["maxTargets"],
       });
     }

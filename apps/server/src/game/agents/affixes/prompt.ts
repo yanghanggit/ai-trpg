@@ -89,6 +89,7 @@ ${input.defaultFeedback}
 ${input.itemDescription}
 词缀：
 ${input.affixes.map((affix) => `- [${affix.name}]${affix.content}`).join("\n")}
+
 ## 目标
 ${input.targets && input.targets.length > 0 ? input.targets.map(describeTarget).join("\n") : "无角色目标"}
 

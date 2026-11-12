@@ -127,7 +127,8 @@ export async function resolveCleave(
 /** 横扫的静态结果：逐目标的命中结果，供推理端按角色对齐。 */
 export type CleaveResult = {
   feedback: string;
-  settlement: StaticSettlement;
+  /** 逐目标同形：取第一个目标的结算描述，它只描述这次动作；没有目标时为空。 */
+  settlement?: StaticSettlement;
   outcomes: readonly StaticOutcome[];
 };
 
@@ -166,15 +167,7 @@ export async function applyCleave(
   // 逐目标的句子并排；一次横扫是一条行动事实。
   return {
     feedback: lines.join("\n"),
-    // 静态结算逐目标同形：取第一个目标的结算描述就够，它只描述这次动作。
-    settlement: settlement ?? {
-      hasDamageOps: false,
-      rawDamage: 0,
-      damage: 0,
-      witnesses: [],
-      rendered: [],
-      damageLines: [],
-    },
+    ...(settlement ? { settlement } : {}),
     outcomes,
   };
 }

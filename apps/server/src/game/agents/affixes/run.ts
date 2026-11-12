@@ -273,6 +273,14 @@ async function settleAffix(
       status: "skipped",
       detail: { reason, itemId: request.itemId, trigger: request.trigger },
     });
+  // 单条 op 落不了地是另一个层面：批次还在，只是这一条的目标没了。
+  const dropOperation = async (reason: string, affixName: string) =>
+    traceEvent(trace, {
+      event: "phase",
+      name: "affix",
+      status: "skipped",
+      detail: { reason, affixName, itemId: request.itemId, trigger: request.trigger },
+    });
 
   return db.transaction(async (tx) => {
     const game = await lockGameRow(tx, gameId);
@@ -309,6 +317,7 @@ async function settleAffix(
             ? { kind: "anchor", label: operation.targetAnchor }
             : undefined;
         if (!target) {
+          await dropOperation("witness-target-gone", operation.affixName);
           continue;
         }
         const feedback = await appendWitnessEvent({
@@ -337,7 +346,12 @@ async function settleAffix(
         actorRow.stage.id,
         operation.targetActorHandle,
       );
-      if (!targetRow || !isAlive(targetRow)) {
+      if (!targetRow) {
+        await dropOperation("target-gone", operation.affixName);
+        continue;
+      }
+      if (!isAlive(targetRow)) {
+        await dropOperation("target-dead", operation.affixName);
         continue;
       }
       const hit = await applyHit({

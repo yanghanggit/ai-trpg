@@ -67,6 +67,24 @@ describe("action sources", () => {
     expect(actionMaxTargets(actor, "strike")).toBe(2);
     // 没有携带者时回落到 1（此时也不会授权）。
     expect(actionMaxTargets({ equipment: {}, items: [] }, "cleave")).toBe(1);
+    // 固有动作也有一条：上限是「指向几个目标」的通用形状，不属于某个动作名。
+    expect(actionMaxTargets({ equipment: {}, items: [] }, "say")).toBe(1);
+    // 上限跟着授予者走，与授予来自槽位还是持有无关。
+    const whistle = toItemState({
+      id: "item-whistle",
+      seq: 2,
+      key: "old-whistle",
+      name: "旧骨哨",
+      description: "一只磨得发亮的骨哨。",
+      kind: "valuable",
+      count: 1,
+      stats: { maxHp: 0, strength: 0, wisdom: 0, agility: 0, damage: 0, block: 0 },
+      maxTargets: 3,
+      affixes: {
+        use: [{ name: "吹响", content: "哨声在灰里传得很远。", mode: "static" as const, ops: [] }],
+      },
+    });
+    expect(actionMaxTargets({ equipment: {}, items: [whistle] }, "use")).toBe(3);
   });
 
   it("only grants what the carrier table allows", () => {
