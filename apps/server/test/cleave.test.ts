@@ -330,6 +330,7 @@ describe.skipIf(!testDatabaseUrl)("cleave", () => {
           ? {
               ...actor,
               concealed,
+              actions: concealed ? [...actor.actions, "reveal" as const] : actor.actions,
               inventory: actor.inventory.map((item) =>
                 item.key === "cracked-blade"
                   ? {

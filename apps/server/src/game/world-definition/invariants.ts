@@ -170,6 +170,19 @@ function checkProficiencies(actor: Actor, actorIndex: number, ctx: z.RefinementC
       owner.set(action, skill.name);
     }
   });
+
+  // 隐匿或藏身是内容给的状态/能力；主动现身必须同时由内容声明，运行时不会补动作。
+  const merged = new Set([
+    ...actor.actions,
+    ...(actor.proficiencies ?? []).flatMap((skill) => skill.actions),
+  ]);
+  if (((actor.concealed ?? false) || merged.has("hide")) && !merged.has("reveal")) {
+    ctx.addIssue({
+      code: "custom",
+      message: "声明了 concealed 或 hide，就必须同时声明 reveal：运行时不会补动作",
+      path: ["actors", actorIndex, "actions"],
+    });
+  }
 }
 
 /**

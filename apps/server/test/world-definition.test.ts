@@ -538,7 +538,10 @@ describe("world content validation", () => {
           actor.name === "守烬人"
             ? {
                 ...actor,
-                actions: actor.actions.filter((kind) => kind !== "hide" && kind !== "reveal"),
+                actions: [
+                  ...actor.actions.filter((kind) => kind !== "hide" && kind !== "reveal"),
+                  "reveal" as const,
+                ],
               }
             : actor,
         ),
@@ -577,6 +580,29 @@ describe("world content validation", () => {
       });
       const directKeeper = direct.actors.find((actor) => actor.name === "守烬人");
       expect(directKeeper?.actions).toContain("hide");
+
+      // 藏身/隐匿必须同时有主动现身；运行时不再补 reveal。
+      expect(() =>
+        parseWorldContent({
+          ...base,
+          actors: base.actors.map((actor) =>
+            actor.name === "守烬人"
+              ? {
+                  ...actor,
+                  actions: actor.actions.filter((kind) => kind !== "reveal"),
+                  proficiencies: [
+                    {
+                      key: "ambush",
+                      name: "暗伏",
+                      description: "从暗处看清，再从盲侧出手。",
+                      actions: ["hide"],
+                    },
+                  ],
+                }
+              : actor,
+          ),
+        }),
+      ).toThrow(/必须同时声明 reveal/);
     });
 
     it("rejects duplicate actions on an item", () => {
