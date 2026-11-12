@@ -433,7 +433,7 @@ export type ItemBaseState = {
    * 是否需要这个上限由动作自己决定，道具只提供数值。
    */
   maxTargets: number;
-  /** 这件饰品是否作为外观推理的输入；只有 `accessory` 会写 true。 */
+  /** 这件饰品是否让旁人被动感知：进外观推理、同舞台名单与换装广播；只有 `accessory` 会写。 */
   appearsInAppearance: boolean;
 };
 
@@ -444,7 +444,7 @@ export type WeaponState = ItemBaseState & { kind: "weapon" };
 export type EquipmentState = ItemBaseState & { kind: "equipment" };
 
 /**
- * 饰品：随身携带的非战斗道具，`appearsInAppearance` 决定它是否作为外观推理的输入。
+ * 饰品：随身携带的非战斗道具，`appearsInAppearance` 决定旁人能否被动感知它。
  * 同一个槽位在不同题材里可能是项链，也可能是看不见的植入物。
  */
 export type AccessoryState = ItemBaseState & { kind: "accessory" };

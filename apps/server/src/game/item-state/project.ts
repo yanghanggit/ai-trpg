@@ -41,7 +41,7 @@ export function toItemState(row: {
     stats: toStats(row.stats),
     // 旧数据没有这一列时按 1 归一：单体挥击是默认形态。
     maxTargets: row.maxTargets ?? 1,
-    // 只有 accessory 会写 true；缺列（旧行）按不参与外观归一。
+    // 只有 accessory 会写 true；缺列（旧行）按不会被动感知归一。
     appearsInAppearance: row.appearsInAppearance ?? false,
   };
   switch (row.kind) {
@@ -69,7 +69,7 @@ export function isWearable(item: ItemState): item is WearableItemState {
 }
 
 /**
- * 这件穿戴是否作为外观推理的输入。
+ * 这件穿戴是否让旁人被动感知：作为外观推理的输入、进同舞台名单、换装时给不给信号。
  *
  * 武器与护甲总是参与；饰品由内容在道具定义上声明——同一个槽位在不同题材里
  * 可能是项链，也可能是看不见的植入物。换装后要不要重算外观也用它判定。

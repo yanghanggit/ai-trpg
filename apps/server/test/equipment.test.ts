@@ -18,7 +18,7 @@ import {
   takeActorControl,
 } from "../src/game";
 
-import { describeStageForActor } from "../src/game/agents/actor-turn";
+import { describeSelf, describeStageForActor } from "../src/game/agents/actor-turn";
 import { ChatCompletionResult, type ChatCompletionService, type ToolCall } from "../src/llm";
 import { buildActorTurnInput } from "./actor-turn-input";
 
@@ -80,9 +80,10 @@ describe.skipIf(!testDatabaseUrl)("equip and unequip actions", () => {
     expect(keeper?.equipment.armor).toBe("补丁斗篷");
     // 没提供 inferenceService：动作不会顺手改外观，需要 agent:game appearance 单独推动。
     expect(keeper?.appearance.text).toBe(appearanceBefore);
-    expect(state.messages.map((message) => message.kind)).toEqual(["unequip", "equip"]);
+    // 穿脱不进公共事件：旁人只通过外观结果得知变化。
+    expect(state.messages).toEqual([]);
 
-    // 写进 actor 记忆的反馈已经脱敏：道具名就是名字本身（公共事件仍是上帝视角）。
+    // 写进 actor 记忆的反馈已经脱敏：道具名就是名字本身。
     const memories = await getGameMemories(handle.db, created.game.id);
     const feedback =
       memories
@@ -181,9 +182,9 @@ describe.skipIf(!testDatabaseUrl)("equip and unequip actions", () => {
     expect(Object.values(keeper?.equipment ?? {}).filter((name) => name === "备用短刀")).toEqual(
       [],
     );
-    // 换装只改索引：外观快照保持原样，不触发任何推理。
+    // 换装只改索引：外观快照保持原样，不触发任何推理；也不产生公共事件。
     expect(keeper?.appearance.text).toBe(appearanceBefore);
-    expect(state.messages.map((message) => message.kind)).toEqual(["equip", "equip"]);
+    expect(state.messages).toEqual([]);
   });
 
   it("同舞台名单列出已穿戴装备，回合输入直接可读", async () => {
@@ -210,7 +211,7 @@ describe.skipIf(!testDatabaseUrl)("equip and unequip actions", () => {
     expect(describeStageForActor(state, { actor: cinder, stage })).toContain("武器：掘墓人的铁锹");
   });
 
-  it("主角亮出武器后，同舞台角色的名单与记忆都能看到", async () => {
+  it("主角亮出武器后，同舞台名单能看到，但换装过程不公开", async () => {
     const created = await createGame(handle.db, {
       username: DEMO_USER.username,
       name: "亮武器测试局",
@@ -236,15 +237,74 @@ describe.skipIf(!testDatabaseUrl)("equip and unequip actions", () => {
 
     const input = buildActorTurnInput(state, { actor: cinder, stage });
     expect(input).toContain("武器：撬弯的棺钉");
-    // 换装事件也已落进旁观者记忆，名字仍是编号。
+    // 换装本身不写旁观者记忆，也不产生公共事件；旁人看的是外观结果。
     const memories = await getGameMemories(handle.db, created.game.id);
     const seen =
       memories
         .find((memory) => memory.name === "小狗“煤渣”")
         ?.messages.map((message) => message.content)
         .join("\n") ?? "";
-    expect(seen).toContain("穿上了撬弯的棺钉（武器）");
+    expect(seen).not.toContain("穿上了撬弯的棺钉");
     expect(seen).not.toContain("无名者");
+  });
+
+  it("不参与外观的饰品不进名单，穿脱也不产生公共事件", async () => {
+    const world = {
+      ...BELL_MONASTERY_WORLD,
+      actors: BELL_MONASTERY_WORLD.actors.map((actor) => ({
+        ...actor,
+        inventory: actor.inventory.map((item) =>
+          item.name === "颈上的断链" ? { ...item, appearsInAppearance: false } : item,
+        ),
+      })),
+    };
+    const created = await createGame(handle.db, {
+      username: DEMO_USER.username,
+      name: "隐藏饰品名单测试局",
+      world,
+    });
+    await takeActorControl(handle.db, created.game.slug, "无名者");
+    await playerMove(handle.db, created.game.slug, "无名者", { targetStageRef: "墓园" });
+
+    let state = await getGameState(handle.db, created.game.slug);
+    const cinder = state.world.stages
+      .flatMap((candidate) => candidate.actors)
+      .find((actor) => actor.name === "小狗“煤渣”");
+    const stage = state.world.stages.find((candidate) =>
+      candidate.actors.some((actor) => actor.id === cinder?.id),
+    );
+    const nameless = state.world.stages
+      .flatMap((candidate) => candidate.actors)
+      .find((actor) => actor.name === "无名者");
+    if (!cinder || !stage || !nameless) {
+      throw new Error("缺少墓园夹具");
+    }
+
+    // 别人只看得到参与外观的穿戴；自己仍知道自己戴着什么。
+    const input = buildActorTurnInput(state, { actor: cinder, stage });
+    expect(input).toContain("护甲：发黄的裹尸布");
+    expect(input).not.toContain("颈上的断链");
+    expect(describeStageForActor(state, { actor: cinder, stage })).not.toContain("颈上的断链");
+    expect(describeSelf(nameless)).toContain("颈上的断链");
+
+    // 卸下：只有发起人自己的行动结果，没有公共事件，也没有旁观者记忆。
+    await playerUnequip(handle.db, created.game.slug, "无名者", { slot: "accessory" });
+    state = await getGameState(handle.db, created.game.slug);
+    expect(state.messages.some((message) => message.kind === "unequip")).toBe(false);
+    expect(state.messages.some((message) => message.content.includes("颈上的断链"))).toBe(false);
+    const memories = await getGameMemories(handle.db, created.game.id);
+    const seen =
+      memories
+        .find((memory) => memory.name === "小狗“煤渣”")
+        ?.messages.map((message) => message.content)
+        .join("\n") ?? "";
+    expect(seen).not.toContain("卸下了颈上的断链");
+    const own =
+      memories
+        .find((memory) => memory.name === "无名者")
+        ?.messages.map((message) => message.content)
+        .join("\n") ?? "";
+    expect(own).toContain("你卸下了颈上的断链");
   });
 
   it("提供 inferenceService 时，换装在事务外补一次外观推理", async () => {

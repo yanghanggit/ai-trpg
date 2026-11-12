@@ -488,28 +488,14 @@ export const ACTOR_ACTIONS = {
     parse: parseEquip,
     resolve: async (context, action) => resolveEquip(context.executor, context.actorRow, action),
     apply: (context, resolved) =>
-      applyEquip(
-        context.executor,
-        context.gameId,
-        context.actorRow,
-        resolved,
-        context.now,
-        context.trace,
-      ),
+      applyEquip(context.executor, context.actorRow, resolved, context.now),
   },
   unequip: {
     buildTool: (context) => buildUnequipTool(context.occupiedSlots),
     parse: parseUnequip,
     resolve: async (context, action) => resolveUnequip(context.actorRow, action),
     apply: (context, resolved) =>
-      applyUnequip(
-        context.executor,
-        context.gameId,
-        context.actorRow,
-        resolved,
-        context.now,
-        context.trace,
-      ),
+      applyUnequip(context.executor, context.actorRow, resolved, context.now),
   },
 } satisfies { [K in ActionKind]: ActorActionSpec<K> };
 

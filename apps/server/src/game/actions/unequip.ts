@@ -1,18 +1,13 @@
-import type { TraceContext } from "../../debug/trace";
 import type { ToolDefinition } from "../../llm/types";
 import { GameError } from "../errors";
 import { participatesInAppearance, unequipSlot } from "../item-state";
-import { mentionOf } from "../kernel/addressing";
-import { renderAction, withAppearances } from "../kernel/observation-text";
 import {
   EQUIPMENT_SLOT_LABELS,
   EQUIPMENT_SLOTS,
   type EquipmentSlot,
   type UnequipAction,
 } from "../kernel/types";
-import { appendCustomStageObservation, appendStageMemory } from "../observations";
 import { setActorEquipment } from "../persistence/actors";
-import { appendPublicMessage } from "../persistence/game-messages";
 import { loadActorItemByName } from "../persistence/items";
 import type { ActorWithStageRow, Executor } from "../persistence/rows";
 import type { ResolvedUnequip } from "../settle/types";
@@ -64,11 +59,9 @@ export function resolveUnequip(
 
 export async function applyUnequip(
   executor: Executor,
-  gameId: string,
   actorRow: ActorWithStageRow,
   resolved: ResolvedUnequip,
   now: Date,
-  trace?: TraceContext,
 ): Promise<ActionResult> {
   const actor = { id: actorRow.actor.id, name: actorRow.actor.name };
   // 卸下的道具仍留在背包里，读到的就是刚离开槽位的那件：用它判定外观要不要重算。
@@ -77,38 +70,7 @@ export async function applyUnequip(
   await setActorEquipment(executor, actor.id, equipment, now);
 
   const label = EQUIPMENT_SLOT_LABELS[resolved.action.slot];
-  const content = `${actor.name}卸下了${resolved.itemName}（${label}）。`;
-  await appendPublicMessage(executor, gameId, actor.id, {
-    kind: "unequip",
-    stageId: resolved.stage.id,
-    visibility: "stage",
-    content,
-  });
-  await appendCustomStageObservation(
-    executor,
-    gameId,
-    resolved.stage.id,
-    actor.id,
-    (_observerId, address) =>
-      renderAction(
-        withAppearances(
-          `# 舞台动态\n${mentionOf(address(actor.id))}卸下了${resolved.itemName}（${label}）。`,
-          [address(actor.id)],
-        ),
-        resolved.stage.id,
-      ),
-    trace,
-  );
-  await appendStageMemory(
-    executor,
-    gameId,
-    resolved.stage.id,
-    `# 舞台事件\n${content}`,
-    {
-      eventKind: "unequip",
-    },
-    trace,
-  );
+  // 与穿戴同一口径：动作只回给发起人，旁人看外观结果。
   return {
     feedback: `你卸下了${resolved.itemName}（${label}）。`,
     // 读不到道具时按“可能影响外观”处理：宁可多算一次，也不留下旧外观。

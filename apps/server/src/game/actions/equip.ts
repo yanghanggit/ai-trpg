@@ -1,9 +1,6 @@
-import type { TraceContext } from "../../debug/trace";
 import type { ToolDefinition } from "../../llm/types";
 import { GameError } from "../errors";
 import { equipSlot, participatesInAppearance } from "../item-state";
-import { mentionOf } from "../kernel/addressing";
-import { renderAction, withAppearances } from "../kernel/observation-text";
 import {
   EQUIPMENT_SLOT_LABELS,
   EQUIPMENT_SLOTS,
@@ -11,9 +8,7 @@ import {
   type EquipmentSlot,
 } from "../kernel/types";
 import { resolveActorItem } from "../lookup";
-import { appendCustomStageObservation, appendStageMemory } from "../observations";
 import { setActorEquipment } from "../persistence/actors";
-import { appendPublicMessage } from "../persistence/game-messages";
 import { loadActorItemByName } from "../persistence/items";
 import type { ActorWithStageRow, Executor } from "../persistence/rows";
 import type { ResolvedEquip } from "../settle/types";
@@ -90,11 +85,9 @@ export async function resolveEquip(
 
 export async function applyEquip(
   executor: Executor,
-  gameId: string,
   actorRow: ActorWithStageRow,
   resolved: ResolvedEquip,
   now: Date,
-  trace?: TraceContext,
 ): Promise<ActionResult> {
   const actor = { id: actorRow.actor.id, name: actorRow.actor.name };
   const item = resolved.item;
@@ -103,38 +96,8 @@ export async function applyEquip(
   await setActorEquipment(executor, actor.id, equipment, now);
 
   const label = EQUIPMENT_SLOT_LABELS[resolved.action.slot];
-  const content = `${actor.name}穿上了${item.name}（${label}）。`;
-  await appendPublicMessage(executor, gameId, actor.id, {
-    kind: "equip",
-    stageId: resolved.stage.id,
-    visibility: "stage",
-    content,
-  });
-  await appendCustomStageObservation(
-    executor,
-    gameId,
-    resolved.stage.id,
-    actor.id,
-    (_observerId, address) =>
-      renderAction(
-        withAppearances(
-          `# 舞台动态\n${mentionOf(address(actor.id))}穿上了${item.name}（${label}）。`,
-          [address(actor.id)],
-        ),
-        resolved.stage.id,
-      ),
-    trace,
-  );
-  await appendStageMemory(
-    executor,
-    gameId,
-    resolved.stage.id,
-    `# 舞台事件\n${content}`,
-    {
-      eventKind: "equip",
-    },
-    trace,
-  );
+  // 穿/脱是发起人的自身过程：不进公共事件与舞台记忆。
+  // 旁人只通过外观变化观察结果（见 settle/increment 与 appearance 广播）。
   return {
     feedback: `你穿上了${item.name}（${label}）。`,
     // 换装的可见后果由新旧两件道具共同决定：不参与外观的那件换上去不行，

@@ -12,6 +12,7 @@ import {
   EQUIPMENT_SLOTS,
   type ItemState,
 } from "../kernel/types";
+import { participatesInAppearance } from "./project";
 
 /** 材料的来源只对 material 有意义；其它大类不展示多余的字段。 */
 export function itemSourceNote(item: ItemState): string {
@@ -51,12 +52,19 @@ export function describeEquipment(actor: Pick<ActorState, "equipment">): string 
 /**
  * 同舞台角色名单里的穿戴摘要：一行只列已穿戴的槽位。
  *
- * 与 `describeEquipment` 的区别是给名单内联用；没穿东西时返回空串。
- * 完整背包（含未穿戴道具与数值）走 `inspect` 动作。
+ * 只列别人被动看得见的穿戴：不参与外观的饰品不进名单——它的可见性由内容决定，
+ * 想知道就得主动 `inspect`。没穿东西时返回空串。
  */
-export function describeEquipmentBrief(actor: Pick<ActorState, "equipment">): string {
+export function describeEquipmentBrief(actor: Pick<ActorState, "equipment" | "items">): string {
   return EQUIPMENT_SLOTS.flatMap((slot) => {
     const itemName = actor.equipment[slot];
-    return itemName ? [`${EQUIPMENT_SLOT_LABELS[slot]}：${itemName}`] : [];
+    if (!itemName) {
+      return [];
+    }
+    // 道具行缺失是数据不一致；宁可照旧列出，也不要因为查不到就悄悄隐藏穿戴。
+    const item = actor.items.find((candidate) => candidate.name === itemName);
+    return item === undefined || participatesInAppearance(item)
+      ? [`${EQUIPMENT_SLOT_LABELS[slot]}：${itemName}`]
+      : [];
   }).join("；");
 }

@@ -61,7 +61,7 @@ ${renderStageEnvironmentForActor(state, current)}
 ## 你的状态
 ${actor.name}（你的引用：${context.selfHandle}）| HP ${actor.hp}/${actor.stats.maxHp} | ${STAT_LABELS.strength} ${shown.strength} | ${STAT_LABELS.agility} ${shown.agility}
 
-## 同舞台角色（只列已穿戴的装备）
+## 同舞台角色（只列旁人被动看得见的穿戴）
 ${renderActorList(context)}
 
 ## 可交互锚点

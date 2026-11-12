@@ -132,7 +132,7 @@ export const itemSchema = z
     affixes: affixTriggersSchema.optional(),
     actions: z.array(affixActionKindSchema).optional(),
     source: z.string().min(1).optional(),
-    /** 饰品是否作为外观推理的输入；accessory 必填，其它大类不得声明。 */
+    /** 饰品是否让旁人被动感知；accessory 必填，其它大类不得声明。 */
     appearsInAppearance: z.boolean().optional(),
   })
   .strict()
@@ -140,7 +140,7 @@ export const itemSchema = z
     if (item.source !== undefined && item.kind !== "material") {
       ctx.addIssue({ code: "custom", message: "只有 material 可以声明 source", path: ["source"] });
     }
-    // 饰品在题材之间的语义不固定：项链看得见，植入物看不见。要不要进外观归内容，
+    // 饰品在题材之间的语义不固定：项链看得见，植入物看不见。要不要被旁人感知归内容，
     // 因此没有默认值——漏写会报错，而不是静默生成一个看不见的饰品。
     if (item.appearsInAppearance !== undefined && item.kind !== "accessory") {
       ctx.addIssue({
