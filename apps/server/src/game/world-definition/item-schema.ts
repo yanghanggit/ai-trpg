@@ -4,11 +4,20 @@ import {
   CARRIED_ACTIONS_BY_ITEM_KIND,
   carriedActionsForKind,
   isSlotActionKind,
+  MULTI_TARGET_ACTION_KINDS,
   SLOT_ACTION_KINDS,
 } from "../actions";
 import { NAME_MARKER_PATTERN } from "../kernel/addressing";
+import { triggerTargetsActor } from "../kernel/affixes";
 import { statsSchema } from "../kernel/attributes";
-import type { ActionKind, AffixStatRef, DamageAmount, ItemKind } from "../kernel/types";
+import {
+  type ActionKind,
+  AFFIX_TRIGGERS,
+  type AffixStatRef,
+  type AffixTriggers,
+  type DamageAmount,
+  type ItemKind,
+} from "../kernel/types";
 
 /**
  * 道具定义的内容校验：只查这件道具自己的字段是否自洽。
@@ -28,7 +37,7 @@ const ITEM_KINDS = [
 
 const itemKindSchema = z.enum(ITEM_KINDS);
 
-/** 道具只能声明携带者动作；`use` 由 `affixes.use` 派生，下面的 `superRefine` 会拒绝它。 */
+/** 道具只能声明携带者动作：`use` 与 `fit` 各有别的出处，写进 `actions` 会被拒绝。 */
 const affixActionKindSchema = z.enum(CARRIED_ACTION_KINDS satisfies readonly ActionKind[]);
 
 /** 静态词缀能引用的数值全集：攻击力在结算期现算，道具终值取自本条道具。 */
@@ -103,13 +112,12 @@ const affixDefinitionSchema = z
 
 const affixListSchema = z.array(affixDefinitionSchema);
 
+/** 触发清单与类型同源：加一个触发只需要改 `AFFIX_TRIGGERS`。 */
 const affixTriggersSchema = z
-  .object({
-    strike: affixListSchema.optional(),
-    cleave: affixListSchema.optional(),
-    use: affixListSchema.optional(),
-  })
-  .strict();
+  .object(
+    Object.fromEntries(AFFIX_TRIGGERS.map((trigger) => [trigger, affixListSchema.optional()])),
+  )
+  .strict() as unknown as z.ZodType<AffixTriggers>;
 
 export const itemSchema = z
   .object({
@@ -139,6 +147,22 @@ export const itemSchema = z
         path: ["actions"],
       });
     }
+    // 指不到角色的触发不能声明伤害：op 需要角色目标，写了也永远落不了地。
+    for (const trigger of AFFIX_TRIGGERS) {
+      if (triggerTargetsActor(trigger)) {
+        continue;
+      }
+      const hasDamage = (item.affixes?.[trigger] ?? []).some((affix) =>
+        (affix.ops ?? []).some((op) => op.kind === "damage"),
+      );
+      if (hasDamage) {
+        ctx.addIssue({
+          code: "custom",
+          message: `affixes.${trigger} 只能声明 witness：它指不到角色，没有伤害目标`,
+          path: ["affixes", trigger],
+        });
+      }
+    }
     // 没登记的大类声明槽位动作一定是内容写错了，而不是“暂时不生效”。
     const grantable = carriedActionsForKind(item.kind);
     const unknown = declared.filter((kind) => isSlotActionKind(kind) && !grantable.includes(kind));
@@ -151,11 +175,11 @@ export const itemSchema = z
         path: ["actions"],
       });
     }
-    // 目标数是武器挥击的属性，不是可穿戴物的通用属性。
-    if (item.maxTargets !== undefined && item.kind !== "weapon") {
+    // 目标数是「这个动作能指向几个目标」的上限：不授予动作的道具没有可说的目标数。
+    if (item.maxTargets !== undefined && declared.length === 0) {
       ctx.addIssue({
         code: "custom",
-        message: "只有 weapon 可以声明 maxTargets",
+        message: "maxTargets 只对授予槽位动作的道具成立",
         path: ["maxTargets"],
       });
     }
@@ -170,19 +194,21 @@ export const itemSchema = z
         });
       }
     }
-    // 单体挥击用 strike；cleave 至少两个目标才有意义，上限也必须真的容得下两个。
-    if (item.actions?.includes("cleave") && (item.maxTargets ?? 1) < 2) {
+    // 上限与动作要互相成立：多目标动作至少容得下两个，没有多目标动作就不该有上限。
+    const multiTarget = declared.filter((kind) =>
+      (MULTI_TARGET_ACTION_KINDS as readonly ActionKind[]).includes(kind),
+    );
+    if (multiTarget.length > 0 && (item.maxTargets ?? 1) < 2) {
       ctx.addIssue({
         code: "custom",
-        message: "声明 cleave 的武器必须声明 maxTargets ≥ 2",
+        message: `声明 ${multiTarget.join("、")} 必须声明 maxTargets ≥ 2`,
         path: ["maxTargets"],
       });
     }
-    // 没有 cleave 的武器写多目标上限只会误导内容作者：strike 永远是单体。
-    if (!item.actions?.includes("cleave") && (item.maxTargets ?? 1) > 1) {
+    if (multiTarget.length === 0 && (item.maxTargets ?? 1) > 1) {
       ctx.addIssue({
         code: "custom",
-        message: "maxTargets > 1 需要同时声明 cleave",
+        message: "maxTargets > 1 需要同时声明多目标动作",
         path: ["maxTargets"],
       });
     }

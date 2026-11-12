@@ -4,22 +4,13 @@ import { applyStaticItemAction, type StaticItemActionResult } from "../agents/af
 import { GameError } from "../errors";
 import { type AddressLookup, actionRef } from "../kernel/addressing";
 import { hasAffixes, staticAffixes } from "../kernel/affixes";
-import type { ItemState, UseAction } from "../kernel/types";
+import type { AffixTriggers, UseAction } from "../kernel/types";
 import { resolveActorItem } from "../lookup";
 import { appendItemObservations, appendStageMemory } from "../observations";
 import { appendPublicMessage } from "../persistence/game-messages";
 import { bumpGameVersion } from "../persistence/games";
 import type { ActorWithStageRow, Executor } from "../persistence/rows";
 import type { ResolvedUse } from "../settle/types";
-
-/**
- * `use` 的携带者，也是工具里 `itemName` 的可选值。
- *
- * 名单外的道具即使被模型点名，也会在解析阶段失败。
- */
-export function usableItemNames(items: readonly ItemState[]): string[] {
-  return items.filter((item) => hasAffixes(item, "use")).map((item) => item.name);
-}
 
 export function buildUseTool(
   availableItemNames: readonly string[],
@@ -94,7 +85,7 @@ export function parseUse(args: Record<string, unknown>): UseAction {
 }
 
 /** 静态词缀里是否有 damage op；`use` 指向舞台时不成立。 */
-function hasDamageOp(item: { affixes: ItemState["affixes"] }): boolean {
+function hasDamageOp(item: { affixes: AffixTriggers }): boolean {
   return staticAffixes(item, "use").some((affix) =>
     (affix.ops ?? []).some((op) => op.kind === "damage"),
   );

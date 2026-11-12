@@ -14,7 +14,7 @@ export {
 export { isWearable, toItemState } from "./project";
 export {
   type ActionGrant,
-  carriedActionCap,
+  actionMaxTargets,
   carriedActions,
   type EquippedItemState,
   equippedItemActions,

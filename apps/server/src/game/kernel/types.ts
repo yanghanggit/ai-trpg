@@ -121,12 +121,19 @@ export type Affix = {
   ops?: readonly AffixOp[];
 };
 
+/**
+ * 道具能触发的动作。新增一个触发只在这里加一项：类型、内容校验、归一化与道具派发
+ * 都从这份清单派生，不再逐处适配。
+ */
+export const AFFIX_TRIGGERS = ["strike", "cleave", "use", "fit"] as const;
+
+export type AffixTrigger = (typeof AFFIX_TRIGGERS)[number];
+
+/** 会造成一次命中的动作；只影响文案，不影响结算。 */
+export type HitAction = AffixTrigger | "brawl";
+
 /** 道具按触发舞台声明的词缀；空列表等于该触发不可用。 */
-export type AffixTriggers = {
-  strike?: readonly Affix[];
-  cleave?: readonly Affix[];
-  use?: readonly Affix[];
-};
+export type AffixTriggers = Partial<Record<AffixTrigger, readonly Affix[]>>;
 
 export type SayAction = {
   kind: "say";
@@ -258,6 +265,19 @@ export type UseAction = {
   targetAnchor?: string;
 };
 
+/**
+ * 把自己持有的一件道具对上当前舞台的一个锚点：对上了才会动的地方，靠的是东西与地方的吻合。
+ *
+ * 只指向锚点——作用于角色的通用使用走 `use`。能不能试由角色有没有这个动作决定，
+ * 试了会发生什么写在道具的 `affixes.fit` 里。
+ */
+export type FitAction = {
+  kind: "fit";
+  itemName: string;
+  /** 当前舞台的可交互锚点标签；必须来自该舞台的 `anchors`。 */
+  targetAnchor: string;
+};
+
 export type EquipAction = {
   kind: "equip";
   itemName: string;
@@ -269,7 +289,7 @@ export type UnequipAction = {
   slot: EquipmentSlot;
 };
 
-/** 一次 actor 行动；十八个具体动作平级，不再有中间分类层。 */
+/** 一次 actor 行动；十九个具体动作平级，不再有中间分类层。 */
 export type ActorAction =
   | SayAction
   | WhisperAction
@@ -287,6 +307,7 @@ export type ActorAction =
   | GiveAction
   | PickupAction
   | UseAction
+  | FitAction
   | EquipAction
   | UnequipAction;
 
@@ -311,8 +332,11 @@ export type InnateActionKind = Exclude<ActionKind, CarriedActionKind>;
  */
 export type CommunicationKind = Extract<ActionKind, "say" | "whisper" | "announce" | "call">;
 
-/** 会改变道具归属或使用状态的五个动作；道具观察按这组分叉文本。 */
-export type ItemEventKind = Extract<ActionKind, "steal" | "loot" | "give" | "pickup" | "use">;
+/** 会改变道具归属或使用状态的六个动作；道具观察按这组分叉文本。 */
+export type ItemEventKind = Extract<
+  ActionKind,
+  "steal" | "loot" | "give" | "pickup" | "use" | "fit"
+>;
 
 /** stage 的一次仲裁动作；与 actor / world 的计划同构，都是有序动作列表。 */
 export type StageAction =
@@ -399,14 +423,14 @@ export type ItemBaseState = {
   affixes: AffixTriggers;
   /**
    * 道具的动作清单：只承载槽位动作 `strike` / `cleave`，穿戴中才借给角色。
-   * `use` 由 `affixes.use` 派生，写进来会被内容校验拒掉。
+   * `use` 与 `fit` 都由别处授权（词缀 / 技艺），写进来会被内容校验拒掉。
    */
   actions: readonly CarriedActionKind[];
   /** 归一化后的完整属性；五种道具都携带，未用到的字段为 0。 */
   stats: Stats;
   /**
-   * `cleave` 一次最多命中的目标数；只有武器会大于 1，其余大类恒为 1。
-   * `strike` 不读它，单体性由动作自己保证。
+   * 这个道具授予的动作一次最多指向几个目标；只有武器会大于 1，其余恒为 1。
+   * 是否需要这个上限由动作自己决定，道具只提供数值。
    */
   maxTargets: number;
 };

@@ -15,6 +15,7 @@ import {
   playerBrawl,
   playerCall,
   playerEquip,
+  playerFit,
   playerGive,
   playerInspect,
   playerLoot,
@@ -120,6 +121,12 @@ const useInput = z
   .refine((input) => input.anchor === undefined || input.stage !== undefined, {
     message: "player-use 的 --anchor 只能与 --stage 一起使用",
   });
+
+const fitInput = z.object({
+  ...gameAndActor,
+  item: itemName,
+  anchor: z.string().trim().min(1),
+});
 
 const slotInput = z.object({
   ...gameAndActor,
@@ -433,6 +440,31 @@ export function registerPlayerCommands(program: Command, ctx: CommandContext): v
               ...(input.stage === undefined ? {} : { targetStageName: input.stage }),
               ...(input.anchor === undefined ? {} : { targetAnchor: input.anchor }),
             },
+            { service: DEEPSEEK_SERVICE, inferenceService: DEEPSEEK_SERVICE },
+          ),
+        ),
+      ),
+  });
+
+  addCommand(program, ctx, {
+    name: "player-fit",
+    group: GROUP,
+    summary: "对上：把一件自己带着的道具对上当前舞台的一个锚点",
+    options: [
+      gameOption(),
+      actorOption(),
+      itemOption(),
+      optionalOption("--anchor <label>", "要对上的锚点标签"),
+    ],
+    schema: fitInput,
+    run: async (input, ctx) =>
+      turnOutput(
+        await ctx.db((db) =>
+          playerFit(
+            db,
+            input.game,
+            input.actor,
+            { itemName: input.item, targetAnchor: input.anchor },
             { service: DEEPSEEK_SERVICE, inferenceService: DEEPSEEK_SERVICE },
           ),
         ),

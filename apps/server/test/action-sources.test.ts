@@ -2,16 +2,18 @@ import { randomUUID } from "node:crypto";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { BELL_MONASTERY_WORLD, CROW_GRAVE_WORLD } from "../seeds/dark-fantasy";
 import { DEMO_USER } from "../src/db/demo-fixture";
-import { allowedActionKinds } from "../src/game/actions";
+import { allowedActionKinds, carriedActionsForKind } from "../src/game/actions";
+import { buildFitTool, parseFit } from "../src/game/actions/fit";
 import {
   type ActionGrant,
-  carriedActionCap,
+  actionMaxTargets,
   carriedActions,
   equippedItemActions,
   heldActions,
   heldItemActions,
   toItemState,
 } from "../src/game/item-state";
+import { itemNamesWithTrigger } from "../src/game/kernel/affixes";
 import { actorInnateActions } from "../src/game/world-definition";
 import { ChatCompletionResult, type ChatCompletionService, type ToolCall } from "../src/llm";
 import { TEST_WORLD } from "./test-world";
@@ -61,10 +63,10 @@ describe("action sources", () => {
     ]);
     expect(equippedItemActions(actor)).toEqual(["strike", "cleave"]);
     // 上限属于那把武器，不属于动作本身。
-    expect(carriedActionCap(actor, "cleave")).toBe(2);
-    expect(carriedActionCap(actor, "strike")).toBe(2);
+    expect(actionMaxTargets(actor, "cleave")).toBe(2);
+    expect(actionMaxTargets(actor, "strike")).toBe(2);
     // 没有携带者时回落到 1（此时也不会授权）。
-    expect(carriedActionCap({ equipment: {}, items: [] }, "cleave")).toBe(1);
+    expect(actionMaxTargets({ equipment: {}, items: [] }, "cleave")).toBe(1);
   });
 
   it("only grants what the carrier table allows", () => {
@@ -107,6 +109,45 @@ describe("action sources", () => {
     // 没有词缀就不借出 use：来源是那件道具自己的声明，不是它的大类。
     const plain = { equipment: {}, items: [blade()] };
     expect(heldActions(plain)).toEqual([]);
+  });
+
+  it("keeps fit on the person and the consequence on the item", () => {
+    // 对上不由道具借出：道具的动作清单里只可能有槽位动作。
+    expect(carriedActionsForKind("valuable")).toEqual([]);
+    expect(carriedActionsForKind("weapon")).toEqual(["strike", "cleave"]);
+
+    const fitAffix = {
+      name: "开锁",
+      content: "钥匙插进锁孔",
+      ops: [{ kind: "witness" as const, template: "{item}插进{anchor}，干蜡裂开。" }],
+    };
+    const key = toItemState({
+      id: "item-key",
+      seq: 3,
+      name: "闸门钥匙",
+      description: "铸铁的闸门钥匙。",
+      kind: "valuable",
+      count: 1,
+      stats: { maxHp: 0, strength: 0, wisdom: 0, agility: 0, damage: 0, block: 0 },
+      affixes: { fit: [fitAffix] },
+    });
+    // 词缀决定能拿什么去试谁，不决定谁有这个动作。
+    expect(itemNamesWithTrigger([key], "fit")).toEqual(["闸门钥匙"]);
+    expect(itemNamesWithTrigger([blade()], "fit")).toEqual([]);
+    expect(heldItemActions({ equipment: {}, items: [key] })).toEqual([]);
+
+    const tool = buildFitTool(["闸门钥匙"], ["锁孔"]);
+    expect(tool.function.parameters).toMatchObject({
+      properties: { itemName: { enum: ["闸门钥匙"] }, targetAnchor: { enum: ["锁孔"] } },
+      required: ["itemName", "targetAnchor"],
+    });
+    expect(() => parseFit({})).toThrow("itemName");
+    expect(() => parseFit({ itemName: "闸门钥匙" })).toThrow("targetAnchor");
+    expect(parseFit({ itemName: " 闸门钥匙 ", targetAnchor: "锁孔 " })).toEqual({
+      kind: "fit",
+      itemName: "闸门钥匙",
+      targetAnchor: "锁孔",
+    });
   });
 
   it("merges innate, slot and held actions in a fixed order", () => {

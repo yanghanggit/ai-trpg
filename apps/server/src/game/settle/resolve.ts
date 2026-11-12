@@ -1,32 +1,9 @@
 import { allowedActionKinds, assertActionAllowed } from "../actions";
-import { resolveBrawl } from "../actions/brawl";
-import { resolveCall } from "../actions/call";
-import { resolveCleave } from "../actions/cleave";
-import { resolveEquip } from "../actions/equip";
-import { resolveGive } from "../actions/give";
-import { resolveInspect } from "../actions/inspect";
-import { resolveLoot } from "../actions/loot";
-import { resolveMove } from "../actions/move";
-import { resolvePickup } from "../actions/pickup";
-import { resolveSay } from "../actions/say";
-import { resolveSteal } from "../actions/steal";
-import { resolveStrike } from "../actions/strike";
-import { resolveTeleport } from "../actions/teleport";
-import { resolveUnequip } from "../actions/unequip";
-import { resolveUse } from "../actions/use";
-import { resolveWait } from "../actions/wait";
-import { resolveWhisper } from "../actions/whisper";
+import { actionSpec, type ResolveContext } from "../actions/registry";
 import { GameError } from "../errors";
-import { assertNoSystemReference } from "../kernel/addressing";
 import type { ActorPlan } from "../kernel/types";
 import { findSignatureByHandleInWorld, resolveActionSources, resolveVisibleActor } from "../lookup";
-import type {
-  ActorRow,
-  ActorWithStageRow,
-  Executor,
-  StageRow,
-  WorldRow,
-} from "../persistence/rows";
+import type { ActorWithStageRow, Executor, StageRow, WorldRow } from "../persistence/rows";
 import { signatureNamesFor } from "../persistence/signature-names";
 import type { ResolvedAction, ResolvedIdentity, ResolvedPlan } from "./types";
 
@@ -56,149 +33,20 @@ export async function resolvePlan(
   const allowed = allowedActionKinds(actorRow.actor.actions, sources.slot, sources.held);
 
   for (const action of plan.actions) {
-    // `use` 的授权来自道具而非角色天赋：玩家入口绕过工具列表，不可用时要说明原因。
-    if (action.kind === "use" && !allowed.includes("use")) {
-      throw new GameError(
-        "invalid_action",
-        `${actorRow.actor.name}没有可用的道具：use 需要一件声明了使用词缀的道具`,
-      );
-    }
-    assertActionAllowed(allowed, action.kind, actorRow.actor.name);
-    switch (action.kind) {
-      case "say":
-        resolved.push(
-          resolveSay(
-            stage,
-            actorRow.actor.id,
-            action,
-            await visibleTarget(action.targetActorHandle),
-          ),
-        );
-        break;
-      case "whisper":
-        resolved.push(
-          resolveWhisper(
-            stage,
-            actorRow.actor.id,
-            action,
-            await visibleTarget(action.targetActorHandle),
-          ),
-        );
-        break;
-      case "announce":
-        assertNoSystemReference(action.message);
-        resolved.push({ kind: "announce", action, stage });
-        break;
-      case "call":
-        resolved.push(await resolveCall(executor, world, stage, actorRow.actor.id, action));
-        break;
-      case "move": {
-        const move = await resolveMove(executor, world, stage, action);
-        resolved.push(move);
-        stage = move.targetStage;
-        break;
-      }
-      case "teleport": {
-        const teleport = await resolveTeleport(executor, world, stage, action);
-        resolved.push(teleport);
-        stage = teleport.targetStage;
-        break;
-      }
-      case "wait":
-        resolved.push(resolveWait(stage, action));
-        break;
-      case "strike":
-        resolved.push(
-          await resolveStrike(
-            executor,
-            stage,
-            actorRow,
-            action,
-            await visibleTarget(action.targetActorHandle),
-          ),
-        );
-        break;
-      case "brawl":
-        resolved.push(
-          await resolveBrawl(
-            stage,
-            actorRow,
-            action,
-            await visibleTarget(action.targetActorHandle),
-          ),
-        );
-        break;
-      case "cleave": {
-        // 目标逐个解析：解析本身就保证了每个目标都在当前舞台，且未跨 move 变更。
-        const targets: ActorRow[] = [];
-        for (const handle of action.targetActorHandles) {
-          targets.push(await visibleTarget(handle));
-        }
-        resolved.push(await resolveCleave(executor, stage, actorRow, action, targets));
-        break;
-      }
-      case "steal":
-        resolved.push(
-          await resolveSteal(
-            executor,
-            stage,
-            actorRow,
-            action,
-            await visibleTarget(action.targetActorHandle),
-          ),
-        );
-        break;
-      case "inspect":
-        resolved.push(
-          await resolveInspect(
-            executor,
-            stage,
-            actorRow,
-            action,
-            await visibleTarget(action.targetActorHandle),
-          ),
-        );
-        break;
-      case "loot":
-        resolved.push(
-          await resolveLoot(
-            executor,
-            stage,
-            actorRow.actor.id,
-            action,
-            await visibleTarget(action.targetActorHandle),
-          ),
-        );
-        break;
-      case "give":
-        resolved.push(
-          await resolveGive(
-            executor,
-            stage,
-            actorRow.actor.id,
-            action,
-            await visibleTarget(action.targetActorHandle),
-          ),
-        );
-        break;
-      case "pickup":
-        resolved.push(await resolvePickup(executor, stage, action));
-        break;
-      case "equip":
-        resolved.push(await resolveEquip(executor, actorRow, action));
-        break;
-      case "unequip":
-        resolved.push(resolveUnequip(actorRow, action));
-        break;
-      case "use": {
-        const target = action.targetActorHandle
-          ? await visibleTarget(action.targetActorHandle)
-          : undefined;
-        resolved.push(await resolveUse(executor, stage, actorRow, action, target));
-        break;
-      }
-      default:
-        throw new GameError("invalid_action", `未知动作: ${String(action)}`);
+    const spec = actionSpec(action.kind);
+    assertActionAllowed(
+      allowed,
+      action.kind,
+      actorRow.actor.name,
+      spec.blockedReason?.(actorRow.actor.name),
+    );
+    const context: ResolveContext = { executor, world, actorRow, stage, visible: visibleTarget };
+    const resolvedAction = await spec.resolve(context, action);
+    resolved.push(resolvedAction);
+    // 带目标舞台的解析结果改写后续动作的当前舞台：位移动作就是这样生效的。
+    const targetStage = (resolvedAction as { targetStage?: StageRow }).targetStage;
+    if (targetStage) {
+      stage = targetStage;
     }
   }
 

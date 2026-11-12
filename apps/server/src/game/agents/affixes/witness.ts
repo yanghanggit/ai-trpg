@@ -7,6 +7,7 @@ import {
   mentionOf,
   NAME_MARKER_PATTERN,
 } from "../../kernel/addressing";
+import type { AffixTrigger } from "../../kernel/affixes";
 import { type ObservationView, withAppearances } from "../../kernel/observation-text";
 import { listStageActorViews } from "../../lookup";
 import { MEMORY_KINDS } from "../../memory/kinds";
@@ -104,7 +105,7 @@ export function renderWitness(
 export type AppendWitnessInput = {
   executor: Executor;
   gameId: string;
-  action: "strike" | "cleave" | "use";
+  action: AffixTrigger;
   stage: StageRow;
   source: ActorRow;
   itemName?: string;

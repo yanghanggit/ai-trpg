@@ -136,6 +136,14 @@ export function renderItemEvent(
         ),
         metadata: { ...metadata, targetAnchor: observation.anchorLabel },
       };
+    case "fit":
+      return {
+        content: withAppearances(
+          `# 舞台动态\n${actorRef}把${itemName}对上${observation.targetAnchor}。`,
+          [actorAddress],
+        ),
+        metadata: { ...metadata, targetAnchor: observation.targetAnchor },
+      };
     case "use": {
       const where = observation.target
         ? `对${targetRef}`

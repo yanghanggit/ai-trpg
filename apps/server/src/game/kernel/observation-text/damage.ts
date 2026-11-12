@@ -1,5 +1,6 @@
 import { MEMORY_KINDS } from "../../memory/kinds";
 import { type AddressLookup, mentionOf } from "../addressing";
+import type { HitAction } from "../types";
 import { withAppearances } from "./text";
 import type { DamageObservation, ObservationView, StageRef } from "./types";
 
@@ -15,10 +16,7 @@ import type { DamageObservation, ObservationView, StageRef } from "./types";
  * `strike` 的主体是「挥击」，`cleave` 是「顺劈」，武器只是括注；`brawl` 是「肉搏」；
  * `use` 的主体是「使用道具」。
  */
-export function damageActionText(
-  action: "strike" | "cleave" | "brawl" | "use",
-  itemName?: string,
-): string {
+export function damageActionText(action: HitAction, itemName?: string): string {
   const name = itemName === undefined ? undefined : itemName;
   if (action === "strike") {
     return `挥击${name ? `（使用${name}）` : ""}`;
@@ -29,6 +27,7 @@ export function damageActionText(
   if (action === "brawl") {
     return "肉搏";
   }
+  // 其余动作按通用使用措辞兜底：按目标种类不该出命中的触发（如对上）走不到这里。
   return `使用${name ?? "空手"}`;
 }
 

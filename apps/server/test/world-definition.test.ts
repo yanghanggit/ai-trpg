@@ -577,7 +577,8 @@ describe("world content validation", () => {
             : actor,
         ),
       };
-      expect(() => parseWorldContent(broken)).toThrow(/只有 weapon 可以声明 maxTargets/);
+      // 上限只属于「授予动作」的道具：不授予动作的东西写目标数没有意义。
+      expect(() => parseWorldContent(broken)).toThrow(/maxTargets 只对授予槽位动作的道具成立/);
     });
   });
 });

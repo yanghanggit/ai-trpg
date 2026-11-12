@@ -1,5 +1,5 @@
 import type { MemoryKind } from "../../memory/kinds";
-import type { ActionKind, CommunicationKind, ItemEventKind, MessageVisibility } from "../types";
+import type { CommunicationKind, HitAction, ItemEventKind, MessageVisibility } from "../types";
 
 /**
  * 观察与伤害文案的输入/输出形状：纯数据，不含任何渲染。
@@ -105,6 +105,7 @@ export type ItemObservation = { actor: ActorRef } & (
       targetStageName?: string;
       targetAnchor?: string;
     }
+  | { event: "fit"; itemName: string; targetAnchor: string }
   | { event: "pickup"; itemName: string; anchorLabel: string }
 );
 
@@ -114,7 +115,7 @@ export type ItemObservation = { actor: ActorRef } & (
  * `strike` / `cleave` / `brawl` / `use` 都会造成伤害，但不是同一件事：标题与措词一律跟着动作走。
  */
 export type DamageObservation = {
-  action: Extract<ActionKind, "strike" | "cleave" | "brawl" | "use">;
+  action: HitAction;
   attacker: ActorRef;
   target: ActorRef & { maxHp: number };
   /** 本次动作用到的道具名；`strike` 必填，`use` 省略表示空手。 */

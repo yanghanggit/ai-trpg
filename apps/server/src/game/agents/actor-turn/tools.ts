@@ -3,7 +3,7 @@
  *
  * 与 stage / world 的 `tools.ts` 同层：这里只管模型看得见的形状、就地校验，
  * 以及该工具把自己读到的东西渲染成什么文本。动作工具不在这里——它们与玩家入口
- * 共用，留在 `actions/*`；装配见 `./toolkit.ts`，编排见 `./prompt.ts`。
+ * 共用，留在 `actions/*`；调度表在 `actions/registry.ts`，编排见 `./prompt.ts`。
  *
  * 零参的工具也写成 builder、不导出共享常量：工具形状按回合装配，参数里带本回合的
  * 可见范围。判据与代价见 `docs/agents.md` 的「工具构造」。

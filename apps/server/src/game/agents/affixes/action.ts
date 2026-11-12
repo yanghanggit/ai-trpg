@@ -2,7 +2,7 @@ import type { TraceContext } from "../../../debug/trace";
 import { applyHit } from "../../combat/hit";
 import { GameError } from "../../errors";
 import type { AddressLookup } from "../../kernel/addressing";
-import type { AffixTrigger } from "../../kernel/affixes";
+import { type AffixTrigger, triggerAlwaysHits } from "../../kernel/affixes";
 import type { Stats } from "../../kernel/attributes";
 import type { AffixTriggers } from "../../kernel/types";
 import { appendStageMemory } from "../../observations";
@@ -18,7 +18,7 @@ export type StaticItemActionInput = {
   stage: StageRow;
   item: { name: string; stats: Stats; affixes: AffixTriggers };
   trigger: AffixTrigger;
-  action: "strike" | "cleave" | "use";
+  action: AffixTrigger;
   target?: ActorRow;
   targetAnchor?: string;
   now: Date;
@@ -33,7 +33,7 @@ export type StaticItemActionResult = {
 };
 
 /**
- * 静态动作结算：一次命中（strike 恒出，use 有 damage op 才出）+ 逐条见证。
+ * 静态动作结算：一次命中（按触发表决定是否恒出）+ 逐条见证。
  *
  * 返回的 `feedback` 会并进行动反馈；见证的公共流、stage memory 与观察由
  * `appendWitnessEvent` 落账，出手者不会再从观察通道收到一次。
@@ -52,8 +52,8 @@ export async function applyStaticItemAction(
   const lines: string[] = [];
   let outcome: StaticOutcome = { dealtDamage: 0, targetDied: false };
 
-  // strike 与 cleave 恒出命中：单体挥击与横扫都是“打了”，use 只在有 damage op 时出命中。
-  if (action === "strike" || action === "cleave" || settlement.hasDamageOps) {
+  // 有的触发没有伤害 op 也算“打了”；其余触发只在声明了 damage op 时出命中。
+  if (triggerAlwaysHits(trigger) || settlement.hasDamageOps) {
     if (!target) {
       throw new GameError("invalid_action", "伤害词缀需要角色目标");
     }

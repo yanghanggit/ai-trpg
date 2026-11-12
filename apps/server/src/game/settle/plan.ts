@@ -2,28 +2,10 @@ import { and, eq } from "drizzle-orm";
 import type { Database } from "../../db/pool";
 import { actors, games, stages, worlds } from "../../db/schema";
 import type { TraceContext } from "../../debug/trace";
-import { applyAnnounce } from "../actions/announce";
-import { applyBrawl } from "../actions/brawl";
-import { applyCall } from "../actions/call";
-import { applyCleave } from "../actions/cleave";
-import { applyEquip } from "../actions/equip";
-import { applyGive } from "../actions/give";
-import { applyInspect } from "../actions/inspect";
-import { applyLoot } from "../actions/loot";
-import { applyMove } from "../actions/move";
-import { applyPickup } from "../actions/pickup";
-import { applySay } from "../actions/say";
-import { applySteal } from "../actions/steal";
-import { applyStrike } from "../actions/strike";
-import { applyTeleport } from "../actions/teleport";
-import { applyUnequip } from "../actions/unequip";
-import { applyUse } from "../actions/use";
-import { applyWait } from "../actions/wait";
-import { applyWhisper } from "../actions/whisper";
-import type { AffixRequest, StaticOutcome, StaticSettlement } from "../agents/affixes";
+import { type ActionResult, type ApplyContext, actionSpec } from "../actions/registry";
+import type { AffixRequest } from "../agents/affixes";
 import { GameError } from "../errors";
 import { type AddressLookup, sanitizeActorFacingText } from "../kernel/addressing";
-import { agentAffixes } from "../kernel/affixes";
 import { MAX_ACTIONS_PER_TURN } from "../kernel/limits";
 import type { ActorPlan, CommunicationKind } from "../kernel/types";
 import { isAlive, listStageActorRefs, stageAddressLookup } from "../lookup";
@@ -44,30 +26,29 @@ import type { ResolvedAction, SettlePlanResult } from "./types";
  * 这次行动，所以必须先提交再补。
  */
 
+/** 带台词的动作用集合表达，不再逐个 case。 */
+const DIALOGUE_KINDS: ReadonlySet<string> = new Set<CommunicationKind>([
+  "say",
+  "whisper",
+  "announce",
+  "call",
+]);
+
 /** 台词动作的行动反馈也带结构化台词信息；其他动作没有台词。 */
 function dialogueFeedbackMetadata(action: ResolvedAction): {
   communicationKind?: CommunicationKind;
   dialogue?: string;
 } {
-  switch (action.kind) {
-    case "say":
-    case "whisper":
-    case "announce":
-    case "call":
-      return { communicationKind: action.kind, dialogue: action.action.message };
-    default:
-      return {};
+  if (!DIALOGUE_KINDS.has(action.kind)) {
+    return {};
   }
+  return {
+    communicationKind: action.kind as CommunicationKind,
+    dialogue: (action.action as { message: string }).message,
+  };
 }
 
-/** 动作落账结果：反馈文本 + 静态词缀结算（供 agent 增量阶段使用）。 */
-type ActionResult = {
-  feedback: string;
-  staticSettlement?: StaticSettlement;
-  staticOutcome?: StaticOutcome;
-};
-
-/** 扁平 dispatch，没有分类层。 */
+/** 扁平调度：按 kind 查表，没有分类层。 */
 async function applyResolvedAction(
   executor: Executor,
   gameId: string,
@@ -77,97 +58,15 @@ async function applyResolvedAction(
   address: AddressLookup,
   trace?: TraceContext,
 ): Promise<ActionResult> {
-  const plain = (feedback: string): ActionResult => ({ feedback });
-  switch (resolved.kind) {
-    case "say":
-      return plain(await applySay(executor, gameId, actorRow, resolved, now, address, trace));
-    case "whisper":
-      return plain(await applyWhisper(executor, gameId, actorRow, resolved, now, address, trace));
-    case "announce":
-      return plain(await applyAnnounce(executor, gameId, actorRow, resolved, now, trace));
-    case "call":
-      return plain(await applyCall(executor, gameId, resolved, now, trace));
-    case "move":
-      return plain(await applyMove(executor, gameId, actorRow, resolved, now, trace));
-    case "teleport":
-      return plain(await applyTeleport(executor, gameId, actorRow, resolved, now, trace));
-    case "wait":
-      return plain(await applyWait(executor, gameId, actorRow, resolved, now, trace));
-    case "strike": {
-      const result = await applyStrike(executor, gameId, actorRow, resolved, now, address, trace);
-      return {
-        feedback: result.feedback,
-        staticSettlement: result.settlement,
-        staticOutcome: result.outcome,
-      };
-    }
-    case "brawl":
-      return plain(await applyBrawl(executor, gameId, actorRow, resolved, now, address, trace));
-    case "cleave":
-      // 横扫逐目标各结算一次静态词缀；agent 词缀阶段暂不跟进（见 `actions/cleave.ts`）。
-      return plain(await applyCleave(executor, gameId, actorRow, resolved, now, address, trace));
-    case "steal":
-      return plain(await applySteal(executor, gameId, actorRow, resolved, now, address, trace));
-    case "inspect":
-      return plain(await applyInspect(executor, gameId, actorRow, resolved, now, address, trace));
-    case "loot":
-      return plain(await applyLoot(executor, gameId, actorRow, resolved, now, address, trace));
-    case "give":
-      return plain(await applyGive(executor, gameId, actorRow, resolved, now, address, trace));
-    case "pickup":
-      return plain(await applyPickup(executor, gameId, actorRow, resolved, now, trace));
-    case "use": {
-      const result = await applyUse(executor, gameId, actorRow, resolved, now, address, trace);
-      return {
-        feedback: result.feedback,
-        staticSettlement: result.settlement,
-        staticOutcome: result.outcome,
-      };
-    }
-    case "equip":
-      return plain(await applyEquip(executor, gameId, actorRow, resolved, now, trace));
-    case "unequip":
-      return plain(await applyUnequip(executor, gameId, actorRow, resolved, now, trace));
-  }
-}
-
-function affixRequestFor(
-  resolved: ResolvedAction,
-  actorId: string,
-  defaultFeedback: string,
-  staticSettlement: StaticSettlement | undefined,
-  staticOutcome: StaticOutcome | undefined,
-): AffixRequest | null {
-  if (resolved.kind !== "strike" && resolved.kind !== "use") {
-    return null;
-  }
-  const trigger = resolved.kind === "strike" ? "strike" : "use";
-  const item = resolved.kind === "strike" ? resolved.item : resolved.transferItem;
-  if (agentAffixes(item, trigger).length === 0) {
-    return null;
-  }
-  if (resolved.kind === "strike") {
-    return {
-      actorId,
-      itemId: item.id,
-      trigger,
-      targetActorId: resolved.target.id,
-      defaultFeedback,
-      ...(staticSettlement ? { staticSettlement } : {}),
-      ...(staticOutcome ? { staticOutcome } : {}),
-    };
-  }
-  return {
-    actorId,
-    itemId: item.id,
-    trigger,
-    ...(resolved.target ? { targetActorId: resolved.target.id } : {}),
-    ...(resolved.targetStage ? { targetStageId: resolved.targetStage.id } : {}),
-    ...(resolved.targetAnchor ? { targetAnchor: resolved.targetAnchor } : {}),
-    defaultFeedback,
-    ...(staticSettlement ? { staticSettlement } : {}),
-    ...(staticOutcome ? { staticOutcome } : {}),
+  const context: ApplyContext = {
+    executor,
+    gameId,
+    actorRow,
+    now,
+    address,
+    ...(trace ? { trace } : {}),
   };
+  return actionSpec(resolved.kind).apply(context, resolved);
 }
 
 /** 认知条目只记结论，不拼「落账后的状态」。 */
@@ -318,13 +217,12 @@ export async function settlePlan(
       const result = await applyResolvedAction(tx, gameId, actorRow, action, now, address, trace);
       const { feedback } = result;
       applied.push({ event: "applied", actionKind: action.kind, feedback });
-      const affixRequest = affixRequestFor(
-        action,
-        actorRow.actor.id,
-        feedback,
-        result.staticSettlement,
-        result.staticOutcome,
-      );
+      const affixRequest = actionSpec(action.kind).affixRequest?.(action, {
+        actorId: actorRow.actor.id,
+        defaultFeedback: feedback,
+        ...(result.staticSettlement ? { staticSettlement: result.staticSettlement } : {}),
+        ...(result.staticOutcome ? { staticOutcome: result.staticOutcome } : {}),
+      });
       if (affixRequest) {
         affixRequests.push(affixRequest);
       }

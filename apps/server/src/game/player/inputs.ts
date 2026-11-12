@@ -88,6 +88,12 @@ export type PlayerUseInput = {
   targetAnchor?: string;
 };
 
+/** 对上：一件自己带着的道具 + 当前舞台的一个锚点。 */
+export type PlayerFitInput = {
+  itemName: string;
+  targetAnchor: string;
+};
+
 /** 玩家替自己控制的角色记下一个名字；与模型侧的名字更新走同一份计划。 */
 export type PlayerRecognizeInput = {
   /** 目标引用：真名或 `#编号`；玩家入口仍走控制面。 */

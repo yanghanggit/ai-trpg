@@ -15,13 +15,14 @@ import { buildStealTool, parseSteal } from "../src/game/actions/steal";
 import { buildStrikeTool, parseStrike } from "../src/game/actions/strike";
 import { buildTeleportTool, parseTeleport } from "../src/game/actions/teleport";
 import { buildUnequipTool, parseUnequip } from "../src/game/actions/unequip";
-import { buildUseTool, parseUse, usableItemNames } from "../src/game/actions/use";
+import { buildUseTool, parseUse } from "../src/game/actions/use";
 import { buildWaitTool, parseWait } from "../src/game/actions/wait";
 import { buildWhisperTool, parseWhisper } from "../src/game/actions/whisper";
 import { describeSelf, describeStats } from "../src/game/agents/actor-turn";
 import { formatForm } from "../src/game/agents/appearance/form";
 import { parseEndGame } from "../src/game/agents/world-turn";
 import { describeEquipment, describeItems, toItemState } from "../src/game/item-state";
+import { itemNamesWithTrigger } from "../src/game/kernel/affixes";
 import { describeStageAnchors, stageItemNames } from "../src/game/stage-state";
 
 describe("action authorization", () => {
@@ -157,13 +158,18 @@ describe("use candidates", () => {
       actions: [],
     });
 
-  it("只按使用词缀取候选：在不在槽里无关", () => {
-    const candidates = usableItemNames([
-      item("裂齿短刃", "weapon", "damage"),
-      item("闸门钥匙", "valuable", "witness"),
-      item("碎骨", "material", "none"),
-    ]);
+  it("按触发词缀取候选：在不在槽里无关", () => {
+    const candidates = itemNamesWithTrigger(
+      [
+        item("裂齿短刃", "weapon", "damage"),
+        item("闸门钥匙", "valuable", "witness"),
+        item("碎骨", "material", "none"),
+      ],
+      "use",
+    );
     expect(candidates).toEqual(["裂齿短刃", "闸门钥匙"]);
+    // 名单与触发同源：换个触发不需要再写一份取名单的代码。
+    expect(itemNamesWithTrigger([item("裂齿短刃", "weapon", "damage")], "fit")).toEqual([]);
   });
 });
 

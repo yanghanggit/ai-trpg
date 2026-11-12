@@ -50,7 +50,7 @@ export const BELL_MONASTERY: Script = {
       name: "地窖",
       profile: `**历史**: 修道院的酒窖与储粮间。黑疖病之后，这里成了鼠群的巢：酒桶被啃穿，粮袋被咬空，地上的骨渣与鼠毛一直堆到墙角。鼠王盘踞在最深处，它是这场瘟疫里活得最久、吃得最饱的东西。
 **陈设**: 后墙前立着一座矮石台，台面刻着钟形纹，正中一道铜舌粗细的凹槽——那是锁孔；锁孔只认那截黄铜钟舌。
-**职能**: 对祭坛使用钟舌即开锁；仅当此时，必须让石台后的墙裂开、打开通往钟窖的通道。`,
+**职能**: 本舞台出现「钟舌对上祭坛」的见证即开锁，必须让石台后的墙裂开、打开通往钟窖的通道；这道凹槽只认那截钟舌，别的见证一概不算。`,
       actions: [
         "submit_environment",
         "open_passage",
@@ -150,7 +150,7 @@ export const BELL_MONASTERY: Script = {
       name: "铁闸门",
       profile: `**历史**: 修道院北侧的铁闸门。黑疖病流行时，院长下令把它封死，带着还能走的修士从别的路离开；门后是一条沿山壁凿出的窄道，通往修道院之外。
 **陈设**: 门板刻着修道院的钟形纹，铁链缠了三圈，锁孔塞着干蜡；锁孔与奥德里克随身带着的钥匙吻合。
-**职能**: 对锁孔使用那把钥匙即开锁；仅当此时，必须打开通往山道的通道。`,
+**职能**: 本舞台出现「钥匙对上锁孔」的见证即开锁，必须打开通往山道的通道；锁孔只认那把钥匙，别的见证一概不算。`,
       actions: [
         "submit_environment",
         "open_passage",
@@ -167,7 +167,7 @@ export const BELL_MONASTERY: Script = {
       name: "山道",
       profile: `**历史**: 铁闸门外沿山壁凿出的一条窄道，一头往河谷去，一头绕过钟楼后墙。黑疖病之后没有人再走过这里，石阶上长满湿滑的苔藓。
 **陈设**: 修道院与外界唯一的缺口。身后是铁门，坡下是河谷。
-**职能**: 活物出现在山道上即封锁已被打破、有人逃出了修道院；仅当此时，必须向世界报告这条事实，并说明故事可以在这里收束。`,
+**职能**: 活物出现在山道上即封锁已被打破、有人逃出了修道院；仅当此时，必须向世界报告这条事实，由世界裁决是否收束。`,
       // 只有走出修道院之后，才由这里向 world 报告；舞台自身仍负责维护 environment。
       actions: [
         "submit_environment",
@@ -232,7 +232,7 @@ export const BELL_MONASTERY: Script = {
           kind: "valuable" as const,
           count: 1,
           affixes: {
-            use: [
+            fit: [
               {
                 name: "开锁",
                 mode: "static",
@@ -274,7 +274,7 @@ export const BELL_MONASTERY: Script = {
           stats: { block: 3 },
         },
       ],
-      // 人类：会说话、走动、战斗，也穿脱装备；不会探囊。`use` 由身上的道具借出，不写在这里。
+      // 人类：会说话、走动、战斗，也穿脱装备；不会妙手。`use` 由身上的道具借出，不写在这里。
       actions: [
         "say",
         "whisper",
@@ -399,14 +399,14 @@ export const BELL_MONASTERY: Script = {
           },
         },
       ],
-      // 唯一会探囊的角色：看清与取走是同一手本事，其余能力与普通人类一致。
+      // 唯一会妙手的角色：看清、取走、对上机关是同一双手的事，其余能力与普通人类一致。
       proficiencies: [
         {
-          key: "pickpocket",
-          name: "探囊",
+          key: "sleight",
+          name: "妙手",
           description:
-            "探囊取物：在酒气与钟灰里练出来的一双手，先看清对方身上有什么，再让那件东西悄悄换主人。",
-          actions: ["inspect", "steal"],
+            "妙手空空：在酒气与钟灰里练出来的一双手，先看清对方身上有什么，再让那件东西悄悄换主人；该往哪道槽里送，也瞒不过这双手。",
+          actions: ["inspect", "steal", "fit"],
         },
       ],
       actions: [
@@ -464,7 +464,7 @@ export const BELL_MONASTERY: Script = {
           kind: "valuable" as const,
           count: 1,
           affixes: {
-            use: [
+            fit: [
               {
                 name: "归位",
                 mode: "static",

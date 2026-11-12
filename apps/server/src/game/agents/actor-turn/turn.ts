@@ -12,6 +12,7 @@ import {
   TransformersEmbeddingProvider,
   worldCollection,
 } from "../../../rag";
+import { ACTOR_ACTIONS } from "../../actions/registry";
 import { findActorByName } from "../../actor-state";
 import { DEFAULT_ACTOR_MAX_ROUNDS } from "../../default-rounds";
 import { GameError } from "../../errors";
@@ -33,7 +34,6 @@ import { actorTurnContext } from "./context";
 import { describeNameCollision } from "./identity";
 import { createPlanSession } from "./plan-session";
 import { renderActorTurnInput } from "./prompt";
-import { ACTOR_ACTION_TOOLKITS } from "./toolkit";
 import {
   buildActorLookStageTool,
   buildGetSelfTool,
@@ -134,7 +134,7 @@ export async function runActorTurn(
     context.allowed.map((kind) => [
       kind,
       (args: Record<string, unknown>) => {
-        session.addAction(ACTOR_ACTION_TOOLKITS[kind].parse(args));
+        session.addAction(ACTOR_ACTIONS[kind].parse(args));
         return `${kind} 已加入计划`;
       },
     ]),
@@ -166,7 +166,7 @@ export async function runActorTurn(
       recallRouteTool,
       queryTool,
       recognizeIdentityTool,
-      ...context.allowed.map((kind) => ACTOR_ACTION_TOOLKITS[kind].build(context)),
+      ...context.allowed.map((kind) => ACTOR_ACTIONS[kind].buildTool(context)),
       submitPlanTool,
     ],
     handlers: {

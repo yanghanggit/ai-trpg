@@ -12,10 +12,10 @@ import {
   createGame,
   getGameMemories,
   getGameState,
+  playerFit,
   playerLoot,
   playerMove,
   playerSteal,
-  playerUse,
   runStageTurn,
   runWorldTurn,
   takeActorControl,
@@ -99,9 +99,8 @@ describe.skipIf(!testDatabaseUrl)("bell monastery crypt ending", () => {
     });
     expect(looted.ok).toBe(true);
 
-    // 对祭坛使用钟舌：use 只写舞台事件，开门的决定留给地窖的 stage 回合。
-    const used = await playerUse(handle.db, slug, "无名者", {
-      targetStageName: "地窖",
+    // 把钟舌对上祭坛：这一步只写舞台事件，开门的决定留给地窖的 stage 回合。
+    const used = await playerFit(handle.db, slug, "无名者", {
       itemName: "旧钟的钟舌",
       targetAnchor: "祭坛",
     });
@@ -168,5 +167,32 @@ describe.skipIf(!testDatabaseUrl)("bell monastery crypt ending", () => {
       .flatMap((stage) => stage.actors)
       .find((actor) => actor.name === "鼠王");
     expect(king?.hp).toBe(0);
+  });
+
+  it("lets only a character with the craft work an anchor, and only with an item that fits", async () => {
+    const created = await createGame(handle.db, {
+      username: DEMO_USER.username,
+      name: "对上授权测试局",
+      world: BELL_MONASTERY_WORLD,
+    });
+    const slug = created.game.slug;
+
+    // 奥德里克带着闸门钥匙，却没有这门手艺：钥匙在他手上只是一块铁。
+    await takeActorControl(handle.db, slug, "奥德里克");
+    await expect(
+      playerFit(handle.db, slug, "奥德里克", { itemName: "闸门钥匙", targetAnchor: "锁孔" }),
+    ).rejects.toThrow("不能使用动作: fit");
+
+    // 锚点必须真的在本舞台：对上不接受凭空点一个地方。
+    await takeActorControl(handle.db, slug, "无名者");
+    await expect(
+      playerFit(handle.db, slug, "无名者", { itemName: "撬弯的棺钉", targetAnchor: "锁孔" }),
+    ).rejects.toThrow("当前舞台没有这个可交互锚点");
+    // 会手艺的人拿错了东西也不行：撬弯的棺钉没有可以拿去对上的词缀。
+    const moved = await playerMove(handle.db, slug, "无名者", { targetStageRef: "墓园" });
+    expect(moved.ok).toBe(true);
+    await expect(
+      playerFit(handle.db, slug, "无名者", { itemName: "撬弯的棺钉", targetAnchor: "锁孔" }),
+    ).rejects.toThrow("没有可以拿去对上的词缀");
   });
 });

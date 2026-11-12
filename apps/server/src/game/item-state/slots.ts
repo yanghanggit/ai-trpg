@@ -98,12 +98,12 @@ export function heldItemActions(actor: Pick<ActorState, "items" | "equipment">):
 }
 
 /**
- * 携带者授予的动作上限：`strike` 恒为 1，`cleave` 读武器自己的 `maxTargets`。
+ * 某件道具授予的动作最多能指向几个目标：读那件道具自己的 `maxTargets`，与动作名无关。
  *
  * 没有携带者时回落到 1——这也是工具形状的描述值，真正的授权由 `allowedActionKinds` 与
  * 结算端复核决定。
  */
-export function carriedActionCap(
+export function actionMaxTargets(
   actor: Pick<ActorState, "items" | "equipment">,
   kind: SlotActionKind,
 ): number {

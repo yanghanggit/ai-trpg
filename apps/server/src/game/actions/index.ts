@@ -32,6 +32,7 @@ export const INNATE_ACTION_KINDS = [
   "loot",
   "give",
   "pickup",
+  "fit",
   "equip",
   "unequip",
 ] as const;
@@ -54,6 +55,7 @@ export const ACTION_KINDS = [
   "give",
   "pickup",
   "use",
+  "fit",
   "equip",
   "unequip",
 ] as const satisfies readonly ActionKind[];
@@ -68,6 +70,9 @@ export type ActionKindSourceCoverage = [
   AssertNever<Exclude<InnateActionKind, (typeof INNATE_ACTION_KINDS)[number]>>,
   AssertNever<Exclude<CarriedActionKind, (typeof CARRIED_ACTION_KINDS)[number]>>,
 ];
+
+/** 会用到多目标上限的动作；上限本身属于道具，这里只声明谁读它。 */
+export const MULTI_TARGET_ACTION_KINDS = ["cleave"] as const satisfies readonly ActionKind[];
 
 /** 槽位携带者表：没登记的大类不能授予任何槽位动作；持有携带不看这张表。 */
 export const CARRIED_ACTIONS_BY_ITEM_KIND = {
@@ -101,6 +106,7 @@ export const ACTION_SUMMARIES: Record<ActionKind, string> = {
   give: "把自己的道具交给目标",
   pickup: "拾起舞台道具",
   use: "用自己的道具作用于角色或舞台",
+  fit: "把自己的一件道具对上舞台锚点",
   equip: "把背包里的道具穿到槽位",
   unequip: "卸下某个槽位的装备",
 };
@@ -128,10 +134,12 @@ export function assertActionAllowed(
   allowedActions: readonly ActionKind[],
   kind: ActionKind,
   actorName: string,
+  /** 这个动作为什么不可用；省略时用通用文案。 */
+  reason?: string,
 ): void {
   if (allowedActions.includes(kind)) {
     return;
   }
   // actorName 就是实体的名字，CLI 与日志直接用它定位。
-  throw new GameError("invalid_action", `${actorName}不能使用动作: ${kind}`);
+  throw new GameError("invalid_action", reason ?? `${actorName}不能使用动作: ${kind}`);
 }

@@ -10,10 +10,10 @@ import {
   createGame,
   getGameMemories,
   getGameState,
+  playerFit,
   playerMove,
   playerPickup,
   playerSteal,
-  playerUse,
   runStageTurn,
   runWorldTurn,
   takeActorControl,
@@ -89,9 +89,8 @@ describe.skipIf(!testDatabaseUrl)("crow grave e2e", () => {
     });
     expect(picked.ok).toBe(true);
 
-    // 对锁石使用窖钉：use 只写舞台事件，开门留给鸦葬岗的 stage 回合。
-    const used = await playerUse(handle.db, slug, "拾骨人伊莱", {
-      targetStageName: "鸦葬岗",
+    // 把窖钉对上锁石：这一步只写舞台事件，开门留给鸦葬岗的 stage 回合。
+    const used = await playerFit(handle.db, slug, "拾骨人伊莱", {
       itemName: "窖钉",
       targetAnchor: "锁石",
     });
@@ -170,8 +169,7 @@ describe.skipIf(!testDatabaseUrl)("crow grave e2e", () => {
     });
     expect(stolen.ok).toBe(true);
 
-    const used = await playerUse(handle.db, slug, "拾骨人伊莱", {
-      targetStageName: "鸦葬岗",
+    const used = await playerFit(handle.db, slug, "拾骨人伊莱", {
       itemName: "塔门钥匙",
       targetAnchor: "塔门",
     });

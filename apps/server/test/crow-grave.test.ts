@@ -70,7 +70,7 @@ describe("crow-grave seed world", () => {
     expect(karl.inventory.find((item) => item.name === "塔门钥匙")).toMatchObject({
       key: "tower-key",
       kind: "valuable",
-      affixes: { use: [{ name: "开锁", mode: "static" }] },
+      affixes: { fit: [{ name: "开锁", mode: "static" }] },
     });
     expect(karl.inventory.find((item) => item.name === "塔门钥匙")?.kind).not.toBe("material");
     expect(world.visitedStages).toEqual(
@@ -86,7 +86,7 @@ describe("crow-grave seed world", () => {
     expect(pin).toMatchObject({
       key: "cellar-pin",
       kind: "valuable",
-      affixes: { use: [{ name: "插进凹槽", mode: "static" }] },
+      affixes: { fit: [{ name: "插进凹槽", mode: "static" }] },
     });
     expect(stage("graveyard").anchors?.map((anchor) => anchor.label)).toEqual(
       expect.arrayContaining(["塔门", "锁石", "尸车", "新坟"]),
@@ -135,27 +135,29 @@ describe("crow-grave seed world", () => {
       expect([...entry.actions] as string[]).not.toContain("strike");
       expect(entry.actions).toContain("brawl");
     }
-    // 探囊把看清与取走捆成一项技艺：只有拾骨人有，且两个动作都出自它。
+    // 妙手把看清、取走与对上捆成一项技艺：只有拾骨人有，三个动作都出自它。
     expect(actor("eli").proficiencies).toEqual([
-      expect.objectContaining({ key: "pickpocket", actions: ["inspect", "steal"] }),
+      expect.objectContaining({ key: "sleight", actions: ["inspect", "steal", "fit"] }),
     ]);
     expect([...actor("eli").actions] as string[]).not.toContain("steal");
     expect([...actor("eli").actions] as string[]).not.toContain("inspect");
     expect(actorInnateActions(actor("eli"))).toEqual(
-      expect.arrayContaining(["inspect", "steal", "loot"]),
+      expect.arrayContaining(["inspect", "steal", "fit", "loot"]),
     );
     expect(actor("vela").proficiencies).toBeUndefined();
     expect(actorInnateActions(actor("vela"))).not.toContain("inspect");
     expect(actorInnateActions(actor("vela"))).toContain("loot");
-    // `use` 不由角色声明：卡尔带着塔门钥匙，钥匙借给他 use；探囊与搜刮仍然不会有。
+    // 对上只挂在会妙手的人身上：卡尔带着塔门钥匙，却没有 fit。
+    expect([...actor("karl").actions] as string[]).not.toContain("fit");
     expect([...actor("karl").actions] as string[]).not.toContain("use");
     expect(actor("karl").actions).not.toContain("loot");
     expect(actorInnateActions(actor("karl"))).not.toContain("inspect");
   });
 
   it("writes the two opening rules and the three endings into the content", () => {
-    expect(stage("graveyard").profile).toContain("对塔门使用塔门钥匙即开锁");
-    expect(stage("graveyard").profile).toContain("对锁石使用窖钉即打开锁石");
+    // 机关写成“见证即开锁”：舞台认的是事件，不是引擎动作名。
+    expect(stage("graveyard").profile).toContain("塔门钥匙对上塔门");
+    expect(stage("graveyard").profile).toContain("窖钉对上锁石");
     expect(stage("watchtower").profile).toContain("必须向世界报告");
     expect(stage("plague-cellar").profile).toContain("窖底的东西见了光");
     expect(world.profile).toContain("拾骨人从守夜塔离开鸦葬岗");

@@ -92,7 +92,7 @@ describe("dark fantasy seed world", () => {
     expect(keeper?.inventory.find((item) => item.name === "闸门钥匙")).toMatchObject({
       key: "gate-key",
       kind: "valuable",
-      affixes: { use: [{ name: "开锁" }] },
+      affixes: { fit: [{ name: "开锁" }] },
     });
     expect(keeper?.signature.form.startsWith("人类:")).toBe(true);
     expect(keeper?.hp).toBe(14);
@@ -100,11 +100,11 @@ describe("dark fantasy seed world", () => {
       .filter((actor) => actor.isDefaultPlayer)
       .map((actor) => actor.name);
     expect(defaultPlayers).toEqual(["无名者"]);
-    // 鼠王随身收着旧钟的钟舌：valuable + 使用词缀，不是身体材料。
+    // 鼠王随身收着旧钟的钟舌：valuable + 对上词缀，不是身体材料。
     expect(king?.inventory.find((item) => item.name === "旧钟的钟舌")).toMatchObject({
       key: "rat-king-clapper",
       kind: "valuable",
-      affixes: { use: [{ name: "归位" }] },
+      affixes: { fit: [{ name: "归位" }] },
     });
     expect(king?.signature.form.startsWith("鼠:")).toBe(true);
     expect(king?.hp).toBeGreaterThan(keeper?.hp ?? 0);
@@ -214,13 +214,19 @@ describe("dark fantasy seed world", () => {
     for (const actor of BELL_MONASTERY_WORLD.actors) {
       expect(actionsOf(actor.name)).not.toContain("use");
     }
-    // 探囊把看清与取走捆成一项技艺：只有无名者有，两个动作都出自它，
+    // 妙手把看清、取走与对上捆成一项技艺：只有无名者有，三个动作都出自它，
     // 所以它们不出现在 `actions` 里。
     expect(actorOf("无名者")?.proficiencies).toEqual([
-      expect.objectContaining({ key: "pickpocket", name: "探囊", actions: ["inspect", "steal"] }),
+      expect.objectContaining({
+        key: "sleight",
+        name: "妙手",
+        actions: ["inspect", "steal", "fit"],
+      }),
     ]);
     expect([...(actorOf("无名者")?.actions ?? [])] as string[]).not.toContain("steal");
-    expect(actionsOf("无名者")).toEqual(expect.arrayContaining(["inspect", "steal", "loot"]));
+    expect(actionsOf("无名者")).toEqual(
+      expect.arrayContaining(["inspect", "steal", "fit", "loot"]),
+    );
     expect(actorOf("奥德里克")?.proficiencies).toBeUndefined();
     expect(actionsOf("奥德里克")).not.toContain("steal");
     expect(actionsOf("奥德里克")).not.toContain("inspect");

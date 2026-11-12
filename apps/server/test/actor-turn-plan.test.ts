@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { ACTION_KINDS } from "../src/game/actions";
-import { ACTOR_ACTION_TOOLKITS, createPlanSession } from "../src/game/agents/actor-turn";
+import { ACTOR_ACTIONS, createPlanSession } from "../src/game/agents/actor-turn";
 import { MAX_ACTIONS_PER_TURN } from "../src/game/kernel/limits";
 
 const wait = () => ({ kind: "wait" }) as const;
@@ -73,6 +73,6 @@ describe("turn plan session", () => {
 
   it("每个动作都有工具与解析器，一个不漏", () => {
     // 编译期由 `Record<ActionKind, …>` 保证；这里再确认运行时表与 kind 清单同长。
-    expect(Object.keys(ACTOR_ACTION_TOOLKITS).sort()).toEqual([...ACTION_KINDS].sort());
+    expect(Object.keys(ACTOR_ACTIONS).sort()).toEqual([...ACTION_KINDS].sort());
   });
 });

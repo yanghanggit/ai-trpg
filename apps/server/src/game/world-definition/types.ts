@@ -166,7 +166,7 @@ export type Actor = {
  * 一项技艺：把几个动作捆在一个名字下的内容单元。
  *
  * 和道具的 `actions` 同形，但道具的授予随穿戴借还，技艺在开局时就变成角色自己的本事。
- * 名字是给内容与读者看的（「探囊」），机制只看 `actions`。
+ * 名字是给内容与读者看的，机制只看 `actions`。
  */
 export type SkillDefinition = {
   /** 角色内稳定标识；同一角色下不重复，改 `name` 不影响它。 */
@@ -198,7 +198,7 @@ export type ItemDefinition = {
   count?: number;
   /** 属性；可省略，未写出的字段按 0 归一。 */
   stats?: Partial<Stats>;
-  /** `cleave` 一次最多命中的目标数；只有 weapon 可声明，省略时物化为 1。 */
+  /** 这个道具授予的动作一次最多指向几个目标；省略时物化为 1。 */
   maxTargets?: number;
   /** 按触发舞台声明的词缀；可省略，创建时归一化为空对象。 */
   affixes?: AffixTriggers;

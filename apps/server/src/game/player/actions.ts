@@ -12,6 +12,7 @@ import type {
   PlayerBrawlInput,
   PlayerCallInput,
   PlayerEquipInput,
+  PlayerFitInput,
   PlayerGiveInput,
   PlayerInspectInput,
   PlayerLootInput,
@@ -271,6 +272,22 @@ export async function playerUse(
     ...(input.targetActorRef !== undefined ? { targetActorHandle: input.targetActorRef } : {}),
     ...(input.targetStageName !== undefined ? { targetStageName: input.targetStageName } : {}),
     ...(input.targetAnchor !== undefined ? { targetAnchor: input.targetAnchor } : {}),
+  };
+  return submit(db, gameRef, actorRef, action, options);
+}
+
+/** 对上：把一件道具对上当前舞台的一个锚点。 */
+export async function playerFit(
+  db: Database,
+  gameRef: string,
+  actorRef: string,
+  input: PlayerFitInput,
+  options: PlayerActionOptions = {},
+): Promise<ActorTurnResult> {
+  const action: ActorAction = {
+    kind: "fit",
+    itemName: input.itemName,
+    targetAnchor: input.targetAnchor,
   };
   return submit(db, gameRef, actorRef, action, options);
 }

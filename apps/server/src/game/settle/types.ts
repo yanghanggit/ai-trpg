@@ -9,6 +9,7 @@ import type {
   CleaveAction,
   DeathSettlement,
   EquipAction,
+  FitAction,
   GiveAction,
   InspectAction,
   LootAction,
@@ -172,6 +173,15 @@ export type ResolvedUse = {
   targetAnchor?: string;
 };
 
+export type ResolvedFit = {
+  kind: "fit";
+  action: FitAction;
+  stage: StageRow;
+  transferItem: ItemRow;
+  /** 已按当前舞台锚点校验过的标签。 */
+  anchorLabel: string;
+};
+
 export type ResolvedEquip = {
   kind: "equip";
   action: EquipAction;
@@ -203,6 +213,7 @@ export type ResolvedAction =
   | ResolvedGive
   | ResolvedPickup
   | ResolvedUse
+  | ResolvedFit
   | ResolvedEquip
   | ResolvedUnequip;
 

@@ -352,7 +352,7 @@ export const items = pgTable(
     source: text("source"),
     count: integer("count").notNull().default(1),
     stats: jsonb("stats").$type<Stats>().notNull(),
-    /** `cleave` 一次最多命中的目标数；只有武器会大于 1，其余大类恒为 1。 */
+    /** 道具授予的动作一次最多指向几个目标；目前只有武器会大于 1，其余恒为 1。 */
     maxTargets: integer("max_targets").notNull().default(1),
     affixes: jsonb("affixes").$type<AffixTriggers>().notNull().default({}),
     /** 道具的动作清单；只有穿戴中才会生效，目前只有武器会声明。 */

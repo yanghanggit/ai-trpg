@@ -1,16 +1,18 @@
 import { allowedActionKinds } from "../../actions";
-import { usableItemNames } from "../../actions/use";
 import { type ActorWithStage, otherActorsInStage } from "../../actor-state";
 import {
-  carriedActionCap,
+  actionMaxTargets,
   equippedItemActions,
   heldItemActions,
   isWearable,
 } from "../../item-state";
 import { type AddressLookup, addressLookupFor } from "../../kernel/addressing";
+import { itemNamesWithTrigger } from "../../kernel/affixes";
 import {
   type ActionKind,
   type ActorState,
+  AFFIX_TRIGGERS,
+  type AffixTrigger,
   EQUIPMENT_SLOTS,
   type EquipmentSlot,
   type GameStateSlice,
@@ -42,20 +44,28 @@ export type ActorTurnContext = {
   selfAndTargets: string[];
   /** 本轮真正会出现在工具列表里的动作：固有动作 ∪ 槽位携带 ∪ 持有携带。 */
   allowed: ActionKind[];
-  /** 身上声明了 use 词缀的道具名；也是 `use` 这个动作的来源。 */
-  usableItemNames: string[];
+  /**
+   * 本回合各触发能拿哪些道具：身上那件道具声明了这个触发的词缀，它就在名单里。
+   *
+   * 与触发清单同源，新增触发不需要在这里加字段。
+   */
+  triggerItems: Record<AffixTrigger, string[]>;
   /** 能穿到槽位上的道具名。 */
   wearableItemNames: string[];
   /** 已占用的槽位。 */
   occupiedSlots: EquipmentSlot[];
-  /** 横扫的目标上限，属于当前穿戴的武器；没武器时回落到 1。 */
-  cleaveMaxTargets: number;
+  /** 各动作的目标上限：由授予那个动作的道具声明，没授予者时回落到 1。 */
+  actionCaps: Partial<Record<ActionKind, number>>;
 };
 
 export function actorTurnContext(state: GameStateSlice, current: ActorWithStage): ActorTurnContext {
   const others = otherActorsInStage(current.stage, current.actor.id);
   const address = addressLookupFor(state, current.actor, current.stage);
   const targets = others.map((actor) => address(actor.id).token);
+  const slotActions = equippedItemActions(current.actor);
+  const triggerItems = Object.fromEntries(
+    AFFIX_TRIGGERS.map((trigger) => [trigger, itemNamesWithTrigger(current.actor.items, trigger)]),
+  ) as Record<AffixTrigger, string[]>;
   return {
     state,
     current,
@@ -65,14 +75,12 @@ export function actorTurnContext(state: GameStateSlice, current: ActorWithStage)
     selfHandle: address(current.actor.id).token,
     targets,
     selfAndTargets: [address(current.actor.id).token, ...targets],
-    allowed: allowedActionKinds(
-      current.actor.actions,
-      equippedItemActions(current.actor),
-      heldItemActions(current.actor),
-    ),
-    usableItemNames: usableItemNames(current.actor.items),
+    allowed: allowedActionKinds(current.actor.actions, slotActions, heldItemActions(current.actor)),
+    triggerItems,
     wearableItemNames: current.actor.items.filter(isWearable).map((item) => item.name),
     occupiedSlots: EQUIPMENT_SLOTS.filter((slot) => current.actor.equipment[slot] !== undefined),
-    cleaveMaxTargets: carriedActionCap(current.actor, "cleave"),
+    actionCaps: Object.fromEntries(
+      slotActions.map((kind) => [kind, actionMaxTargets(current.actor, kind)]),
+    ),
   };
 }
