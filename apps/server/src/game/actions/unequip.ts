@@ -1,7 +1,7 @@
 import type { TraceContext } from "../../debug/trace";
 import type { ToolDefinition } from "../../llm/types";
 import { GameError } from "../errors";
-import { unequipSlot } from "../item-state";
+import { participatesInAppearance, unequipSlot } from "../item-state";
 import { mentionOf } from "../kernel/addressing";
 import { renderAction, withAppearances } from "../kernel/observation-text";
 import {
@@ -13,9 +13,11 @@ import {
 import { appendCustomStageObservation, appendStageMemory } from "../observations";
 import { setActorEquipment } from "../persistence/actors";
 import { appendPublicMessage } from "../persistence/game-messages";
+import { loadActorItemByName } from "../persistence/items";
 import type { ActorWithStageRow, Executor } from "../persistence/rows";
 import type { ResolvedUnequip } from "../settle/types";
 import { parseSlot } from "./equip";
+import type { ActionResult } from "./registry";
 
 const SLOT_LABELS = EQUIPMENT_SLOTS.map((slot) => `${slot}（${EQUIPMENT_SLOT_LABELS[slot]}）`).join(
   " / ",
@@ -67,8 +69,10 @@ export async function applyUnequip(
   resolved: ResolvedUnequip,
   now: Date,
   trace?: TraceContext,
-): Promise<string> {
+): Promise<ActionResult> {
   const actor = { id: actorRow.actor.id, name: actorRow.actor.name };
+  // 卸下的道具仍留在背包里，读到的就是刚离开槽位的那件：用它判定外观要不要重算。
+  const item = await loadActorItemByName(executor, actor.id, resolved.itemName);
   const equipment = unequipSlot(actorRow.actor.equipment, resolved.action.slot);
   await setActorEquipment(executor, actor.id, equipment, now);
 
@@ -105,5 +109,9 @@ export async function applyUnequip(
     },
     trace,
   );
-  return `你卸下了${resolved.itemName}（${label}）。`;
+  return {
+    feedback: `你卸下了${resolved.itemName}（${label}）。`,
+    // 读不到道具时按“可能影响外观”处理：宁可多算一次，也不留下旧外观。
+    affectsAppearance: item === undefined || participatesInAppearance(item),
+  };
 }

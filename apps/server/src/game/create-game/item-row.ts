@@ -23,5 +23,6 @@ export function itemValues(item: ItemDefinition, seq: number) {
     maxTargets: item.maxTargets ?? 1,
     affixes: normalizeAffixTriggers(item.affixes),
     actions: [...(item.actions ?? [])],
+    appearsInAppearance: item.appearsInAppearance ?? false,
   };
 }

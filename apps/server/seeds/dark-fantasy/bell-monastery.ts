@@ -13,7 +13,7 @@ import { DARK_FANTASY_SETTING } from "./campaign";
 
 /** 剧本「枯钟修道院」：黑暗奇幻战役下的第一个故事切片。 */
 export const BELL_MONASTERY: Script = {
-  contentVersion: "bell-monastery.v16",
+  contentVersion: "bell-monastery.v17",
   contentKey: "bell-monastery",
   worldName: "枯钟修道院的故事",
   functionPrompts: renderFunctionPrompts({
@@ -355,7 +355,7 @@ export const BELL_MONASTERY: Script = {
           "皮肤灰白，关节干涩；锁骨与手腕上留着被锁链磨出的旧痕，指甲缝里塞着干涸的黑蜡与棺木屑，像刚从棺里被挖出来。",
         ),
         appearance:
-          "身上裹着半幅发黄的裹尸布，布角拖过石灰；皮肤灰白，指甲缝里塞着干涸的黑蜡与棺木屑，锁骨上留着被锁链磨出的暗红旧痕；走路时关节会发出干涩的响声。",
+          "身上裹着半幅发黄的裹尸布，布角拖过石灰；皮肤灰白，指甲缝里塞着干涸的黑蜡与棺木屑，锁骨上留着被锁链磨出的暗红旧痕；颈上挂着半截被鼠牙啃过的断链，断口发亮；走路时关节会发出干涩的响声。",
       },
       hp: 20,
       stats: { maxHp: 20, strength: 12, wisdom: 2, agility: 3, damage: 0, block: 0 },
@@ -378,6 +378,7 @@ export const BELL_MONASTERY: Script = {
           name: "颈上的断链",
           description: "半截被鼠牙啃过的铁链，断口发亮，仍挂在颈间。",
           kind: "accessory" as const,
+          appearsInAppearance: true,
           count: 1,
         },
         {

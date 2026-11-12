@@ -187,6 +187,8 @@ export type ResolvedEquip = {
   action: EquipAction;
   stage: StageRow;
   item: ItemRow;
+  /** 被替换下来的同槽道具；空槽时为 undefined。外观要不要重算也要看它。 */
+  replaced?: ItemRow;
 };
 
 export type ResolvedUnequip = {
@@ -242,7 +244,13 @@ export type SettlePlanResult = {
   rejectionCode?: string;
   affixRequests?: AffixRequest[];
   /** 实际落账的动作事件（事务提交后才写轨迹）。 */
-  applied?: { event: "applied"; actionKind: string; feedback: string }[];
+  applied?: {
+    event: "applied";
+    actionKind: string;
+    feedback: string;
+    /** 这次落账是否可能改变可见外观；见 `ActionResult.affectsAppearance`。 */
+    affectsAppearance?: boolean;
+  }[];
   /** 这次行动之后逐个收尾的死者；失败不回滚这次行动。 */
   death?: DeathSettlement[];
   /** 取死者名单这一步没能跑起来的原因（例如数据库错误）；行动本身仍然成功。 */

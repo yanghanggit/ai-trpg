@@ -393,6 +393,7 @@ const SEALED_WORLD: World = {
           name: SEALED_KEY_NAME,
           description: "测试用闸门钥匙。",
           kind: "accessory" as const,
+          appearsInAppearance: false,
           affixes: {
             use: [
               {

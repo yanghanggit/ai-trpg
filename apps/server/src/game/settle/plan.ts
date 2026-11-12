@@ -211,13 +211,25 @@ export async function settlePlan(
     const now = new Date();
     const address = await stageAddressLookup(tx, gameId, actorRow.actor.id, actorRow.stage.id);
     const stageActorRefs = await listStageActorRefs(tx, actorRow.stage.id);
-    const applied: { event: "applied"; actionKind: string; feedback: string }[] = [];
+    const applied: {
+      event: "applied";
+      actionKind: string;
+      feedback: string;
+      affectsAppearance?: boolean;
+    }[] = [];
     const pendingMemory: { content: string; metadata: Record<string, unknown> }[] = [];
     for (const action of resolved.actions) {
       const result = await applyResolvedAction(tx, gameId, actorRow, action, now, address, trace);
       // 一次行动一条记忆：标题只写一次，多目标的句子并排在同一块里。
       const feedback = `# 行动结果\n${result.feedback}`;
-      applied.push({ event: "applied", actionKind: action.kind, feedback });
+      applied.push({
+        event: "applied",
+        actionKind: action.kind,
+        feedback,
+        ...(result.affectsAppearance === undefined
+          ? {}
+          : { affectsAppearance: result.affectsAppearance }),
+      });
       const affixRequest = actionSpec(action.kind).affixRequest?.(action, {
         actorId: actorRow.actor.id,
         // 提示词自己排「动作结果」段，交进去的是句子，不带记忆标题。

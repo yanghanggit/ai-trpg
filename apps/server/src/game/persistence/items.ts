@@ -52,6 +52,20 @@ export async function loadActorItem(
   return item;
 }
 
+/** 按名字读某个 actor 的一件道具；名字在一个作用域里唯一。 */
+export async function loadActorItemByName(
+  executor: Executor,
+  actorId: string,
+  name: string,
+): Promise<ItemRow | undefined> {
+  const [item] = await executor
+    .select()
+    .from(items)
+    .where(and(eq(items.actorId, actorId), eq(items.name, name)))
+    .limit(1);
+  return item;
+}
+
 /**
  * 舞台道具转入 actor 背包。
  *
@@ -94,6 +108,7 @@ export async function moveStageItemToActor(
     stats: stageItem.stats,
     affixes: normalizeAffixTriggers(stageItem.affixes),
     actions: [...stageItem.actions],
+    appearsInAppearance: stageItem.appearsInAppearance,
   });
 }
 

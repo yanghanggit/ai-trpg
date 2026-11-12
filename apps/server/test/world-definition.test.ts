@@ -380,6 +380,48 @@ describe("world content validation", () => {
     ).toThrow(/source/);
   });
 
+  it("requires accessories to declare whether they appear in appearance", () => {
+    // 饰品在题材之间的语义不固定：要不要进外观是内容要回答的问题，没有默认值。
+    const charm = {
+      key: "test-charm",
+      name: "测试护符",
+      description: "一枚测试用的护符。",
+      kind: "accessory" as const,
+    };
+    const withCharm = (item: Record<string, unknown>) => ({
+      ...TEST_WORLD,
+      actors: TEST_WORLD.actors.map((actor) =>
+        actor.name === "守烬人" ? { ...actor, inventory: [...actor.inventory, item] } : actor,
+      ),
+    });
+
+    expect(() => parseWorldContent(withCharm(charm))).toThrow(
+      /accessory 必须声明 appearsInAppearance/,
+    );
+    const parsed = parseWorldContent(withCharm({ ...charm, appearsInAppearance: false }));
+    expect(
+      parsed.actors.flatMap((actor) => actor.inventory).find((item) => item.key === "test-charm")
+        ?.appearsInAppearance,
+    ).toBe(false);
+
+    // 其它大类不得声明：这个字段只回答饰品的问题。
+    expect(() =>
+      parseWorldContent({
+        ...TEST_WORLD,
+        actors: TEST_WORLD.actors.map((actor) =>
+          actor.name === "守烬人"
+            ? {
+                ...actor,
+                inventory: actor.inventory.map((item) =>
+                  item.kind === "weapon" ? { ...item, appearsInAppearance: true } : item,
+                ),
+              }
+            : actor,
+        ),
+      }),
+    ).toThrow(/只有 accessory 可以声明 appearsInAppearance/);
+  });
+
   it("requires the world to describe itself", () => {
     const { profile: _profile, ...withoutProfile } = TEST_WORLD;
     expect(() => parseWorldContent(withoutProfile)).toThrow(/profile/);

@@ -36,11 +36,12 @@ export async function runIncrementPhases(
   }
 
   // 换装改的是「别人看到的样子」：在事务外补一次外观推理。
+  // 只有可能改变外观输入的那次换装才算：不参与外观的饰品换上去，输入根本没变。
   // 失败与死亡阶段一致，只记日志，不回滚已落账的穿戴。
-  const equipmentChanged = (result.applied ?? []).some(
-    ({ actionKind }) => actionKind === "equip" || actionKind === "unequip",
+  const appearanceAffected = (result.applied ?? []).some(
+    ({ affectsAppearance }) => affectsAppearance === true,
   );
-  if (equipmentChanged && options.inferenceService) {
+  if (appearanceAffected && options.inferenceService) {
     if (!actor.name) {
       throw new GameError("invalid_state", `actor 名称缺失: ${actor.id}`);
     }

@@ -1,7 +1,7 @@
 import type { TraceContext } from "../../debug/trace";
 import type { ToolDefinition } from "../../llm/types";
 import { GameError } from "../errors";
-import { equipSlot } from "../item-state";
+import { equipSlot, participatesInAppearance } from "../item-state";
 import { mentionOf } from "../kernel/addressing";
 import { renderAction, withAppearances } from "../kernel/observation-text";
 import {
@@ -14,8 +14,10 @@ import { resolveActorItem } from "../lookup";
 import { appendCustomStageObservation, appendStageMemory } from "../observations";
 import { setActorEquipment } from "../persistence/actors";
 import { appendPublicMessage } from "../persistence/game-messages";
+import { loadActorItemByName } from "../persistence/items";
 import type { ActorWithStageRow, Executor } from "../persistence/rows";
 import type { ResolvedEquip } from "../settle/types";
+import type { ActionResult } from "./registry";
 
 const SLOT_LABELS = EQUIPMENT_SLOTS.map((slot) => `${slot}（${EQUIPMENT_SLOT_LABELS[slot]}）`).join(
   " / ",
@@ -71,7 +73,19 @@ export async function resolveEquip(
   const item = await resolveActorItem(executor, actorRow.actor.id, action.itemName);
   // 提前校验，避免把非法槽位写进索引；真正写入由 equipSlot 再校验一次。
   equipSlot(actorRow.actor.equipment, action.slot, item);
-  return { kind: "equip", action, stage: actorRow.stage, item };
+  // 同槽原有的那件会被替换下来：它的可见性也是这次换装的一部分。
+  const previous = actorRow.actor.equipment[action.slot];
+  const replaced =
+    previous === undefined
+      ? undefined
+      : await loadActorItemByName(executor, actorRow.actor.id, previous);
+  return {
+    kind: "equip",
+    action,
+    stage: actorRow.stage,
+    item,
+    ...(replaced ? { replaced } : {}),
+  };
 }
 
 export async function applyEquip(
@@ -81,9 +95,10 @@ export async function applyEquip(
   resolved: ResolvedEquip,
   now: Date,
   trace?: TraceContext,
-): Promise<string> {
+): Promise<ActionResult> {
   const actor = { id: actorRow.actor.id, name: actorRow.actor.name };
   const item = resolved.item;
+  const replaced = resolved.replaced;
   const equipment = equipSlot(actorRow.actor.equipment, resolved.action.slot, item);
   await setActorEquipment(executor, actor.id, equipment, now);
 
@@ -120,5 +135,12 @@ export async function applyEquip(
     },
     trace,
   );
-  return `你穿上了${item.name}（${label}）。`;
+  return {
+    feedback: `你穿上了${item.name}（${label}）。`,
+    // 换装的可见后果由新旧两件道具共同决定：不参与外观的那件换上去不行，
+    // 把一件参与外观的饰品换下来同样改变了输入。
+    affectsAppearance:
+      participatesInAppearance(item) ||
+      (replaced !== undefined && participatesInAppearance(replaced)),
+  };
 }

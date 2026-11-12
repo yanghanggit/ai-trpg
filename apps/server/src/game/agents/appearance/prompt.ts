@@ -1,6 +1,6 @@
 import type { ToolDefinition } from "../../../llm/types";
 import { GameError } from "../../errors";
-import { equippedItems } from "../../item-state";
+import { equippedItems, participatesInAppearance } from "../../item-state";
 import { assertWorldFaceText } from "../../kernel/addressing";
 import {
   type ActorState,
@@ -52,12 +52,13 @@ export function parseAppearance(
 /**
  * 参与外观推理的穿戴。
  *
- * 饰品不参与：这个大类在不同题材里语义漂移（它也可能指与外观无关的植入物），引擎只保留
- * 槽位与穿戴索引，外观只消费武器与护甲两个槽。见 docs/data-driven.md。
+ * 武器与护甲总是参与；饰品由道具自己的 `appearsInAppearance` 决定——同一个槽位
+ * 在不同题材里可能是项链，也可能是看不见的植入物，引擎不替内容判断。
+ * 见 docs/appearance.md。
  */
 export function wornForAppearance(actor: ActorState): AppearanceWornItem[] {
   return equippedItems(actor)
-    .filter(({ slot }) => slot !== "accessory")
+    .filter(({ item }) => participatesInAppearance(item))
     .map(({ slot, item }) => ({
       slot,
       itemId: item.id,
@@ -80,7 +81,7 @@ export function renderWorn(worn: readonly AppearanceWornItem[]): string {
 }
 
 /** 外观任务共用的可见性规则。 */
-export const VISIBILITY_RULES = `只使用上面列出的穿戴项；没列出的装备不存在，不要虚构。形态里没写到的穿戴视为没有装备。形态已经写定的部分不要改写。
+export const VISIBILITY_RULES = `穿戴只由上面列出的道具构成：记忆、自我介绍或旧外观里提到的衣物，只要不在上面，就是已经不在身上了，不要写进外观。形态里已经写定的部分不要改写。
 
 穿戴不等于露出：只写从外面能看见的部分。被外层遮住的部分与收在里面看不见的东西不要提，也不为了提到它去改写外形。
 

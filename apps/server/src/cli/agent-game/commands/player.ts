@@ -384,10 +384,16 @@ export function registerPlayerCommands(program: Command, ctx: CommandContext): v
     run: async (input, ctx) =>
       turnOutput(
         await ctx.db((db) =>
-          playerGive(db, input.game, input.actor, {
-            targetActorRef: input.target,
-            itemName: input.item,
-          }),
+          playerGive(
+            db,
+            input.game,
+            input.actor,
+            {
+              targetActorRef: input.target,
+              itemName: input.item,
+            },
+            { inferenceService: DEEPSEEK_SERVICE },
+          ),
         ),
       ),
   });

@@ -58,5 +58,13 @@ describe("item identity", () => {
     ).toBe(false);
     expect(isSameItem(BASE, { ...BASE, actions: [] })).toBe(false);
     expect(isSameItem(BASE, { ...BASE, source: "奥德里克" })).toBe(false);
+    // 同一件饰品只有 appearsInAppearance 不同也不等价（各自有各自的可见性）。
+    const charm = {
+      ...BASE,
+      kind: "accessory",
+      actions: [],
+      appearsInAppearance: false,
+    };
+    expect(isSameItem(charm, { ...charm, appearsInAppearance: true })).toBe(false);
   });
 });

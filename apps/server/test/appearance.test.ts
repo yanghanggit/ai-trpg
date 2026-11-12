@@ -9,11 +9,14 @@ import { resetDomainData, seedDemoData } from "../src/db/maintenance";
 import { runMigrations } from "../src/db/migrate";
 import { actorSignatureNames, appearances } from "../src/db/schema";
 import {
+  buildAppearanceUpdateInput,
+  buildCorpseAppearanceInput,
   createGame,
   getGameMemories,
   getGameState,
   parseAppearance,
   playerEquip,
+  playerGive,
   playerUnequip,
   takeActorControl,
 } from "../src/game";
@@ -181,10 +184,10 @@ describe.skipIf(!testDatabaseUrl)("appearance fusion", () => {
     // 护甲槽只接受 equipment 大类。
     await expect(wear("armor", "颈上的断链")).rejects.toThrow("不能放进护甲槽");
 
+    // 断链声明了参与外观：穿进饰品槽就带进输入，并补一次外观推理。
     expect((await wear("accessory", "颈上的断链")).ok).toBe(true);
-    // 饰品可以穿戴，但不参与外观推理：输入里没有这个槽位，也没有它的道具。
-    expect(service.observation).not.toContain("饰品");
-    expect(service.observation).not.toContain("颈上的断链");
+    expect(service.calls).toBe(1);
+    expect(service.observation).toContain("饰品：颈上的断链");
 
     const state = await getGameState(handle.db, created.game.slug);
     const actor = state.world.stages
@@ -194,6 +197,145 @@ describe.skipIf(!testDatabaseUrl)("appearance fusion", () => {
       armor: "发黄的裹尸布",
       accessory: "颈上的断链",
     });
+  });
+
+  it("keeps an accessory out of appearance when the content says so", async () => {
+    // 同一个槽位、同一套引擎：这件饰品声明不参与外观，所以穿戴它不重算、不广播。
+    const hiddenPump = {
+      key: "hidden-pump",
+      name: "胸口的铁泵",
+      description: "贴在肋骨上的一枚小铁泵，隔着衣服看不出来。",
+      kind: "accessory" as const,
+      appearsInAppearance: false,
+      count: 1,
+    };
+    const world = {
+      ...BELL_MONASTERY_WORLD,
+      actors: BELL_MONASTERY_WORLD.actors.map((actor) =>
+        actor.name === "奥德里克"
+          ? { ...actor, inventory: [...actor.inventory, hiddenPump] }
+          : actor,
+      ),
+    };
+    const created = await createGame(handle.db, {
+      username: DEMO_USER.username,
+      name: "隐藏饰品测试局",
+      world,
+    });
+    await takeActorControl(handle.db, created.game.slug, "奥德里克");
+    const service = new AppearanceService("不应被调用。");
+
+    expect(
+      (
+        await playerEquip(
+          handle.db,
+          created.game.slug,
+          "奥德里克",
+          { slot: "accessory", itemName: "胸口的铁泵" },
+          { inferenceService: service },
+        )
+      ).ok,
+    ).toBe(true);
+    expect(service.calls).toBe(0);
+    expect(service.observation).toBe("");
+
+    const state = await getGameState(handle.db, created.game.slug);
+    const actor = state.world.stages
+      .flatMap((stage) => stage.actors)
+      .find((candidate) => candidate.name === "奥德里克");
+    if (!actor) {
+      throw new Error("缺少奥德里克");
+    }
+    // 穿戴索引照常维护：它只是不进外观。
+    expect(actor.equipment.accessory).toBe("胸口的铁泵");
+    expect(buildAppearanceUpdateInput(actor).worn.map(({ name }) => name)).not.toContain(
+      "胸口的铁泵",
+    );
+    expect(
+      buildCorpseAppearanceInput(actor, actor.appearance.text).worn.map(({ name }) => name),
+    ).not.toContain("胸口的铁泵");
+
+    // 卸下也一样：从头到尾没有外观推理。
+    expect(
+      (
+        await playerUnequip(
+          handle.db,
+          created.game.slug,
+          "奥德里克",
+          { slot: "accessory" },
+          { inferenceService: service },
+        )
+      ).ok,
+    ).toBe(true);
+    expect(service.calls).toBe(0);
+  });
+
+  it("recomputes when a visible accessory is replaced by a hidden one", async () => {
+    // 换下来那件参与外观：即使新穿的是看不见的，输入也变了。
+    const hiddenPump = {
+      key: "hidden-pump",
+      name: "胸口的铁泵",
+      description: "贴在肋骨上的一枚小铁泵，隔着衣服看不出来。",
+      kind: "accessory" as const,
+      appearsInAppearance: false,
+      count: 1,
+    };
+    const world = {
+      ...BELL_MONASTERY_WORLD,
+      actors: BELL_MONASTERY_WORLD.actors.map((actor) =>
+        actor.name === "无名者" ? { ...actor, inventory: [...actor.inventory, hiddenPump] } : actor,
+      ),
+    };
+    const created = await createGame(handle.db, {
+      username: DEMO_USER.username,
+      name: "换下可见饰品测试局",
+      world,
+    });
+    await takeActorControl(handle.db, created.game.slug, "无名者");
+    const service = new AppearanceService("身上裹着半幅发黄的裹尸布。");
+
+    expect(
+      (
+        await playerEquip(
+          handle.db,
+          created.game.slug,
+          "无名者",
+          { slot: "accessory", itemName: "胸口的铁泵" },
+          { inferenceService: service },
+        )
+      ).ok,
+    ).toBe(true);
+    expect(service.calls).toBe(1);
+    // 新穿的那件不进输入，旧的那件也不再在槽里。
+    expect(service.observation).not.toContain("颈上的断链");
+    expect(service.observation).not.toContain("胸口的铁泵");
+  });
+
+  it("recomputes when a worn item is given away", async () => {
+    const created = await createGame(handle.db, {
+      username: DEMO_USER.username,
+      name: "交出穿戴测试局",
+      world: BELL_MONASTERY_WORLD,
+    });
+    await takeActorControl(handle.db, created.game.slug, "奥德里克");
+    const service = new AppearanceService("只穿旧衬衣，手背沾着新土。");
+    const give = (itemName: string) =>
+      playerGive(
+        handle.db,
+        created.game.slug,
+        "奥德里克",
+        { targetActorRef: "小狗“煤渣”", itemName },
+        { inferenceService: service },
+      );
+
+    // 交出的正是身上那件：穿戴索引变了，外观输入也跟着变。
+    expect((await give("补丁斗篷")).ok).toBe(true);
+    expect(service.calls).toBe(1);
+    expect(service.observation).not.toContain("补丁斗篷");
+
+    // 交出没穿的东西：输入没变，不重算。
+    expect((await give("闸门钥匙")).ok).toBe(true);
+    expect(service.calls).toBe(1);
   });
 
   it("broadcasts the new appearance with observer-relative references", async () => {

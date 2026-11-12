@@ -206,4 +206,9 @@ export type ItemDefinition = {
   actions?: readonly CarriedActionKind[];
   /** 材料来源；只有 `material` 可以声明，其它大类声明会被内容校验拒绝。 */
   source?: string;
+  /**
+   * 这件饰品是否作为外观推理的输入；`accessory` 必填，其它大类不得声明。
+   * 题材之间饰品的语义不固定（项链 / 植入物），所以由内容表态，引擎不猜。
+   */
+  appearsInAppearance?: boolean;
 };

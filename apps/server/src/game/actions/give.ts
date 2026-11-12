@@ -1,7 +1,7 @@
 import type { TraceContext } from "../../debug/trace";
 import type { ToolDefinition } from "../../llm/types";
 import { GameError } from "../errors";
-import { withoutEquippedItem } from "../item-state";
+import { participatesInAppearance, withoutEquippedItem } from "../item-state";
 import { type AddressLookup, actionRef } from "../kernel/addressing";
 import type { GiveAction } from "../kernel/types";
 import { assertNotSelf, resolveActorItem } from "../lookup";
@@ -11,6 +11,7 @@ import { appendPublicMessage } from "../persistence/game-messages";
 import { transferItemToActor } from "../persistence/items";
 import type { ActorWithStageRow, Executor } from "../persistence/rows";
 import type { ResolvedGive } from "../settle/types";
+import type { ActionResult } from "./registry";
 
 export function buildGiveTool(targetActorHandles: readonly string[]): ToolDefinition {
   return {
@@ -69,10 +70,12 @@ export async function applyGive(
   now: Date,
   address: AddressLookup,
   trace?: TraceContext,
-): Promise<string> {
+): Promise<ActionResult> {
   const giver = { id: actorRow.actor.id, name: actorRow.actor.name };
   const target = { id: resolved.target.id, name: resolved.target.name };
   const item = resolved.transferItem;
+  // 交出的可能正是身上那件：索引会跟着变，外观输入也跟着变。
+  const wasWorn = Object.values(actorRow.actor.equipment).includes(item.name);
 
   await transferItemToActor(executor, item, target.id);
   await setActorEquipment(
@@ -113,5 +116,8 @@ export async function applyGive(
     },
     trace,
   );
-  return `你把${item.name}交给了${actionRef(address(target.id))}。`;
+  return {
+    feedback: `你把${item.name}交给了${actionRef(address(target.id))}。`,
+    affectsAppearance: wasWorn && participatesInAppearance(item),
+  };
 }

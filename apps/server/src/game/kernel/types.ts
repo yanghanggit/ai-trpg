@@ -433,6 +433,8 @@ export type ItemBaseState = {
    * 是否需要这个上限由动作自己决定，道具只提供数值。
    */
   maxTargets: number;
+  /** 这件饰品是否作为外观推理的输入；只有 `accessory` 会写 true。 */
+  appearsInAppearance: boolean;
 };
 
 /** 武器：`strike` 与 `cleave` 读它的 `damage`；`cleave` 还读 `maxTargets`。穿戴后 `block` 与其它槽一样计入减伤。 */
@@ -441,7 +443,10 @@ export type WeaponState = ItemBaseState & { kind: "weapon" };
 /** 装备：不能用于出手，但穿戴后 `block` 计入减伤。 */
 export type EquipmentState = ItemBaseState & { kind: "equipment" };
 
-/** 饰品：随身携带的非战斗道具。 */
+/**
+ * 饰品：随身携带的非战斗道具，`appearsInAppearance` 决定它是否作为外观推理的输入。
+ * 同一个槽位在不同题材里可能是项链，也可能是看不见的植入物。
+ */
 export type AccessoryState = ItemBaseState & { kind: "accessory" };
 
 /** 可穿戴道具状态的联合，用于外观推理筛选。 */

@@ -385,6 +385,7 @@ describe("read-only descriptions", () => {
             ],
           },
           actions: ["strike" as const],
+          appearsInAppearance: false,
         },
       ],
     };
@@ -426,6 +427,7 @@ describe("read-only descriptions", () => {
           stats: { maxHp: 0, strength: 0, wisdom: 0, agility: 0, damage: 0, block: 0 },
           affixes: {},
           actions: [],
+          appearsInAppearance: false,
         },
       ],
     };

@@ -20,7 +20,7 @@ import { DARK_FANTASY_SETTING } from "./campaign";
  * 本世界；黑疖病是战役层共享的瘟疫，不随剧本改变。
  */
 export const CROW_GRAVE: Script = {
-  contentVersion: "crow-grave.v1",
+  contentVersion: "crow-grave.v2",
   contentKey: "crow-grave",
   worldName: "鸦葬岗的故事",
   functionPrompts: renderFunctionPrompts({
@@ -284,10 +284,7 @@ export const CROW_GRAVE: Script = {
 **秘密**: 你知道卡尔的妻子和女儿在那口封死的石窖里；你早就知道，却一直没告诉任何人。你带着那只旧骨哨，不是为杀他，是为在最后一刻让他认出你。`,
       openingBriefing: `你追着卡尔到了鸦葬岗。他疯了，不认得你；你的名单上还有他的名字。墓园里还有一个背着骨袋的陌生人，你不认识他——先看清他站在哪一边，再决定要不要让他活着离开。别让卡尔再开那座尸窖。`,
       signature: {
-        form: formatForm(
-          "人类",
-          "瘦高，动作轻；鸦羽斗篷下是皮甲，右手戴着一只铁爪套，左耳挂着一枚磨亮的骨片。",
-        ),
+        form: formatForm("人类", "瘦高，动作轻；右手戴着一只铁爪套，左耳挂着一枚磨亮的骨片。"),
         appearance:
           "黑羽与旧皮缝成的短斗篷下是磨得发亮的皮甲，右手戴着一只铁爪套，左耳挂着一枚磨亮的骨片；走路时几乎听不见脚步，只有铁爪偶尔碰到斗篷上的铁片。",
       },
@@ -396,10 +393,7 @@ export const CROW_GRAVE: Script = {
 **秘密**: 你脖子后面有一块黑疖病留下的疤，它没要你的命；你因此觉得墓园里的骨头不传染，也因此在别人都躲着的地方敢往里走。`,
       openingBriefing: `你翻过塌墙，进了鸦葬岗，想从旧坟里捡些骨头卖给骨炭窑。墓园里有一个拖着尸车的男人和一个戴鸦羽的女人；你都不认识。先别惊动他们，看清这里发生了什么，再决定要不要留下。`,
       signature: {
-        form: formatForm(
-          "人类",
-          "中等身材，手指关节粗大，指甲缝里嵌着骨粉；背有点驼，左肩挂着一只补过的骨袋。",
-        ),
+        form: formatForm("人类", "中等身材，手指关节粗大，指甲缝里嵌着骨粉；背有点驼。"),
         appearance:
           "粗布外衣上结着骨粉与蜡，左肩挂着一只补过三次的骨袋，袋口露出半截麻绳；脖子后面有一块发黑的旧疤。手指关节粗大，指甲缝里嵌着洗不掉的骨粉。",
       },
@@ -450,6 +444,7 @@ export const CROW_GRAVE: Script = {
           name: "拾骨袋",
           description: "一只补过三次的粗布袋，袋口用麻绳收着，里面积着骨粉和碎蜡。",
           kind: "accessory" as const,
+          appearsInAppearance: true,
           count: 1,
         },
       ],

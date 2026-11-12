@@ -357,6 +357,8 @@ export const items = pgTable(
     affixes: jsonb("affixes").$type<AffixTriggers>().notNull().default({}),
     /** 道具的动作清单；只有穿戴中才会生效，目前只有武器会声明。 */
     actions: jsonb("actions").$type<CarriedActionKind[]>().notNull().default([]),
+    /** 只有 accessory 会写 true：这件饰品是否作为外观推理的输入。 */
+    appearsInAppearance: boolean("appears_in_appearance").notNull().default(false),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (table) => [uniqueIndex("items_actor_name_unique").on(table.actorId, table.name)],
@@ -387,6 +389,8 @@ export const stageItems = pgTable(
     affixes: jsonb("affixes").$type<AffixTriggers>().notNull().default({}),
     /** 道具的动作清单；只有穿戴中才会生效，目前只有武器会声明。 */
     actions: jsonb("actions").$type<CarriedActionKind[]>().notNull().default([]),
+    /** 只有 accessory 会写 true：这件饰品是否作为外观推理的输入。 */
+    appearsInAppearance: boolean("appears_in_appearance").notNull().default(false),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (table) => [

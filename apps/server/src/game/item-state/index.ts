@@ -11,7 +11,7 @@ export {
   describeItems,
   itemSourceNote,
 } from "./describe";
-export { isWearable, toItemState } from "./project";
+export { isWearable, participatesInAppearance, toItemState } from "./project";
 export {
   type ActionGrant,
   actionMaxTargets,

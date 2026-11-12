@@ -71,6 +71,11 @@ export type ActionResult = {
   staticSettlement?: StaticSettlement;
   /** 每个目标的静态实际结果；单体动作至多一项，多目标动作一项一个。 */
   staticOutcomes?: readonly StaticOutcome[];
+  /**
+   * 这次落账是否可能改变角色可见外观。只有换装会设置它，且由道具是否参与外观决定——
+   * 增量阶段靠它决定要不要重算外观，而不是看动作名。
+   */
+  affectsAppearance?: boolean;
 };
 
 export type AffixRequestInput = {
@@ -384,7 +389,7 @@ export const ACTOR_ACTIONS = {
         action,
         await context.visible(action.targetActorHandle),
       ),
-    apply: feedbackOnly<Extract<ResolvedAction, { kind: "give" }>>(async (context, resolved) =>
+    apply: (context, resolved) =>
       applyGive(
         context.executor,
         context.gameId,
@@ -394,7 +399,6 @@ export const ACTOR_ACTIONS = {
         context.address,
         context.trace,
       ),
-    ),
   },
   pickup: {
     buildTool: (context) =>
@@ -483,7 +487,7 @@ export const ACTOR_ACTIONS = {
     buildTool: (context) => buildEquipTool(context.wearableItemNames),
     parse: parseEquip,
     resolve: async (context, action) => resolveEquip(context.executor, context.actorRow, action),
-    apply: feedbackOnly<Extract<ResolvedAction, { kind: "equip" }>>(async (context, resolved) =>
+    apply: (context, resolved) =>
       applyEquip(
         context.executor,
         context.gameId,
@@ -492,13 +496,12 @@ export const ACTOR_ACTIONS = {
         context.now,
         context.trace,
       ),
-    ),
   },
   unequip: {
     buildTool: (context) => buildUnequipTool(context.occupiedSlots),
     parse: parseUnequip,
     resolve: async (context, action) => resolveUnequip(context.actorRow, action),
-    apply: feedbackOnly<Extract<ResolvedAction, { kind: "unequip" }>>(async (context, resolved) =>
+    apply: (context, resolved) =>
       applyUnequip(
         context.executor,
         context.gameId,
@@ -507,7 +510,6 @@ export const ACTOR_ACTIONS = {
         context.now,
         context.trace,
       ),
-    ),
   },
 } satisfies { [K in ActionKind]: ActorActionSpec<K> };
 
