@@ -9,6 +9,7 @@ import {
   stages,
   worlds,
 } from "../../db/schema";
+import { carriedActionsForKind, isSlotActionKind } from "../actions";
 import { GameError } from "../errors";
 import type { Wearer } from "../gameplay";
 import {
@@ -19,6 +20,8 @@ import {
   parseHandle,
   withSelf,
 } from "../kernel/addressing";
+import { hasAffixes } from "../kernel/affixes";
+import type { HeldActionKind, SlotActionKind } from "../kernel/types";
 import { EQUIPMENT_SLOTS } from "../kernel/types";
 import type {
   ActorRow,
@@ -248,27 +251,60 @@ export function assertNotSelf(target: ActorRow, actorId: string): void {
   }
 }
 
-/** 按槽位索引解析出穿戴中的道具行；指向不存在道具的悬空索引直接跳过。 */
-export async function resolveEquippedItems(
+/** actor 名下的全部道具行，按名字建索引：同名只留最早一行（名字是唯一地址）。 */
+async function loadOwnedItemRows(
   executor: Executor,
-  actor: ActorRow,
-): Promise<ItemRow[]> {
+  actorId: string,
+): Promise<Map<string, ItemRow>> {
   const rows = await executor
     .select()
     .from(items)
-    .where(eq(items.actorId, actor.id))
+    .where(eq(items.actorId, actorId))
     .orderBy(asc(items.seq));
-  const byName = new Map<string, (typeof rows)[number]>();
+  const byName = new Map<string, ItemRow>();
   for (const row of rows) {
     if (!byName.has(row.name)) {
       byName.set(row.name, row);
     }
   }
+  return byName;
+}
+
+/** 按槽位索引解析出穿戴中的道具行；指向不存在道具的悬空索引直接跳过。 */
+export async function resolveEquippedItems(
+  executor: Executor,
+  actor: ActorRow,
+): Promise<ItemRow[]> {
+  const byName = await loadOwnedItemRows(executor, actor.id);
   return EQUIPMENT_SLOTS.flatMap((slot) => {
     const name = actor.equipment[slot];
     const item = name === undefined ? undefined : byName.get(name);
     return item ? [item] : [];
   });
+}
+
+/** 结算期的动作来源：从行重算，与 `item-state` 的派生同构。 */
+export async function resolveActionSources(
+  executor: Executor,
+  actor: ActorRow,
+): Promise<{ slot: SlotActionKind[]; held: HeldActionKind[] }> {
+  const byName = await loadOwnedItemRows(executor, actor.id);
+  const slot: SlotActionKind[] = EQUIPMENT_SLOTS.flatMap((equippedSlot) => {
+    const name = actor.equipment[equippedSlot];
+    const row = name === undefined ? undefined : byName.get(name);
+    if (!row) {
+      return [];
+    }
+    // 与 `carriedActions` 同口径：动作还要在该大类可授予的范围内。
+    const grantable = carriedActionsForKind(row.kind);
+    return row.actions.filter(
+      (kind): kind is SlotActionKind => isSlotActionKind(kind) && grantable.includes(kind),
+    );
+  });
+  const held: HeldActionKind[] = [...byName.values()].some((row) => hasAffixes(row, "use"))
+    ? ["use"]
+    : [];
+  return { slot, held };
 }
 
 /**

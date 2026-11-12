@@ -1,7 +1,12 @@
 import { allowedActionKinds } from "../../actions";
 import { usableItemNames } from "../../actions/use";
 import { type ActorWithStage, otherActorsInStage } from "../../actor-state";
-import { carriedActionCap, equippedItemActions, isWearable } from "../../item-state";
+import {
+  carriedActionCap,
+  equippedItemActions,
+  heldItemActions,
+  isWearable,
+} from "../../item-state";
 import { type AddressLookup, addressLookupFor } from "../../kernel/addressing";
 import {
   type ActionKind,
@@ -35,9 +40,9 @@ export type ActorTurnContext = {
   targets: string[];
   /** `use` 能指向的角色：自己与同舞台他人。 */
   selfAndTargets: string[];
-  /** 本轮真正会出现在工具列表里的动作：固有动作 ∪ 携带者授予。 */
+  /** 本轮真正会出现在工具列表里的动作：固有动作 ∪ 槽位携带 ∪ 持有携带。 */
   allowed: ActionKind[];
-  /** 背包里能当道具的道具名：未穿戴，且声明了 use 词缀。 */
+  /** 身上声明了 use 词缀的道具名；也是 `use` 这个动作的来源。 */
   usableItemNames: string[];
   /** 能穿到槽位上的道具名。 */
   wearableItemNames: string[];
@@ -60,8 +65,12 @@ export function actorTurnContext(state: GameStateSlice, current: ActorWithStage)
     selfHandle: address(current.actor.id).token,
     targets,
     selfAndTargets: [address(current.actor.id).token, ...targets],
-    allowed: allowedActionKinds(current.actor.actions, equippedItemActions(current.actor)),
-    usableItemNames: usableItemNames(current.actor.items, current.actor.equipment),
+    allowed: allowedActionKinds(
+      current.actor.actions,
+      equippedItemActions(current.actor),
+      heldItemActions(current.actor),
+    ),
+    usableItemNames: usableItemNames(current.actor.items),
     wearableItemNames: current.actor.items.filter(isWearable).map((item) => item.name),
     occupiedSlots: EQUIPMENT_SLOTS.filter((slot) => current.actor.equipment[slot] !== undefined),
     cleaveMaxTargets: carriedActionCap(current.actor, "cleave"),

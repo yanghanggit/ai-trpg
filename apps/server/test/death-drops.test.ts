@@ -185,6 +185,7 @@ describe.skipIf(!testDatabaseUrl)("death drops", () => {
     // 换手不改来源：材料始终记着它源于哪具尸体。
     expect(carried?.kind === "material" ? carried.source : null).toBe("提灯修士");
 
+    // 材料不声明使用词缀：`use` 的授权来自别的道具，但点名它会被逐件复核拦下。
     await expect(
       playerUse(handle.db, created.game.slug, "守烬人", {
         itemName: "浸血的灰袍碎片",

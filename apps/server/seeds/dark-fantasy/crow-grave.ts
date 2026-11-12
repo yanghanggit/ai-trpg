@@ -266,7 +266,7 @@ export const CROW_GRAVE: Script = {
           count: 1,
         },
       ],
-      // 人类：会说话、走动、战斗；疯到不再使用道具，也不会把钥匙交出去。
+      // 人类：会说话、走动、战斗；他带着塔门钥匙，钥匙借给他 use。
       actions: ["say", "whisper", "announce", "move", "wait", "brawl"],
     },
     {
@@ -366,7 +366,8 @@ export const CROW_GRAVE: Script = {
           count: 1,
         },
       ],
-      // 人类：会说话、走动、战斗，也会用哨、递东西、拾取与换装；不偷东西，也不翻别人的行囊。
+      // 人类：会说话、走动、战斗，也会递东西、拾取与换装；吹哨写在道具的词缀里。
+      // 不偷东西，也不翻别人的行囊。
       actions: [
         "say",
         "whisper",
@@ -377,7 +378,6 @@ export const CROW_GRAVE: Script = {
         "give",
         "pickup",
         "loot",
-        "use",
         "equip",
         "unequip",
       ],
@@ -473,7 +473,6 @@ export const CROW_GRAVE: Script = {
         "give",
         "pickup",
         "loot",
-        "use",
         "equip",
         "unequip",
       ],

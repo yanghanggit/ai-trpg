@@ -202,7 +202,7 @@ export type ItemDefinition = {
   maxTargets?: number;
   /** 按触发舞台声明的词缀；可省略，创建时归一化为空对象。 */
   affixes?: AffixTriggers;
-  /** 道具能提供的携带者动作；穿戴中才借给角色。可省略，创建时归一化为空数组。 */
+  /** 道具能提供的槽位动作，穿戴中才借给角色；`use` 由 `affixes.use` 派生，不写在这里。 */
   actions?: readonly CarriedActionKind[];
   /** 材料来源；只有 `material` 可以声明，其它大类声明会被内容校验拒绝。 */
   source?: string;

@@ -355,7 +355,7 @@ export const items = pgTable(
     /** `cleave` 一次最多命中的目标数；只有武器会大于 1，其余大类恒为 1。 */
     maxTargets: integer("max_targets").notNull().default(1),
     affixes: jsonb("affixes").$type<AffixTriggers>().notNull().default({}),
-    /** 携带者动作；只有穿戴中才会生效，目前只有武器会声明。 */
+    /** 道具的动作清单；只有穿戴中才会生效，目前只有武器会声明。 */
     actions: jsonb("actions").$type<CarriedActionKind[]>().notNull().default([]),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },
@@ -385,7 +385,7 @@ export const stageItems = pgTable(
     /** 跟着这件东西走的挥击上限：从锚点搬进背包、被偷走都不改。 */
     maxTargets: integer("max_targets").notNull().default(1),
     affixes: jsonb("affixes").$type<AffixTriggers>().notNull().default({}),
-    /** 携带者动作；只有穿戴中才会生效，目前只有武器会声明。 */
+    /** 道具的动作清单；只有穿戴中才会生效，目前只有武器会声明。 */
     actions: jsonb("actions").$type<CarriedActionKind[]>().notNull().default([]),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },

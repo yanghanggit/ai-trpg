@@ -167,14 +167,14 @@ describe("dark fantasy seed world", () => {
     };
 
     const TALK_AND_MOVE = ["say", "whisper", "announce", "move", "wait"];
-    const ITEM_ACTIONS = ["give", "pickup", "loot", "use"];
+    const ITEM_ACTIONS = ["give", "pickup", "loot"];
 
     // 活物都会说话、走动与等待。
     for (const actor of BELL_MONASTERY_WORLD.actors) {
       expect(actor.actions).toEqual(expect.arrayContaining(TALK_AND_MOVE));
     }
 
-    // 动物不操作道具。
+    // 动物不碰别人的行囊，也不捡东西。
     for (const animal of ["小狗“煤渣”", "小鼠“坏运气”", "鼠王"]) {
       for (const action of [...ITEM_ACTIONS, "steal", "inspect"]) {
         expect(actionsOf(animal)).not.toContain(action);
@@ -204,11 +204,15 @@ describe("dark fantasy seed world", () => {
     expect(weaponActions("掘墓人的铁锹")).toEqual(["strike"]);
     expect(weaponActions("松脂火把")).toEqual(["strike"]);
 
-    // 人类可以操作道具；偷窃只属于无名者。
+    // 人类可以搬运与拾取道具；偷窃只属于无名者。
     for (const human of ["奥德里克", "无名者"]) {
       for (const action of ITEM_ACTIONS) {
         expect(actionsOf(human)).toContain(action);
       }
+    }
+    // `use` 不是角色天赋，谁都写不进 `actions`：它由身上声明了使用词缀的道具借出。
+    for (const actor of BELL_MONASTERY_WORLD.actors) {
+      expect(actionsOf(actor.name)).not.toContain("use");
     }
     // 探囊把看清与取走捆成一项技艺：只有无名者有，两个动作都出自它，
     // 所以它们不出现在 `actions` 里。

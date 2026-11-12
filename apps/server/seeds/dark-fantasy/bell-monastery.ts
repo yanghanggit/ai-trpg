@@ -274,7 +274,7 @@ export const BELL_MONASTERY: Script = {
           stats: { block: 3 },
         },
       ],
-      // 人类：会说话、走动、战斗，也操作道具、穿脱装备；不会探囊。
+      // 人类：会说话、走动、战斗，也穿脱装备；不会探囊。`use` 由身上的道具借出，不写在这里。
       actions: [
         "say",
         "whisper",
@@ -285,7 +285,6 @@ export const BELL_MONASTERY: Script = {
         "give",
         "pickup",
         "loot",
-        "use",
         "equip",
         "unequip",
       ],
@@ -312,7 +311,7 @@ export const BELL_MONASTERY: Script = {
       hp: 10,
       stats: { maxHp: 10, strength: 14, wisdom: 1, agility: 7, damage: 0, block: 0 },
       inventory: [],
-      // 动物：会说话、走动与战斗，但不操作道具。
+      // 动物：会说话、走动与战斗；身上没有声明使用词缀的道具，也就没有 use。
       actions: ["say", "whisper", "announce", "move", "wait", "brawl"],
     },
     {
@@ -336,7 +335,7 @@ export const BELL_MONASTERY: Script = {
       hp: 4,
       stats: { maxHp: 4, strength: 2, wisdom: 0, agility: 10, damage: 0, block: 0 },
       inventory: [],
-      // 幼崽只会说话、走动与躲避；不会战斗，也不操作道具。
+      // 幼崽只会说话、走动与躲避；不会战斗，身上也没有可用的道具。
       actions: ["say", "whisper", "announce", "move", "wait"],
     },
     {
@@ -420,7 +419,6 @@ export const BELL_MONASTERY: Script = {
         "give",
         "pickup",
         "loot",
-        "use",
         "equip",
         "unequip",
       ],
@@ -482,7 +480,7 @@ export const BELL_MONASTERY: Script = {
           },
         },
       ],
-      // 动物：沉睡时由 openingBriefing 约束留在原地；苏醒后可以移动与攻击，不操作道具。
+      // 动物：沉睡时由 openingBriefing 约束留在原地；苏醒后可以移动与攻击。它带着钟舌，也会得到 use。
       actions: ["say", "whisper", "announce", "move", "wait", "brawl"],
     },
   ],

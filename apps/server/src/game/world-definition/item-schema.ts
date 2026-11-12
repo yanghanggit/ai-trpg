@@ -3,6 +3,8 @@ import {
   CARRIED_ACTION_KINDS,
   CARRIED_ACTIONS_BY_ITEM_KIND,
   carriedActionsForKind,
+  isSlotActionKind,
+  SLOT_ACTION_KINDS,
 } from "../actions";
 import { NAME_MARKER_PATTERN } from "../kernel/addressing";
 import { statsSchema } from "../kernel/attributes";
@@ -26,7 +28,7 @@ const ITEM_KINDS = [
 
 const itemKindSchema = z.enum(ITEM_KINDS);
 
-/** 道具只能声明携带者动作；固有动作不属于任何道具。 */
+/** 道具只能声明携带者动作；`use` 由 `affixes.use` 派生，下面的 `superRefine` 会拒绝它。 */
 const affixActionKindSchema = z.enum(CARRIED_ACTION_KINDS satisfies readonly ActionKind[]);
 
 /** 静态词缀能引用的数值全集：攻击力在结算期现算，道具终值取自本条道具。 */
@@ -128,10 +130,18 @@ export const itemSchema = z
     if (item.source !== undefined && item.kind !== "material") {
       ctx.addIssue({ code: "custom", message: "只有 material 可以声明 source", path: ["source"] });
     }
-    // 动作挂在携带者上，哪些大类能携带由 `CARRIED_ACTIONS_BY_ITEM_KIND` 决定；
-    // 没登记的道具类声明动作一定是内容写错了，而不是“暂时不生效”。
+    const declared = item.actions ?? [];
+    const heldInActions = declared.filter((kind) => !isSlotActionKind(kind));
+    if (heldInActions.length > 0) {
+      ctx.addIssue({
+        code: "custom",
+        message: `${heldInActions.join("、")} 由 affixes.use 派生，不要写进 actions：持有这件道具的角色会自动获得它`,
+        path: ["actions"],
+      });
+    }
+    // 没登记的大类声明槽位动作一定是内容写错了，而不是“暂时不生效”。
     const grantable = carriedActionsForKind(item.kind);
-    const unknown = (item.actions ?? []).filter((kind) => !grantable.includes(kind));
+    const unknown = declared.filter((kind) => isSlotActionKind(kind) && !grantable.includes(kind));
     if (unknown.length > 0) {
       ctx.addIssue({
         code: "custom",
@@ -149,9 +159,9 @@ export const itemSchema = z
         path: ["maxTargets"],
       });
     }
-    // 每个攻击动作都自带一套词缀：没有对应列表就会变成“能打但打不出伤害”。
+    // 每个槽位动作都自带一套词缀：没有对应列表就会变成“能打但打不出伤害”。
     // 无条件是两回事：挥击与横扫各自声明，互不借用。
-    for (const trigger of CARRIED_ACTION_KINDS) {
+    for (const trigger of SLOT_ACTION_KINDS) {
       if (item.actions?.includes(trigger) && (item.affixes?.[trigger]?.length ?? 0) === 0) {
         ctx.addIssue({
           code: "custom",

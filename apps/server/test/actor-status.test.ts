@@ -836,6 +836,7 @@ describe.skipIf(!testDatabaseUrl)("corpses can be operated on", () => {
     await runActorTurn(handle.db, created.game.slug, "守烬人", { service: capture });
 
     // strike / give / use 的参数枚举都包含尸体名，没有第二套存活过滤。
+    // `use` 与穿戴无关：只看那件道具自己有没有使用词缀。
     for (const toolName of ["strike", "give", "use"]) {
       const tool = capture.tools.find((tool) => tool.function.name === toolName);
       const enumValues = (tool?.function.parameters as { properties?: Record<string, unknown> })

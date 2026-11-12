@@ -36,8 +36,8 @@ export function effectiveSourcesOf(wearer: Wearer): Stats {
 /**
  * 装备终值：穿戴中的 `damage` / `block` 之和。
  *
- * `instrument` 是本次动手用的那件道具。它已经在穿戴槽里时不再重复相加；
- * 在背包里（`use`）才补进来——「谁被拿来动手」始终只算一次。
+ * `instrument` 是本次动手用的那件道具：它已经在穿戴槽里时不再重复相加，
+ * 只有不在槽里才补进来——「谁被拿来动手」始终只算一次。
  */
 export function equipmentFinalsOf(wearer: Wearer, instrument?: Wearable): Stats {
   const worn = wornItemsOf(wearer);

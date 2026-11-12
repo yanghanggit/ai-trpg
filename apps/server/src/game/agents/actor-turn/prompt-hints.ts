@@ -34,21 +34,6 @@ const identityHint: Hint = (context) => {
     : `${base}名单里还有 \`#编号\`：可以用 recognize_identity 把它记成你认得的称呼；需要改名时对同一个编号再记一次。`;
 };
 
-// 已穿戴道具不能 use 是动作自身的约束；用哪个动作替代属于流程，放在任务提示词。
-const useFlowHint: Hint = (context) => {
-  if (!context.allowed.includes("use")) {
-    return "";
-  }
-  const kinds = attackKinds(context);
-  const alternatives = [
-    ...(kinds.length > 0 ? [`武器用 ${kinds.join(" 或 ")}`] : []),
-    ...(context.allowed.includes("unequip")
-      ? [kinds.length > 0 ? "其余先 unequip" : "先 unequip"]
-      : []),
-  ];
-  return `已穿戴的道具不能用 use${alternatives.length > 0 ? `；${alternatives.join("；")}` : ""}。`;
-};
-
 // 攻击是能力面：引擎不自动授予 brawl，没武器时能用什么完全由角色固有声明决定。
 // 这里只把“现在到底有没有出手方式”说清楚，避免模型反复尝试没有的动作。
 const unarmedHint: Hint = (context) => {
@@ -82,14 +67,7 @@ const agilityHint: Hint = (context) => {
 };
 
 /** 顺序即提示词的顺序；空提示自然消失。 */
-const HINTS: readonly Hint[] = [
-  knowledgeHint,
-  identityHint,
-  useFlowHint,
-  unarmedHint,
-  inspectHint,
-  agilityHint,
-];
+const HINTS: readonly Hint[] = [knowledgeHint, identityHint, unarmedHint, inspectHint, agilityHint];
 
 /** 把本轮适用的提示按固定顺序拼成一段；没有一条适用时返回空串。 */
 export function renderHints(context: ActorTurnContext): string {

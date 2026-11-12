@@ -2,15 +2,9 @@ import type { TraceContext } from "../../debug/trace";
 import type { ToolDefinition } from "../../llm/types";
 import { applyStaticItemAction, type StaticItemActionResult } from "../agents/affixes";
 import { GameError } from "../errors";
-import { equippedSlotOf } from "../item-state";
 import { type AddressLookup, actionRef } from "../kernel/addressing";
 import { hasAffixes, staticAffixes } from "../kernel/affixes";
-import {
-  EQUIPMENT_SLOT_LABELS,
-  type EquipmentSlots,
-  type ItemState,
-  type UseAction,
-} from "../kernel/types";
+import type { ItemState, UseAction } from "../kernel/types";
 import { resolveActorItem } from "../lookup";
 import { appendItemObservations, appendStageMemory } from "../observations";
 import { appendPublicMessage } from "../persistence/game-messages";
@@ -19,14 +13,12 @@ import type { ActorWithStageRow, Executor } from "../persistence/rows";
 import type { ResolvedUse } from "../settle/types";
 
 /**
- * `use` 的候选道具：声明了 `affixes.use`，且此刻没被穿戴。
+ * `use` 的携带者，也是工具里 `itemName` 的可选值。
  *
- * 与 `resolveUse` 的拒绝条件同源：候选里没有的道具，即使被模型点名也会在解析阶段失败。
+ * 名单外的道具即使被模型点名，也会在解析阶段失败。
  */
-export function usableItemNames(items: readonly ItemState[], equipment: EquipmentSlots): string[] {
-  return items
-    .filter((item) => hasAffixes(item, "use") && equippedSlotOf(equipment, item.name) === undefined)
-    .map((item) => item.name);
+export function usableItemNames(items: readonly ItemState[]): string[] {
+  return items.filter((item) => hasAffixes(item, "use")).map((item) => item.name);
 }
 
 export function buildUseTool(
@@ -40,14 +32,15 @@ export function buildUseTool(
     function: {
       name: "use",
       description:
-        "把一次使用道具加入计划：使用一件没穿戴的道具，作用于一个角色或当前舞台（二选一）。",
+        "把一次使用道具加入计划：使用一件自己带在身上的道具，作用于一个角色或当前舞台（二选一）。",
       parameters: {
         type: "object",
         properties: {
           itemName: {
             type: "string",
             description: "要使用的自己持有的道具名",
-            ...(availableItemNames.length > 0 ? { enum: [...availableItemNames] } : {}),
+            // 工具只在有可用道具时装配（`use` 由道具授予），所以枚举永远非空。
+            enum: [...availableItemNames],
           },
           targetActorHandle: {
             type: "string",
@@ -115,14 +108,7 @@ export async function resolveUse(
   targetActor?: ResolvedUse["target"],
 ): Promise<ResolvedUse> {
   const transferItem = await resolveActorItem(executor, actorRow.actor.id, action.itemName);
-  // 动作由道具状态唯一决定：装备中的道具归 strike 或被动装备，不能走 use。
-  const slot = equippedSlotOf(actorRow.actor.equipment, transferItem.name);
-  if (slot) {
-    throw new GameError(
-      "invalid_action",
-      `${transferItem.name}正装备在${EQUIPMENT_SLOT_LABELS[slot]}槽，先卸下再使用`,
-    );
-  }
+  // 在不在槽里不影响：只认那件道具自己的词缀。
   if (!hasAffixes(transferItem, "use")) {
     throw new GameError("invalid_action", `道具没有可用的使用词缀: ${transferItem.name}`);
   }

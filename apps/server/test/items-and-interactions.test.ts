@@ -773,7 +773,7 @@ describe.skipIf(!testDatabaseUrl)("items and interactions", () => {
     ).rejects.toThrow("不能使用动作: steal");
   });
 
-  it("拒绝使用正被穿戴的道具", async () => {
+  it("穿戴中的道具也可以 use", async () => {
     const created = await createGame(handle.db, {
       username: DEMO_USER.username,
       name: "使用穿戴中道具测试局",
@@ -781,13 +781,19 @@ describe.skipIf(!testDatabaseUrl)("items and interactions", () => {
     });
     await takeActorControl(handle.db, created.game.slug, "守烬人");
 
-    // 裂齿短刃在武器槽里：它归 strike 或被动装备，不能走 use。
-    await expect(
-      playerUse(handle.db, created.game.slug, "守烬人", {
-        itemName: "裂齿短刃",
-        targetActorRef: "提灯修士",
-      }),
-    ).rejects.toThrow("正装备在武器槽，先卸下再使用");
+    // 穿着不影响 use：裂齿短刃在武器槽里，同时借出 strike 与 use。
+    const used = await playerUse(handle.db, created.game.slug, "守烬人", {
+      itemName: "裂齿短刃",
+      targetActorRef: "提灯修士",
+    });
+    expect(used.ok).toBe(true);
+
+    const state = await getGameState(handle.db, created.game.slug);
+    const monk = state.world.stages
+      .flatMap((stage) => stage.actors)
+      .find((actor) => actor.name === "提灯修士");
+    expect(monk?.hp).toBe(6);
+    expect(state.messages.at(-1)?.kind).toBe("use");
   });
 
   it("卸下武器后可以走 use", async () => {

@@ -38,6 +38,36 @@ describe("world content validation", () => {
     expect(keeper?.inventory.find((item) => item.name === "旧羊毛斗篷")?.stats?.block).toBe(4);
   });
 
+  it("keeps use out of declared actions on both sides", () => {
+    // 角色侧：use 由身上的道具借出，写进动作会被建局拒掉。
+    const actorUse = {
+      ...TEST_WORLD,
+      actors: TEST_WORLD.actors.map((actor) =>
+        actor.name === "守烬人" ? { ...actor, actions: [...actor.actions, "use" as const] } : actor,
+      ),
+    };
+    // 枚举里已经没有 use，建局直接拒绝。
+    expect(() => parseWorldContent(actorUse)).toThrow(/Invalid option/);
+
+    // 道具侧同理：能不能用由 affixes.use 决定，写进 actions 就是第二个出处。
+    const itemUse = {
+      ...TEST_WORLD,
+      actors: TEST_WORLD.actors.map((actor) =>
+        actor.name === "守烬人"
+          ? {
+              ...actor,
+              inventory: actor.inventory.map((item) =>
+                item.name === "裂齿短刃"
+                  ? { ...item, actions: [...(item.actions ?? []), "use" as const] }
+                  : item,
+              ),
+            }
+          : actor,
+      ),
+    };
+    expect(() => parseWorldContent(itemUse)).toThrow(/由 affixes.use 派生，不要写进 actions/);
+  });
+
   it("requires each world function prompt to carry the world constitution", () => {
     const broken = {
       ...TEST_WORLD,

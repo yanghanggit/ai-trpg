@@ -8,6 +8,8 @@ import {
   carriedActionCap,
   carriedActions,
   equippedItemActions,
+  heldActions,
+  heldItemActions,
   toItemState,
 } from "../src/game/item-state";
 import { actorInnateActions } from "../src/game/world-definition";
@@ -82,7 +84,32 @@ describe("action sources", () => {
     expect(equippedItemActions(actor)).toEqual([]);
   });
 
-  it("merges innate and carried actions in a fixed order", () => {
+  // 双用途武器：既借 strike 又借 use。
+  const useAffix = {
+    name: "开锁",
+    content: "钥匙插进锁孔",
+    ops: [{ kind: "witness" as const, template: "{item}插进{anchor}，干蜡裂开。" }],
+  };
+  const dual = blade({ affixes: { use: [useAffix] } });
+
+  it("borrows use from any item that declares it, equipped or not", () => {
+    const armed = { equipment: { weapon: "裂齿短刃" }, items: [dual] };
+    expect(heldActions(armed)).toEqual([
+      { kind: "use", itemId: "item-blade", itemName: "裂齿短刃" },
+    ]);
+    expect(heldItemActions(armed)).toEqual(["use"]);
+    expect(equippedItemActions(armed)).toEqual(["strike", "cleave"]);
+
+    const sheathed = { equipment: {}, items: [dual] };
+    expect(heldItemActions(sheathed)).toEqual(["use"]);
+    expect(equippedItemActions(sheathed)).toEqual([]);
+
+    // 没有词缀就不借出 use：来源是那件道具自己的声明，不是它的大类。
+    const plain = { equipment: {}, items: [blade()] };
+    expect(heldActions(plain)).toEqual([]);
+  });
+
+  it("merges innate, slot and held actions in a fixed order", () => {
     const actor = { equipment: { weapon: "裂齿短刃" }, items: [blade()] };
     const allowed = allowedActionKinds(
       ["say", "move", "wait", "brawl"],
@@ -91,6 +118,22 @@ describe("action sources", () => {
     // 顺序由 ACTION_KINDS 决定：strike / cleave 排在 wait 与 brawl 之间。
     expect(allowed).toEqual(["say", "move", "wait", "strike", "cleave", "brawl"]);
     expect(allowedActionKinds(["say", "brawl"])).toEqual(["say", "brawl"]);
+
+    // 持有携带独立成一路：use 的位置由 ACTION_KINDS 决定。
+    const gateKey = toItemState({
+      id: "item-key",
+      seq: 2,
+      name: "闸门钥匙",
+      description: "铸铁的闸门钥匙。",
+      kind: "valuable",
+      count: 1,
+      stats: { maxHp: 0, strength: 0, wisdom: 0, agility: 0, damage: 0, block: 0 },
+      affixes: { use: [useAffix] },
+    });
+    const armed = { equipment: { weapon: "裂齿短刃" }, items: [blade(), gateKey] };
+    expect(
+      allowedActionKinds(["say", "brawl"], equippedItemActions(armed), heldItemActions(armed)),
+    ).toEqual(["say", "strike", "cleave", "brawl", "use"]);
   });
 });
 

@@ -147,8 +147,8 @@ describe("crow-grave seed world", () => {
     expect(actor("vela").proficiencies).toBeUndefined();
     expect(actorInnateActions(actor("vela"))).not.toContain("inspect");
     expect(actorInnateActions(actor("vela"))).toContain("loot");
-    // 卡尔疯到不再操作道具，探囊与搜刮都不会有。
-    expect(actor("karl").actions).not.toContain("use");
+    // `use` 不由角色声明：卡尔带着塔门钥匙，钥匙借给他 use；探囊与搜刮仍然不会有。
+    expect([...actor("karl").actions] as string[]).not.toContain("use");
     expect(actor("karl").actions).not.toContain("loot");
     expect(actorInnateActions(actor("karl"))).not.toContain("inspect");
   });

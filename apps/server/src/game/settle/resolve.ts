@@ -19,7 +19,7 @@ import { resolveWhisper } from "../actions/whisper";
 import { GameError } from "../errors";
 import { assertNoSystemReference } from "../kernel/addressing";
 import type { ActorPlan } from "../kernel/types";
-import { findSignatureByHandleInWorld, resolveEquippedItems, resolveVisibleActor } from "../lookup";
+import { findSignatureByHandleInWorld, resolveActionSources, resolveVisibleActor } from "../lookup";
 import type {
   ActorRow,
   ActorWithStageRow,
@@ -51,14 +51,18 @@ export async function resolvePlan(
       stageId: stage.id,
       ref,
     });
-  // 道具提供的动作与角色固有动作同权：穿戴中的道具把自己的动作借给角色。
-  // 装备变更在本轮解析期不回灌，所以「本回合卸下/换上武器」要到下一回合才影响可用动作。
-  const granted = (await resolveEquippedItems(executor, actorRow.actor)).flatMap(
-    (row) => row.actions,
-  );
-  const allowed = allowedActionKinds(actorRow.actor.actions, granted);
+  // 归属与装备在本轮解析期不回灌：本回合的卸下/换上要到下一回合才影响可用动作。
+  const sources = await resolveActionSources(executor, actorRow.actor);
+  const allowed = allowedActionKinds(actorRow.actor.actions, sources.slot, sources.held);
 
   for (const action of plan.actions) {
+    // `use` 的授权来自道具而非角色天赋：玩家入口绕过工具列表，不可用时要说明原因。
+    if (action.kind === "use" && !allowed.includes("use")) {
+      throw new GameError(
+        "invalid_action",
+        `${actorRow.actor.name}没有可用的道具：use 需要一件声明了使用词缀的道具`,
+      );
+    }
     assertActionAllowed(allowed, action.kind, actorRow.actor.name);
     switch (action.kind) {
       case "say":

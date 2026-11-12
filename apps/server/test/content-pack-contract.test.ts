@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { CONTENT_PACKS } from "../seeds";
-import { CARRIED_ACTION_KINDS, INNATE_ACTION_KINDS } from "../src/game/actions";
+import { INNATE_ACTION_KINDS, SLOT_ACTION_KINDS } from "../src/game/actions";
 import { parseWorldContent } from "../src/game/world-definition";
 import { knowledgeFacts } from "../src/rag";
 
@@ -47,10 +47,11 @@ describe.each(packs)("content pack %s", (name, pack) => {
     }
   });
 
-  it("keeps carried actions on weapons, never on actors", () => {
+  it("keeps slot actions on weapons, never on actors", () => {
     for (const item of items) {
       for (const kind of item.actions ?? []) {
-        expect(CARRIED_ACTION_KINDS).toContain(kind);
+        // `use` 由 affixes.use 派生，写进动作清单会让「能不能用」出现两个出处。
+        expect(SLOT_ACTION_KINDS).toContain(kind);
       }
       if ((item.actions ?? []).length > 0) {
         expect(item.kind).toBe("weapon");

@@ -1,13 +1,21 @@
 import { GameError } from "../errors";
-import type { ActionKind, CarriedActionKind, InnateActionKind, ItemKind } from "../kernel/types";
+import type {
+  ActionKind,
+  CarriedActionKind,
+  HeldActionKind,
+  InnateActionKind,
+  ItemKind,
+  SlotActionKind,
+} from "../kernel/types";
 
-/**
- * 携带者授予的动作：只能由穿戴中的道具提供，角色无法固有声明。
- *
- * 目前唯一的携带者是武器；新增携带者动作时先加在这里，内容校验、工具装配与
- * 授权合并都从这一份派生。
- */
-export const CARRIED_ACTION_KINDS = ["strike", "cleave"] as const;
+/** 槽位携带：穿戴中的道具借给穿戴者，卸下即收回。 */
+export const SLOT_ACTION_KINDS = ["strike", "cleave"] as const;
+
+/** 持有携带：身上声明了 `affixes.use` 的道具借给持有者，与是否穿在槽里无关。 */
+export const HELD_ACTION_KINDS = ["use"] as const;
+
+/** 两类都不写进角色 `actions`。 */
+export const CARRIED_ACTION_KINDS = [...SLOT_ACTION_KINDS, ...HELD_ACTION_KINDS] as const;
 
 /** 角色固有动作：内容层逐角色显式声明，与携带者是否存在无关。 */
 export const INNATE_ACTION_KINDS = [
@@ -24,7 +32,6 @@ export const INNATE_ACTION_KINDS = [
   "loot",
   "give",
   "pickup",
-  "use",
   "equip",
   "unequip",
 ] as const;
@@ -62,21 +69,19 @@ export type ActionKindSourceCoverage = [
   AssertNever<Exclude<CarriedActionKind, (typeof CARRIED_ACTION_KINDS)[number]>>,
 ];
 
-/**
- * 携带者规则：哪种道具能授予哪些动作。
- *
- * 现在只有武器；未来的携带者（如工具、法器）只在这里加一行，内容校验与运行时
- * 授权同时生效，不需要再改授权链。没登记的道具类不能授予任何动作。
- */
+/** 槽位携带者表：没登记的大类不能授予任何槽位动作；持有携带不看这张表。 */
 export const CARRIED_ACTIONS_BY_ITEM_KIND = {
-  weapon: CARRIED_ACTION_KINDS,
-} as const satisfies Partial<Record<ItemKind, readonly CarriedActionKind[]>>;
+  weapon: SLOT_ACTION_KINDS,
+} as const satisfies Partial<Record<ItemKind, readonly SlotActionKind[]>>;
 
-/** 某种道具能授予的动作；没登记的道具类返回空清单。 */
-export function carriedActionsForKind(kind: ItemKind): readonly CarriedActionKind[] {
-  const table: Partial<Record<ItemKind, readonly CarriedActionKind[]>> =
-    CARRIED_ACTIONS_BY_ITEM_KIND;
+export function carriedActionsForKind(kind: ItemKind): readonly SlotActionKind[] {
+  const table: Partial<Record<ItemKind, readonly SlotActionKind[]>> = CARRIED_ACTIONS_BY_ITEM_KIND;
   return table[kind] ?? [];
+}
+
+/** 槽位携带的判定：`use` 永不由槽位授予。 */
+export function isSlotActionKind(kind: CarriedActionKind): kind is SlotActionKind {
+  return (SLOT_ACTION_KINDS as readonly string[]).includes(kind);
 }
 
 export const ACTION_SUMMARIES: Record<ActionKind, string> = {
@@ -101,15 +106,20 @@ export const ACTION_SUMMARIES: Record<ActionKind, string> = {
 };
 
 /**
- * 角色可用的行动：固有动作 ∪ 携带者授予的动作；顺序固定，不随合并顺序变化。
+ * 角色可用的行动：固有动作 ∪ 槽位携带 ∪ 持有携带；顺序固定，不随合并顺序变化。
  *
  * 工具列表、提示词里的动作列举、结算前的授权都用这一份结果，避免三处各自算。
  */
 export function allowedActionKinds(
   innateActions: readonly InnateActionKind[],
-  carriedActions: readonly CarriedActionKind[] = [],
+  slotCarriedActions: readonly SlotActionKind[] = [],
+  heldActions: readonly HeldActionKind[] = [],
 ): ActionKind[] {
-  const available: readonly ActionKind[] = [...innateActions, ...carriedActions];
+  const available: readonly ActionKind[] = [
+    ...innateActions,
+    ...slotCarriedActions,
+    ...heldActions,
+  ];
   return ACTION_KINDS.filter((kind) => available.includes(kind));
 }
 

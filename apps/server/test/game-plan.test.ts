@@ -157,16 +157,13 @@ describe("use candidates", () => {
       actions: [],
     });
 
-  it("排除穿戴中的道具与没有可执行效果的道具", () => {
-    const candidates = usableItemNames(
-      [
-        item("裂齿短刃", "weapon", "damage"),
-        item("闸门钥匙", "valuable", "witness"),
-        item("碎骨", "material", "none"),
-      ],
-      { weapon: "裂齿短刃" },
-    );
-    expect(candidates).toEqual(["闸门钥匙"]);
+  it("只按使用词缀取候选：在不在槽里无关", () => {
+    const candidates = usableItemNames([
+      item("裂齿短刃", "weapon", "damage"),
+      item("闸门钥匙", "valuable", "witness"),
+      item("碎骨", "material", "none"),
+    ]);
+    expect(candidates).toEqual(["裂齿短刃", "闸门钥匙"]);
   });
 });
 
@@ -360,7 +357,7 @@ describe("read-only descriptions", () => {
       isDefaultPlayer: false,
       equipment: { weapon: "裂齿短刃" },
       knowledgeAccess: [],
-      actions: ["say", "whisper", "announce", "move", "wait", "give", "pickup", "use"] as const,
+      actions: ["say", "whisper", "announce", "move", "wait", "give", "pickup"] as const,
       items: [
         {
           id: "item-1",

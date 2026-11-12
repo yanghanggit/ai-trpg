@@ -5,7 +5,7 @@ import { GameError } from "../errors";
 import { assertNoSystemReference, isHandleRef } from "../kernel/addressing";
 import { renderCall } from "../kernel/observation-text";
 import type { CallAction } from "../kernel/types";
-import { resolveEquippedItems } from "../lookup";
+import { resolveActionSources } from "../lookup";
 import { appendDirectObservation } from "../observations";
 import { resolveActorByNameInWorld } from "../persistence/actors";
 import { appendPublicMessage } from "../persistence/game-messages";
@@ -85,10 +85,13 @@ export async function resolveCall(
   if (target.stage.id === stage.id) {
     throw new GameError("invalid_action", "call 只能对不在当前舞台的角色使用");
   }
-  const targetGranted = (await resolveEquippedItems(executor, target.actor)).flatMap(
-    (row) => row.actions,
-  );
-  if (!allowedActionKinds(target.actor.actions, targetGranted).includes("call")) {
+  // 与 `resolvePlan` 用同一份合并口径，避免两处各算一遍。
+  const targetSources = await resolveActionSources(executor, target.actor);
+  if (
+    !allowedActionKinds(target.actor.actions, targetSources.slot, targetSources.held).includes(
+      "call",
+    )
+  ) {
     throw new GameError("invalid_action", `目标没有传音能力: ${target.actor.name}`);
   }
   return {

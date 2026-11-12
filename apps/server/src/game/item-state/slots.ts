@@ -1,21 +1,22 @@
-import { carriedActionsForKind } from "../actions";
+import { carriedActionsForKind, isSlotActionKind } from "../actions";
 import { GameError } from "../errors";
+import { hasAffixes } from "../kernel/affixes";
 import type {
   ActorState,
-  CarriedActionKind,
   EquipmentSlot,
   EquipmentSlots,
+  HeldActionKind,
   ItemKind,
+  SlotActionKind,
   WearableItemState,
 } from "../kernel/types";
 import { EQUIPMENT_SLOT_KINDS, EQUIPMENT_SLOT_LABELS, EQUIPMENT_SLOTS } from "../kernel/types";
 import { isWearable } from "./project";
 
 /**
- * 穿戴：谁此刻穿着什么、槽位索引怎么改、穿戴中的道具授予了哪些动作。
+ * 穿戴：谁此刻穿着什么、槽位索引怎么改、道具此刻借给角色哪些动作。
  *
  * 槽里只存道具名，道具自己不记 `equipped`——所以指向不存在道具的槽位一律当作没穿。
- * 授予只认携带者表，表外的动作写了也不生效。
  */
 
 export type EquippedItemState = {
@@ -47,18 +48,13 @@ export function equippedItems(actor: Pick<ActorState, "items" | "equipment">): E
 
 /** 穿戴中的道具实际授予给角色的动作，带来源：哪一件、在哪个槽。 */
 export type ActionGrant = {
-  kind: CarriedActionKind;
+  kind: SlotActionKind;
   slot: EquipmentSlot;
   itemId: string;
   itemName: string;
 };
 
-/**
- * 携带者授予的动作清单。
- *
- * 这是“动作可以来自外部数据”的唯一入口：调用方不关心是武器还是未来的其它携带者，
- * 只问“现在谁给了我什么动作”。来源字段用于工具装配与错误文案，不参与授权判定。
- */
+/** 穿戴中的道具借出槽位动作；大类表外的动作不生效。 */
 export function carriedActions(actor: Pick<ActorState, "items" | "equipment">): ActionGrant[] {
   const grants: ActionGrant[] = [];
   for (const { slot, item } of equippedItems(actor)) {
@@ -66,10 +62,9 @@ export function carriedActions(actor: Pick<ActorState, "items" | "equipment">): 
     if (!EQUIPMENT_SLOT_KINDS[slot].includes(item.kind)) {
       continue;
     }
-    // 携带者表决定“这件东西能不能授予这个动作”；表外的动作一律不生效。
     const grantable = carriedActionsForKind(item.kind);
     for (const kind of item.actions) {
-      if (grantable.includes(kind)) {
+      if (isSlotActionKind(kind) && grantable.includes(kind)) {
         grants.push({ kind, slot, itemId: item.id, itemName: item.name });
       }
     }
@@ -80,8 +75,26 @@ export function carriedActions(actor: Pick<ActorState, "items" | "equipment">): 
 /** 穿戴中的道具提供的动作；槽位索引指向不存在的道具时不授予。 */
 export function equippedItemActions(
   actor: Pick<ActorState, "items" | "equipment">,
-): CarriedActionKind[] {
+): SlotActionKind[] {
   return carriedActions(actor).map((grant) => grant.kind);
+}
+
+/** 持有携带的动作：与槽位无关，来源只有那件道具。 */
+export type HeldActionGrant = {
+  kind: HeldActionKind;
+  itemId: string;
+  itemName: string;
+};
+
+/** 持有携带：身上任何声明了 `affixes.use` 的道具都借出 `use`，与是否穿在槽里无关。 */
+export function heldActions(actor: Pick<ActorState, "items" | "equipment">): HeldActionGrant[] {
+  return actor.items
+    .filter((item) => hasAffixes(item, "use"))
+    .map((item) => ({ kind: "use" as const, itemId: item.id, itemName: item.name }));
+}
+
+export function heldItemActions(actor: Pick<ActorState, "items" | "equipment">): HeldActionKind[] {
+  return heldActions(actor).map((grant) => grant.kind);
 }
 
 /**
@@ -92,7 +105,7 @@ export function equippedItemActions(
  */
 export function carriedActionCap(
   actor: Pick<ActorState, "items" | "equipment">,
-  kind: CarriedActionKind,
+  kind: SlotActionKind,
 ): number {
   const grant = carriedActions(actor).find((candidate) => candidate.kind === kind);
   if (!grant) {

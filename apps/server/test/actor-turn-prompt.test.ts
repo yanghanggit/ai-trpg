@@ -89,10 +89,11 @@ describe("actor 任务提示词", () => {
       stubContext({ allowed: ["strike", "cleave", "inspect", "steal", "loot", "use"] }),
     );
 
-    // 取物前的顺序、查看与窃取的判定、已穿戴道具的替代动作。
+    // 取物前的顺序、查看与窃取的判定。
     expect(hints).toContain("先 inspect 看清");
     expect(hints).toContain("查看与窃取比敏捷");
-    expect(hints).toContain("已穿戴的道具不能用 use");
+    // 穿着不影响 use：只看那件道具自己有没有使用词缀。
+    expect(hints).not.toContain("unequip");
     // 有武器时不再劝 brawl，也不说无法攻击。
     expect(hints).not.toContain("brawl");
     expect(hints).not.toContain("无法发起攻击");

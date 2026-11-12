@@ -21,6 +21,9 @@ export {
   equippedItems,
   equippedSlotOf,
   equipSlot,
+  type HeldActionGrant,
+  heldActions,
+  heldItemActions,
   unequipSlot,
   withoutEquippedItem,
 } from "./slots";

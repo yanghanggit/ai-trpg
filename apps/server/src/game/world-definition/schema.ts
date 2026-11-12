@@ -15,10 +15,7 @@ import { equipmentSchema, itemSchema } from "./item-schema";
  * 两者由 `index.ts` 串成一次解析。
  */
 
-/**
- * 角色只能声明固有动作；携带者动作（`strike` / `cleave`）由道具授予，
- * 写进 `actor.actions` 会在建局前被拒，而不是等回合里失败。
- */
+/** 角色只能声明固有动作；携带者动作由道具授予，写进这里会在建局前被拒。 */
 const actionKindSchema = z.enum(INNATE_ACTION_KINDS);
 
 const stageActionSchema = z.enum([
@@ -75,7 +72,7 @@ const stageSchema = z
 /**
  * 技艺：把几个动作捆在一个名字下的内容单元。
  *
- * 动作只能是没有携带者的固有动作——`strike` / `cleave` 由武器借出，不能写进技艺。
+ * 动作只能是没有携带者的固有动作：`strike` / `cleave` 由武器借出、`use` 由身上的道具借出。
  */
 const skillSchema = z
   .object({

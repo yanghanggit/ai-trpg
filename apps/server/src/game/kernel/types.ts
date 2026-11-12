@@ -296,12 +296,13 @@ export type ActionKind = ActorAction["kind"];
  * 动作的两个来源，也是权限模型的唯一分界：
  *
  * - `InnateActionKind`：角色自身固有，由内容层逐角色显式声明；
- * - `CarriedActionKind`：由外部携带者授予，只有穿戴中的道具能提供，角色无法固有声明。
- *
- * 目前唯一的携带者是武器（`strike` / `cleave`）；新增携带者动作只改
- * `CARRIED_ACTION_KINDS`，授权、工具装配、内容校验都从这一份派生。
+ * - `CarriedActionKind`：由外部携带者授予，角色无法固有声明。分两种：
+ *   穿戴中的道具借出 `SlotActionKind`（`strike` / `cleave`），卸下即收回；
+ *   身上声明了使用词缀的道具借出 `HeldActionKind`（`use`），转手即收回。
  */
-export type CarriedActionKind = Extract<ActionKind, "strike" | "cleave">;
+export type SlotActionKind = Extract<ActionKind, "strike" | "cleave">;
+export type HeldActionKind = Extract<ActionKind, "use">;
+export type CarriedActionKind = SlotActionKind | HeldActionKind;
 export type InnateActionKind = Exclude<ActionKind, CarriedActionKind>;
 
 /**
@@ -396,7 +397,10 @@ export type ItemBaseState = {
   count: number;
   /** 按触发舞台声明的词缀；`strike` / `cleave` / `use` 各自独立。 */
   affixes: AffixTriggers;
-  /** 道具能提供的动作；穿戴中才借给角色。没有携带者的角色只能做固有动作。 */
+  /**
+   * 道具的动作清单：只承载槽位动作 `strike` / `cleave`，穿戴中才借给角色。
+   * `use` 由 `affixes.use` 派生，写进来会被内容校验拒掉。
+   */
   actions: readonly CarriedActionKind[];
   /** 归一化后的完整属性；五种道具都携带，未用到的字段为 0。 */
   stats: Stats;

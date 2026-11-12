@@ -128,7 +128,6 @@ export const TEST_WORLD: World = {
         "brawl",
         "give",
         "pickup",
-        "use",
         "loot",
         "equip",
         "unequip",
@@ -141,7 +140,7 @@ export const TEST_WORLD: World = {
           kind: "weapon" as const,
           count: 1,
           stats: { damage: 3, block: 0 },
-          // 裂齿短刃提供 strike：装备中才把挥击借给角色；卸下后也能走 use。
+          // 裂齿短刃提供 strike：装备中才把挥击借给角色；use 不看槽位，穿着也能用。
           actions: ["strike"],
           affixes: {
             strike: [
@@ -192,7 +191,6 @@ export const TEST_WORLD: World = {
         "brawl",
         "give",
         "pickup",
-        "use",
         "equip",
         "unequip",
       ],
@@ -229,7 +227,6 @@ export const TEST_WORLD: World = {
         "brawl",
         "give",
         "pickup",
-        "use",
         "equip",
         "unequip",
       ],
