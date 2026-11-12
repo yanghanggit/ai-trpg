@@ -8,7 +8,6 @@ import { assertNotSelf, resolveActorItem } from "../lookup";
 import { appendItemObservations, appendStageMemory } from "../observations";
 import { setActorEquipment } from "../persistence/actors";
 import { appendPublicMessage } from "../persistence/game-messages";
-import { bumpGameVersion } from "../persistence/games";
 import { transferItemToActor } from "../persistence/items";
 import type { ActorWithStageRow, Executor } from "../persistence/rows";
 import type { ResolvedGive } from "../settle/types";
@@ -82,7 +81,6 @@ export async function applyGive(
     withoutEquippedItem(actorRow.actor.equipment, item.name),
     now,
   );
-  await bumpGameVersion(executor, gameId, now);
 
   const content = `${giver.name}把${item.name}交给了${target.name}。`;
   await appendPublicMessage(executor, gameId, giver.id, {
@@ -115,5 +113,5 @@ export async function applyGive(
     },
     trace,
   );
-  return `# 行动结果\n你把${item.name}交给了${actionRef(address(target.id))}。`;
+  return `你把${item.name}交给了${actionRef(address(target.id))}。`;
 }

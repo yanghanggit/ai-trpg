@@ -15,7 +15,7 @@ import { isAlive, stageAddressLookup } from "../../lookup";
 import { appendMemoryMessages, loadAgentMemory } from "../../memory";
 import { MEMORY_KINDS } from "../../memory/kinds";
 import { loadActorByNameInStage, loadActorWithStage } from "../../persistence/actors";
-import { lockGameRow } from "../../persistence/games";
+import { bumpGameVersion, lockGameRow } from "../../persistence/games";
 import { loadActorItem } from "../../persistence/items";
 import type { Executor, StageRow } from "../../persistence/rows";
 import { loadWorldByGame } from "../../persistence/worlds";
@@ -250,18 +250,36 @@ async function settleAffix(
   operations: readonly AffixOperation[],
   trace?: TraceContext,
 ): Promise<{ damage: number; witnesses: number }> {
+  // 增量在自己的事务里落账，所以「这次追加落不了地」要留痕：丢增量是允许的
+  // （见 `docs/affixes.md`），静默不是。reason 用稳定短标识，便于按原因聚合。
+  const drop = async (reason: string) =>
+    traceEvent(trace, {
+      event: "phase",
+      name: "affix",
+      status: "skipped",
+      detail: { reason, itemId: request.itemId, trigger: request.trigger },
+    });
+
   return db.transaction(async (tx) => {
     const game = await lockGameRow(tx, gameId);
     if (game?.status !== "active") {
+      await drop("game-ended");
       return { damage: 0, witnesses: 0 };
     }
     const world = await loadWorldByGame(tx, gameId);
     if (!world) {
+      await drop("world-missing");
       return { damage: 0, witnesses: 0 };
     }
     const actorRow = await loadActorWithStage(tx, request.actorId, world.id);
+    if (!actorRow) {
+      await drop("actor-gone");
+      return { damage: 0, witnesses: 0 };
+    }
     const itemRow = await loadActorItem(tx, request.actorId, request.itemId);
-    if (!actorRow || !itemRow) {
+    if (!itemRow) {
+      // 静态阶段提交之后道具被转手或消耗：这次追加跟着失效。
+      await drop("item-gone");
       return { damage: 0, witnesses: 0 };
     }
     const now = new Date();
@@ -296,7 +314,7 @@ async function settleAffix(
           address,
           ...(trace ? { trace } : {}),
         });
-        feedbacks.push(`# 行动结果\n${feedback}`);
+        feedbacks.push(feedback);
         witnesses += 1;
         continue;
       }
@@ -326,14 +344,17 @@ async function settleAffix(
       damage += 1;
     }
     if (feedbacks.length > 0) {
+      // 版本由事务层统一推：这一批增量对它自己的可见性负责。
+      await bumpGameVersion(tx, gameId, now);
       const memory = await loadAgentMemory(tx, gameId, "actor", request.actorId);
       if (memory) {
         await appendMemoryMessages(
           tx,
           memory.row.id,
-          feedbacks.map((content) => ({
+          feedbacks.map((sentence) => ({
             type: "human" as const,
-            content,
+            // 一条增量一条记忆：标题由这里补，与计划落账同形。
+            content: `# 行动结果\n${sentence}`,
             metadata: { kind: MEMORY_KINDS.actionFeedback },
           })),
         );

@@ -215,7 +215,8 @@ export async function settlePlan(
     const pendingMemory: { content: string; metadata: Record<string, unknown> }[] = [];
     for (const action of resolved.actions) {
       const result = await applyResolvedAction(tx, gameId, actorRow, action, now, address, trace);
-      const { feedback } = result;
+      // 一次行动一条记忆：标题只写一次，多目标的句子并排在同一块里。
+      const feedback = `# 行动结果\n${result.feedback}`;
       applied.push({ event: "applied", actionKind: action.kind, feedback });
       const affixRequest = actionSpec(action.kind).affixRequest?.(action, {
         actorId: actorRow.actor.id,
@@ -273,10 +274,9 @@ export async function settlePlan(
           })
         : undefined;
 
-    // 认知写进状态的部分（`signatureNames`）没有动作替它推动版本；
-    // 只有认知的空手计划必须自己 bump，否则这次写入对 `expectedVersion` 是隐形的。
-    // 有计划内动作时版本已经动过，不重复计一次；纯记忆的路线不在 GameState 里，不算。
-    if (resolved.identities.length > 0 && resolved.actions.length === 0) {
+    // 一次写入事务只推一次版本：动过 GameState（动作落账、或只改名写 `signatureNames`）
+    // 就推；纯记忆的路线与拒绝不进 GameState，不推。
+    if (resolved.actions.length > 0 || resolved.identities.length > 0) {
       await bumpGameVersion(tx, gameId, now);
     }
 

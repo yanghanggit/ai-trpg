@@ -8,7 +8,6 @@ import { resolveAdjacentStage } from "../lookup";
 import { appendCustomStageObservation, appendStageMemory } from "../observations";
 import { moveActorToStage } from "../persistence/actors";
 import { appendPublicMessage } from "../persistence/game-messages";
-import { bumpGameVersion } from "../persistence/games";
 import type { ActorWithStageRow, Executor, WorldRow } from "../persistence/rows";
 import { recordStageVisit } from "../persistence/visits";
 import type { ResolvedMove } from "../settle/types";
@@ -80,7 +79,6 @@ export async function applyMove(
   );
   await moveActorToStage(executor, actorRow.actor.id, target.id, now);
   await recordStageVisit(executor, gameId, actorRow.actor.id, target.id, now);
-  await bumpGameVersion(executor, gameId, now);
   await appendPublicMessage(executor, gameId, actorRow.actor.id, {
     kind: "move",
     stageId: target.id,
@@ -127,5 +125,5 @@ export async function applyMove(
     },
     trace,
   );
-  return `# 行动结果\n你从${resolved.stage.name}抵达了${target.name}。`;
+  return `你从${resolved.stage.name}抵达了${target.name}。`;
 }

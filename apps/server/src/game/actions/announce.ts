@@ -5,7 +5,6 @@ import { assertNoSystemReference } from "../kernel/addressing";
 import type { AnnounceAction } from "../kernel/types";
 import { appendCommunicationObservations, appendStageMemory } from "../observations";
 import { appendPublicMessage } from "../persistence/game-messages";
-import { bumpGameVersion } from "../persistence/games";
 import type { ActorWithStageRow, Executor } from "../persistence/rows";
 import type { ResolvedAnnounce } from "../settle/types";
 
@@ -48,11 +47,9 @@ export async function applyAnnounce(
   gameId: string,
   actorRow: ActorWithStageRow,
   resolved: ResolvedAnnounce,
-  now: Date,
   trace?: TraceContext,
 ): Promise<string> {
   const source = { id: actorRow.actor.id, name: actorRow.actor.name };
-  await bumpGameVersion(executor, gameId, now);
   await appendPublicMessage(executor, gameId, source.id, {
     kind: "announce",
     stageId: resolved.stage.id,
@@ -78,5 +75,5 @@ export async function applyAnnounce(
     { eventKind: "announce" },
     trace,
   );
-  return `# 行动结果\n你（舞台：${resolved.stage.name}）公开说：${resolved.action.message}`;
+  return `你（舞台：${resolved.stage.name}）公开说：${resolved.action.message}`;
 }

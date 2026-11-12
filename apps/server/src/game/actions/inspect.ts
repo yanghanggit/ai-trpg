@@ -9,7 +9,6 @@ import type { InspectAction } from "../kernel/types";
 import { assertNotSelf, isAlive, listActorItems, wearerView } from "../lookup";
 import { appendInspectObservations, appendStageMemory } from "../observations";
 import { appendPublicMessage } from "../persistence/game-messages";
-import { bumpGameVersion } from "../persistence/games";
 import type { ActorWithStageRow, Executor } from "../persistence/rows";
 import type { ResolvedInspect } from "../settle/types";
 
@@ -92,7 +91,6 @@ export async function applyInspect(
   gameId: string,
   actorRow: ActorWithStageRow,
   resolved: ResolvedInspect,
-  now: Date,
   address: AddressLookup,
   trace?: TraceContext,
 ): Promise<string> {
@@ -101,7 +99,6 @@ export async function applyInspect(
 
   // 查看不改道具归属，但它是发生过的事：公共事件流与舞台记忆都记一笔，
   // 目标与旁观者也因此知道有人翻看过行囊。
-  await bumpGameVersion(executor, gameId, now);
   const content = `${inspector.name}查看了${target.name}随身携带的东西。`;
   await appendPublicMessage(executor, gameId, inspector.id, {
     kind: "inspect",
@@ -134,7 +131,7 @@ export async function applyInspect(
   const noticedNote = resolved.noticed
     ? `${actionRef(address(target.id))}察觉到了`
     : "对方没有察觉";
-  return `# 行动结果\n你查看了${actionRef(address(target.id))}随身携带的东西；${noticedNote}。\n${describeItems(
+  return `你查看了${actionRef(address(target.id))}随身携带的东西；${noticedNote}。\n${describeItems(
     {
       items: items.map(toItemState),
       equipment: resolved.target.equipment,

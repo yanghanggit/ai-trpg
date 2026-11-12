@@ -1346,7 +1346,9 @@ describe.skipIf(!testDatabaseUrl)("items and interactions", () => {
       .flatMap((stage) => stage.actors)
       .find((actor) => actor.name === "提灯修士");
     expect(monk?.hp).toBe(10);
-    expect(state.messages.some((message) => message.content.includes("造成0点伤害"))).toBe(true);
+    // 命中照样留一条记录，但不写「造成0点伤害」这种自相矛盾的句子。
+    expect(state.messages.some((message) => message.content.includes("没能造成伤害"))).toBe(true);
+    expect(state.messages.some((message) => message.content.includes("造成0点伤害"))).toBe(false);
   });
 
   it("does not read weapon stats or affixes when brawling", async () => {

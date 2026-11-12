@@ -133,7 +133,11 @@ export async function completeGameIfActive(
   return true;
 }
 
-/** 递增 game version：这次写入才对客户端与 `expectedVersion` 可见。 */
+/**
+ * 递增 game version：一个写入事务推一次，客户端据此判断状态有没有变过。
+ *
+ * 它不是并发控制：同一局的写入由 `games` 行锁串行化。
+ */
 export async function bumpGameVersion(
   executor: Executor,
   gameId: string,

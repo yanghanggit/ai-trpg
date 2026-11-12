@@ -14,7 +14,6 @@ import { resolveActorItem } from "../lookup";
 import { appendCustomStageObservation, appendStageMemory } from "../observations";
 import { setActorEquipment } from "../persistence/actors";
 import { appendPublicMessage } from "../persistence/game-messages";
-import { bumpGameVersion } from "../persistence/games";
 import type { ActorWithStageRow, Executor } from "../persistence/rows";
 import type { ResolvedEquip } from "../settle/types";
 
@@ -87,7 +86,6 @@ export async function applyEquip(
   const item = resolved.item;
   const equipment = equipSlot(actorRow.actor.equipment, resolved.action.slot, item);
   await setActorEquipment(executor, actor.id, equipment, now);
-  await bumpGameVersion(executor, gameId, now);
 
   const label = EQUIPMENT_SLOT_LABELS[resolved.action.slot];
   const content = `${actor.name}穿上了${item.name}（${label}）。`;
@@ -122,5 +120,5 @@ export async function applyEquip(
     },
     trace,
   );
-  return `# 行动结果\n你穿上了${item.name}（${label}）。`;
+  return `你穿上了${item.name}（${label}）。`;
 }

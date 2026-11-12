@@ -4,6 +4,7 @@ import { DEMO_USER } from "../src/db/demo-fixture";
 import {
   type ActorPlan,
   createGame,
+  getGameMemories,
   getGameState,
   runActorTurn,
   settleActorPlan,
@@ -136,6 +137,18 @@ describe.skipIf(!testDatabaseUrl)("cleave", () => {
     // 每个目标各自减一次 block，不是把总伤害摊在一个目标上。
     expect(hpOf(state, "提灯修士")).toBeLessThan(hpOf(before, "提灯修士") ?? 0);
     expect(hpOf(state, "缄默抄经人")).toBeLessThan(hpOf(before, "缄默抄经人") ?? 0);
+    // 一次横扫是一次行动：版本只推一格，不是每个目标各推一次。
+    expect(state.game.version).toBe(before.game.version + 1);
+
+    // 记忆里也只有一个标题：两个目标的句子并排在同一条行动事实里。
+    const memories = await getGameMemories(handle.db, created.game.id);
+    const feedback =
+      memories
+        .find((memory) => memory.name === "守烬人")
+        ?.messages.map((message) => message.content)
+        .find((content) => content.startsWith("# 行动结果")) ?? "";
+    expect(feedback.match(/# 行动结果/g)).toHaveLength(1);
+    expect(feedback.split("\n").filter((line) => line.includes("顺劈"))).toHaveLength(2);
   });
 
   it("adds strength to every target's own hit, 1v1 each", async () => {

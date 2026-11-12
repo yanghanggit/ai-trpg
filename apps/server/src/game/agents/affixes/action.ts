@@ -107,8 +107,9 @@ export async function applyStaticItemAction(
       ...(input.address ? { address: input.address } : {}),
       ...(input.trace ? { trace: input.trace } : {}),
     });
-    lines.push(`# 行动结果\n${feedback}`);
+    lines.push(feedback);
   }
 
-  return { feedback: lines.join("\n\n"), settlement, outcome };
+  // 同一行动的句子并排在同一块里，标题由落账层补。
+  return { feedback: lines.join("\n"), settlement, outcome };
 }

@@ -5,7 +5,6 @@ import { type AddressLookup, actionRef, assertNoSystemReference } from "../kerne
 import type { WhisperAction } from "../kernel/types";
 import { appendCommunicationObservations, appendStageMemory } from "../observations";
 import { appendPublicMessage } from "../persistence/game-messages";
-import { bumpGameVersion } from "../persistence/games";
 import type { ActorWithStageRow, Executor } from "../persistence/rows";
 import type { ResolvedWhisper } from "../settle/types";
 
@@ -71,13 +70,11 @@ export async function applyWhisper(
   gameId: string,
   actorRow: ActorWithStageRow,
   resolved: ResolvedWhisper,
-  now: Date,
   address: AddressLookup,
   trace?: TraceContext,
 ): Promise<string> {
   const source = { id: actorRow.actor.id, name: actorRow.actor.name };
   const target = { id: resolved.target.id, name: resolved.target.name };
-  await bumpGameVersion(executor, gameId, now);
   await appendPublicMessage(executor, gameId, source.id, {
     kind: "whisper",
     stageId: resolved.stage.id,
@@ -105,5 +102,5 @@ export async function applyWhisper(
     { eventKind: "whisper" },
     trace,
   );
-  return `# 行动结果\n你对${actionRef(address(target.id))}耳语（舞台：${resolved.stage.name}）：${resolved.action.message}`;
+  return `你对${actionRef(address(target.id))}耳语（舞台：${resolved.stage.name}）：${resolved.action.message}`;
 }

@@ -8,7 +8,6 @@ import type { AffixTriggers, UseAction } from "../kernel/types";
 import { resolveActorItem } from "../lookup";
 import { appendItemObservations, appendStageMemory } from "../observations";
 import { appendPublicMessage } from "../persistence/game-messages";
-import { bumpGameVersion } from "../persistence/games";
 import type { ActorWithStageRow, Executor } from "../persistence/rows";
 import type { ResolvedUse } from "../settle/types";
 
@@ -155,7 +154,6 @@ async function recordUseEvent(
   gameId: string,
   actorRow: ActorWithStageRow,
   resolved: ResolvedUse,
-  now: Date,
   address: AddressLookup,
   trace?: TraceContext,
 ): Promise<string> {
@@ -169,7 +167,6 @@ async function recordUseEvent(
     ? `${actor.name}在${targetStage.name}${stageAnchorText}使用了${transferItem.name}。`
     : `${actor.name}对${targetLabel}使用了${transferItem.name}。`;
 
-  await bumpGameVersion(executor, gameId, now);
   await appendPublicMessage(executor, gameId, actor.id, {
     kind: "use",
     stageId: stage.id,
@@ -205,8 +202,8 @@ async function recordUseEvent(
   );
 
   return targetStage
-    ? `# 行动结果\n你在${targetLabel}${stageAnchorText}使用了${transferItem.name}。`
-    : `# 行动结果\n你对${targetLabel}使用了${transferItem.name}。`;
+    ? `你在${targetLabel}${stageAnchorText}使用了${transferItem.name}。`
+    : `你对${targetLabel}使用了${transferItem.name}。`;
 }
 
 export async function applyUse(
@@ -219,15 +216,7 @@ export async function applyUse(
   trace?: TraceContext,
 ): Promise<StaticItemActionResult> {
   const targetAnchor = resolved.targetStage ? resolved.targetAnchor : undefined;
-  const baseFeedback = await recordUseEvent(
-    executor,
-    gameId,
-    actorRow,
-    resolved,
-    now,
-    address,
-    trace,
-  );
+  const baseFeedback = await recordUseEvent(executor, gameId, actorRow, resolved, address, trace);
   const staticResult = await applyStaticItemAction({
     executor,
     gameId,
@@ -244,6 +233,6 @@ export async function applyUse(
   });
   return {
     ...staticResult,
-    feedback: [baseFeedback, staticResult.feedback].filter((line) => line.length > 0).join("\n\n"),
+    feedback: [baseFeedback, staticResult.feedback].filter((line) => line.length > 0).join("\n"),
   };
 }

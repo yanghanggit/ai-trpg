@@ -5,7 +5,6 @@ import { renderAction, withAppearances } from "../kernel/observation-text";
 import type { WaitAction } from "../kernel/types";
 import { appendCustomStageObservation, appendStageMemory } from "../observations";
 import { appendPublicMessage } from "../persistence/game-messages";
-import { bumpGameVersion } from "../persistence/games";
 import type { ActorWithStageRow, Executor } from "../persistence/rows";
 import type { ResolvedWait } from "../settle/types";
 
@@ -37,11 +36,9 @@ export async function applyWait(
   gameId: string,
   actorRow: ActorWithStageRow,
   resolved: ResolvedWait,
-  now: Date,
   trace?: TraceContext,
 ): Promise<string> {
   const content = `${actorRow.actor.name}留在原地，继续观察四周。`;
-  await bumpGameVersion(executor, gameId, now);
   await appendPublicMessage(executor, gameId, actorRow.actor.id, {
     kind: "wait",
     stageId: resolved.stage.id,
@@ -73,5 +70,5 @@ export async function applyWait(
     },
     trace,
   );
-  return "# 行动结果\n你留在原地，继续观察四周。";
+  return "你留在原地，继续观察四周。";
 }

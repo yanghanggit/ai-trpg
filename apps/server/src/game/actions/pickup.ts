@@ -5,7 +5,6 @@ import type { PickupAction } from "../kernel/types";
 import { resolveStageItem } from "../lookup";
 import { appendItemObservations, appendStageMemory } from "../observations";
 import { appendPublicMessage } from "../persistence/game-messages";
-import { bumpGameVersion } from "../persistence/games";
 import { moveStageItemToActor } from "../persistence/items";
 import type { ActorWithStageRow, Executor } from "../persistence/rows";
 import type { ResolvedPickup } from "../settle/types";
@@ -70,14 +69,12 @@ export async function applyPickup(
   gameId: string,
   actorRow: ActorWithStageRow,
   resolved: ResolvedPickup,
-  now: Date,
   trace?: TraceContext,
 ): Promise<string> {
   const actor = { id: actorRow.actor.id, name: actorRow.actor.name };
   const stageItem = resolved.stageItem;
 
   await moveStageItemToActor(executor, stageItem, actor.id);
-  await bumpGameVersion(executor, gameId, now);
 
   const content = `${actor.name}从${resolved.anchorLabel}上拾取了${stageItem.name}。`;
   await appendPublicMessage(executor, gameId, actor.id, {
@@ -108,5 +105,5 @@ export async function applyPickup(
     },
     trace,
   );
-  return `# 行动结果\n你从${resolved.anchorLabel}上拾取了${stageItem.name}。`;
+  return `你从${resolved.anchorLabel}上拾取了${stageItem.name}。`;
 }

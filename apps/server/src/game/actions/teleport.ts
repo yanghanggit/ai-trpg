@@ -8,7 +8,6 @@ import { findStageByNameInWorld } from "../lookup";
 import { appendCustomStageObservation, appendStageMemory } from "../observations";
 import { moveActorToStage } from "../persistence/actors";
 import { appendPublicMessage } from "../persistence/game-messages";
-import { bumpGameVersion } from "../persistence/games";
 import type { ActorWithStageRow, Executor, WorldRow } from "../persistence/rows";
 import { recordStageVisit } from "../persistence/visits";
 import type { ResolvedTeleport } from "../settle/types";
@@ -106,7 +105,6 @@ export async function applyTeleport(
   );
   await moveActorToStage(executor, actorRow.actor.id, target.id, now);
   await recordStageVisit(executor, gameId, actorRow.actor.id, target.id, now);
-  await bumpGameVersion(executor, gameId, now);
   await appendPublicMessage(executor, gameId, actorRow.actor.id, {
     kind: "teleport",
     stageId: target.id,
@@ -143,5 +141,5 @@ export async function applyTeleport(
     { eventKind: "teleport_enter", targetStageId: resolved.stage.id },
     trace,
   );
-  return `# 行动结果\n你从${sourceName}传送到了${targetName}。`;
+  return `你从${sourceName}传送到了${targetName}。`;
 }

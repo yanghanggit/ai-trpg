@@ -5,7 +5,6 @@ import { type AddressLookup, actionRef, assertNoSystemReference } from "../kerne
 import type { SayAction } from "../kernel/types";
 import { appendCommunicationObservations, appendStageMemory } from "../observations";
 import { appendPublicMessage } from "../persistence/game-messages";
-import { bumpGameVersion } from "../persistence/games";
 import type { ActorWithStageRow, Executor } from "../persistence/rows";
 import type { ResolvedSay } from "../settle/types";
 
@@ -71,13 +70,11 @@ export async function applySay(
   gameId: string,
   actorRow: ActorWithStageRow,
   resolved: ResolvedSay,
-  now: Date,
   address: AddressLookup,
   trace?: TraceContext,
 ): Promise<string> {
   const source = { id: actorRow.actor.id, name: actorRow.actor.name };
   const target = { id: resolved.target.id, name: resolved.target.name };
-  await bumpGameVersion(executor, gameId, now);
   await appendPublicMessage(executor, gameId, source.id, {
     kind: "say",
     stageId: resolved.stage.id,
@@ -105,5 +102,5 @@ export async function applySay(
     { eventKind: "say" },
     trace,
   );
-  return `# 行动结果\n你对${actionRef(address(target.id))}说（舞台：${resolved.stage.name}）：${resolved.action.message}`;
+  return `你对${actionRef(address(target.id))}说（舞台：${resolved.stage.name}）：${resolved.action.message}`;
 }

@@ -9,7 +9,6 @@ import { resolveActionSources } from "../lookup";
 import { appendDirectObservation } from "../observations";
 import { resolveActorByNameInWorld } from "../persistence/actors";
 import { appendPublicMessage } from "../persistence/game-messages";
-import { bumpGameVersion } from "../persistence/games";
 import type { Executor, WorldRow } from "../persistence/rows";
 import type { ResolvedCall } from "../settle/types";
 
@@ -107,12 +106,10 @@ export async function applyCall(
   executor: Executor,
   gameId: string,
   resolved: ResolvedCall,
-  now: Date,
   trace?: TraceContext,
 ): Promise<string> {
   const target = resolved.target;
   const targetStage = resolved.targetStage;
-  await bumpGameVersion(executor, gameId, now);
   await appendPublicMessage(executor, gameId, null, {
     kind: "call",
     stageId: targetStage.id,
@@ -128,5 +125,5 @@ export async function applyCall(
     renderCall(targetStage, { target: { id: target.id }, message: resolved.action.message }),
     trace,
   );
-  return `# 行动结果\n你把话传到了对方那里：${resolved.action.message}`;
+  return `你把话传到了对方那里：${resolved.action.message}`;
 }

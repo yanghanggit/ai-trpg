@@ -5,7 +5,6 @@ import type { HitAction } from "../kernel/types";
 import { appendDamageObservations, appendStageMemory } from "../observations";
 import { damageActor } from "../persistence/actors";
 import { appendPublicMessage } from "../persistence/game-messages";
-import { bumpGameVersion } from "../persistence/games";
 import type { ActorRow, ActorWithStageRow, Executor, StageRow } from "../persistence/rows";
 
 export type { HitAction };
@@ -42,6 +41,16 @@ export type HitInput = {
  * 它不知道"道具"或"词缀"，只处理一次已经算好的命中；因此 `brawl` 与道具管线
  * 共用同一条落账路径，不会出现两套死亡/观察文案。
  */
+/**
+ * 伤害的措辞。0 伤害也是命中（挥击恒出一次），但不写「造成0点伤害」这种自相矛盾的句子。
+ */
+function describeDamage(damage: number, via?: "affix"): string {
+  if (damage === 0) {
+    return via === "affix" ? "词缀没有追加伤害" : "没能造成伤害";
+  }
+  return via === "affix" ? `词缀追加${damage}点伤害` : `造成${damage}点伤害`;
+}
+
 export async function applyHit(input: HitInput): Promise<HitOutcome> {
   const { executor, gameId, actorRow, stage, target, damage, action, itemName, via, now, trace } =
     input;
@@ -57,7 +66,7 @@ export async function applyHit(input: HitInput): Promise<HitOutcome> {
     address ? actionRef(address(target.id)) : target.name;
   if (hit.status === "already-dead") {
     return {
-      feedback: `# 行动结果\n${ref(input.address)}已经倒下。`,
+      feedback: `${ref(input.address)}已经倒下。`,
       dealtDamage: 0,
       targetDied: false,
     };
@@ -65,7 +74,6 @@ export async function applyHit(input: HitInput): Promise<HitOutcome> {
   const remainingHp = hit.remainingHp;
   const dealtDamage = current.hp - remainingHp;
   const targetDied = remainingHp <= 0;
-  await bumpGameVersion(executor, gameId, now);
 
   // 公共事件是上帝视角：句首与结局都用名字，不混入观察者相对的引用。
   const outcome =
@@ -74,7 +82,7 @@ export async function applyHit(input: HitInput): Promise<HitOutcome> {
       : `；${target.name}剩余 HP ${remainingHp}/${current.stats.maxHp}。`;
   // 句式由动作锁定：公共事件、舞台记忆、观察与反馈用的是同一个动作短语。
   const actionText = damageActionText(action, itemName);
-  const damageText = via === "affix" ? `词缀追加${damage}点伤害` : `造成${damage}点伤害`;
+  const damageText = describeDamage(damage, via);
   const content = `${actorRow.actor.name}对${target.name}${actionText}，${damageText}${outcome}`;
   await appendPublicMessage(executor, gameId, actorRow.actor.id, {
     kind: action,
@@ -110,7 +118,7 @@ export async function applyHit(input: HitInput): Promise<HitOutcome> {
   // 与受害者自己，不进出手者的记忆。
   const feedback = `你对${ref(input.address)}${actionText}，${damageText}`;
   return {
-    feedback: `# 行动结果\n${feedback}${targetDied ? `；${ref(input.address)}倒下了` : ""}。`,
+    feedback: `${feedback}${targetDied ? `；${ref(input.address)}倒下了` : ""}。`,
     dealtDamage,
     targetDied,
   };

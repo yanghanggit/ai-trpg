@@ -149,5 +149,6 @@ export async function applyCleave(
     });
     lines.push(result.feedback);
   }
-  return lines.join("\n\n");
+  // 逐目标的句子并排；一次横扫是一条行动事实。
+  return lines.join("\n");
 }

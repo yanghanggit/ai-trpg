@@ -13,7 +13,6 @@ import {
 import { appendCustomStageObservation, appendStageMemory } from "../observations";
 import { setActorEquipment } from "../persistence/actors";
 import { appendPublicMessage } from "../persistence/game-messages";
-import { bumpGameVersion } from "../persistence/games";
 import type { ActorWithStageRow, Executor } from "../persistence/rows";
 import type { ResolvedUnequip } from "../settle/types";
 import { parseSlot } from "./equip";
@@ -72,7 +71,6 @@ export async function applyUnequip(
   const actor = { id: actorRow.actor.id, name: actorRow.actor.name };
   const equipment = unequipSlot(actorRow.actor.equipment, resolved.action.slot);
   await setActorEquipment(executor, actor.id, equipment, now);
-  await bumpGameVersion(executor, gameId, now);
 
   const label = EQUIPMENT_SLOT_LABELS[resolved.action.slot];
   const content = `${actor.name}卸下了${resolved.itemName}（${label}）。`;
@@ -107,5 +105,5 @@ export async function applyUnequip(
     },
     trace,
   );
-  return `# 行动结果\n你卸下了${resolved.itemName}（${label}）。`;
+  return `你卸下了${resolved.itemName}（${label}）。`;
 }

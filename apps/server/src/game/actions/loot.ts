@@ -8,7 +8,6 @@ import { assertNotSelf, isAlive, listActorItems } from "../lookup";
 import { appendItemObservations, appendStageMemory } from "../observations";
 import { setActorEquipment } from "../persistence/actors";
 import { appendPublicMessage } from "../persistence/game-messages";
-import { bumpGameVersion } from "../persistence/games";
 import { transferItemToActor } from "../persistence/items";
 import type { ActorWithStageRow, Executor } from "../persistence/rows";
 import type { ResolvedLoot } from "../settle/types";
@@ -133,7 +132,6 @@ export async function applyLoot(
     corpseEquipment = withoutEquippedItem(corpseEquipment, item.name);
   }
   await setActorEquipment(executor, corpse.id, corpseEquipment, now);
-  await bumpGameVersion(executor, gameId, now);
 
   // 搜刮是公开行为：与 pickup 同级，不沿用 steal 的私密可见性。
   const content = `${looter.name}从${corpse.name}的尸体上搜走了${itemNames.join("、")}。`;
@@ -167,5 +165,5 @@ export async function applyLoot(
     },
     trace,
   );
-  return `# 行动结果\n你从${actionRef(address(corpse.id))}的尸体上搜走了${itemNames.join("、")}。`;
+  return `你从${actionRef(address(corpse.id))}的尸体上搜走了${itemNames.join("、")}。`;
 }

@@ -9,7 +9,6 @@ import { assertNotSelf, isAlive, resolveActorItem, wearerView } from "../lookup"
 import { appendItemObservations, appendStageMemory } from "../observations";
 import { setActorEquipment } from "../persistence/actors";
 import { appendPublicMessage } from "../persistence/game-messages";
-import { bumpGameVersion } from "../persistence/games";
 import { transferItemToActor } from "../persistence/items";
 import type { ActorWithStageRow, Executor } from "../persistence/rows";
 import type { ResolvedSteal } from "../settle/types";
@@ -111,7 +110,6 @@ export async function applySteal(
     withoutEquippedItem(resolved.target.equipment, item.name),
     now,
   );
-  await bumpGameVersion(executor, gameId, now);
 
   const content = `${thief.name}从${target.name}身上取走了${item.name}。`;
   await appendPublicMessage(executor, gameId, thief.id, {
@@ -150,5 +148,5 @@ export async function applySteal(
   const noticedNote = resolved.noticed
     ? `${actionRef(address(target.id))}察觉到了`
     : "没有惊动对方";
-  return `# 行动结果\n你从${actionRef(address(target.id))}身上取走了${item.name}；${noticedNote}。`;
+  return `你从${actionRef(address(target.id))}身上取走了${item.name}；${noticedNote}。`;
 }

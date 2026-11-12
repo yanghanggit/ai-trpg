@@ -8,7 +8,6 @@ import type { FitAction } from "../kernel/types";
 import { resolveActorItem } from "../lookup";
 import { appendItemObservations, appendStageMemory } from "../observations";
 import { appendPublicMessage } from "../persistence/game-messages";
-import { bumpGameVersion } from "../persistence/games";
 import type { ActorWithStageRow, Executor } from "../persistence/rows";
 import type { ResolvedFit } from "../settle/types";
 
@@ -79,14 +78,12 @@ async function recordFitEvent(
   gameId: string,
   actorRow: ActorWithStageRow,
   resolved: ResolvedFit,
-  now: Date,
   trace?: TraceContext,
 ): Promise<string> {
   const { stage, transferItem, anchorLabel } = resolved;
   const actor = { id: actorRow.actor.id, name: actorRow.actor.name };
   const content = `${actor.name}把${transferItem.name}对上${anchorLabel}。`;
 
-  await bumpGameVersion(executor, gameId, now);
   await appendPublicMessage(executor, gameId, actor.id, {
     kind: "fit",
     stageId: stage.id,
@@ -108,7 +105,7 @@ async function recordFitEvent(
     { eventKind: "fit" },
     trace,
   );
-  return `# 行动结果\n你在${stage.name}的${anchorLabel}把${transferItem.name}对上了。`;
+  return `你在${stage.name}的${anchorLabel}把${transferItem.name}对上了。`;
 }
 
 export async function applyFit(
@@ -120,7 +117,7 @@ export async function applyFit(
   address: AddressLookup,
   trace?: TraceContext,
 ): Promise<StaticItemActionResult> {
-  const baseFeedback = await recordFitEvent(executor, gameId, actorRow, resolved, now, trace);
+  const baseFeedback = await recordFitEvent(executor, gameId, actorRow, resolved, trace);
   const staticResult = await applyStaticItemAction({
     executor,
     gameId,
@@ -136,6 +133,6 @@ export async function applyFit(
   });
   return {
     ...staticResult,
-    feedback: [baseFeedback, staticResult.feedback].filter((line) => line.length > 0).join("\n\n"),
+    feedback: [baseFeedback, staticResult.feedback].filter((line) => line.length > 0).join("\n"),
   };
 }

@@ -124,7 +124,6 @@ export const ACTOR_ACTIONS = {
         context.gameId,
         context.actorRow,
         resolved,
-        context.now,
         context.address,
         context.trace,
       ),
@@ -146,7 +145,6 @@ export const ACTOR_ACTIONS = {
         context.gameId,
         context.actorRow,
         resolved,
-        context.now,
         context.address,
         context.trace,
       ),
@@ -160,14 +158,7 @@ export const ACTOR_ACTIONS = {
       return { kind: "announce", action, stage: context.stage };
     },
     apply: feedbackOnly<Parameters<typeof applyAnnounce>[3]>(async (context, resolved) =>
-      applyAnnounce(
-        context.executor,
-        context.gameId,
-        context.actorRow,
-        resolved,
-        context.now,
-        context.trace,
-      ),
+      applyAnnounce(context.executor, context.gameId, context.actorRow, resolved, context.trace),
     ),
   },
   call: {
@@ -182,7 +173,7 @@ export const ACTOR_ACTIONS = {
         action,
       ),
     apply: feedbackOnly<Parameters<typeof applyCall>[2]>(async (context, resolved) =>
-      applyCall(context.executor, context.gameId, resolved, context.now, context.trace),
+      applyCall(context.executor, context.gameId, resolved, context.trace),
     ),
   },
   move: {
@@ -222,14 +213,7 @@ export const ACTOR_ACTIONS = {
     parse: () => parseWait(),
     resolve: async (context, action) => resolveWait(context.stage, action),
     apply: feedbackOnly<Parameters<typeof applyWait>[3]>(async (context, resolved) =>
-      applyWait(
-        context.executor,
-        context.gameId,
-        context.actorRow,
-        resolved,
-        context.now,
-        context.trace,
-      ),
+      applyWait(context.executor, context.gameId, context.actorRow, resolved, context.trace),
     ),
   },
   strike: {
@@ -354,7 +338,6 @@ export const ACTOR_ACTIONS = {
         context.gameId,
         context.actorRow,
         resolved,
-        context.now,
         context.address,
         context.trace,
       ),
@@ -415,14 +398,7 @@ export const ACTOR_ACTIONS = {
     parse: parsePickup,
     resolve: async (context, action) => resolvePickup(context.executor, context.stage, action),
     apply: feedbackOnly<Parameters<typeof applyPickup>[3]>(async (context, resolved) =>
-      applyPickup(
-        context.executor,
-        context.gameId,
-        context.actorRow,
-        resolved,
-        context.now,
-        context.trace,
-      ),
+      applyPickup(context.executor, context.gameId, context.actorRow, resolved, context.trace),
     ),
   },
   use: {
