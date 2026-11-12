@@ -23,6 +23,8 @@ export type StaticItemActionInput = {
   targetAnchor?: string;
   now: Date;
   address?: AddressLookup;
+  /** 本次动作是否由隐匿中的自动现身触发；静态伤害条件读它。 */
+  ambush?: boolean;
   trace?: TraceContext;
 };
 
@@ -49,6 +51,7 @@ export async function applyStaticItemAction(
     item,
     trigger,
     ...(target ? { target } : {}),
+    ...(input.ambush ? { ambush: true } : {}),
   });
   const lines: string[] = [];
   let outcome: StaticOutcome | undefined;

@@ -139,6 +139,7 @@ export async function applyCleave(
   resolved: ResolvedCleave,
   now: Date,
   address: AddressLookup,
+  ambush = false,
   trace?: TraceContext,
 ): Promise<CleaveResult> {
   const lines: string[] = [];
@@ -156,6 +157,7 @@ export async function applyCleave(
       target,
       now,
       address,
+      ...(ambush ? { ambush: true } : {}),
       ...(trace ? { trace } : {}),
     });
     lines.push(result.feedback);

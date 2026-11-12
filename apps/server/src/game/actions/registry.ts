@@ -64,6 +64,8 @@ export type ApplyContext = {
   actorRow: ActorWithStageRow;
   now: Date;
   address: AddressLookup;
+  /** 本次动作是否由隐匿中的自动现身触发；静态词缀的伏击条件读它。 */
+  ambush?: boolean;
   trace?: TraceContext;
 };
 
@@ -275,6 +277,7 @@ export const ACTOR_ACTIONS = {
         resolved,
         context.now,
         context.address,
+        context.ambush ?? false,
         context.trace,
       );
       return {
@@ -306,6 +309,7 @@ export const ACTOR_ACTIONS = {
         resolved,
         context.now,
         context.address,
+        context.ambush ?? false,
         context.trace,
       );
       return {
@@ -478,6 +482,7 @@ export const ACTOR_ACTIONS = {
         resolved,
         context.now,
         context.address,
+        context.ambush ?? false,
         context.trace,
       );
       return {
@@ -518,6 +523,7 @@ export const ACTOR_ACTIONS = {
         resolved,
         context.now,
         context.address,
+        context.ambush ?? false,
         context.trace,
       );
       // 对上只指向锚点：没有角色目标，也就没有静态结果要交回。

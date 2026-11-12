@@ -482,6 +482,18 @@ describe("world content validation", () => {
       }
       expect(actorInnateActions(keeper)).toEqual(expect.arrayContaining(["inspect", "steal"]));
 
+      // 同一角色的 actions 自己也不能重复。
+      expect(() =>
+        parseWorldContent({
+          ...TEST_WORLD,
+          actors: TEST_WORLD.actors.map((actor) =>
+            actor.name === "守烬人"
+              ? { ...actor, actions: [...actor.actions, actor.actions[0]!] }
+              : actor,
+          ),
+        }),
+      ).toThrow(/在 actions 里重复声明/);
+
       // 一个动作只能有一个出处：既在 actions 里又被技艺带一遍，是重复声明。
       const duplicated = {
         ...TEST_WORLD,
@@ -517,6 +529,73 @@ describe("world content validation", () => {
       );
       // 空技艺没有意义。
       expect(() => parseWorldContent(withSkill([{ ...skill, actions: [] }]))).toThrow(/actions/);
+    });
+
+    it("lets hide come from a skill or the actor", () => {
+      const base = {
+        ...TEST_WORLD,
+        actors: TEST_WORLD.actors.map((actor) =>
+          actor.name === "守烬人"
+            ? {
+                ...actor,
+                actions: actor.actions.filter((kind) => kind !== "hide" && kind !== "reveal"),
+              }
+            : actor,
+        ),
+      };
+      const withHideSkill = {
+        ...base,
+        actors: base.actors.map((actor) =>
+          actor.name === "守烬人"
+            ? {
+                ...actor,
+                proficiencies: [
+                  {
+                    key: "ambush",
+                    name: "暗伏",
+                    description: "从暗处看清，再从盲侧出手。",
+                    actions: ["hide"],
+                  },
+                ],
+              }
+            : actor,
+        ),
+      };
+      const parsed = parseWorldContent(withHideSkill);
+      const keeper = parsed.actors.find((actor) => actor.name === "守烬人");
+      expect(keeper?.actions).not.toContain("hide");
+      expect(actorInnateActions(keeper!)).toContain("hide");
+
+      // hide 也可以直接写进 actions：天生藏身的怪物不必有技艺。
+      const direct = parseWorldContent({
+        ...base,
+        actors: base.actors.map((actor) =>
+          actor.name === "守烬人"
+            ? { ...actor, actions: [...actor.actions, "hide" as const] }
+            : actor,
+        ),
+      });
+      const directKeeper = direct.actors.find((actor) => actor.name === "守烬人");
+      expect(directKeeper?.actions).toContain("hide");
+    });
+
+    it("rejects duplicate actions on an item", () => {
+      const broken = {
+        ...TEST_WORLD,
+        actors: TEST_WORLD.actors.map((actor) =>
+          actor.name === "守烬人"
+            ? {
+                ...actor,
+                inventory: actor.inventory.map((item) =>
+                  item.kind === "weapon"
+                    ? { ...item, actions: [...(item.actions ?? []), "strike" as const] }
+                    : item,
+                ),
+              }
+            : actor,
+        ),
+      };
+      expect(() => parseWorldContent(broken)).toThrow(/不能重复声明/);
     });
 
     it("rejects innate actions declared on items", () => {

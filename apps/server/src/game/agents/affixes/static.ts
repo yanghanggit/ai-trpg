@@ -37,6 +37,8 @@ type StaticContext = {
   /** 本次攻击的攻击力：源属性现算 + 装备终值（含本次道具），与防御同一口径。 */
   attack: number;
   item: { name: string; stats: ActorWithStageRow["actor"]["stats"]; affixes: AffixTriggers };
+  /** 这次动作是否由隐匿中的自动现身触发；只给 `when: "ambush"` 的伤害 op 读。 */
+  ambush: boolean;
 };
 
 /**
@@ -83,6 +85,7 @@ export async function settleStaticAffixes(input: {
   item: StaticContext["item"];
   trigger: AffixTrigger;
   target?: ActorRow;
+  ambush?: boolean;
 }): Promise<StaticSettlement> {
   const { executor, actorRow, item, trigger, target } = input;
   const attacker = await wearerView(executor, actorRow.actor);
@@ -90,6 +93,7 @@ export async function settleStaticAffixes(input: {
     actorRow,
     attack: attackPower(effectiveSourcesOf(attacker), equipmentFinalsOf(attacker, item)),
     item,
+    ambush: input.ambush ?? false,
   };
   let rawDamage = 0;
   let hasDamageOps = false;
@@ -99,13 +103,18 @@ export async function settleStaticAffixes(input: {
 
   for (const affix of staticAffixes(item, trigger)) {
     const line = `[${affix.name}]${renderStaticContent(context, affix.content)}`;
-    rendered.push(line);
+    let affixHasActiveOp = false;
     let affixHasDamage = false;
     for (const op of affix.ops ?? []) {
       if (op.kind === "damage") {
+        // 静态条件只读引擎事实：条件不成立时这条 op 不参与求和，也不留下文本。
+        if (op.when === "ambush" && !context.ambush) {
+          continue;
+        }
         rawDamage += resolveAmount(context, op.amount);
         hasDamageOps = true;
         affixHasDamage = true;
+        affixHasActiveOp = true;
         continue;
       }
       witnesses.push({
@@ -113,6 +122,10 @@ export async function settleStaticAffixes(input: {
         template: op.template,
         visibility: op.visibility ?? "stage",
       });
+      affixHasActiveOp = true;
+    }
+    if (affixHasActiveOp) {
+      rendered.push(line);
     }
     if (affixHasDamage) {
       damageLines.push(line);

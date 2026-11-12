@@ -12,6 +12,7 @@ import { triggerTargetsActor } from "../kernel/affixes";
 import { statsSchema } from "../kernel/attributes";
 import {
   type ActionKind,
+  AFFIX_CONDITIONS,
   AFFIX_TRIGGERS,
   type AffixStatRef,
   type AffixTriggers,
@@ -66,7 +67,11 @@ const witnessTemplateSchema = z
   .refine((template) => !NAME_MARKER_PATTERN.test(template), "见证模板不能包含 # 标记");
 
 const affixOpSchema = z.discriminatedUnion("kind", [
-  z.strictObject({ kind: z.literal("damage"), amount: damageAmountSchema }),
+  z.strictObject({
+    kind: z.literal("damage"),
+    amount: damageAmountSchema,
+    when: z.enum(AFFIX_CONDITIONS).optional(),
+  }),
   z.strictObject({
     kind: z.literal("witness"),
     template: witnessTemplateSchema,
@@ -157,6 +162,13 @@ export const itemSchema = z
       });
     }
     const declared = item.actions ?? [];
+    if (new Set(declared).size !== declared.length) {
+      ctx.addIssue({
+        code: "custom",
+        message: "item.actions 不能重复声明同一个动作",
+        path: ["actions"],
+      });
+    }
     const heldInActions = declared.filter((kind) => !isSlotActionKind(kind));
     if (heldInActions.length > 0) {
       ctx.addIssue({

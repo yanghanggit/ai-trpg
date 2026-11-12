@@ -106,9 +106,18 @@ export type AffixStatRef = "attack" | "item.damage";
 /** 一次静态伤害贡献：常量或属性引用（可乘系数）。多条词缀的求和由结算统一做。 */
 export type DamageAmount = number | { ref: AffixStatRef; factor?: number };
 
+/**
+ * 静态词缀可读取的引擎事实。
+ *
+ * 它不是内容层的自由条件：只有引擎已经能判定的状态才能进来，目前只有伏击。
+ */
+export const AFFIX_CONDITIONS = ["ambush"] as const;
+
+export type AffixCondition = (typeof AFFIX_CONDITIONS)[number];
+
 /** 静态词缀的指令；`witness` 用渲染后的文本写舞台记忆与观察。 */
 export type AffixOp =
-  | { kind: "damage"; amount: DamageAmount }
+  | { kind: "damage"; amount: DamageAmount; when?: AffixCondition }
   | { kind: "witness"; template: string; visibility?: "stage" | "target" };
 
 export type Affix = {

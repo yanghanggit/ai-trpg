@@ -20,7 +20,7 @@ import { DARK_FANTASY_SETTING } from "./campaign";
  * 本世界；黑疖病是战役层共享的瘟疫，不随剧本改变。
  */
 export const CROW_GRAVE: Script = {
-  contentVersion: "crow-grave.v3",
+  contentVersion: "crow-grave.v4",
   contentKey: "crow-grave",
   worldName: "鸦葬岗的故事",
   functionPrompts: renderFunctionPrompts({
@@ -313,9 +313,10 @@ export const CROW_GRAVE: Script = {
               },
               {
                 name: "错步",
-                mode: "agent",
+                mode: "static",
                 content:
-                  "钩刃逼得对方侧身：如果对方正在挥动重武器，这一下会让他露出空门，下一次攻击更难挡。",
+                  "你从暗处错开半步，钩刃贴着对方的视线死角递进去；这一下比正面挥砍更疼，额外造成 {{item.damage}} 点伤害。",
+                ops: [{ kind: "damage", when: "ambush", amount: { ref: "item.damage" } }],
               },
             ],
           },
@@ -364,15 +365,22 @@ export const CROW_GRAVE: Script = {
           count: 1,
         },
       ],
-      // 人类：会说话、走动、战斗，也会递东西、拾取与换装；吹哨写在道具的词缀里。
-      // 不偷东西，也不翻别人的行囊。
+      // 藏身是技艺「暗伏」；现身和其余能力一样，写在 actions 里。普通人类配置。
+      proficiencies: [
+        {
+          key: "ambush",
+          name: "暗伏",
+          description:
+            "刺客的藏身术：借坟坡、斗篷与脚步把自己从旁人的视野里摘出去，先看清局面，再从盲侧出手。",
+          actions: ["hide"],
+        },
+      ],
       actions: [
         "say",
         "whisper",
         "announce",
         "move",
         "wait",
-        "hide",
         "reveal",
         "brawl",
         "give",

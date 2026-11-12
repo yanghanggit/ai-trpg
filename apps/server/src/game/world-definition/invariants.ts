@@ -138,6 +138,13 @@ function checkActorSourcesOnly(actor: Actor, actorIndex: number, ctx: z.Refineme
 function checkProficiencies(actor: Actor, actorIndex: number, ctx: z.RefinementCtx): void {
   const owner = new Map<string, string>();
   for (const action of actor.actions) {
+    if (owner.has(action)) {
+      ctx.addIssue({
+        code: "custom",
+        message: `动作 ${action} 在 actions 里重复声明`,
+        path: ["actors", actorIndex, "actions"],
+      });
+    }
     owner.set(action, "actions");
   }
   const seen = new Set<string>();

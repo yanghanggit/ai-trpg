@@ -58,6 +58,7 @@ async function applyResolvedAction(
   resolved: ResolvedAction,
   now: Date,
   address: AddressLookup,
+  ambush: boolean,
   trace?: TraceContext,
 ): Promise<ActionResult> {
   const context: ApplyContext = {
@@ -66,6 +67,7 @@ async function applyResolvedAction(
     actorRow,
     now,
     address,
+    ...(ambush ? { ambush: true } : {}),
     ...(trace ? { trace } : {}),
   };
   return actionSpec(resolved.kind).apply(context, resolved);
@@ -236,7 +238,16 @@ export async function settlePlan(
           await announceReveal(tx, gameId, actorRow, action.stage, trace);
         }
       }
-      const result = await applyResolvedAction(tx, gameId, actorRow, action, now, address, trace);
+      const result = await applyResolvedAction(
+        tx,
+        gameId,
+        actorRow,
+        action,
+        now,
+        address,
+        revealed,
+        trace,
+      );
       if (revealed) {
         result.feedback = `${result.feedback}\n你从暗处现身了。`;
         await traceEvent(trace, {

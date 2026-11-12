@@ -182,15 +182,15 @@ export type SkillDefinition = {
   actions: readonly InnateActionKind[];
 };
 
-/** 角色实际固有的动作：自己声明的 ∪ 技艺授予的；建局时按它物化。 */
+/**
+ * 角色实际固有的动作：自己声明的 ∪ 技艺授予的；建局时按它物化。
+ *
+ * 唯一性由内容校验负责；这里直接拼接，不做运行时去重或补动作。
+ */
 export function actorInnateActions(
   actor: Pick<Actor, "actions" | "proficiencies">,
 ): InnateActionKind[] {
-  const merged = [
-    ...actor.actions,
-    ...(actor.proficiencies ?? []).flatMap((skill) => skill.actions),
-  ];
-  return [...new Set(merged)];
+  return [...actor.actions, ...(actor.proficiencies ?? []).flatMap((skill) => skill.actions)];
 }
 
 /** Actor 的初始道具定义；创建后物化为 `items` 或 `stage_items` 行。 */

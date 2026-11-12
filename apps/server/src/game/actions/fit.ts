@@ -115,6 +115,7 @@ export async function applyFit(
   resolved: ResolvedFit,
   now: Date,
   address: AddressLookup,
+  ambush = false,
   trace?: TraceContext,
 ): Promise<StaticItemActionResult> {
   const baseFeedback = await recordFitEvent(executor, gameId, actorRow, resolved, trace);
@@ -129,6 +130,7 @@ export async function applyFit(
     targetAnchor: resolved.anchorLabel,
     now,
     address,
+    ...(ambush ? { ambush: true } : {}),
     ...(trace ? { trace } : {}),
   });
   return {

@@ -86,6 +86,7 @@ export async function applyStrike(
   resolved: ResolvedStrike,
   now: Date,
   address: AddressLookup,
+  ambush = false,
   trace?: TraceContext,
 ): Promise<StaticItemActionResult> {
   return applyStaticItemAction({
@@ -99,6 +100,7 @@ export async function applyStrike(
     target: resolved.target,
     now,
     address,
+    ...(ambush ? { ambush: true } : {}),
     ...(trace ? { trace } : {}),
   });
 }

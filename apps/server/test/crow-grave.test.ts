@@ -93,10 +93,15 @@ describe("crow-grave seed world", () => {
     );
   });
 
-  it("starts the crow hunter concealed and gives her hide / reveal", () => {
+  it("starts the crow hunter concealed and grants hide through a skill", () => {
     const vela = actor("vela");
-    expect(world.contentVersion).toBe("crow-grave.v3");
+    expect(world.contentVersion).toBe("crow-grave.v4");
     expect(vela.concealed).toBe(true);
+    expect(vela.proficiencies).toEqual([
+      expect.objectContaining({ key: "ambush", name: "暗伏", actions: ["hide"] }),
+    ]);
+    expect([...vela.actions] as string[]).not.toContain("hide");
+    expect([...vela.actions] as string[]).toContain("reveal");
     expect(actorInnateActions(vela)).toEqual(expect.arrayContaining(["hide", "reveal"]));
     // 两个可见角色开局都只看见另一个人，不知道薇拉伏在坡上。
     expect(actor("karl").openingBriefing).not.toContain("戴鸦羽的女人");
@@ -134,6 +139,18 @@ describe("crow-grave seed world", () => {
     expect(hammer?.maxTargets).toBe(2);
     expect(hammer?.affixes?.cleave?.[0]?.name).toBe("横扫");
 
+    // 错步是静态伏击词缀：只有从隐匿中出手的那一下才追加武器伤害。
+    const crowBeak = weapons.find((weapon) => weapon.name === "鸦啄");
+    expect(crowBeak?.affixes?.strike).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          name: "错步",
+          mode: "static",
+          ops: [{ kind: "damage", when: "ambush", amount: { ref: "item.damage" } }],
+        }),
+      ]),
+    );
+
     // 两把刃器只提供单体挥击；目标数不是它们的属性。
     for (const weapon of ["鸦啄", "拾骨钩"]) {
       const blade = weapons.find((candidate) => candidate.name === weapon);
@@ -155,7 +172,9 @@ describe("crow-grave seed world", () => {
     expect(actorInnateActions(actor("eli"))).toEqual(
       expect.arrayContaining(["inspect", "steal", "fit", "loot"]),
     );
-    expect(actor("vela").proficiencies).toBeUndefined();
+    expect(actor("vela").proficiencies).toEqual([
+      expect.objectContaining({ key: "ambush", actions: ["hide"] }),
+    ]);
     expect(actorInnateActions(actor("vela"))).not.toContain("inspect");
     expect(actorInnateActions(actor("vela"))).toContain("loot");
     // 对上只挂在会妙手的人身上：卡尔带着塔门钥匙，却没有 fit。

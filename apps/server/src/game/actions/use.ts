@@ -213,6 +213,7 @@ export async function applyUse(
   resolved: ResolvedUse,
   now: Date,
   address: AddressLookup,
+  ambush = false,
   trace?: TraceContext,
 ): Promise<StaticItemActionResult> {
   const targetAnchor = resolved.targetStage ? resolved.targetAnchor : undefined;
@@ -229,6 +230,7 @@ export async function applyUse(
     ...(targetAnchor ? { targetAnchor } : {}),
     now,
     address,
+    ...(ambush ? { ambush: true } : {}),
     ...(trace ? { trace } : {}),
   });
   return {

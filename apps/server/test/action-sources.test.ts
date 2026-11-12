@@ -41,17 +41,20 @@ const blade = (overrides: Partial<Parameters<typeof toItemState>[0]> = {}) =>
   });
 
 describe("action sources", () => {
-  it("merges skill actions into the innate list once", () => {
+  it("merges skill actions into the innate list", () => {
     const actor = {
       actions: ["say", "wait"] as const,
       proficiencies: [
         { key: "a", name: "甲", description: "一。", actions: ["inspect", "steal"] as const },
-        { key: "b", name: "乙", description: "二。", actions: ["steal", "give"] as const },
+        { key: "b", name: "乙", description: "二。", actions: ["give", "loot"] as const },
       ],
     };
-    // 内容校验会拒绝重复来源；物化这一步只保证幂等，不靠调用方去重。
-    expect(actorInnateActions(actor)).toEqual(["say", "wait", "inspect", "steal", "give"]);
+    // 内容校验负责唯一性；物化只做并集，不替内容去重。
+    expect(actorInnateActions(actor)).toEqual(["say", "wait", "inspect", "steal", "give", "loot"]);
     expect(actorInnateActions({ actions: ["say"] })).toEqual(["say"]);
+    // 没有任何隐藏的默认动作：actions 空就是空，工具授权也空。
+    expect(actorInnateActions({ actions: [] })).toEqual([]);
+    expect(allowedActionKinds([])).toEqual([]);
   });
 
   it("reports where each carried action comes from", () => {

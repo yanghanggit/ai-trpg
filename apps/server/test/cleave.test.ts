@@ -321,6 +321,72 @@ describe.skipIf(!testDatabaseUrl)("cleave", () => {
     expect(result.rejection).toContain("不能使用动作: cleave");
   });
 
+  it("applies a static ambush bonus only when the attack breaks concealment", async () => {
+    const withAmbush = (concealed: boolean): World => ({
+      ...CLEAVE_WORLD,
+      contentVersion: `test-world-ambush.${concealed ? "hidden" : "visible"}`,
+      actors: CLEAVE_WORLD.actors.map((actor) =>
+        actor.key === "ember-keeper"
+          ? {
+              ...actor,
+              concealed,
+              inventory: actor.inventory.map((item) =>
+                item.key === "cracked-blade"
+                  ? {
+                      ...item,
+                      affixes: {
+                        ...item.affixes,
+                        cleave: [
+                          ...(item.affixes?.cleave ?? []),
+                          {
+                            name: "错步",
+                            mode: "static" as const,
+                            content: "从暗处错步切入，额外造成 {{item.damage}} 点伤害。",
+                            ops: [
+                              {
+                                kind: "damage" as const,
+                                when: "ambush" as const,
+                                amount: { ref: "item.damage" as const },
+                              },
+                            ],
+                          },
+                        ],
+                      },
+                    }
+                  : item,
+              ),
+            }
+          : actor,
+      ),
+    });
+
+    const damageOf = async (concealed: boolean): Promise<number> => {
+      const { created, keeperId } = await startGame(
+        withAmbush(concealed),
+        concealed ? "静态伏击测试局（隐匿）" : "静态伏击测试局（明处）",
+      );
+      const before = await stateOf(created.game.slug);
+      const result = await settleActorPlan(
+        handle.db,
+        created.game.id,
+        keeperId,
+        cleavePlan("缄默抄经人"),
+        true,
+      );
+      expect(result.ok).toBe(true);
+      const after = await stateOf(created.game.slug);
+      const keeper = after.world.stages
+        .flatMap((stage) => stage.actors)
+        .find((actor) => actor.name === "守烬人");
+      expect(keeper?.concealed).toBe(false);
+      return (hpOf(before, "缄默抄经人") ?? 0) - (hpOf(after, "缄默抄经人") ?? 0);
+    };
+
+    // 基础横扫 9，目标格挡 4；伏击额外加武器伤害 3。只有出手前隐匿的那一下吃加成。
+    expect(await damageOf(false)).toBe(5);
+    expect(await damageOf(true)).toBe(8);
+  });
+
   it("offers the cleave tool with the weapon's target cap, and only when armed with it", async () => {
     const armed = await startGame(CLEAVE_WORLD, "横扫工具装配测试局");
     const armedService = new ToolCaptureService();

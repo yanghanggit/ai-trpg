@@ -41,13 +41,31 @@ function worldWith(options: { scribeAgility?: number } = {}): World {
           ...actor,
           concealed: true,
           stats: { ...actor.stats, agility: options.scribeAgility ?? 4 },
-          actions: ["steal", "inspect", "call", ...actor.actions, "hide", "reveal"],
+          actions: ["steal", "inspect", "call", ...actor.actions, "reveal"],
+          proficiencies: [
+            ...(actor.proficiencies ?? []),
+            {
+              key: "test-ambush",
+              name: "暗伏",
+              description: "测试用藏身术。",
+              actions: ["hide"] as const,
+            },
+          ],
         };
       }
       if (actor.key === "ember-keeper") {
         return {
           ...actor,
-          actions: ["call", ...actor.actions, "hide", "reveal"],
+          actions: ["call", ...actor.actions, "reveal"],
+          proficiencies: [
+            ...(actor.proficiencies ?? []),
+            {
+              key: "test-ambush",
+              name: "暗伏",
+              description: "测试用藏身术。",
+              actions: ["hide"] as const,
+            },
+          ],
           inventory: [
             ...actor.inventory,
             {
@@ -141,6 +159,10 @@ describe.skipIf(!testDatabaseUrl)("concealment", () => {
     // 隐匿只影响旁人如何看它；它自己仍看得见同场的人。
     expect(buildActorTurnInput(state, { actor: scribe, stage: nave })).toContain("守烬人");
     expect(actorIn(state, "提灯修士").concealed).toBe(false);
+
+    // 显式声明的 reveal 在已现身时幂等。
+    const visibleReveal = await playerReveal(handle.db, slug, "守烬人");
+    expect(visibleReveal.ok).toBe(true);
 
     const view = await getActorView(handle.db, slug, "守烬人");
     expect(view.stage?.actors.map((actor) => actor.actorId)).not.toContain(scribe.id);
