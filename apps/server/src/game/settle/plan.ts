@@ -273,8 +273,8 @@ export async function settlePlan(
         actorId: actorRow.actor.id,
         // 提示词自己排「动作结果」段，交进去的是句子，不带记忆标题。
         defaultFeedback: result.feedback,
-        ...(result.staticSettlement ? { staticSettlement: result.staticSettlement } : {}),
-        ...(result.staticOutcomes ? { staticOutcomes: result.staticOutcomes } : {}),
+        ...(result.settlement ? { settlement: result.settlement } : {}),
+        ...(result.outcomes ? { outcomes: result.outcomes } : {}),
       });
       if (affixRequest) {
         affixRequests.push(affixRequest);

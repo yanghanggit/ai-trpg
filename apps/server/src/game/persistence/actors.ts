@@ -145,6 +145,45 @@ export type DamageOutcome =
  * 快照、只接收 actorId，`for update` 读当前 HP 再写，避免用旧值覆盖。
  * 返回写后的行与剩余 HP，调用方据此写消息，不需要再查一次。
  */
+export type HealOutcome =
+  | { status: "applied"; row: ActorRow; healedHp: number; remainingHp: number }
+  | { status: "death-settled"; row: ActorRow }
+  | { status: "missing" };
+
+/**
+ * 加血：与扣血对称，同一把行锁里读-改-写，上限取角色行原值的 `stats.maxHp`。
+ *
+ * 「能不能治」只认死亡收尾标记，不认 `hp`：`hp === 0` 且 `death_settled_at` 仍为
+ * null 时是死亡阶段的待收尾窗口，治疗可以把人拉回来（`claimDeath` 的 CAS 带
+ * `hp <= 0`，复活的角色不会被误宣布）。已收尾的死者拒绝治疗——复活是独立动作，
+ * 不该被吸血之类的顺带效果带出来。
+ */
+export async function healActor(
+  executor: Executor,
+  actorId: string,
+  amount: number,
+  now: Date,
+): Promise<HealOutcome> {
+  const [row] = await executor
+    .select()
+    .from(actors)
+    .where(eq(actors.id, actorId))
+    .limit(1)
+    .for("update");
+  if (!row) {
+    return { status: "missing" };
+  }
+  if (row.deathSettledAt !== null) {
+    return { status: "death-settled", row };
+  }
+  const remainingHp = Math.min(row.stats.maxHp, row.hp + Math.max(0, amount));
+  await executor
+    .update(actors)
+    .set({ hp: remainingHp, updatedAt: now })
+    .where(eq(actors.id, actorId));
+  return { status: "applied", row, healedHp: remainingHp - row.hp, remainingHp };
+}
+
 export async function damageActor(
   executor: Executor,
   actorId: string,

@@ -1,7 +1,7 @@
 import type { TraceContext } from "../../debug/trace";
 import type { ToolDefinition } from "../../llm/types";
-import { applyStaticItemAction, type StaticItemActionResult } from "../agents/affixes";
 import { GameError } from "../errors";
+import { applyItemAction } from "../gameplay/settlement";
 import type { AddressLookup } from "../kernel/addressing";
 import { hasAffixes } from "../kernel/affixes";
 import type { FitAction } from "../kernel/types";
@@ -117,15 +117,14 @@ export async function applyFit(
   address: AddressLookup,
   ambush = false,
   trace?: TraceContext,
-): Promise<StaticItemActionResult> {
+) {
   const baseFeedback = await recordFitEvent(executor, gameId, actorRow, resolved, trace);
-  const staticResult = await applyStaticItemAction({
+  const applied = await applyItemAction({
     executor,
     gameId,
-    actorRow,
     stage: resolved.stage,
+    actorRow,
     item: resolved.transferItem,
-    trigger: "fit",
     action: "fit",
     targetAnchor: resolved.anchorLabel,
     now,
@@ -134,7 +133,8 @@ export async function applyFit(
     ...(trace ? { trace } : {}),
   });
   return {
-    ...staticResult,
-    feedback: [baseFeedback, staticResult.feedback].filter((line) => line.length > 0).join("\n"),
+    feedback: [baseFeedback, applied.feedback].filter((line) => line.length > 0).join("\n"),
+    settlement: applied.settlement,
+    ...(applied.hit ? { outcomes: [applied.hit] } : {}),
   };
 }

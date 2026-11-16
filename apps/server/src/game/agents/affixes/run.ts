@@ -4,10 +4,18 @@ import { type TraceContext, traceEvent } from "../../../debug/trace";
 import { agentLoop } from "../../../llm/agent-loop";
 import type { ChatCompletionService } from "../../../llm/protocol";
 import type { Logger } from "../../../logging";
-import { applyHit } from "../../combat/hit";
 import { describeError, GameError } from "../../errors";
 import { getGameStateSlice } from "../../game-state";
 import { effectiveSourcesOf, equipmentFinalsOf, guardPower } from "../../gameplay";
+import {
+  appendWitnessEvent,
+  applySettlement,
+  buildActorSnapshot,
+  resolveRules,
+  type SettlementHitResult,
+  settleAdditionalDamage,
+  type WitnessTarget,
+} from "../../gameplay/settlement";
 import { findTextLeaks, NAME_MARKER_PATTERN } from "../../kernel/addressing";
 import { agentAffixes } from "../../kernel/affixes";
 import { MAX_AFFIX_WITNESSES } from "../../kernel/limits";
@@ -22,8 +30,7 @@ import { loadWorldByGame } from "../../persistence/worlds";
 import { hasOnlyKnownPlaceholders } from "../../world-definition/item-schema";
 import { buildAffixPrompt, buildAffixSystemPrompt } from "./prompt";
 import { buildAffixTools } from "./tools";
-import type { AffixOperation, AffixRequest, StaticOutcome } from "./types";
-import { appendWitnessEvent, type WitnessTarget } from "./witness";
+import type { AffixOperation, AffixRequest } from "./types";
 
 /** 一次词缀判定的结果；只有 `applied` 才需要落账。 */
 type AffixEvaluation =
@@ -33,9 +40,9 @@ type AffixEvaluation =
 
 /** 按角色对齐静态结果：多目标不靠顺序，只认 actorId。 */
 function findOutcome(
-  outcomes: readonly StaticOutcome[],
+  outcomes: readonly SettlementHitResult[],
   actorId: string,
-): { outcome?: StaticOutcome } {
+): { outcome?: SettlementHitResult } {
   const outcome = outcomes.find((candidate) => candidate.actorId === actorId);
   return outcome ? { outcome } : {};
 }
@@ -118,8 +125,8 @@ async function evaluateAffix(
       trigger: request.trigger,
       affixes,
       defaultFeedback: request.defaultFeedback,
-      ...(request.staticSettlement ? { staticSettlement: request.staticSettlement } : {}),
-      ...(request.staticOutcomes ? { staticOutcomes: request.staticOutcomes } : {}),
+      ...(request.settlement ? { settlement: request.settlement } : {}),
+      ...(request.outcomes ? { outcomes: request.outcomes } : {}),
       terminalToolName: tools.submitAffix.function.name,
       stageName: stage.name,
       targets: targets.map((target) => ({
@@ -128,7 +135,7 @@ async function evaluateAffix(
         appearance: target.appearance.text,
         block: guardPower(equipmentFinalsOf(target)),
         hp: `${target.hp}/${target.stats.maxHp}`,
-        ...(request.staticOutcomes ? findOutcome(request.staticOutcomes, target.id) : {}),
+        ...(request.outcomes ? findOutcome(request.outcomes, target.id) : {}),
       })),
     }),
     messages: [{ type: "system", content: buildAffixSystemPrompt(state.world) }],
@@ -306,9 +313,20 @@ async function settleAffix(
     }
     const now = new Date();
     const address = await stageAddressLookup(tx, gameId, request.actorId, actorRow.stage.id);
+    const rules = resolveRules();
+    const initiator = await buildActorSnapshot({
+      executor: tx as Executor,
+      actor: actorRow.actor,
+      role: "initiator",
+      mode: "armed",
+      concealed: false,
+      instrument: itemRow,
+    });
     const feedbacks: string[] = [];
     let damage = 0;
     let witnesses = 0;
+    // 同一目标的多次追加先求和：减防与截断在引擎里只发生一次。
+    const pendingDamage = new Map<string, { handle: string; affixName: string; raw: number }>();
     for (const operation of operations) {
       if (operation.kind === "witness") {
         const target: WitnessTarget | undefined = operation.targetActorHandle
@@ -325,7 +343,7 @@ async function settleAffix(
           gameId,
           action: request.trigger,
           stage: actorRow.stage,
-          source: actorRow.actor,
+          source: { id: actorRow.actor.id, name: actorRow.actor.name },
           itemName: itemRow.name,
           event: {
             affixName: operation.affixName,
@@ -354,21 +372,54 @@ async function settleAffix(
         await dropOperation("target-dead", operation.affixName);
         continue;
       }
-      const hit = await applyHit({
+      const pending = pendingDamage.get(targetRow.id);
+      if (pending) {
+        pending.raw += operation.amount;
+      } else {
+        pendingDamage.set(targetRow.id, {
+          handle: operation.targetActorHandle,
+          affixName: operation.affixName,
+          raw: operation.amount,
+        });
+      }
+    }
+
+    for (const pending of pendingDamage.values()) {
+      const targetRow = await loadActorByNameInStage(tx, actorRow.stage.id, pending.handle);
+      if (!targetRow) {
+        await dropOperation("target-gone", pending.affixName);
+        continue;
+      }
+      const affected = await buildActorSnapshot({
+        executor: tx as Executor,
+        actor: targetRow,
+        role: "affected",
+        mode: "armed",
+        concealed: false,
+      });
+      const outcome = settleAdditionalDamage({
+        initiator,
+        affected,
+        rawDamage: pending.raw,
+        rules,
+      });
+      const applied = await applySettlement({
         executor: tx as Executor,
         gameId,
-        actorRow,
         stage: actorRow.stage,
-        target: targetRow,
-        damage: operation.amount,
+        address,
+        now,
         action: request.trigger,
         itemName: itemRow.name,
         via: "affix",
-        now,
-        address,
+        initiator,
+        affected,
+        outcome,
         ...(trace ? { trace } : {}),
       });
-      feedbacks.push(hit.feedback);
+      if (applied.feedback.length > 0) {
+        feedbacks.push(applied.feedback);
+      }
       damage += 1;
     }
     if (feedbacks.length > 0) {

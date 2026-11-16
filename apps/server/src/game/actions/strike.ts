@@ -1,7 +1,7 @@
 import type { TraceContext } from "../../debug/trace";
 import type { ToolDefinition } from "../../llm/types";
-import { applyStaticItemAction, type StaticItemActionResult } from "../agents/affixes";
 import { GameError } from "../errors";
+import { applyItemAction } from "../gameplay/settlement";
 import type { AddressLookup } from "../kernel/addressing";
 import { hasAffixes } from "../kernel/affixes";
 import type { StrikeAction } from "../kernel/types";
@@ -78,7 +78,6 @@ export async function resolveStrike(
   return { kind: "strike", action, stage, target, item };
 }
 
-/** 应用 strike：静态词缀结算；agent 词缀随后由增量阶段补。 */
 export async function applyStrike(
   executor: Executor,
   gameId: string,
@@ -88,14 +87,13 @@ export async function applyStrike(
   address: AddressLookup,
   ambush = false,
   trace?: TraceContext,
-): Promise<StaticItemActionResult> {
-  return applyStaticItemAction({
+) {
+  const applied = await applyItemAction({
     executor,
     gameId,
-    actorRow,
     stage: resolved.stage,
+    actorRow,
     item: resolved.item,
-    trigger: "strike",
     action: "strike",
     target: resolved.target,
     now,
@@ -103,4 +101,9 @@ export async function applyStrike(
     ...(ambush ? { ambush: true } : {}),
     ...(trace ? { trace } : {}),
   });
+  return {
+    feedback: applied.feedback,
+    settlement: applied.settlement,
+    ...(applied.hit ? { outcomes: [applied.hit] } : {}),
+  };
 }

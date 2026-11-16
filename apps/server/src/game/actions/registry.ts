@@ -2,9 +2,8 @@ import type { TraceContext } from "../../debug/trace";
 import type { ToolDefinition } from "../../llm/types";
 import type { ActorTurnContext } from "../agents/actor-turn/context";
 import type { AffixRequest } from "../agents/affixes";
-import type { StaticSettlement } from "../agents/affixes/static";
-import type { StaticOutcome } from "../agents/affixes/types";
 import { GameError } from "../errors";
+import type { SettlementHitResult, SettlementOutcome } from "../gameplay/settlement";
 import type { AddressLookup } from "../kernel/addressing";
 import { assertNoSystemReference } from "../kernel/addressing";
 import { agentAffixes } from "../kernel/affixes";
@@ -72,9 +71,9 @@ export type ApplyContext = {
 /** 一次动作落账的结果；带词缀的动作额外交回静态结果，供增量阶段使用。 */
 export type ActionResult = {
   feedback: string;
-  staticSettlement?: StaticSettlement;
-  /** 每个目标的静态实际结果；单体动作至多一项，多目标动作一项一个。 */
-  staticOutcomes?: readonly StaticOutcome[];
+  settlement?: SettlementOutcome;
+  /** 每个目标的实际结果；单体动作至多一项，多目标动作一项一个。 */
+  outcomes?: readonly SettlementHitResult[];
   /**
    * 这次落账是否可能改变角色可见外观。只有换装会设置它，且由道具是否参与外观决定——
    * 增量阶段靠它决定要不要重算外观，而不是看动作名。
@@ -85,8 +84,8 @@ export type ActionResult = {
 export type AffixRequestInput = {
   actorId: string;
   defaultFeedback: string;
-  staticSettlement?: StaticSettlement;
-  staticOutcomes?: readonly StaticOutcome[];
+  settlement?: SettlementOutcome;
+  outcomes?: readonly SettlementHitResult[];
 };
 
 export type ActorActionSpec<K extends ActionKind = ActionKind> = {
@@ -269,8 +268,8 @@ export const ACTOR_ACTIONS = {
         await context.visible(action.targetActorHandle),
       ),
     reveals: () => true,
-    apply: async (context, resolved) => {
-      const result = await applyStrike(
+    apply: async (context, resolved) =>
+      applyStrike(
         context.executor,
         context.gameId,
         context.actorRow,
@@ -279,13 +278,7 @@ export const ACTOR_ACTIONS = {
         context.address,
         context.ambush ?? false,
         context.trace,
-      );
-      return {
-        feedback: result.feedback,
-        staticSettlement: result.settlement,
-        ...(result.outcome ? { staticOutcomes: [result.outcome] } : {}),
-      };
-    },
+      ),
     affixRequest: (resolved, input) =>
       itemAffixRequest("strike", resolved.item, { targetActorIds: [resolved.target.id] }, input),
   },
@@ -301,8 +294,8 @@ export const ACTOR_ACTIONS = {
       return resolveCleave(context.executor, context.stage, context.actorRow, action, targets);
     },
     reveals: () => true,
-    apply: async (context, resolved) => {
-      const result = await applyCleave(
+    apply: async (context, resolved) =>
+      applyCleave(
         context.executor,
         context.gameId,
         context.actorRow,
@@ -311,13 +304,7 @@ export const ACTOR_ACTIONS = {
         context.address,
         context.ambush ?? false,
         context.trace,
-      );
-      return {
-        feedback: result.feedback,
-        ...(result.settlement ? { staticSettlement: result.settlement } : {}),
-        ...(result.outcomes.length > 0 ? { staticOutcomes: result.outcomes } : {}),
-      };
-    },
+      ),
     // 目标是名单：单体的 strike 传一项，横扫把每个被扫到的人都交出去。
     affixRequest: (resolved, input) =>
       itemAffixRequest(
@@ -338,16 +325,20 @@ export const ACTOR_ACTIONS = {
         await context.visible(action.targetActorHandle),
       ),
     reveals: () => true,
-    apply: feedbackOnly<Extract<ResolvedAction, { kind: "brawl" }>>(async (context, resolved) =>
-      applyBrawl(
-        context.executor,
-        context.gameId,
-        context.actorRow,
-        resolved,
-        context.now,
-        context.address,
-        context.trace,
-      ),
+    apply: feedbackOnly<Extract<ResolvedAction, { kind: "brawl" }>>(
+      async (context, resolved) =>
+        (
+          await applyBrawl(
+            context.executor,
+            context.gameId,
+            context.actorRow,
+            resolved,
+            context.now,
+            context.address,
+            context.ambush ?? false,
+            context.trace,
+          )
+        ).feedback,
     ),
   },
   steal: {
@@ -474,8 +465,8 @@ export const ACTOR_ACTIONS = {
       return resolveUse(context.executor, context.stage, context.actorRow, action, target);
     },
     reveals: () => true,
-    apply: async (context, resolved) => {
-      const result = await applyUse(
+    apply: async (context, resolved) =>
+      applyUse(
         context.executor,
         context.gameId,
         context.actorRow,
@@ -484,13 +475,7 @@ export const ACTOR_ACTIONS = {
         context.address,
         context.ambush ?? false,
         context.trace,
-      );
-      return {
-        feedback: result.feedback,
-        staticSettlement: result.settlement,
-        ...(result.outcome ? { staticOutcomes: [result.outcome] } : {}),
-      };
-    },
+      ),
     // 授权来自道具而非角色天赋：玩家入口绕过工具列表，不可用时要说明原因。
     blockedReason: (actorName) => `${actorName}没有可用的道具：use 需要一件声明了使用词缀的道具`,
     affixRequest: (resolved, input) =>
@@ -515,8 +500,8 @@ export const ACTOR_ACTIONS = {
     resolve: async (context, action) =>
       resolveFit(context.executor, context.stage, context.actorRow, action),
     reveals: () => true,
-    apply: async (context, resolved) => {
-      const result = await applyFit(
+    apply: async (context, resolved) =>
+      applyFit(
         context.executor,
         context.gameId,
         context.actorRow,
@@ -525,10 +510,7 @@ export const ACTOR_ACTIONS = {
         context.address,
         context.ambush ?? false,
         context.trace,
-      );
-      // 对上只指向锚点：没有角色目标，也就没有静态结果要交回。
-      return { feedback: result.feedback, staticSettlement: result.settlement };
-    },
+      ),
     affixRequest: (resolved, input) =>
       itemAffixRequest("fit", resolved.transferItem, { targetAnchor: resolved.anchorLabel }, input),
   },
@@ -575,8 +557,8 @@ function itemAffixRequest(
     trigger,
     ...target,
     defaultFeedback: input.defaultFeedback,
-    ...(input.staticSettlement ? { staticSettlement: input.staticSettlement } : {}),
-    ...(input.staticOutcomes ? { staticOutcomes: input.staticOutcomes } : {}),
+    ...(input.settlement ? { settlement: input.settlement } : {}),
+    ...(input.outcomes ? { outcomes: input.outcomes } : {}),
   };
 }
 

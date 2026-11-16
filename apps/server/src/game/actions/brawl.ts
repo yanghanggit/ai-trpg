@@ -1,7 +1,7 @@
 import type { TraceContext } from "../../debug/trace";
 import type { ToolDefinition } from "../../llm/types";
-import { applyUnarmedHit } from "../combat/unarmed";
 import { GameError } from "../errors";
+import { applyUnarmedAction } from "../gameplay/settlement";
 import type { AddressLookup } from "../kernel/addressing";
 import type { BrawlAction } from "../kernel/types";
 import { assertNotSelf } from "../lookup";
@@ -56,7 +56,7 @@ export function resolveBrawl(
   return { kind: "brawl", action, stage, target };
 }
 
-/** 应用 brawl：不带道具，交给引擎原生的肉搏路径结算。 */
+/** 应用 brawl：不带道具，生成规则换成 unarmed，其余与武器动作走同一条结算。 */
 export async function applyBrawl(
   executor: Executor,
   gameId: string,
@@ -64,16 +64,18 @@ export async function applyBrawl(
   resolved: ResolvedBrawl,
   now: Date,
   address: AddressLookup,
+  ambush = false,
   trace?: TraceContext,
-): Promise<string> {
-  return applyUnarmedHit(
+) {
+  return applyUnarmedAction({
     executor,
     gameId,
+    stage: resolved.stage,
     actorRow,
-    resolved.stage,
-    resolved.target,
+    target: resolved.target,
     now,
     address,
-    trace,
-  );
+    ...(ambush ? { ambush: true } : {}),
+    ...(trace ? { trace } : {}),
+  });
 }

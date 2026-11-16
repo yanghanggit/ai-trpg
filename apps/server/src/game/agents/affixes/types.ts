@@ -1,5 +1,5 @@
+import type { SettlementHitResult, SettlementOutcome } from "../../gameplay/settlement";
 import type { AffixTrigger } from "../../kernel/affixes";
-import type { StaticSettlement } from "./static";
 
 export type AffixOperation =
   | {
@@ -28,17 +28,7 @@ export type AffixRequest = {
   targetStageId?: string;
   targetAnchor?: string;
   defaultFeedback: string;
-  staticSettlement?: StaticSettlement;
+  settlement?: SettlementOutcome;
   /** 每个目标的静态实际结果；没有命中时为空。 */
-  staticOutcomes?: readonly StaticOutcome[];
-};
-
-/** 一个目标的静态命中结果；按角色对齐，不靠顺序。 */
-export type StaticOutcome = {
-  /** 这条结果属于哪个角色。 */
-  actorId: string;
-  /** 实际扣除的 HP，按目标剩余生命截断。 */
-  dealtDamage: number;
-  /** 本次静态命中是否让目标 HP 归零。 */
-  targetDied: boolean;
+  outcomes?: readonly SettlementHitResult[];
 };

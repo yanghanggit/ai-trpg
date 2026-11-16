@@ -49,7 +49,8 @@ class AffixDamageService implements ChatCompletionService {
           arguments: JSON.stringify({
             affixName: "松脂渗毛",
             targetActorHandle: "提灯修士",
-            amount: 42,
+            // 减防前 45 点：目标格挡 3，引擎结算后实际追加 42 点。
+            amount: 45,
             reason: "测试用词缀伤害",
           }),
         },

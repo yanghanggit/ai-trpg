@@ -1,9 +1,14 @@
 import type { TraceContext } from "../../debug/trace";
 import type { ToolDefinition } from "../../llm/types";
-import { applyStaticItemAction } from "../agents/affixes";
-import type { StaticSettlement } from "../agents/affixes/static";
-import type { StaticOutcome } from "../agents/affixes/types";
 import { GameError } from "../errors";
+import {
+  applySettlement,
+  buildActorSnapshot,
+  resolveRules,
+  type SettlementHitResult,
+  type SettlementOutcome,
+  settle,
+} from "../gameplay/settlement";
 import type { AddressLookup } from "../kernel/addressing";
 import { hasAffixes } from "../kernel/affixes";
 import type { CleaveAction } from "../kernel/types";
@@ -127,11 +132,16 @@ export async function resolveCleave(
 /** 横扫的静态结果：逐目标的命中结果，供推理端按角色对齐。 */
 export type CleaveResult = {
   feedback: string;
-  /** 逐目标同形：取第一个目标的结算描述，它只描述这次动作；没有目标时为空。 */
-  settlement?: StaticSettlement;
-  outcomes: readonly StaticOutcome[];
+  settlement?: SettlementOutcome;
+  outcomes: readonly SettlementHitResult[];
 };
 
+/**
+ * 应用 cleave：共享一份发起者快照，逐目标各结算一次。
+ *
+ * 快照在横扫开始时一次生成，之后不再回库；每个目标按自己的格挡与剩余生命结算，
+ * 因此不会出现「一次横扫只算总伤害」。
+ */
 export async function applyCleave(
   executor: Executor,
   gameId: string,
@@ -142,28 +152,51 @@ export async function applyCleave(
   ambush = false,
   trace?: TraceContext,
 ): Promise<CleaveResult> {
+  const rules = resolveRules();
+  const initiator = await buildActorSnapshot({
+    executor,
+    actor: actorRow.actor,
+    role: "initiator",
+    mode: "armed",
+    concealed: ambush,
+    instrument: resolved.item,
+  });
   const lines: string[] = [];
-  const outcomes: StaticOutcome[] = [];
-  let settlement: StaticSettlement | undefined;
+  const outcomes: SettlementHitResult[] = [];
+  let settlement: SettlementOutcome | undefined;
   for (const target of resolved.targets) {
-    const result = await applyStaticItemAction({
+    const affected = await buildActorSnapshot({
+      executor,
+      actor: target,
+      role: "affected",
+      mode: "armed",
+      concealed: false,
+    });
+    const outcome = settle({
+      action: "cleave",
+      initiator,
+      affected,
+      item: resolved.item,
+      rules,
+      ambush,
+    });
+    const applied = await applySettlement({
       executor,
       gameId,
-      actorRow,
       stage: resolved.stage,
-      item: resolved.item,
-      trigger: "cleave",
-      action: "cleave",
-      target,
-      now,
       address,
-      ...(ambush ? { ambush: true } : {}),
+      now,
+      action: "cleave",
+      itemName: resolved.item.name,
+      initiator,
+      affected,
+      outcome,
       ...(trace ? { trace } : {}),
     });
-    lines.push(result.feedback);
-    settlement ??= result.settlement;
-    if (result.outcome) {
-      outcomes.push(result.outcome);
+    lines.push(applied.feedback);
+    settlement ??= outcome;
+    if (applied.hit) {
+      outcomes.push(applied.hit);
     }
   }
   // 逐目标的句子并排；一次横扫是一条行动事实。

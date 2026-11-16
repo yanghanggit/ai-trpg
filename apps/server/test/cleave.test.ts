@@ -85,7 +85,10 @@ const CLEAVE_WORLD: World = {
   ],
 };
 
-/** 横扫的推理端：只给缄默抄经人追加 3 点，验证目标是从名单里挑的。 */
+/**
+ * 横扫的推理端：只给缄默抄经人追加伤害，验证目标是从名单里挑的。
+ * 填减防前的 7 点：目标格挡 4，引擎结算后实际追加 3 点。
+ */
 class CleaveAffixService implements ChatCompletionService {
   static calls = 0;
   static input = "";
@@ -102,7 +105,7 @@ class CleaveAffixService implements ChatCompletionService {
           arguments: JSON.stringify({
             affixName: "扫断膝盖",
             targetActorHandle: "缄默抄经人",
-            amount: 3,
+            amount: 7,
             reason: "站不稳摔了一下",
           }),
         },

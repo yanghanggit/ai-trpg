@@ -16,7 +16,7 @@ export function buildAffixTools(
       function: {
         name: "damage_target",
         description:
-          "对舞台中的一个角色追加词缀伤害；amount 是本次追加值，不是最终总伤害，也不要重复静态结算。",
+          "对舞台中的一个角色追加词缀伤害；amount 是减防前的追加值，不是最终总伤害，也不要重复静态结算——引擎会统一减一次目标格挡。",
         parameters: {
           type: "object",
           properties: {
@@ -33,7 +33,7 @@ export function buildAffixTools(
             amount: {
               type: "integer",
               minimum: 1,
-              description: "补充伤害数值",
+              description: "减防前的补充伤害；引擎会统一减去目标格挡",
             },
             reason: {
               type: "string",

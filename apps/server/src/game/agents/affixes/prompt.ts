@@ -1,9 +1,8 @@
+import type { SettlementHitResult, SettlementOutcome } from "../../gameplay/settlement";
 import type { AffixTrigger } from "../../kernel/affixes";
 import { STAT_KEYS, STAT_LABELS, type Stats } from "../../kernel/attributes";
 import type { Affix, WorldState } from "../../kernel/types";
 import { worldFunctionPrompt } from "../../world-function";
-import type { StaticSettlement } from "./static";
-import type { StaticOutcome } from "./types";
 
 /** 属性渲染成 `力量 8、格挡 2`；未用到的字段不出现，全 0 写“无”。 */
 function statsText(stats: Stats): string {
@@ -24,7 +23,7 @@ export type AffixTargetFacts = {
   appearance?: string;
   block?: number;
   hp?: string;
-  outcome?: StaticOutcome;
+  outcome?: SettlementHitResult;
 };
 
 /** 名单里的一行：名字 + 这个角色自己的事实。 */
@@ -55,19 +54,19 @@ export function buildAffixPrompt(input: {
   trigger: AffixTrigger;
   affixes: readonly Affix[];
   defaultFeedback: string;
-  staticSettlement?: StaticSettlement;
+  settlement?: SettlementOutcome;
   /** 这次动作作用到的角色；每一项带自己的静态实际结果。 */
   targets?: readonly AffixTargetFacts[];
   terminalToolName: string;
   stageName: string;
 }): string {
   const staticFacts =
-    input.staticSettlement === undefined
+    input.settlement === undefined
       ? "无（本次没有静态词缀）"
       : [
-          ...input.staticSettlement.rendered.map((line) => `- ${line}`),
-          input.staticSettlement.hasDamageOps
-            ? `静态伤害合计：${input.staticSettlement.rawDamage}（每个目标各自减防，实际结果见目标行）`
+          ...input.settlement.rendered.map((line) => `- ${line}`),
+          input.settlement.hasDamageOps
+            ? `静态伤害合计：${input.settlement.intended}（每个目标各自减防，实际结果见目标行）`
             : "静态词缀没有造成伤害",
         ].join("\n");
 
@@ -97,6 +96,7 @@ ${input.targets && input.targets.length > 0 ? input.targets.map(describeTarget).
 
 - **判定**：按语义读参与判定的对象、条件与比例，同义与上下位都算成立；过程可见但后果不成立，也可以留一条见证。
 - **名单**：目标是名单时逐人判断；damage_target 与 record_witness 点到谁，后果只落在谁身上。
+- **减防**：damage_target 填减防前的值，引擎会统一减去目标格挡；不要自己扣。
 - **措辞**：见证用占位符写，只留旁人看得见的事实，不写名字、编号、数值、机制与心理。
 - **收尾**：无论是否落账，必调 ${input.terminalToolName}。`;
 }

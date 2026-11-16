@@ -13,7 +13,7 @@ import { listStageActorViews } from "../../lookup";
 import { MEMORY_KINDS } from "../../memory/kinds";
 import { appendCustomObservation, appendStageMemory } from "../../observations";
 import { appendPublicMessage } from "../../persistence/game-messages";
-import type { ActorRow, Executor, StageRow } from "../../persistence/rows";
+import type { Executor, StageRow } from "../../persistence/rows";
 
 /**
  * 见证事件：静态 `witness` op 与 agent `record_witness` 共用同一份结构化事实。
@@ -107,7 +107,7 @@ export type AppendWitnessInput = {
   gameId: string;
   action: AffixTrigger;
   stage: StageRow;
-  source: ActorRow;
+  source: { id: string; name: string };
   itemName?: string;
   event: WitnessEvent;
   /** 出手者视角的引用；用于把见证写成行动反馈。 */

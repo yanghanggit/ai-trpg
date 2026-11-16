@@ -1,7 +1,7 @@
 import type { TraceContext } from "../../debug/trace";
 import type { ToolDefinition } from "../../llm/types";
-import { applyStaticItemAction, type StaticItemActionResult } from "../agents/affixes";
 import { GameError } from "../errors";
+import { applyItemAction } from "../gameplay/settlement";
 import { type AddressLookup, actionRef } from "../kernel/addressing";
 import { hasAffixes, staticAffixes } from "../kernel/affixes";
 import type { AffixTriggers, UseAction } from "../kernel/types";
@@ -215,16 +215,15 @@ export async function applyUse(
   address: AddressLookup,
   ambush = false,
   trace?: TraceContext,
-): Promise<StaticItemActionResult> {
+) {
   const targetAnchor = resolved.targetStage ? resolved.targetAnchor : undefined;
   const baseFeedback = await recordUseEvent(executor, gameId, actorRow, resolved, address, trace);
-  const staticResult = await applyStaticItemAction({
+  const applied = await applyItemAction({
     executor,
     gameId,
-    actorRow,
     stage: resolved.stage,
+    actorRow,
     item: resolved.transferItem,
-    trigger: "use",
     action: "use",
     ...(resolved.target ? { target: resolved.target } : {}),
     ...(targetAnchor ? { targetAnchor } : {}),
@@ -234,7 +233,8 @@ export async function applyUse(
     ...(trace ? { trace } : {}),
   });
   return {
-    ...staticResult,
-    feedback: [baseFeedback, staticResult.feedback].filter((line) => line.length > 0).join("\n"),
+    feedback: [baseFeedback, applied.feedback].filter((line) => line.length > 0).join("\n"),
+    settlement: applied.settlement,
+    ...(applied.hit ? { outcomes: [applied.hit] } : {}),
   };
 }
