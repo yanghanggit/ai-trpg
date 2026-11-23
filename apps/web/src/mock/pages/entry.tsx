@@ -1,5 +1,4 @@
 import { useNavigate } from "react-router";
-import EntryContainer from "../../pages/entry/EntryContainer";
 import EntryPage from "../../pages/entry/EntryPage";
 import { defineMockPage } from "../defineMockPage";
 import { type EntryMockState, entryFixtures } from "../fixtures/entry";
@@ -28,6 +27,5 @@ export const entryMock = defineMockPage<EntryMockState>({
   key: "entry",
   title: "入口",
   fixtures: entryFixtures,
-  renderFixture: ({ state }) => <FixtureEntry state={state} />,
-  renderApi: () => <EntryContainer />,
+  render: (state) => <FixtureEntry state={state} />,
 });

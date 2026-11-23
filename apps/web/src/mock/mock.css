@@ -44,3 +44,48 @@
   border-color: var(--accent);
   color: var(--accent);
 }
+
+.links {
+  display: grid;
+  gap: 8px;
+  margin: 18px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.links a {
+  color: var(--accent);
+  font-size: 14px;
+  text-decoration: none;
+}
+
+.links a:hover {
+  text-decoration: underline;
+}
+
+/* mock 目录：一个页面一行标题 + 一行状态链接，避免为了“看清单”占掉整屏。 */
+.mock-page h2 {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  margin: 0;
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.mock-page__path {
+  font-size: 12px;
+  font-weight: 400;
+  color: var(--muted);
+}
+
+.mock-page .links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 18px;
+  margin-top: 12px;
+}
+
+.mock-page .links a {
+  font-size: 13px;
+}

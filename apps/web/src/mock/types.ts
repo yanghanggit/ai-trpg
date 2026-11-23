@@ -1,20 +1,15 @@
 import type { ReactElement } from "react";
 
-/** 深链接里的 query 参数（如 `slug`）。 */
-export type MockParams = Record<string, string>;
-
 /**
- * 一个页面的 mock 描述（状态已擦成 string，便于放进同一张目录表）。
+ * 一个页面的 mock 描述。
  *
- * 两个渲染口对应「逐个开发」与「串联组装」：`renderFixture` 不触网，`renderApi` 走正式容器。
- * 页面能出现在 mock 里，前提是渲染层只吃数据——这是容器/展现分离的直接回报。
+ * 只有一条渲染路径：fixture。真数据由正式客户端自己展示——mock 不是调试面板，
+ * 它存在的意义是让页面在不启动服务端时也能被开发和被看。
  */
 export type MockPage = {
   key: string;
   title: string;
+  /** 状态名即 fixture 的键；深链接里的 `state` 就是它。 */
   states: readonly string[];
-  /** 深链接需要带的 query 参数名。 */
-  params: readonly string[];
-  renderFixture: (args: { state: string; params: MockParams }) => ReactElement;
-  renderApi?: (params: MockParams) => ReactElement;
+  renderFixture: (args: { state: string }) => ReactElement;
 };

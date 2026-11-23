@@ -81,7 +81,7 @@ pnpm dev
 
 **后台作业**：`pnpm job` 查看队列，`pnpm job:worker` 消费作业；HTTP 接入前都是独立工具，设计与边界见 `docs/background-jobs.md`。
 
-**页面目录（mock）**：`pnpm dev:mock` 在独立端口起一个入口，按「页面 × 状态」列出可直达的深链接；默认用 fixture 渲染，加 `source=api` 换成真数据。它不进生产构建，也不需要服务端——只有切到 `source=api` 时才需要 8787 在跑。约定见 `docs/web-client.md`。
+**页面目录（mock）**：`pnpm dev:mock` 在独立端口起一个入口，按「页面 × 状态」列出可直达的深链接，全部由 fixture 渲染。它不进生产构建，也不需要服务端。约定见 `docs/web-client.md`。
 
 **截图**：`pnpm screenshot` 默认输出 `logs/screenshots/index-1280x900.png`，可用 `--size`、`--base`、`--click` 覆盖（`--click` 可点按钮与折叠面板的 `summary`）；脚本走 CDP 并等待 React 挂载，找不到 Chrome 时用 `CHROME_PATH` 指定。
 

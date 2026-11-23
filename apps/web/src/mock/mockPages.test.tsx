@@ -13,11 +13,7 @@ describe("mock 目录", () => {
   it("每个页面的每个状态都能渲染", () => {
     for (const page of mockPages) {
       for (const state of page.states) {
-        const view = render(
-          <MemoryRouter>
-            {page.renderFixture({ state, params: { slug: "crow-run-1" } })}
-          </MemoryRouter>,
-        );
+        const view = render(<MemoryRouter>{page.renderFixture({ state })}</MemoryRouter>);
         expect(view.container.textContent?.trim()).not.toBe("");
         view.unmount();
       }

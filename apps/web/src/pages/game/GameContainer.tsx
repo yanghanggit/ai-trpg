@@ -3,7 +3,7 @@ import { useGame } from "../../features/games/useGame";
 import { adaptGameState } from "./adapt";
 import GamePage from "./GamePage";
 
-/** 取数 + 映射；渲染交给 `GamePage`。mock 的 `source=api` 也走这里。 */
+/** 取数 + 映射；渲染交给 `GamePage`（mock 用的也是这个页面组件）。 */
 export default function GameContainer({ slug }: { slug: string }) {
   const game = useGame(slug);
 
