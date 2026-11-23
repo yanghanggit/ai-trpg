@@ -15,4 +15,19 @@ function resolveApiBaseUrl(): string {
 
 export const apiBaseUrl = resolveApiBaseUrl();
 
+/**
+ * 开发期身份：服务端把 `Authorization: Bearer <username>` 当登录用。
+ *
+ * 客户端暂时写死演示用户；接真登录时只改这里——把常量换成读取会话里的 token，
+ * 其余请求代码不动。
+ */
+export const devUsername = "demo";
+
 export const api = createApiClient(apiBaseUrl);
+
+api.use({
+  onRequest({ request }) {
+    request.headers.set("Authorization", `Bearer ${devUsername}`);
+    return request;
+  },
+});

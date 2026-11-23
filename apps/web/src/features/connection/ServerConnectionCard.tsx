@@ -33,7 +33,7 @@ export default function ServerConnectionCard() {
       ) : null}
 
       {data ? (
-        <dl className="connection-card__facts">
+        <dl className="facts">
           <div>
             <dt>服务</dt>
             <dd>{data.health.service}</dd>
