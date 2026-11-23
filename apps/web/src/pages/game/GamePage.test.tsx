@@ -31,14 +31,17 @@ function renderGame(state: keyof typeof gameFixtures = "active") {
 }
 
 describe("GamePage", () => {
-  it("主页只保留当前舞台与感知日志", () => {
+  it("主页只保留当前舞台", () => {
     renderGame();
 
     expect(screen.getByRole("heading", { name: "鸦葬岗", level: 2 })).toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: "感知日志", level: 2 })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "在场", level: 3 })).toBeInTheDocument();
+    // 记忆日志与候选清单都不再进客户端。
+    expect(screen.queryByRole("heading", { name: "感知日志" })).not.toBeInTheDocument();
+    expect(screen.queryByText("可传送")).not.toBeInTheDocument();
     // 三样需要时才看的东西不在主页里。
     expect(screen.queryByText("我这样称呼别人")).not.toBeInTheDocument();
-    expect(screen.queryByRole("heading", { name: "可传送" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: "去过", level: 3 })).not.toBeInTheDocument();
   });
 
   it("顶部按钮打开「我」浮窗，并可以关闭", () => {
@@ -54,7 +57,7 @@ describe("GamePage", () => {
     expect(screen.queryByRole("dialog", { name: "我" })).not.toBeInTheDocument();
   });
 
-  it("「去过」浮窗列出到访与可传送", () => {
+  it("「去过」浮窗只列到访过的舞台", () => {
     renderGame();
 
     fireEvent.click(screen.getByRole("button", { name: "去过" }));
@@ -62,9 +65,8 @@ describe("GamePage", () => {
     const sheet = screen.getByRole("dialog", { name: "去过" });
     // 浮窗标题也是「去过」，所以这里按三级标题定位分组。
     expect(within(sheet).getByRole("heading", { name: "去过", level: 3 })).toBeInTheDocument();
-    // 「守夜塔」既在「去过」里，也在「可传送」里。
-    expect(within(sheet).getAllByText("守夜塔")).toHaveLength(2);
-    expect(within(sheet).getByRole("heading", { name: "可传送" })).toBeInTheDocument();
+    expect(within(sheet).getByText("守夜塔")).toBeInTheDocument();
+    expect(within(sheet).queryByRole("heading", { name: "可传送" })).not.toBeInTheDocument();
   });
 
   it("「消息历史」浮窗由注入的容器渲染事件流", () => {
@@ -77,12 +79,16 @@ describe("GamePage", () => {
     expect(within(sheet).getByText("已载入 4 / 4 条")).toBeInTheDocument();
   });
 
-  it("空态：刚开局没有日志与历史", () => {
+  it("空态：刚开局没有历史，也没有别处去过", () => {
     renderGame("fresh");
-
-    expect(screen.getByText(/还没有感知到任何事/)).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("button", { name: "消息历史" }));
     expect(screen.getByText("还没有任何事件。")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "关闭" }));
+
+    fireEvent.click(screen.getByRole("button", { name: "去过" }));
+    const sheet = screen.getByRole("dialog", { name: "去过" });
+    // 开局所在舞台本身就是一次到访，所以这里永远是「去过一个地方」。
+    expect(within(sheet).getByText("墓园")).toBeInTheDocument();
   });
 });

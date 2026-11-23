@@ -5,6 +5,6 @@
  * 不在这里（那在各自的 `*-turn/`）；数据库行的读取在 `read/`，别把三层混成一层。
  */
 
-export { getActorView } from "./actor";
+export { getActorLog, getActorView } from "./actor";
 export { getStageView } from "./stage";
 export * from "./types";

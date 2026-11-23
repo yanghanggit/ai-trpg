@@ -52,7 +52,8 @@
 
 | 投影 | 端点 | 谁读 | 是什么 |
 | --- | --- | --- | --- |
-| 观看者投影 `ActorView` | `GET /games/{game}`，建局也返回它 | 客户端 | 某个角色眼里的世界：按观察者渲染的名字、在场名单、出口与感知日志 |
+| 观看者投影 `ActorView` | `GET /games/{game}`，建局也返回它 | 客户端 | 某个角色眼里的世界：按观察者渲染的名字、在场名单、锚点与出口 |
+| 感知日志 `ActorLog` | `GET /games/{game}/log` | 预留（客户端暂不展示） | 该角色真正收到的几类观察与反馈，来自他自己的记忆 |
 | 活状态 `state` | `GET /games/{game}/state` | 控制面：`agent:api`、排查 | 上帝视角的全量投影，含世界宪法、prompt 与真实签名 |
 
 客户端读的投影是**已定型的契约**：形状源在 `game/client-view` 的 `ActorView`，`routes/schemas/client-view.ts` 用 `satisfies z.ZodType<ActorView>` 逐字段对照，引擎改字段会在编译期打断，而不是让客户端拿到一个它不认识的 JSON。具名 schema 因此进 `components.schemas`，客户端拿到的是 `ActorView` 这个名字，不是内联展开的一坨。

@@ -75,28 +75,13 @@ export const gameFixtures = {
         learnedStageId: "st1",
       },
     ],
-    log: [
-      {
-        sequence: 3,
-        kind: "environment_observation",
-        content: "风把木杆上的布条吹得笔直，指向坡下。",
-        createdAt: "2026-01-02T10:00:03.000Z",
-      },
-      {
-        sequence: 7,
-        kind: "action_observation",
-        content: "卡尔把一具尸体拖到坑边，抬头看了你一眼。",
-        createdAt: "2026-01-02T10:04:11.000Z",
-      },
-    ],
     visitedStages: [
       { stageId: "st1", name: "鸦葬岗" },
       { stageId: "st2", name: "守夜塔" },
     ],
-    teleportTargets: [{ stageId: "st2", name: "守夜塔" }],
   },
 
-  /** 刚开局：没有日志、没有同伴，渲染空态。 */
+  /** 刚开局：没有同伴、没有历史，渲染空态。 */
   fresh: {
     game: { ...game, name: "未命名的一局", slug: "mock-fresh", version: 0 },
     viewer,
@@ -119,9 +104,7 @@ export const gameFixtures = {
       sealedExits: [],
     },
     signatureNames: [],
-    log: [],
     visitedStages: [{ stageId: "st9", name: "墓园" }],
-    teleportTargets: [],
   },
 
   /** 收束：出口封上、同伴已死、自己隐匿。 */
@@ -157,19 +140,10 @@ export const gameFixtures = {
       sealedExits: [{ stageId: "st1", name: "鸦葬岗" }],
     },
     signatureNames: [],
-    log: [
-      {
-        sequence: 41,
-        kind: "action_feedback",
-        content: "铁闸门在你身后落下，锁扣咬住了。",
-        createdAt: "2026-01-02T12:20:00.000Z",
-      },
-    ],
     visitedStages: [
       { stageId: "st1", name: "鸦葬岗" },
       { stageId: "st3", name: "封尸窖" },
     ],
-    teleportTargets: [],
   },
 } satisfies Record<string, GameView>;
 

@@ -8,6 +8,7 @@ import { runMigrations } from "../src/db/migrate";
 import {
   createGame,
   findActorByName,
+  getActorLog,
   getActorView,
   getGameState,
   playerMove,
@@ -74,7 +75,9 @@ describe.skipIf(!testDatabaseUrl)("actor view", () => {
     expect(stranger?.token).toMatch(/^#\d+$/);
     expect(view.stage?.actors.some((actor) => actor.label.includes("无名者"))).toBe(false);
 
-    const log = view.log.map((entry) => entry.content).join("\n");
+    const perceived = await getActorLog(handle.db, created.game.slug, "小狗“煤渣”");
+    expect(perceived.owner.name).toBe("小狗“煤渣”");
+    const log = perceived.entries.map((entry) => entry.content).join("\n");
     expect(log).toContain("裹尸布");
     expect(log).not.toContain("无名者");
     // 行动反馈与观察也走世界面：不会出现系统引用标记。

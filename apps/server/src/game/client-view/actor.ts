@@ -4,7 +4,6 @@ import {
   perceivedActorsFor,
   sealedVisitedStagesForActor,
   visitedStagesForActor,
-  visitedTeleportTargetsFor,
 } from "../actor-state";
 import { getGameStateSlice } from "../game-state";
 import { addressLookupFor, handleOf, refOf } from "../kernel/addressing";
@@ -13,7 +12,7 @@ import { getMemoryState } from "../memory";
 import { adjacentStages } from "../stage-state";
 import { actorLog } from "./log";
 import { gameOf, viewerAnchors } from "./project";
-import type { ActorView, ViewerAddress } from "./types";
+import type { ActorLogView, ActorView, ViewerAddress } from "./types";
 
 /**
  * 一个 actor 看到的世界面：他自己的舞台、名单、出口、记忆日志。
@@ -31,7 +30,6 @@ export async function getActorView(
 ): Promise<ActorView> {
   const state = loaded ?? (await getGameStateSlice(db, gameRef));
   const { actor, stage } = findActorByName(state, actorRef);
-  const memory = await getMemoryState(db, state.game.id, "actor", actor.id);
   const address = addressLookupFor(state, actor, stage);
 
   const actors: ViewerAddress[] = perceivedActorsFor(stage, actor.id).map((candidate) => {
@@ -47,10 +45,6 @@ export async function getActorView(
   });
 
   const visitedStages = visitedStagesForActor(state, actor.id).map((candidate) => ({
-    stageId: candidate.id,
-    name: candidate.name,
-  }));
-  const teleportTargets = visitedTeleportTargetsFor(state, actor, stage).map((candidate) => ({
     stageId: candidate.id,
     name: candidate.name,
   }));
@@ -81,8 +75,23 @@ export async function getActorView(
       })),
     },
     signatureNames: state.signatureNames.filter((row) => row.observerActorId === actor.id),
-    log: actorLog(memory?.messages ?? []),
     visitedStages,
-    teleportTargets,
+  };
+}
+
+/** 一个角色感知到的事，按发生顺序；数据来自他自己的记忆。 */
+export async function getActorLog(
+  db: Database,
+  gameRef: string,
+  actorRef: string,
+  /** 已经装配好的状态；调用方刚读过就传进来，省一次水合。 */
+  loaded?: GameStateSlice,
+): Promise<ActorLogView> {
+  const state = loaded ?? (await getGameStateSlice(db, gameRef));
+  const { actor } = findActorByName(state, actorRef);
+  const memory = await getMemoryState(db, state.game.id, "actor", actor.id);
+  return {
+    owner: { actorId: actor.id, name: actor.name },
+    entries: actorLog(memory?.messages ?? []),
   };
 }

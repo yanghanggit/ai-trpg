@@ -24,7 +24,7 @@ type GamePageProps = {
  */
 export default function GamePage({ view, renderHistory }: GamePageProps) {
   const [panel, setPanel] = useState<Panel | null>(null);
-  const { game, viewer, stage, log } = view;
+  const { game, stage } = view;
   const close = () => setPanel(null);
 
   return (
@@ -120,22 +120,6 @@ export default function GamePage({ view, renderHistory }: GamePageProps) {
               {stage.sealedExits.map((exit) => exit.name).join("、")}
             </p>
           ) : null}
-        </section>
-
-        <section className="panel">
-          <h2>感知日志</h2>
-          {log.length > 0 ? (
-            <ol className="entries">
-              {log.map((entry) => (
-                <li key={`${entry.sequence}-${entry.kind}`}>
-                  <span className="entries__kind">{entry.kind}</span>
-                  {entry.content}
-                </li>
-              ))}
-            </ol>
-          ) : (
-            <p className="muted">{viewer.name}还没有感知到任何事。</p>
-          )}
         </section>
 
         {panel === "me" ? (

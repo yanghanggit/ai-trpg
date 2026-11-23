@@ -98,7 +98,7 @@ describe.skipIf(!testDatabaseUrl)("业务 API", () => {
         game: { slug: SLUG },
         viewer: { name: "拾骨人伊莱", concealed: false },
         stage: { name: "鸦葬岗", actors: expect.any(Array), anchors: expect.any(Array) },
-        log: expect.any(Array),
+        visitedStages: expect.any(Array),
       },
     });
 
@@ -110,6 +110,17 @@ describe.skipIf(!testDatabaseUrl)("业务 API", () => {
     });
     expect(otherView.statusCode).toBe(200);
     expect(otherView.json()).toMatchObject({ view: { viewer: { name: "收尸人卡尔" } } });
+
+    // 感知日志：单独一个读入口，页面暂不展示。
+    const log = await app.inject({
+      method: "GET",
+      url: `/api/v1/games/${SLUG}/log`,
+      headers: auth,
+    });
+    expect(log.statusCode).toBe(200);
+    expect(log.json()).toMatchObject({
+      log: { owner: { name: "拾骨人伊莱" }, entries: expect.any(Array) },
+    });
 
     // 控制面投影：上帝视角的活状态。
     const state = await app.inject({

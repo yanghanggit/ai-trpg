@@ -155,6 +155,20 @@ export function registerGameCommands(program: Command): void {
   });
 
   addApiCommand(program, {
+    name: "log",
+    group: GROUP,
+    summary: "读取一局的感知日志（默认玩家操控的角色）",
+    options: [gameOption(), optionalOption("--actor <ref>", "换一个观看者，默认主角")],
+    schema: z.object({ game: z.string(), actor: z.string().trim().min(1).optional() }),
+    run: async (input, client) =>
+      (await client.call({
+        method: "GET",
+        path: `/games/${encodeURIComponent(input.game)}/log`,
+        query: { actor: input.actor },
+      })) as Record<string, unknown>,
+  });
+
+  addApiCommand(program, {
     name: "messages",
     group: GROUP,
     summary: "按序号增量读公共事件流",

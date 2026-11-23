@@ -7,7 +7,7 @@
 
 import type { Database } from "../db/pool";
 import { defaultPlayerActor, findActorByRef } from "../game/actor-state";
-import { type ActorView, getActorView } from "../game/client-view";
+import { type ActorLogView, type ActorView, getActorLog, getActorView } from "../game/client-view";
 import { GameError } from "../game/errors";
 import { getGameStateSlice } from "../game/game-state";
 import type { GameStateSlice } from "../game/kernel/types";
@@ -35,4 +35,23 @@ function noPlayerActor(gameRef: string): never {
     "invalid_state",
     `这一局没有默认玩家角色，读取投影需要显式指定 actor: ${gameRef}`,
   );
+}
+
+/**
+ * 某个观看者的感知日志；不传 `actor` 时同样用默认玩家角色。
+ *
+ * 与 `readActorView` 分开：投影回答「现在是什么样」，日志回答「我经历过什么」，
+ * 前者每次都要，后者只在回看时需要。
+ */
+export async function readActorLog(
+  db: Database,
+  gameRef: string,
+  actorRef?: string,
+): Promise<{ log: ActorLogView }> {
+  const state: GameStateSlice = await getGameStateSlice(db, gameRef);
+  const actor =
+    actorRef === undefined
+      ? (defaultPlayerActor(state)?.actor ?? noPlayerActor(gameRef))
+      : findActorByRef(state, actorRef);
+  return { log: await getActorLog(db, gameRef, actor.name, state) };
 }

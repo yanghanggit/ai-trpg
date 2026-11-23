@@ -80,7 +80,6 @@ describe.skipIf(!testDatabaseUrl)("teleport", () => {
 
     const view = await getActorView(handle.db, created.game.slug, "守烬人");
     expect(view.visitedStages).toEqual([{ stageId: gate.id, name: "灰烬门廊" }]);
-    expect(view.teleportTargets).toEqual([]);
   });
 
   it("teleports to any stage whose name resolves, even without a visit", async () => {

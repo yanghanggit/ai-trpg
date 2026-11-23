@@ -11,7 +11,7 @@
 
 import type { z } from "zod";
 import { z as zod } from "zod";
-import type { ActorView, ViewerAnchor, ViewerLogEntry } from "../../game/client-view";
+import type { ActorLogView, ActorView, ViewerAnchor, ViewerLogEntry } from "../../game/client-view";
 import type { MessageState } from "../../game/kernel/types";
 
 const viewerItemSchema = zod.object({
@@ -98,14 +98,7 @@ export const actorViewSchema = zod
         learnedStageId: zod.string().nullable(),
       }),
     ),
-    log: zod.array(viewerLogEntrySchema),
     visitedStages: zod.array(
-      zod.object({
-        stageId: zod.string(),
-        name: zod.string(),
-      }),
-    ),
-    teleportTargets: zod.array(
       zod.object({
         stageId: zod.string(),
         name: zod.string(),
@@ -133,3 +126,14 @@ export const gameMessageSchema = zod
     createdAt: zod.string(),
   })
   .meta({ id: "GameMessage" }) satisfies z.ZodType<MessageState>;
+
+/** 感知日志：这个角色经历过的事，单独一个端点，不跟着投影一起发。 */
+export const actorLogSchema = zod
+  .object({
+    owner: zod.object({
+      actorId: zod.string(),
+      name: zod.string(),
+    }),
+    entries: zod.array(viewerLogEntrySchema),
+  })
+  .meta({ id: "ActorLog" }) satisfies z.ZodType<ActorLogView>;

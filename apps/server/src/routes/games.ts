@@ -26,6 +26,7 @@ import {
   nameLeaksOp,
   playerActionBodySchema,
   probeOp,
+  readActorLog,
   readActorView,
   readGameMessages,
   readGameState,
@@ -40,7 +41,7 @@ import {
 } from "../game-ops";
 import { HttpError } from "../http-error";
 import { type AuthUser, requireUser } from "../plugins/auth";
-import { actorViewSchema, gameMessageSchema } from "./schemas/client-view";
+import { actorLogSchema, actorViewSchema, gameMessageSchema } from "./schemas/client-view";
 
 const gameParams = z.object({ game: z.string().trim().min(1) });
 const actorParams = gameParams.extend({ actor: z.string().trim().min(1) });
@@ -221,6 +222,27 @@ export function createGameRoutes(db: () => Database): FastifyPluginAsyncZod {
         const user = await requireUser(db(), request);
         await requireGameAccess(db(), request.params.game, user);
         return readActorView(db(), request.params.game, request.query.actor);
+      },
+    );
+
+    // 感知日志：角色经历过的事，来自他自己的记忆。客户端暂不展示，端点先留着。
+    app.get(
+      "/games/:game/log",
+      {
+        schema: {
+          tags: ["games"],
+          summary: "读取某个观看者的感知日志",
+          description:
+            "从该角色的记忆里挑出他真正收到的几类，按发生顺序。客户端暂不展示：它是回看用的，不是主页要的。",
+          params: gameParams,
+          querystring: z.object({ actor: z.string().trim().min(1).optional() }),
+          response: { 200: z.object({ log: actorLogSchema }) },
+        },
+      },
+      async (request) => {
+        const user = await requireUser(db(), request);
+        await requireGameAccess(db(), request.params.game, user);
+        return readActorLog(db(), request.params.game, request.query.actor);
       },
     );
 

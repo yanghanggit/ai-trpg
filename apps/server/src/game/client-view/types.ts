@@ -76,12 +76,22 @@ export type ActorView = {
   stage: ViewerStage;
   /** 这个观察者给各签名的当前称呼；其它观察者的名字不出现。 */
   signatureNames: SignatureNameState[];
-  /** 这个角色实际感知到的记忆，按发生顺序。 */
-  log: ViewerLogEntry[];
   /** 去过的舞台（地图/记忆用）；不等于完整可传送列表。 */
   visitedStages: { stageId: string; name: string }[];
-  /** 已去过且未被 teleport_blocked 的候选；不是完整的可传送集合。 */
-  teleportTargets: { stageId: string; name: string }[];
+};
+
+/**
+ * 观看者的感知日志：从该角色的记忆里挑出他真正收到的那几类。
+ *
+ * 与观看者投影分开读：主页不需要它，需要它的是「我经历过什么」这类回看时刻，
+ * 所以它有自己的端点，不跟着每次投影一起发。
+ */
+export type ActorLogView = {
+  owner: {
+    actorId: string;
+    name: string;
+  };
+  entries: ViewerLogEntry[];
 };
 
 export type StageViewLogEntry = {
