@@ -1,44 +1,21 @@
 /**
  * 玩家接管与单动作提交：`take-control` / `release-control` / `player-*`。
  *
- * 接管后用某个 actor 的身份直接提交一个动作，绕过计划 loop；需要外观一致性的动作
- * 显式带上 `DEEPSEEK_SERVICE`，与 NPC 回合保持同一条「规划 + 外观」路径。
+ * 参数与帮助在这里，动作 → 服务层调用的映射在 `game-ops` 的动作分派里，
+ * 与 HTTP 的动作端点共用同一份；本文件不重复挑选依赖。
  */
 
 import type { Command } from "commander";
 import { z } from "zod";
 import { DEEPSEEK_SERVICE } from "../../../deepseek";
-import {
-  findActorByRef,
-  getGameStateSlice,
-  playerAnnounce,
-  playerBrawl,
-  playerCall,
-  playerEquip,
-  playerFit,
-  playerGive,
-  playerHide,
-  playerInspect,
-  playerLoot,
-  playerMove,
-  playerPickup,
-  playerRecallRoute,
-  playerRecognizeIdentity,
-  playerReveal,
-  playerSay,
-  playerSteal,
-  playerStrike,
-  playerTeleport,
-  playerUnequip,
-  playerUse,
-  playerWait,
-  playerWhisper,
-  releaseActorControl,
-  takeActorControl,
-} from "../../../game";
-import { visitedStagesForActor } from "../../../game/actor-state";
-import type { ActorTurnResult } from "../../../game/kernel/types";
 import { EQUIPMENT_SLOTS } from "../../../game/kernel/types";
+import type { PlayerActionRequest } from "../../../game-ops";
+import {
+  readVisitedStages,
+  releaseControlOp,
+  submitPlayerAction,
+  takeControlOp,
+} from "../../../game-ops";
 import {
   actorOption,
   actorRef,
@@ -49,7 +26,7 @@ import {
   nonEmptyText,
   optionalOption,
   requiredOption,
-} from "../args";
+} from "../../args";
 import { addCommand } from "../command";
 import type { CommandContext } from "../context";
 
@@ -57,15 +34,7 @@ const GROUP = "玩家动作";
 
 const gameAndActor = { game: gameRef, actor: actorRef };
 
-/** 行动回合的统一输出：计划、结算后的状态，死亡阶段有结果时一并带出。 */
-function turnOutput(result: ActorTurnResult): Record<string, unknown> {
-  return {
-    plan: result.plan,
-    state: result.state,
-    ...(result.death === undefined ? {} : { death: result.death }),
-  };
-}
-
+/** 每句台词都可以带一个 `--reason`：写进自己的记忆，替代模型的 `mind`。 */
 const reasonOption = () => optionalOption("--reason <text>", "记入记忆的理由");
 
 const messageOption = () => requiredOption("--message <text>", "内容文本");
@@ -147,6 +116,15 @@ const recognizeInput = z.object({
   as: nonEmptyText("--as <name>"),
 });
 
+const routeInput = z.object({
+  ...gameAndActor,
+  from: z.string().optional(),
+  to: nonEmptyText("--to"),
+});
+
+/** 玩家动作共用同一组服务：计划用 `service`，结算后的增量用 `inferenceService`。 */
+const services = { service: DEEPSEEK_SERVICE, inferenceService: DEEPSEEK_SERVICE };
+
 export function registerPlayerCommands(program: Command, ctx: CommandContext): void {
   addCommand(program, ctx, {
     name: "take-control",
@@ -154,9 +132,7 @@ export function registerPlayerCommands(program: Command, ctx: CommandContext): v
     summary: "把 actor 标记为玩家接管",
     options: [gameOption(), actorOption()],
     schema: controlInput,
-    run: async (input, ctx) => ({
-      result: await ctx.db((db) => takeActorControl(db, input.game, input.actor)),
-    }),
+    run: async (input, ctx) => ctx.db((db) => takeControlOp(db, input.game, input.actor)),
   });
 
   addCommand(program, ctx, {
@@ -165,10 +141,7 @@ export function registerPlayerCommands(program: Command, ctx: CommandContext): v
     summary: "解除玩家接管",
     options: [gameOption(), actorOption()],
     schema: controlInput,
-    run: async (input, ctx) => {
-      await ctx.db((db) => releaseActorControl(db, input.game, input.actor));
-      return { result: { released: true } };
-    },
+    run: async (input, ctx) => ctx.db((db) => releaseControlOp(db, input.game, input.actor)),
   });
 
   addCommand(program, ctx, {
@@ -177,15 +150,9 @@ export function registerPlayerCommands(program: Command, ctx: CommandContext): v
     summary: "对同舞台目标说一句（占一个行动）",
     options: [gameOption(), actorOption(), targetOption(), messageOption(), reasonOption()],
     schema: talkInput,
-    run: async (input, ctx) =>
-      turnOutput(
-        await ctx.db((db) =>
-          playerSay(db, input.game, input.actor, {
-            message: input.message,
-            targetActorRef: input.target,
-            ...(input.reason === undefined ? {} : { reason: input.reason }),
-          }),
-        ),
+    run: (input, ctx) =>
+      ctx.db((db) =>
+        submitPlayerAction(db, input.game, input.actor, actionOf(input, { kind: "say" }), services),
       ),
   });
 
@@ -195,14 +162,14 @@ export function registerPlayerCommands(program: Command, ctx: CommandContext): v
     summary: "私语：只有目标听见",
     options: [gameOption(), actorOption(), targetOption(), messageOption(), reasonOption()],
     schema: talkInput,
-    run: async (input, ctx) =>
-      turnOutput(
-        await ctx.db((db) =>
-          playerWhisper(db, input.game, input.actor, {
-            message: input.message,
-            targetActorRef: input.target,
-            ...(input.reason === undefined ? {} : { reason: input.reason }),
-          }),
+    run: (input, ctx) =>
+      ctx.db((db) =>
+        submitPlayerAction(
+          db,
+          input.game,
+          input.actor,
+          actionOf(input, { kind: "whisper" }),
+          services,
         ),
       ),
   });
@@ -213,13 +180,18 @@ export function registerPlayerCommands(program: Command, ctx: CommandContext): v
     summary: "对全场宣告",
     options: [gameOption(), actorOption(), messageOption(), reasonOption()],
     schema: talkInput.omit({ target: true }),
-    run: async (input, ctx) =>
-      turnOutput(
-        await ctx.db((db) =>
-          playerAnnounce(db, input.game, input.actor, {
+    run: (input, ctx) =>
+      ctx.db((db) =>
+        submitPlayerAction(
+          db,
+          input.game,
+          input.actor,
+          {
+            kind: "announce",
             message: input.message,
             ...(input.reason === undefined ? {} : { reason: input.reason }),
-          }),
+          },
+          services,
         ),
       ),
   });
@@ -236,14 +208,14 @@ export function registerPlayerCommands(program: Command, ctx: CommandContext): v
       reasonOption(),
     ],
     schema: talkInput,
-    run: async (input, ctx) =>
-      turnOutput(
-        await ctx.db((db) =>
-          playerCall(db, input.game, input.actor, {
-            message: input.message,
-            targetActorName: input.target,
-            ...(input.reason === undefined ? {} : { reason: input.reason }),
-          }),
+    run: (input, ctx) =>
+      ctx.db((db) =>
+        submitPlayerAction(
+          db,
+          input.game,
+          input.actor,
+          actionOf(input, { kind: "call" }),
+          services,
         ),
       ),
   });
@@ -254,9 +226,9 @@ export function registerPlayerCommands(program: Command, ctx: CommandContext): v
     summary: "移动到相邻舞台",
     options: [gameOption(), actorOption(), requiredOption("--to <ref>", "stageId 或 stageName")],
     schema: moveInput,
-    run: async (input, ctx) =>
-      turnOutput(
-        await ctx.db((db) => playerMove(db, input.game, input.actor, { targetStageRef: input.to })),
+    run: (input, ctx) =>
+      ctx.db((db) =>
+        submitPlayerAction(db, input.game, input.actor, { kind: "move", to: input.to }, services),
       ),
   });
 
@@ -266,10 +238,14 @@ export function registerPlayerCommands(program: Command, ctx: CommandContext): v
     summary: "瞬移到任意舞台（不校验相邻）",
     options: [gameOption(), actorOption(), requiredOption("--to <ref>", "stageId 或 stageName")],
     schema: moveInput,
-    run: async (input, ctx) =>
-      turnOutput(
-        await ctx.db((db) =>
-          playerTeleport(db, input.game, input.actor, { targetStageRef: input.to }),
+    run: (input, ctx) =>
+      ctx.db((db) =>
+        submitPlayerAction(
+          db,
+          input.game,
+          input.actor,
+          { kind: "teleport", to: input.to },
+          services,
         ),
       ),
   });
@@ -280,8 +256,8 @@ export function registerPlayerCommands(program: Command, ctx: CommandContext): v
     summary: "原地等待一个行动",
     options: [gameOption(), actorOption()],
     schema: controlInput,
-    run: async (input, ctx) =>
-      turnOutput(await ctx.db((db) => playerWait(db, input.game, input.actor))),
+    run: (input, ctx) =>
+      ctx.db((db) => submitPlayerAction(db, input.game, input.actor, { kind: "wait" }, services)),
   });
 
   addCommand(program, ctx, {
@@ -290,8 +266,8 @@ export function registerPlayerCommands(program: Command, ctx: CommandContext): v
     summary: "隐入暗处：旁人不再被动看见你",
     options: [gameOption(), actorOption()],
     schema: controlInput,
-    run: async (input, ctx) =>
-      turnOutput(await ctx.db((db) => playerHide(db, input.game, input.actor))),
+    run: (input, ctx) =>
+      ctx.db((db) => submitPlayerAction(db, input.game, input.actor, { kind: "hide" }, services)),
   });
 
   addCommand(program, ctx, {
@@ -300,8 +276,8 @@ export function registerPlayerCommands(program: Command, ctx: CommandContext): v
     summary: "从暗处现身，让同舞台旁人看见",
     options: [gameOption(), actorOption()],
     schema: controlInput,
-    run: async (input, ctx) =>
-      turnOutput(await ctx.db((db) => playerReveal(db, input.game, input.actor))),
+    run: (input, ctx) =>
+      ctx.db((db) => submitPlayerAction(db, input.game, input.actor, { kind: "reveal" }, services)),
   });
 
   addCommand(program, ctx, {
@@ -310,16 +286,14 @@ export function registerPlayerCommands(program: Command, ctx: CommandContext): v
     summary: "用 weapon 槽的武器攻击目标",
     options: [gameOption(), actorOption(), targetOption()],
     schema: targetInput,
-    run: async (input, ctx) =>
-      turnOutput(
-        await ctx.db((db) =>
-          playerStrike(
-            db,
-            input.game,
-            input.actor,
-            { targetActorRef: input.target },
-            { service: DEEPSEEK_SERVICE, inferenceService: DEEPSEEK_SERVICE },
-          ),
+    run: (input, ctx) =>
+      ctx.db((db) =>
+        submitPlayerAction(
+          db,
+          input.game,
+          input.actor,
+          { kind: "strike", target: input.target },
+          services,
         ),
       ),
   });
@@ -330,16 +304,14 @@ export function registerPlayerCommands(program: Command, ctx: CommandContext): v
     summary: "空手攻击目标（不读道具）",
     options: [gameOption(), actorOption(), targetOption()],
     schema: targetInput,
-    run: async (input, ctx) =>
-      turnOutput(
-        await ctx.db((db) =>
-          playerBrawl(
-            db,
-            input.game,
-            input.actor,
-            { targetActorRef: input.target },
-            { inferenceService: DEEPSEEK_SERVICE },
-          ),
+    run: (input, ctx) =>
+      ctx.db((db) =>
+        submitPlayerAction(
+          db,
+          input.game,
+          input.actor,
+          { kind: "brawl", target: input.target },
+          services,
         ),
       ),
   });
@@ -350,13 +322,14 @@ export function registerPlayerCommands(program: Command, ctx: CommandContext): v
     summary: "从目标身上偷一件道具",
     options: [gameOption(), actorOption(), targetOption(), itemOption()],
     schema: targetItemInput,
-    run: async (input, ctx) =>
-      turnOutput(
-        await ctx.db((db) =>
-          playerSteal(db, input.game, input.actor, {
-            targetActorRef: input.target,
-            itemName: input.item,
-          }),
+    run: (input, ctx) =>
+      ctx.db((db) =>
+        submitPlayerAction(
+          db,
+          input.game,
+          input.actor,
+          { kind: "steal", target: input.target, item: input.item },
+          services,
         ),
       ),
   });
@@ -367,10 +340,14 @@ export function registerPlayerCommands(program: Command, ctx: CommandContext): v
     summary: "查看目标随身携带的全部道具（占一次行动；察觉看敏捷）",
     options: [gameOption(), actorOption(), targetOption()],
     schema: targetInput,
-    run: async (input, ctx) =>
-      turnOutput(
-        await ctx.db((db) =>
-          playerInspect(db, input.game, input.actor, { targetActorRef: input.target }),
+    run: (input, ctx) =>
+      ctx.db((db) =>
+        submitPlayerAction(
+          db,
+          input.game,
+          input.actor,
+          { kind: "inspect", target: input.target },
+          services,
         ),
       ),
   });
@@ -386,13 +363,18 @@ export function registerPlayerCommands(program: Command, ctx: CommandContext): v
       optionalOption("--item <names...>", "要搜刮的道具名；省略表示搜刮全部"),
     ],
     schema: lootInput,
-    run: async (input, ctx) =>
-      turnOutput(
-        await ctx.db((db) =>
-          playerLoot(db, input.game, input.actor, {
-            targetActorRef: input.target,
-            ...(input.item === undefined ? {} : { itemNames: input.item }),
-          }),
+    run: (input, ctx) =>
+      ctx.db((db) =>
+        submitPlayerAction(
+          db,
+          input.game,
+          input.actor,
+          {
+            kind: "loot",
+            target: input.target,
+            ...(input.item === undefined ? {} : { items: input.item }),
+          },
+          services,
         ),
       ),
   });
@@ -403,19 +385,14 @@ export function registerPlayerCommands(program: Command, ctx: CommandContext): v
     summary: "把自己的道具给目标",
     options: [gameOption(), actorOption(), targetOption(), itemOption()],
     schema: targetItemInput,
-    run: async (input, ctx) =>
-      turnOutput(
-        await ctx.db((db) =>
-          playerGive(
-            db,
-            input.game,
-            input.actor,
-            {
-              targetActorRef: input.target,
-              itemName: input.item,
-            },
-            { inferenceService: DEEPSEEK_SERVICE },
-          ),
+    run: (input, ctx) =>
+      ctx.db((db) =>
+        submitPlayerAction(
+          db,
+          input.game,
+          input.actor,
+          { kind: "give", target: input.target, item: input.item },
+          services,
         ),
       ),
   });
@@ -431,13 +408,14 @@ export function registerPlayerCommands(program: Command, ctx: CommandContext): v
       itemOption(),
     ],
     schema: pickupInput,
-    run: async (input, ctx) =>
-      turnOutput(
-        await ctx.db((db) =>
-          playerPickup(db, input.game, input.actor, {
-            targetAnchor: input.anchor,
-            itemName: input.item,
-          }),
+    run: (input, ctx) =>
+      ctx.db((db) =>
+        submitPlayerAction(
+          db,
+          input.game,
+          input.actor,
+          { kind: "pickup", anchor: input.anchor, item: input.item },
+          services,
         ),
       ),
   });
@@ -455,21 +433,20 @@ export function registerPlayerCommands(program: Command, ctx: CommandContext): v
       optionalOption("--anchor <label>", "舞台内的锚点，只能与 --stage 一起用"),
     ],
     schema: useInput,
-    run: async (input, ctx) =>
-      turnOutput(
-        await ctx.db((db) =>
-          playerUse(
-            db,
-            input.game,
-            input.actor,
-            {
-              itemName: input.item,
-              ...(input.target === undefined ? {} : { targetActorRef: input.target }),
-              ...(input.stage === undefined ? {} : { targetStageName: input.stage }),
-              ...(input.anchor === undefined ? {} : { targetAnchor: input.anchor }),
-            },
-            { service: DEEPSEEK_SERVICE, inferenceService: DEEPSEEK_SERVICE },
-          ),
+    run: (input, ctx) =>
+      ctx.db((db) =>
+        submitPlayerAction(
+          db,
+          input.game,
+          input.actor,
+          {
+            kind: "use",
+            item: input.item,
+            ...(input.target === undefined ? {} : { target: input.target }),
+            ...(input.stage === undefined ? {} : { stage: input.stage }),
+            ...(input.anchor === undefined ? {} : { anchor: input.anchor }),
+          },
+          services,
         ),
       ),
   });
@@ -485,16 +462,14 @@ export function registerPlayerCommands(program: Command, ctx: CommandContext): v
       optionalOption("--anchor <label>", "要对上的锚点标签"),
     ],
     schema: fitInput,
-    run: async (input, ctx) =>
-      turnOutput(
-        await ctx.db((db) =>
-          playerFit(
-            db,
-            input.game,
-            input.actor,
-            { itemName: input.item, targetAnchor: input.anchor },
-            { service: DEEPSEEK_SERVICE, inferenceService: DEEPSEEK_SERVICE },
-          ),
+    run: (input, ctx) =>
+      ctx.db((db) =>
+        submitPlayerAction(
+          db,
+          input.game,
+          input.actor,
+          { kind: "fit", item: input.item, anchor: input.anchor },
+          services,
         ),
       ),
   });
@@ -505,16 +480,14 @@ export function registerPlayerCommands(program: Command, ctx: CommandContext): v
     summary: "把道具穿到指定槽位",
     options: [gameOption(), actorOption(), slotOption(), itemOption()],
     schema: equipInput,
-    run: async (input, ctx) =>
-      turnOutput(
-        await ctx.db((db) =>
-          playerEquip(
-            db,
-            input.game,
-            input.actor,
-            { itemName: input.item, slot: input.slot },
-            { inferenceService: DEEPSEEK_SERVICE },
-          ),
+    run: (input, ctx) =>
+      ctx.db((db) =>
+        submitPlayerAction(
+          db,
+          input.game,
+          input.actor,
+          { kind: "equip", item: input.item, slot: input.slot },
+          services,
         ),
       ),
   });
@@ -525,16 +498,14 @@ export function registerPlayerCommands(program: Command, ctx: CommandContext): v
     summary: "清空指定槽位",
     options: [gameOption(), actorOption(), slotOption()],
     schema: slotInput,
-    run: async (input, ctx) =>
-      turnOutput(
-        await ctx.db((db) =>
-          playerUnequip(
-            db,
-            input.game,
-            input.actor,
-            { slot: input.slot },
-            { inferenceService: DEEPSEEK_SERVICE },
-          ),
+    run: (input, ctx) =>
+      ctx.db((db) =>
+        submitPlayerAction(
+          db,
+          input.game,
+          input.actor,
+          { kind: "unequip", slot: input.slot },
+          services,
         ),
       ),
   });
@@ -550,13 +521,14 @@ export function registerPlayerCommands(program: Command, ctx: CommandContext): v
       requiredOption("--as <name>", "自己记下的名字"),
     ],
     schema: recognizeInput,
-    run: async (input, ctx) =>
-      turnOutput(
-        await ctx.db((db) =>
-          playerRecognizeIdentity(db, input.game, input.actor, {
-            targetActorRef: input.target,
-            name: input.as,
-          }),
+    run: (input, ctx) =>
+      ctx.db((db) =>
+        submitPlayerAction(
+          db,
+          input.game,
+          input.actor,
+          { kind: "recognize-identity", target: input.target, name: input.as },
+          services,
         ),
       ),
   });
@@ -571,18 +543,19 @@ export function registerPlayerCommands(program: Command, ctx: CommandContext): v
       optionalOption("--from <name>", "起点舞台名，省略则用当前舞台"),
       requiredOption("--to <name>", "终点舞台名（不接受 #序号）"),
     ],
-    schema: z.object({
-      ...gameAndActor,
-      from: z.string().optional(),
-      to: nonEmptyText("--to"),
-    }),
-    run: async (input, ctx) =>
-      turnOutput(
-        await ctx.db((db) =>
-          playerRecallRoute(db, input.game, input.actor, {
-            ...(input.from === undefined ? {} : { fromStageRef: input.from }),
-            toStageRef: input.to,
-          }),
+    schema: routeInput,
+    run: (input, ctx) =>
+      ctx.db((db) =>
+        submitPlayerAction(
+          db,
+          input.game,
+          input.actor,
+          {
+            kind: "ask-route",
+            to: input.to,
+            ...(input.from === undefined ? {} : { from: input.from }),
+          },
+          services,
         ),
       ),
   });
@@ -593,17 +566,19 @@ export function registerPlayerCommands(program: Command, ctx: CommandContext): v
     summary: "列出 actor 去过的舞台",
     options: [gameOption(), actorOption()],
     schema: controlInput,
-    run: async (input, ctx) =>
-      ctx.db(async (db) => {
-        const state = await getGameStateSlice(db, input.game);
-        const actor = findActorByRef(state, input.actor);
-        return {
-          actor: { id: actor.id, name: actor.name },
-          visited: visitedStagesForActor(state, actor.id).map((stage) => ({
-            stageId: stage.id,
-            name: stage.name,
-          })),
-        };
-      }),
+    run: (input, ctx) => ctx.db((db) => readVisitedStages(db, input.game, input.actor)),
   });
+}
+
+/** 台词类动作只差一个 `kind`：`say` / `whisper` / `call` 的参数形状相同。 */
+function actionOf(
+  input: { target: string; message: string; reason?: string },
+  base: { kind: "say" | "whisper" | "call" },
+): PlayerActionRequest {
+  return {
+    ...base,
+    target: input.target,
+    message: input.message,
+    ...(input.reason === undefined ? {} : { reason: input.reason }),
+  };
 }

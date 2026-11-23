@@ -3,7 +3,6 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { DEMO_USER } from "../src/db/demo-fixture";
 import { TEST_WORLD } from "./test-world";
 import "../src/db/env";
-import { refreshAppearances } from "../src/cli/agent-game/commands/turn";
 import { type DatabaseHandle, openDatabase } from "../src/db/connect";
 import { resetDomainData, seedDemoData } from "../src/db/maintenance";
 import { runMigrations } from "../src/db/migrate";
@@ -23,6 +22,7 @@ import { describeStats } from "../src/game/agents/actor-turn";
 import { formatForm } from "../src/game/agents/appearance/form";
 import { loadAgentMemory } from "../src/game/memory";
 import { claimDeath } from "../src/game/persistence/deaths";
+import { refreshAppearances } from "../src/game-ops";
 import { ChatCompletionResult, type ChatCompletionService } from "../src/llm";
 import { declaredNames, failureReasons, settleAllDeaths } from "./death-settlement";
 

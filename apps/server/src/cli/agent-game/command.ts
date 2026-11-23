@@ -6,9 +6,9 @@
 
 import type { Command, Option } from "commander";
 import type { z } from "zod";
+import { describeFailure } from "../errors";
+import { emit, emitText } from "../io";
 import type { CommandContext } from "./context";
-import { describeFailure } from "./errors";
-import { emit, emitText } from "./io";
 
 export type CommandDefinition<T extends z.ZodType> = {
   /** 子命令名，例如 `player-say`。 */

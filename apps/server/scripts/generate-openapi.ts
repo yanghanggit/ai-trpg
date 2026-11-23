@@ -17,7 +17,14 @@ const env = loadEnv({
   LOG_LEVEL: "silent",
 });
 
-const app = await buildApp({ env, logger: false });
+/** 导出契约不需要数据库：访问器一旦被调用就说明有路由在装配阶段碰了连接池。 */
+const app = await buildApp({
+  env,
+  logger: false,
+  db: () => {
+    throw new Error("OpenAPI 导出不连接数据库");
+  },
+});
 await app.ready();
 const openapi = app.swagger();
 await app.close();

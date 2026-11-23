@@ -1,29 +1,26 @@
 /**
  * 轨迹子系统：`trace list|show|tail|stats|render|gc|schema`。
  *
- * 轨迹是 `logs/` 下的按局按天事件流，不读数据库；字段以 `trace schema` 为准，
- * 这里只做参数解析与输出，排序/归档语义都在 `debug/trace.ts`。
+ * 参数与帮助在这里，读取 / 渲染 / 归档的编排在 `game-ops`；
+ * 字段以 `trace schema` 为准，两者都不在本文件复述。
  */
 
-import { mkdir, writeFile } from "node:fs/promises";
-import { dirname, join, resolve } from "node:path";
 import type { Command } from "commander";
 import { z } from "zod";
 import {
-  gcTrace,
-  listTurns,
-  readTurn,
-  renderTurnFiles,
-  renderTurnText,
-  tailEvents,
-  traceSchema,
-  traceStats,
-} from "../../../debug/trace";
-import { optionalOption, positiveIntArg, requiredOption } from "../args";
+  gcTraceOp,
+  listTurnsOp,
+  readTurnOp,
+  renderTurnOp,
+  tailEventsOp,
+  traceSchemaOp,
+  traceStatsOp,
+} from "../../../game-ops";
+import { optionalOption, positiveIntArg, requiredOption } from "../../args";
+import { describeFailure } from "../../errors";
+import { emit } from "../../io";
 import { addCommand } from "../command";
 import type { CommandContext } from "../context";
-import { describeFailure } from "../errors";
-import { emit } from "../io";
 
 const ACTION = "trace";
 const GROUP = "轨迹";
@@ -65,60 +62,6 @@ function requiredValue(label: string) {
   return z.string().trim().min(1, `需要 ${label}`);
 }
 
-type ListInput = z.infer<typeof listInput>;
-
-/**
- * `trace list` 也是 `trace` 无子命令时的默认动作，所以单独抽出来给两处复用。
- */
-async function runList(input: ListInput): Promise<Record<string, unknown>> {
-  const turns = await listTurns({
-    ...(input.game === undefined ? {} : { gameSlug: input.game }),
-    ...(input.since === undefined ? {} : { since: input.since }),
-    ...(input.limit === undefined ? {} : { limit: input.limit }),
-  });
-  return { sub: "list", turns };
-}
-
-function gameFilter(game: string | undefined): { gameSlug?: string } {
-  return game === undefined ? {} : { gameSlug: game };
-}
-
-async function runRender(input: z.infer<typeof renderInput>): Promise<Record<string, unknown>> {
-  let turnId = input.turn;
-  if (turnId === undefined) {
-    const turns = await listTurns({ ...gameFilter(input.game), limit: 1 });
-    const last = turns.at(-1);
-    if (last === undefined) {
-      throw new Error("没有可渲染的回合");
-    }
-    turnId = last.turnId;
-  }
-  const events = await readTurn(turnId, gameFilter(input.game));
-  if (events.length === 0) {
-    throw new Error(`找不到回合: ${turnId}`);
-  }
-  const text = renderTurnText(events);
-  if (input.out === undefined) {
-    return { sub: "render", turnId, text };
-  }
-  const target = resolve(input.out);
-  // 目录：每轮 request/response 一个文件；.md：合并视图。
-  if (target.endsWith(".md")) {
-    await mkdir(dirname(target), { recursive: true });
-    await writeFile(target, text, "utf8");
-    return { sub: "render", turnId, path: target, text };
-  }
-  const written: string[] = [];
-  await mkdir(target, { recursive: true });
-  for (const file of renderTurnFiles(events)) {
-    const filePath = join(target, file.name);
-    await mkdir(dirname(filePath), { recursive: true });
-    await writeFile(filePath, file.text, "utf8");
-    written.push(filePath);
-  }
-  return { sub: "render", turnId, path: target, files: written };
-}
-
 export function registerTraceCommands(program: Command, ctx: CommandContext): void {
   const trace = program
     .command("trace")
@@ -127,7 +70,7 @@ export function registerTraceCommands(program: Command, ctx: CommandContext): vo
 
   trace.action(async () => {
     try {
-      emit({ ok: true, action: ACTION, ...(await runList({})) });
+      emit({ ok: true, action: ACTION, sub: "list", ...(await listTurnsOp()) });
     } catch (error) {
       throw describeFailure(error, ACTION);
     }
@@ -143,7 +86,7 @@ export function registerTraceCommands(program: Command, ctx: CommandContext): vo
       optionalOption("--limit <n>", "最多返回多少回合"),
     ],
     schema: listInput,
-    run: (input) => runList(input),
+    run: async (input) => ({ sub: "list", ...(await listTurnsOp(input)) }),
   });
 
   addCommand(trace, ctx, {
@@ -155,13 +98,7 @@ export function registerTraceCommands(program: Command, ctx: CommandContext): vo
       optionalOption("--game <ref>", "gameId 或 slug"),
     ],
     schema: showInput,
-    run: async (input) => {
-      const events = await readTurn(input.turn, gameFilter(input.game));
-      if (events.length === 0) {
-        throw new Error(`找不到回合: ${input.turn}`);
-      }
-      return { sub: "show", turnId: input.turn, events };
-    },
+    run: async (input) => ({ sub: "show", ...(await readTurnOp(input.turn, input)) }),
   });
 
   addCommand(trace, ctx, {
@@ -174,14 +111,7 @@ export function registerTraceCommands(program: Command, ctx: CommandContext): vo
       optionalOption("--limit <n>", `条数，默认 ${TAIL_DEFAULT_LIMIT}`),
     ],
     schema: listInput,
-    run: async (input) => ({
-      sub: "tail",
-      events: await tailEvents({
-        ...gameFilter(input.game),
-        ...(input.since === undefined ? {} : { since: input.since }),
-        limit: input.limit ?? TAIL_DEFAULT_LIMIT,
-      }),
-    }),
+    run: async (input) => ({ sub: "tail", ...(await tailEventsOp(input)) }),
   });
 
   addCommand(trace, ctx, {
@@ -193,13 +123,7 @@ export function registerTraceCommands(program: Command, ctx: CommandContext): vo
       optionalOption("--since <YYYYMMDD>", "起始日期"),
     ],
     schema: listInput,
-    run: async (input) => ({
-      sub: "stats",
-      stats: await traceStats({
-        ...gameFilter(input.game),
-        ...(input.since === undefined ? {} : { since: input.since }),
-      }),
-    }),
+    run: async (input) => ({ sub: "stats", ...(await traceStatsOp(input)) }),
   });
 
   addCommand(trace, ctx, {
@@ -213,7 +137,7 @@ export function registerTraceCommands(program: Command, ctx: CommandContext): vo
       optionalOption("--out <path>", "输出目录或 .md 路径"),
     ],
     schema: renderInput,
-    run: (input) => runRender(input),
+    run: async (input) => ({ sub: "render", ...(await renderTurnOp(input)) }),
   });
 
   addCommand(trace, ctx, {
@@ -227,17 +151,7 @@ export function registerTraceCommands(program: Command, ctx: CommandContext): vo
       optionalOption("--dry-run", "只报告会动到哪些文件"),
     ],
     schema: gcInput,
-    run: async (input) => ({
-      sub: "gc",
-      before: input.before,
-      dryRun: input.dryRun,
-      ...(await gcTrace({
-        before: input.before,
-        ...gameFilter(input.game),
-        ...(input.delete ? { delete: true } : {}),
-        ...(input.dryRun ? { dryRun: true } : {}),
-      })),
-    }),
+    run: async (input) => ({ sub: "gc", ...(await gcTraceOp(input)) }),
   });
 
   addCommand(trace, ctx, {
@@ -245,6 +159,6 @@ export function registerTraceCommands(program: Command, ctx: CommandContext): vo
     action: ACTION,
     summary: "打印事件目录与轨迹根目录",
     schema: z.object({}),
-    run: () => Promise.resolve({ sub: "schema", schema: traceSchema() }),
+    run: async () => ({ sub: "schema", ...traceSchemaOp() }),
   });
 }

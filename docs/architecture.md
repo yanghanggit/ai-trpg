@@ -9,15 +9,34 @@
 
 依赖方向：`web` 依赖 `api-client` 与 `shared`，`server` 依赖 `shared`，反向不允许。两者直接导出 TypeScript 源码，由 Vite、tsx、tsup 转译，骨架阶段不引入独立构建。
 
-目标拓扑是「客户端 ⇄ 业务服务端 ⇄ PostgreSQL」。`agent:game` 与 HTTP 路由复用同一 `game` 服务层；服务端不保留跨请求的权威世界对象。
+目标拓扑是「客户端 ⇄ 业务服务端 ⇄ PostgreSQL」。`agent:game` 与 HTTP 路由复用同一组编排；服务端不保留跨请求的权威世界对象。
 
-服务端内部再分一层：**玩法模块不写 SQL**。动作、道具效果、stage / world 回合、死亡与外观只调用 `game/persistence/` 的具名读写原语；解析动作的只读查询在 `game/lookup/`，事务边界在 `game/settle/`（`plan.ts` 计算端、`increment.ts` 推理端），行投影与事务执行器在 `game/persistence/rows.ts`，建局在 `game/create-game/`，整局状态的装配在 `game/game-state/`，事件流与游戏行的读写都在 `game/persistence/`。`test/persistence-boundary.test.ts` 用源码扫描守住这条边界。
+→ 参见：[开发规范](conventions.md)
+
+## 分层与依赖方向
+
+服务端内部是单向的：传输 → 编排 → 服务，基础设施被各层调用。
+
+| 层 | 位置 | 决定什么 | 依赖 |
+| --- | --- | --- | --- |
+| 传输（HTTP） | `routes/` | 输入校验、身份、错误码与响应形状 | 编排层 |
+| 传输（进程内 CLI） | `cli/agent-game/` | 参数、帮助、输出信封与退出码 | 编排层 |
+| 传输（跨进程 CLI） | `cli/agent-api/` | 同上，执行体是一次 HTTP 调用 | HTTP 契约 |
+| 编排 | `game-ops/` | 一次操作动哪些实体、什么顺序、注入哪组依赖，以及稳定的输出形状 | 服务层、`debug/` |
+| 服务 | `game/` | 玩法、结算、回合与持久化原语 | 基础设施的类型与具名函数 |
+| 基础设施 | `db/`、`debug/`、`llm/`、`deepseek/`、`rag/`、`imagegen/` | 连接、语料、模型与检索 | 不依赖上层 |
+
+依赖只能向下。**玩法模块不写 SQL**：动作、道具效果、stage / world 回合、死亡与外观只调用 `game/persistence/` 的具名读写原语；解析动作的只读查询在 `game/lookup/`，事务边界在 `game/settle/`（`plan.ts` 计算端、`increment.ts` 推理端），行投影与事务执行器在 `game/persistence/rows.ts`，建局在 `game/create-game/`，整局状态的装配在 `game/game-state/`，事件流与游戏行的读写都在 `game/persistence/`。`test/persistence-boundary.test.ts` 用源码扫描守住这条边界。
 
 `game/` 是业务层：不含 HTTP 适配（`fastify` 零引用，入口在 `routes/` 与 `plugins/`）、进程与调度（`cli/`、`jobs/`）、外部服务客户端（`llm/`、`deepseek/`、`rag/`、`imagegen`），只消费它们的类型、常量与默认实例；`db/` 与 `debug/` 同理，可以调具名函数，不持有连接、不自己开副作用。
 
 `game/` 内部再分两层，判据是「谁驱动谁」而不是「属于哪个主题」：`game/kernel/` 放内容形状与文本渲染（`types`、`attributes`、`limits`、`addressing`、`observation-text`、`affixes`），零 I/O，除 `errors` 与 `memory/kinds` 外不 import 游戏模块；`game/agents/` 放吃世界宪法的那一组（三个回合、四个世界职能、三个旁路与 `bypass` 回路），只被外面驱动，反向调用只有结算、动作、台词准入与建局四组。分类判据与登记表见 [Agent 与工具](agents.md)。
 
-→ 参见：[开发规范](conventions.md)
+编排为什么单独一层：`agent:game` 与 HTTP 是同一件事的两个入口。各自拼流程，「`npc --all` 跳过谁」「这个动作要哪几个推理依赖」就会长出两份答案——玩法测试盯得住结算，盯不住编排。所以编排只在 `game-ops`，传输层只做搬运。
+
+`agent:api` 是刻意的例外：它在另一个进程里，只能经过 HTTP 契约，因此不依赖 `game-ops`。它与 `agent:game` 的能力对齐来自「同名命令 ↔ 同一端点 ↔ 同一份编排」，不是共享代码。
+
+这条方向由 `test/dependency-boundary.test.ts` 的源码扫描守住，与路由和命令一起演进。
 
 ## 契约链
 
@@ -34,10 +53,6 @@
 ## 请求生命周期
 
 页面经 `openapi-fetch` 客户端发请求；服务端用 Zod 校验输入并序列化输出；业务错误统一转成结构化响应。传输字段统一 camelCase，错误码是机器可读枚举、保持 snake_case。
-
-`game/` 是业务层：不含 HTTP 适配（`fastify` 零引用，入口在 `routes/` 与 `plugins/`）、进程与调度（`cli/`、`jobs/`）、外部服务客户端（`llm/`、`deepseek/`、`rag/`、`imagegen`），只消费它们的类型、常量与默认实例；`db/` 与 `debug/` 同理，可以调具名函数，不持有连接、不自己开副作用。
-
-`game/` 内部再分两层，判据是「谁驱动谁」而不是「属于哪个主题」：`game/kernel/` 放内容形状与文本渲染（`types`、`attributes`、`limits`、`addressing`、`observation-text`、`affixes`），零 I/O，除 `errors` 与 `memory/kinds` 外不 import 游戏模块；`game/agents/` 放吃世界宪法的那一组（三个回合、四个世界职能、三个旁路与 `bypass` 回路），只被外面驱动，反向调用只有结算、动作、台词准入与建局四组。分类判据与登记表见 [Agent 与工具](agents.md)。
 
 → 参见：[开发规范](conventions.md)
 

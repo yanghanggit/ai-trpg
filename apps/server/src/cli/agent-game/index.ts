@@ -7,14 +7,14 @@
 
 import { readFileSync } from "node:fs";
 import { Command, CommanderError } from "commander";
+import { CliFailure } from "../errors";
+import { emit } from "../io";
 import { registerGameCommands } from "./commands/game";
 import { registerInspectCommands } from "./commands/inspect";
 import { registerPlayerCommands } from "./commands/player";
 import { registerTraceCommands } from "./commands/trace";
 import { registerTurnCommands } from "./commands/turn";
 import { createContext } from "./context";
-import { CliFailure } from "./errors";
-import { emit } from "./io";
 
 /** commander 用这几个 code 表示「帮助/版本已输出」，属于成功路径。 */
 const DISPLAY_CODES = new Set(["commander.help", "commander.helpDisplayed", "commander.version"]);
@@ -64,7 +64,7 @@ export async function runAgentGameCli(argv: string[]): Promise<number> {
       return 0;
     }
     if (error instanceof CliFailure) {
-      emit({ ok: false, action: error.action, error: error.message });
+      emit({ ok: false, action: error.action, error: error.message, ...error.details });
       return error.exitCode;
     }
     if (error instanceof CommanderError) {

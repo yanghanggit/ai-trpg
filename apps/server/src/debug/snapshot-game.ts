@@ -1,16 +1,11 @@
-import type { Database } from "../../db/pool";
-import {
-  formatSnapshotId,
-  type JsonValue,
-  type SessionEvent,
-  saveSnapshot,
-} from "../../debug/snapshot";
-import { getGameStateSlice } from "../../game/game-state";
-import { getGameMemories } from "../../game/memory";
-import { listGameMessages } from "../../game/persistence/game-messages";
+import type { Database } from "../db/pool";
+import { getGameStateSlice } from "../game/game-state";
+import { getGameMemories } from "../game/memory";
+import { listGameMessages } from "../game/persistence/game-messages";
+import { formatSnapshotId, type JsonValue, type SessionEvent, saveSnapshot } from "./snapshot";
 
 /**
- * 把一局落成文件快照：唯一入口是 `agent:game snapshot`。
+ * 把一局落成文件快照：`agent:game snapshot` 与 `POST /games/:game/snapshot` 共用。
  *
  * 快照是提交后的只读投影，不是写入源；投影只在调试入口发生，所以引擎侧不留这份逻辑。
  */

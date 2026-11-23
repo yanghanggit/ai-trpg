@@ -1,27 +1,26 @@
 /**
  * 排查与维护：`probe` / `memory` / `name-leaks` / `compact`。
  *
- * 前三个是只读旁路（不调 LLM 或不改状态），`compact` 是唯一会改记忆的维护命令。
+ * 参数与帮助在这里，探针、记忆与压缩的编排在 `game-ops`；记忆导出的文件写入
+ * 留给本进程——写文件属于调用方，不属于服务端。
  */
 
 import type { Command } from "commander";
 import { z } from "zod";
 import { dumpMemory } from "../../../debug/memory-dump";
 import { DEEPSEEK_SERVICE } from "../../../deepseek";
-import {
-  auditGameNameLeaks,
-  type CompactMemoryResult,
-  compactAllMemories,
-  compactMemory,
-  getGameState,
-  getMemoryState,
-  MEMORY_OWNER_TYPES,
-  renderNameLeakReport,
-  resolveMemoryOwner,
-  runProbe,
-} from "../../../game";
+import { renderNameLeakReport } from "../../../game";
 import type { ProbeTarget } from "../../../game/agents/probe";
 import type { NameLeakReport } from "../../../game/name-audit";
+import {
+  type CompactQuery,
+  compactOp,
+  MEMORY_OWNER_TYPES,
+  type MemoryQuery,
+  memoryOp,
+  nameLeaksOp,
+  probeOp,
+} from "../../../game-ops";
 import {
   gameOption,
   gameRef,
@@ -31,10 +30,10 @@ import {
   ratioArg,
   requiredOption,
   splitNames,
-} from "../args";
+} from "../../args";
+import { UsageError } from "../../errors";
 import { addCommand } from "../command";
 import type { CommandContext } from "../context";
-import { UsageError } from "../errors";
 
 const GROUP = "排查与维护";
 
@@ -65,9 +64,7 @@ const memoryInput = z
   )
   .refine(
     (input) => input.owner === undefined || input.owner === "world" || input.name !== undefined,
-    {
-      message: "memory --owner actor / --owner stage 还需要 --name",
-    },
+    { message: "memory --owner actor / --owner stage 还需要 --name" },
   );
 
 const nameLeaksInput = z.object({
@@ -88,9 +85,7 @@ const compactInput = z
   })
   .refine(
     (input) => (input.owner !== "actor" && input.owner !== "stage") || input.name !== undefined,
-    {
-      message: "compact --owner actor / --owner stage 需要 --name",
-    },
+    { message: "compact --owner actor / --owner stage 需要 --name" },
   );
 
 /** `--actor` 与 `--stage` 二选一：refine 已挡过一次，这里只把类型窄化到 `ProbeTarget`。 */
@@ -102,6 +97,42 @@ function probeTarget(input: { actor?: string; stage?: string }): ProbeTarget {
     return { type: "stage", stageRef: input.stage };
   }
   throw new UsageError("probe 需要 --actor 或 --stage 二选一");
+}
+
+/** 三个别名（`--actor` / `--stage` / `--owner`）归一成 owner + 名字。 */
+function memoryQuery(input: {
+  actor?: string;
+  stage?: string;
+  owner?: "actor" | "stage" | "world";
+  name?: string;
+}): MemoryQuery {
+  const ownerType = input.actor !== undefined ? "actor" : (input.owner ?? "stage");
+  if (ownerType === "world") {
+    return { owner: "world" };
+  }
+  const name = input.actor ?? input.stage ?? input.name;
+  if (name === undefined) {
+    throw new UsageError("actor / stage 还需要 --name");
+  }
+  return { owner: ownerType, name };
+}
+
+function compactQuery(input: {
+  owner: "actor" | "stage" | "world" | "all";
+  name?: string;
+  minRatio?: number;
+}): CompactQuery {
+  const minRatio = input.minRatio === undefined ? {} : { minRatio: input.minRatio };
+  if (input.owner === "all") {
+    return { owner: "all", ...minRatio };
+  }
+  if (input.owner === "world") {
+    return { owner: "world", ...minRatio };
+  }
+  if (input.name === undefined) {
+    throw new UsageError("compact --owner actor / --owner stage 需要 --name");
+  }
+  return { owner: input.owner, name: input.name, ...minRatio };
 }
 
 export function registerInspectCommands(program: Command, ctx: CommandContext): void {
@@ -118,11 +149,12 @@ export function registerInspectCommands(program: Command, ctx: CommandContext): 
     schema: probeInput,
     run: async (input, ctx) =>
       ctx.db((db) =>
-        runProbe(db, input.game, {
-          service: DEEPSEEK_SERVICE,
-          message: input.message,
-          target: probeTarget(input),
-        }),
+        probeOp(
+          db,
+          input.game,
+          { message: input.message, target: probeTarget(input) },
+          { service: DEEPSEEK_SERVICE },
+        ),
       ),
   });
 
@@ -141,19 +173,12 @@ export function registerInspectCommands(program: Command, ctx: CommandContext): 
     schema: memoryInput,
     run: async (input, ctx) =>
       ctx.db(async (db) => {
-        const ownerType = input.actor !== undefined ? "actor" : (input.owner ?? "stage");
-        const ownerRef = input.actor ?? input.stage ?? input.name;
-        const state = await getGameState(db, input.game);
-        const owner = resolveMemoryOwner(state, ownerType, ownerRef);
-        const memory = await getMemoryState(db, state.game.id, owner.ownerType, owner.ownerId);
-        if (!memory) {
-          throw new Error(`缺少 memory: ${owner.ownerType} ${owner.name}`);
-        }
+        const result = await memoryOp(db, input.game, memoryQuery(input));
         const path = await dumpMemory(
-          { game: state.game, memory },
+          { game: result.game, memory: result.memory },
           input.out === undefined ? {} : { out: input.out },
         );
-        return { owner, path, messages: memory.messages.length };
+        return { owner: result.owner, path, messages: result.messages };
       }),
   });
 
@@ -175,16 +200,14 @@ export function registerInspectCommands(program: Command, ctx: CommandContext): 
       if (since !== undefined && Number.isNaN(since.getTime())) {
         throw new UsageError("--since 需要合法的日期或时间");
       }
-      const allowNames = splitNames(input.allow);
-      const report = await ctx.db((db) =>
-        auditGameNameLeaks(db, input.game, {
-          nameScope: input.scope === "ever" ? "ever" : "currentSignature",
-          ...(input.includeSystem ? { skipKinds: [] } : {}),
-          ...(allowNames.length > 0 ? { allowNames } : {}),
+      return ctx.db((db) =>
+        nameLeaksOp(db, input.game, {
+          scope: input.scope === "ever" ? "ever" : "current",
+          ...(input.includeSystem ? { includeSystem: true } : {}),
+          allow: splitNames(input.allow),
           ...(since === undefined ? {} : { since }),
         }),
       );
-      return { report };
     },
     render: (output) => renderNameLeakReport(output.report as NameLeakReport),
   });
@@ -200,26 +223,7 @@ export function registerInspectCommands(program: Command, ctx: CommandContext): 
       optionalOption("--min-ratio <ratio>", "触发压缩的上下文占用比（0..1）"),
     ],
     schema: compactInput,
-    run: async (input, ctx) => {
-      const options = {
-        service: DEEPSEEK_SERVICE,
-        ...(input.minRatio === undefined ? {} : { minRatio: input.minRatio }),
-      };
-      const results = await ctx.db<CompactMemoryResult[]>(async (db) => {
-        if (input.owner === "all") {
-          return compactAllMemories(db, input.game, options);
-        }
-        if (input.owner === "world") {
-          return [await compactMemory(db, input.game, { ownerType: "world" }, options)];
-        }
-        if (input.name === undefined) {
-          // refine 已经挡过一次；这里只是把类型窄化到 string。
-          throw new UsageError("compact --owner actor / --owner stage 需要 --name");
-        }
-        const ownerType = input.owner === "actor" ? "actor" : "stage";
-        return [await compactMemory(db, input.game, { ownerType, ref: input.name }, options)];
-      });
-      return { results };
-    },
+    run: async (input, ctx) =>
+      ctx.db((db) => compactOp(db, input.game, compactQuery(input), { service: DEEPSEEK_SERVICE })),
   });
 }

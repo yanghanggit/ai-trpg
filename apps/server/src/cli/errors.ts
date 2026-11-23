@@ -20,6 +20,8 @@ export class CliFailure extends Error {
     message: string,
     readonly action: string,
     readonly exitCode: number,
+    /** 额外字段（例如 HTTP 状态码），顶层原样并入输出信封。 */
+    readonly details?: Record<string, unknown>,
   ) {
     super(message);
     this.name = "CliFailure";

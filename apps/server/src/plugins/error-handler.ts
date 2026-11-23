@@ -3,7 +3,16 @@ import {
   hasZodFastifySchemaValidationErrors,
   isResponseSerializationError,
 } from "fastify-type-provider-zod";
-import { DialogueBlockedError } from "../game/errors";
+import { DialogueBlockedError, GameError } from "../game/errors";
+import { HttpError } from "../http-error";
+
+/** 业务错误码 → HTTP 状态：契约层只在这里映射一次。 */
+const GAME_ERROR_STATUS: Record<string, number> = {
+  not_found: 404,
+  invalid_action: 400,
+  invalid_state: 409,
+  dialogue_blocked: 422,
+};
 
 /** 统一错误响应形状：`{ error, message, details? }`，不让异常以 Fastify 默认格式漏出去。 */
 export function registerErrorHandler(app: FastifyInstance): void {
@@ -26,6 +35,19 @@ export function registerErrorHandler(app: FastifyInstance): void {
           auditId: error.auditId,
         },
       });
+    }
+
+    if (error instanceof HttpError) {
+      return reply.code(error.statusCode).send({
+        error: error.code,
+        message: error.message,
+        ...(error.details === undefined ? {} : { details: error.details }),
+      });
+    }
+
+    if (error instanceof GameError) {
+      const status = GAME_ERROR_STATUS[error.code] ?? 400;
+      return reply.code(status).send({ error: error.code, message: error.message });
     }
 
     if (isResponseSerializationError(error)) {

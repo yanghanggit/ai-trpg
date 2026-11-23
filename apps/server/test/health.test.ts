@@ -15,7 +15,13 @@ describe("HTTP 骨架", () => {
   let app: Awaited<ReturnType<typeof buildApp>>;
 
   beforeAll(async () => {
-    app = await buildApp({ env: testEnv, logger: false });
+    app = await buildApp({
+      env: testEnv,
+      logger: false,
+      db: () => {
+        throw new Error("骨架测试不连接数据库");
+      },
+    });
   });
 
   afterAll(async () => {

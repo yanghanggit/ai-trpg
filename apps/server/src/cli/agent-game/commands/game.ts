@@ -9,23 +9,21 @@ import type { Command } from "commander";
 import { z } from "zod";
 import { CONTENT_PACKS, getContentPack } from "../../../../seeds";
 import { readContentPackFile } from "../../../content-pack";
-import { dumpStory } from "../../../debug/story-dump";
 import { DEEPSEEK_SERVICE } from "../../../deepseek";
-import {
-  createGame,
-  getGameMeta,
-  getGameState,
-  latestMessageSequence,
-  listGameMessages,
-  runStory,
-} from "../../../game";
 import type { World } from "../../../game/world-definition";
 import { parseWorldContent } from "../../../game/world-definition";
-import { gameOption, optionalOption, requiredOption } from "../args";
+import {
+  createGameOp,
+  readGameMessages,
+  readGameState,
+  readStageMap,
+  snapshotOp,
+  storyOp,
+} from "../../../game-ops";
+import { gameOption, optionalOption, requiredOption } from "../../args";
+import { UsageError } from "../../errors";
 import { addCommand } from "../command";
 import type { CommandContext } from "../context";
-import { UsageError } from "../errors";
-import { snapshotGame } from "../snapshot";
 
 const GROUP = "建局与读取";
 
@@ -94,19 +92,18 @@ export function registerGameCommands(program: Command, ctx: CommandContext): voi
     schema: createInput,
     run: async (input, ctx) => {
       const world = await loadCreateWorld(input);
-      const state = await ctx.db((db) =>
-        createGame(
+      return ctx.db((db) =>
+        createGameOp(
           db,
           {
             username: input.user,
-            ...(input.name !== undefined ? { name: input.name } : {}),
-            ...(input.slug !== undefined ? { slug: input.slug } : {}),
             world,
+            ...(input.name === undefined ? {} : { name: input.name }),
+            ...(input.slug === undefined ? {} : { slug: input.slug }),
           },
           { logger: ctx.log() },
         ),
       );
-      return { state };
     },
   });
 
@@ -116,7 +113,7 @@ export function registerGameCommands(program: Command, ctx: CommandContext): voi
     summary: "读取一局的完整状态",
     options: [gameOption()],
     schema: z.object({ game: z.string() }),
-    run: async (input, ctx) => ({ state: await ctx.db((db) => getGameState(db, input.game)) }),
+    run: async (input, ctx) => ctx.db((db) => readGameState(db, input.game)),
   });
 
   addCommand(program, ctx, {
@@ -134,15 +131,12 @@ export function registerGameCommands(program: Command, ctx: CommandContext): voi
       limit: z.coerce.number().int().min(1).optional(),
     }),
     run: async (input, ctx) =>
-      ctx.db(async (db) => {
-        // 只要事件流：用窄读拿 gameId，不装配世界。
-        const game = await getGameMeta(db, input.game);
-        const [messages, messageCursor] = await Promise.all([
-          listGameMessages(db, game.id, { afterSequence: input.after, limit: input.limit }),
-          latestMessageSequence(db, game.id),
-        ]);
-        return { messages, messageCursor };
-      }),
+      ctx.db((db) =>
+        readGameMessages(db, input.game, {
+          ...(input.after === undefined ? {} : { after: input.after }),
+          ...(input.limit === undefined ? {} : { limit: input.limit }),
+        }),
+      ),
   });
 
   addCommand(program, ctx, {
@@ -151,13 +145,7 @@ export function registerGameCommands(program: Command, ctx: CommandContext): voi
     summary: "按舞台列出 actor 名字",
     options: [gameOption()],
     schema: z.object({ game: z.string() }),
-    run: async (input, ctx) => {
-      const state = await ctx.db((db) => getGameState(db, input.game));
-      const stages = Object.fromEntries(
-        state.world.stages.map((stage) => [stage.name, stage.actors.map((actor) => actor.name)]),
-      );
-      return { stages };
-    },
+    run: async (input, ctx) => ctx.db((db) => readStageMap(db, input.game)),
   });
 
   addCommand(program, ctx, {
@@ -166,16 +154,10 @@ export function registerGameCommands(program: Command, ctx: CommandContext): voi
     summary: "把当前局落成文件快照",
     options: [gameOption(), optionalOption("--root <dir>", "快照根目录，默认仓库 logs 下")],
     schema: z.object({ game: z.string(), root: z.string().trim().min(1).optional() }),
-    run: async (input, ctx) => {
-      const result = await ctx.db((db) =>
-        snapshotGame(db, input.game, { root: input.root, action: "snapshot" }),
-      );
-      return {
-        path: result.snapshot.path,
-        manifest: result.snapshot.manifest,
-        game: result.state.game,
-      };
-    },
+    run: async (input, ctx) =>
+      ctx.db((db) =>
+        snapshotOp(db, input.game, input.root === undefined ? {} : { root: input.root }),
+      ),
   });
 
   addCommand(program, ctx, {
@@ -184,20 +166,7 @@ export function registerGameCommands(program: Command, ctx: CommandContext): voi
     summary: "跑一次故事总结并落盘",
     options: [gameOption()],
     schema: z.object({ game: z.string() }),
-    run: async (input, ctx) => {
-      const result = await ctx.db((db) => runStory(db, input.game, { service: DEEPSEEK_SERVICE }));
-      const path = await dumpStory({
-        gameName: result.gameName,
-        gameSlug: result.gameSlug,
-        gameStatus: result.gameStatus,
-        contentVersion: result.contentVersion,
-        version: result.version,
-        story: result.story,
-        rounds: result.rounds,
-        memoriesRead: result.memoriesRead,
-        eventsRead: result.eventsRead,
-      });
-      return { ...result, path };
-    },
+    run: async (input, ctx) =>
+      ctx.db((db) => storyOp(db, input.game, { service: DEEPSEEK_SERVICE })),
   });
 }

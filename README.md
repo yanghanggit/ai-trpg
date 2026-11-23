@@ -70,11 +70,11 @@ pnpm dev
 | `pnpm job:worker`     | 消费持久作业队列；需先注册业务作业                            |
 | `pnpm smoke:jobs`     | 作业队列冒烟测试；使用 TEST_DATABASE_URL，不依赖 HTTP/业务    |
 | `pnpm agent:game`     | 数据库驱动的 agent CLI；建局、推进、探针、故事与快照          |
-| `pnpm agent:api`      | 对运行中的服务端做 HTTP API 走查                              |
+| `pnpm agent:api`      | 与 agent-game 同名的 HTTP 版；驱动运行中的服务端              |
 
 ## 工具
 
-**Agent CLI**：`agent:game` 直连 PostgreSQL、`agent:api` 一次调用发一次 HTTP 请求；子命令以 `--help` 为准，边界见 `docs/debug-workflow.md`。
+**Agent CLI**：`agent:game` 直连 PostgreSQL、`agent:api` 一次调用发一次 HTTP 请求，两者子命令同名同参数；以 `--help` 为准，边界见 `docs/debug-workflow.md`。
 
 **图像生成**：`pnpm image` 是独立 CLI，不启动服务端或数据库。stdout 只放结果：默认人类可读摘要，加 `--json` 输出稳定结构供 agent 消费；失败时 stdout 为空，错误以 `{ ok: false, error }` 写到 stderr（与日志同级）。退出码 0 成功、1 失败。设计与边界见 `docs/image-generation.md`，子命令以 `--help` 为准。
 

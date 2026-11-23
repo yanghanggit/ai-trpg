@@ -7,11 +7,11 @@ import { BELL_MONASTERY_WORLD } from "../seeds/dark-fantasy";
 import { DEMO_USER } from "../src/db/demo-fixture";
 import { TEST_WORLD } from "./test-world";
 import "../src/db/env";
-import { snapshotGame } from "../src/cli/agent-game/snapshot";
 import { type DatabaseHandle, openDatabase } from "../src/db/connect";
 import { resetDomainData, seedDemoData } from "../src/db/maintenance";
 import { runMigrations } from "../src/db/migrate";
 import { loadSnapshot } from "../src/debug/snapshot";
+import { snapshotGame } from "../src/debug/snapshot-game";
 import {
   type ActorAction,
   type ActorPlan,
