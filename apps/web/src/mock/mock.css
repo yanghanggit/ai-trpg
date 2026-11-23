@@ -1,68 +1,5 @@
 /* 只被 mock 入口引用：正式产物里不会出现这些样式。 */
 
-/* mock 入口的顶部切换条：只在 dev 页面出现，不参与正式布局。 */
-.mock-bar {
-  position: sticky;
-  top: 0;
-  z-index: 10;
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 8px;
-  padding: 10px 16px;
-  border-bottom: 1px solid var(--line);
-  background: rgb(11 15 20 / 95%);
-  font-size: 12px;
-  color: var(--muted);
-}
-
-.mock-bar strong {
-  color: var(--text);
-  font-size: 13px;
-}
-
-.mock-bar__state {
-  padding: 2px 9px;
-  border: 1px solid var(--line);
-  border-radius: 999px;
-}
-
-.mock-bar__link {
-  padding: 3px 9px;
-  border: 1px solid transparent;
-  border-radius: 999px;
-  color: var(--muted);
-  text-decoration: none;
-}
-
-.mock-bar__link:hover {
-  border-color: var(--line);
-  color: var(--text);
-}
-
-.mock-bar__link--active {
-  border-color: var(--accent);
-  color: var(--accent);
-}
-
-.links {
-  display: grid;
-  gap: 8px;
-  margin: 18px 0 0;
-  padding: 0;
-  list-style: none;
-}
-
-.links a {
-  color: var(--accent);
-  font-size: 14px;
-  text-decoration: none;
-}
-
-.links a:hover {
-  text-decoration: underline;
-}
-
 /* mock 目录：一个页面一行标题 + 一行状态链接，避免为了“看清单”占掉整屏。 */
 .mock-page h2 {
   display: flex;
@@ -88,4 +25,65 @@
 
 .mock-page .links a {
   font-size: 13px;
+}
+
+/* dev dock：叠在页面右下角的状态切换器，不占页面布局，正式端没有这层。 */
+.dev-dock {
+  position: fixed;
+  right: 18px;
+  bottom: 18px;
+  z-index: 40;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  max-width: min(560px, calc(100vw - 36px));
+  padding: 8px 12px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: rgb(11 15 20 / 92%);
+  box-shadow: 0 12px 30px rgb(0 0 0 / 45%);
+  backdrop-filter: blur(8px);
+  font-size: 12px;
+}
+
+.dev-dock__title {
+  color: var(--muted);
+  white-space: nowrap;
+}
+
+.dev-dock__states {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.dev-dock__state {
+  padding: 3px 10px;
+  border: 1px solid transparent;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--muted);
+  font: inherit;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.dev-dock__state:hover {
+  border-color: var(--line);
+  color: var(--text);
+}
+
+.dev-dock__state--active {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.dev-dock__link {
+  color: var(--muted);
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.dev-dock__link:hover {
+  color: var(--accent);
 }

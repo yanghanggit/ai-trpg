@@ -413,38 +413,6 @@ code {
   color: var(--muted);
 }
 
-.facts dd .chip {
-  margin-left: 8px;
-}
-
-/* 顶部按钮组：把「我 / 去过 / 消息历史」收起来，主页只留此刻。 */
-.toolbar {
-  position: sticky;
-  top: 0;
-  z-index: 5;
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: space-between;
-  gap: 10px;
-  margin: 0 -22px 4px;
-  padding: 12px 22px;
-  border-bottom: 1px solid var(--line);
-  background: rgb(11 15 20 / 92%);
-  backdrop-filter: blur(6px);
-}
-
-.toolbar__label {
-  font-size: 13px;
-  color: var(--muted);
-}
-
-.toolbar__buttons {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-}
-
 .button--ghost {
   justify-self: auto;
   padding: 6px 14px;
@@ -457,6 +425,189 @@ code {
 
 .button--ghost:hover {
   border-color: var(--accent);
+  color: var(--accent);
+}
+
+/* 局内页：桌面横屏优先。整页吃满宽度，内容按栏分，不再挤在居中的窄列里。 */
+.game {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  max-width: 1680px;
+  min-height: 100vh;
+  margin: 0 auto;
+  padding: 18px clamp(16px, 2vw, 34px) 24px;
+}
+
+.game__bar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding-bottom: 18px;
+  border-bottom: 1px solid var(--line);
+}
+
+.game__actions {
+  display: flex;
+  gap: 10px;
+}
+
+/* 顶部按钮：比正文大一号，撑起这一行的存在感。 */
+.action {
+  min-width: 132px;
+  padding: 14px 26px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: linear-gradient(180deg, var(--panel-soft), var(--panel));
+  color: var(--text);
+  font: inherit;
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.action:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+/* 舞台就是整页工作区：一条标题带 + 三栏用竖线分区，不再套一个会突然结束的盒子。
+   分区线一直通到页底，因为下面要长的是回合与事件流，不是随便留白。 */
+.stage {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  margin-top: 20px;
+}
+
+.stage__header {
+  padding: 22px 0 24px;
+  border-bottom: 1px solid var(--line);
+}
+
+.stage__header h1 {
+  margin: 0;
+  font-size: clamp(30px, 2.6vw, 42px);
+  font-weight: 700;
+  letter-spacing: -0.01em;
+}
+
+.stage__environment {
+  max-width: 74ch;
+  margin: 14px 0 0;
+  font-size: 16px;
+  line-height: 1.75;
+  color: var(--muted);
+}
+
+.stage__columns {
+  display: grid;
+  grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr) minmax(0, 1fr);
+  flex: 1;
+  gap: 0;
+}
+
+/* 每栏自带左边线：三块是同一张工作区的分区，不是一个盒子里的三堆内容。 */
+.column {
+  padding: 24px clamp(20px, 2vw, 34px) 28px;
+}
+
+.column:first-child {
+  padding-left: 0;
+}
+
+.column + .column {
+  border-left: 1px solid var(--line);
+}
+
+.stage__columns h2 {
+  margin: 0 0 14px;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  color: var(--muted);
+  text-transform: uppercase;
+}
+
+.stage__columns .entries,
+.stage__columns .chips {
+  margin-top: 0;
+  font-size: 15px;
+}
+
+.stage__columns .muted {
+  margin-top: 0;
+}
+
+@media (max-width: 980px) {
+  .stage__columns {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .game__actions {
+    flex-wrap: wrap;
+  }
+
+  .action {
+    min-width: 0;
+    flex: 1 1 0;
+  }
+}
+
+/* 简单列表：一行一项，标签在左、值在右；不加边框、不铺卡片。 */
+.rows {
+  display: grid;
+  margin: 4px 0 0;
+}
+
+.rows > div {
+  display: grid;
+  grid-template-columns: 108px minmax(0, 1fr);
+  gap: 18px;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--line);
+}
+
+.rows > div:last-child {
+  border-bottom: none;
+}
+
+.rows dt {
+  font-size: 13px;
+  color: var(--muted);
+}
+
+.rows dd {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.6;
+}
+
+/* 名字表：认得的人按签名一行一条。 */
+.table {
+  width: 100%;
+  margin-top: 12px;
+  border-collapse: collapse;
+  font-size: 14px;
+}
+
+.table th,
+.table td {
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--line);
+  text-align: left;
+  vertical-align: top;
+}
+
+.table th {
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  color: var(--muted);
+  text-transform: uppercase;
+}
+
+.table td code {
   color: var(--accent);
 }
 
@@ -515,10 +666,6 @@ code {
   padding: 18px 20px 22px;
   overflow-y: auto;
   max-height: calc(80vh - 62px);
-}
-
-.sheet__body > .facts {
-  margin-top: 0;
 }
 
 .sheet__footer {

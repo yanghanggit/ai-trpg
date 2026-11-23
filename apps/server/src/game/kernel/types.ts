@@ -651,9 +651,19 @@ export type SignatureNameState = {
   observerActorId: string;
   signatureId: string;
   name: string;
-  source: string;
+  /** 这条称呼从哪来：内容预设，还是角色自己起的。 */
+  source: SignatureNameSource;
+  /**
+   * 写这条称呼时所在的舞台；内容预设为 null。
+   *
+   * 同一「观察者 × 签名」只有一条当前名字，改名会覆盖它——所以这里是**最近一次**下笔的
+   * 舞台，不是第一次认得的时机。
+   */
   learnedStageId: string | null;
 };
+
+/** 称呼的来源：内容预设与角色自己改写。 */
+export type SignatureNameSource = "content" | "self";
 
 /**
  * 一个死者的收尾记录：宣布、尸体外观、掉落三段的结果并排。

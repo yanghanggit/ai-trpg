@@ -66,13 +66,20 @@ export const gameFixtures = {
       ],
       sealedExits: [],
     },
-    signatureNames: [
+    names: [
       {
-        observerActorId: "a1",
-        signatureId: "s2",
         name: "收尸人卡尔",
-        source: "introduced",
-        learnedStageId: "st1",
+        token: "#2",
+        form: "人类:瘦高，左眼被蜡封住",
+        source: "content",
+        learnedAt: null,
+      },
+      {
+        name: "塔下那个人",
+        token: "#8",
+        form: "人类:浸过石灰的粗布围裙",
+        source: "self",
+        learnedAt: "鸦葬岗",
       },
     ],
     visitedStages: [
@@ -103,7 +110,7 @@ export const gameFixtures = {
       exits: [{ stageId: "st1", name: "鸦葬岗", ref: "#2" }],
       sealedExits: [],
     },
-    signatureNames: [],
+    names: [],
     visitedStages: [{ stageId: "st9", name: "墓园" }],
   },
 
@@ -139,7 +146,7 @@ export const gameFixtures = {
       exits: [],
       sealedExits: [{ stageId: "st1", name: "鸦葬岗" }],
     },
-    signatureNames: [],
+    names: [],
     visitedStages: [
       { stageId: "st1", name: "鸦葬岗" },
       { stageId: "st3", name: "封尸窖" },

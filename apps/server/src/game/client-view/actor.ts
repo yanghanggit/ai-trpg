@@ -1,5 +1,6 @@
 import type { Database } from "../../db/pool";
 import {
+  allActors,
   findActorByName,
   perceivedActorsFor,
   sealedVisitedStagesForActor,
@@ -12,7 +13,7 @@ import { getMemoryState } from "../memory";
 import { adjacentStages } from "../stage-state";
 import { actorLog } from "./log";
 import { gameOf, viewerAnchors } from "./project";
-import type { ActorLogView, ActorView, ViewerAddress } from "./types";
+import type { ActorLogView, ActorView, ViewerAddress, ViewerName } from "./types";
 
 /**
  * 一个 actor 看到的世界面：他自己的舞台、名单、出口、记忆日志。
@@ -49,6 +50,29 @@ export async function getActorView(
     name: candidate.name,
   }));
 
+  /** 认得的人：身份锚在签名上，所以拿签名 id 反查当前编号与形态。 */
+  const names: ViewerName[] = state.signatureNames
+    .filter((row) => row.observerActorId === actor.id)
+    .flatMap((row) => {
+      const subject = allActors(state).find(
+        (candidate) => candidate.actor.signature.id === row.signatureId,
+      );
+      if (subject === undefined) {
+        // 换成别的签名后，旧称呼不跟过去；对不上签名的行没有可展示的形态。
+        return [];
+      }
+      const learnedStage = state.world.stages.find((stage) => stage.id === row.learnedStageId);
+      return [
+        {
+          name: row.name,
+          token: handleOf(subject.actor.signature.seq),
+          form: subject.actor.signature.form,
+          source: row.source,
+          learnedAt: learnedStage?.name ?? null,
+        },
+      ];
+    });
+
   return {
     game: gameOf(state),
     viewer: {
@@ -74,7 +98,7 @@ export async function getActorView(
         name: sealed.name,
       })),
     },
-    signatureNames: state.signatureNames.filter((row) => row.observerActorId === actor.id),
+    names,
     visitedStages,
   };
 }

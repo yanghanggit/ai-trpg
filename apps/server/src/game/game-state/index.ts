@@ -273,7 +273,7 @@ function assembleState(rows: StateRows): GameStateSlice {
     observerActorId: row.observerActorId,
     signatureId: row.signatureId,
     name: row.name,
-    source: row.source,
+    source: row.source === "content" ? "content" : "self",
     learnedStageId: row.learnedStageId,
   }));
 

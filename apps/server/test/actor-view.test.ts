@@ -82,7 +82,16 @@ describe.skipIf(!testDatabaseUrl)("actor view", () => {
     expect(log).not.toContain("无名者");
     // 行动反馈与观察也走世界面：不会出现系统引用标记。
     expect(log).not.toContain("舞台.");
-    expect(view.signatureNames).toHaveLength(1);
+    // 认得的人：称呼、签名编号与形态都给出来，身份锚在签名上。
+    expect(view.names).toEqual([
+      {
+        name: "奥德里克",
+        token: expect.stringMatching(/^#\d+$/),
+        form: expect.stringContaining("人类"),
+        source: "content",
+        learnedAt: null,
+      },
+    ]);
   });
 
   it("moves by stageId or name and rejects unknown stages", async () => {

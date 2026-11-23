@@ -89,13 +89,13 @@ export const actorViewSchema = zod
       concealed: zod.boolean(),
     }),
     stage: viewerStageSchema,
-    signatureNames: zod.array(
+    names: zod.array(
       zod.object({
-        observerActorId: zod.string(),
-        signatureId: zod.string(),
         name: zod.string(),
-        source: zod.string(),
-        learnedStageId: zod.string().nullable(),
+        token: zod.string(),
+        form: zod.string(),
+        source: zod.enum(["content", "self"]),
+        learnedAt: zod.string().nullable(),
       }),
     ),
     visitedStages: zod.array(

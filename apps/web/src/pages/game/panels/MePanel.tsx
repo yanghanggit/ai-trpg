@@ -1,12 +1,32 @@
 import type { GameView } from "../../../features/games/useGameView";
 
-/** 「我」的明细：主页面不常看，点开才需要。 */
+/** 「我」：局的信息连同角色明细，一行一项，不铺卡片。 */
 export default function MePanel({ view }: { view: GameView }) {
-  const { viewer, stage, signatureNames } = view;
+  const { game, viewer, stage } = view;
   const self = stage.actors.find((actor) => actor.self);
 
   return (
-    <dl className="facts">
+    <dl className="rows">
+      <div>
+        <dt>局</dt>
+        <dd>{game.name}</dd>
+      </div>
+      <div>
+        <dt>slug</dt>
+        <dd>
+          <code>{game.slug}</code>
+        </dd>
+      </div>
+      <div>
+        <dt>状态</dt>
+        <dd>{game.status}</dd>
+      </div>
+      <div>
+        <dt>版本</dt>
+        <dd>
+          v{game.version} · {game.contentVersion}
+        </dd>
+      </div>
       <div>
         <dt>名字</dt>
         <dd>{viewer.name}</dd>
@@ -17,19 +37,11 @@ export default function MePanel({ view }: { view: GameView }) {
       </div>
       <div>
         <dt>隐匿</dt>
-        <dd>{viewer.concealed ? "对身体之外的人不可见" : "未隐匿"}</dd>
+        <dd>{viewer.concealed ? "对旁人不可见" : "未隐匿"}</dd>
       </div>
       <div>
         <dt>此刻的样子</dt>
         <dd>{viewer.appearance}</dd>
-      </div>
-      <div>
-        <dt>我这样称呼别人</dt>
-        <dd>
-          {signatureNames.length === 0
-            ? "还没有认得的人。"
-            : signatureNames.map((entry) => entry.name).join("、")}
-        </dd>
       </div>
     </dl>
   );

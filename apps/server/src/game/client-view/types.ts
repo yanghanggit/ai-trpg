@@ -1,4 +1,4 @@
-import type { PassageState, SignatureNameState } from "../kernel/types";
+import type { PassageState, SignatureNameSource } from "../kernel/types";
 
 /**
  * 客户端用的「世界面」投影形状。
@@ -43,6 +43,29 @@ export type ViewerStage = {
   sealedExits: { stageId: string; name: string }[];
 };
 
+/**
+ * 一条"我把他当作谁"的记录。
+ *
+ * 身份锚在签名上：同一个签名换了称呼仍是一行，换了签名就是另一个人。名字只是称呼，
+ * 不要求是真名；`form` 是签名的稳定形态，用来区分同名者。
+ */
+export type ViewerName = {
+  /** 我叫他什么。 */
+  name: string;
+  /** 签名编号（`#14`）；不是名字，也不随称呼变。 */
+  token: string;
+  /** 该签名的稳定形态，`种族:描述`。 */
+  form: string;
+  /** 这条称呼从哪来：内容预设，还是角色自己起的。 */
+  source: SignatureNameSource;
+  /**
+   * 自己起名时所在的舞台（内容预设为 `null`）。
+   *
+   * 改名会覆盖它，所以它是最近一次下笔的地方，不是第一次认得的时机。
+   */
+  learnedAt: string | null;
+};
+
 export type ViewerLogEntry = {
   sequence: number;
   kind: string;
@@ -74,8 +97,8 @@ export type ActorView = {
   };
   /** 角色所在的舞台；actor 一定属于某个舞台，所以这里不是可空引用。 */
   stage: ViewerStage;
-  /** 这个观察者给各签名的当前称呼；其它观察者的名字不出现。 */
-  signatureNames: SignatureNameState[];
+  /** 这个观察者认得的人：他给各签名的当前称呼。其它观察者的名字不出现。 */
+  names: ViewerName[];
   /** 去过的舞台（地图/记忆用）；不等于完整可传送列表。 */
   visitedStages: { stageId: string; name: string }[];
 };
