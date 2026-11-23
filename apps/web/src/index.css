@@ -471,87 +471,106 @@ code {
   color: var(--accent);
 }
 
-/* 舞台就是整页工作区：一条标题带 + 三栏用竖线分区，不再套一个会突然结束的盒子。
-   分区线一直通到页底，因为下面要长的是回合与事件流，不是随便留白。 */
-.stage {
+/* 主页是三排卡片：舞台与锚点 / 在场角色 / 出口。
+   整页不竖滚：三排均分剩下的高度，排内横向滚动。 */
+.board {
   display: flex;
   flex: 1;
   flex-direction: column;
+  gap: clamp(12px, 1.4vw, 20px);
+  min-height: 0;
   margin-top: 20px;
 }
 
-.stage__header {
-  padding: 22px 0 24px;
-  border-bottom: 1px solid var(--line);
-}
-
-.stage__header h1 {
+.board__row {
+  display: flex;
+  flex: 1 1 0;
+  gap: clamp(12px, 1.2vw, 18px);
+  /* 矮窗口里宁可整页竖滚，也不把卡片压成横的。 */
+  min-height: 190px;
   margin: 0;
-  font-size: clamp(30px, 2.6vw, 42px);
-  font-weight: 700;
-  letter-spacing: -0.01em;
+  padding: 0 0 2px;
+  list-style: none;
+  overflow-x: auto;
+  overflow-y: hidden;
+  scroll-snap-type: x proximity;
 }
 
-.stage__environment {
-  max-width: 74ch;
-  margin: 14px 0 0;
-  font-size: 16px;
-  line-height: 1.75;
-  color: var(--muted);
+.board__row > li {
+  display: flex;
+  flex: 0 0 auto;
+  scroll-snap-align: start;
 }
 
-.stage__columns {
-  display: grid;
-  grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr) minmax(0, 1fr);
-  flex: 1;
-  gap: 0;
+/* 竖卡片：宽度定住，高度跟着这一排走，所以三排一定都在屏里。 */
+.card {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: clamp(150px, 12vw, 184px);
+  height: 100%;
+  padding: 14px 16px 15px;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: linear-gradient(180deg, var(--panel-soft), var(--panel));
+  color: var(--text);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
 }
 
-/* 每栏自带左边线：三块是同一张工作区的分区，不是一个盒子里的三堆内容。 */
-.column {
-  padding: 24px clamp(20px, 2vw, 34px) 28px;
+.card:hover {
+  border-color: var(--accent);
 }
 
-.column:first-child {
-  padding-left: 0;
+.card:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
 }
 
-.column + .column {
-  border-left: 1px solid var(--line);
-}
-
-.stage__columns h2 {
-  margin: 0 0 14px;
-  font-size: 12px;
+.card__kind {
+  font-size: 11px;
   font-weight: 600;
   letter-spacing: 0.1em;
   color: var(--muted);
   text-transform: uppercase;
 }
 
-.stage__columns .entries,
-.stage__columns .chips {
-  margin-top: 0;
+.card__title {
+  font-size: 17px;
+  font-weight: 600;
+  line-height: 1.35;
+}
+
+.card__hint {
+  margin-top: auto;
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--muted);
+}
+
+.card__hint code {
+  color: var(--accent);
+}
+
+.card--faded .card__title {
+  color: var(--muted);
+}
+
+/* 横向滚动条压细一点，别把卡片挤扁。 */
+.board__row::-webkit-scrollbar {
+  height: 8px;
+}
+
+.board__row::-webkit-scrollbar-thumb {
+  border-radius: 999px;
+  background: var(--line);
+}
+
+.prose {
+  margin: 0;
   font-size: 15px;
-}
-
-.stage__columns .muted {
-  margin-top: 0;
-}
-
-@media (max-width: 980px) {
-  .stage__columns {
-    grid-template-columns: minmax(0, 1fr);
-  }
-
-  .game__actions {
-    flex-wrap: wrap;
-  }
-
-  .action {
-    min-width: 0;
-    flex: 1 1 0;
-  }
+  line-height: 1.8;
 }
 
 /* 简单列表：一行一项，标签在左、值在右；不加边框、不铺卡片。 */

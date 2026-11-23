@@ -62,18 +62,19 @@ describe.skipIf(!testDatabaseUrl)("actor view", () => {
 
     const self = view.stage?.actors.find((actor) => actor.self);
     expect(self?.actorId).toBe(view.viewer.actorId);
-    expect(self?.label).toBe("你自己");
+    // 称呼与外观分开：标题用 name，整段外观留在 appearance 里。
+    expect(self?.name).toBe("小狗“煤渣”");
     expect(self?.token).toBe("小狗“煤渣”");
 
     const odric = view.stage?.actors.find((actor) => actor.token === "奥德里克");
-    expect(odric?.label).toContain("奥德里克");
-    expect(odric?.token).toBe("奥德里克");
+    expect(odric?.name).toBe("奥德里克");
+    expect(odric?.appearance.length).toBeGreaterThan(0);
 
-    const stranger = view.stage?.actors.find(
-      (actor) => !actor.self && actor.label.includes("裹尸布"),
-    );
+    // 不认识的：名字退回编号，外观照样给（外观里能认出裹尸布，名字却不知道）。
+    const stranger = view.stage?.actors.find((actor) => actor.appearance.includes("裹尸布"));
     expect(stranger?.token).toMatch(/^#\d+$/);
-    expect(view.stage?.actors.some((actor) => actor.label.includes("无名者"))).toBe(false);
+    expect(stranger?.name).toMatch(/^#\d+$/);
+    expect(JSON.stringify(view.stage?.actors)).not.toContain("无名者");
 
     const perceived = await getActorLog(handle.db, created.game.slug, "小狗“煤渣”");
     expect(perceived.owner.name).toBe("小狗“煤渣”");

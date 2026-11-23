@@ -12,10 +12,17 @@ import type { PassageState, SignatureNameSource } from "../kernel/types";
 export type ViewerAddress = {
   actorId: string;
   signatureId: string;
-  /** 引用，例如 `#3`；客户端可以直接拿它提交行动。 */
+  /** 可提交的地址：观察者当前的称呼，或 `#3`。 */
   token: string;
-  /** 观察者视角下的名单写法：`名字（此刻的样子）` 或只有外观。 */
-  label: string;
+  /**
+   * 观察者此刻叫他什么：有名字就是名字，名字退回编号时是他起的称呼，都没有就是 `#3`。
+   *
+   * 名字与外观分开给，是因为模型面向的整句写法（`名字（外观）`）不适合当界面文案：
+   * 标题要短，外观要长。
+   */
+  name: string;
+  /** 当前外观原文；界面不再把它拼进标题。 */
+  appearance: string;
   self: boolean;
   alive: boolean;
 };

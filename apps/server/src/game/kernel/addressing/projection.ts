@@ -54,6 +54,16 @@ export function refOf(address: Address): string {
     : `${described}｜你的称呼：${address.knownName}`;
 }
 
+/**
+ * 观察者此刻怎么称呼他：名字优先；名字退回编号时用他起的那个称呼；都没有就是 `#12`。
+ *
+ * 与 `refOf` 分开：`refOf` 是给模型读的整句写法（`名字（外观）`），这里只回答"叫他什么"，
+ * 客户端拿它当标题，不用自己去解析编号。
+ */
+export function nameOf(address: Address): string {
+  return isHandleRef(address.token) ? (address.knownName ?? address.token) : address.token;
+}
+
 /** 句子里的引用；自己写作「你」。 */
 export function mentionOf(address: Address): string {
   if (address.isSelf) {

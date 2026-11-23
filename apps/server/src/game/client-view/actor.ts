@@ -7,7 +7,7 @@ import {
   visitedStagesForActor,
 } from "../actor-state";
 import { getGameStateSlice } from "../game-state";
-import { addressLookupFor, handleOf, refOf } from "../kernel/addressing";
+import { addressLookupFor, handleOf, nameOf } from "../kernel/addressing";
 import type { GameStateSlice } from "../kernel/types";
 import { getMemoryState } from "../memory";
 import { adjacentStages } from "../stage-state";
@@ -39,7 +39,8 @@ export async function getActorView(
       actorId: candidate.id,
       signatureId: candidate.signature.id,
       token: entry.token,
-      label: refOf(entry),
+      name: nameOf(entry),
+      appearance: entry.appearance,
       self: candidate.id === actor.id,
       alive: candidate.hp > 0,
     };

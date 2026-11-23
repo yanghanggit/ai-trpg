@@ -297,6 +297,16 @@ function clickExpression(label: string): string {
       hit.click();
       return "ok";
     }
+    // 卡片这类目标的文字是拼起来的（「锚点最高的木杆旧骨哨」），退一步按包含匹配。
+    const loose = buttons.findLast(
+      (button) =>
+        (button.getAttribute("aria-label") ?? "").includes(wanted) ||
+        visibleText(button).includes(wanted),
+    );
+    if (loose !== undefined) {
+      loose.click();
+      return "ok";
+    }
     return buttons
       .map((button) => button.getAttribute("aria-label") ?? visibleText(button))
       .join(" | ");

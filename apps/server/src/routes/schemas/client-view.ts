@@ -31,7 +31,8 @@ const viewerAddressSchema = zod.object({
   actorId: zod.string(),
   signatureId: zod.string(),
   token: zod.string(),
-  label: zod.string(),
+  name: zod.string(),
+  appearance: zod.string(),
   self: zod.boolean(),
   alive: zod.boolean(),
 });

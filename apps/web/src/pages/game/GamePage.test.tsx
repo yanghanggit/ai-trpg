@@ -29,22 +29,70 @@ function renderGame(state: keyof typeof gameFixtures = "active") {
 }
 
 describe("GamePage", () => {
-  it("主页只保留当前舞台", () => {
+  it("主页是两排卡片：舞台与它的锚点出口、在场角色", () => {
     renderGame();
 
-    expect(screen.getByRole("heading", { name: "鸦葬岗", level: 1 })).toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: "在场", level: 2 })).toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: "锚点", level: 2 })).toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: "出口", level: 2 })).toBeInTheDocument();
-    // 局名、slug 与角色明细都不在主页上。
+    // 第一排：舞台本身 + 锚点 + 出口。
+    expect(screen.getByRole("button", { name: /舞台\s*鸦葬岗/ })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /锚点\s*最高的木杆/ })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /锚点\s*新挖的坑/ })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /出口\s*守夜塔/ })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /出口\s*封尸窖/ })).toBeInTheDocument();
+
+    // 第二排：在场角色，自己在卡片上标成「我」。
+    expect(screen.getByRole("button", { name: /我\s*拾骨人伊莱/ })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /角色\s*收尸人卡尔/ })).toBeInTheDocument();
+
+    // 描写类文本与局的信息都不在主页上。
+    expect(screen.queryByText(/坡地上插满木杆/)).not.toBeInTheDocument();
     expect(screen.queryByText("鸦葬岗的夜")).not.toBeInTheDocument();
     expect(screen.queryByText("crow-run-1")).not.toBeInTheDocument();
-    expect(screen.queryByRole("heading", { name: "感知日志" })).not.toBeInTheDocument();
-    expect(screen.queryByText("可传送")).not.toBeInTheDocument();
-    expect(screen.queryByRole("heading", { name: "认得的人" })).not.toBeInTheDocument();
   });
 
-  it("「我」浮窗里有局名、slug 与角色明细，并可关闭", () => {
+  it("点舞台卡片看环境，点锚点看承载，点出口看通向", () => {
+    renderGame();
+
+    fireEvent.click(screen.getByRole("button", { name: /舞台\s*鸦葬岗/ }));
+    expect(screen.getByRole("dialog", { name: "鸦葬岗" })).toHaveTextContent("坡地上插满木杆");
+    fireEvent.click(screen.getByRole("button", { name: "关闭" }));
+
+    fireEvent.click(screen.getByRole("button", { name: /锚点\s*最高的木杆/ }));
+    const anchorSheet = screen.getByRole("dialog", { name: "最高的木杆" });
+    expect(within(anchorSheet).getByText("旧骨哨")).toBeInTheDocument();
+    fireEvent.click(within(anchorSheet).getByRole("button", { name: "关闭" }));
+
+    fireEvent.click(screen.getByRole("button", { name: /出口\s*守夜塔/ }));
+    const exitSheet = screen.getByRole("dialog", { name: "守夜塔" });
+    expect(exitSheet).toHaveTextContent("通着");
+    expect(exitSheet).toHaveTextContent("#4");
+  });
+
+  it("点自己那张卡片，与点顶部「我」是同一张浮窗", () => {
+    renderGame();
+
+    fireEvent.click(screen.getByRole("button", { name: /我\s*拾骨人伊莱/ }));
+
+    const sheet = screen.getByRole("dialog", { name: "我" });
+    expect(within(sheet).getByText("鸦葬岗的夜")).toBeInTheDocument();
+    expect(within(sheet).getByText("crow-run-1")).toBeInTheDocument();
+  });
+
+  it("点别人的卡片：浮窗给出称呼、编号、生死与外观", () => {
+    renderGame();
+
+    fireEvent.click(screen.getByRole("button", { name: /角色\s*收尸人卡尔/ }));
+
+    const sheet = screen.getByRole("dialog", { name: "收尸人卡尔" });
+    expect(within(sheet).getByText("#2")).toBeInTheDocument();
+    expect(within(sheet).getByText("活着")).toBeInTheDocument();
+    // 外观只在浮窗里出现，卡片标题只有名字。
+    expect(within(sheet).getByText(/浸过石灰的粗布围裙/)).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "关闭" }));
+    expect(screen.queryByText(/浸过石灰的粗布围裙/)).not.toBeInTheDocument();
+  });
+
+  it("顶部「我」浮窗里有局名、slug 与角色明细，并可关闭", () => {
     renderGame();
 
     fireEvent.click(screen.getByRole("button", { name: "我" }));
