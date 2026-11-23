@@ -3,6 +3,7 @@ import { actors, items } from "../../db/schema";
 import { resolveAppearance } from "../agents/appearance/form";
 import { GameError } from "../errors";
 import { toStats } from "../kernel/attributes";
+import { toStatusEffect } from "../kernel/status-effects";
 import { buildActorSystemPrompt, createActorMemory } from "../memory";
 import { recordAppearance } from "../persistence/appearances";
 import { allocateEntitySeq } from "../persistence/entity-seq";
@@ -109,6 +110,8 @@ async function insertActor(
 ): Promise<string> {
   const actorId = randomUUID();
   const stats = toStats(actor.stats);
+  // 效果只在建局时注入；之后 actor 行是唯一真相，内容改了也不回改已建的局。
+  const statusEffects = (actor.statusEffects ?? []).map(toStatusEffect);
   await tx.insert(actors).values({
     id: actorId,
     seq: await allocateEntitySeq(tx, gameId),
@@ -119,6 +122,7 @@ async function insertActor(
     stats,
     // 内容只声明 hp：hp 为 0 就是尸体，没有单独的死亡状态可写。
     hp: actor.hp ?? stats.maxHp,
+    statusEffects,
     isDefaultPlayer: actor.isDefaultPlayer ?? false,
     concealed: actor.concealed ?? false,
     equipment: actor.equipment ?? {},

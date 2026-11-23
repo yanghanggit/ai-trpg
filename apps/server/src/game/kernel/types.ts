@@ -1,4 +1,5 @@
 import type { Stats } from "./attributes";
+import type { StatusEffect } from "./status-effects";
 
 /** 公共事件的可见范围：舞台公开或仅当事人可见。 */
 export type MessageVisibility = "stage" | "private";
@@ -524,6 +525,11 @@ export type ActorState = {
   /** 是否为默认玩家角色；主角死亡时只通知 world，收尾由 world 回合决定。 */
   isDefaultPlayer: boolean;
   equipment: EquipmentSlots;
+  /**
+   * 身上带着的状态效果；v1 只在建局时注入，运行时不变。
+   * 效果是属性来源而不是属性本身，所以不进 `stats`。
+   */
+  statusEffects: readonly StatusEffect[];
   /** 出身带来的知识标签；读取受限知识时任一命中即可。 */
   knowledgeAccess: readonly string[];
   items: ItemState[];

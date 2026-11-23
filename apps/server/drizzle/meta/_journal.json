@@ -29,6 +29,13 @@
       "when": 1794469512160,
       "tag": "0003_nebulous_jamie_braddock",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1795407282370,
+      "tag": "0004_goofy_robbie_robertson",
+      "breakpoints": true
     }
   ]
 }

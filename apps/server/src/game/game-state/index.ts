@@ -227,6 +227,7 @@ function assembleState(rows: StateRows): GameStateSlice {
       concealed: actor.concealed,
       isDefaultPlayer: actor.isDefaultPlayer,
       equipment: actor.equipment,
+      statusEffects: actor.statusEffects,
       knowledgeAccess: actor.knowledgeAccess,
       items: itemsByActor.get(actor.id) ?? [],
       actions: actor.actions,

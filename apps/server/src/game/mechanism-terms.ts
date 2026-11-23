@@ -28,6 +28,7 @@ const MECHANISM_ONLY_TERMS = [
   "传音", // call：跨舞台传话
   "真名", // teleport / call 的寻址规则，不是世界的设定
   "禁传", // teleport 的可用性，来自舞台声明
+  "状态效果", // status effect：角色身上的静态属性调整，与 buff / debuff 无关
 ] as const;
 
 /**

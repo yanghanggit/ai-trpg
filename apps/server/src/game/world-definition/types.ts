@@ -6,6 +6,7 @@
  */
 
 import type { Stats } from "../kernel/attributes";
+import type { StatusEffectInput } from "../kernel/status-effects";
 import type {
   AffixTriggers,
   CarriedActionKind,
@@ -159,6 +160,13 @@ export type Actor = {
    * 同一个动作只能有一个来源：写在 `actions` 里，或者属于某一项技艺。
    */
   proficiencies?: readonly SkillDefinition[];
+  /**
+   * 开局带上的状态效果：建局时物化进 actor 行，之后以那一行为准。
+   *
+   * v1 只有开局注入：没有施加 / 移除，没有时长，也不由推理判定。效果只调整有结算读点的
+   * 源属性（力量 / 敏捷），写其它字段会被校验拒绝。
+   */
+  statusEffects?: readonly StatusEffectInput[];
   /**
    * 该角色固有的行动；必须显式列出，不给默认值。
    *

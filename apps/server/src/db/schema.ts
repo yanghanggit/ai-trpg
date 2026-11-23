@@ -14,6 +14,7 @@ import {
   vector,
 } from "drizzle-orm/pg-core";
 import type { Stats } from "../game/kernel/attributes";
+import type { StatusEffect } from "../game/kernel/status-effects";
 import type {
   AffixTriggers,
   CarriedActionKind,
@@ -199,6 +200,8 @@ export const actors = pgTable("actors", {
   /** 对旁人隐匿：不进入 actor 名单与被动观察；仍由自己行动。 */
   concealed: boolean("concealed").notNull().default(false),
   equipment: jsonb("equipment").$type<EquipmentSlots>().notNull().default({}),
+  /** 状态效果：建局时注入的静态属性调整；v1 运行时只读。 */
+  statusEffects: jsonb("status_effects").$type<StatusEffect[]>().notNull().default([]),
   /** 角色可以读取的受限知识标签；空数组 = 只读无门槛知识。 */
   knowledgeAccess: text("knowledge_access").array().notNull().default(sql`'{}'::text[]`),
   /** 角色固有动作；携带者（武器）授予的动作不入库。 */

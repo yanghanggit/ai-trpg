@@ -38,6 +38,52 @@ describe("world content validation", () => {
     expect(keeper?.inventory.find((item) => item.name === "旧羊毛斗篷")?.stats?.block).toBe(4);
   });
 
+  it("状态效果只能调整有读点的源属性，key 在角色内唯一", () => {
+    const withEffect = (stats: Record<string, number>, key = "hunger") => ({
+      ...TEST_WORLD,
+      actors: TEST_WORLD.actors.map((actor) =>
+        actor.name === "守烬人"
+          ? {
+              ...actor,
+              statusEffects: [{ key, name: "饥饿", content: "力气被抽走。", stats }],
+            }
+          : actor,
+      ),
+    });
+
+    // 力量与敏捷都有结算读点；未写出的字段补 0。
+    const parsed = parseWorldContent(withEffect({ strength: -2, agility: 1 }));
+    const keeper = parsed.actors.find((actor) => actor.name === "守烬人");
+    expect(keeper?.statusEffects?.[0]?.stats).toMatchObject({
+      strength: -2,
+      agility: 1,
+      wisdom: 0,
+    });
+
+    // 终值属于道具；智慧与生命上限目前没有读点——写下去就是静默错。
+    for (const [key, value] of Object.entries({ damage: 1, block: 1, wisdom: 1, maxHp: 1 })) {
+      expect(() => parseWorldContent(withEffect({ [key]: value }))).toThrow(
+        new RegExp(`状态效果不能调整 ${key}`),
+      );
+    }
+
+    const duplicated = {
+      ...TEST_WORLD,
+      actors: TEST_WORLD.actors.map((actor) =>
+        actor.name === "守烬人"
+          ? {
+              ...actor,
+              statusEffects: [
+                { key: "hunger", name: "饥饿", content: "力气被抽走。" },
+                { key: "hunger", name: "干渴", content: "喉咙发紧。" },
+              ],
+            }
+          : actor,
+      ),
+    };
+    expect(() => parseWorldContent(duplicated)).toThrow(/状态效果 key 重复: hunger/);
+  });
+
   it("keeps use out of declared actions on both sides", () => {
     // 角色侧：use 由身上的道具借出，写进动作会被建局拒掉。
     const actorUse = {

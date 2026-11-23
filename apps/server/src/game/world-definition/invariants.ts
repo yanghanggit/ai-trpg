@@ -1,6 +1,7 @@
 import type { z } from "zod";
 import { findStageNameLeaks, findTextLeaks, NAME_MARKER_PATTERN } from "../kernel/addressing";
-import { FINAL_STAT_KEYS } from "../kernel/attributes";
+import { FINAL_STAT_KEYS, STAT_KEYS } from "../kernel/attributes";
+import { EFFECT_STAT_KEYS } from "../kernel/status-effects";
 import type { Actor, World } from "../world-definition";
 
 /**
@@ -107,6 +108,39 @@ export function checkWorldInvariants(world: World, ctx: z.RefinementCtx): void {
     checkItemNamesUnique(actor.inventory, ["actors", index, "inventory"], ctx);
     checkProficiencies(actor, index, ctx);
     checkActorSourcesOnly(actor, index, ctx);
+    checkStatusEffects(actor, index, ctx);
+  });
+}
+
+/**
+ * 状态效果只调整有结算读点的源属性。
+ *
+ * 终值属于道具；智慧与生命上限没有读取点。允许写下去会得到「写了却不生效」的静默错，
+ * 和角色自带终值一样直接拒绝：效果能改什么，在这里只定义一次。
+ */
+function checkStatusEffects(actor: Actor, actorIndex: number, ctx: z.RefinementCtx): void {
+  const allowed = new Set<string>(EFFECT_STAT_KEYS);
+  const seen = new Set<string>();
+  actor.statusEffects?.forEach((effect, index) => {
+    const path = ["actors", actorIndex, "statusEffects", index];
+    if (seen.has(effect.key)) {
+      ctx.addIssue({
+        code: "custom",
+        message: `状态效果 key 重复: ${effect.key}`,
+        path: [...path, "key"],
+      });
+    }
+    seen.add(effect.key);
+    for (const key of STAT_KEYS) {
+      if (allowed.has(key) || (effect.stats?.[key] ?? 0) === 0) {
+        continue;
+      }
+      ctx.addIssue({
+        code: "custom",
+        message: `状态效果不能调整 ${key}：v1 只调整有读点的源属性（${EFFECT_STAT_KEYS.join("/")}）`,
+        path: [...path, "stats", key],
+      });
+    }
   });
 }
 

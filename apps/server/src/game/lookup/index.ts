@@ -322,6 +322,7 @@ export async function wearerView(executor: Executor, actor: ActorRow): Promise<W
     stats: actor.stats,
     equipment: actor.equipment,
     items: await resolveEquippedItems(executor, actor),
+    statusEffects: actor.statusEffects,
   };
 }
 

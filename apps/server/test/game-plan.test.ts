@@ -23,6 +23,7 @@ import { formatForm } from "../src/game/agents/appearance/form";
 import { parseEndGame } from "../src/game/agents/world-turn";
 import { describeEquipment, describeItems, toItemState } from "../src/game/item-state";
 import { itemNamesWithTrigger } from "../src/game/kernel/affixes";
+import { toStatusEffect } from "../src/game/kernel/status-effects";
 import { describeStageAnchors, stageItemNames } from "../src/game/stage-state";
 
 describe("action authorization", () => {
@@ -363,6 +364,7 @@ describe("read-only descriptions", () => {
       stats: { maxHp: 12, strength: 3, wisdom: 2, agility: 4, damage: 0, block: 0 },
       isDefaultPlayer: false,
       equipment: { weapon: "裂齿短刃" },
+      statusEffects: [],
       knowledgeAccess: [],
       actions: ["say", "whisper", "announce", "move", "wait", "give", "pickup"] as const,
       items: [
@@ -409,6 +411,24 @@ describe("read-only descriptions", () => {
     expect(describeEquipment(actor)).toContain("武器：裂齿短刃");
     expect(describeSelf(actor)).toContain("外观：披着旧斗篷。");
     expect(describeSelf(actor)).toContain("裂齿短刃");
+
+    // 状态效果：数值计进力量，面板只列名字与文本，不重复算第二遍。
+    const hungry = {
+      ...actor,
+      statusEffects: [
+        toStatusEffect({
+          key: "hunger",
+          name: "饥饿",
+          content: "力气被抽走。",
+          stats: { strength: -1 },
+        }),
+      ],
+    };
+    expect(describeStats(hungry)).toContain("力量：2");
+    expect(describeStats(hungry)).toContain("伤害：5");
+    expect(describeStats(hungry)).toContain("状态效果：[饥饿]力气被抽走。");
+    // 没有效果时不写空行，避免面板多一行「无」。
+    expect(describeStats(actor)).not.toContain("状态效果");
 
     // 材料多带一个来源；其它大类不展示这个字段。
     const bag = {

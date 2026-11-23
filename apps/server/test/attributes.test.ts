@@ -51,6 +51,7 @@ describe("stats", () => {
     const wearer = {
       stats: { ...EMPTY_STATS, strength: 3, damage: 4, block: 5 },
       equipment: { weapon: "测试短刃" },
+      statusEffects: [],
       items: [{ name: "测试短刃", stats: { ...EMPTY_STATS, damage: 2 } }],
     };
     expect(attackPower(effectiveSourcesOf(wearer), equipmentFinalsOf(wearer))).toBe(5);

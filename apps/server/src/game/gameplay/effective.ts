@@ -1,10 +1,11 @@
 import { addStats, finalsOf, type Stats, sourcesOf } from "../kernel/attributes";
+import { type StatusEffect, statusEffectSources } from "../kernel/status-effects";
 import type { EquipmentSlots } from "../kernel/types";
 
 /**
  * 属性来源的收集：哪些东西算进「角色」，哪些只算进「装备」。
  *
- * 规则只有一条：源属性归角色（本体 + 穿戴道具的源属性加成），终值归道具
+ * 规则只有一条：源属性归角色（本体 + 穿戴道具的源属性加成 + 身上的状态效果），终值归道具
  * （穿戴中的 `damage` / `block`，加上本次动手而没在穿戴中的那件）。两类分开收集，
  * 不再并进同一个 `Stats` 桶——分层见 `docs/attributes.md`。
  *
@@ -18,18 +19,20 @@ import type { EquipmentSlots } from "../kernel/types";
 /** 一件被穿戴或动用的道具；数据库行与运行时状态都满足这个形状。 */
 export type Wearable = { readonly name: string; readonly stats: Stats };
 
-/** 现值计算的输入：本体属性、穿戴槽与在穿的道具。 */
+/** 现值计算的输入：本体属性、穿戴槽、在穿的道具与状态效果。 */
 export type Wearer = {
   readonly stats: Stats;
   readonly equipment: EquipmentSlots;
   readonly items: readonly Wearable[];
+  readonly statusEffects: readonly StatusEffect[];
 };
 
-/** 角色源属性的现值：本体 + 穿戴中的源属性加成。 */
+/** 角色源属性的现值：本体 + 穿戴中的源属性加成 + 状态效果。 */
 export function effectiveSourcesOf(wearer: Wearer): Stats {
   return addStats(
     sourcesOf(wearer.stats),
     ...wornItemsOf(wearer).map((item) => sourcesOf(item.stats)),
+    statusEffectSources(wearer.statusEffects),
   );
 }
 

@@ -15,6 +15,7 @@ import {
   unarmedAttackPower,
 } from "../src/game/gameplay";
 import { EMPTY_STATS, type Stats } from "../src/game/kernel/attributes";
+import { toStatusEffect } from "../src/game/kernel/status-effects";
 
 /** 只改一条开关，其余沿用默认；用来断言「关掉后会变成什么」。 */
 const withRules = (rules: Partial<GameplayRules>): GameplayRules => ({
@@ -34,6 +35,7 @@ const item = (name: string, stats: Partial<Stats>) => ({
 const wearer = {
   stats: { ...EMPTY_STATS, maxHp: 12, strength: 3, agility: 4 },
   equipment: { weapon: "短刃", armor: "铆钉甲" },
+  statusEffects: [],
   items: [
     item("短刃", { damage: 2 }),
     item("铆钉甲", { block: 3, agility: 1 }),
@@ -113,10 +115,39 @@ describe("source and final collection", () => {
     const dangling = {
       stats: { ...EMPTY_STATS, strength: 1 },
       equipment: { armor: "已经不在背包里的甲" },
+      statusEffects: [],
       items: [],
     };
     expect(effectiveSourcesOf(dangling)).toEqual({ ...EMPTY_STATS, strength: 1 });
     expect(equipmentFinalsOf(dangling)).toEqual(EMPTY_STATS);
+  });
+
+  it("状态效果是第四类来源：只并允许的源属性，终值不从这里流出", () => {
+    const effects = [
+      toStatusEffect({
+        key: "hunger",
+        name: "饥饿",
+        content: "力气被抽走。",
+        stats: { strength: -2 },
+      }),
+      // 内容校验会拒绝这些字段；这里故意绕过校验，确认聚合层自己也不会放它们出去。
+      {
+        key: "overreach",
+        name: "越界",
+        content: "不该生效的加成。",
+        stats: { ...EMPTY_STATS, maxHp: 4, wisdom: 5, damage: 9, agility: -1 },
+      },
+    ];
+    const effected = { ...wearer, statusEffects: effects };
+    expect(effectiveSourcesOf(effected)).toEqual({
+      ...EMPTY_STATS,
+      maxHp: 12,
+      strength: 1,
+      agility: 4,
+    });
+    // 终值仍只来自穿戴：效果不参与格挡与武器伤害。
+    expect(equipmentFinalsOf(effected)).toEqual({ ...EMPTY_STATS, damage: 2, block: 3 });
+    expect(attackPower(effectiveSourcesOf(effected), equipmentFinalsOf(effected))).toBe(3);
   });
 });
 

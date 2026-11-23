@@ -6,6 +6,7 @@ import { describeEquipmentBrief } from "../../item-state/describe";
 import { refOf } from "../../kernel/addressing";
 import { STAT_LABELS } from "../../kernel/attributes";
 import { MAX_ACTIONS_PER_TURN } from "../../kernel/limits";
+import { STATUS_EFFECT_LABEL } from "../../kernel/status-effects";
 import { isAlive } from "../../lookup";
 import { describeStageAnchors } from "../../stage-state/describe";
 import type { ActorTurnContext } from "./context";
@@ -36,8 +37,13 @@ export function renderActorTurnInput(
 function renderEnvironment(context: ActorTurnContext): string {
   const { state, current } = context;
   const { actor, stage } = current;
-  // 面板与结算用同一份源属性：本体加穿戴加成，终值由它们现算。
+  // 面板与结算用同一份源属性：本体 + 穿戴加成 + 状态效果，终值由它们现算。
   const shown = effectiveSourcesOf(actor);
+  // 效果只列名字：数值已经在力量 / 敏捷里生效，写第二遍会让模型把加成算两遍。
+  const effectNote =
+    actor.statusEffects.length === 0
+      ? ""
+      : ` | ${STATUS_EFFECT_LABEL} ${actor.statusEffects.map((effect) => effect.name).join("、")}`;
   // 去过、但现在封着的出口：记忆里的一道门。它不能走，只是认得出来。
   const remembered = sealedVisitedStageRefsForActor(state, current);
   const sealedSection =
@@ -59,7 +65,7 @@ ${stage.name}
 ${renderStageEnvironmentForActor(state, current)}
 
 ## 你的状态
-${actor.name}（你的引用：${context.selfHandle}）| HP ${actor.hp}/${actor.stats.maxHp} | ${STAT_LABELS.strength} ${shown.strength} | ${STAT_LABELS.agility} ${shown.agility}
+${actor.name}（你的引用：${context.selfHandle}）| HP ${actor.hp}/${actor.stats.maxHp} | ${STAT_LABELS.strength} ${shown.strength} | ${STAT_LABELS.agility} ${shown.agility}${effectNote}
 
 ## 同舞台角色（只列你看得见的角色与穿戴）
 ${renderActorList(context)}

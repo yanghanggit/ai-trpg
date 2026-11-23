@@ -83,6 +83,21 @@ const skillSchema = z
   })
   .strict();
 
+/**
+ * 状态效果：开局带上的静态属性调整。
+ *
+ * 只声明「身上现在有什么」，不声明触发与时长；哪些字段可以调由 `invariants` 收紧到
+ * 有结算读点的源属性。
+ */
+const statusEffectSchema = z
+  .object({
+    key: z.string().trim().min(1),
+    name: z.string().trim().min(1),
+    content: z.string().trim().min(1),
+    stats: statsSchema.optional(),
+  })
+  .strict();
+
 const actorSchema = z.object({
   key: z.string().min(1),
   stageKey: z.string().min(1),
@@ -108,6 +123,7 @@ const actorSchema = z.object({
     .refine((tags) => new Set(tags).size === tags.length, "knowledgeAccess 不能重复")
     .optional(),
   proficiencies: z.array(skillSchema).optional(),
+  statusEffects: z.array(statusEffectSchema).optional(),
   actions: z.array(actionKindSchema),
 });
 

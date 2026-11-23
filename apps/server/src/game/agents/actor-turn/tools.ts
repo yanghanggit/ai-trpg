@@ -26,6 +26,7 @@ import {
 } from "../../item-state/describe";
 import { addressLookupFor, parseHandle, parseSignatureName, refOf } from "../../kernel/addressing";
 import { STAT_LABELS } from "../../kernel/attributes";
+import { describeStatusEffect, STATUS_EFFECT_LABEL } from "../../kernel/status-effects";
 import type { ActorState, GameStateSlice } from "../../kernel/types";
 import { isAlive } from "../../lookup";
 import type { RouteQuestion } from "../../route";
@@ -236,7 +237,7 @@ export function parseRecognizeIdentity(args: Record<string, unknown>): {
 /**
  * 只列参与结算的属性，免得模型据此推断出不存在的机制。
  *
- * 力量与敏捷是源属性现值（本体 + 穿戴加成）；伤害与格挡是顺时终值，现算出来给模型看，
+ * 力量与敏捷是源属性现值（本体 + 穿戴加成 + 状态效果）；伤害与格挡是顺时终值，现算出来给模型看，
  * 不在角色身上存储。HP 上限仍取角色自身的 `maxHp`，装备的 `maxHp` 加成没有读取点。
  * 渲染统一用中文名：字段名与中文的对应只在工具契约里说一次，这里不再中英混排。
  * 智慧没有读取点，所以不给它一行。
@@ -244,12 +245,17 @@ export function parseRecognizeIdentity(args: Record<string, unknown>): {
 export function describeStats(actor: ActorState): string {
   const sources = effectiveSourcesOf(actor);
   const finals = equipmentFinalsOf(actor);
+  // 效果只在这里展开说明：数值已经计进力量/敏捷，这里不重复再算一遍。
+  const effects =
+    actor.statusEffects.length === 0
+      ? ""
+      : `\n${STATUS_EFFECT_LABEL}：${actor.statusEffects.map(describeStatusEffect).join("；")}`;
   return `角色：${actor.name}
 HP：${actor.hp}/${actor.stats.maxHp}
 ${STAT_LABELS.strength}：${sources.strength}
 ${STAT_LABELS.agility}：${sources.agility}
 ${STAT_LABELS.damage}：${attackPower(sources, finals)}
-${STAT_LABELS.block}：${guardPower(finals)}
+${STAT_LABELS.block}：${guardPower(finals)}${effects}
 状态：${isAlive(actor) ? "存活" : "已死亡"}${actor.concealed ? "（隐匿）" : ""}`;
 }
 
