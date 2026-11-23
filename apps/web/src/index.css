@@ -416,3 +416,121 @@ code {
 .facts dd .chip {
   margin-left: 8px;
 }
+
+/* 顶部按钮组：把「我 / 去过 / 消息历史」收起来，主页只留此刻。 */
+.toolbar {
+  position: sticky;
+  top: 0;
+  z-index: 5;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin: 0 -22px 4px;
+  padding: 12px 22px;
+  border-bottom: 1px solid var(--line);
+  background: rgb(11 15 20 / 92%);
+  backdrop-filter: blur(6px);
+}
+
+.toolbar__label {
+  font-size: 13px;
+  color: var(--muted);
+}
+
+.toolbar__buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.button--ghost {
+  justify-self: auto;
+  padding: 6px 14px;
+  border-color: var(--line);
+  background: transparent;
+  color: var(--text);
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.button--ghost:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+/* 浮窗：原生 dialog，样式只管尺寸与配色。 */
+.sheet {
+  width: min(720px, calc(100vw - 32px));
+  max-height: min(80vh, 880px);
+  padding: 0;
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  background: linear-gradient(180deg, var(--panel-soft), var(--panel));
+  color: var(--text);
+  box-shadow: 0 40px 80px rgb(0 0 0 / 60%);
+}
+
+.sheet::backdrop {
+  background: rgb(4 6 9 / 70%);
+  backdrop-filter: blur(2px);
+}
+
+.sheet__header {
+  position: sticky;
+  top: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--line);
+  background: var(--panel-soft);
+}
+
+.sheet__header h2 {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.sheet__close {
+  padding: 4px 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: transparent;
+  color: var(--muted);
+  font: inherit;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.sheet__close:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.sheet__body {
+  padding: 18px 20px 22px;
+  overflow-y: auto;
+  max-height: calc(80vh - 62px);
+}
+
+.sheet__body > .facts {
+  margin-top: 0;
+}
+
+.sheet__footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 18px;
+  padding-top: 14px;
+  border-top: 1px solid var(--line);
+}
+
+.sheet__footer .muted {
+  margin: 0;
+}

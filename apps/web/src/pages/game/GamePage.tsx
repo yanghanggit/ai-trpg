@@ -1,17 +1,58 @@
+import { type ReactNode, useState } from "react";
 import { Link } from "react-router";
 import type { GameView } from "../../features/games/useGameView";
+import Dialog from "./Dialog";
+import MePanel from "./panels/MePanel";
+import VisitedPanel from "./panels/VisitedPanel";
+
+type Panel = "me" | "visited" | "history";
+
+type GamePageProps = {
+  view: GameView;
+  /**
+   * 消息历史的内容由外层注入：页面不取数，mock 因此也能打开同一个浮窗。
+   * 回调里要带上 `onClose`，关闭动作由页面自己管。
+   */
+  renderHistory: (args: { slug: string; onClose: () => void }) => ReactNode;
+};
 
 /**
  * 局内页：只吃观看者投影，不发请求。
  *
- * 数据是角色视角——名字、在场名单、出口都按观察者渲染过，页面不做遮蔽判断。
+ * 主页只留「此刻发生了什么」——当前舞台与感知日志；「我」「去过」「消息历史」这类
+ * 需要时才看的东西挂在顶部按钮上，点开是浮窗，不占主线的注意力。
  */
-export default function GamePage({ view }: { view: GameView }) {
-  const { game, viewer, stage, log, visitedStages, teleportTargets } = view;
+export default function GamePage({ view, renderHistory }: GamePageProps) {
+  const [panel, setPanel] = useState<Panel | null>(null);
+  const { game, viewer, stage, log } = view;
+  const close = () => setPanel(null);
 
   return (
     <main className="launch">
       <div className="launch__inner">
+        <nav className="toolbar" aria-label="局内快捷入口">
+          <span className="toolbar__label">{game.name}</span>
+          <div className="toolbar__buttons">
+            <button type="button" className="button button--ghost" onClick={() => setPanel("me")}>
+              我
+            </button>
+            <button
+              type="button"
+              className="button button--ghost"
+              onClick={() => setPanel("visited")}
+            >
+              去过
+            </button>
+            <button
+              type="button"
+              className="button button--ghost"
+              onClick={() => setPanel("history")}
+            >
+              消息历史
+            </button>
+          </div>
+        </nav>
+
         <header className="launch__header">
           <p className="launch__eyebrow">
             <Link to="/">← 入口</Link>
@@ -21,23 +62,6 @@ export default function GamePage({ view }: { view: GameView }) {
             <code>{game.slug}</code> · {game.status} · v{game.version}
           </p>
         </header>
-
-        <section className="panel">
-          <h2>我</h2>
-          <dl className="facts">
-            <div>
-              <dt>名字</dt>
-              <dd>
-                {viewer.name}
-                {viewer.concealed ? <span className="chip">隐匿中</span> : null}
-              </dd>
-            </div>
-            <div>
-              <dt>此刻的样子</dt>
-              <dd>{viewer.appearance}</dd>
-            </div>
-          </dl>
-        </section>
 
         <section className="panel">
           <h2>{stage.name}</h2>
@@ -88,7 +112,7 @@ export default function GamePage({ view }: { view: GameView }) {
               ))}
             </ul>
           ) : (
-            <p className="muted">没有出口。</p>
+            <p className="muted">没有通着的出口。</p>
           )}
           {stage.sealedExits.length > 0 ? (
             <p className="muted">
@@ -110,35 +134,23 @@ export default function GamePage({ view }: { view: GameView }) {
               ))}
             </ol>
           ) : (
-            <p className="muted">还没有感知到任何事。</p>
+            <p className="muted">{viewer.name}还没有感知到任何事。</p>
           )}
         </section>
 
-        <section className="panel">
-          <h2>地图</h2>
-          <h3>去过</h3>
-          <ul className="chips">
-            {visitedStages.map((candidate) => (
-              <li key={candidate.stageId} className="chip">
-                {candidate.name}
-              </li>
-            ))}
-          </ul>
-          <h3>可传送</h3>
-          {teleportTargets.length > 0 ? (
-            <ul className="chips">
-              {teleportTargets.map((target) => (
-                <li key={target.stageId} className="chip">
-                  {target.name}
-                </li>
-              ))}
-            </ul>
-          ) : (
-            <p className="muted">没有可传送的舞台。</p>
-          )}
-        </section>
+        {panel === "me" ? (
+          <Dialog title="我" onClose={close}>
+            <MePanel view={view} />
+          </Dialog>
+        ) : null}
 
-        <footer className="launch__footer">占位页：回合与动作尚未接入。</footer>
+        {panel === "visited" ? (
+          <Dialog title="去过" onClose={close}>
+            <VisitedPanel view={view} />
+          </Dialog>
+        ) : null}
+
+        {panel === "history" ? renderHistory({ slug: game.slug, onClose: close }) : null}
       </div>
     </main>
   );

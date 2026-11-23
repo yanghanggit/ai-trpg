@@ -1,6 +1,7 @@
 import { describeApiError } from "../../api/describeApiError";
 import { useGameView } from "../../features/games/useGameView";
 import GamePage from "./GamePage";
+import HistoryDialog from "./HistoryDialog";
 
 /** 取数；渲染交给 `GamePage`（mock 用的也是这个页面组件）。 */
 export default function GameContainer({ slug }: { slug: string }) {
@@ -28,5 +29,12 @@ export default function GameContainer({ slug }: { slug: string }) {
     );
   }
 
-  return <GamePage view={game.data} />;
+  return (
+    <GamePage
+      view={game.data}
+      renderHistory={({ slug: gameSlug, onClose }) => (
+        <HistoryDialog slug={gameSlug} onClose={onClose} />
+      )}
+    />
+  );
 }

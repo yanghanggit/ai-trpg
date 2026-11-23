@@ -12,6 +12,7 @@
 import type { z } from "zod";
 import { z as zod } from "zod";
 import type { ActorView, ViewerAnchor, ViewerLogEntry } from "../../game/client-view";
+import type { MessageState } from "../../game/kernel/types";
 
 const viewerItemSchema = zod.object({
   name: zod.string(),
@@ -112,3 +113,23 @@ export const actorViewSchema = zod
     ),
   })
   .meta({ id: "ActorView" }) satisfies z.ZodType<ActorView>;
+
+/**
+ * 公共事件流的一行。
+ *
+ * 它进契约是给「消息历史」用的：客户端要能按字段读，而不是把 `state` 那种不透明投影
+ * 拆开猜。字段与 `MessageState` 一一对应，同样由 `satisfies` 守住。
+ */
+export const gameMessageSchema = zod
+  .object({
+    id: zod.string(),
+    sequence: zod.number(),
+    kind: zod.string(),
+    stageId: zod.string().nullable(),
+    sourceActorId: zod.string().nullable(),
+    targetActorId: zod.string().nullable(),
+    visibility: zod.enum(["stage", "private"]),
+    content: zod.string(),
+    createdAt: zod.string(),
+  })
+  .meta({ id: "GameMessage" }) satisfies z.ZodType<MessageState>;

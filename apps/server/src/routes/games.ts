@@ -40,7 +40,7 @@ import {
 } from "../game-ops";
 import { HttpError } from "../http-error";
 import { type AuthUser, requireUser } from "../plugins/auth";
-import { actorViewSchema } from "./schemas/client-view";
+import { actorViewSchema, gameMessageSchema } from "./schemas/client-view";
 
 const gameParams = z.object({ game: z.string().trim().min(1) });
 const actorParams = gameParams.extend({ actor: z.string().trim().min(1) });
@@ -256,7 +256,7 @@ export function createGameRoutes(db: () => Database): FastifyPluginAsyncZod {
           }),
           response: {
             200: z.object({
-              messages: z.array(z.record(z.string(), z.unknown())),
+              messages: z.array(gameMessageSchema),
               messageCursor: z.number(),
             }),
           },

@@ -1,3 +1,4 @@
+import type { GameMessage } from "../../features/games/useGameMessages";
 import type { GameView } from "../../features/games/useGameView";
 
 /**
@@ -173,3 +174,67 @@ export const gameFixtures = {
 } satisfies Record<string, GameView>;
 
 export type GameMockState = keyof typeof gameFixtures;
+
+/** 消息历史浮窗的 fixture：与页面状态同名，打开时按状态给一条流。 */
+export const gameHistoryFixtures: Record<GameMockState, GameMessage[]> = {
+  active: [
+    {
+      id: "m1",
+      sequence: 1,
+      kind: "stage_opening",
+      stageId: "st1",
+      sourceActorId: null,
+      targetActorId: null,
+      visibility: "stage",
+      content: "鸦葬岗的夜开始了。坡上的木杆在风里响。",
+      createdAt: "2026-01-02T10:00:00.000Z",
+    },
+    {
+      id: "m2",
+      sequence: 2,
+      kind: "environment_observation",
+      stageId: "st1",
+      sourceActorId: null,
+      targetActorId: "a1",
+      visibility: "stage",
+      content: "风把木杆上的布条吹得笔直，指向坡下。",
+      createdAt: "2026-01-02T10:00:03.000Z",
+    },
+    {
+      id: "m3",
+      sequence: 3,
+      kind: "communication",
+      stageId: "st1",
+      sourceActorId: "a2",
+      targetActorId: "a1",
+      visibility: "stage",
+      content: "「今晚别往窖里去。」卡尔说完就笑了。",
+      createdAt: "2026-01-02T10:02:41.000Z",
+    },
+    {
+      id: "m4",
+      sequence: 4,
+      kind: "action_observation",
+      stageId: "st1",
+      sourceActorId: "a2",
+      targetActorId: null,
+      visibility: "stage",
+      content: "卡尔把一具尸体拖到坑边，抬头看了你一眼。",
+      createdAt: "2026-01-02T10:04:11.000Z",
+    },
+  ],
+  fresh: [],
+  sealed: [
+    {
+      id: "m41",
+      sequence: 41,
+      kind: "action_feedback",
+      stageId: "st3",
+      sourceActorId: "a1",
+      targetActorId: null,
+      visibility: "stage",
+      content: "铁闸门在你身后落下，锁扣咬住了。",
+      createdAt: "2026-01-02T12:20:00.000Z",
+    },
+  ],
+};
