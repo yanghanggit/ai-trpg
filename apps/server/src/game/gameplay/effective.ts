@@ -36,6 +36,9 @@ export function effectiveSourcesOf(wearer: Wearer): Stats {
 /**
  * 装备终值：穿戴中的 `damage` / `block` 之和。
  *
+ * 不按大类筛选：在穿的武器、装备、饰品一律逐项计入——武器也有格挡，护甲也有伤害。
+ * 内容侧没有对应校验，要不要这么写由内容自己克制；口径见 `docs/attributes.md`。
+ *
  * `instrument` 是本次动手用的那件道具：它已经在穿戴槽里时不再重复相加，
  * 只有不在槽里才补进来——「谁被拿来动手」始终只算一次。
  */

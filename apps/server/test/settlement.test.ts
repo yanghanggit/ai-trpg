@@ -57,6 +57,19 @@ describe("settle", () => {
     ]);
   });
 
+  it("格挡不低于攻击力时减到 0，不出负伤害", () => {
+    const outcome = settle({
+      action: "brawl",
+      initiator: snapshot("initiator", { damage: 3 }),
+      affected: snapshot("affected", { block: 8 }),
+      rules: resolveRules(),
+      ambush: false,
+    });
+
+    expect(outcome.mitigated).toBe(0);
+    expect(outcome.actual).toBe(0);
+  });
+
   it("词缀伤害按快照攻击力求和，不再回库", () => {
     const outcome = settle({
       action: "strike",

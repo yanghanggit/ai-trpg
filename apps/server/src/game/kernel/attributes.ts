@@ -5,7 +5,10 @@ import { z } from "zod";
  *
  * 六个字段都是恒定配置：可逐字段相加、可继承、可覆盖。当前生命是可变运行时
  * 状态而不是属性，所以不在 `Stats` 里，放在 `ActorState.hp` / `actors.hp`。
- * 新增属性只改 `STAT_KEYS`，类型自动跟着变。
+ *
+ * 增删字段要动的地方不只 `STAT_KEYS`：先归入 `SOURCE_STAT_KEYS` 或 `FINAL_STAT_KEYS`，
+ * 再补 `STAT_LABELS`、`statsSchema`、`EMPTY_STATS`、`toStats`。漏改的每一处都是编译错误，
+ * 不会静默少一个字段。
  *
  * `Stats` 是属性容器，不是面板读数：一次攻击打多少、一次格挡挡多少，都在结算
  * 那一刻由属性换算成临时值（见 `gameplay/combat.ts`），用完即弃。
@@ -54,8 +57,8 @@ export const STAT_LABELS: Record<StatKey, string> = {
 };
 
 /**
- * 同一条 `STAT_KEYS` 派生的内容校验形状：未写出的字段补 0，运行时总是完整 `Stats`。
- * 新增属性只改 `STAT_KEYS`，校验不会漏在外面。
+ * 内容校验形状：字段必须与 `STAT_KEYS` 一致（`satisfies` 保证不多不少），未写出的补 0，
+ * 运行时总是完整 `Stats`。
  */
 export const statsSchema = z.object({
   maxHp: z.number().default(0),
@@ -107,7 +110,12 @@ export function finalsOf(stats: Stats): Stats {
   return { ...EMPTY_STATS, damage: stats.damage, block: stats.block };
 }
 
-/** 逐字段相加：装备加成与临时修正都走这里，全局只有这一条加法规则。 */
+/**
+ * 逐字段相加：装备加成与临时修正都走这里，全局只有这一条加法规则。
+ *
+ * 每个入参先过一遍 `toStats`（缺字段补 0、多余字段丢弃），而不是假定调用方已归一。
+ * 多扫一遍的代价可以忽略，换来的是「怎么传都不会漏字段」。
+ */
 export function addStats(...list: readonly (Partial<Stats> | undefined)[]): Stats {
   const total: Stats = { ...EMPTY_STATS };
   for (const stats of list) {

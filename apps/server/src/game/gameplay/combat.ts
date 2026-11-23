@@ -52,8 +52,8 @@ export function unarmedAttackPower(sources: Stats, rules: GameplayRules = GAMEPL
 /**
  * 固定战斗公式：max(0, 攻击力 - 格挡)。
  *
- * 这是整份代码里唯一的减伤点：一个动作只能调用一次，
- * 多个静态词缀必须先把伤害求和再传进来。
+ * 这是整份代码里唯一的减伤实现：结算的每条伤害路径都调用它
+ * （`settlement/settle.ts`），一个动作只调用一次，多个静态词缀必须先把伤害求和再传进来。
  */
 export function mitigatedDamage(attack: number, block: number): number {
   return Math.max(0, attack - block);

@@ -1,6 +1,7 @@
 import { GameError } from "../../errors";
 import { staticAffixes, triggerAlwaysHits } from "../../kernel/affixes";
 import type { AffixStatRef, AffixTrigger, DamageAmount } from "../../kernel/types";
+import { mitigatedDamage } from "../combat";
 import type {
   ActorSnapshot,
   HpEffect,
@@ -12,9 +13,10 @@ import type {
 } from "./types";
 
 /**
- * 结算：纯函数，不读库、不调模型、不 import 全局规则。
+ * 结算：纯函数，不读库、不调模型、不读全局规则开关。
  *
- * 减伤只有这一处；输出是有序效果列表，逐条落账、不求和。
+ * 减伤只在 `combat.ts` 的 `mitigatedDamage` 实现一次，这里的每条伤害路径都调用它；
+ * 输出是有序效果列表，逐条落账、不求和。
  */
 
 type StaticContext = {
@@ -65,7 +67,8 @@ function finish(input: {
     throw new GameError("invalid_action", "伤害结算需要被影响者");
   }
   const affectedWasDead = affected !== undefined && affected.hp <= 0;
-  const mitigated = input.hit && affected ? Math.max(0, input.intended - affected.stats.block) : 0;
+  const mitigated =
+    input.hit && affected ? mitigatedDamage(input.intended, affected.stats.block) : 0;
   const actual = input.hit && affected && !affectedWasDead ? Math.min(mitigated, affected.hp) : 0;
 
   const effects: HpEffect[] = [];
