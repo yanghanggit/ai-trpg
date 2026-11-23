@@ -10,6 +10,7 @@ import type { ViewerAnchor, ViewerGame } from "./types";
 export function gameOf(state: GameStateSlice): ViewerGame {
   return {
     id: state.game.id,
+    name: state.game.name,
     slug: state.game.slug,
     status: state.game.status,
     version: state.game.version,

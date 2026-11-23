@@ -29,6 +29,65 @@ await app.ready();
 const openapi = app.swagger();
 await app.close();
 
+/**
+ * 只留下从路径可达的 schema。
+ *
+ * 具名 schema 由库自动派生出 `XxxInput` / `Xxx` 两份（请求侧与响应侧），只用得到响应侧那份；
+ * 契约里多出一个没人引用的同名类型，读契约的人就得猜它是不是也要用。
+ * 可达性从 `paths` 出发按引用传递，所以被删掉的 schema 不会留着它的依赖。
+ */
+function pruneUnreachableSchemas(document: Record<string, unknown>): void {
+  const components = document.components as { schemas?: Record<string, unknown> } | undefined;
+  const schemas = components?.schemas;
+  if (schemas === undefined) {
+    return;
+  }
+
+  const refsIn = (value: unknown, into: Set<string>): void => {
+    if (Array.isArray(value)) {
+      value.forEach((entry) => {
+        refsIn(entry, into);
+      });
+      return;
+    }
+    if (typeof value !== "object" || value === null) {
+      return;
+    }
+    for (const [key, entry] of Object.entries(value)) {
+      if (key === "$ref" && typeof entry === "string") {
+        into.add(entry);
+      } else {
+        refsIn(entry, into);
+      }
+    }
+  };
+
+  const fromPaths = new Set<string>();
+  refsIn(document.paths, fromPaths);
+
+  const reachable = new Set<string>();
+  const queue = [...fromPaths];
+  while (queue.length > 0) {
+    const ref = queue.pop();
+    const name = ref?.replace("#/components/schemas/", "");
+    if (name === undefined || reachable.has(name) || !(name in schemas)) {
+      continue;
+    }
+    reachable.add(name);
+    const nested = new Set<string>();
+    refsIn(schemas[name], nested);
+    queue.push(...nested);
+  }
+
+  for (const name of Object.keys(schemas)) {
+    if (!reachable.has(name)) {
+      delete schemas[name];
+    }
+  }
+}
+
+pruneUnreachableSchemas(openapi as unknown as Record<string, unknown>);
+
 const outputPath = fileURLToPath(
   new URL("../../../packages/api-client/openapi.json", import.meta.url),
 );

@@ -1,6 +1,5 @@
 import { useNavigate } from "react-router";
 import { describeApiError } from "../../api/describeApiError";
-import { readGameFacts } from "../../features/games/gameState";
 import { useContentPacks } from "../../features/games/useContentPacks";
 import { useCreateGame } from "../../features/games/useCreateGame";
 import { useMe } from "../../features/identity/useMe";
@@ -24,11 +23,9 @@ export default function EntryContainer() {
   };
 
   async function handleCreate(input: CreateGameRequest) {
-    const state = await createGame.mutateAsync(input);
-    const slug = readGameFacts(state).slug;
-    if (slug !== undefined) {
-      navigate(`/g/${encodeURIComponent(slug)}`);
-    }
+    const view = await createGame.mutateAsync(input);
+    const slug = view.game.slug;
+    navigate(`/g/${encodeURIComponent(slug)}`);
     return slug;
   }
 

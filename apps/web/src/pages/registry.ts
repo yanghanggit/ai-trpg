@@ -16,5 +16,5 @@ export type PageEntry = {
 
 export const pages: PageEntry[] = [
   { key: "entry", path: "/", title: "入口", Route: EntryContainer },
-  { key: "game", path: "/g/:slug", title: "局内（占位）", Route: GameRoute },
+  { key: "game", path: "/g/:slug", title: "局内", Route: GameRoute },
 ];

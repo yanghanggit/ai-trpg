@@ -81,6 +81,8 @@ pnpm dev
 
 **后台作业**：`pnpm job` 查看队列，`pnpm job:worker` 消费作业；HTTP 接入前都是独立工具，设计与边界见 `docs/background-jobs.md`。
 
+**两个投影**：`GET /api/v1/games/{game}` 返回客户端读的观看者投影（默认主角视角），`GET /api/v1/games/{game}/state` 返回控制面的全量活状态；`agent:game view` / `agent:api view` 读前者。设计与守卫见 `docs/architecture.md`。
+
 **页面目录（mock）**：`pnpm dev:mock` 在独立端口起一个入口，按「页面 × 状态」列出可直达的深链接，全部由 fixture 渲染。它不进生产构建，也不需要服务端。约定见 `docs/web-client.md`。
 
 **截图**：`pnpm screenshot` 默认输出 `logs/screenshots/index-1280x900.png`，可用 `--size`、`--base`、`--click` 覆盖（`--click` 可点按钮与折叠面板的 `summary`）；脚本走 CDP 并等待 React 挂载，找不到 Chrome 时用 `CHROME_PATH` 指定。

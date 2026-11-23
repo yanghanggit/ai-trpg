@@ -26,6 +26,7 @@ import {
   nameLeaksOp,
   playerActionBodySchema,
   probeOp,
+  readActorView,
   readGameMessages,
   readGameState,
   readStageMap,
@@ -39,6 +40,7 @@ import {
 } from "../game-ops";
 import { HttpError } from "../http-error";
 import { type AuthUser, requireUser } from "../plugins/auth";
+import { actorViewSchema } from "./schemas/client-view";
 
 const gameParams = z.object({ game: z.string().trim().min(1) });
 const actorParams = gameParams.extend({ actor: z.string().trim().min(1) });
@@ -160,7 +162,7 @@ export function createGameRoutes(db: () => Database): FastifyPluginAsyncZod {
           summary: "建一局",
           description: "内容来源二选一：内置种子名，或内联 world JSON。",
           body: createBody,
-          response: { 200: z.object({ state: stateSchema }) },
+          response: { 200: z.object({ view: actorViewSchema }) },
         },
       },
       async (request) => {
@@ -173,7 +175,7 @@ export function createGameRoutes(db: () => Database): FastifyPluginAsyncZod {
           body.seed !== undefined
             ? parseWorldContent(getContentPack(body.seed).world)
             : parseWorldContent(body.world);
-        return createGameOp(
+        const created = await createGameOp(
           db(),
           {
             username: user.username,
@@ -183,6 +185,7 @@ export function createGameRoutes(db: () => Database): FastifyPluginAsyncZod {
           },
           { logger: request.log },
         );
+        return readActorView(db(), created.state.game.slug);
       },
     );
 
@@ -206,7 +209,29 @@ export function createGameRoutes(db: () => Database): FastifyPluginAsyncZod {
       {
         schema: {
           tags: ["games"],
+          summary: "读取一局的观看者投影",
+          description:
+            "客户端读模型：默认取玩家操控的角色，`actor` 可指定别的观看者。查询参数是开发期接口，正式客户端不带它。",
+          params: gameParams,
+          querystring: z.object({ actor: z.string().trim().min(1).optional() }),
+          response: { 200: z.object({ view: actorViewSchema }) },
+        },
+      },
+      async (request) => {
+        const user = await requireUser(db(), request);
+        await requireGameAccess(db(), request.params.game, user);
+        return readActorView(db(), request.params.game, request.query.actor);
+      },
+    );
+
+    // 控制面投影（上帝视角、带名字）：agent:api 与排查用，不是客户端契约。
+    app.get(
+      "/games/:game/state",
+      {
+        schema: {
+          tags: ["games"],
           summary: "读取一局的完整状态",
+          description: "上帝视角的活状态；客户端用 `/games/{game}` 的观看者投影。",
           params: gameParams,
           response: { 200: z.object({ state: stateSchema }) },
         },

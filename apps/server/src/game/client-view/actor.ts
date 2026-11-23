@@ -8,6 +8,7 @@ import {
 } from "../actor-state";
 import { getGameStateSlice } from "../game-state";
 import { addressLookupFor, handleOf, refOf } from "../kernel/addressing";
+import type { GameStateSlice } from "../kernel/types";
 import { getMemoryState } from "../memory";
 import { adjacentStages } from "../stage-state";
 import { actorLog } from "./log";
@@ -25,8 +26,10 @@ export async function getActorView(
   db: Database,
   gameRef: string,
   actorRef: string,
+  /** 已经装配好的状态；调用方刚读过就传进来，省一次水合。 */
+  loaded?: GameStateSlice,
 ): Promise<ActorView> {
-  const state = await getGameStateSlice(db, gameRef);
+  const state = loaded ?? (await getGameStateSlice(db, gameRef));
   const { actor, stage } = findActorByName(state, actorRef);
   const memory = await getMemoryState(db, state.game.id, "actor", actor.id);
   const address = addressLookupFor(state, actor, stage);

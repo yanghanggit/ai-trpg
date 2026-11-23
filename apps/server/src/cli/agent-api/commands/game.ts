@@ -100,10 +100,18 @@ export function registerGameCommands(program: Command): void {
     schema: createInput,
     run: async (input, client) => {
       const body = await createBody(input);
-      return (await client.call({ method: "POST", path: "/games", body })) as Record<
-        string,
-        unknown
-      >;
+      const created = (await client.call({ method: "POST", path: "/games", body })) as {
+        view?: { game?: { slug?: string } };
+      };
+      const slug = created.view?.game?.slug;
+      if (slug === undefined) {
+        throw new Error("建局响应缺少 view.game.slug");
+      }
+      // 建局返回客户端投影；同一命令要与 agent-game 输出同样的 `{ state }`，所以再读一次控制面。
+      return (await client.call({
+        method: "GET",
+        path: `/games/${encodeURIComponent(slug)}/state`,
+      })) as Record<string, unknown>;
     },
   });
 
@@ -128,7 +136,21 @@ export function registerGameCommands(program: Command): void {
     run: async (input, client) =>
       (await client.call({
         method: "GET",
+        path: `/games/${encodeURIComponent(input.game)}/state`,
+      })) as Record<string, unknown>,
+  });
+
+  addApiCommand(program, {
+    name: "view",
+    group: GROUP,
+    summary: "读取一局的观看者投影（默认玩家操控的角色）",
+    options: [gameOption(), optionalOption("--actor <ref>", "换一个观看者，默认主角")],
+    schema: z.object({ game: z.string(), actor: z.string().trim().min(1).optional() }),
+    run: async (input, client) =>
+      (await client.call({
+        method: "GET",
         path: `/games/${encodeURIComponent(input.game)}`,
+        query: { actor: input.actor },
       })) as Record<string, unknown>,
   });
 

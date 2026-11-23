@@ -4,6 +4,7 @@ import swagger from "@fastify/swagger";
 import Fastify, { type FastifyInstance, type FastifyServerOptions } from "fastify";
 import {
   jsonSchemaTransform,
+  jsonSchemaTransformObject,
   serializerCompiler,
   validatorCompiler,
   type ZodTypeProvider,
@@ -70,6 +71,8 @@ export async function buildApp({
       ],
     },
     transform: jsonSchemaTransform,
+    // 带 `id` 的 schema（`.meta({ id })`）进 `components.schemas`：客户端因此拿到具名类型。
+    transformObject: jsonSchemaTransformObject,
   });
 
   registerErrorHandler(app);

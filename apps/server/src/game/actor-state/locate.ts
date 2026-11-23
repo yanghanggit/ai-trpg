@@ -24,6 +24,22 @@ export function allActors(state: GameStateSlice): ActorWithStage[] {
   return state.world.stages.flatMap((stage) => stage.actors.map((actor) => ({ actor, stage })));
 }
 
+/**
+ * 玩家操控的那个角色：内容里标记 `isDefaultPlayer` 的 actor。
+ *
+ * 标记在内容层是可选的，所以没有主角是合法状态（返回 `undefined`）；多个则算内容错误。
+ */
+export function defaultPlayerActor(state: GameStateSlice): ActorWithStage | undefined {
+  const matches = allActors(state).filter(({ actor }) => actor.isDefaultPlayer);
+  if (matches.length > 1) {
+    throw new GameError(
+      "invalid_state",
+      `默认玩家角色不唯一: ${matches.map(({ actor }) => actor.name).join(" / ")}`,
+    );
+  }
+  return matches[0];
+}
+
 /** 按真名定位；名字重复时直接拒绝，不退回 id 或编号。 */
 export function findActorByName(state: GameStateSlice, name: string): ActorWithStage {
   const matches = allActors(state).filter(({ actor }) => actor.name === name);

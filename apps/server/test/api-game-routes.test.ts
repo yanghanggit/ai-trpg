@@ -82,14 +82,43 @@ describe.skipIf(!testDatabaseUrl)("业务 API", () => {
       payload: { seed: "dark-fantasy:crow-grave", slug: SLUG },
     });
     expect(created.statusCode).toBe(200);
-    expect(created.json()).toMatchObject({ state: { game: { slug: SLUG, version: 0 } } });
+    expect(created.json()).toMatchObject({
+      view: { game: { slug: SLUG, version: 0 }, viewer: { name: "拾骨人伊莱" } },
+    });
 
-    const status = await app.inject({
+    // 客户端入口：观看者投影。
+    const view = await app.inject({
       method: "GET",
       url: `/api/v1/games/${SLUG}`,
       headers: auth,
     });
-    expect(status.statusCode).toBe(200);
+    expect(view.statusCode).toBe(200);
+    expect(view.json()).toMatchObject({
+      view: {
+        game: { slug: SLUG },
+        viewer: { name: "拾骨人伊莱", concealed: false },
+        stage: { name: "鸦葬岗", actors: expect.any(Array), anchors: expect.any(Array) },
+        log: expect.any(Array),
+      },
+    });
+
+    // 换一个观看者：投影跟着换人，不是同一份上帝视角。
+    const otherView = await app.inject({
+      method: "GET",
+      url: `/api/v1/games/${SLUG}?actor=${encodeURIComponent("收尸人卡尔")}`,
+      headers: auth,
+    });
+    expect(otherView.statusCode).toBe(200);
+    expect(otherView.json()).toMatchObject({ view: { viewer: { name: "收尸人卡尔" } } });
+
+    // 控制面投影：上帝视角的活状态。
+    const state = await app.inject({
+      method: "GET",
+      url: `/api/v1/games/${SLUG}/state`,
+      headers: auth,
+    });
+    expect(state.statusCode).toBe(200);
+    expect(state.json()).toMatchObject({ state: { game: { slug: SLUG, version: 0 } } });
 
     const stageMap = await app.inject({
       method: "GET",

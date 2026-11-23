@@ -8,6 +8,7 @@
 export {
   type ActorWithStage,
   allActors,
+  defaultPlayerActor,
   findActorByName,
   findActorByRef,
   findActorBySignatureSeq,

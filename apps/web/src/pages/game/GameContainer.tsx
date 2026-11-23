@@ -1,11 +1,10 @@
 import { describeApiError } from "../../api/describeApiError";
-import { useGame } from "../../features/games/useGame";
-import { adaptGameState } from "./adapt";
+import { useGameView } from "../../features/games/useGameView";
 import GamePage from "./GamePage";
 
-/** 取数 + 映射；渲染交给 `GamePage`（mock 用的也是这个页面组件）。 */
+/** 取数；渲染交给 `GamePage`（mock 用的也是这个页面组件）。 */
 export default function GameContainer({ slug }: { slug: string }) {
-  const game = useGame(slug);
+  const game = useGameView(slug);
 
   if (game.isPending) {
     return (
@@ -29,5 +28,5 @@ export default function GameContainer({ slug }: { slug: string }) {
     );
   }
 
-  return <GamePage data={adaptGameState(game.data, slug)} />;
+  return <GamePage view={game.data} />;
 }

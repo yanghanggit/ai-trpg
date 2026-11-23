@@ -53,6 +53,8 @@ export type ViewerLogEntry = {
 /** 两个视图共用的游戏头；不随观察者变化。 */
 export type ViewerGame = {
   id: string;
+  /** 局名；与观察者无关，标题用它。 */
+  name: string;
   slug: string;
   status: string;
   version: number;
@@ -70,7 +72,8 @@ export type ActorView = {
     /** 自己是否处于隐匿；只有自己看得到这个状态。 */
     concealed: boolean;
   };
-  stage: ViewerStage | null;
+  /** 角色所在的舞台；actor 一定属于某个舞台，所以这里不是可空引用。 */
+  stage: ViewerStage;
   /** 这个观察者给各签名的当前称呼；其它观察者的名字不出现。 */
   signatureNames: SignatureNameState[];
   /** 这个角色实际感知到的记忆，按发生顺序。 */

@@ -336,10 +336,6 @@ code {
   text-decoration: underline;
 }
 
-.launch__inner--wide {
-  width: min(920px, 100%);
-}
-
 .muted {
   margin: 16px 0 0;
   font-size: 13px;
@@ -361,4 +357,62 @@ code {
   border-radius: 999px;
   font-size: 12px;
   color: var(--muted);
+}
+
+.panel h2 {
+  margin: 0;
+  font-size: 17px;
+  font-weight: 600;
+}
+
+.panel h3 {
+  margin: 22px 0 0;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  color: var(--muted);
+  text-transform: uppercase;
+}
+
+.panel > .muted:first-of-type {
+  margin-top: 8px;
+}
+
+.chip--faded {
+  opacity: 0.6;
+  text-decoration: line-through;
+}
+
+.entries {
+  display: grid;
+  gap: 10px;
+  margin: 16px 0 0;
+  padding: 0;
+  list-style: none;
+  font-size: 14px;
+  line-height: 1.55;
+}
+
+.entries > li {
+  padding-left: 12px;
+  border-left: 2px solid var(--line);
+}
+
+.entries__kind {
+  display: block;
+  margin-bottom: 2px;
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  color: var(--muted);
+  text-transform: uppercase;
+}
+
+.entries__note {
+  margin-left: 8px;
+  font-size: 13px;
+  color: var(--muted);
+}
+
+.facts dd .chip {
+  margin-left: 8px;
 }

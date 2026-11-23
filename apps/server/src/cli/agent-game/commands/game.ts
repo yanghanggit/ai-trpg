@@ -14,6 +14,7 @@ import type { World } from "../../../game/world-definition";
 import { parseWorldContent } from "../../../game/world-definition";
 import {
   createGameOp,
+  readActorView,
   readGameMessages,
   readGameState,
   readStageMap,
@@ -114,6 +115,15 @@ export function registerGameCommands(program: Command, ctx: CommandContext): voi
     options: [gameOption()],
     schema: z.object({ game: z.string() }),
     run: async (input, ctx) => ctx.db((db) => readGameState(db, input.game)),
+  });
+
+  addCommand(program, ctx, {
+    name: "view",
+    group: GROUP,
+    summary: "读取一局的观看者投影（默认玩家操控的角色）",
+    options: [gameOption(), optionalOption("--actor <ref>", "换一个观看者，默认主角")],
+    schema: z.object({ game: z.string(), actor: z.string().trim().min(1).optional() }),
+    run: async (input, ctx) => ctx.db((db) => readActorView(db, input.game, input.actor)),
   });
 
   addCommand(program, ctx, {

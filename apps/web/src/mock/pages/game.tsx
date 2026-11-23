@@ -4,7 +4,7 @@ import { type GameMockState, gameFixtures } from "../fixtures/game";
 
 export const gameMock = defineMockPage<GameMockState>({
   key: "game",
-  title: "局内（占位）",
+  title: "局内",
   fixtures: gameFixtures,
-  render: (state) => <GamePage data={gameFixtures[state]} />,
+  render: (state) => <GamePage view={gameFixtures[state]} />,
 });
