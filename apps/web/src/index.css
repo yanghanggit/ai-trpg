@@ -51,6 +51,8 @@ code {
 
 .launch__inner {
   width: min(720px, 100%);
+  /* grid 项默认 min-width:auto，会被里面最长的行（如原始 state 的 JSON）撑破页面。 */
+  min-width: 0;
 }
 
 .launch__header {
@@ -320,6 +322,9 @@ code {
   font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
   font-size: 12px;
   line-height: 1.6;
+  /* JSON 里有几千字符的长行，换成换行 + 任意断词，避免横向撑出几百屏。 */
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
 }
 
 .launch__eyebrow a {

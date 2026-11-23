@@ -285,7 +285,8 @@ function clickExpression(label: string): string {
       }
       return clone.textContent.trim();
     };
-    const buttons = [...document.querySelectorAll("button")];
+    // 折叠面板（<summary>）也算可点目标：排查时经常要展开 <details> 再截图。
+    const buttons = [...document.querySelectorAll("button, summary")];
     const hit = buttons.findLast(
       (button) =>
         button.getAttribute("aria-label") === wanted ||
