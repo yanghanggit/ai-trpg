@@ -11,6 +11,8 @@
 
 目标拓扑是「客户端 ⇄ 业务服务端 ⇄ PostgreSQL」。`agent:game` 与 HTTP 路由复用同一组编排；服务端不保留跨请求的权威世界对象。
 
+→ 参见：[客户端页面与 mock 目录](web-client.md)
+
 → 参见：[开发规范](conventions.md)
 
 ## 分层与依赖方向

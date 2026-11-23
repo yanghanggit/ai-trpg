@@ -1,0 +1,46 @@
+/* 只被 mock 入口引用：正式产物里不会出现这些样式。 */
+
+/* mock 入口的顶部切换条：只在 dev 页面出现，不参与正式布局。 */
+.mock-bar {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 16px;
+  border-bottom: 1px solid var(--line);
+  background: rgb(11 15 20 / 95%);
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.mock-bar strong {
+  color: var(--text);
+  font-size: 13px;
+}
+
+.mock-bar__state {
+  padding: 2px 9px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+}
+
+.mock-bar__link {
+  padding: 3px 9px;
+  border: 1px solid transparent;
+  border-radius: 999px;
+  color: var(--muted);
+  text-decoration: none;
+}
+
+.mock-bar__link:hover {
+  border-color: var(--line);
+  color: var(--text);
+}
+
+.mock-bar__link--active {
+  border-color: var(--accent);
+  color: var(--accent);
+}

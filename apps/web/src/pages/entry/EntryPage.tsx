@@ -1,42 +1,37 @@
 import { useState } from "react";
-import { useNavigate } from "react-router";
-import { describeApiError } from "../api/describeApiError";
-import ServerConnectionCard from "../features/connection/ServerConnectionCard";
-import { readGameFacts } from "../features/games/gameState";
-import { useContentPacks } from "../features/games/useContentPacks";
-import { useCreateGame } from "../features/games/useCreateGame";
-import { useMe } from "../features/identity/useMe";
+import { describeApiError } from "../../api/describeApiError";
+import type { CreateGameHandler, EntryPageData } from "./types";
 
-export default function EntryPage() {
-  const navigate = useNavigate();
-  const me = useMe();
-  const packs = useContentPacks();
-  const createGame = useCreateGame();
+type Props = {
+  data: EntryPageData;
+  onCreate: CreateGameHandler;
+};
 
+/** 入口页：只吃数据与一个建局回调，不直接触网。 */
+export default function EntryPage({ data, onCreate }: Props) {
   const [seed, setSeed] = useState("");
   const [slug, setSlug] = useState("");
+  const [pending, setPending] = useState(false);
+  const [error, setError] = useState<string | undefined>(undefined);
 
-  const packList = packs.data ?? [];
-  const selectedSeed = seed === "" ? (packList[0] ?? "") : seed;
-  const canSubmit = selectedSeed !== "" && !createGame.isPending;
+  const packs = data.packs ?? [];
+  const selectedSeed = seed === "" ? (packs[0] ?? "") : seed;
+  const canSubmit = selectedSeed !== "" && !pending && data.packsError === undefined;
 
-  function handleSubmit(event: React.FormEvent) {
+  async function handleSubmit(event: React.FormEvent) {
     event.preventDefault();
     if (!canSubmit) {
       return;
     }
-    createGame.mutate(
-      { seed: selectedSeed, slug: slug.trim() },
-      {
-        onSuccess: (state) => {
-          const created = readGameFacts(state).slug;
-          if (created === undefined) {
-            return;
-          }
-          navigate(`/g/${encodeURIComponent(created)}`);
-        },
-      },
-    );
+    setPending(true);
+    setError(undefined);
+    try {
+      await onCreate({ seed: selectedSeed, slug: slug.trim() });
+    } catch (caught) {
+      setError(describeApiError(caught));
+    } finally {
+      setPending(false);
+    }
   }
 
   return (
@@ -53,17 +48,19 @@ export default function EntryPage() {
             <div>
               <dt>身份</dt>
               <dd>
-                {me.data === undefined ? "…" : `${me.data.username}（${me.data.displayName}）`}
+                {data.identity === undefined
+                  ? "…"
+                  : `${data.identity.username}（${data.identity.displayName}）`}
               </dd>
             </div>
             <div>
               <dt>内容包</dt>
               <dd>
-                {packs.isPending
-                  ? "读取中…"
-                  : packs.isError
-                    ? describeApiError(packs.error)
-                    : `${packList.length} 个`}
+                {data.packsError !== undefined
+                  ? data.packsError
+                  : data.packs === undefined
+                    ? "读取中…"
+                    : `${data.packs.length} 个`}
               </dd>
             </div>
           </dl>
@@ -74,9 +71,9 @@ export default function EntryPage() {
               <select
                 value={selectedSeed}
                 onChange={(event) => setSeed(event.target.value)}
-                disabled={packList.length === 0}
+                disabled={packs.length === 0}
               >
-                {packList.map((pack) => (
+                {packs.map((pack) => (
                   <option key={pack} value={pack}>
                     {pack}
                   </option>
@@ -95,22 +92,17 @@ export default function EntryPage() {
               />
             </label>
 
-            {createGame.isError ? (
+            {error === undefined ? null : (
               <p className="form-error" role="alert">
-                {describeApiError(createGame.error)}
+                {error}
               </p>
-            ) : null}
+            )}
 
             <button type="submit" className="button" disabled={!canSubmit}>
-              {createGame.isPending ? "建局中…" : "开始游戏"}
+              {pending ? "建局中…" : "开始游戏"}
             </button>
           </form>
         </section>
-
-        <details className="details">
-          <summary>连接详情</summary>
-          <ServerConnectionCard />
-        </details>
 
         <footer className="launch__footer">
           下一阶段：局内页面（回合、动作、事件流）。现在建局成功只会跳到占位页。

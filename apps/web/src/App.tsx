@@ -1,12 +1,12 @@
 import { Navigate, Route, Routes } from "react-router";
-import EntryPage from "./pages/EntryPage";
-import GamePage from "./pages/GamePage";
+import { pages } from "./pages/registry";
 
 export default function App() {
   return (
     <Routes>
-      <Route path="/" element={<EntryPage />} />
-      <Route path="/g/:slug" element={<GamePage />} />
+      {pages.map((page) => (
+        <Route key={page.key} path={page.path} element={<page.Route />} />
+      ))}
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
   );

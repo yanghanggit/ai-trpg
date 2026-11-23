@@ -11,12 +11,12 @@ const root = fileURLToPath(new URL("..", import.meta.url));
 const sharedFile = "packages/shared/src/index.ts";
 
 const sharedSource = readFileSync(path.join(root, sharedFile), "utf8");
-const ports = [...sharedSource.matchAll(/DEFAULT_(?:SERVER|WEB)_PORT\s*=\s*(\d+)/g)].map(
+const ports = [...sharedSource.matchAll(/DEFAULT_(?:SERVER|WEB|MOCK)_PORT\s*=\s*(\d+)/g)].map(
   (match) => match[1],
 );
 
-if (ports.length !== 2 || new Set(ports).size !== 2) {
-  console.error(`❌ 无法从 ${sharedFile} 读到两个不同的默认端口`);
+if (ports.length !== 3 || new Set(ports).size !== 3) {
+  console.error(`❌ 无法从 ${sharedFile} 读到三个不同的默认端口`);
   process.exit(1);
 }
 

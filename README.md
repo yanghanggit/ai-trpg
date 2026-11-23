@@ -50,6 +50,7 @@ pnpm dev
 | `pnpm dev`            | 生成契约后并行启动服务端与客户端                              |
 | `pnpm dev:server`     | 只启动服务端                                                  |
 | `pnpm dev:web`        | 只启动客户端                                                  |
+| `pnpm dev:mock`       | 只启动页面目录（mock，独立端口）；不需要服务端与数据库        |
 | `pnpm verify`         | install → 契约 → typecheck → lint → 测试 → 构建（不启动服务） |
 | `pnpm pipeline`       | `verify` 通过后直接进入 `pnpm dev`                            |
 | `pnpm test:run`       | 单次运行全部测试                                              |
@@ -79,6 +80,8 @@ pnpm dev
 **图像生成**：`pnpm image` 是独立 CLI，不启动服务端或数据库。stdout 只放结果：默认人类可读摘要，加 `--json` 输出稳定结构供 agent 消费；失败时 stdout 为空，错误以 `{ ok: false, error }` 写到 stderr（与日志同级）。退出码 0 成功、1 失败。设计与边界见 `docs/image-generation.md`，子命令以 `--help` 为准。
 
 **后台作业**：`pnpm job` 查看队列，`pnpm job:worker` 消费作业；HTTP 接入前都是独立工具，设计与边界见 `docs/background-jobs.md`。
+
+**页面目录（mock）**：`pnpm dev:mock` 在独立端口起一个入口，按「页面 × 状态」列出可直达的深链接；默认用 fixture 渲染，加 `source=api` 换成真数据。它不进生产构建，也不需要服务端——只有切到 `source=api` 时才需要 8787 在跑。约定见 `docs/web-client.md`。
 
 **截图**：`pnpm screenshot` 默认输出 `logs/screenshots/index-1280x900.png`，可用 `--size`、`--base`、`--click` 覆盖（`--click` 可点按钮与折叠面板的 `summary`）；脚本走 CDP 并等待 React 挂载，找不到 Chrome 时用 `CHROME_PATH` 指定。
 
