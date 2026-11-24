@@ -132,10 +132,27 @@ describe("agent-game CLI", () => {
     expect(jsonOf(noName).error).toContain("--name");
   });
 
-  it("npc 需要 --actor 或 --all", async () => {
-    const result = await run(["npc", "--game", "g"]);
-    expect(result.code).toBe(2);
-    expect(jsonOf(result).error).toContain("--all");
+  it("npc / stage / appearance 只吃显式名单，不再有 --all", async () => {
+    const none = await run(["npc", "--game", "g"]);
+    expect(none.code).toBe(2);
+    expect(jsonOf(none).error).toContain("--actor");
+
+    // `--all` 不再是名单的替代品：单给 `--all` 仍算缺名单，连名字给上则直接被当成未知参数。
+    const allOnly = await run(["npc", "--game", "g", "--all"]);
+    expect(allOnly.code).toBe(2);
+    expect(jsonOf(allOnly).error).toContain("--actor");
+
+    const allWithNames = await run(["npc", "--game", "g", "--actor", "a", "--all"]);
+    expect(allWithNames.code).toBe(2);
+    expect(jsonOf(allWithNames).error).toContain("unknown option '--all'");
+
+    const stage = await run(["stage", "--game", "g"]);
+    expect(stage.code).toBe(2);
+    expect(jsonOf(stage).error).toContain("--stage");
+
+    const appearance = await run(["appearance", "--game", "g"]);
+    expect(appearance.code).toBe(2);
+    expect(jsonOf(appearance).error).toContain("--actor");
   });
 
   it("trace 无子命令时默认 list", async () => {

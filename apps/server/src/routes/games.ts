@@ -67,10 +67,17 @@ const createBody = z.object({
   slug: z.string().trim().min(1).optional(),
 });
 
-const turnBody = z.object({
-  actor: z.string().trim().min(1).optional(),
-  stage: z.string().trim().min(1).optional(),
-  all: z.boolean().optional(),
+/** 回合推进只吃显式名单，没有「全部」：想推一群就把名字都列出来。 */
+const npcTurnBody = z.object({
+  actors: z.array(z.string().trim().min(1)).min(1, "需要至少一个 actor 名"),
+});
+
+const stageTurnBody = z.object({
+  stages: z.array(z.string().trim().min(1)).min(1, "需要至少一个 stageId 或 stageName"),
+});
+
+const appearanceTurnBody = z.object({
+  actors: z.array(z.string().trim().min(1)).min(1, "需要至少一个 actor 名"),
 });
 
 const probeBody = z.object({
@@ -445,17 +452,16 @@ export function createGameRoutes(db: () => Database): FastifyPluginAsyncZod {
       {
         schema: {
           tags: ["turns"],
-          summary: "推进一个 / 全部未被接管的 NPC 回合",
+          summary: "按给定名单逐个推进 NPC 回合",
           params: gameParams,
-          body: turnBody,
+          body: npcTurnBody,
           response: { 200: z.object({ results: resultsSchema }) },
         },
       },
       async (request) => {
         const user = await requireUser(db(), request);
         await requireGameAccess(db(), request.params.game, user);
-        const { stage: _stage, ...input } = request.body;
-        return advanceNpc(db(), request.params.game, input, {
+        return advanceNpc(db(), request.params.game, request.body, {
           ...services(),
           logger: request.log,
         });
@@ -467,17 +473,16 @@ export function createGameRoutes(db: () => Database): FastifyPluginAsyncZod {
       {
         schema: {
           tags: ["turns"],
-          summary: "推进一个 / 全部舞台回合",
+          summary: "按给定名单逐个推进舞台回合",
           params: gameParams,
-          body: turnBody,
+          body: stageTurnBody,
           response: { 200: z.object({ results: resultsSchema }) },
         },
       },
       async (request) => {
         const user = await requireUser(db(), request);
         await requireGameAccess(db(), request.params.game, user);
-        const { actor: _actor, ...input } = request.body;
-        return advanceStage(db(), request.params.game, input, {
+        return advanceStage(db(), request.params.game, request.body, {
           ...services(),
           logger: request.log,
         });
@@ -509,17 +514,16 @@ export function createGameRoutes(db: () => Database): FastifyPluginAsyncZod {
       {
         schema: {
           tags: ["turns"],
-          summary: "重推外观描述",
+          summary: "按给定名单逐个重推外观",
           params: gameParams,
-          body: turnBody,
-          response: { 200: z.record(z.string(), z.unknown()) },
+          body: appearanceTurnBody,
+          response: { 200: z.object({ results: resultsSchema }) },
         },
       },
       async (request) => {
         const user = await requireUser(db(), request);
         await requireGameAccess(db(), request.params.game, user);
-        const { stage: _stage, ...input } = request.body;
-        return advanceAppearance(db(), request.params.game, input, {
+        return advanceAppearance(db(), request.params.game, request.body, {
           ...services(),
           logger: request.log,
         });

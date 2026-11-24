@@ -7,6 +7,7 @@
 
 import type { Database } from "../db/pool";
 import {
+  type AppearanceOutcome,
   createGame,
   findActorByName,
   findActorByRef,
@@ -14,7 +15,6 @@ import {
   isAlive,
   latestMessageSequence,
   listGameMessages,
-  listPlayerControlledActorIds,
   playerAnnounce,
   playerBrawl,
   playerCall,
@@ -37,7 +37,6 @@ import {
   playerUse,
   playerWait,
   playerWhisper,
-  rebuildAppearance,
   refreshCorpseAppearance,
   releaseActorControl,
   runActorTurn,
@@ -60,7 +59,6 @@ import type {
   StageTurnResult,
   WorldTurnResult,
 } from "../game/kernel/types";
-import { listActorsForAppearance } from "../game/persistence/actors";
 import type { World } from "../game/world-definition";
 import type { Logger } from "../logging";
 import type { PlayerActionRequest } from "./player-action";
@@ -381,9 +379,16 @@ function worldTurnOutput(result: WorldTurnResult): StageTurnOutput {
   };
 }
 
-export type NpcAdvanceInput = { actor?: string; all?: boolean };
+export type NpcAdvanceInput = { actors: readonly string[] };
 
-/** 推进模型决策的 actor 回合：点名一个，或按顺序遍历所有未被接管的活人。 */
+/**
+ * 按给定名单逐个推进模型决策的 actor 回合。
+ *
+ * 引擎不代选目标：推谁、推几个、按什么顺序，全读入参。这里没有「全部」开关，
+ * 想推一群就把名字都列出来——顺序、每人一轮模型调用、以及撞上已死或被接管的
+ * actor 会直接失败，都由调用方承担。重复的名字会去重（同一个 actor 跑两轮只会
+ * 白烧一次模型调用），除此之外不做任何筛选：漏给的人不会跑，点名的人一定跑。
+ */
 export async function advanceNpc(
   db: Database,
   gameRef: string,
@@ -395,24 +400,21 @@ export async function advanceNpc(
     inferenceService: services.inferenceService,
     ...(services.logger === undefined ? {} : { logger: services.logger }),
   };
-  if (!input.all && input.actor !== undefined) {
-    return { results: [actorTurnOutput(await runActorTurn(db, gameRef, input.actor, options))] };
-  }
-  const state = await getGameState(db, gameRef);
-  const controlled = new Set(await listPlayerControlledActorIds(db, state.game.id));
-  const actors = state.world.stages
-    .flatMap((stage) => stage.actors.filter(isAlive))
-    .filter((actor) => !controlled.has(actor.id));
   const results: ActorTurnOutput[] = [];
-  for (const actor of actors) {
-    results.push(actorTurnOutput(await runActorTurn(db, gameRef, actor.name, options)));
+  for (const actor of new Set(input.actors)) {
+    results.push(actorTurnOutput(await runActorTurn(db, gameRef, actor, options)));
   }
   return { results };
 }
 
-export type StageAdvanceInput = { stage?: string; all?: boolean };
+export type StageAdvanceInput = { stages: readonly string[] };
 
-/** 舞台回合：一次只推进一层，`all` 不级联到 world。 */
+/**
+ * 按给定名单逐个推进舞台回合。
+ *
+ * 与 `advanceNpc` 同一套取舍：舞台由名单决定，引擎不代选，也没有「全部」开关；
+ * 重复名字去重，名单里每个舞台都真的跑一轮。一次调用仍然只推这一层，不级联到 world。
+ */
 export async function advanceStage(
   db: Database,
   gameRef: string,
@@ -423,15 +425,9 @@ export async function advanceStage(
     service: services.service,
     ...(services.logger === undefined ? {} : { logger: services.logger }),
   };
-  if (!input.all && input.stage !== undefined) {
-    return {
-      results: [stageTurnOutput(await runStageTurn(db, gameRef, input.stage, options))],
-    };
-  }
-  const state = await getGameState(db, gameRef);
   const results: StageTurnOutput[] = [];
-  for (const stage of state.world.stages) {
-    results.push(stageTurnOutput(await runStageTurn(db, gameRef, stage.id, options)));
+  for (const stage of new Set(input.stages)) {
+    results.push(stageTurnOutput(await runStageTurn(db, gameRef, stage, options)));
   }
   return { results };
 }
@@ -448,70 +444,35 @@ export async function advanceWorld(
   return worldTurnOutput(result);
 }
 
-export type AppearanceInput = { actor?: string; all?: boolean };
+export type AppearanceInput = { actors: readonly string[] };
 
-export type AppearanceRefreshResult = {
-  /** 本次重推了外观的活人。 */
-  refreshed: string[];
-  /** 跳过的尸体：它们的外观由死亡阶段负责。 */
-  skippedCorpses: string[];
-};
+export type AppearanceResult = AppearanceOutcome & { actor: string };
 
 /**
- * 批量重推外观：活人各推一次，尸体一律跳过。
+ * 按给定名单逐个重推外观：名字决定走哪条路径——活人重算，尸体刷新尸体外观。
  *
- * 与 `agent-game appearance --all` 同一份语义：跳过是刻意的，尸体外观属于死亡阶段。
+ * 名单由调用方给，引擎不代选，也没有隐式的「跳过尸体」：点名一具尸体就真的会重推它。
+ * 这里也不顺手做死亡收尾——hp 归零后的掉活与宣布属于 `deaths`，两个入口刻意分开，
+ * 谁都不替对方多做一步。
  */
-export async function refreshAppearances(
-  db: Database,
-  gameId: string,
-  services: LlmServices,
-): Promise<AppearanceRefreshResult> {
-  const result: AppearanceRefreshResult = { refreshed: [], skippedCorpses: [] };
-  for (const row of await listActorsForAppearance(db, gameId)) {
-    if (row.hp <= 0) {
-      result.skippedCorpses.push(row.name);
-      continue;
-    }
-    const appearance = await rebuildAppearance(db, gameId, row.name, {
-      service: services.service,
-      ...(services.logger === undefined ? {} : { logger: services.logger }),
-    });
-    if (appearance.ok) {
-      result.refreshed.push(row.name);
-    } else {
-      services.logger?.warn(`外观重推失败: ${row.name}`);
-    }
-  }
-  return result;
-}
-
 export async function advanceAppearance(
   db: Database,
   gameRef: string,
   input: AppearanceInput,
   services: LlmServices,
-): Promise<
-  | (AppearanceRefreshResult & { deaths: DeathSettlement[] })
-  | { ok: boolean; actor: string; appearance: unknown }
-> {
-  if (input.all || input.actor === undefined) {
-    const state = await getGameState(db, gameRef);
-    const refreshed = await refreshAppearances(db, state.game.id, services);
-    const deaths: DeathSettlement[] = [];
-    for (const actor of await scanDeathsToSettle(db, state.game.id)) {
-      deaths.push(await settleDeath(db, state.game.id, actor, { service: services.service }));
-    }
-    return { ...refreshed, deaths };
-  }
-  const actorRef = input.actor;
+): Promise<{ results: AppearanceResult[] }> {
+  // 一次快照判生死：外观任务不改 hp，名单里每一条看的是同一份状态。
   const state = await getGameState(db, gameRef);
-  const target = findActorByName(state, actorRef).actor;
   const options = { service: services.service };
-  const result = isAlive(target)
-    ? await updateAppearance(db, gameRef, actorRef, options)
-    : await refreshCorpseAppearance(db, gameRef, actorRef, options);
-  return { ok: result.ok, actor: actorRef, appearance: result.appearance };
+  const results: AppearanceResult[] = [];
+  for (const actorRef of new Set(input.actors)) {
+    const target = findActorByName(state, actorRef).actor;
+    const result = isAlive(target)
+      ? await updateAppearance(db, gameRef, actorRef, options)
+      : await refreshCorpseAppearance(db, gameRef, actorRef, options);
+    results.push({ actor: actorRef, ...result });
+  }
+  return { results };
 }
 
 /** 对每个 hp 归零且未收尾的 actor 跑一次死亡阶段。 */

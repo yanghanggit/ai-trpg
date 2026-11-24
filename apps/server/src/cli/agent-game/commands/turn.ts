@@ -1,8 +1,12 @@
 /**
  * 回合推进：`npc` / `stage` / `world`，以及维护入口 `appearance` / `deaths`。
  *
- * 参数与帮助在这里，推进编排在 `game-ops`：一次命令推进一层，`--all` 只是按顺序
- * 遍历同一层，不级联到下一层。
+ * 参数与帮助在这里，推进编排在 `game-ops`：一次命令推进一层，不级联到下一层。
+ *
+ * `npc` / `stage` / `appearance` 只吃显式名单，没有 `--all`：引擎不代选目标，也不推荐
+ * 「一把推完」。想推一群就把名字都列出来——调用方自己承担后果：列表越长跑得越久、
+ * 每人一轮模型调用、中途撞上已死 / 已被接管 / 缺 memory 的实体会直接失败（已完成的
+ * 那几轮已经落账）。
  */
 
 import type { Command } from "commander";
@@ -15,43 +19,26 @@ import {
   advanceWorld,
   settleDeaths,
 } from "../../../game-ops";
-import { gameOption, gameRef, optionalActorOption, optionalOption } from "../../args";
+import { gameOption, gameRef, requiredOption } from "../../args";
 import { addCommand } from "../command";
 import type { CommandContext } from "../context";
 
 const GROUP = "回合推进";
 
-const allOption = () => optionalOption("--all", "对同类实体逐个执行");
+const npcInput = z.object({
+  game: gameRef,
+  actor: z.array(z.string().trim().min(1)).min(1, "需要至少一个 --actor <actorName>"),
+});
 
-const npcInput = z
-  .object({
-    game: gameRef,
-    actor: z.string().trim().min(1).optional(),
-    all: z.boolean().default(false),
-  })
-  .refine((input) => input.all || input.actor !== undefined, {
-    message: "npc 需要 --actor <actorName>，或使用 --all",
-  });
+const stageInput = z.object({
+  game: gameRef,
+  stage: z.array(z.string().trim().min(1)).min(1, "需要至少一个 --stage <stageId|stageName>"),
+});
 
-const stageInput = z
-  .object({
-    game: gameRef,
-    stage: z.string().trim().min(1).optional(),
-    all: z.boolean().default(false),
-  })
-  .refine((input) => input.all || input.stage !== undefined, {
-    message: "stage 需要 --stage <stageId|stageName>，或使用 --all",
-  });
-
-const appearanceInput = z
-  .object({
-    game: gameRef,
-    actor: z.string().trim().min(1).optional(),
-    all: z.boolean().default(false),
-  })
-  .refine((input) => input.all || input.actor !== undefined, {
-    message: "appearance 需要 --actor <actorName>，或使用 --all",
-  });
+const appearanceInput = z.object({
+  game: gameRef,
+  actor: z.array(z.string().trim().min(1)).min(1, "需要至少一个 --actor <actorName>"),
+});
 
 /** 回合类命令共用同一组依赖：计划与增量都走默认实例，日志走 stderr。 */
 function services(ctx: CommandContext) {
@@ -66,19 +53,27 @@ export function registerTurnCommands(program: Command, ctx: CommandContext): voi
   addCommand(program, ctx, {
     name: "npc",
     group: GROUP,
-    summary: "推进一个 / 全部未被接管的 NPC 回合",
-    options: [gameOption(), optionalActorOption(), allOption()],
+    summary: "按给定名单逐个推进 NPC 回合",
+    options: [
+      gameOption(),
+      requiredOption("--actor <names...>", "actor 名称，可重复用或一次给多个"),
+    ],
     schema: npcInput,
-    run: async (input, ctx) => ctx.db((db) => advanceNpc(db, input.game, input, services(ctx))),
+    run: async (input, ctx) =>
+      ctx.db((db) => advanceNpc(db, input.game, { actors: input.actor }, services(ctx))),
   });
 
   addCommand(program, ctx, {
     name: "stage",
     group: GROUP,
-    summary: "推进一个 / 全部舞台回合",
-    options: [gameOption(), optionalOption("--stage <ref>", "stageId 或 stageName"), allOption()],
+    summary: "按给定名单逐个推进舞台回合",
+    options: [
+      gameOption(),
+      requiredOption("--stage <refs...>", "stageId 或 stageName，可重复用或一次给多个"),
+    ],
     schema: stageInput,
-    run: async (input, ctx) => ctx.db((db) => advanceStage(db, input.game, input, services(ctx))),
+    run: async (input, ctx) =>
+      ctx.db((db) => advanceStage(db, input.game, { stages: input.stage }, services(ctx))),
   });
 
   addCommand(program, ctx, {
@@ -93,11 +88,14 @@ export function registerTurnCommands(program: Command, ctx: CommandContext): voi
   addCommand(program, ctx, {
     name: "appearance",
     group: GROUP,
-    summary: "重推外观描述",
-    options: [gameOption(), optionalActorOption(), allOption()],
+    summary: "按给定名单逐个重推外观（活人重算 / 尸体刷死亡外观）",
+    options: [
+      gameOption(),
+      requiredOption("--actor <names...>", "actor 名称，可重复用或一次给多个"),
+    ],
     schema: appearanceInput,
     run: async (input, ctx) =>
-      ctx.db((db) => advanceAppearance(db, input.game, input, services(ctx))),
+      ctx.db((db) => advanceAppearance(db, input.game, { actors: input.actor }, services(ctx))),
   });
 
   addCommand(program, ctx, {

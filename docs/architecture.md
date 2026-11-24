@@ -34,7 +34,7 @@
 
 `game/` 内部再分两层，判据是「谁驱动谁」而不是「属于哪个主题」：`game/kernel/` 放内容形状与文本渲染（`types`、`attributes`、`limits`、`addressing`、`observation-text`、`affixes`），零 I/O，除 `errors` 与 `memory/kinds` 外不 import 游戏模块；`game/agents/` 放吃世界宪法的那一组（三个回合、四个世界职能、三个旁路与 `bypass` 回路），只被外面驱动，反向调用只有结算、动作、台词准入与建局四组。分类判据与登记表见 [Agent 与工具](agents.md)。
 
-编排为什么单独一层：`agent:game` 与 HTTP 是同一件事的两个入口。各自拼流程，「`npc --all` 跳过谁」「这个动作要哪几个推理依赖」就会长出两份答案——玩法测试盯得住结算，盯不住编排。所以编排只在 `game-ops`，传输层只做搬运。
+编排为什么单独一层：`agent:game` 与 HTTP 是同一件事的两个入口。各自拼流程，「`npc` 该推进谁」「这个动作要哪几个推理依赖」就会长出两份答案——玩法测试盯得住结算，盯不住编排。所以编排只在 `game-ops`，传输层只做搬运。
 
 `agent:api` 是刻意的例外：它在另一个进程里，只能经过 HTTP 契约，因此不依赖 `game-ops`。它与 `agent:game` 的能力对齐来自「同名命令 ↔ 同一端点 ↔ 同一份编排」，不是共享代码。
 

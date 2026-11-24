@@ -22,7 +22,7 @@ import { describeStats } from "../src/game/agents/actor-turn";
 import { formatForm } from "../src/game/agents/appearance/form";
 import { loadAgentMemory } from "../src/game/memory";
 import { claimDeath } from "../src/game/persistence/deaths";
-import { refreshAppearances } from "../src/game-ops";
+import { advanceAppearance } from "../src/game-ops";
 import { ChatCompletionResult, type ChatCompletionService } from "../src/llm";
 import { declaredNames, failureReasons, settleAllDeaths } from "./death-settlement";
 
@@ -537,10 +537,10 @@ describe.skipIf(!testDatabaseUrl)("appearance maintenance", () => {
     await handle.pool.end();
   });
 
-  it("批量入口只重推活人，尸体留给死亡阶段", async () => {
+  it("显式名单：活人重算，点名尸体才刷尸体", async () => {
     const created = await createGame(handle.db, {
       username: DEMO_USER.username,
-      name: "批量外观测试局",
+      name: "外观名单测试局",
       world: TEST_WORLD,
     });
     const monk = created.world.stages
@@ -561,20 +561,43 @@ describe.skipIf(!testDatabaseUrl)("appearance maintenance", () => {
       .flatMap((stage) => stage.actors)
       .find((actor) => actor.name === "提灯修士")?.appearance;
 
-    // 批量维护：尸体一律跳过；其余活人各推一次。
-    const result = await refreshAppearances(handle.db, created.game.id, { service });
-    expect(result.skippedCorpses).toEqual(["提灯修士"]);
-    expect(result.refreshed).toEqual(["守烬人", "缄默抄经人"]);
-    // 已收尾的尸体不再宣布，也不会补一次外观。
-    const settled = await settleAllDeaths(handle.db, created.game.id, { service });
-    expect(declaredNames(settled)).toEqual([]);
+    // 只点名两个活人：各推一次，没点名的尸体一条记录都不动。
+    const alive = await advanceAppearance(
+      handle.db,
+      created.game.slug,
+      { actors: ["守烬人", "缄默抄经人"] },
+      { service },
+    );
+    expect(alive.results.map((result) => [result.actor, result.ok])).toEqual([
+      ["守烬人", true],
+      ["缄默抄经人", true],
+    ]);
     // 1（死亡收尾）+ 2（活人）= 3，没有第三次给尸体。
     expect(service.calls).toBe(3);
+    const untouched = (await getGameState(handle.db, created.game.slug)).world.stages
+      .flatMap((stage) => stage.actors)
+      .find((actor) => actor.name === "提灯修士")?.appearance;
+    expect(untouched?.id).toBe(corpseAppearance?.id);
+
+    // 点名尸体：它真的会走尸体外观，而不是被隐式跳过。
+    const corpse = await advanceAppearance(
+      handle.db,
+      created.game.slug,
+      { actors: ["提灯修士"] },
+      { service },
+    );
+    expect(corpse.results.map((result) => [result.actor, result.ok])).toEqual([["提灯修士", true]]);
+    expect(service.calls).toBe(4);
+
+    // 重推尸体不补宣布：已收尾的死人不会被 `deaths` 再扫描到。
+    const settled = await settleAllDeaths(handle.db, created.game.id, { service });
+    expect(declaredNames(settled)).toEqual([]);
+    expect(service.calls).toBe(4);
 
     const after = (await getGameState(handle.db, created.game.slug)).world.stages
       .flatMap((stage) => stage.actors)
       .find((actor) => actor.name === "提灯修士")?.appearance;
-    expect(after?.id).toBe(corpseAppearance?.id);
+    expect(after?.id).not.toBe(corpseAppearance?.id);
   });
 });
 

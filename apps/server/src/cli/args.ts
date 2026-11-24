@@ -66,7 +66,7 @@ export function actorOption(): Option {
 }
 
 /**
- * 与别的参数二选一的 `--actor`（`npc --all`、`probe --stage`、`memory --owner`）。
+ * 与别的参数二选一的 `--actor`（`probe`、`memory --owner`）。
  *
  * 必填性交给 zod 的 refine：commander 先报「required option」会把组合规则说丢。
  */

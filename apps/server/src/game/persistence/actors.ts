@@ -1,5 +1,5 @@
 import { and, eq } from "drizzle-orm";
-import { actors, stages, worlds } from "../../db/schema";
+import { actors, stages } from "../../db/schema";
 import { GameError } from "../errors";
 import type { ActorRow, ActorWithStageRow, Executor } from "./rows";
 
@@ -82,25 +82,6 @@ export async function loadActorByNameInStage(
 /** 读一个舞台里的全部 actor（含尸体）。 */
 export async function listStageActors(executor: Executor, stageId: string): Promise<ActorRow[]> {
   return executor.select().from(actors).where(eq(actors.stageId, stageId));
-}
-
-/** 本局全部 actor 的生命与收尾标记：批量外观维护据此决定谁要重推。 */
-export async function listActorsForAppearance(
-  executor: Executor,
-  gameId: string,
-): Promise<{ id: string; name: string; hp: number; deathSettledAt: Date | null }[]> {
-  return executor
-    .select({
-      id: actors.id,
-      name: actors.name,
-      hp: actors.hp,
-      deathSettledAt: actors.deathSettledAt,
-    })
-    .from(actors)
-    .innerJoin(stages, eq(actors.stageId, stages.id))
-    .innerJoin(worlds, eq(stages.worldId, worlds.id))
-    .where(eq(worlds.gameId, gameId))
-    .orderBy(actors.name);
 }
 
 /** 覆盖穿戴索引（槽位 → 道具名）。 */
