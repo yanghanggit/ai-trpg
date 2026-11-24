@@ -1,5 +1,10 @@
-import type { GameStateSlice, StageState } from "../kernel/types";
-import type { ViewerAnchor, ViewerGame } from "./types";
+import {
+  type GameStateSlice,
+  ITEM_KIND_LABELS,
+  type ItemState,
+  type StageState,
+} from "../kernel/types";
+import type { ViewerAnchor, ViewerGame, ViewerItem } from "./types";
 
 /**
  * 两个视图共用的小投影：游戏头与锚点列表。
@@ -23,10 +28,16 @@ export function viewerAnchors(stage: Pick<StageState, "anchors">): ViewerAnchor[
     key: anchor.key,
     label: anchor.label,
     ...(anchor.description === undefined ? {} : { description: anchor.description }),
-    items: anchor.items.map((item) => ({
-      name: item.name,
-      kind: item.kind,
-      description: item.description,
-    })),
+    items: anchor.items.map(viewerItemOf),
   }));
+}
+
+/** 道具的世界面：大类同时给枚举值与展示名，客户端不自己翻译。 */
+export function viewerItemOf(item: ItemState): ViewerItem {
+  return {
+    name: item.name,
+    kind: item.kind,
+    kindLabel: ITEM_KIND_LABELS[item.kind],
+    description: item.description,
+  };
 }

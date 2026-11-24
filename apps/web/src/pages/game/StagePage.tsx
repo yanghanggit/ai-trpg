@@ -3,14 +3,20 @@ import type { GameView } from "../../features/games/useGameView";
 import Dialog from "./Dialog";
 import ActorPanel from "./panels/ActorPanel";
 import AnchorPanel from "./panels/AnchorPanel";
+import InventoryPanel from "./panels/InventoryPanel";
 import MePanel from "./panels/MePanel";
 import PeoplePanel from "./panels/PeoplePanel";
 import PlacesPanel from "./panels/PlacesPanel";
 import StagePanel from "./panels/StagePanel";
 
-/** 打开的是哪一张浮窗。卡片与顶部按钮共用这一个状态。 */
+/**
+ * 打开的是哪一张浮窗。卡片与顶部按钮共用这一个状态。
+ *
+ * 浮窗是个栈：本人里点 inventory 会在它上面再开一层，关掉这一层退回去。
+ */
 type Sheet =
   | { kind: "me" }
+  | { kind: "inventory" }
   | { kind: "people" }
   | { kind: "places" }
   | { kind: "history" }
@@ -39,24 +45,75 @@ type StagePageProps = {
  * 描写类文本（环境、外观）都在浮窗里——那是给模型读的上下文，不是主页要铺的东西。
  */
 export default function StagePage({ view, renderHistory }: StagePageProps) {
-  const [sheet, setSheet] = useState<Sheet | null>(null);
+  const [sheets, setSheets] = useState<Sheet[]>([]);
   const { stage } = view;
-  const close = () => setSheet(null);
+  const open = (sheet: Sheet) => setSheets((stacked) => [...stacked, sheet]);
+  const close = () => setSheets((stacked) => stacked.slice(0, -1));
+
+  function renderSheet(sheet: Sheet, index: number) {
+    const key = `${index}-${sheet.kind}`;
+    switch (sheet.kind) {
+      case "me":
+        return (
+          <Dialog key={key} title="本人" onClose={close}>
+            <MePanel view={view} onOpenInventory={() => open({ kind: "inventory" })} />
+          </Dialog>
+        );
+      case "inventory":
+        return (
+          <Dialog key={key} title="背包" onClose={close} variant="inventory">
+            <InventoryPanel items={view.viewer.items} />
+          </Dialog>
+        );
+      case "people":
+        return (
+          <Dialog key={key} title="相识" onClose={close}>
+            <PeoplePanel view={view} />
+          </Dialog>
+        );
+      case "places":
+        return (
+          <Dialog key={key} title="行迹" onClose={close}>
+            <PlacesPanel view={view} />
+          </Dialog>
+        );
+      case "stage":
+        return (
+          <Dialog key={key} title={stage.name} onClose={close}>
+            <StagePanel view={view} />
+          </Dialog>
+        );
+      case "anchor":
+        return (
+          <Dialog key={key} title={sheet.anchor.label} onClose={close}>
+            <AnchorPanel anchor={sheet.anchor} />
+          </Dialog>
+        );
+      case "actor":
+        return (
+          <Dialog key={key} title={sheet.actor.name} onClose={close}>
+            <ActorPanel actor={sheet.actor} />
+          </Dialog>
+        );
+      case "history":
+        return renderHistory({ slug: view.game.slug, onClose: close });
+    }
+  }
 
   return (
     <main className="game">
       <nav className="game__bar">
         <div className="game__actions">
-          <button type="button" className="action" onClick={() => setSheet({ kind: "me" })}>
+          <button type="button" className="action" onClick={() => open({ kind: "me" })}>
             本人
           </button>
-          <button type="button" className="action" onClick={() => setSheet({ kind: "people" })}>
+          <button type="button" className="action" onClick={() => open({ kind: "people" })}>
             相识
           </button>
-          <button type="button" className="action" onClick={() => setSheet({ kind: "places" })}>
+          <button type="button" className="action" onClick={() => open({ kind: "places" })}>
             行迹
           </button>
-          <button type="button" className="action" onClick={() => setSheet({ kind: "history" })}>
+          <button type="button" className="action" onClick={() => open({ kind: "history" })}>
             记录
           </button>
         </div>
@@ -65,7 +122,7 @@ export default function StagePage({ view, renderHistory }: StagePageProps) {
       <section className="board" aria-label="当前舞台">
         <ul className="board__row">
           <li>
-            <button type="button" className="card" onClick={() => setSheet({ kind: "stage" })}>
+            <button type="button" className="card" onClick={() => open({ kind: "stage" })}>
               <span className="card__kind">舞台</span>
               <span className="card__title">{stage.name}</span>
               <span className="card__hint">
@@ -79,7 +136,7 @@ export default function StagePage({ view, renderHistory }: StagePageProps) {
               <button
                 type="button"
                 className="card"
-                onClick={() => setSheet({ kind: "anchor", anchor: item })}
+                onClick={() => open({ kind: "anchor", anchor: item })}
               >
                 <span className="card__kind">锚点</span>
                 <span className="card__title">{item.label}</span>
@@ -98,7 +155,7 @@ export default function StagePage({ view, renderHistory }: StagePageProps) {
                 type="button"
                 className={item.alive ? "card" : "card card--faded"}
                 onClick={() =>
-                  item.self ? setSheet({ kind: "me" }) : setSheet({ kind: "actor", actor: item })
+                  item.self ? open({ kind: "me" }) : open({ kind: "actor", actor: item })
                 }
               >
                 <span className="card__kind">{item.self ? "我" : "角色"}</span>
@@ -113,43 +170,7 @@ export default function StagePage({ view, renderHistory }: StagePageProps) {
         </ul>
       </section>
 
-      {sheet?.kind === "me" ? (
-        <Dialog title="本人" onClose={close}>
-          <MePanel view={view} />
-        </Dialog>
-      ) : null}
-
-      {sheet?.kind === "people" ? (
-        <Dialog title="相识" onClose={close}>
-          <PeoplePanel view={view} />
-        </Dialog>
-      ) : null}
-
-      {sheet?.kind === "places" ? (
-        <Dialog title="行迹" onClose={close}>
-          <PlacesPanel view={view} />
-        </Dialog>
-      ) : null}
-
-      {sheet?.kind === "stage" ? (
-        <Dialog title={stage.name} onClose={close}>
-          <StagePanel view={view} />
-        </Dialog>
-      ) : null}
-
-      {sheet?.kind === "anchor" ? (
-        <Dialog title={sheet.anchor.label} onClose={close}>
-          <AnchorPanel anchor={sheet.anchor} />
-        </Dialog>
-      ) : null}
-
-      {sheet?.kind === "actor" ? (
-        <Dialog title={sheet.actor.name} onClose={close}>
-          <ActorPanel actor={sheet.actor} />
-        </Dialog>
-      ) : null}
-
-      {sheet?.kind === "history" ? renderHistory({ slug: view.game.slug, onClose: close }) : null}
+      {sheets.map((sheet, index) => renderSheet(sheet, index))}
     </main>
   );
 }

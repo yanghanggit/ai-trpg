@@ -113,6 +113,32 @@ describe("StagePage", () => {
     expect(screen.queryByRole("dialog", { name: "本人" })).not.toBeInTheDocument();
   });
 
+  it("「本人」浮窗给出属性读数，并可从「背包」打开道具格", () => {
+    renderGame();
+
+    fireEvent.click(screen.getByRole("button", { name: "本人" }));
+    const me = screen.getByRole("dialog", { name: "本人" });
+    expect(within(me).getByText("9 / 12")).toBeInTheDocument();
+    expect(within(me).getByText("力量")).toBeInTheDocument();
+    // 顺时输出不上面板。
+    expect(within(me).queryByText("伤害")).not.toBeInTheDocument();
+
+    fireEvent.click(within(me).getByRole("button", { name: /背包/ }));
+
+    const bag = screen.getByRole("dialog", { name: "背包" });
+    // 5 件道具 + 3 个空格：格子数永远是 4 的倍数，最少两排。
+    expect(bag.querySelectorAll(".slot")).toHaveLength(8);
+    // 空格子自带 aria-hidden，所以只有真道具进无障碍树。
+    expect(within(bag).getAllByRole("listitem")).toHaveLength(5);
+    expect(within(bag).getByText("拾骨钩")).toBeInTheDocument();
+    expect(within(bag).getByText("武器")).toBeInTheDocument();
+
+    // 关掉「背包」退回「本人」，而不是一路关到底。
+    fireEvent.click(within(bag).getByRole("button", { name: "关闭" }));
+    expect(screen.queryByRole("dialog", { name: "背包" })).not.toBeInTheDocument();
+    expect(screen.getByRole("dialog", { name: "本人" })).toBeInTheDocument();
+  });
+
   it("「相识」浮窗给出名字表", () => {
     renderGame();
 

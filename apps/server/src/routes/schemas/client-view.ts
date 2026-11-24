@@ -17,8 +17,17 @@ import type { MessageState } from "../../game/kernel/types";
 const viewerItemSchema = zod.object({
   name: zod.string(),
   kind: zod.string(),
+  kindLabel: zod.string(),
   description: zod.string(),
 });
+
+const viewerStatSchema = zod
+  .object({
+    key: zod.string(),
+    label: zod.string(),
+    value: zod.number(),
+  })
+  .meta({ id: "ViewerStat" });
 
 const viewerAnchorSchema = zod.object({
   key: zod.string(),
@@ -88,6 +97,9 @@ export const actorViewSchema = zod
       name: zod.string(),
       appearance: zod.string(),
       concealed: zod.boolean(),
+      hp: zod.number(),
+      stats: zod.array(viewerStatSchema),
+      items: zod.array(viewerItemSchema),
     }),
     stage: viewerStageSchema,
     names: zod.array(

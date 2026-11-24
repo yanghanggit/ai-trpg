@@ -729,3 +729,87 @@ code {
 .sheet__footer .muted {
   margin: 0;
 }
+
+/* inventory：固定面积。道具少时靠空格子撑住，多了才竖向滚动。 */
+.sheet--inventory {
+  width: min(640px, calc(100vw - 32px));
+  height: min(560px, calc(100vh - 96px));
+  display: flex;
+  flex-direction: column;
+}
+
+.sheet--inventory .sheet__body {
+  flex: 1;
+  max-height: none;
+  overflow-y: auto;
+}
+
+/* 四列网格；空格子与道具同尺寸，所以行数与面积不会随道具数量跳。 */
+.slots {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.slots > li {
+  display: flex;
+}
+
+/* 道具卡：与舞台/角色卡同一个比例（见 .card），只是尺寸小一档。 */
+.slot {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 4px;
+  aspect-ratio: 7 / 10;
+  padding: 10px 12px;
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: linear-gradient(180deg, var(--panel-soft), var(--panel));
+}
+
+.slot--empty {
+  border-style: dashed;
+  background: transparent;
+  opacity: 0.5;
+}
+
+.slot__kind {
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  color: var(--muted);
+}
+
+.slot__name {
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1.35;
+}
+
+.slot__note {
+  font-size: 11px;
+  line-height: 1.5;
+  color: var(--muted);
+}
+
+/* 浮窗里的小节标题：与 EntryPage 的 .panel h3 同一套排版。 */
+.group {
+  margin: 22px 0 0;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  color: var(--muted);
+  text-transform: uppercase;
+}
+
+.button__note {
+  margin-left: 8px;
+  font-size: 12px;
+  font-weight: 400;
+  opacity: 0.7;
+}

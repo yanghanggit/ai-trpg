@@ -70,6 +70,21 @@ describe.skipIf(!testDatabaseUrl)("actor view", () => {
     expect(odric?.name).toBe("奥德里克");
     expect(odric?.appearance.length).toBeGreaterThan(0);
 
+    // 自己的面板：生命、源属性现值、身上的道具，一次给全。
+    expect(view.viewer.hp).toBeGreaterThan(0);
+    expect(view.viewer.stats.map((stat) => stat.key)).toEqual([
+      "maxHp",
+      "strength",
+      "wisdom",
+      "agility",
+    ]);
+    expect(view.viewer.stats.find((stat) => stat.key === "maxHp")?.label).toBe("最大生命");
+    // 煤渣身上没东西，所以道具这一段用带道具的奥德里克验。
+    expect(view.viewer.items).toEqual([]);
+    const keeper = await getActorView(handle.db, created.game.slug, "奥德里克");
+    expect(keeper.viewer.items.length).toBeGreaterThan(0);
+    expect(keeper.viewer.items[0]?.kindLabel.length).toBeGreaterThan(0);
+
     // 不认识的：名字退回编号，外观照样给（外观里能认出裹尸布，名字却不知道）。
     const stranger = view.stage?.actors.find((actor) => actor.appearance.includes("裹尸布"));
     expect(stranger?.token).toMatch(/^#\d+$/);

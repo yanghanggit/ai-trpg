@@ -27,7 +27,23 @@ export type ViewerAddress = {
   alive: boolean;
 };
 
-export type ViewerItem = { name: string; kind: string; description: string };
+/** 一件道具的世界面：名字、大类（公共标签）与描述。 */
+export type ViewerItem = {
+  name: string;
+  /** 大类枚举值。 */
+  kind: string;
+  /** 大类的展示名；客户端不自己翻译枚举。 */
+  kindLabel: string;
+  description: string;
+};
+
+/**
+ * 一条属性读数。
+ *
+ * 只给源属性（本体 + 穿戴 + 状态效果）：`damage` / `block` 是结算期的顺时输出，
+ * 不进面板。`key` 是引擎字段名，`label` 是它的中文名，客户端不自己翻译。
+ */
+export type ViewerStat = { key: string; label: string; value: number };
 
 /** 锚点连它承载的道具一起给；道具不再有独立的扁平列表。 */
 export type ViewerAnchor = {
@@ -101,6 +117,12 @@ export type ActorView = {
     appearance: string;
     /** 自己是否处于隐匿；只有自己看得到这个状态。 */
     concealed: boolean;
+    /** 当前生命；上限在同名属性里（`maxHp`）。 */
+    hp: number;
+    /** 源属性现值，按展示顺序。 */
+    stats: ViewerStat[];
+    /** 身上的道具：自己看得见全部，包括不参与外观的那些。 */
+    items: ViewerItem[];
   };
   /** 角色所在的舞台；actor 一定属于某个舞台，所以这里不是可空引用。 */
   stage: ViewerStage;

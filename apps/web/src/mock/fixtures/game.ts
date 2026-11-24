@@ -22,6 +22,45 @@ const viewer = {
   name: "拾骨人伊莱",
   appearance: "裹着旧斗篷的人，手上全是骨粉",
   concealed: false,
+  hp: 9,
+  stats: [
+    { key: "maxHp", label: "最大生命", value: 12 },
+    { key: "strength", label: "力量", value: 4 },
+    { key: "wisdom", label: "智慧", value: 1 },
+    { key: "agility", label: "敏捷", value: 3 },
+  ],
+  items: [
+    {
+      name: "拾骨钩",
+      kind: "weapon",
+      kindLabel: "武器",
+      description: "弯钩磨得发亮，柄上缠着旧布条",
+    },
+    {
+      name: "旧骨哨",
+      kind: "accessory",
+      kindLabel: "饰品",
+      description: "吹起来像鸟叫",
+    },
+    {
+      name: "半截蜡烛",
+      kind: "consumable",
+      kindLabel: "消耗品",
+      description: "还能烧一个时辰",
+    },
+    {
+      name: "锈铁扣",
+      kind: "material",
+      kindLabel: "材料",
+      description: "不知道从哪件衣服上掉下来的",
+    },
+    {
+      name: "塔门钥匙",
+      kind: "valuable",
+      kindLabel: "贵重品",
+      description: "铜的，齿口磨平了一半",
+    },
+  ],
 };
 
 export const gameFixtures = {
@@ -38,7 +77,14 @@ export const gameFixtures = {
           key: "pole",
           label: "最高的木杆",
           description: "杆上挂着褪色的布条",
-          items: [{ name: "旧骨哨", kind: "accessory", description: "吹起来像鸟叫" }],
+          items: [
+            {
+              name: "旧骨哨",
+              kind: "accessory",
+              kindLabel: "饰品",
+              description: "吹起来像鸟叫",
+            },
+          ],
         },
         { key: "pit", label: "新挖的坑", items: [] },
       ],

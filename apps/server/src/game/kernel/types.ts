@@ -13,6 +13,16 @@ export type ItemKind =
   | "valuable"
   | "material";
 
+/** 道具大类的展示名；枚举改了这里跟着变，渲染与契约都读这一份。 */
+export const ITEM_KIND_LABELS: Record<ItemKind, string> = {
+  weapon: "武器",
+  equipment: "装备",
+  accessory: "饰品",
+  consumable: "消耗品",
+  valuable: "贵重品",
+  material: "材料",
+};
+
 /**
  * actor 的穿戴槽：槽里只记录道具名，道具自身不知道被谁穿戴。
  * 开发期只保留一武器、一护甲（合并副手/头/身体/足部）、一饰品。

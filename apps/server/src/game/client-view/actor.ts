@@ -7,13 +7,15 @@ import {
   visitedStagesForActor,
 } from "../actor-state";
 import { getGameStateSlice } from "../game-state";
+import { effectiveSourcesOf } from "../gameplay/effective";
 import { addressLookupFor, handleOf, nameOf } from "../kernel/addressing";
-import type { GameStateSlice } from "../kernel/types";
+import { SOURCE_STAT_KEYS, STAT_LABELS } from "../kernel/attributes";
+import type { ActorState, GameStateSlice } from "../kernel/types";
 import { getMemoryState } from "../memory";
 import { adjacentStages } from "../stage-state";
 import { actorLog } from "./log";
-import { gameOf, viewerAnchors } from "./project";
-import type { ActorLogView, ActorView, ViewerAddress, ViewerName } from "./types";
+import { gameOf, viewerAnchors, viewerItemOf } from "./project";
+import type { ActorLogView, ActorView, ViewerAddress, ViewerName, ViewerStat } from "./types";
 
 /**
  * 一个 actor 看到的世界面：他自己的舞台、名单、出口、记忆日志。
@@ -82,6 +84,10 @@ export async function getActorView(
       name: actor.name,
       appearance: actor.appearance.text,
       concealed: actor.concealed,
+      hp: actor.hp,
+      // 源属性现值：本体 + 穿戴 + 状态效果。顺时输出（伤害、格挡）不上面板。
+      stats: statPanelOf(actor),
+      items: actor.items.map(viewerItemOf),
     },
     stage: {
       id: stage.id,
@@ -119,4 +125,14 @@ export async function getActorLog(
     owner: { actorId: actor.id, name: actor.name },
     entries: actorLog(memory?.messages ?? []),
   };
+}
+
+/** 面板读数：只取源属性，顺序与 `STAT_KEYS` 一致。 */
+function statPanelOf(actor: ActorState): ViewerStat[] {
+  const sources = effectiveSourcesOf(actor);
+  return SOURCE_STAT_KEYS.map((key) => ({
+    key,
+    label: STAT_LABELS[key],
+    value: sources[key],
+  }));
 }

@@ -5,7 +5,7 @@
 - `@ai-trpg/server`：路由、校验、事务与业务规则；`game` 服务层承载 game 聚合，状态真相在 PostgreSQL。
 - `@ai-trpg/web`：页面与交互。
 - `@ai-trpg/api-client`：契约层，生成的类型、`openapi-fetch` 客户端与错误适配。
-- `@ai-trpg/shared`：跨端稳定事实，只放服务名、API 版本、默认端口。
+- `@ai-trpg/shared`：跨端稳定事实，只放服务名、API 版本、默认端口。准入判据是「第一次请求之前两端必须一致」：需要出现在响应里的走契约——值随响应下发，客户端读生成类型而不是 import 引擎；只有不必下发、两端又都要算的（端口、版本、URL 拼装）才放这里。领域词表属于前者：属性名、道具大类这类文案以 `label` 字段下发，搬进共享包会让 `shared` 反过来依赖引擎，客户端的「只看得见投影」也就破了。
 
 依赖方向：`web` 依赖 `api-client` 与 `shared`，`server` 依赖 `shared`，反向不允许。两者直接导出 TypeScript 源码，由 Vite、tsx、tsup 转译，骨架阶段不引入独立构建。
 

@@ -4,6 +4,8 @@ type DialogProps = {
   title: string;
   onClose: () => void;
   children: ReactNode;
+  /** 尺寸变体：内容需要固定面积时用（如 inventory 的网格）。 */
+  variant?: "inventory";
 };
 
 /**
@@ -12,7 +14,7 @@ type DialogProps = {
  * 用原生元素而不是自绘遮罩，是因为焦点陷阱、ESC 关闭与 `::backdrop` 都由浏览器给，
  * 自绘一套只会少几样。jsdom 还没实现 `showModal`，那里退化成 `open` 属性（不影响查询）。
  */
-export default function Dialog({ title, onClose, children }: DialogProps) {
+export default function Dialog({ title, onClose, children, variant }: DialogProps) {
   const ref = useRef<HTMLDialogElement>(null);
 
   useEffect(() => {
@@ -38,7 +40,7 @@ export default function Dialog({ title, onClose, children }: DialogProps) {
     // biome-ignore lint/a11y/useKeyWithClickEvents: 点遮罩关闭是鼠标的便利；键盘走 ESC（原生 cancel）。
     <dialog
       ref={ref}
-      className="sheet"
+      className={variant === undefined ? "sheet" : `sheet sheet--${variant}`}
       aria-label={title}
       // 只认「用户主动关闭」的三个入口：关闭按钮、点遮罩、按 ESC。
       // 不监听 `close` 事件——卸载时我们也会 close()，那个事件会把「自己关掉的」
