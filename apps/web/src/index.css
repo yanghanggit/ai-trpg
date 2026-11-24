@@ -342,55 +342,6 @@ code {
   color: var(--muted);
 }
 
-/* 竖向列表：一行一个可点的条目（行迹用它）。 */
-.stack {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  margin: 12px 0 0;
-  padding: 0;
-  list-style: none;
-}
-
-.stack__item {
-  display: flex;
-  flex-direction: column;
-  gap: 3px;
-  width: 100%;
-  padding: 12px 14px;
-  border: 1px solid var(--line);
-  border-radius: 10px;
-  background: var(--panel);
-  color: var(--text);
-  font: inherit;
-  font-size: 14px;
-  text-align: left;
-  cursor: pointer;
-}
-
-.stack__name {
-  font-size: 14px;
-}
-
-.stack__note {
-  font-size: 12px;
-  color: var(--muted);
-}
-
-.stack__item--faded .stack__name {
-  color: var(--muted);
-}
-
-.stack__item:hover {
-  border-color: var(--accent);
-  color: var(--accent);
-}
-
-.stack__item:focus-visible {
-  outline: 2px solid var(--accent);
-  outline-offset: 2px;
-}
-
 .panel h2 {
   margin: 0;
   font-size: 17px;
@@ -469,10 +420,77 @@ code {
 .game__bar {
   display: flex;
   align-items: center;
-  justify-content: flex-end;
-  gap: 10px;
+  justify-content: space-between;
+  gap: 16px;
   padding-bottom: 18px;
   border-bottom: 1px solid var(--line);
+}
+
+/* 左上角：头像 + 读数。头像就是「本人」的入口，读数常驻，不点也能看见。 */
+.game__identity {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.avatar {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 46px;
+  height: 46px;
+  border: 1px solid var(--line);
+  border-radius: 50%;
+  background: radial-gradient(circle at 32% 26%, #3d3529, #17181a 72%);
+  color: var(--accent);
+  font: inherit;
+  font-size: 17px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.avatar:hover {
+  border-color: var(--accent);
+}
+
+.avatar:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.vitals {
+  display: flex;
+  align-items: baseline;
+  gap: 20px;
+  margin: 0;
+}
+
+.vitals > div {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+}
+
+.vitals dt {
+  font-size: 12px;
+  letter-spacing: 0.04em;
+  color: var(--muted);
+}
+
+.vitals dd {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.vitals__hp dd {
+  color: var(--accent);
+}
+
+.vitals__max {
+  font-size: 12px;
+  font-weight: 400;
+  color: var(--muted);
 }
 
 .game__actions {
@@ -572,10 +590,30 @@ code {
 }
 
 .card__hint {
+  display: flex;
+  flex-direction: column;
+  /* 各占一行，但不拉满：`code` 的背景要贴着字。 */
+  align-items: flex-start;
+  gap: 3px;
   margin-top: auto;
   font-size: 12px;
   line-height: 1.5;
   color: var(--muted);
+}
+
+/* 卡面上的计数：这是要一眼看见的东西，比提示文字更亮一档。 */
+.card__count {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--accent);
+}
+
+/* 卡面上的摘要：多出几行就裁掉，全文在浮窗里。 */
+.card__line--clamp {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 4;
+  overflow: hidden;
 }
 
 .card__hint code {
@@ -730,15 +768,20 @@ code {
   margin: 0;
 }
 
-/* inventory：固定面积。道具少时靠空格子撑住，多了才竖向滚动。 */
-.sheet--inventory {
+/* 网格浮窗统一宽度，卡片尺寸才在各浮窗之间一致；锚点与舞台带描述，所以高度随内容。 */
+.sheet--grid,
+.sheet--gridfill {
   width: min(640px, calc(100vw - 32px));
+}
+
+/* 纯网格：固定面积。条目少时靠空格子撑住，多了才竖向滚动。 */
+.sheet--gridfill {
   height: min(560px, calc(100vh - 96px));
   display: flex;
   flex-direction: column;
 }
 
-.sheet--inventory .sheet__body {
+.sheet--gridfill .sheet__body {
   flex: 1;
   max-height: none;
   overflow-y: auto;
@@ -772,6 +815,27 @@ code {
   background: linear-gradient(180deg, var(--panel-soft), var(--panel));
 }
 
+.slot--action {
+  color: var(--text);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.slot--action:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.slot--action:hover .slot__note {
+  color: inherit;
+}
+
+.slot--action:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
 .slot--empty {
   border-style: dashed;
   background: transparent;
@@ -797,19 +861,18 @@ code {
   color: var(--muted);
 }
 
-/* 浮窗里的小节标题：与 EntryPage 的 .panel h3 同一套排版。 */
-.group {
-  margin: 22px 0 0;
-  font-size: 12px;
-  font-weight: 600;
-  letter-spacing: 0.08em;
+/* 封着的出口：与 .card--faded 同一套处理，名字降级但不消失。 */
+.slot--faded .slot__name {
   color: var(--muted);
-  text-transform: uppercase;
 }
 
-.button__note {
-  margin-left: 8px;
-  font-size: 12px;
-  font-weight: 400;
-  opacity: 0.7;
+/* 浮窗里的小节标题：与 EntryPage 的 .panel h3 同一套排版。 */
+/* 一行读数：属性这种「标签 + 多个数字」的东西不摊成一张表。 */
+.readout {
+  color: var(--muted);
+}
+
+.readout b,
+.readout strong {
+  color: var(--text);
 }

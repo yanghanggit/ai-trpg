@@ -1,18 +1,12 @@
 import type { GameView } from "../../../features/games/useGameView";
 
-type MePanelProps = {
-  view: GameView;
-  /** 打开 inventory（界面上叫「背包」）；自己那几件道具不铺在这里。 */
-  onOpenInventory: () => void;
-};
-
 /**
- * 「本人」：局的信息、角色明细、属性读数，以及通往 inventory 的入口。
+ * 「本人」：局的信息、角色明细与属性读数。
  *
  * 属性只列源属性现值（本体 + 穿戴 + 状态效果）；伤害、格挡是动手那一刻的顺时输出，
- * 不上面板。道具单独一个浮窗：数量不固定，需要自己的网格与滚动。
+ * 不上面板。道具在「背包」里，它有自己的一格网格入口。
  */
-export default function MePanel({ view, onOpenInventory }: MePanelProps) {
+export default function MePanel({ view }: { view: GameView }) {
   const { game, viewer, stage } = view;
   const self = stage.actors.find((actor) => actor.self);
   const maxHp = viewer.stats.find((stat) => stat.key === "maxHp")?.value ?? 0;
@@ -56,30 +50,23 @@ export default function MePanel({ view, onOpenInventory }: MePanelProps) {
           <dt>外观</dt>
           <dd>{viewer.appearance}</dd>
         </div>
-      </dl>
-
-      <h3 className="group">属性</h3>
-      <dl className="rows">
         <div>
-          <dt>生命</dt>
-          <dd>
-            {viewer.hp} / {maxHp}
-          </dd>
+          {/* 顶部条上已经有这组读数，这里压成一行，只为回看时不用抬头。 */}
+          <dt>属性</dt>
+          <dd className="readout">{readoutOf(viewer, maxHp)}</dd>
         </div>
-        {viewer.stats
-          .filter((stat) => stat.key !== "maxHp")
-          .map((stat) => (
-            <div key={stat.key}>
-              <dt>{stat.label}</dt>
-              <dd>{stat.value}</dd>
-            </div>
-          ))}
       </dl>
-
-      <button type="button" className="button" onClick={onOpenInventory}>
-        背包
-        <span className="button__note">{viewer.items.length} 件</span>
-      </button>
     </>
   );
+}
+
+/** 一行读数：`生命 9 / 12 · 力量 4 · …`；顺序跟引擎给的属性顺序走。 */
+function readoutOf(viewer: GameView["viewer"], maxHp: number): string {
+  const parts = [`生命 ${viewer.hp} / ${maxHp}`];
+  for (const stat of viewer.stats) {
+    if (stat.key !== "maxHp") {
+      parts.push(`${stat.label} ${stat.value}`);
+    }
+  }
+  return parts.join(" · ");
 }

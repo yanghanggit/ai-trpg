@@ -4,8 +4,11 @@ type DialogProps = {
   title: string;
   onClose: () => void;
   children: ReactNode;
-  /** 尺寸变体：内容需要固定面积时用（如 inventory 的网格）。 */
-  variant?: "inventory";
+  /**
+   * 尺寸变体：`grid` 只统一宽度（锚点这种带描述的浮窗用），
+   * `gridfill` 再加一个固定高度（纯网格：背包、行迹、相识）。
+   */
+  variant?: "grid" | "gridfill";
 };
 
 /**

@@ -33,6 +33,12 @@ type StagePageProps = {
   renderHistory: (args: { slug: string; onClose: () => void }) => ReactNode;
 };
 
+/** 头像上的字：本名的第一个字（引号、括号里的部分不算）。 */
+function initialOf(name: string): string {
+  const plain = name.split(/[（(“"]/)[0]?.trim() ?? "";
+  return plain.slice(0, 1) || "?";
+}
+
 /**
  * 舞台页：一位观看者此刻所见的这一个舞台。只吃观看者投影，不取数、不读路由。
  *
@@ -45,54 +51,55 @@ type StagePageProps = {
  * 描写类文本（环境、外观）都在浮窗里——那是给模型读的上下文，不是主页要铺的东西。
  */
 export default function StagePage({ view, renderHistory }: StagePageProps) {
-  const [sheets, setSheets] = useState<Sheet[]>([]);
-  const { stage } = view;
-  const open = (sheet: Sheet) => setSheets((stacked) => [...stacked, sheet]);
-  const close = () => setSheets((stacked) => stacked.slice(0, -1));
+  const [sheet, setSheet] = useState<Sheet | null>(null);
+  const { stage, viewer } = view;
+  const maxHp = viewer.stats.find((stat) => stat.key === "maxHp")?.value ?? 0;
+  const open = (next: Sheet) => setSheet(next);
+  const close = () => setSheet(null);
 
-  function renderSheet(sheet: Sheet, index: number) {
-    const key = `${index}-${sheet.kind}`;
-    switch (sheet.kind) {
+  function renderSheet(opened: Sheet) {
+    const key = opened.kind;
+    switch (opened.kind) {
       case "me":
         return (
           <Dialog key={key} title="本人" onClose={close}>
-            <MePanel view={view} onOpenInventory={() => open({ kind: "inventory" })} />
+            <MePanel view={view} />
           </Dialog>
         );
       case "inventory":
         return (
-          <Dialog key={key} title="背包" onClose={close} variant="inventory">
+          <Dialog key={key} title="背包" onClose={close} variant="gridfill">
             <InventoryPanel items={view.viewer.items} />
           </Dialog>
         );
       case "people":
         return (
-          <Dialog key={key} title="相识" onClose={close}>
+          <Dialog key={key} title="相识" onClose={close} variant="gridfill">
             <PeoplePanel view={view} />
           </Dialog>
         );
       case "places":
         return (
-          <Dialog key={key} title="行迹" onClose={close}>
+          <Dialog key={key} title="行迹" onClose={close} variant="gridfill">
             <PlacesPanel view={view} />
           </Dialog>
         );
       case "stage":
         return (
-          <Dialog key={key} title={stage.name} onClose={close}>
+          <Dialog key={key} title={stage.name} onClose={close} variant="gridfill">
             <StagePanel view={view} />
           </Dialog>
         );
       case "anchor":
         return (
-          <Dialog key={key} title={sheet.anchor.label} onClose={close}>
-            <AnchorPanel anchor={sheet.anchor} />
+          <Dialog key={key} title={opened.anchor.label} onClose={close} variant="gridfill">
+            <AnchorPanel anchor={opened.anchor} />
           </Dialog>
         );
       case "actor":
         return (
-          <Dialog key={key} title={sheet.actor.name} onClose={close}>
-            <ActorPanel actor={sheet.actor} />
+          <Dialog key={key} title={opened.actor.name} onClose={close}>
+            <ActorPanel actor={opened.actor} />
           </Dialog>
         );
       case "history":
@@ -103,9 +110,37 @@ export default function StagePage({ view, renderHistory }: StagePageProps) {
   return (
     <main className="game">
       <nav className="game__bar">
+        <div className="game__identity">
+          <button
+            type="button"
+            className="avatar"
+            aria-label="本人"
+            onClick={() => open({ kind: "me" })}
+          >
+            <span aria-hidden="true">{initialOf(viewer.name)}</span>
+          </button>
+          <dl className="vitals">
+            <div className="vitals__hp">
+              <dt>生命</dt>
+              <dd>
+                {viewer.hp}
+                <span className="vitals__max"> / {maxHp}</span>
+              </dd>
+            </div>
+            {viewer.stats
+              .filter((stat) => stat.key !== "maxHp")
+              .map((stat) => (
+                <div key={stat.key}>
+                  <dt>{stat.label}</dt>
+                  <dd>{stat.value}</dd>
+                </div>
+              ))}
+          </dl>
+        </div>
+
         <div className="game__actions">
-          <button type="button" className="action" onClick={() => open({ kind: "me" })}>
-            本人
+          <button type="button" className="action" onClick={() => open({ kind: "inventory" })}>
+            背包
           </button>
           <button type="button" className="action" onClick={() => open({ kind: "people" })}>
             相识
@@ -126,7 +161,11 @@ export default function StagePage({ view, renderHistory }: StagePageProps) {
               <span className="card__kind">舞台</span>
               <span className="card__title">{stage.name}</span>
               <span className="card__hint">
-                锚点 {stage.anchors.length} · 出口 {stage.exits.length + stage.sealedExits.length}
+                {/* 环境原文可能是整段（真实数据两百多字），卡面只放开头几行当摘要。 */}
+                <span className="card__line card__line--clamp">{stage.environment}</span>
+                <span className="card__line card__count">
+                  出口 {stage.exits.length + stage.sealedExits.length}
+                </span>
               </span>
             </button>
           </li>
@@ -141,7 +180,14 @@ export default function StagePage({ view, renderHistory }: StagePageProps) {
                 <span className="card__kind">锚点</span>
                 <span className="card__title">{item.label}</span>
                 <span className="card__hint">
-                  {item.items.length === 0 ? "空的" : item.items.map((i) => i.name).join("、")}
+                  {item.description === undefined ? null : (
+                    <span className="card__line">{item.description}</span>
+                  )}
+                  {item.items.length === 0 ? (
+                    <span className="card__line">空的</span>
+                  ) : (
+                    <span className="card__line card__count">道具 {item.items.length}</span>
+                  )}
                 </span>
               </button>
             </li>
@@ -170,7 +216,7 @@ export default function StagePage({ view, renderHistory }: StagePageProps) {
         </ul>
       </section>
 
-      {sheets.map((sheet, index) => renderSheet(sheet, index))}
+      {sheet === null ? null : renderSheet(sheet)}
     </main>
   );
 }

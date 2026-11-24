@@ -1,10 +1,12 @@
 import type { GameView } from "../../../features/games/useGameView";
+import SlotGrid from "./SlotGrid";
 
 /**
- * 「相识」：这个角色的认知账本——把谁当作谁。
+ * 「相识」：这个角色的认知账本——把谁当作谁，一格一个人。
  *
- * 名字不是地址：一行代表「这个签名，我叫他什么」；身份锚在签名编号上，
- * 所以同名、改名、只记得外观都能如实表达。
+ * 名字不是地址：一格里写的是「我叫他什么」，编号才是身份，所以两者都摆出来。
+ * 同名、改名、只记得外观都能如实表达；称呼来自哪个内容或哪次改名不回显，
+ * 那是引擎记账用的，看的人只关心结论。
  */
 export default function PeoplePanel({ view }: { view: GameView }) {
   const { names } = view;
@@ -14,39 +16,22 @@ export default function PeoplePanel({ view }: { view: GameView }) {
   }
 
   return (
-    <table className="table">
-      <thead>
-        <tr>
-          <th>我叫他</th>
-          <th>编号</th>
-          <th>形态</th>
-          <th>称呼来自</th>
-        </tr>
-      </thead>
-      <tbody>
-        {names.map((entry) => (
-          <tr key={entry.token}>
-            <td>{entry.name}</td>
-            <td>
+    <SlotGrid>
+      {names.map((entry) => (
+        <li key={entry.token}>
+          <button
+            type="button"
+            className="slot slot--action"
+            onClick={() => console.log("相识", entry.name, entry.token)}
+          >
+            <span className="slot__kind">
               <code>{entry.token}</code>
-            </td>
-            <td>{entry.form}</td>
-            <td>{describeOrigin(entry)}</td>
-          </tr>
-        ))}
-      </tbody>
-    </table>
+            </span>
+            <span className="slot__name">{entry.name}</span>
+            <span className="slot__note">{entry.form}</span>
+          </button>
+        </li>
+      ))}
+    </SlotGrid>
   );
-}
-
-/**
- * 称呼的来源。
- *
- * 一条称呼只有一行、改名会覆盖，所以这里说的是「上次下笔的地方」，不是第一次认得的时机。
- */
-function describeOrigin(entry: GameView["names"][number]): string {
-  if (entry.source === "content") {
-    return "内容预设";
-  }
-  return entry.learnedAt === null ? "你自己改的" : `在${entry.learnedAt}改的`;
 }

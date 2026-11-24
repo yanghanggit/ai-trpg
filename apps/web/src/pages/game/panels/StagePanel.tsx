@@ -1,13 +1,14 @@
 import type { GameView } from "../../../features/games/useGameView";
+import SlotGrid from "./SlotGrid";
 
 type Stage = GameView["stage"];
 type Exit = { stageId: string; name: string; ref: string | null; sealed: boolean };
 
 /**
- * 「舞台」浮窗：环境原文，以及从这里能去哪。
+ * 「舞台」浮窗：从这里能去哪。
  *
- * 环境这段文字是写给模型看的上下文，主页不铺它；客户端将来会用文生图表达，现在先按原样给人读。
- * 出口排在环境下面：走过去是一次动作提交（要判门、要过回合），现在点下去只打日志。
+ * 环境原文在主页那张卡上（那里已经写了开头几行），所以这里只剩出口。
+ * 出口是卡片，与道具同一套：走过去是一次动作提交（要判门、要过回合），现在点下去只打日志。
  */
 export default function StagePanel({ view }: { view: GameView }) {
   const { stage } = view;
@@ -15,31 +16,27 @@ export default function StagePanel({ view }: { view: GameView }) {
 
   return (
     <>
-      <p className="prose">{stage.environment}</p>
-      <p className="muted">
-        锚点 {stage.anchors.length} · 在场 {stage.actors.length} · 出口 {exits.length}
-      </p>
-
       {exits.length === 0 ? (
         <p className="muted">这里没有出去的路。</p>
       ) : (
-        <ul className="stack">
+        <SlotGrid>
           {exits.map((exit) => (
             <li key={exit.stageId}>
               <button
                 type="button"
-                className={exit.sealed ? "stack__item stack__item--faded" : "stack__item"}
+                className={exit.sealed ? "slot slot--action slot--faded" : "slot slot--action"}
                 onClick={() => console.log("出口", stage.name, exit.name)}
               >
-                <span className="stack__name">{exit.name}</span>
-                <span className="stack__note">
+                <span className="slot__kind">出口</span>
+                <span className="slot__name">{exit.name}</span>
+                <span className="slot__note">
                   {exit.sealed ? "封着——认得出，但过不去" : "通着"}
                   {exit.ref === null ? "" : ` · ${exit.ref}`}
                 </span>
               </button>
             </li>
           ))}
-        </ul>
+        </SlotGrid>
       )}
     </>
   );
