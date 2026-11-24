@@ -342,21 +342,53 @@ code {
   color: var(--muted);
 }
 
-.chips {
+/* 竖向列表：一行一个可点的条目（行迹用它）。 */
+.stack {
   display: flex;
-  flex-wrap: wrap;
+  flex-direction: column;
   gap: 8px;
-  margin: 18px 0 0;
+  margin: 12px 0 0;
   padding: 0;
   list-style: none;
 }
 
-.chip {
-  padding: 4px 10px;
+.stack__item {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  width: 100%;
+  padding: 12px 14px;
   border: 1px solid var(--line);
-  border-radius: 999px;
+  border-radius: 10px;
+  background: var(--panel);
+  color: var(--text);
+  font: inherit;
+  font-size: 14px;
+  text-align: left;
+  cursor: pointer;
+}
+
+.stack__name {
+  font-size: 14px;
+}
+
+.stack__note {
   font-size: 12px;
   color: var(--muted);
+}
+
+.stack__item--faded .stack__name {
+  color: var(--muted);
+}
+
+.stack__item:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.stack__item:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
 }
 
 .panel h2 {
@@ -376,11 +408,6 @@ code {
 
 .panel > .muted:first-of-type {
   margin-top: 8px;
-}
-
-.chip--faded {
-  opacity: 0.6;
-  text-decoration: line-through;
 }
 
 .entries {
@@ -442,6 +469,7 @@ code {
 .game__bar {
   display: flex;
   align-items: center;
+  justify-content: flex-end;
   gap: 10px;
   padding-bottom: 18px;
   border-bottom: 1px solid var(--line);
@@ -452,16 +480,16 @@ code {
   gap: 10px;
 }
 
-/* 顶部按钮：比正文大一号，撑起这一行的存在感。 */
+/* 顶部按钮：两个字、定宽，长宽比 2.8:1（缩放时一起缩）。 */
 .action {
-  min-width: 132px;
-  padding: 14px 26px;
+  min-width: 96px;
+  padding: 9px 18px;
   border: 1px solid var(--line);
-  border-radius: 12px;
+  border-radius: 10px;
   background: linear-gradient(180deg, var(--panel-soft), var(--panel));
   color: var(--text);
   font: inherit;
-  font-size: 16px;
+  font-size: 14px;
   font-weight: 600;
   cursor: pointer;
 }
@@ -471,29 +499,30 @@ code {
   color: var(--accent);
 }
 
-/* 主页是三排卡片：舞台与锚点 / 在场角色 / 出口。
-   整页不竖滚：三排均分剩下的高度，排内横向滚动。 */
+/* 卡片区：横向两排——舞台与锚点、在场角色。排内横向滚动。 */
 .board {
   display: flex;
   flex: 1;
   flex-direction: column;
-  gap: clamp(12px, 1.4vw, 20px);
+  /* 两排上下居中，排间留出一整行的余地：不顶格、不贴边。 */
+  justify-content: center;
+  gap: clamp(24px, 2.8vw, 44px);
   min-height: 0;
-  margin-top: 20px;
 }
 
 .board__row {
   display: flex;
-  flex: 1 1 0;
+  /* 高度由卡片自己定（见 .card 的比例），排不拉伸：卡片不被放大，多出来的空间留在下方。 */
+  flex: 0 0 auto;
   gap: clamp(12px, 1.2vw, 18px);
-  /* 矮窗口里宁可整页竖滚，也不把卡片压成横的。 */
-  min-height: 190px;
   margin: 0;
   padding: 0 0 2px;
   list-style: none;
   overflow-x: auto;
   overflow-y: hidden;
   scroll-snap-type: x proximity;
+  /* 卡片少时整排居中；撑满一格时退回左对齐，否则左边那几张会滑不出去。 */
+  justify-content: safe center;
 }
 
 .board__row > li {
@@ -502,13 +531,13 @@ code {
   scroll-snap-align: start;
 }
 
-/* 竖卡片：宽度定住，高度跟着这一排走，所以三排一定都在屏里。 */
+/* 竖卡片：定宽 + 固定比例。舞台、锚点、角色都是同一种卡，所以这个比例全局统一一处。 */
 .card {
   display: flex;
   flex-direction: column;
   gap: 8px;
-  width: clamp(150px, 12vw, 184px);
-  height: 100%;
+  width: clamp(160px, 12vw, 200px);
+  aspect-ratio: 7 / 10;
   padding: 14px 16px 15px;
   border: 1px solid var(--line);
   border-radius: 14px;

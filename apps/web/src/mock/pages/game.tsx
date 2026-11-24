@@ -1,6 +1,6 @@
 import Dialog from "../../pages/game/Dialog";
-import GamePage from "../../pages/game/GamePage";
 import HistoryPanel from "../../pages/game/panels/HistoryPanel";
+import StagePage from "../../pages/game/StagePage";
 import { defineMockPage } from "../defineMockPage";
 import { type GameMockState, gameFixtures, gameHistoryFixtures } from "../fixtures/game";
 
@@ -9,10 +9,10 @@ export const gameMock = defineMockPage<GameMockState>({
   title: "局内",
   fixtures: gameFixtures,
   render: (state) => (
-    <GamePage
+    <StagePage
       view={gameFixtures[state]}
       renderHistory={({ onClose }) => (
-        <Dialog title="消息历史" onClose={onClose}>
+        <Dialog title="记录" onClose={onClose}>
           <HistoryPanel
             history={{
               items: gameHistoryFixtures[state],

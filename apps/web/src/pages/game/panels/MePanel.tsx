@@ -40,7 +40,7 @@ export default function MePanel({ view }: { view: GameView }) {
         <dd>{viewer.concealed ? "对旁人不可见" : "未隐匿"}</dd>
       </div>
       <div>
-        <dt>此刻的样子</dt>
+        <dt>外观</dt>
         <dd>{viewer.appearance}</dd>
       </div>
     </dl>

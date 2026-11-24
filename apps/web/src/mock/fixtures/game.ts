@@ -161,7 +161,7 @@ export const gameFixtures = {
 
 export type GameMockState = keyof typeof gameFixtures;
 
-/** 消息历史浮窗的 fixture：与页面状态同名，打开时按状态给一条流。 */
+/** 「记录」浮窗的 fixture：与页面状态同名，打开时按状态给一条流。 */
 export const gameHistoryFixtures: Record<GameMockState, GameMessage[]> = {
   active: [
     {
