@@ -768,6 +768,48 @@ code {
   margin: 0;
 }
 
+/* 侧板：贴右边滑出，高度吃满屏幕。长列表在板内滚，页脚钉在底部。 */
+.sheet--drawer {
+  inset: 0 0 0 auto;
+  width: min(460px, calc(100vw - 24px));
+  max-width: none;
+  height: 100dvh;
+  max-height: none;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  border-radius: 16px 0 0 16px;
+  animation: drawer-in 200ms ease-out;
+}
+
+.sheet--drawer .sheet__body {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  max-height: none;
+  overflow-y: auto;
+  padding-bottom: 16px;
+}
+
+/* 条目少时页脚落到底部，不吊在半空。 */
+.sheet--drawer .sheet__footer {
+  margin-top: auto;
+  padding-top: 14px;
+}
+
+@keyframes drawer-in {
+  from {
+    opacity: 0;
+    transform: translateX(32px);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sheet--drawer {
+    animation: none;
+  }
+}
+
 /* 网格浮窗统一宽度，卡片尺寸才在各浮窗之间一致；锚点与舞台带描述，所以高度随内容。 */
 .sheet--grid,
 .sheet--gridfill {

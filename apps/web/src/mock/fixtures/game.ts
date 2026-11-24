@@ -209,51 +209,41 @@ export type GameMockState = keyof typeof gameFixtures;
 
 /** 「记录」浮窗的 fixture：与页面状态同名，打开时按状态给一条流。 */
 export const gameHistoryFixtures: Record<GameMockState, GameMessage[]> = {
+  // 18 条：侧板只有一屏高，这个量能真的上下滚一滚。
   active: [
-    {
-      id: "m1",
-      sequence: 1,
-      kind: "stage_opening",
-      stageId: "st1",
-      sourceActorId: null,
-      targetActorId: null,
-      visibility: "stage",
-      content: "鸦葬岗的夜开始了。坡上的木杆在风里响。",
-      createdAt: "2026-01-02T10:00:00.000Z",
-    },
-    {
-      id: "m2",
-      sequence: 2,
-      kind: "environment_observation",
-      stageId: "st1",
-      sourceActorId: null,
-      targetActorId: "a1",
-      visibility: "stage",
-      content: "风把木杆上的布条吹得笔直，指向坡下。",
-      createdAt: "2026-01-02T10:00:03.000Z",
-    },
-    {
-      id: "m3",
-      sequence: 3,
-      kind: "communication",
-      stageId: "st1",
+    message(1, "stage_opening", "鸦葬岗的夜开始了。坡上的木杆在风里响。"),
+    message(2, "environment_observation", "风把木杆上的布条吹得笔直，指向坡下。"),
+    message(3, "communication", "「今晚别往窖里去。」卡尔说完就笑了。", { sourceActorId: "a2" }),
+    message(4, "action_observation", "卡尔把一具尸体拖到坑边，抬头看了你一眼。", {
       sourceActorId: "a2",
-      targetActorId: "a1",
-      visibility: "stage",
-      content: "「今晚别往窖里去。」卡尔说完就笑了。",
-      createdAt: "2026-01-02T10:02:41.000Z",
-    },
-    {
-      id: "m4",
-      sequence: 4,
-      kind: "action_observation",
-      stageId: "st1",
+    }),
+    message(5, "movement", "你走到最高的木杆底下。布条扫过你的额头，是湿的。"),
+    message(6, "environment_observation", "坑底有东西在动，细看是水在渗。"),
+    message(7, "communication", "「拾骨的，帮我把绳子解开。」卡尔的声音从坑那边过来。", {
       sourceActorId: "a2",
-      targetActorId: null,
-      visibility: "stage",
-      content: "卡尔把一具尸体拖到坑边，抬头看了你一眼。",
-      createdAt: "2026-01-02T10:04:11.000Z",
-    },
+    }),
+    message(8, "action_feedback", "你蹲下去解绳结，麻绳吃透了水，一拉一手黑。"),
+    message(9, "action_observation", "薇拉从塔门那边过来，鸦站在她肩上，头一直偏着。", {
+      sourceActorId: "a3",
+    }),
+    message(10, "communication", "「他今晚挖的是第四个。」薇拉说，声音压得很低。", {
+      sourceActorId: "a3",
+      targetActorId: "a1",
+    }),
+    message(11, "identity_update", "你知道了她的名字：鸦猎薇拉。", { visibility: "private" }),
+    message(12, "environment_observation", "雾从坡下的石阶那边漫上来，先湿了脚背。"),
+    message(13, "action_observation", "卡尔把锤子插进土里，蹲在坟前不说话。", {
+      sourceActorId: "a2",
+    }),
+    message(14, "route_failed", "石阶的断口在雾里断了，你退回来一步。"),
+    message(15, "communication", "「别数了。」薇拉说，「数到五，雾就到腰了。」", {
+      sourceActorId: "a3",
+    }),
+    message(16, "world_notification", "夜往深里走了一层。"),
+    message(17, "action_observation", "坑边多了一块没写字的木牌，是新的。", {
+      sourceActorId: "a2",
+    }),
+    message(18, "stage_observation", "木杆还在响，但节奏变了，慢下来了。"),
   ],
   fresh: [],
   sealed: [
@@ -270,3 +260,28 @@ export const gameHistoryFixtures: Record<GameMockState, GameMessage[]> = {
     },
   ],
 };
+
+/**
+ * 事件流的一行：只写有变化的部分，其余按「发生在鸦葬岗、公开、无人称」补齐。
+ *
+ * 这样加一条等于加一行，而不用把 9 个字段抄一遍。
+ */
+function message(
+  sequence: number,
+  kind: string,
+  content: string,
+  extra: Partial<GameMessage> = {},
+): GameMessage {
+  return {
+    id: `m${sequence}`,
+    sequence,
+    kind,
+    stageId: "st1",
+    sourceActorId: null,
+    targetActorId: null,
+    visibility: "stage",
+    content,
+    createdAt: `2026-01-02T10:${String(sequence).padStart(2, "0")}:00.000Z`,
+    ...extra,
+  };
+}

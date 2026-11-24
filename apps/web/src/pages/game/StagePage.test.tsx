@@ -1,8 +1,7 @@
 import { fireEvent, render, screen, within } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import { gameFixtures, gameHistoryFixtures } from "../../mock/fixtures/game";
-import Dialog from "./Dialog";
-import HistoryPanel from "./panels/HistoryPanel";
+import HistoryDrawer from "./HistoryDrawer";
 import StagePage from "./StagePage";
 
 function renderGame(state: keyof typeof gameFixtures = "active") {
@@ -11,18 +10,17 @@ function renderGame(state: keyof typeof gameFixtures = "active") {
     <StagePage
       view={gameFixtures[state]}
       renderHistory={({ onClose }) => (
-        <Dialog title="记录" onClose={onClose}>
-          <HistoryPanel
-            history={{
-              items: gameHistoryFixtures[state],
-              total: gameHistoryFixtures[state].length,
-              hasMore: false,
-              loadMore: () => undefined,
-              loading: false,
-              loadingMore: false,
-            }}
-          />
-        </Dialog>
+        <HistoryDrawer
+          onClose={onClose}
+          history={{
+            items: gameHistoryFixtures[state],
+            total: gameHistoryFixtures[state].length,
+            hasMore: false,
+            loadMore: () => undefined,
+            loading: false,
+            loadingMore: false,
+          }}
+        />
       )}
     />,
   );
@@ -249,8 +247,10 @@ describe("StagePage", () => {
     fireEvent.click(screen.getByRole("button", { name: "记录" }));
 
     const sheet = screen.getByRole("dialog", { name: "记录" });
+    // 记录是右侧板，不是居中浮窗。
+    expect(sheet).toHaveClass("sheet--drawer");
     expect(within(sheet).getByText(/今晚别往窖里去/)).toBeInTheDocument();
-    expect(within(sheet).getByText("已载入 4 / 4 条")).toBeInTheDocument();
+    expect(within(sheet).getByText("已载入 18 / 18 条")).toBeInTheDocument();
   });
 
   it("空态：刚开局没有历史，也没有别处去过", () => {

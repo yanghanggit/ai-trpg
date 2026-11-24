@@ -6,9 +6,10 @@ type DialogProps = {
   children: ReactNode;
   /**
    * 尺寸变体：`grid` 只统一宽度（锚点这种带描述的浮窗用），
-   * `gridfill` 再加一个固定高度（纯网格：背包、行迹、相识）。
+   * `gridfill` 再加一个固定高度（纯网格：背包、行迹、相识），
+   * `drawer` 改成贴右边、吃满屏幕高度的侧板（记录这种长列表用）。
    */
-  variant?: "grid" | "gridfill";
+  variant?: "grid" | "gridfill" | "drawer";
 };
 
 /**
