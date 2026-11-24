@@ -12,6 +12,7 @@ import { readFileSync } from "node:fs";
 import { Command, CommanderError } from "commander";
 import { CliFailure } from "../errors";
 import { emit } from "../io";
+import { registerActionOrderCommands } from "./commands/action-order";
 import { registerGameCommands } from "./commands/game";
 import { registerInspectCommands } from "./commands/inspect";
 import { registerPlayerCommands } from "./commands/player";
@@ -40,6 +41,7 @@ export function createProgram(): Command {
   registerGameCommands(program);
   registerPlayerCommands(program);
   registerTurnCommands(program);
+  registerActionOrderCommands(program);
   registerInspectCommands(program);
   registerTraceCommands(program);
   return program;

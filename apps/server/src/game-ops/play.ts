@@ -37,6 +37,7 @@ import {
   playerUse,
   playerWait,
   playerWhisper,
+  recordActionTaken,
   refreshCorpseAppearance,
   releaseActorControl,
   runActorTurn,
@@ -388,6 +389,9 @@ export type NpcAdvanceInput = { actors: readonly string[] };
  * 想推一群就把名字都列出来——顺序、每人一轮模型调用、以及撞上已死或被接管的
  * actor 会直接失败，都由调用方承担。重复的名字会去重（同一个 actor 跑两轮只会
  * 白烧一次模型调用），除此之外不做任何筛选：漏给的人不会跑，点名的人一定跑。
+ *
+ * 每落账一轮，顺手在「行动顺位」那张台账上给这个人 +1（没有进行中的顺位就不记）：
+ * 台账是记账，不参与决策，也不反过来影响这一轮能不能跑。
  */
 export async function advanceNpc(
   db: Database,
@@ -402,7 +406,15 @@ export async function advanceNpc(
   };
   const results: ActorTurnOutput[] = [];
   for (const actor of new Set(input.actors)) {
-    results.push(actorTurnOutput(await runActorTurn(db, gameRef, actor, options)));
+    const result = await runActorTurn(db, gameRef, actor, options);
+    results.push(actorTurnOutput(result));
+    if (result.ok) {
+      await recordActionTaken(
+        db,
+        result.state.game.id,
+        findActorByName(result.state, actor).actor.id,
+      );
+    }
   }
   return { results };
 }

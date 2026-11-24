@@ -21,11 +21,14 @@ import {
   advanceStage,
   advanceWorld,
   compactOp,
+  completeActionOrderOp,
+  createActionOrderOp,
   createGameOp,
   memoryOp,
   nameLeaksOp,
   playerActionBodySchema,
   probeOp,
+  readActionOrderOp,
   readActorLog,
   readActorView,
   readGameMessages,
@@ -33,6 +36,7 @@ import {
   readStageMap,
   readVisitedStages,
   releaseControlOp,
+  removeActionOrderOp,
   settleDeaths,
   snapshotOp,
   storyOp,
@@ -41,10 +45,12 @@ import {
 } from "../game-ops";
 import { HttpError } from "../http-error";
 import { type AuthUser, requireUser } from "../plugins/auth";
+import { actionOrderSchema } from "./schemas/action-order";
 import { actorLogSchema, actorViewSchema, gameMessageSchema } from "./schemas/client-view";
 
 const gameParams = z.object({ game: z.string().trim().min(1) });
 const actorParams = gameParams.extend({ actor: z.string().trim().min(1) });
+const actionOrderParams = gameParams.extend({ order: z.string().trim().min(1) });
 
 /** 活状态是内部投影，暂不在这里收窄；契约稳定后再补字段级 schema。 */
 const stateSchema = z.unknown();
@@ -544,6 +550,93 @@ export function createGameRoutes(db: () => Database): FastifyPluginAsyncZod {
         const user = await requireUser(db(), request);
         await requireGameAccess(db(), request.params.game, user);
         return settleDeaths(db(), request.params.game, { ...services(), logger: request.log });
+      },
+    );
+
+    // ------------------------------------------------------------ 行动顺位
+
+    app.post(
+      "/games/:game/action-orders",
+      {
+        schema: {
+          tags: ["action-orders"],
+          summary: "开一张行动顺位（按敏捷排序的快照）",
+          params: gameParams,
+          response: { 200: z.object({ order: actionOrderSchema }) },
+        },
+      },
+      async (request) => {
+        const user = await requireUser(db(), request);
+        await requireGameAccess(db(), request.params.game, user);
+        return createActionOrderOp(db(), request.params.game);
+      },
+    );
+
+    app.get(
+      "/games/:game/action-orders/current",
+      {
+        schema: {
+          tags: ["action-orders"],
+          summary: "读当前进行中的行动顺位",
+          params: gameParams,
+          response: { 200: z.object({ order: actionOrderSchema.nullable() }) },
+        },
+      },
+      async (request) => {
+        const user = await requireUser(db(), request);
+        await requireGameAccess(db(), request.params.game, user);
+        return readActionOrderOp(db(), request.params.game);
+      },
+    );
+
+    app.get(
+      "/games/:game/action-orders/:order",
+      {
+        schema: {
+          tags: ["action-orders"],
+          summary: "按 id 读一张行动顺位（含已完成的）",
+          params: actionOrderParams,
+          response: { 200: z.object({ order: actionOrderSchema.nullable() }) },
+        },
+      },
+      async (request) => {
+        const user = await requireUser(db(), request);
+        await requireGameAccess(db(), request.params.game, user);
+        return readActionOrderOp(db(), request.params.game, request.params.order);
+      },
+    );
+
+    app.post(
+      "/games/:game/action-orders/:order/complete",
+      {
+        schema: {
+          tags: ["action-orders"],
+          summary: "完成一张行动顺位",
+          params: actionOrderParams,
+          response: { 200: z.object({ order: actionOrderSchema }) },
+        },
+      },
+      async (request) => {
+        const user = await requireUser(db(), request);
+        await requireGameAccess(db(), request.params.game, user);
+        return completeActionOrderOp(db(), request.params.game, request.params.order);
+      },
+    );
+
+    app.delete(
+      "/games/:game/action-orders/:order",
+      {
+        schema: {
+          tags: ["action-orders"],
+          summary: "移除一张行动顺位",
+          params: actionOrderParams,
+          response: { 200: z.object({ removed: z.string() }) },
+        },
+      },
+      async (request) => {
+        const user = await requireUser(db(), request);
+        await requireGameAccess(db(), request.params.game, user);
+        return removeActionOrderOp(db(), request.params.game, request.params.order);
       },
     );
 

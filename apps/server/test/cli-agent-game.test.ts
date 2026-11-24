@@ -155,6 +155,21 @@ describe("agent-game CLI", () => {
     expect(jsonOf(appearance).error).toContain("--actor");
   });
 
+  it("action-order 的完成 / 移除必须给 --order，读取可以不给", async () => {
+    const missing = await run(["action-order-complete", "--game", "g"]);
+    expect(missing.code).toBe(2);
+    expect(jsonOf(missing).error).toContain("--order");
+
+    const removed = await run(["action-order-remove", "--game", "g"]);
+    expect(removed.code).toBe(2);
+    expect(jsonOf(removed).error).toContain("--order");
+
+    // show 的 --order 是可选的：省略就读进行中的那张。
+    const help = await run(["action-order-show", "--help"]);
+    expect(help.code).toBe(0);
+    expect(help.stdout).toContain("--order");
+  });
+
   it("trace 无子命令时默认 list", async () => {
     const result = await run(["trace"]);
     expect(result.code).toBe(0);

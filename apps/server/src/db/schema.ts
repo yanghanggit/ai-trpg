@@ -16,6 +16,7 @@ import {
 import type { Stats } from "../game/kernel/attributes";
 import type { StatusEffect } from "../game/kernel/status-effects";
 import type {
+  ActionOrderStatus,
   AffixTriggers,
   CarriedActionKind,
   EquipmentSlots,
@@ -473,6 +474,53 @@ export const actorControls = pgTable("actor_controls", {
 });
 
 /**
+ * 行动顺位：一次「此刻全员按敏捷排好」的快照，加上每个顺位已推进的回合数。
+ *
+ * 一局同时最多一条进行中的顺位（部分唯一索引兜住），完成是打标记、移除是删行；
+ * 条目按 `actor_id` 级联，顺位删掉即不留痕。快照只记敏捷值，不跟随后续换装。
+ */
+export const actionOrders = pgTable(
+  "action_orders",
+  {
+    id: uuid("id").primaryKey(),
+    gameId: uuid("game_id")
+      .notNull()
+      .references(() => games.id, { onDelete: "cascade" }),
+    status: text("status").$type<ActionOrderStatus>().notNull().default("active"),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    completedAt: timestamp("completed_at", { withTimezone: true }),
+  },
+  (table) => [
+    uniqueIndex("action_orders_game_active_unique")
+      .on(table.gameId)
+      .where(sql`${table.status} = 'active'`),
+  ],
+);
+
+export const actionOrderEntries = pgTable(
+  "action_order_entries",
+  {
+    id: uuid("id").primaryKey(),
+    orderId: uuid("order_id")
+      .notNull()
+      .references(() => actionOrders.id, { onDelete: "cascade" }),
+    actorId: uuid("actor_id")
+      .notNull()
+      .references(() => actors.id, { onDelete: "cascade" }),
+    /** 1 起的顺位；同一单内唯一。 */
+    position: integer("position").notNull(),
+    /** 建单那一刻的敏捷现值：排序依据的快照，之后换装不回写。 */
+    agility: integer("agility").notNull(),
+    /** 在这个顺位下已落账的回合数。 */
+    actionsTaken: integer("actions_taken").notNull().default(0),
+  },
+  (table) => [
+    uniqueIndex("action_order_entries_order_actor_unique").on(table.orderId, table.actorId),
+    uniqueIndex("action_order_entries_order_position_unique").on(table.orderId, table.position),
+  ],
+);
+
+/**
  * 玩家对话黑名单/审计记录。
  *
  * 只记录被拒绝的玩家对话（内容违规或审核不可用），允许的对话不落库。
@@ -611,5 +659,7 @@ export const schema = {
   dialogueBlocks,
   agentMemories,
   agentMemoryMessages,
+  actionOrders,
+  actionOrderEntries,
   jobs,
 };

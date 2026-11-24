@@ -11,6 +11,8 @@ export const DOMAIN_TABLES = [
   "jobs",
   "agent_memory_messages",
   "agent_memories",
+  "action_order_entries",
+  "action_orders",
   "game_messages",
   "vector_documents",
   "actor_controls",

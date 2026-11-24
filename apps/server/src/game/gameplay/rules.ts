@@ -15,6 +15,8 @@ export const GAMEPLAY_RULES = {
   strengthAddsToAttack: true,
   /** 查看与窃取是否比敏捷；关掉后两者恒不被察觉、窃取恒得手。 */
   agilityGovernsAwareness: true,
+  /** 行动顺位是否按敏捷排；关掉后只按实体序号，次序仍确定且可复现。 */
+  actionOrderByAgility: true,
 } as const;
 
 /** 开关表的可传参形状：测试与将来的实验按需覆盖一条，不必改全局常量。 */

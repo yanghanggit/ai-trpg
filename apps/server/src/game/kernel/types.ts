@@ -621,6 +621,33 @@ export type StageVisitState = {
   lastVisitedAt: string;
 };
 
+/** 顺位的生命周期：进行中记数，完成后不再记数也不再挡下一张。 */
+export type ActionOrderStatus = "active" | "completed";
+
+/**
+ * 行动顺位的条目：一个 actor 在这张快照里的位置与已推进的回合数。
+ *
+ * `agility` 是建单那一刻的敏捷现值（含穿戴与状态效果），只用于排序与留证；
+ * 之后的属性变化不回写，快照就是快照。
+ */
+export type ActionOrderEntryState = {
+  actorId: string;
+  actorName: string;
+  /** 1 起的顺位，全单不重复。 */
+  position: number;
+  agility: number;
+  actionsTaken: number;
+};
+
+/** 一张行动顺位：快照 + 每个顺位的计数 + 生命周期标记。 */
+export type ActionOrderState = {
+  id: string;
+  status: ActionOrderStatus;
+  createdAt: string;
+  completedAt: string | null;
+  entries: ActionOrderEntryState[];
+};
+
 export type GameState = {
   game: {
     id: string;

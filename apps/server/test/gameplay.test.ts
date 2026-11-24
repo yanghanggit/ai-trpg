@@ -10,6 +10,7 @@ import {
   guardPower,
   inspectNoticed,
   mitigatedDamage,
+  orderActors,
   stealOutcome,
   strengthToDamage,
   unarmedAttackPower,
@@ -25,6 +26,7 @@ const withRules = (rules: Partial<GameplayRules>): GameplayRules => ({
 
 const STRENGTH_OFF = withRules({ strengthAddsToAttack: false });
 const AWARENESS_OFF = withRules({ agilityGovernsAwareness: false });
+const ORDER_OFF = withRules({ actionOrderByAgility: false });
 
 const item = (name: string, stats: Partial<Stats>) => ({
   name,
@@ -44,10 +46,11 @@ const wearer = {
 };
 
 describe("gameplay rules", () => {
-  it("默认两条玩法规则都开着", () => {
+  it("默认三条玩法规则都开着", () => {
     expect(GAMEPLAY_RULES).toEqual({
       strengthAddsToAttack: true,
       agilityGovernsAwareness: true,
+      actionOrderByAgility: true,
     });
   });
 });
@@ -182,5 +185,57 @@ describe("agility contests", () => {
     // 关掉后不能再描述一套已经不存在的判定。
     expect(awarenessRuleText("inspect", AWARENESS_OFF)).toBe("查看不会惊动任何人。");
     expect(awarenessRuleText("steal", AWARENESS_OFF)).toBe("窃取不会被拦下，也不会惊动对方。");
+  });
+});
+
+describe("action order", () => {
+  /** 只写排序读得到的字段：身份、序号、生命与属性来源。 */
+  const candidate = (id: string, seq: number, hp: number, agility: number) => ({
+    id,
+    seq,
+    hp,
+    stats: { ...EMPTY_STATS, agility },
+    equipment: {},
+    statusEffects: [],
+    items: [],
+  });
+
+  it("按敏捷现值降序，同值按实体序号升序", () => {
+    expect(
+      orderActors([candidate("c", 3, 1, 5), candidate("a", 1, 1, 9), candidate("b", 2, 1, 5)]),
+    ).toEqual([
+      { actorId: "a", agility: 9 },
+      { actorId: "b", agility: 5 },
+      { actorId: "c", agility: 5 },
+    ]);
+  });
+
+  it("敏捷取现值：穿戴与状态效果的加成参与排序", () => {
+    const armored = {
+      ...candidate("armored", 1, 1, 4),
+      equipment: { armor: "铆钉甲" },
+      items: [item("铆钉甲", { agility: 3 })],
+    };
+    const plain = candidate("plain", 2, 1, 6);
+    // 本体 4 + 甲 3 = 7，压过本体的 6。
+    expect(orderActors([plain, armored])).toEqual([
+      { actorId: "armored", agility: 7 },
+      { actorId: "plain", agility: 6 },
+    ]);
+  });
+
+  it("死者不参与排序", () => {
+    expect(orderActors([candidate("alive", 1, 2, 1), candidate("corpse", 2, 0, 9)])).toEqual([
+      { actorId: "alive", agility: 1 },
+    ]);
+  });
+
+  it("关掉规则后只按实体序号，敏捷仍照实返回", () => {
+    expect(
+      orderActors([candidate("slow", 2, 1, 1), candidate("fast", 1, 1, 9)], ORDER_OFF),
+    ).toEqual([
+      { actorId: "fast", agility: 9 },
+      { actorId: "slow", agility: 1 },
+    ]);
   });
 });

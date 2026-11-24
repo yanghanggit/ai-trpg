@@ -188,11 +188,13 @@ describe.skipIf(!testDatabaseUrl)("业务 API", () => {
     expect(response.json()).toMatchObject({ error: "not_found" });
   });
 
-  it("OpenAPI 收录动作与轨迹端点", async () => {
+  it("OpenAPI 收录动作、顺位与轨迹端点", async () => {
     const response = await app.inject({ method: "GET", url: "/openapi.json" });
     const paths = response.json().paths as Record<string, unknown>;
     expect(Object.keys(paths)).toContain("/api/v1/games/{game}/actors/{actor}/actions");
     expect(Object.keys(paths)).toContain("/api/v1/games/{game}/turns/world");
+    expect(Object.keys(paths)).toContain("/api/v1/games/{game}/action-orders");
+    expect(Object.keys(paths)).toContain("/api/v1/games/{game}/action-orders/{order}/complete");
     expect(Object.keys(paths)).toContain("/api/v1/traces");
   });
 });
