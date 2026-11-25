@@ -226,6 +226,12 @@ function reasonOf(action: { reason?: string }): { reason?: string } {
  *
  * 服务注入与 `agent-game` 保持一致：计划阶段用 `service`，结算后的增量阶段用
  * `inferenceService`；不需要推理的动作不传，免得白付一次模型调用。
+ *
+ * 顺位不区分玩家与 NPC：这一次提交也是名次上的一个标准回合，落账成功照样 +1。
+ * 所以「谁执行」不影响计数——只影响有没有模型调用。
+ *
+ * 一次提交算一个回合。玩家若想在一个回合里连做几件事，那是「回合里可以有多个动作」，
+ * 需要客户端自己攒成一份计划，而不是连打几次这个入口——后者会计成几个回合。
  */
 export async function submitPlayerAction(
   db: Database,
@@ -235,6 +241,11 @@ export async function submitPlayerAction(
   services: TurnServices,
 ): Promise<PlayerActionOutput> {
   const result = await dispatchPlayerAction(db, gameRef, actorRef, action, services);
+  // 被拒的计划不走到这里（落账层直接抛错），所以「回来且 ok」就是「发生过」。
+  if (result.ok) {
+    const actor = findActorByRef(result.state, actorRef);
+    await recordActionTaken(db, result.state.game.id, actor.id);
+  }
   return playerActionOutput(result);
 }
 

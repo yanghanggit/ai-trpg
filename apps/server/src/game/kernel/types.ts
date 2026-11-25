@@ -630,6 +630,9 @@ export type ActionOrderStatus = "active" | "completed";
  * `agility` 是开顺位那一刻的敏捷现值（含穿戴与状态效果），只用于排序与留证；
  * 之后的属性变化不回写，快照就是快照。
  */
+/** 这一回合由谁执行：引擎跑 agent 循环，还是客户端直接提交一个已决定好的动作。 */
+export type ActionOrderControl = "agent" | "player";
+
 export type ActionOrderEntryState = {
   actorId: string;
   actorName: string;
@@ -637,10 +640,14 @@ export type ActionOrderEntryState = {
   position: number;
   agility: number;
   turnsTaken: number;
+  /** 顺位不区分玩家与 NPC，只区分谁执行；主角被玩家接管后就是 `player`。 */
+  control: ActionOrderControl;
+  /** 起顺位之后死掉的人留在名次上，但不再被选中。 */
+  alive: boolean;
 };
 
 /**
- * 此刻该轮到谁：名次与身份，不给理由。
+ * 此刻该轮到谁：名次、身份与执行方，不给理由。
  *
  * 它是读出时算出的派生值，不落库——世界一变（有人死了、有人被玩家接管），
  * 同一个名次可能指向别人。
@@ -649,6 +656,8 @@ export type ActionOrderNextActorState = {
   position: number;
   actorId: string;
   actorName: string;
+  /** 照 `entries[].control` 抄一份：客户端据此决定跑循环还是等人提交动作。 */
+  control: ActionOrderControl;
 };
 
 /** 一条行动顺位：快照 + 每个名次的计数 + 生命周期标记。 */
@@ -660,7 +669,7 @@ export type ActionOrderState = {
   entries: ActionOrderEntryState[];
   /** 读出这一刻的世界版本：客户端据此判断自己手上的视图过不过期。 */
   gameVersion: number;
-  /** 没有可推进的人（全死、全是玩家角色、顺位上没人）时为 null。 */
+  /** 顺位上没有还活着的人时为 null。玩家角色与 NPC 一样参与排队。 */
   nextActor: ActionOrderNextActorState | null;
 };
 

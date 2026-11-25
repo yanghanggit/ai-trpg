@@ -14,6 +14,8 @@ import {
   createActionOrderOp,
   readActionOrderOp,
   removeActionOrderOp,
+  submitPlayerAction,
+  takeControlOp,
 } from "../src/game-ops";
 import { ChatCompletionResult, type ChatCompletionService } from "../src/llm";
 import { TEST_WORLD } from "./test-world";
@@ -70,6 +72,8 @@ describe("nextEntry", () => {
     position,
     agility: 1,
     turnsTaken,
+    control: "agent" as const,
+    alive: true,
   });
 
   it("取回合计数最少的；同值取名次靠前", () => {
@@ -131,14 +135,17 @@ describe.skipIf(!testDatabaseUrl)("action order", () => {
       position: 1,
       actorId: firstEntry(order).actorId,
       actorName: firstEntry(order).actorName,
+      control: "agent",
     });
+    // 名次是快照，生死与执行方是读出时的当下事实：刚开的顺位人人活着、都归 agent。
+    expect(order.entries.every((entry) => entry.alive && entry.control === "agent")).toBe(true);
 
     // 进行中的那条就是 current；按 id 读回同一条。
     expect((await readActionOrderOp(handle.db, game)).order?.id).toBe(order.id);
     expect((await readActionOrderOp(handle.db, game, order.id)).order).toEqual(order);
   });
 
-  it("“谁快轮到”跟着计数走，死者从候选里退出来", async () => {
+  it("“谁快轮到”跟着计数走，死者留在名次上但不再被选中", async () => {
     const game = await freshGame("行动顺位候选局");
     const { order } = await createActionOrderOp(handle.db, game);
     const lead = firstEntry(order);
@@ -157,7 +164,47 @@ describe.skipIf(!testDatabaseUrl)("action order", () => {
       .update(actors)
       .set({ hp: 0 })
       .where(eq(actors.id, entryAt(order, 2).actorId));
-    expect((await readActionOrderOp(handle.db, game)).order?.nextActor?.position).toBe(3);
+    const shrunk = (await readActionOrderOp(handle.db, game)).order;
+    expect(shrunk?.nextActor?.position).toBe(3);
+    // 人留在名次上、计数留着，只是不再被选中——死者不是「删掉」，是「轮不到」。
+    expect(entryAt(shrunk as ActionOrderState, 2).alive).toBe(false);
+  });
+
+  it("玩家接管不改变名次，只改变谁执行；玩家提交的动作也是标准回合", async () => {
+    const game = await freshGame("行动顺位玩家局");
+    const { order } = await createActionOrderOp(handle.db, game);
+    const lead = firstEntry(order);
+
+    // 接管之前：这个人排在名次 1，由 agent 跑循环。
+    expect(lead.control).toBe("agent");
+
+    await takeControlOp(handle.db, game, lead.actorName);
+    const taken = (await readActionOrderOp(handle.db, game)).order;
+    // 接管不把人从序列里摘出去——只是这一回合改由客户端直接提交动作。
+    expect(entryAt(taken as ActionOrderState, 1).control).toBe("player");
+    expect(taken?.nextActor).toEqual({
+      position: 1,
+      actorId: lead.actorId,
+      actorName: lead.actorName,
+      control: "player",
+    });
+
+    // 玩家直接提交一个动作：同一条落账路径，同一个回合计数。
+    await submitPlayerAction(
+      handle.db,
+      game,
+      lead.actorName,
+      { kind: "wait" },
+      {
+        service: new WaitService(),
+        inferenceService: new WaitService(),
+      },
+    );
+
+    const after = (await readActionOrderOp(handle.db, game)).order;
+    expect(entryAt(after as ActionOrderState, 1).turnsTaken).toBe(1);
+    // 计数走完，轮到下一个；玩家不会因为「不是 agent」而被跳过。
+    expect(after?.nextActor?.position).toBe(2);
   });
 
   it("推进一个 NPC 只给他在顺位上 +1", async () => {

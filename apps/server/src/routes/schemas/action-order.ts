@@ -13,6 +13,9 @@ import type {
   ActionOrderState,
 } from "../../game/kernel/types";
 
+/** 谁执行：引擎跑循环，还是客户端直接提交一个已决定好的动作。 */
+const controlSchema = zod.enum(["agent", "player"]);
+
 const actionOrderEntrySchema = zod
   .object({
     actorId: zod.string(),
@@ -20,6 +23,8 @@ const actionOrderEntrySchema = zod
     position: zod.number(),
     agility: zod.number(),
     turnsTaken: zod.number(),
+    control: controlSchema,
+    alive: zod.boolean(),
   })
   .meta({ id: "ActionOrderEntry" }) satisfies z.ZodType<ActionOrderEntryState>;
 
@@ -28,6 +33,7 @@ const actionOrderNextActorSchema = zod
     position: zod.number(),
     actorId: zod.string(),
     actorName: zod.string(),
+    control: controlSchema,
   })
   .meta({ id: "ActionOrderNextActor" }) satisfies z.ZodType<ActionOrderNextActorState>;
 

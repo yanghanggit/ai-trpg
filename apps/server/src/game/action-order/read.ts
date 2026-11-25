@@ -1,11 +1,11 @@
 import type { Database } from "../../db/pool";
-import type { ActionOrderState } from "../kernel/types";
+import type { ActionOrderEntryState, ActionOrderState } from "../kernel/types";
 import {
   type ActionOrderRow,
   findActionOrder,
   findActiveActionOrder,
   listActionOrderEntries,
-  listAdvanceableActorIds,
+  listOrderParticipants,
 } from "../persistence/action-orders";
 import { readGameVersion } from "../persistence/games";
 import { nextEntry } from "./next";
@@ -14,8 +14,8 @@ import { nextEntry } from "./next";
  * 读投影：顺位头 + 按顺位升序的条目 + 两个读出来才算得出的派生值。
  *
  * 不给 id 就读当前进行中的那张；「还没有顺位」返回 `null` 而不是抛错，调用方据此区分
- * 「没开」与「已移除」。这里不拼 actor 的活状态：顺位是快照，读的时候不该被现在的
- * 敏捷或生命改写——「谁快轮到」是例外，它本来就是在问当下，按当下的候选集算。
+ * 「没开」与「已移除」。名次与敏捷是快照，读的时候不回写；生死与执行方是当下事实，
+ * 单独补在条目上——「谁快轮到」「这一回合谁执行」本来就是在问当下。
  */
 export async function readActionOrder(
   db: Database,
@@ -36,8 +36,16 @@ export async function projectActionOrder(
   db: Database,
   row: ActionOrderRow,
 ): Promise<ActionOrderState> {
-  const entries = await listActionOrderEntries(db, row.id);
-  const candidates = await listAdvanceableActorIds(db, row.id);
+  const participants = await listOrderParticipants(db, row.id);
+  const entries: ActionOrderEntryState[] = (await listActionOrderEntries(db, row.id)).map(
+    (entry) => ({
+      ...entry,
+      control: participants.get(entry.actorId)?.control ?? "agent",
+      alive: participants.get(entry.actorId)?.alive ?? false,
+    }),
+  );
+  const alive = new Set(entries.filter((entry) => entry.alive).map((entry) => entry.actorId));
+  const picked = nextEntry(entries, alive);
   return {
     id: row.id,
     status: row.status,
@@ -45,6 +53,14 @@ export async function projectActionOrder(
     completedAt: row.completedAt === null ? null : row.completedAt.toISOString(),
     entries,
     gameVersion: await readGameVersion(db, row.gameId),
-    nextActor: nextEntry(entries, candidates),
+    nextActor:
+      picked === null
+        ? null
+        : {
+            position: picked.position,
+            actorId: picked.actorId,
+            actorName: picked.actorName,
+            control: picked.control,
+          },
   };
 }

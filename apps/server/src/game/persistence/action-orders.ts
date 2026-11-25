@@ -1,7 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { and, asc, eq, sql } from "drizzle-orm";
 import { actionOrderEntries, actionOrders, actorControls, actors } from "../../db/schema";
-import type { ActionOrderStatus } from "../kernel/types";
+import type { ActionOrderControl, ActionOrderStatus } from "../kernel/types";
 import type { Executor } from "./rows";
 
 /**
@@ -93,22 +93,26 @@ export async function listActionOrderEntries(
     .orderBy(asc(actionOrderEntries.position));
 }
 
+/** 名次之外的两个当下事实：还能不能轮到他，这一回合由谁执行。 */
+export type OrderParticipant = { alive: boolean; control: ActionOrderControl };
+
 /**
- * 这条顺位上此刻还能交给 agent 推进的 actor：活着的、且不是玩家自己操控的那个。
+ * 顺位上每个人此刻的生死与执行方：一次往返取齐条目 → 角色（生命）→ 玩家控制行。
  *
- * 一次往返取齐条目 → 角色（生命、是否主角）→ 玩家控制行。筛在这里而不是在规则里，
- * 是为了让「谁快轮到」保持成纯函数，也让读取投影只付一次数据库往返。被筛掉的人仍留在
- * 顺位上并照旧保留自己的计数：他不是「不算数」，只是这一回合不归 agent 推。
+ * 顺位本身不分玩家与 NPC——两者都是名次上的一个回合，区别只在谁执行：有人接管就是
+ * `player`（客户端直接提交动作），否则是 `agent`（引擎跑循环）。主角在被接管之前也是
+ * `agent`，因为玩家入口要求先接管，报 `player` 会骗客户端去调一个必然失败的入口。
+ *
+ * 两个值都是**读出时**的事实，不落库：快照记的是名次与敏捷，生死与接管会变。
  */
-export async function listAdvanceableActorIds(
+export async function listOrderParticipants(
   executor: Executor,
   orderId: string,
-): Promise<Set<string>> {
+): Promise<Map<string, OrderParticipant>> {
   const rows = await executor
     .select({
       actorId: actionOrderEntries.actorId,
       hp: actors.hp,
-      isDefaultPlayer: actors.isDefaultPlayer,
       controlledBy: actorControls.actorId,
     })
     .from(actionOrderEntries)
@@ -121,10 +125,11 @@ export async function listAdvanceableActorIds(
       ),
     )
     .where(eq(actionOrderEntries.orderId, orderId));
-  return new Set(
-    rows
-      .filter((row) => row.hp > 0 && !row.isDefaultPlayer && row.controlledBy === null)
-      .map((row) => row.actorId),
+  return new Map(
+    rows.map((row) => [
+      row.actorId,
+      { alive: row.hp > 0, control: row.controlledBy === null ? "agent" : "player" },
+    ]),
   );
 }
 
