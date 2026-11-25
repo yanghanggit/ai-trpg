@@ -15,7 +15,7 @@ function actor(key: string) {
 describe("broken-bridge-inn seed world", () => {
   it("keeps one room and three talking actors in it", () => {
     expect(world.worldName).toBe("断桥客栈的故事");
-    expect(world.contentVersion).toBe("broken-bridge-inn.v1");
+    expect(world.contentVersion).toBe("broken-bridge-inn.v2");
     expect(world.stages.map((stage) => stage.name)).toEqual(["炉厅"]);
     expect(world.connections).toEqual([]);
     expect(world.actors.map((entry) => entry.name)).toEqual(["温娜", "戈特", "无名旅人"]);
@@ -31,8 +31,6 @@ describe("broken-bridge-inn seed world", () => {
         expect.arrayContaining(["say", "whisper", "announce", "wait"]),
       );
       expect(entry.concealed).toBeUndefined();
-      expect(entry.inventory).toEqual([]);
-      expect(entry.equipment).toBeUndefined();
     }
     // 没有武器，就不该出现由武器借出的动作；肉搏是三个人共同的退路。
     for (const entry of world.actors) {
@@ -40,6 +38,35 @@ describe("broken-bridge-inn seed world", () => {
       expect(actorInnateActions(entry)).not.toContain("cleave");
       expect(actorInnateActions(entry)).toContain("brawl");
     }
+  });
+
+  it("keeps the inn's other two guests without anything to swap", () => {
+    for (const key of ["wenna", "gott"]) {
+      const entry = actor(key);
+      expect(entry.inventory).toEqual([]);
+      expect(entry.equipment).toBeUndefined();
+      expect(actorInnateActions(entry)).not.toContain("equip");
+      expect(actorInnateActions(entry)).not.toContain("unequip");
+    }
+  });
+
+  it("gives the traveler swappable clothes for the appearance notification path", () => {
+    const traveler = actor("traveler");
+    expect(actorInnateActions(traveler)).toEqual(expect.arrayContaining(["equip", "unequip"]));
+
+    const byName = new Map(traveler.inventory.map((item) => [item.name, item]));
+    // 穿戴索引里的名字必须真在背包里，否则外观推理拿不到那件道具。
+    expect(Object.values(traveler.equipment ?? {}).every((name) => byName.has(name))).toBe(true);
+    // 同槽至少两件才能换：护甲与饰品各一槽。
+    expect([...byName.values()].filter((item) => item.kind === "equipment")).toHaveLength(2);
+    expect([...byName.values()].filter((item) => item.kind === "accessory")).toHaveLength(2);
+    // 一件参与外观的饰品与一件不参与的饰品，覆盖广播与静默两条路。
+    const appearances = new Set(
+      [...byName.values()]
+        .filter((item) => item.kind === "accessory")
+        .map((item) => item.appearsInAppearance),
+    );
+    expect(appearances).toEqual(new Set([true, false]));
   });
 
   it("keeps names observer-specific and the player a stranger", () => {

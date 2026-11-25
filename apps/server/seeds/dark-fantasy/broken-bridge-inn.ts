@@ -12,13 +12,14 @@ import { DARK_FANTASY_SETTING } from "./campaign";
  */
 
 /**
- * 剧本「断桥客栈」：黑暗奇幻战役下的第三个故事切片，只服务对话相关功能的验证。
+ * 剧本「断桥客栈」：黑暗奇幻战役下的第三个故事切片，服务对话与外观通知的验证。
  *
  * 一个房间、三个能开口的人、一场把路封死的雨。没有通道、机关、武器和可拾取的道具：
- * 这些不是这一局要测的东西，所以内容层一概不提供。
+ * 这些不是这一局要测的东西，所以内容层一概不提供。唯一例外是玩家随身的衣物与饰品：
+ * 换装是外观通知链路的入口，所以留了同槽可换的几件，其余一概不提供。
  */
 export const BROKEN_BRIDGE_INN: Script = {
-  contentVersion: "broken-bridge-inn.v1",
+  contentVersion: "broken-bridge-inn.v2",
   contentKey: "broken-bridge-inn",
   worldName: "断桥客栈的故事",
   functionPrompts: renderFunctionPrompts({
@@ -119,17 +120,59 @@ export const BROKEN_BRIDGE_INN: Script = {
 **禁忌**: 不欠人情，也不让人替你付账；不把约好的人的名字说出来。
 **最爱**: 干燥的座位、天亮前最安静的那一阵、有人先闭嘴。
 **秘密**: 你要等的人不是朋友，是把你送出河谷的人；他答应天亮前在桥北接你，带上你被扣下的东西。你不知道他会不会来，也不知道他是不是已经死在南岸。`,
-      openingBriefing: `你在天黑后走进炉厅，斗篷还在滴水。你要过河，但桥断了；你在等一个约好的人，不想让屋里的人知道他是谁。柜台后的女人你叫她掌柜的，那个瘦小的男人你叫他盐贩子；你不知道他们的真名。先坐下，听听他们还知道什么。`,
+      openingBriefing: `你在天黑后走进炉厅，斗篷还在滴水。你要过河，但桥断了；你在等一个约好的人，不想让屋里的人知道他是谁。柜台后的女人你叫她掌柜的，那个瘦小的男人你叫他盐贩子；你不知道他们的真名。先坐下，听听他们还知道什么。行李底层有一件干羊毛斗篷，脖子上绕着一条湿围巾；想换的时候可以换下来——腰上那截骨符贴着皮肉，不给外人看。`,
       signature: {
         form: formatForm("人类", "中等身量，斗篷湿透，脸藏在兜帽的阴影里。"),
         appearance:
-          "湿透的旧斗篷一直盖到膝盖，兜帽压得很低，只露出下巴和一段发白的嘴唇；靴子上全是泥，走路时几乎没有声音。",
+          "湿透的旧斗篷一直盖到膝盖，兜帽压得很低，只露出下巴和一段发白的嘴唇；领口绕着一条湿透的灰羊毛围巾，末端贴在胸口；靴子上全是泥，走路时几乎没有声音。",
       },
       hp: 20,
       stats: { maxHp: 20, strength: 10, wisdom: 6, agility: 6, damage: 0, block: 0 },
       isDefaultPlayer: true,
-      inventory: [],
-      actions: ["say", "whisper", "announce", "wait", "brawl"],
+      // 开局穿戴与签名外观一致：旧斗篷在身上，围巾在脖子上。
+      equipment: {
+        armor: "湿透的旧斗篷",
+        accessory: "灰羊毛围巾",
+      },
+      // 同槽各有可替换的一件：护甲换了看得见，围巾换了也看得见；
+      // 贴身骨符不参与外观，用来验证“换上去也没有任何信号”的那条路。
+      inventory: [
+        {
+          key: "soaked-cloak",
+          name: "湿透的旧斗篷",
+          description: "粗呢斗篷在雨里泡透了，下摆滴着泥水，肩缝磨得发白；兜帽的边缘已经卷起。",
+          kind: "equipment" as const,
+          count: 1,
+          stats: { block: 1 },
+        },
+        {
+          key: "dry-wool-cloak",
+          name: "干羊毛斗篷",
+          description: "从行李底层翻出来的一件干羊毛斗篷，领口缝着补丁，还带着旧行李的霉味。",
+          kind: "equipment" as const,
+          count: 1,
+          stats: { block: 2 },
+        },
+        {
+          key: "grey-wool-scarf",
+          name: "灰羊毛围巾",
+          description: "一条洗得发白的灰羊毛围巾，末端磨出了毛边，绕在领口时露出一截。",
+          kind: "accessory" as const,
+          count: 1,
+          appearsInAppearance: true,
+        },
+        {
+          key: "hidden-bone-charm",
+          name: "贴身的骨符",
+          description:
+            "一截巴掌长的旧骨片，用皮绳系在腰上、贴着皮肉；上面刻着几道看不出意思的浅痕。",
+          kind: "accessory" as const,
+          count: 1,
+          appearsInAppearance: false,
+        },
+      ],
+      // 旅人身上有可换的衣物，所以只有他需要穿脱；另外两人没有可换的东西。
+      actions: ["say", "whisper", "announce", "wait", "brawl", "equip", "unequip"],
     },
   ],
   // 三个人在同一间屋里，但各自只知道一套称呼：温娜与戈特认识彼此，

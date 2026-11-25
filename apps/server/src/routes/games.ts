@@ -28,6 +28,7 @@ import {
   endGameOp,
   memoryOp,
   nameLeaksOp,
+  passTurn,
   playerActionBodySchema,
   probeOp,
   readActionOrderOp,
@@ -86,6 +87,11 @@ const npcTurnBody = z.object({
   actors: z.array(z.string().trim().min(1)).min(1, "需要至少一个 actor 名"),
   /** 客户端读到的那份视图的版本；给了就要求一致，避免拿旧视图做决定。 */
   expectedVersion: z.number().int().min(0).optional(),
+});
+
+/** 空回合：在顺位上记一笔「轮到过他」，不产生动作。 */
+const passTurnBody = z.object({
+  actors: z.array(z.string().trim().min(1)).min(1, "需要至少一个 actor 名"),
 });
 
 const stageTurnBody = z.object({
@@ -523,6 +529,25 @@ export function createGameRoutes(db: () => Database): FastifyPluginAsyncZod {
           ...services(),
           logger: request.log,
         });
+      },
+    );
+
+    app.post(
+      "/games/:game/turns/pass",
+      {
+        schema: {
+          tags: ["turns"],
+          summary: "记空回合：计数照加，不产生动作",
+          description: "跳过失败的一轮、或玩家席位这一趟没动手。",
+          params: gameParams,
+          body: passTurnBody,
+          response: { 200: z.object({ results: resultsSchema }) },
+        },
+      },
+      async (request) => {
+        const user = await requireUser(db(), request);
+        await requireGameAccess(db(), request.params.game, user);
+        return passTurn(db(), request.params.game, request.body);
       },
     );
 

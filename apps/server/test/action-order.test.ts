@@ -6,12 +6,20 @@ import { DEMO_USER } from "../src/db/demo-fixture";
 import { resetDomainData, seedDemoData } from "../src/db/maintenance";
 import { runMigrations } from "../src/db/migrate";
 import { actionOrderEntries, actors } from "../src/db/schema";
-import { createGame, getGameMeta, getGameState, nextEntry, recordActionTaken } from "../src/game";
+import {
+  createGame,
+  getGameMeta,
+  getGameState,
+  listGameMessages,
+  nextEntry,
+  recordTurnTaken,
+} from "../src/game";
 import type { ActionOrderState } from "../src/game/kernel/types";
 import {
   advanceNpc,
   completeActionOrderOp,
   createActionOrderOp,
+  passTurn,
   readActionOrderOp,
   removeActionOrderOp,
   submitPlayerAction,
@@ -228,6 +236,29 @@ describe.skipIf(!testDatabaseUrl)("action order", () => {
     );
   });
 
+  it("空回合也计数：跳过的一轮不会让下一个人堵住", async () => {
+    const game = await freshGame("行动顺位空回合局");
+    const { order } = await createActionOrderOp(handle.db, game);
+    const lead = firstEntry(order);
+
+    expect(await passTurn(handle.db, game, { actors: [lead.actorName] })).toEqual({
+      results: [{ actorName: lead.actorName, counted: true }],
+    });
+
+    const after = (await readActionOrderOp(handle.db, game)).order;
+    expect(entryAt(after as ActionOrderState, 1).turnsTaken).toBe(1);
+    // 空回合不写动作、也不写事件：它只记「轮到过他」。
+    expect(after?.nextActor?.position).toBe(2);
+    const gameId = (await getGameMeta(handle.db, game)).id;
+    expect(await listGameMessages(handle.db, gameId)).toEqual([]);
+
+    // 顺位不在进行中时照旧只是「没记上」。
+    await completeActionOrderOp(handle.db, game, order.id);
+    expect(await passTurn(handle.db, game, { actors: [lead.actorName] })).toEqual({
+      results: [{ actorName: lead.actorName, counted: false }],
+    });
+  });
+
   it("一局只能有一条进行中的顺位；完成后才能再开", async () => {
     const game = await freshGame("行动顺位单张局");
     const { order } = await createActionOrderOp(handle.db, game);
@@ -244,7 +275,7 @@ describe.skipIf(!testDatabaseUrl)("action order", () => {
     // 完成后 current 是空的，计数也不再记。
     expect((await readActionOrderOp(handle.db, game)).order).toBeNull();
     const gameId = (await getGameState(handle.db, game)).game.id;
-    expect(await recordActionTaken(handle.db, gameId, firstEntry(order).actorId)).toBe(false);
+    expect(await recordTurnTaken(handle.db, gameId, firstEntry(order).actorId)).toBe(false);
 
     // 上一条已完成，可以开下一条。
     const next = await createActionOrderOp(handle.db, game);

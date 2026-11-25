@@ -15,6 +15,11 @@ const npcInput = z.object({
   expectedVersion: z.coerce.number().int().min(0).optional(),
 });
 
+const passInput = z.object({
+  game: z.string(),
+  actor: z.array(z.string().trim().min(1)).min(1, "需要至少一个 --actor <actorName>"),
+});
+
 const stageInput = z.object({
   game: z.string(),
   stage: z.array(z.string().trim().min(1)).min(1, "需要至少一个 --stage <stageId|stageName>"),
@@ -46,6 +51,23 @@ export function registerTurnCommands(program: Command): void {
         method: "POST",
         path: `/games/${encodeURIComponent(input.game)}/turns/npc`,
         body: { actors: input.actor, expectedVersion: input.expectedVersion },
+      })) as Record<string, unknown>,
+  });
+
+  addApiCommand(program, {
+    name: "pass",
+    group: GROUP,
+    summary: "记空回合：这一轮跳过，顺位计数照加",
+    options: [
+      gameOption(),
+      requiredOption("--actor <names...>", "actor 名称，可重复用或一次给多个"),
+    ],
+    schema: passInput,
+    run: async (input, client) =>
+      (await client.call({
+        method: "POST",
+        path: `/games/${encodeURIComponent(input.game)}/turns/pass`,
+        body: { actors: input.actor },
       })) as Record<string, unknown>,
   });
 

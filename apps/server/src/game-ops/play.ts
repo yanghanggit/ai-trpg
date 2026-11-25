@@ -42,7 +42,7 @@ import {
   playerWait,
   playerWhisper,
   readActionOrder,
-  recordActionTaken,
+  recordTurnTaken,
   refreshCorpseAppearance,
   releaseActorControl,
   runActorTurn,
@@ -241,7 +241,7 @@ export async function submitPlayerAction(
   // 被拒的计划不走到这里（落账层直接抛错），所以「回来且 ok」就是「发生过」。
   if (result.ok) {
     const actor = findActorByRef(result.state, actorRef);
-    await recordActionTaken(db, result.state.game.id, actor.id);
+    await recordTurnTaken(db, result.state.game.id, actor.id);
   }
   return playerActionOutput(result);
 }
@@ -527,7 +527,7 @@ export async function advanceNpc(
       results.push(actorTurnOutput(result));
       const { actor } = findActorByName(result.state, name);
       if (result.ok) {
-        await recordActionTaken(db, game.id, actor.id);
+        await recordTurnTaken(db, game.id, actor.id);
       }
       if (order !== null) {
         await recordDispatch({ trace, order, actorId: actor.id, actorName: actor.name });
@@ -539,6 +539,34 @@ export async function advanceNpc(
       ADVANCING.delete(key);
     }
   }
+}
+
+export type PassTurnInput = { actors: readonly string[] };
+
+/**
+ * 空回合：这一回合过去了，但没有动作落账，计数照加。
+ *
+ * 客户端用它跳过失败的一轮（否则那个人会永远卡在队首）、或记下玩家席位这一趟没动手。
+ * 记的是一条事实——「轮到过他，他没动」——不是替谁编动作。
+ */
+export async function passTurn(
+  db: Database,
+  gameRef: string,
+  input: PassTurnInput,
+): Promise<{ results: { actorName: string; counted: boolean }[] }> {
+  const state = await getGameStateSlice(db, gameRef);
+  if (state.game.status !== "active") {
+    throw new GameError("invalid_state", `游戏已结束: ${state.game.status}`);
+  }
+  const results: { actorName: string; counted: boolean }[] = [];
+  for (const name of new Set(input.actors)) {
+    const actor = findActorByName(state, name).actor;
+    results.push({
+      actorName: actor.name,
+      counted: await recordTurnTaken(db, state.game.id, actor.id),
+    });
+  }
+  return { results };
 }
 
 export type StageAdvanceInput = { stages: readonly string[] };

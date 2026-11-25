@@ -17,6 +17,7 @@ import {
   advanceNpc,
   advanceStage,
   advanceWorld,
+  passTurn,
   settleDeaths,
 } from "../../../game-ops";
 import { gameOption, gameRef, optionalOption, requiredOption } from "../../args";
@@ -34,6 +35,11 @@ const npcInput = z.object({
 const stageInput = z.object({
   game: gameRef,
   stage: z.array(z.string().trim().min(1)).min(1, "需要至少一个 --stage <stageId|stageName>"),
+});
+
+const passInput = z.object({
+  game: gameRef,
+  actor: z.array(z.string().trim().min(1)).min(1, "需要至少一个 --actor <actorName>"),
 });
 
 const appearanceInput = z.object({
@@ -78,6 +84,18 @@ export function registerTurnCommands(program: Command, ctx: CommandContext): voi
           services(ctx),
         ),
       ),
+  });
+
+  addCommand(program, ctx, {
+    name: "pass",
+    group: GROUP,
+    summary: "记空回合：这一轮跳过，顺位计数照加",
+    options: [
+      gameOption(),
+      requiredOption("--actor <names...>", "actor 名称，可重复用或一次给多个"),
+    ],
+    schema: passInput,
+    run: async (input, ctx) => ctx.db((db) => passTurn(db, input.game, { actors: input.actor })),
   });
 
   addCommand(program, ctx, {
