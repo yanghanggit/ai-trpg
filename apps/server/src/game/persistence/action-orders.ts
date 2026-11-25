@@ -7,9 +7,8 @@ import type { Executor } from "./rows";
 /**
  * 行动顺位行的读写。
  *
- * 一局同时最多一条 `active`（部分唯一索引兜住），所以「当前顺位」是单行读取；条目按
- * `position` 升序返回，计数用 `turns_taken = turns_taken + 1` 原子自增——排队读再写
- * 会丢掉并发下的一次推进。这里只管行，排序规则在 `game/gameplay/ordering.ts`。
+ * 一局最多一条 `active`（部分唯一索引兜住），所以当前顺位是单行读取；计数用
+ * `turns_taken + 1` 原子自增，排队读再写会丢并发的一次推进。排序规则不在这里。
  */
 
 export type ActionOrderRow = typeof actionOrders.$inferSelect;
@@ -97,13 +96,10 @@ export async function listActionOrderEntries(
 export type OrderParticipant = { alive: boolean; control: ActionOrderControl };
 
 /**
- * 顺位上每个人此刻的生死与执行方：一次往返取齐条目 → 角色（生命）→ 玩家控制行。
+ * 顺位上每个人此刻的生死与执行方，一次往返取齐。
  *
- * 顺位本身不分玩家与 NPC——两者都是名次上的一个回合，区别只在谁执行：有人接管就是
- * `player`（客户端直接提交动作），否则是 `agent`（引擎跑循环）。主角在被接管之前也是
- * `agent`，因为玩家入口要求先接管，报 `player` 会骗客户端去调一个必然失败的入口。
- *
- * 两个值都是**读出时**的事实，不落库：快照记的是名次与敏捷，生死与接管会变。
+ * 接管了就是 `player`，否则 `agent`——主角在被接管前也算 `agent`，因为玩家入口要求先
+ * 接管。两者都是读出时的事实，不落库：快照记名次与敏捷，生死与接管会变。
  */
 export async function listOrderParticipants(
   executor: Executor,

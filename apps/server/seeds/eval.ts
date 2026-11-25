@@ -1,5 +1,6 @@
 import type { RagEvalSet } from "../src/rag/types";
 import { BELL_MONASTERY_EVAL } from "./dark-fantasy/bell-monastery.eval";
+import { BROKEN_BRIDGE_INN_EVAL } from "./dark-fantasy/broken-bridge-inn.eval";
 import { CROW_GRAVE_EVAL } from "./dark-fantasy/crow-grave.eval";
 import type { CONTENT_PACKS } from "./index";
 
@@ -13,4 +14,5 @@ import type { CONTENT_PACKS } from "./index";
 export const RAG_EVAL_SETS = {
   "dark-fantasy:bell-monastery": BELL_MONASTERY_EVAL,
   "dark-fantasy:crow-grave": CROW_GRAVE_EVAL,
+  "dark-fantasy:broken-bridge-inn": BROKEN_BRIDGE_INN_EVAL,
 } as const satisfies Partial<Record<keyof typeof CONTENT_PACKS, RagEvalSet>>;

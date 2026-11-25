@@ -10,6 +10,11 @@ export function emit(payload: Output): void {
   process.stdout.write(`${JSON.stringify(payload, null, 2)}\n`);
 }
 
+/** 进程日志走 stderr：多步命令的过程写在这里，stdout 仍只有一份结果。 */
+export function note(message: string): void {
+  process.stderr.write(`${message}\n`);
+}
+
 /** 人类模式输出：不加 JSON 信封，调用方显式选择了非机器可读的形态。 */
 export function emitText(text: string): void {
   process.stdout.write(text.endsWith("\n") ? text : `${text}\n`);

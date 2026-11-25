@@ -6,14 +6,8 @@ import { bumpGameVersion, completeGameIfActive, lockGameRow } from "../persisten
 /**
  * 结束一局：状态位翻成 completed，可选再写一条公共结束事件。
  *
- * 它不是一个「世界必然收尾」的设计，而是给 world 一个能被调用的表达方式：系统有开始
- * 就该有结束，仅此而已。世界本身是长期运行的，所以这里只做单向的状态转移，不铺开
- * 结局、评分、归档那一套。
- *
- * 与 world 回合的结束走同一个转移点（`completeGameIfActive`）：并发下只有一个生效，
- * 已经结束的局再结束不算失败，调用方重试看到的是同一份状态。
- *
- * 句子归调用方：引擎不替客户端编结局。不传正文就只翻状态，不写事件。
+ * 只做单向转移，不铺开结局、评分与归档。与 world 回合的结束共用 `completeGameIfActive`，
+ * 并发下只有一个生效，重复结束回同一份状态；正文归调用方，不给就不写事件。
  */
 export type EndGameInput = {
   /** 世界自己命名的结局标签，与 world 写的同一列。 */

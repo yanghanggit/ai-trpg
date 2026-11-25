@@ -11,11 +11,10 @@ import { readGameVersion } from "../persistence/games";
 import { nextEntry } from "./next";
 
 /**
- * 读投影：顺位头 + 按顺位升序的条目 + 两个读出来才算得出的派生值。
+ * 读投影：顺位头 + 按名次升序的条目 + `gameVersion` 与 `nextActor`。
  *
- * 不给 id 就读当前进行中的那张；「还没有顺位」返回 `null` 而不是抛错，调用方据此区分
- * 「没开」与「已移除」。名次与敏捷是快照，读的时候不回写；生死与执行方是当下事实，
- * 单独补在条目上——「谁快轮到」「这一回合谁执行」本来就是在问当下。
+ * 不给 id 就读当前进行中的那条；没有则返回 `null`，不用抛错区分「没开」与「已移除」。
+ * 名次与敏捷是快照不回写；生死与执行方是当下事实，读出时补在条目上。
  */
 export async function readActionOrder(
   db: Database,

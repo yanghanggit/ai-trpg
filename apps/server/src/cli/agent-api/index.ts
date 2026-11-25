@@ -16,6 +16,7 @@ import { registerActionOrderCommands } from "./commands/action-order";
 import { registerGameCommands } from "./commands/game";
 import { registerInspectCommands } from "./commands/inspect";
 import { registerPlayerCommands } from "./commands/player";
+import { registerTickCommand } from "./commands/tick";
 import { registerTraceCommands } from "./commands/trace";
 import { registerTurnCommands } from "./commands/turn";
 
@@ -42,6 +43,7 @@ export function createProgram(): Command {
   registerPlayerCommands(program);
   registerTurnCommands(program);
   registerActionOrderCommands(program);
+  registerTickCommand(program);
   registerInspectCommands(program);
   registerTraceCommands(program);
   return program;
