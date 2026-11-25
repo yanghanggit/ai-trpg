@@ -5,8 +5,7 @@
  * 或改可空性时这里编译不过，而不是等客户端拿到一个它不认识的 JSON。
  */
 
-import type { z } from "zod";
-import { z as zod } from "zod";
+import { z } from "zod";
 import type {
   ActionOrderEntryState,
   ActionOrderNextActorState,
@@ -14,37 +13,37 @@ import type {
 } from "../../game/kernel/types";
 
 /** 谁执行：引擎跑循环，还是客户端直接提交一个已决定好的动作。 */
-const controlSchema = zod.enum(["agent", "player"]);
+const controlSchema = z.enum(["agent", "player"]);
 
-const actionOrderEntrySchema = zod
+const actionOrderEntrySchema = z
   .object({
-    actorId: zod.string(),
-    actorName: zod.string(),
-    position: zod.number(),
-    agility: zod.number(),
-    turnsTaken: zod.number(),
+    actorId: z.string(),
+    actorName: z.string(),
+    position: z.number(),
+    agility: z.number(),
+    turnsTaken: z.number(),
     control: controlSchema,
-    alive: zod.boolean(),
+    alive: z.boolean(),
   })
   .meta({ id: "ActionOrderEntry" }) satisfies z.ZodType<ActionOrderEntryState>;
 
-const actionOrderNextActorSchema = zod
+const actionOrderNextActorSchema = z
   .object({
-    position: zod.number(),
-    actorId: zod.string(),
-    actorName: zod.string(),
+    position: z.number(),
+    actorId: z.string(),
+    actorName: z.string(),
     control: controlSchema,
   })
   .meta({ id: "ActionOrderNextActor" }) satisfies z.ZodType<ActionOrderNextActorState>;
 
-export const actionOrderSchema = zod
+export const actionOrderSchema = z
   .object({
-    id: zod.string(),
-    status: zod.enum(["active", "completed"]),
-    createdAt: zod.string(),
-    completedAt: zod.string().nullable(),
-    entries: zod.array(actionOrderEntrySchema),
-    gameVersion: zod.number(),
+    id: z.string(),
+    status: z.enum(["active", "completed"]),
+    createdAt: z.string(),
+    completedAt: z.string().nullable(),
+    entries: z.array(actionOrderEntrySchema),
+    gameVersion: z.number(),
     nextActor: actionOrderNextActorSchema.nullable(),
   })
   .meta({ id: "ActionOrder" }) satisfies z.ZodType<ActionOrderState>;

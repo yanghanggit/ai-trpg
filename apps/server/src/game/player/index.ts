@@ -3,6 +3,6 @@ export { auditDialogueOrThrow } from "./audit";
 export * from "./inputs";
 export {
   applyPlayerAction,
-  applyPlayerPlan,
-  applyPlayerPlanOnState,
-} from "./plan";
+  applyPlayerCognitionOnState,
+  type PlayerCognition,
+} from "./turn";

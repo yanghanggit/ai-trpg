@@ -20,6 +20,15 @@ import { auditDialogueOrThrow } from "./audit";
 import type { PlayerActionOptions } from "./inputs";
 
 /**
+ * 玩家入口的回合：一个动作，或者一次纯认知。
+ *
+ * 「一个回合一个动作」是形状上的约束，不是调用约定：这里没有能装下一串动作的入口。
+ * 形状本身仍是 `ActorPlan`——落账与记忆只有一份，玩家入口只是跳过计划与工具，
+ * 把已经决定好的那一条喂给同一个结算层（见 `docs/actor-actions-memory.md`）。
+ */
+export type PlayerCognition = Partial<Pick<ActorPlan, "identities" | "routes" | "routeFailures">>;
+
+/**
  * 玩家入口是 god view，可以用真名 / 引用指定目标；但进入结算前必须
  * 换成该 actor 当前地址表发出的 actor-facing 引用，后续只走签名 / 当前名字入口。
  */
@@ -46,7 +55,7 @@ function normalizePlayerTargets(
   };
 }
 
-/** 没有动作的计划用认知类别做轨迹标签；顺序与落账顺序一致。 */
+/** 没有动作的回合用认知类别做轨迹标签；顺序与落账顺序一致。 */
 function extraLabel(plan: ActorPlan): string {
   if ((plan.identities?.length ?? 0) > 0) {
     return MEMORY_KINDS.identityUpdate;
@@ -60,7 +69,7 @@ function extraLabel(plan: ActorPlan): string {
   return "empty_plan";
 }
 
-/** 单个动作的便捷入口，内部仍走同一份计划。 */
+/** 玩家动作：一个动作就是一个回合。 */
 export async function applyPlayerAction(
   db: Database,
   gameRef: string,
@@ -68,28 +77,38 @@ export async function applyPlayerAction(
   action: ActorAction,
   options: PlayerActionOptions = {},
 ): Promise<ActorTurnResult> {
-  return applyPlayerPlan(db, gameRef, actorRef, { actions: [action] }, options);
-}
-
-/** 玩家直接提交计划；只允许玩家接管的 actor。 */
-export async function applyPlayerPlan(
-  db: Database,
-  gameRef: string,
-  actorRef: string,
-  plan: ActorPlan,
-  options: PlayerActionOptions = {},
-): Promise<ActorTurnResult> {
   const state = await getGameStateSlice(db, gameRef);
-  return applyPlayerPlanOnState(db, state, findActorByRef(state, actorRef), plan, options);
+  return settlePlayerTurnOnState(
+    db,
+    state,
+    findActorByRef(state, actorRef),
+    { actions: [action] },
+    options,
+  );
 }
 
 /**
- * 已装载状态上的计划执行。
+ * 玩家替自己控制的角色记一条认知：改名或回忆路线。
  *
- * 需要先看状态再决定计划的入口（例如改称呼要先解析目标）复用这一层，
+ * 它不占动作名额，但同样是一个回合——计数只看「这个回合发生过」，不看里面有几个动作。
+ */
+export async function applyPlayerCognitionOnState(
+  db: Database,
+  state: GameStateSlice,
+  actor: ActorState,
+  cognition: PlayerCognition,
+  options: PlayerActionOptions = {},
+): Promise<ActorTurnResult> {
+  return settlePlayerTurnOnState(db, state, actor, { actions: [], ...cognition }, options);
+}
+
+/**
+ * 一个已决定的回合走同一份结算路径；计划只在这里就近组装，不给外部传入的机会。
+ *
+ * 需要先看状态再决定动作的入口（例如改称呼要先解析目标）复用这一层，
  * 避免为同一份状态装配两遍。
  */
-export async function applyPlayerPlanOnState(
+async function settlePlayerTurnOnState(
   db: Database,
   state: GameStateSlice,
   actor: ActorState,
@@ -104,15 +123,17 @@ export async function applyPlayerPlanOnState(
   // 台词审核要看目标是谁，必须用**玩家原本写的真名 / 编号**解析：
   // 地址一归一成观察者称呼，就不再是真名了。
   const dialogue = plan.actions.find(isDialogueAction);
-  const dialogueTarget = dialogue
-    ? dialogue.kind === "announce"
+  const dialogueTarget =
+    dialogue === undefined
       ? null
-      : dialogue.kind === "call"
-        ? findActorByName(state, dialogue.targetActorName).actor
-        : findActorByRef(state, dialogue.targetActorHandle)
-    : null;
+      : dialogue.kind === "announce"
+        ? null
+        : dialogue.kind === "call"
+          ? findActorByName(state, dialogue.targetActorName).actor
+          : findActorByRef(state, dialogue.targetActorHandle);
   plan = normalizePlayerTargets(state, actor, stage, plan);
-  const trace = createTurnTrace({ game: state.game, turnKind: "player" });
+  // 轨迹由调用方开就沿用那一条：推进对账要挂在同一个回合上，不能自成一条孤立记录。
+  const trace = options.trace ?? createTurnTrace({ game: state.game, turnKind: "player" });
   await traceEvent(trace, {
     event: "turn_start",
     label: plan.actions[0]?.kind ?? extraLabel(plan),
@@ -122,7 +143,7 @@ export async function applyPlayerPlanOnState(
     stageName: stage.name,
     contentVersion: state.game.contentVersion,
   });
-  if (dialogue) {
+  if (dialogue !== undefined) {
     await auditDialogueOrThrow({
       db,
       trace,

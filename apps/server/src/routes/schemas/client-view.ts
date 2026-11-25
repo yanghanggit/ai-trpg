@@ -9,112 +9,111 @@
  * 客户端因此拿到一个有名字的类型，而不是内联展开的一坨。
  */
 
-import type { z } from "zod";
-import { z as zod } from "zod";
+import { z } from "zod";
 import type { ActorLogView, ActorView, ViewerAnchor, ViewerLogEntry } from "../../game/client-view";
 import type { MessageState } from "../../game/kernel/types";
 
-const viewerItemSchema = zod.object({
-  name: zod.string(),
-  kind: zod.string(),
-  kindLabel: zod.string(),
-  description: zod.string(),
+const viewerItemSchema = z.object({
+  name: z.string(),
+  kind: z.string(),
+  kindLabel: z.string(),
+  description: z.string(),
 });
 
-const viewerStatSchema = zod
+const viewerStatSchema = z
   .object({
-    key: zod.string(),
-    label: zod.string(),
-    value: zod.number(),
+    key: z.string(),
+    label: z.string(),
+    value: z.number(),
   })
   .meta({ id: "ViewerStat" });
 
-const viewerAnchorSchema = zod.object({
-  key: zod.string(),
-  label: zod.string(),
-  description: zod.string().optional(),
-  items: zod.array(viewerItemSchema),
+const viewerAnchorSchema = z.object({
+  key: z.string(),
+  label: z.string(),
+  description: z.string().optional(),
+  items: z.array(viewerItemSchema),
 }) satisfies z.ZodType<ViewerAnchor>;
 
-const viewerAddressSchema = zod.object({
-  actorId: zod.string(),
-  signatureId: zod.string(),
-  token: zod.string(),
-  name: zod.string(),
-  appearance: zod.string(),
-  self: zod.boolean(),
-  alive: zod.boolean(),
+const viewerAddressSchema = z.object({
+  actorId: z.string(),
+  signatureId: z.string(),
+  token: z.string(),
+  name: z.string(),
+  appearance: z.string(),
+  self: z.boolean(),
+  alive: z.boolean(),
 });
 
-const viewerStageSchema = zod.object({
-  id: zod.string(),
-  name: zod.string(),
-  environment: zod.string(),
-  anchors: zod.array(viewerAnchorSchema),
-  actors: zod.array(viewerAddressSchema),
-  exits: zod.array(
-    zod.object({
-      stageId: zod.string(),
-      name: zod.string(),
-      ref: zod.string(),
+const viewerStageSchema = z.object({
+  id: z.string(),
+  name: z.string(),
+  environment: z.string(),
+  anchors: z.array(viewerAnchorSchema),
+  actors: z.array(viewerAddressSchema),
+  exits: z.array(
+    z.object({
+      stageId: z.string(),
+      name: z.string(),
+      ref: z.string(),
     }),
   ),
-  sealedExits: zod.array(
-    zod.object({
-      stageId: zod.string(),
-      name: zod.string(),
+  sealedExits: z.array(
+    z.object({
+      stageId: z.string(),
+      name: z.string(),
     }),
   ),
 });
 
-const viewerGameSchema = zod
+const viewerGameSchema = z
   .object({
-    id: zod.string(),
-    name: zod.string(),
-    slug: zod.string(),
-    status: zod.string(),
-    version: zod.number(),
-    contentVersion: zod.string(),
+    id: z.string(),
+    name: z.string(),
+    slug: z.string(),
+    status: z.string(),
+    version: z.number(),
+    contentVersion: z.string(),
   })
   .meta({ id: "ViewerGame" });
 
-const viewerLogEntrySchema = zod
+const viewerLogEntrySchema = z
   .object({
-    sequence: zod.number(),
-    kind: zod.string(),
-    content: zod.string(),
-    createdAt: zod.string(),
+    sequence: z.number(),
+    kind: z.string(),
+    content: z.string(),
+    createdAt: z.string(),
   })
   .meta({ id: "ViewerLogEntry" }) satisfies z.ZodType<ViewerLogEntry>;
 
 /** 观看者视角：一局在某个角色眼里是什么样。 */
-export const actorViewSchema = zod
+export const actorViewSchema = z
   .object({
     game: viewerGameSchema,
-    viewer: zod.object({
-      actorId: zod.string(),
-      signatureId: zod.string(),
-      name: zod.string(),
-      appearance: zod.string(),
-      concealed: zod.boolean(),
-      hp: zod.number(),
-      stats: zod.array(viewerStatSchema),
-      items: zod.array(viewerItemSchema),
+    viewer: z.object({
+      actorId: z.string(),
+      signatureId: z.string(),
+      name: z.string(),
+      appearance: z.string(),
+      concealed: z.boolean(),
+      hp: z.number(),
+      stats: z.array(viewerStatSchema),
+      items: z.array(viewerItemSchema),
     }),
     stage: viewerStageSchema,
-    names: zod.array(
-      zod.object({
-        name: zod.string(),
-        token: zod.string(),
-        form: zod.string(),
-        source: zod.enum(["content", "self"]),
-        learnedAt: zod.string().nullable(),
+    names: z.array(
+      z.object({
+        name: z.string(),
+        token: z.string(),
+        form: z.string(),
+        source: z.enum(["content", "self"]),
+        learnedAt: z.string().nullable(),
       }),
     ),
-    visitedStages: zod.array(
-      zod.object({
-        stageId: zod.string(),
-        name: zod.string(),
+    visitedStages: z.array(
+      z.object({
+        stageId: z.string(),
+        name: z.string(),
       }),
     ),
   })
@@ -126,27 +125,27 @@ export const actorViewSchema = zod
  * 它进契约是给「消息历史」用的：客户端要能按字段读，而不是把 `state` 那种不透明投影
  * 拆开猜。字段与 `MessageState` 一一对应，同样由 `satisfies` 守住。
  */
-export const gameMessageSchema = zod
+export const gameMessageSchema = z
   .object({
-    id: zod.string(),
-    sequence: zod.number(),
-    kind: zod.string(),
-    stageId: zod.string().nullable(),
-    sourceActorId: zod.string().nullable(),
-    targetActorId: zod.string().nullable(),
-    visibility: zod.enum(["stage", "private"]),
-    content: zod.string(),
-    createdAt: zod.string(),
+    id: z.string(),
+    sequence: z.number(),
+    kind: z.string(),
+    stageId: z.string().nullable(),
+    sourceActorId: z.string().nullable(),
+    targetActorId: z.string().nullable(),
+    visibility: z.enum(["stage", "private"]),
+    content: z.string(),
+    createdAt: z.string(),
   })
   .meta({ id: "GameMessage" }) satisfies z.ZodType<MessageState>;
 
 /** 感知日志：这个角色经历过的事，单独一个端点，不跟着投影一起发。 */
-export const actorLogSchema = zod
+export const actorLogSchema = z
   .object({
-    owner: zod.object({
-      actorId: zod.string(),
-      name: zod.string(),
+    owner: z.object({
+      actorId: z.string(),
+      name: z.string(),
     }),
-    entries: zod.array(viewerLogEntrySchema),
+    entries: z.array(viewerLogEntrySchema),
   })
   .meta({ id: "ActorLog" }) satisfies z.ZodType<ActorLogView>;

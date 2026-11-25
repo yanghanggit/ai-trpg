@@ -4,7 +4,7 @@ import { parseTeleport } from "../actions/teleport";
 import { findActorByRef, stageOfActor } from "../actor-state";
 import { getGameStateSlice } from "../game-state";
 import { handleOf, parseSignatureName } from "../kernel/addressing";
-import type { ActorAction, ActorPlan, ActorTurnResult } from "../kernel/types";
+import type { ActorAction, ActorTurnResult } from "../kernel/types";
 import { type RouteQuestion, resolveRouteQuestion } from "../route";
 import type {
   PlayerActionOptions,
@@ -26,7 +26,7 @@ import type {
   PlayerUnequipInput,
   PlayerUseInput,
 } from "./inputs";
-import { applyPlayerPlanOnState, applyPlayerAction as submit } from "./plan";
+import { applyPlayerAction, applyPlayerCognitionOnState } from "./turn";
 
 /**
  * 每个动作一个入口：把服务层输入翻译成一条动作，再交给同一份计划落账。
@@ -53,7 +53,7 @@ export async function playerSay(
     targetActorHandle: input.targetActorRef,
     message: input.message,
   };
-  return submit(db, gameRef, actorRef, action, options);
+  return applyPlayerAction(db, gameRef, actorRef, action, options);
 }
 
 export async function playerWhisper(
@@ -69,7 +69,7 @@ export async function playerWhisper(
     targetActorHandle: input.targetActorRef,
     message: input.message,
   };
-  return submit(db, gameRef, actorRef, action, options);
+  return applyPlayerAction(db, gameRef, actorRef, action, options);
 }
 
 export async function playerAnnounce(
@@ -84,7 +84,7 @@ export async function playerAnnounce(
     mind: playerMind(input.reason),
     message: input.message,
   };
-  return submit(db, gameRef, actorRef, action, options);
+  return applyPlayerAction(db, gameRef, actorRef, action, options);
 }
 
 export async function playerCall(
@@ -99,7 +99,7 @@ export async function playerCall(
     targetActorName: input.targetActorName,
     message: input.message,
   });
-  return submit(db, gameRef, actorRef, action, options);
+  return applyPlayerAction(db, gameRef, actorRef, action, options);
 }
 
 export async function playerMove(
@@ -110,7 +110,7 @@ export async function playerMove(
   options: PlayerActionOptions = {},
 ): Promise<ActorTurnResult> {
   const action: ActorAction = { kind: "move", targetStageName: input.targetStageRef };
-  return submit(db, gameRef, actorRef, action, options);
+  return applyPlayerAction(db, gameRef, actorRef, action, options);
 }
 
 export async function playerTeleport(
@@ -122,7 +122,7 @@ export async function playerTeleport(
 ): Promise<ActorTurnResult> {
   // 玩家入口与模型工具共用同一份参数校验：`#编号` 在这里就该被拒。
   const action: ActorAction = parseTeleport({ targetStageName: input.targetStageRef });
-  return submit(db, gameRef, actorRef, action, options);
+  return applyPlayerAction(db, gameRef, actorRef, action, options);
 }
 
 export async function playerWait(
@@ -132,7 +132,7 @@ export async function playerWait(
   options: PlayerActionOptions = {},
 ): Promise<ActorTurnResult> {
   const action: ActorAction = { kind: "wait" };
-  return submit(db, gameRef, actorRef, action, options);
+  return applyPlayerAction(db, gameRef, actorRef, action, options);
 }
 
 /** 隐入暗处：不占旁人感知；移动、等待、换装、查看与远端传话不会暴露。 */
@@ -143,7 +143,7 @@ export async function playerHide(
   options: PlayerActionOptions = {},
 ): Promise<ActorTurnResult> {
   const action: ActorAction = { kind: "hide" };
-  return submit(db, gameRef, actorRef, action, options);
+  return applyPlayerAction(db, gameRef, actorRef, action, options);
 }
 
 /** 主动现身：解除隐匿并让同舞台旁人看见。 */
@@ -154,7 +154,7 @@ export async function playerReveal(
   options: PlayerActionOptions = {},
 ): Promise<ActorTurnResult> {
   const action: ActorAction = { kind: "reveal" };
-  return submit(db, gameRef, actorRef, action, options);
+  return applyPlayerAction(db, gameRef, actorRef, action, options);
 }
 
 export async function playerStrike(
@@ -168,7 +168,7 @@ export async function playerStrike(
     kind: "strike",
     targetActorHandle: input.targetActorRef,
   };
-  return submit(db, gameRef, actorRef, action, options);
+  return applyPlayerAction(db, gameRef, actorRef, action, options);
 }
 
 export async function playerBrawl(
@@ -182,7 +182,7 @@ export async function playerBrawl(
     kind: "brawl",
     targetActorHandle: input.targetActorRef,
   };
-  return submit(db, gameRef, actorRef, action, options);
+  return applyPlayerAction(db, gameRef, actorRef, action, options);
 }
 
 export async function playerSteal(
@@ -197,7 +197,7 @@ export async function playerSteal(
     targetActorHandle: input.targetActorRef,
     itemName: input.itemName,
   };
-  return submit(db, gameRef, actorRef, action, options);
+  return applyPlayerAction(db, gameRef, actorRef, action, options);
 }
 
 export async function playerInspect(
@@ -211,7 +211,7 @@ export async function playerInspect(
     kind: "inspect",
     targetActorHandle: input.targetActorRef,
   };
-  return submit(db, gameRef, actorRef, action, options);
+  return applyPlayerAction(db, gameRef, actorRef, action, options);
 }
 
 export async function playerLoot(
@@ -226,7 +226,7 @@ export async function playerLoot(
     targetActorHandle: input.targetActorRef,
     ...(input.itemNames === undefined ? {} : { itemNames: input.itemNames }),
   };
-  return submit(db, gameRef, actorRef, action, options);
+  return applyPlayerAction(db, gameRef, actorRef, action, options);
 }
 
 export async function playerGive(
@@ -241,7 +241,7 @@ export async function playerGive(
     targetActorHandle: input.targetActorRef,
     itemName: input.itemName,
   };
-  return submit(db, gameRef, actorRef, action, options);
+  return applyPlayerAction(db, gameRef, actorRef, action, options);
 }
 
 export async function playerPickup(
@@ -256,7 +256,7 @@ export async function playerPickup(
     targetAnchor: input.targetAnchor,
     itemName: input.itemName,
   };
-  return submit(db, gameRef, actorRef, action, options);
+  return applyPlayerAction(db, gameRef, actorRef, action, options);
 }
 
 export async function playerEquip(
@@ -267,7 +267,7 @@ export async function playerEquip(
   options: PlayerActionOptions = {},
 ): Promise<ActorTurnResult> {
   const action: ActorAction = { kind: "equip", itemName: input.itemName, slot: input.slot };
-  return submit(db, gameRef, actorRef, action, options);
+  return applyPlayerAction(db, gameRef, actorRef, action, options);
 }
 
 export async function playerUnequip(
@@ -278,7 +278,7 @@ export async function playerUnequip(
   options: PlayerActionOptions = {},
 ): Promise<ActorTurnResult> {
   const action: ActorAction = { kind: "unequip", slot: input.slot };
-  return submit(db, gameRef, actorRef, action, options);
+  return applyPlayerAction(db, gameRef, actorRef, action, options);
 }
 
 export async function playerUse(
@@ -295,7 +295,7 @@ export async function playerUse(
     ...(input.targetStageName !== undefined ? { targetStageName: input.targetStageName } : {}),
     ...(input.targetAnchor !== undefined ? { targetAnchor: input.targetAnchor } : {}),
   };
-  return submit(db, gameRef, actorRef, action, options);
+  return applyPlayerAction(db, gameRef, actorRef, action, options);
 }
 
 /** 对上：把一件道具对上当前舞台的一个锚点。 */
@@ -311,7 +311,7 @@ export async function playerFit(
     itemName: input.itemName,
     targetAnchor: input.targetAnchor,
   };
-  return submit(db, gameRef, actorRef, action, options);
+  return applyPlayerAction(db, gameRef, actorRef, action, options);
 }
 
 /** 玩家替自己控制的角色记下一个名字；与模型侧的名字更新走同一份计划。 */
@@ -325,11 +325,17 @@ export async function playerRecognizeIdentity(
   const state = await getGameStateSlice(db, gameRef);
   const actor = findActorByRef(state, actorRef);
   const target = findActorByRef(state, input.targetActorRef);
-  const plan: ActorPlan = {
-    actions: [],
-    identities: [{ handle: handleOf(target.signature.seq), name: parseSignatureName(input.name) }],
-  };
-  return applyPlayerPlanOnState(db, state, actor, plan, options);
+  return applyPlayerCognitionOnState(
+    db,
+    state,
+    actor,
+    {
+      identities: [
+        { handle: handleOf(target.signature.seq), name: parseSignatureName(input.name) },
+      ],
+    },
+    options,
+  );
 }
 
 /** 玩家替自己控制的角色回忆一条路线；结论只进自己的认知，不占行动名额。 */
@@ -344,8 +350,11 @@ export async function playerRecallRoute(
   const actor = findActorByRef(state, actorRef);
   const resolution = resolveRouteQuestion(state, stageOfActor(state, actor.id), input);
   // 地名对不上也是一次回忆的结论：落成「无法寻路」的认知，而不是把整个回合判成失败。
-  const plan: ActorPlan = resolution.ok
-    ? { actions: [], routes: [resolution.query] }
-    : { actions: [], routeFailures: [resolution.failure] };
-  return applyPlayerPlanOnState(db, state, actor, plan, options);
+  return applyPlayerCognitionOnState(
+    db,
+    state,
+    actor,
+    resolution.ok ? { routes: [resolution.query] } : { routeFailures: [resolution.failure] },
+    options,
+  );
 }

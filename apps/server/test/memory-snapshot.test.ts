@@ -5,7 +5,6 @@ import { DEMO_USER } from "../src/db/demo-fixture";
 import { resetDomainData, seedDemoData } from "../src/db/maintenance";
 import { runMigrations } from "../src/db/migrate";
 import {
-  applyPlayerPlan,
   createGame,
   getGameMemories,
   getGameState,
@@ -52,6 +51,32 @@ class WaitService implements ChatCompletionService {
       { id: "call-1", type: "function" as const, function: { name: "wait", arguments: "{}" } },
       {
         id: "call-2",
+        type: "function" as const,
+        function: { name: "submit_plan", arguments: "{}" },
+      },
+    ];
+    return new ChatCompletionResult({
+      request,
+      aiMessage: { type: "ai", content: "", toolCalls },
+      finishReason: "tool_calls",
+      toolCalls,
+    });
+  }
+}
+
+/** 按顺序发给定工具调用的 NPC 服务：用来构造一份既有动作又有认知的计划。 */
+class ScriptedTools implements ChatCompletionService {
+  constructor(private readonly calls: readonly { name: string; args: object }[]) {}
+
+  async complete(request: Parameters<ChatCompletionService["complete"]>[0]) {
+    const toolCalls = [
+      ...this.calls.map((call, index) => ({
+        id: `call-${index}`,
+        type: "function" as const,
+        function: { name: call.name, arguments: JSON.stringify(call.args) },
+      })),
+      {
+        id: "submit",
         type: "function" as const,
         function: { name: "submit_plan", arguments: "{}" },
       },
@@ -172,26 +197,58 @@ describe.skipIf(!testDatabaseUrl)("memory state snapshot", () => {
     expect(identityMemory).not.toContain("# 当时");
   });
 
-  it("still attaches the snapshot to the action result in a mixed turn", async () => {
+  it("keeps the action result snapshot while cognition turns stay clean", async () => {
     const created = await createGame(handle.db, {
       username: DEMO_USER.username,
-      name: "认知与动作混合局",
+      name: "认知与动作两回合局",
       world: TEST_WORLD,
     });
     await takeActorControl(handle.db, created.game.slug, "守烬人");
-    const state = await getGameState(handle.db, created.game.slug);
-    const stageId = (name: string) => {
-      const stage = state.world.stages.find((item) => item.name === name);
-      if (!stage) {
-        throw new Error(`缺少舞台: ${name}`);
-      }
-      return stage.id;
-    };
-    // 一个计划里既有动作又有认知：状态块挂在行动结果上，认知各自干净
-    await applyPlayerPlan(handle.db, created.game.slug, "守烬人", {
-      actions: [{ kind: "wait" }],
-      routes: [{ fromStageId: stageId("灰烬门廊"), toStageId: stageId("断钟中殿") }],
+    // 一个回合一个动作：动作用一个回合，认知用另一个回合；状态块只挂在动作结果上。
+    await playerWait(handle.db, created.game.slug, "守烬人");
+    await playerRecallRoute(handle.db, created.game.slug, "守烬人", {
+      fromStageRef: "灰烬门廊",
+      toStageRef: "断钟中殿",
     });
+
+    const memories = await getGameMemories(handle.db, created.game.id);
+    const contents = (memories.find((memory) => memory.name === "守烬人")?.messages ?? []).map(
+      (message) => message.content,
+    );
+    const actionResult = contents.find((content) => content.startsWith("# 行动结果"));
+    const cognition = contents.filter((content) => content.startsWith("# 认知"));
+
+    expect(actionResult).toContain("# 当时");
+    expect(cognition.length).toBeGreaterThan(0);
+    expect(cognition.every((content) => !content.includes("# 当时"))).toBe(true);
+  });
+
+  it("keeps cognition out of the state snapshot inside one plan", async () => {
+    const created = await createGame(handle.db, {
+      username: DEMO_USER.username,
+      name: "同计划混合局",
+      world: TEST_WORLD,
+    });
+    const { state } = await actorByName(created.game.slug, "守烬人");
+    const monk = state.world.stages
+      .flatMap((stage) => stage.actors)
+      .find((actor) => actor.name === "提灯修士");
+    if (!monk) {
+      throw new Error("缺少 actor: 提灯修士");
+    }
+
+    // 一份计划里既有动作又有认知：状态块挂在行动结果上，认知各自干净。
+    const result = await runActorTurn(handle.db, created.game.slug, "守烬人", {
+      service: new ScriptedTools([
+        {
+          name: "recognize_identity",
+          args: { handle: `#${monk.signature.seq}`, name: "提灯修士" },
+        },
+        { name: "wait", args: {} },
+        { name: "recall_route", args: { to: "断钟中殿" } },
+      ]),
+    });
+    expect(result.ok).toBe(true);
 
     const memories = await getGameMemories(handle.db, created.game.id);
     const contents = (memories.find((memory) => memory.name === "守烬人")?.messages ?? []).map(

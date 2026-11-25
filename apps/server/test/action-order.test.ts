@@ -1,3 +1,6 @@
+import { mkdtemp, readdir, readFile, rm } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { eq } from "drizzle-orm";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import "../src/db/env";
@@ -32,12 +35,7 @@ const testDatabaseUrl = process.env.TEST_DATABASE_URL;
 
 /** 只提交一次 wait：回合能落账，但什么都不改，方便只看计数。 */
 class WaitService implements ChatCompletionService {
-  constructor(private readonly delayMs = 0) {}
-
   async complete(request: Parameters<ChatCompletionService["complete"]>[0]) {
-    if (this.delayMs > 0) {
-      await new Promise((done) => setTimeout(done, this.delayMs));
-    }
     const toolCalls = [
       { id: "call-1", type: "function" as const, function: { name: "wait", arguments: "{}" } },
       {
@@ -53,6 +51,46 @@ class WaitService implements ChatCompletionService {
       toolCalls,
     });
   }
+}
+
+/** 卡在服务里的一个回合：让第一发推进占着位置，直到测试放行。 */
+class BlockingService implements ChatCompletionService {
+  private readonly started = deferred();
+  private readonly gate = deferred();
+
+  /** 第一发已经进入模型调用，也就是已经占住那个位置。 */
+  readonly entered = this.started.promise;
+
+  release(): void {
+    this.gate.resolve();
+  }
+
+  async complete(request: Parameters<ChatCompletionService["complete"]>[0]) {
+    this.started.resolve();
+    await this.gate.promise;
+    const toolCalls = [
+      { id: "call-1", type: "function" as const, function: { name: "wait", arguments: "{}" } },
+      {
+        id: "call-2",
+        type: "function" as const,
+        function: { name: "submit_plan", arguments: "{}" },
+      },
+    ];
+    return new ChatCompletionResult({
+      request,
+      aiMessage: { type: "ai", content: "", toolCalls },
+      finishReason: "tool_calls",
+      toolCalls,
+    });
+  }
+}
+
+function deferred(): { promise: Promise<void>; resolve: () => void } {
+  let resolve!: () => void;
+  const promise = new Promise<void>((done) => {
+    resolve = done;
+  });
+  return { promise, resolve };
 }
 
 /** 顺位为空只可能是建单失败；用例里当成断言失败处理，顺带让类型收窄。 */
@@ -311,19 +349,58 @@ describe.skipIf(!testDatabaseUrl)("action order", () => {
     const game = await freshGame("行动顺位并发局");
     const { order } = await createActionOrderOp(handle.db, game);
     const target = firstEntry(order).actorName;
-    // 慢一点，才能在第一个推进还没跑完时发第二个。
-    const slow = new WaitService(300);
+    // 卡在服务里：第一发一直占着这个 actor，不用拿睡眠去赌时序。
+    const slow = new BlockingService();
     const services = { service: slow, inferenceService: slow };
 
     const first = advanceNpc(handle.db, game, { actors: [target] }, services);
-    // 等第一个请求占住名单（它要先读一次 game 行）。
-    await new Promise((done) => setTimeout(done, 100));
+    await slow.entered;
     await expect(advanceNpc(handle.db, game, { actors: [target] }, services)).rejects.toThrow(
       "正在推进中",
     );
 
+    slow.release();
     await expect(first).resolves.toMatchObject({ results: [{ ok: true }] });
     expect((await readActionOrderOp(handle.db, game)).order?.entries[0]?.turnsTaken).toBe(1);
+  });
+
+  it("同一 actor 并发推进：玩家动作与点名推进共用一个位置", async () => {
+    const game = await freshGame("行动顺位玩家并发局");
+    const { order } = await createActionOrderOp(handle.db, game);
+    const lead = firstEntry(order);
+    await takeControlOp(handle.db, game, lead.actorName);
+
+    // 换装会补一次外观推理：把它卡在服务里，第一发就一直占着这个 actor。
+    const slow = new BlockingService();
+    const services = { service: slow, inferenceService: slow };
+    const first = submitPlayerAction(
+      handle.db,
+      game,
+      lead.actorName,
+      { kind: "unequip", slot: "armor" },
+      services,
+    );
+    await slow.entered;
+
+    await expect(
+      submitPlayerAction(handle.db, game, lead.actorName, { kind: "wait" }, services),
+    ).rejects.toThrow("正在推进中");
+
+    slow.release();
+    // 一个动作一个回合：换装落了账，外观推理失败不影响这回合成功。
+    await expect(first).resolves.toMatchObject({
+      plan: { actions: [{ kind: "unequip", slot: "armor" }] },
+    });
+    // 被拒的那一发没落账：一个动作一个回合，计数只加一。
+    const after = (await readActionOrderOp(handle.db, game)).order as ActionOrderState;
+    expect(entryAt(after, 1).turnsTaken).toBe(1);
+
+    // 位置放开了，下一发照常。
+    await expect(
+      submitPlayerAction(handle.db, game, lead.actorName, { kind: "wait" }, services),
+    ).resolves.toBeDefined();
+    const later = (await readActionOrderOp(handle.db, game)).order as ActionOrderState;
+    expect(entryAt(later, 1).turnsTaken).toBe(2);
   });
 
   it("移除删行：条目级联，按 id 也读不回来", async () => {
@@ -356,5 +433,58 @@ describe.skipIf(!testDatabaseUrl)("action order", () => {
     );
     expect(result.results).toHaveLength(1);
     expect((await readActionOrderOp(handle.db, game)).order).toBeNull();
+  });
+
+  it("玩家动作也在过程轨迹里留推进对账，与回合同一条", async () => {
+    const game = await freshGame("行动顺位对账局");
+    const { order } = await createActionOrderOp(handle.db, game);
+    const lead = firstEntry(order);
+    await takeControlOp(handle.db, game, lead.actorName);
+
+    // 测试环境默认不落盘：这一段显式打开，并换成临时目录。
+    const dir = await mkdtemp(join(tmpdir(), "ai-trpg-dispatch-"));
+    const previous = { dir: process.env.TRACE_DIR, enabled: process.env.TRACE_ENABLED };
+    process.env.TRACE_DIR = dir;
+    process.env.TRACE_ENABLED = "1";
+    try {
+      await submitPlayerAction(
+        handle.db,
+        game,
+        lead.actorName,
+        { kind: "wait" },
+        { service: new WaitService(), inferenceService: new WaitService() },
+      );
+
+      const files = (await readdir(join(dir, game))).filter((file) => file.endsWith(".jsonl"));
+      const events = (
+        await Promise.all(
+          files.map(async (file) =>
+            (
+              await readFile(join(dir, game, file), "utf8")
+            )
+              .trim()
+              .split("\n")
+              .map((line) => JSON.parse(line)),
+          ),
+        )
+      ).flat();
+
+      const started = events.find((event) => event.event === "turn_start");
+      const dispatch = events.find((event) => event.event === "dispatch");
+      // 对账挂在同一个回合上：同一个 turnId，不是一条孤立记录。
+      expect(dispatch).toMatchObject({
+        turnId: started?.turnId,
+        turnKind: "player",
+        actorId: lead.actorId,
+        orderId: order.id,
+        expectedPosition: 1,
+        actualPosition: 1,
+        followed: true,
+      });
+    } finally {
+      process.env.TRACE_DIR = previous.dir;
+      process.env.TRACE_ENABLED = previous.enabled;
+      await rm(dir, { recursive: true, force: true });
+    }
   });
 });

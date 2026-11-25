@@ -19,6 +19,7 @@ import {
   isAlive,
   latestMessageSequence,
   listGameMessages,
+  type PlayerActionOptions,
   playerAnnounce,
   playerBrawl,
   playerCall,
@@ -227,8 +228,8 @@ function reasonOf(action: { reason?: string }): { reason?: string } {
  * 服务注入与 `agent-game` 保持一致：计划阶段用 `service`，结算后的增量阶段用
  * `inferenceService`；不需要推理的动作不传，免得白付一次模型调用。
  *
- * 一次提交算一个回合，成功就在顺位上 +1——玩家与 NPC 同样计数。想在同一个回合里连做
- * 几件事，要攒成一份计划提交；连打这个入口会计成几个回合。
+ * 一次提交就是一个动作、一个回合，成功就在顺位上 +1——玩家与 NPC 同样计数。玩家入口
+ * 没有「一份计划里连做几件事」的形状，连打这个入口就是几个回合。
  */
 export async function submitPlayerAction(
   db: Database,
@@ -237,13 +238,27 @@ export async function submitPlayerAction(
   action: PlayerActionRequest,
   services: TurnServices,
 ): Promise<PlayerActionOutput> {
-  const result = await dispatchPlayerAction(db, gameRef, actorRef, action, services);
-  // 被拒的计划不走到这里（落账层直接抛错），所以「回来且 ok」就是「发生过」。
-  if (result.ok) {
-    const actor = findActorByRef(result.state, actorRef);
-    await recordTurnTaken(db, result.state.game.id, actor.id);
+  // 与点名推进占同一个位置：玩家动作同样整回合跑在写事务之外，两发并发会多记一次数。
+  const state = await getGameStateSlice(db, gameRef);
+  const actor = findActorByRef(state, actorRef);
+  // 期望名次要在回合之前读：推进之后计数已经变了，事后再读就不是这一刻的判断。
+  const order = await readActionOrder(db, state.game.id);
+  const claims = claimAdvances(state.game.id, [actor]);
+  const trace = createTurnTrace({ game: state.game, turnKind: "player" });
+  try {
+    const result = await dispatchPlayerAction(db, gameRef, actorRef, action, services, trace);
+    // 被拒的动作走不到这里（落账层直接抛错），所以「回来且 ok」就是「发生过」。
+    if (result.ok) {
+      await recordTurnTaken(db, result.state.game.id, actor.id);
+    }
+    return playerActionOutput(result);
+  } finally {
+    // 被拒也记：推了谁、该轮到谁，是客户端这一次决定的事实，不因为落账失败而消失。
+    if (order !== null) {
+      await recordDispatch({ trace, order, actorId: actor.id, actorName: actor.name });
+    }
+    releaseAdvances(claims);
   }
-  return playerActionOutput(result);
 }
 
 async function dispatchPlayerAction(
@@ -252,48 +267,81 @@ async function dispatchPlayerAction(
   actorRef: string,
   action: PlayerActionRequest,
   services: TurnServices,
+  trace: TraceContext | undefined,
 ): Promise<ActorTurnResult> {
+  // 轨迹跟着回合一整条走：每个 case 只挑自己需要的服务，轨迹统一在这里补上。
+  const turnOptions = (needed: PlayerActionOptions = {}): PlayerActionOptions => ({
+    ...needed,
+    ...(trace === undefined ? {} : { trace }),
+  });
   switch (action.kind) {
     case "say":
-      return playerSay(db, gameRef, actorRef, {
-        message: action.message,
-        targetActorRef: action.target,
-        ...reasonOf(action),
-      });
+      return playerSay(
+        db,
+        gameRef,
+        actorRef,
+        {
+          message: action.message,
+          targetActorRef: action.target,
+          ...reasonOf(action),
+        },
+        turnOptions(),
+      );
     case "whisper":
-      return playerWhisper(db, gameRef, actorRef, {
-        message: action.message,
-        targetActorRef: action.target,
-        ...reasonOf(action),
-      });
+      return playerWhisper(
+        db,
+        gameRef,
+        actorRef,
+        {
+          message: action.message,
+          targetActorRef: action.target,
+          ...reasonOf(action),
+        },
+        turnOptions(),
+      );
     case "call":
-      return playerCall(db, gameRef, actorRef, {
-        message: action.message,
-        targetActorName: action.target,
-        ...reasonOf(action),
-      });
+      return playerCall(
+        db,
+        gameRef,
+        actorRef,
+        {
+          message: action.message,
+          targetActorName: action.target,
+          ...reasonOf(action),
+        },
+        turnOptions(),
+      );
     case "announce":
-      return playerAnnounce(db, gameRef, actorRef, {
-        message: action.message,
-        ...reasonOf(action),
-      });
+      return playerAnnounce(
+        db,
+        gameRef,
+        actorRef,
+        {
+          message: action.message,
+          ...reasonOf(action),
+        },
+        turnOptions(),
+      );
     case "move":
-      return playerMove(db, gameRef, actorRef, { targetStageRef: action.to });
+      return playerMove(db, gameRef, actorRef, { targetStageRef: action.to }, turnOptions());
     case "teleport":
-      return playerTeleport(db, gameRef, actorRef, { targetStageRef: action.to });
+      return playerTeleport(db, gameRef, actorRef, { targetStageRef: action.to }, turnOptions());
     case "wait":
-      return playerWait(db, gameRef, actorRef);
+      return playerWait(db, gameRef, actorRef, turnOptions());
     case "hide":
-      return playerHide(db, gameRef, actorRef);
+      return playerHide(db, gameRef, actorRef, turnOptions());
     case "reveal":
-      return playerReveal(db, gameRef, actorRef);
+      return playerReveal(db, gameRef, actorRef, turnOptions());
     case "strike":
       return playerStrike(
         db,
         gameRef,
         actorRef,
         { targetActorRef: action.target },
-        { service: services.service, inferenceService: services.inferenceService },
+        turnOptions({
+          service: services.service,
+          inferenceService: services.inferenceService,
+        }),
       );
     case "brawl":
       return playerBrawl(
@@ -301,33 +349,51 @@ async function dispatchPlayerAction(
         gameRef,
         actorRef,
         { targetActorRef: action.target },
-        { inferenceService: services.inferenceService },
+        turnOptions({ inferenceService: services.inferenceService }),
       );
     case "steal":
-      return playerSteal(db, gameRef, actorRef, {
-        targetActorRef: action.target,
-        itemName: action.item,
-      });
+      return playerSteal(
+        db,
+        gameRef,
+        actorRef,
+        {
+          targetActorRef: action.target,
+          itemName: action.item,
+        },
+        turnOptions(),
+      );
     case "inspect":
-      return playerInspect(db, gameRef, actorRef, { targetActorRef: action.target });
+      return playerInspect(db, gameRef, actorRef, { targetActorRef: action.target }, turnOptions());
     case "loot":
-      return playerLoot(db, gameRef, actorRef, {
-        targetActorRef: action.target,
-        ...(action.items === undefined ? {} : { itemNames: action.items }),
-      });
+      return playerLoot(
+        db,
+        gameRef,
+        actorRef,
+        {
+          targetActorRef: action.target,
+          ...(action.items === undefined ? {} : { itemNames: action.items }),
+        },
+        turnOptions(),
+      );
     case "give":
       return playerGive(
         db,
         gameRef,
         actorRef,
         { targetActorRef: action.target, itemName: action.item },
-        { inferenceService: services.inferenceService },
+        turnOptions({ inferenceService: services.inferenceService }),
       );
     case "pickup":
-      return playerPickup(db, gameRef, actorRef, {
-        targetAnchor: action.anchor,
-        itemName: action.item,
-      });
+      return playerPickup(
+        db,
+        gameRef,
+        actorRef,
+        {
+          targetAnchor: action.anchor,
+          itemName: action.item,
+        },
+        turnOptions(),
+      );
     case "use":
       return playerUse(
         db,
@@ -339,7 +405,10 @@ async function dispatchPlayerAction(
           ...(action.stage === undefined ? {} : { targetStageName: action.stage }),
           ...(action.anchor === undefined ? {} : { targetAnchor: action.anchor }),
         },
-        { service: services.service, inferenceService: services.inferenceService },
+        turnOptions({
+          service: services.service,
+          inferenceService: services.inferenceService,
+        }),
       );
     case "fit":
       return playerFit(
@@ -347,7 +416,10 @@ async function dispatchPlayerAction(
         gameRef,
         actorRef,
         { itemName: action.item, targetAnchor: action.anchor },
-        { service: services.service, inferenceService: services.inferenceService },
+        turnOptions({
+          service: services.service,
+          inferenceService: services.inferenceService,
+        }),
       );
     case "equip":
       return playerEquip(
@@ -355,7 +427,7 @@ async function dispatchPlayerAction(
         gameRef,
         actorRef,
         { itemName: action.item, slot: action.slot },
-        { inferenceService: services.inferenceService },
+        turnOptions({ inferenceService: services.inferenceService }),
       );
     case "unequip":
       return playerUnequip(
@@ -363,18 +435,30 @@ async function dispatchPlayerAction(
         gameRef,
         actorRef,
         { slot: action.slot },
-        { inferenceService: services.inferenceService },
+        turnOptions({ inferenceService: services.inferenceService }),
       );
     case "recognize-identity":
-      return playerRecognizeIdentity(db, gameRef, actorRef, {
-        targetActorRef: action.target,
-        name: action.name,
-      });
+      return playerRecognizeIdentity(
+        db,
+        gameRef,
+        actorRef,
+        {
+          targetActorRef: action.target,
+          name: action.name,
+        },
+        turnOptions(),
+      );
     case "ask-route":
-      return playerRecallRoute(db, gameRef, actorRef, {
-        ...(action.from === undefined ? {} : { fromStageRef: action.from }),
-        toStageRef: action.to,
-      });
+      return playerRecallRoute(
+        db,
+        gameRef,
+        actorRef,
+        {
+          ...(action.from === undefined ? {} : { fromStageRef: action.from }),
+          toStageRef: action.to,
+        },
+        turnOptions(),
+      );
   }
 }
 
@@ -440,25 +524,36 @@ export type NpcAdvanceInput = {
   expectedVersion?: number;
 };
 
-/** 正在跑的那几个推进：键是「局 + actor 名」，同一进程内互斥。 */
+/** 正在跑的那几个推进：键是「局 + actor id」，同一进程内互斥。 */
 const ADVANCING = new Set<string>();
 
 /**
  * 占住这一批推进；任何一个已在跑就直接拒，一个都不占。
  *
  * 模型调用在写事务之外，两发并发都会跑完整个回合：白烧一次调用，还会多记一次数。
+ * 两条跑回合的入口共用这份互斥：点名推进与玩家动作，键取 actor 实体而不是名字。
+ * 空回合不占位——它只加一，不跑循环。
  * 这里的互斥只在单进程内有效——多进程部署前要换成带过期的租约（落在顺位条目上）。
  */
-function claimAdvances(gameId: string, names: readonly string[]): string[] {
-  const busy = names.find((name) => ADVANCING.has(`${gameId}:${name}`));
+function claimAdvances(
+  gameId: string,
+  actors: readonly { readonly id: string; readonly name: string }[],
+): string[] {
+  const busy = actors.find((actor) => ADVANCING.has(`${gameId}:${actor.id}`));
   if (busy !== undefined) {
-    throw new GameError("invalid_state", `actor 正在推进中，稍后重试: ${busy}`);
+    throw new GameError("invalid_state", `actor 正在推进中，稍后重试: ${busy.name}`);
   }
-  const keys = names.map((name) => `${gameId}:${name}`);
+  const keys = actors.map((actor) => `${gameId}:${actor.id}`);
   for (const key of keys) {
     ADVANCING.add(key);
   }
   return keys;
+}
+
+function releaseAdvances(keys: readonly string[]): void {
+  for (const key of keys) {
+    ADVANCING.delete(key);
+  }
 }
 
 /**
@@ -513,7 +608,12 @@ export async function advanceNpc(
     );
   }
   const names = [...new Set(input.actors)];
-  const claims = claimAdvances(game.id, names);
+  // 占位要用 actor 实体而不是名字：玩家动作那条路用的是同一把锁。
+  const state = await getGameStateSlice(db, gameRef);
+  const claims = claimAdvances(
+    game.id,
+    names.map((name) => findActorByName(state, name).actor),
+  );
   try {
     const results: ActorTurnOutput[] = [];
     for (const name of names) {
@@ -535,9 +635,7 @@ export async function advanceNpc(
     }
     return { results };
   } finally {
-    for (const key of claims) {
-      ADVANCING.delete(key);
-    }
+    releaseAdvances(claims);
   }
 }
 
