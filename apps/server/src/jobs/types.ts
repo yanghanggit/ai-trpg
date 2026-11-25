@@ -30,6 +30,8 @@ export type JobSnapshot = {
   maxAttempts: number;
   /** 最后一次失败的错误文本；pending 重试时也可能保留。 */
   error: string | null;
+  /** 机器可读的失败码：handler 抛出的错误带 `code` 时留档，供客户端分辨处理方式。 */
+  errorCode: string | null;
   runAt: Date;
   startedAt: Date | null;
   finishedAt: Date | null;

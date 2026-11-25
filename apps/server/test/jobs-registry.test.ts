@@ -22,6 +22,7 @@ function snapshot(input: EnqueueJobInput): JobSnapshot {
     attempts: 0,
     maxAttempts: input.maxAttempts ?? 1,
     error: null,
+    errorCode: null,
     runAt: now,
     startedAt: null,
     finishedAt: null,

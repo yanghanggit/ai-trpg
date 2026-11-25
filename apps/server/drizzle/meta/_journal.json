@@ -5,50 +5,8 @@
     {
       "idx": 0,
       "version": "7",
-      "when": 1794221370043,
+      "when": 1795609715452,
       "tag": "0000_baseline",
-      "breakpoints": true
-    },
-    {
-      "idx": 1,
-      "version": "7",
-      "when": 1794378819526,
-      "tag": "0001_smiling_ricochet",
-      "breakpoints": true
-    },
-    {
-      "idx": 2,
-      "version": "7",
-      "when": 1794464388595,
-      "tag": "0002_ambiguous_abomination",
-      "breakpoints": true
-    },
-    {
-      "idx": 3,
-      "version": "7",
-      "when": 1794469512160,
-      "tag": "0003_nebulous_jamie_braddock",
-      "breakpoints": true
-    },
-    {
-      "idx": 4,
-      "version": "7",
-      "when": 1795407282370,
-      "tag": "0004_goofy_robbie_robertson",
-      "breakpoints": true
-    },
-    {
-      "idx": 5,
-      "version": "7",
-      "when": 1795524985079,
-      "tag": "0005_redundant_spiral",
-      "breakpoints": true
-    },
-    {
-      "idx": 6,
-      "version": "7",
-      "when": 1795524985080,
-      "tag": "0006_turns_taken",
       "breakpoints": true
     }
   ]

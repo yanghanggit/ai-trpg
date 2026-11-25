@@ -1,3 +1,20 @@
+CREATE TABLE "action_order_entries" (
+	"id" uuid PRIMARY KEY NOT NULL,
+	"order_id" uuid NOT NULL,
+	"actor_id" uuid NOT NULL,
+	"position" integer NOT NULL,
+	"agility" integer NOT NULL,
+	"turns_taken" integer DEFAULT 0 NOT NULL
+);
+--> statement-breakpoint
+CREATE TABLE "action_orders" (
+	"id" uuid PRIMARY KEY NOT NULL,
+	"game_id" uuid NOT NULL,
+	"status" text DEFAULT 'active' NOT NULL,
+	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
+	"completed_at" timestamp with time zone
+);
+--> statement-breakpoint
 CREATE TABLE "actor_controls" (
 	"actor_id" uuid PRIMARY KEY NOT NULL,
 	"game_id" uuid NOT NULL,
@@ -40,7 +57,10 @@ CREATE TABLE "actors" (
 	"hp" integer NOT NULL,
 	"death_settled_at" timestamp with time zone,
 	"is_default_player" boolean DEFAULT false NOT NULL,
+	"concealed" boolean DEFAULT false NOT NULL,
 	"equipment" jsonb DEFAULT '{}'::jsonb NOT NULL,
+	"status_effects" jsonb DEFAULT '[]'::jsonb NOT NULL,
+	"knowledge_access" text[] DEFAULT '{}'::text[] NOT NULL,
 	"actions" jsonb DEFAULT '[]'::jsonb NOT NULL,
 	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
 	"updated_at" timestamp with time zone DEFAULT now() NOT NULL
@@ -152,6 +172,7 @@ CREATE TABLE "items" (
 	"max_targets" integer DEFAULT 1 NOT NULL,
 	"affixes" jsonb DEFAULT '{}'::jsonb NOT NULL,
 	"actions" jsonb DEFAULT '[]'::jsonb NOT NULL,
+	"appears_in_appearance" boolean DEFAULT false NOT NULL,
 	"created_at" timestamp with time zone DEFAULT now() NOT NULL
 );
 --> statement-breakpoint
@@ -165,6 +186,7 @@ CREATE TABLE "jobs" (
 	"attempts" integer DEFAULT 0 NOT NULL,
 	"max_attempts" integer DEFAULT 1 NOT NULL,
 	"error" text,
+	"error_code" text,
 	"result" jsonb,
 	"run_at" timestamp with time zone DEFAULT now() NOT NULL,
 	"locked_by" text,
@@ -199,6 +221,7 @@ CREATE TABLE "stage_items" (
 	"max_targets" integer DEFAULT 1 NOT NULL,
 	"affixes" jsonb DEFAULT '{}'::jsonb NOT NULL,
 	"actions" jsonb DEFAULT '[]'::jsonb NOT NULL,
+	"appears_in_appearance" boolean DEFAULT false NOT NULL,
 	"created_at" timestamp with time zone DEFAULT now() NOT NULL
 );
 --> statement-breakpoint
@@ -243,6 +266,7 @@ CREATE TABLE "vector_documents" (
 	"title" text,
 	"content" text NOT NULL,
 	"content_hash" text NOT NULL,
+	"access" text[] DEFAULT '{}'::text[] NOT NULL,
 	"metadata" jsonb DEFAULT '{}'::jsonb NOT NULL,
 	"embedding" vector(384) NOT NULL,
 	"embedding_model" text NOT NULL,
@@ -265,6 +289,9 @@ CREATE TABLE "worlds" (
 	"updated_at" timestamp with time zone DEFAULT now() NOT NULL
 );
 --> statement-breakpoint
+ALTER TABLE "action_order_entries" ADD CONSTRAINT "action_order_entries_order_id_action_orders_id_fk" FOREIGN KEY ("order_id") REFERENCES "public"."action_orders"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "action_order_entries" ADD CONSTRAINT "action_order_entries_actor_id_actors_id_fk" FOREIGN KEY ("actor_id") REFERENCES "public"."actors"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "action_orders" ADD CONSTRAINT "action_orders_game_id_games_id_fk" FOREIGN KEY ("game_id") REFERENCES "public"."games"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "actor_controls" ADD CONSTRAINT "actor_controls_actor_id_actors_id_fk" FOREIGN KEY ("actor_id") REFERENCES "public"."actors"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "actor_controls" ADD CONSTRAINT "actor_controls_game_id_games_id_fk" FOREIGN KEY ("game_id") REFERENCES "public"."games"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "actor_controls" ADD CONSTRAINT "actor_controls_player_id_game_players_id_fk" FOREIGN KEY ("player_id") REFERENCES "public"."game_players"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
@@ -299,6 +326,9 @@ ALTER TABLE "stage_visits" ADD CONSTRAINT "stage_visits_actor_id_actors_id_fk" F
 ALTER TABLE "stage_visits" ADD CONSTRAINT "stage_visits_stage_id_stages_id_fk" FOREIGN KEY ("stage_id") REFERENCES "public"."stages"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "stages" ADD CONSTRAINT "stages_world_id_worlds_id_fk" FOREIGN KEY ("world_id") REFERENCES "public"."worlds"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "worlds" ADD CONSTRAINT "worlds_game_id_games_id_fk" FOREIGN KEY ("game_id") REFERENCES "public"."games"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+CREATE UNIQUE INDEX "action_order_entries_order_actor_unique" ON "action_order_entries" USING btree ("order_id","actor_id");--> statement-breakpoint
+CREATE UNIQUE INDEX "action_order_entries_order_position_unique" ON "action_order_entries" USING btree ("order_id","position");--> statement-breakpoint
+CREATE UNIQUE INDEX "action_orders_game_active_unique" ON "action_orders" USING btree ("game_id") WHERE "action_orders"."status" = 'active';--> statement-breakpoint
 CREATE UNIQUE INDEX "actor_signature_names_observer_signature_unique" ON "actor_signature_names" USING btree ("observer_actor_id","signature_id");--> statement-breakpoint
 CREATE INDEX "actor_signature_names_game_observer_idx" ON "actor_signature_names" USING btree ("game_id","observer_actor_id");--> statement-breakpoint
 CREATE INDEX "actor_signatures_actor_idx" ON "actor_signatures" USING btree ("actor_id");--> statement-breakpoint

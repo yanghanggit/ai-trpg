@@ -618,6 +618,8 @@ export const jobs = pgTable(
     attempts: integer("attempts").notNull().default(0),
     maxAttempts: integer("max_attempts").notNull().default(1),
     error: text("error"),
+    /** 机器可读的失败码：job handler 抛出的业务错误白名单（如 `invalid_state`）。 */
+    errorCode: text("error_code"),
     result: jsonb("result").$type<JsonValue>(),
     runAt: timestamp("run_at", { withTimezone: true }).notNull().defaultNow(),
     lockedBy: text("locked_by"),

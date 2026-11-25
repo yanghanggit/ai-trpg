@@ -206,6 +206,8 @@ export async function releaseControlOp(
 export type PlayerActionOutput = {
   plan: ActorPlan | null;
   state: ActorTurnResult["state"];
+  /** 回合结束时公共事件流里最大的序号；客户端从这里往后拉新事件。 */
+  messageCursor: number;
   death?: DeathSettlement[];
 };
 
@@ -214,6 +216,7 @@ export function playerActionOutput(result: ActorTurnResult): PlayerActionOutput 
   return {
     plan: result.plan,
     state: result.state,
+    messageCursor: result.messageCursor,
     ...(result.death === undefined ? {} : { death: result.death }),
   };
 }
@@ -524,6 +527,29 @@ export type NpcAdvanceInput = {
   expectedVersion?: number;
 };
 
+/**
+ * 视图过期守卫：客户端读到的那份视图变过就拒，要求重读后再推进。
+ *
+ * 不是权限，而是「别拿旧视图做决定」。回合作业在**执行开始时**比一次，而不是入队时：
+ * 作业可能排队，入队时的版本证明不了执行时还成立。
+ */
+export async function assertExpectedVersion(
+  db: Database,
+  gameRef: string,
+  expectedVersion: number | undefined,
+): Promise<void> {
+  if (expectedVersion === undefined) {
+    return;
+  }
+  const game = await getGameMeta(db, gameRef);
+  if (expectedVersion !== game.version) {
+    throw new GameError(
+      "invalid_state",
+      `视图已过期: 读到的是 version ${expectedVersion}，当前 ${game.version}，重读后再推进`,
+    );
+  }
+}
+
 /** 正在跑的那几个推进：键是「局 + actor id」，同一进程内互斥。 */
 const ADVANCING = new Set<string>();
 
@@ -601,12 +627,7 @@ export async function advanceNpc(
     ...(services.logger === undefined ? {} : { logger: services.logger }),
   };
   const game = await getGameMeta(db, gameRef);
-  if (input.expectedVersion !== undefined && input.expectedVersion !== game.version) {
-    throw new GameError(
-      "invalid_state",
-      `视图已过期: 读到的是 version ${input.expectedVersion}，当前 ${game.version}，重读后再推进`,
-    );
-  }
+  await assertExpectedVersion(db, gameRef, input.expectedVersion);
   const names = [...new Set(input.actors)];
   // 占位要用 actor 实体而不是名字：玩家动作那条路用的是同一把锁。
   const state = await getGameStateSlice(db, gameRef);

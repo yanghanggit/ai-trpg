@@ -17,15 +17,16 @@ import { findGame } from "../game/persistence/games";
 import { parseWorldContent } from "../game/world-definition";
 import {
   advanceAppearance,
-  advanceNpc,
-  advanceStage,
-  advanceWorld,
   compactOp,
   completeActionOrderOp,
   createActionOrderOp,
   createGameOp,
   deleteGameOp,
   endGameOp,
+  enqueueActorTurn,
+  enqueuePlayerTurn,
+  enqueueStageTurn,
+  enqueueWorldTurn,
   memoryOp,
   nameLeaksOp,
   passTurn,
@@ -37,35 +38,30 @@ import {
   readGameMessages,
   readGameState,
   readStageMap,
+  readTurnJob,
   readVisitedStages,
   releaseControlOp,
   removeActionOrderOp,
   settleDeaths,
   snapshotOp,
   storyOp,
-  submitPlayerAction,
   takeControlOp,
+  toJobView,
 } from "../game-ops";
 import { HttpError } from "../http-error";
 import { type AuthUser, requireUser } from "../plugins/auth";
 import { actionOrderSchema } from "./schemas/action-order";
 import { actorLogSchema, actorViewSchema, gameMessageSchema } from "./schemas/client-view";
+import { turnJobSchema } from "./schemas/jobs";
 
 const gameParams = z.object({ game: z.string().trim().min(1) });
 const actorParams = gameParams.extend({ actor: z.string().trim().min(1) });
 const actionOrderParams = gameParams.extend({ order: z.string().trim().min(1) });
+const jobParams = gameParams.extend({ job: z.string().trim().min(1) });
 
 /** 活状态是内部投影，暂不在这里收窄；契约稳定后再补字段级 schema。 */
 const stateSchema = z.unknown();
 const resultsSchema = z.array(z.record(z.string(), z.unknown()));
-
-const stageTurnEnvelope = {
-  ok: z.boolean(),
-  plan: z.unknown(),
-  loopSuccess: z.boolean(),
-  state: stateSchema,
-  messageCursor: z.number(),
-};
 
 const actorTurnResponse = z.record(z.string(), z.unknown());
 
@@ -82,11 +78,19 @@ const endGameBody = z.object({
   message: z.string().optional(),
 });
 
-/** 回合推进只吃显式名单，没有「全部」：想推一群就把名字都列出来。 */
-const npcTurnBody = z.object({
-  actors: z.array(z.string().trim().min(1)).min(1, "需要至少一个 actor 名"),
-  /** 客户端读到的那份视图的版本；给了就要求一致，避免拿旧视图做决定。 */
+/**
+ * 一条请求入队一个回合：一个 actor、一个舞台、一个 world。
+ *
+ * `expectedVersion` 是客户端读到的那份视图的版本，执行开始时才比对——入队到开跑之间
+ * 世界可能已经被别的回合改过。
+ */
+const turnVersionBody = {
   expectedVersion: z.number().int().min(0).optional(),
+};
+
+const npcTurnBody = z.object({
+  actor: z.string().trim().min(1, "需要 actor 名"),
+  ...turnVersionBody,
 });
 
 /** 空回合：在顺位上记一笔「轮到过他」，不产生动作。 */
@@ -95,7 +99,14 @@ const passTurnBody = z.object({
 });
 
 const stageTurnBody = z.object({
-  stages: z.array(z.string().trim().min(1)).min(1, "需要至少一个 stageId 或 stageName"),
+  stage: z.string().trim().min(1, "需要 stageId 或 stageName"),
+  ...turnVersionBody,
+});
+
+/** 玩家动作的入队形状：动作本身仍是那份 discriminated union，只是外面多一层。 */
+const playerTurnBody = z.object({
+  action: playerActionBodySchema,
+  ...turnVersionBody,
 });
 
 const appearanceTurnBody = z.object({
@@ -461,29 +472,26 @@ export function createGameRoutes(db: () => Database): FastifyPluginAsyncZod {
       {
         schema: {
           tags: ["actions"],
-          summary: "提交一个玩家动作",
-          description: "一个 `kind` 对应 `agent-game` 的一个 `player-*` 子命令。",
+          summary: "入队一个玩家动作：一次提交就是一个回合",
+          description:
+            "动作本身就是回合：入队后立刻返回作业，落账与计数在作业里完成。" +
+            "一个 `kind` 对应 `agent-game` 的一个 `player-*` 子命令。",
           params: actorParams,
-          body: playerActionBodySchema,
-          response: {
-            200: z.object({
-              plan: z.unknown(),
-              state: stateSchema,
-              death: z.unknown().optional(),
-            }),
-          },
+          body: playerTurnBody,
+          response: { 202: z.object({ job: turnJobSchema }) },
         },
       },
-      async (request) => {
+      async (request, reply) => {
         const user = await requireUser(db(), request);
         await requireGameAccess(db(), request.params.game, user);
-        return submitPlayerAction(
-          db(),
-          request.params.game,
-          request.params.actor,
-          request.body,
-          services(),
-        );
+        const job = await enqueuePlayerTurn(db(), request.params.game, {
+          actor: request.params.actor,
+          action: request.body.action,
+          ...(request.body.expectedVersion === undefined
+            ? {}
+            : { expectedVersion: request.body.expectedVersion }),
+        });
+        return reply.code(202).send({ job: toJobView(job) });
       },
     );
 
@@ -516,19 +524,18 @@ export function createGameRoutes(db: () => Database): FastifyPluginAsyncZod {
       {
         schema: {
           tags: ["turns"],
-          summary: "按给定名单逐个推进 NPC 回合",
+          summary: "入队一个 NPC 回合：立刻返回作业，执行在请求之外",
+          description: "同一个 actor 一次一个回合；结果与计数以作业终态为准。",
           params: gameParams,
           body: npcTurnBody,
-          response: { 200: z.object({ results: resultsSchema }) },
+          response: { 202: z.object({ job: turnJobSchema }) },
         },
       },
-      async (request) => {
+      async (request, reply) => {
         const user = await requireUser(db(), request);
         await requireGameAccess(db(), request.params.game, user);
-        return advanceNpc(db(), request.params.game, request.body, {
-          ...services(),
-          logger: request.log,
-        });
+        const job = await enqueueActorTurn(db(), request.params.game, request.body);
+        return reply.code(202).send({ job: toJobView(job) });
       },
     );
 
@@ -556,19 +563,17 @@ export function createGameRoutes(db: () => Database): FastifyPluginAsyncZod {
       {
         schema: {
           tags: ["turns"],
-          summary: "按给定名单逐个推进舞台回合",
+          summary: "入队一个舞台回合：立刻返回作业，执行在请求之外",
           params: gameParams,
           body: stageTurnBody,
-          response: { 200: z.object({ results: resultsSchema }) },
+          response: { 202: z.object({ job: turnJobSchema }) },
         },
       },
-      async (request) => {
+      async (request, reply) => {
         const user = await requireUser(db(), request);
         await requireGameAccess(db(), request.params.game, user);
-        return advanceStage(db(), request.params.game, request.body, {
-          ...services(),
-          logger: request.log,
-        });
+        const job = await enqueueStageTurn(db(), request.params.game, request.body);
+        return reply.code(202).send({ job: toJobView(job) });
       },
     );
 
@@ -577,18 +582,17 @@ export function createGameRoutes(db: () => Database): FastifyPluginAsyncZod {
       {
         schema: {
           tags: ["turns"],
-          summary: "推进 world 回合",
+          summary: "入队一个 world 回合：立刻返回作业，执行在请求之外",
           params: gameParams,
-          response: { 200: z.object(stageTurnEnvelope) },
+          body: z.object(turnVersionBody),
+          response: { 202: z.object({ job: turnJobSchema }) },
         },
       },
-      async (request) => {
+      async (request, reply) => {
         const user = await requireUser(db(), request);
         await requireGameAccess(db(), request.params.game, user);
-        return advanceWorld(db(), request.params.game, {
-          ...services(),
-          logger: request.log,
-        });
+        const job = await enqueueWorldTurn(db(), request.params.game, request.body);
+        return reply.code(202).send({ job: toJobView(job) });
       },
     );
 
@@ -714,6 +718,30 @@ export function createGameRoutes(db: () => Database): FastifyPluginAsyncZod {
         const user = await requireUser(db(), request);
         await requireGameAccess(db(), request.params.game, user);
         return removeActionOrderOp(db(), request.params.game, request.params.order);
+      },
+    );
+
+    // ------------------------------------------------------------ 作业
+
+    app.get(
+      "/games/:game/jobs/:job",
+      {
+        schema: {
+          tags: ["jobs"],
+          summary: "读一条回合作业的状态与结果",
+          description: "作业只对本局可见；别局的 id 一律当不存在。",
+          params: jobParams,
+          response: { 200: z.object({ job: turnJobSchema }) },
+        },
+      },
+      async (request) => {
+        const user = await requireUser(db(), request);
+        await requireGameAccess(db(), request.params.game, user);
+        const job = await readTurnJob(db(), request.params.game, request.params.job);
+        if (job === null) {
+          throw new HttpError(404, "not_found", `作业不存在: ${request.params.job}`);
+        }
+        return { job };
       },
     );
 

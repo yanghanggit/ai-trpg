@@ -1,2 +1,0 @@
-ALTER TABLE "items" ADD COLUMN "appears_in_appearance" boolean DEFAULT false NOT NULL;--> statement-breakpoint
-ALTER TABLE "stage_items" ADD COLUMN "appears_in_appearance" boolean DEFAULT false NOT NULL;

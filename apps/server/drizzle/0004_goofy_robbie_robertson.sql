@@ -1,1 +1,0 @@
-ALTER TABLE "actors" ADD COLUMN "status_effects" jsonb DEFAULT '[]'::jsonb NOT NULL;

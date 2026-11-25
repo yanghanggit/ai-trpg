@@ -17,6 +17,9 @@ import { resetDomainData, seedDemoData } from "../src/db/maintenance";
 import { runMigrations } from "../src/db/migrate";
 import { games } from "../src/db/schema";
 import type { Env } from "../src/env";
+import { createTurnJobRegistry, TURN_QUEUE } from "../src/game-ops";
+import { JobStore, JobWorker } from "../src/jobs";
+import type { ChatCompletionResult, ChatCompletionService } from "../src/llm";
 
 const testDatabaseUrl = process.env.TEST_DATABASE_URL?.trim();
 const SLUG = `api-test-${Date.now()}`;
@@ -27,6 +30,13 @@ const testEnv: Env = {
   PORT: DEFAULT_SERVER_PORT,
   CORS_ORIGINS: "*",
   LOG_LEVEL: "silent",
+};
+
+/** wait 不需要模型：被调用就说明链路漏跑了推理。 */
+const unusedService: ChatCompletionService = {
+  async complete(): Promise<ChatCompletionResult> {
+    throw new Error("这条用例不该调用模型");
+  },
 };
 
 describe.skipIf(!testDatabaseUrl)("业务 API", () => {
@@ -147,15 +157,39 @@ describe.skipIf(!testDatabaseUrl)("业务 API", () => {
     expect(control.statusCode).toBe(200);
     expect(control.json()).toMatchObject({ result: { controllerType: "player" } });
 
-    // wait 不调模型：这条用例只验证「HTTP → 服务层 → 事件流」这条链路。
-    const action = await app.inject({
+    // wait 不调模型：这条用例只验证「HTTP → 作业 → 服务层 → 事件流」这条链路。
+    const queued = await app.inject({
       method: "POST",
       url: `/api/v1/games/${SLUG}/actors/拾骨人伊莱/actions`,
       headers: auth,
-      payload: { kind: "wait" },
+      payload: { action: { kind: "wait" } },
     });
-    expect(action.statusCode).toBe(200);
-    expect(action.json()).toMatchObject({ plan: { actions: [{ kind: "wait" }] } });
+    expect(queued.statusCode).toBe(202);
+    expect(queued.json()).toMatchObject({
+      job: { status: "pending", kind: "turn.actor.player", result: null },
+    });
+    const jobId = (queued.json() as { job: { jobId: string } }).job.jobId;
+
+    // 测试里没有常驻 worker：用真实注册表 + 假服务把队列跑一轮。
+    const worker = new JobWorker({
+      store: new JobStore(handle.db),
+      registry: createTurnJobRegistry({
+        db: () => handle.db,
+        services: () => ({ service: unusedService, inferenceService: unusedService }),
+      }),
+      queues: [TURN_QUEUE],
+    });
+    expect(await worker.runOnce()).toBe(1);
+
+    const finished = await app.inject({
+      method: "GET",
+      url: `/api/v1/games/${SLUG}/jobs/${jobId}`,
+      headers: auth,
+    });
+    expect(finished.statusCode).toBe(200);
+    expect(finished.json()).toMatchObject({
+      job: { status: "succeeded", result: { ok: true, actions: ["wait"] } },
+    });
 
     const messages = await app.inject({
       method: "GET",
@@ -172,7 +206,7 @@ describe.skipIf(!testDatabaseUrl)("业务 API", () => {
       method: "POST",
       url: `/api/v1/games/${SLUG}/actors/拾骨人伊莱/actions`,
       headers: auth,
-      payload: { kind: "use", item: "拾骨钩" },
+      payload: { action: { kind: "use", item: "拾骨钩" } },
     });
     expect(response.statusCode).toBe(400);
     expect(response.json()).toMatchObject({ error: "invalid_request" });

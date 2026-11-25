@@ -51,6 +51,36 @@ describe.skipIf(!testDatabaseUrl)("JobWorker", () => {
     });
   }
 
+  it("领取失败不退出常驻循环：下一轮继续", async () => {
+    const registry = new JobRegistry();
+    // 前两次领取抛错（模拟数据库短暂不可用），之后恢复正常。
+    let calls = 0;
+    const flaky = {
+      claimNext: async () => {
+        calls += 1;
+        if (calls <= 2) {
+          throw new Error("数据库暂不可用");
+        }
+        return null;
+      },
+      reclaimStale: async () => [],
+    } as unknown as JobStore;
+
+    const worker = new JobWorker({
+      store: flaky,
+      registry,
+      staleAfterMs: 0,
+      pollIntervalMs: 10,
+      logger: silentLogger,
+    });
+
+    const loop = worker.start();
+    await delay(120);
+    expect(calls).toBeGreaterThan(2);
+    await worker.stop();
+    await expect(loop).resolves.toBeUndefined();
+  });
+
   it("executes a registered job and stores its result", async () => {
     const registry = new JobRegistry();
     const contexts: JobContext[] = [];

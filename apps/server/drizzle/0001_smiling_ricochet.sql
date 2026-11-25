@@ -1,2 +1,0 @@
-ALTER TABLE "actors" ADD COLUMN "knowledge_access" text[] DEFAULT '{}'::text[] NOT NULL;--> statement-breakpoint
-ALTER TABLE "vector_documents" ADD COLUMN "access" text[] DEFAULT '{}'::text[] NOT NULL;

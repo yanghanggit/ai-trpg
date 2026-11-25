@@ -34,6 +34,7 @@ function toSnapshot(row: JobRow): JobSnapshot {
     attempts: row.attempts,
     maxAttempts: row.maxAttempts,
     error: row.error,
+    errorCode: row.errorCode,
     runAt: row.runAt,
     startedAt: row.startedAt,
     finishedAt: row.finishedAt,
@@ -193,6 +194,7 @@ export class JobStore {
         status: "succeeded",
         result,
         error: null,
+        errorCode: null,
         finishedAt: now,
         lockedBy: null,
         lockedAt: null,
@@ -204,13 +206,20 @@ export class JobStore {
   }
 
   /** 失败后按 runAt 重试；错误保留用于诊断。 */
-  async retry(jobId: string, workerId: string, error: string, runAt: Date): Promise<boolean> {
+  async retry(
+    jobId: string,
+    workerId: string,
+    error: string,
+    runAt: Date,
+    errorCode: string | null = null,
+  ): Promise<boolean> {
     const now = new Date();
     const updated = await this.db
       .update(jobs)
       .set({
         status: "pending",
         error,
+        errorCode,
         runAt,
         lockedBy: null,
         lockedAt: null,
@@ -222,13 +231,19 @@ export class JobStore {
   }
 
   /** 标记最终失败；只有当前 worker 仍持有租约时才生效。 */
-  async fail(jobId: string, workerId: string, error: string): Promise<boolean> {
+  async fail(
+    jobId: string,
+    workerId: string,
+    error: string,
+    errorCode: string | null = null,
+  ): Promise<boolean> {
     const now = new Date();
     const updated = await this.db
       .update(jobs)
       .set({
         status: "failed",
         error,
+        errorCode,
         finishedAt: now,
         lockedBy: null,
         lockedAt: null,

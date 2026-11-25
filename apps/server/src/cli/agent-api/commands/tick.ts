@@ -10,6 +10,7 @@ import { gameOption, optionalOption } from "../../args";
 import { note } from "../../io";
 import { ApiFailure } from "../client";
 import { addApiCommand } from "../command";
+import { runTurnJob } from "../jobs";
 
 type Entry = {
   actorId: string;
@@ -125,11 +126,7 @@ export function registerTickCommand(program: Parameters<typeof addApiCommand>[0]
       /** 推一个回合；失败时回一句原因，`null` 表示落账了。视图过期重读一次再试。 */
       const advance = async (name: string, expectedVersion: number): Promise<string | null> => {
         try {
-          await client.call({
-            method: "POST",
-            path: `${gamePath}/turns/npc`,
-            body: { actors: [name], expectedVersion },
-          });
+          await runTurnJob(client, input.game, "/turns/npc", { actor: name, expectedVersion });
           return null;
         } catch (error) {
           if (!isStaleView(error)) {
@@ -140,10 +137,9 @@ export function registerTickCommand(program: Parameters<typeof addApiCommand>[0]
             return reason(error);
           }
           try {
-            await client.call({
-              method: "POST",
-              path: `${gamePath}/turns/npc`,
-              body: { actors: [name], expectedVersion: fresh.gameVersion },
+            await runTurnJob(client, input.game, "/turns/npc", {
+              actor: name,
+              expectedVersion: fresh.gameVersion,
             });
             return null;
           } catch (retry) {
@@ -261,11 +257,7 @@ export function registerTickCommand(program: Parameters<typeof addApiCommand>[0]
           }
           note(`  ${stage.name}: stage 回合`);
           try {
-            await client.call({
-              method: "POST",
-              path: `${gamePath}/turns/stage`,
-              body: { stages: [stage.id] },
-            });
+            await runTurnJob(client, input.game, "/turns/stage", { stage: stage.id });
           } catch (error) {
             note(`  ${stage.name}: stage 回合失败（${reason(error)}），继续下一个`);
             skipped += 1;
@@ -274,7 +266,7 @@ export function registerTickCommand(program: Parameters<typeof addApiCommand>[0]
         note("  world 回合");
         if (!dryRun) {
           try {
-            await client.call({ method: "POST", path: `${gamePath}/turns/world`, body: {} });
+            await runTurnJob(client, input.game, "/turns/world", {});
           } catch (error) {
             note(`  world 回合失败（${reason(error)}）`);
             skipped += 1;

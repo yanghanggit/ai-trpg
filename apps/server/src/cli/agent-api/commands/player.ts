@@ -20,6 +20,7 @@ import {
   requiredOption,
 } from "../../args";
 import { addApiCommand } from "../command";
+import { runTurnJob } from "../jobs";
 
 const GROUP = "玩家动作";
 
@@ -91,21 +92,35 @@ type PlayerSpec<T extends z.ZodType> = {
   body: (input: z.infer<T>) => Record<string, unknown>;
 };
 
-/** 提交一个动作：所有 `player-*` 共用的执行体。 */
+/** 提交一个动作：所有 `player-*` 共用的执行体；一个动作就是一个回合作业。 */
 function actionCommand<T extends z.ZodType>(program: Command, spec: PlayerSpec<T>): void {
   addApiCommand(program, {
     name: spec.command,
     group: GROUP,
     summary: spec.summary,
-    options: spec.options,
-    schema: spec.schema,
+    options: [...spec.options, optionalOption("--expected-version <n>", "执行开始时比对")],
+    schema: spec.schema.and(
+      z.object({ expectedVersion: z.coerce.number().int().min(0).optional() }),
+    ),
     run: async (input, client) => {
-      const parsed = input as z.infer<T> & { game: string; actor: string };
-      return (await client.call({
-        method: "POST",
-        path: `/games/${encodeURIComponent(parsed.game)}/actors/${encodeURIComponent(parsed.actor)}/actions`,
-        body: { kind: spec.kind, ...spec.body(input) },
-      })) as Record<string, unknown>;
+      const parsed = input as z.infer<T> & {
+        game: string;
+        actor: string;
+        expectedVersion?: number;
+      };
+      return {
+        job: await runTurnJob(
+          client,
+          parsed.game,
+          `/actors/${encodeURIComponent(parsed.actor)}/actions`,
+          {
+            action: { kind: spec.kind, ...spec.body(input) },
+            ...(parsed.expectedVersion === undefined
+              ? {}
+              : { expectedVersion: parsed.expectedVersion }),
+          },
+        ),
+      };
     },
   });
 }

@@ -41,9 +41,28 @@ function defaultRetryDelayMs(attempt: number): number {
   return Math.min(60_000, 1_000 * 2 ** Math.max(0, attempt - 1));
 }
 
+/**
+ * 失败码：只认错误对象上的字符串 `code`，不认识具体业务类型。
+ *
+ * 作业层不该依赖业务层的错误类；业务错误自带 `code`（如 `invalid_state`）就够了，
+ * 客户端因此可以按码决定重读、跳过还是报错，而不必解析错误文本。
+ */
+function errorCodeOf(error: unknown): string | null {
+  if (typeof error !== "object" || error === null || !("code" in error)) {
+    return null;
+  }
+  const code = (error as { code: unknown }).code;
+  return typeof code === "string" && code.length > 0 && code.length <= 64 ? code : null;
+}
+
 function errorText(error: unknown): string {
+  // 业务错误（带 code）只留一句人话：栈属于轨迹，客户端要读的是「为什么这一回合没成」。
   const text =
-    error instanceof Error ? (error.stack ?? `${error.name}: ${error.message}`) : String(error);
+    error instanceof Error && errorCodeOf(error) !== null
+      ? `${error.name}: ${error.message}`
+      : error instanceof Error
+        ? (error.stack ?? `${error.name}: ${error.message}`)
+        : String(error);
   return text.length > MAX_ERROR_LENGTH ? `${text.slice(0, MAX_ERROR_LENGTH)}…` : text;
 }
 
@@ -104,23 +123,30 @@ export class JobWorker {
 
     try {
       while (!this.stopping) {
-        if (this.staleAfterMs > 0 && Date.now() - lastReclaimAt >= this.reclaimIntervalMs) {
-          const reclaimed = await this.store.reclaimStale(new Date(Date.now() - this.staleAfterMs));
-          if (reclaimed.length > 0) {
-            this.logger.warn(`回收失联作业 ${reclaimed.length} 个: ${reclaimed.join(", ")}`);
+        // 一轮领取失败不等于永远跑不了：数据库短暂不可用之后，worker 要能自己接着走。
+        try {
+          if (this.staleAfterMs > 0 && Date.now() - lastReclaimAt >= this.reclaimIntervalMs) {
+            const reclaimed = await this.store.reclaimStale(
+              new Date(Date.now() - this.staleAfterMs),
+            );
+            if (reclaimed.length > 0) {
+              this.logger.warn(`回收失联作业 ${reclaimed.length} 个: ${reclaimed.join(", ")}`);
+            }
+            lastReclaimAt = Date.now();
           }
-          lastReclaimAt = Date.now();
-        }
 
-        while (!this.stopping && this.runningJobs.size < this.concurrency) {
-          const job = await this.store.claimNext({
-            queues: this.queues,
-            workerId: this.workerId,
-          });
-          if (!job) {
-            break;
+          while (!this.stopping && this.runningJobs.size < this.concurrency) {
+            const job = await this.store.claimNext({
+              queues: this.queues,
+              workerId: this.workerId,
+            });
+            if (!job) {
+              break;
+            }
+            this.track(this.process(job));
           }
-          this.track(this.process(job));
+        } catch (error) {
+          this.logger.warn("作业轮询失败，下一轮继续", error);
         }
 
         if (this.stopping) {
@@ -165,9 +191,14 @@ export class JobWorker {
 
   private track(job: Promise<void>): void {
     let tracked: Promise<void>;
-    tracked = job.finally(() => {
-      this.runningJobs.delete(tracked);
-    });
+    tracked = job
+      .catch((error: unknown) => {
+        // 执行边界已经自己兜过一次；这里只是不让漏网的 rejection 变成未处理异常。
+        this.logger.error("作业执行异常", error);
+      })
+      .finally(() => {
+        this.runningJobs.delete(tracked);
+      });
     this.runningJobs.add(tracked);
   }
 
@@ -188,7 +219,12 @@ export class JobWorker {
     try {
       const definition = this.registry.get(job.kind);
       if (!definition) {
-        await this.store.fail(job.jobId, this.workerId, `作业未注册: ${job.kind}`);
+        await this.store.fail(
+          job.jobId,
+          this.workerId,
+          `作业未注册: ${job.kind}`,
+          "job_unregistered",
+        );
         this.logger.error(`作业未注册: kind=${job.kind} jobId=${job.jobId}`);
         return;
       }
@@ -199,6 +235,7 @@ export class JobWorker {
           job.jobId,
           this.workerId,
           `payload 校验失败: ${JSON.stringify(parsed.error.issues)}`,
+          "job_payload_invalid",
         );
         this.logger.error(`payload 校验失败: kind=${job.kind} jobId=${job.jobId}`);
         return;
@@ -251,6 +288,7 @@ export class JobWorker {
 
   private async handleFailure(job: JobRecord, error: unknown): Promise<void> {
     const message = errorText(error);
+    const code = errorCodeOf(error);
     const retryable = !(error instanceof NonRetryableJobError) && job.attempts < job.maxAttempts;
 
     if (retryable) {
@@ -260,6 +298,7 @@ export class JobWorker {
         this.workerId,
         message,
         new Date(Date.now() + delayMs),
+        code,
       );
       if (retried) {
         this.logger.warn(
@@ -272,7 +311,7 @@ export class JobWorker {
       return;
     }
 
-    const failed = await this.store.fail(job.jobId, this.workerId, message);
+    const failed = await this.store.fail(job.jobId, this.workerId, message, code);
     if (failed) {
       this.logger.error(`作业最终失败: kind=${job.kind} jobId=${job.jobId}`);
     } else {

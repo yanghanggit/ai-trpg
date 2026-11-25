@@ -6,6 +6,7 @@ import type { Command } from "commander";
 import { z } from "zod";
 import { gameOption, optionalOption, requiredOption } from "../../args";
 import { addApiCommand } from "../command";
+import { runTurnJob, type TurnJob } from "../jobs";
 
 const GROUP = "回合推进";
 
@@ -23,6 +24,7 @@ const passInput = z.object({
 const stageInput = z.object({
   game: z.string(),
   stage: z.array(z.string().trim().min(1)).min(1, "需要至少一个 --stage <stageId|stageName>"),
+  expectedVersion: z.coerce.number().int().min(0).optional(),
 });
 
 const appearanceInput = z.object({
@@ -32,26 +34,39 @@ const appearanceInput = z.object({
 
 const gameOnly = z.object({ game: z.string() });
 
+const worldInput = z.object({
+  game: z.string(),
+  expectedVersion: z.coerce.number().int().min(0).optional(),
+});
+
 export function registerTurnCommands(program: Command): void {
   addApiCommand(program, {
     name: "npc",
     group: GROUP,
-    summary: "按给定名单逐个推进 NPC 回合",
+    summary: "逐个推进 NPC 回合：一个 actor 一个作业，等完再推下一个",
     options: [
       gameOption(),
       requiredOption("--actor <names...>", "actor 名称，可重复用或一次给多个"),
       optionalOption(
         "--expected-version <n>",
-        "你读到的那份视图的版本；给了就要求一致，不一致即 409",
+        "你读到的那份视图的版本；执行开始时比对，不一致即失败",
       ),
     ],
     schema: npcInput,
-    run: async (input, client) =>
-      (await client.call({
-        method: "POST",
-        path: `/games/${encodeURIComponent(input.game)}/turns/npc`,
-        body: { actors: input.actor, expectedVersion: input.expectedVersion },
-      })) as Record<string, unknown>,
+    run: async (input, client) => {
+      const jobs: TurnJob[] = [];
+      for (const actor of input.actor) {
+        jobs.push(
+          await runTurnJob(client, input.game, "/turns/npc", {
+            actor,
+            ...(input.expectedVersion === undefined
+              ? {}
+              : { expectedVersion: input.expectedVersion }),
+          }),
+        );
+      }
+      return { jobs };
+    },
   });
 
   addApiCommand(program, {
@@ -74,32 +89,40 @@ export function registerTurnCommands(program: Command): void {
   addApiCommand(program, {
     name: "stage",
     group: GROUP,
-    summary: "按给定名单逐个推进舞台回合",
+    summary: "逐个推进舞台回合：一个舞台一个作业，等完再推下一个",
     options: [
       gameOption(),
       requiredOption("--stage <refs...>", "stageId 或 stageName，可重复用或一次给多个"),
+      optionalOption("--expected-version <n>", "执行开始时比对；不一致即失败"),
     ],
     schema: stageInput,
-    run: async (input, client) =>
-      (await client.call({
-        method: "POST",
-        path: `/games/${encodeURIComponent(input.game)}/turns/stage`,
-        body: { stages: input.stage },
-      })) as Record<string, unknown>,
+    run: async (input, client) => {
+      const jobs: TurnJob[] = [];
+      for (const stage of input.stage) {
+        jobs.push(
+          await runTurnJob(client, input.game, "/turns/stage", {
+            stage,
+            ...(input.expectedVersion === undefined
+              ? {}
+              : { expectedVersion: input.expectedVersion }),
+          }),
+        );
+      }
+      return { jobs };
+    },
   });
 
   addApiCommand(program, {
     name: "world",
     group: GROUP,
     summary: "推进 world 回合（读取 stage 通知并裁决）",
-    options: [gameOption()],
-    schema: gameOnly,
-    run: async (input, client) =>
-      (await client.call({
-        method: "POST",
-        path: `/games/${encodeURIComponent(input.game)}/turns/world`,
-        body: {},
-      })) as Record<string, unknown>,
+    options: [gameOption(), optionalOption("--expected-version <n>", "执行开始时比对")],
+    schema: worldInput,
+    run: async (input, client) => ({
+      job: await runTurnJob(client, input.game, "/turns/world", {
+        ...(input.expectedVersion === undefined ? {} : { expectedVersion: input.expectedVersion }),
+      }),
+    }),
   });
 
   addApiCommand(program, {
