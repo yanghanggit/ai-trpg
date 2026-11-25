@@ -13,12 +13,14 @@ import { resetDomainData, seedDemoData } from "../src/db/maintenance";
 import { runMigrations } from "../src/db/migrate";
 import { createGame, getGameMeta } from "../src/game";
 import {
+  cancelTurnJob,
   createActionOrderOp,
   createTurnJobRegistry,
   enqueueActorTurn,
   enqueuePlayerTurn,
   enqueueStageTurn,
   enqueueWorldTurn,
+  listTurnJobs,
   readActionOrderOp,
   readTurnJob,
   TURN_QUEUE,
@@ -131,6 +133,8 @@ describe.skipIf(!testDatabaseUrl)("回合作业", () => {
       status: "succeeded",
       error: null,
       errorCode: null,
+      // NPC 回合跑完最后停在这一格：出计划 → 落账 → 收尾。
+      progress: { step: "finalizing" },
       result: { ok: true, actions: ["wait"] },
     });
     const after = (await readActionOrderOp(handle.db, game)).order;
@@ -156,6 +160,73 @@ describe.skipIf(!testDatabaseUrl)("回合作业", () => {
       enqueueActorTurn(handle.db, game, { actor: lead.actorName }),
     ).resolves.toMatchObject({ status: "pending" });
     expect(await drain()).toBe(1);
+  });
+
+  it("列这一局的活跃作业，并按局隔离", async () => {
+    const game = await freshGame("回合作业列表局");
+    const other = await freshGame("回合作业列表局-别局");
+    const { order } = await createActionOrderOp(handle.db, game);
+    const lead = order.entries[0];
+    if (!lead) {
+      throw new Error("顺位没有条目");
+    }
+
+    const queued = await enqueueActorTurn(handle.db, game, { actor: lead.actorName });
+    const active = await listTurnJobs(handle.db, game);
+    expect(active.map((job) => job.jobId)).toEqual([queued.jobId]);
+    // 别局看不到这条：作业只对本局可见。
+    expect(await listTurnJobs(handle.db, other)).toHaveLength(0);
+
+    await drain();
+    // 默认只列活跃的；跑完就不在列表里了。
+    expect(await listTurnJobs(handle.db, game)).toHaveLength(0);
+    const history = await listTurnJobs(handle.db, game, { activeOnly: false });
+    expect(history).toHaveLength(1);
+    expect(history[0]).toMatchObject({ status: "succeeded", result: { ok: true } });
+  });
+
+  it("排队中的回合可以取消，撤掉后串行键释放", async () => {
+    const game = await freshGame("回合作业取消局");
+    const { order } = await createActionOrderOp(handle.db, game);
+    const lead = order.entries[0];
+    if (!lead) {
+      throw new Error("顺位没有条目");
+    }
+
+    const job = await enqueueActorTurn(handle.db, game, { actor: lead.actorName });
+    const canceled = await cancelTurnJob(handle.db, game, job.jobId);
+    expect(canceled).toMatchObject({ ok: true, job: { status: "canceled" } });
+
+    // 终态不再占串行键。
+    await expect(
+      enqueueActorTurn(handle.db, game, { actor: lead.actorName }),
+    ).resolves.toMatchObject({ status: "pending" });
+    expect(await drain()).toBe(1);
+
+    // 已经跑完（或正在跑）的撤不掉。
+    expect(await cancelTurnJob(handle.db, game, job.jobId)).toEqual({
+      ok: false,
+      reason: "not_pending",
+    });
+    expect(await cancelTurnJob(handle.db, game, "not-a-uuid")).toEqual({
+      ok: false,
+      reason: "not_found",
+    });
+  });
+
+  it("执行期间上报阶段，终态仍以行为准", async () => {
+    const game = await freshGame("回合作业进度局");
+    await takeControlOp(handle.db, game, "守烬人");
+
+    const job = await enqueuePlayerTurn(handle.db, game, {
+      actor: "守烬人",
+      action: { kind: "wait" },
+    });
+    expect(await drain()).toBe(1);
+
+    // 玩家回合的计划是客户端给的：只有落账这一步，没有 planning / finalizing。
+    const view = await readTurnJob(handle.db, game, job.jobId);
+    expect(view).toMatchObject({ status: "succeeded", progress: { step: "applying" } });
   });
 
   it("视图过期在执行时判失败，带机器可读的错误码", async () => {

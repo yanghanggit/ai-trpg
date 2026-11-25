@@ -1,5 +1,5 @@
 {
-  "id": "48169ddb-0630-49d4-9808-9641db1a5088",
+  "id": "77aa813a-1c27-4dcb-8c99-df93fe86c5e3",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "version": "7",
   "dialect": "postgresql",
@@ -1857,6 +1857,12 @@
           "primaryKey": false,
           "notNull": false
         },
+        "progress": {
+          "name": "progress",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": false
+        },
         "result": {
           "name": "result",
           "type": "jsonb",
@@ -1969,6 +1975,27 @@
           "columns": [
             {
               "expression": "kind",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "jobs_serialization_updated_idx": {
+          "name": "jobs_serialization_updated_idx",
+          "columns": [
+            {
+              "expression": "serialization_key",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "updated_at",
               "isExpression": false,
               "asc": true,
               "nulls": "last"

@@ -18,16 +18,33 @@ export type AuthUser = {
   displayName: string;
 };
 
-/** 从请求头取身份；缺失、格式错误或用户不存在都算未登录。 */
-export async function requireUser(db: Database, request: FastifyRequest): Promise<AuthUser> {
+/**
+ * 从请求头取身份；缺失、格式错误或用户不存在都算未登录。
+ *
+ * `allowQueryToken` 只为 SSE 开：浏览器的 `EventSource` 不能自带请求头，
+ * 所以流式入口额外接受 `?token=<username>`。仍然是开发期身份，上线换会话令牌时一并收掉。
+ */
+export async function requireUser(
+  db: Database,
+  request: FastifyRequest,
+  options: { allowQueryToken?: boolean } = {},
+): Promise<AuthUser> {
   const header = request.headers.authorization;
-  if (header === undefined) {
-    throw new HttpError(401, "unauthorized", "缺少 Authorization: Bearer <username>");
-  }
-  const match = /^Bearer\s+(.+)$/i.exec(header.trim());
-  const username = match?.[1]?.trim() ?? "";
+  const match = header === undefined ? null : /^Bearer\s+(.+)$/i.exec(header.trim());
+  const fromHeader = match?.[1]?.trim() ?? "";
+  const fromQuery =
+    options.allowQueryToken === true && typeof request.query === "object" && request.query !== null
+      ? String((request.query as { token?: unknown }).token ?? "").trim()
+      : "";
+  const username = fromHeader.length > 0 ? fromHeader : fromQuery;
   if (username.length === 0) {
-    throw new HttpError(401, "unauthorized", "缺少 Authorization: Bearer <username>");
+    throw new HttpError(
+      401,
+      "unauthorized",
+      options.allowQueryToken === true
+        ? "缺少 Authorization: Bearer <username>（或 ?token=<username>）"
+        : "缺少 Authorization: Bearer <username>",
+    );
   }
 
   const [row] = await db

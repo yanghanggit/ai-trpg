@@ -7,7 +7,14 @@
 
 import { z } from "zod";
 import type { TurnJobResult, TurnJobView } from "../../game-ops/turn-jobs";
-import { JOB_STATUSES } from "../../jobs/types";
+import { JOB_STATUSES, type JobProgress } from "../../jobs/types";
+
+const jobProgressSchema = z
+  .object({
+    step: z.string(),
+    detail: z.string().optional(),
+  })
+  .meta({ id: "JobProgress" }) satisfies z.ZodType<JobProgress>;
 
 const turnJobResultSchema = z
   .object({
@@ -29,6 +36,7 @@ export const turnJobSchema = z
     maxAttempts: z.number(),
     error: z.string().nullable(),
     errorCode: z.string().nullable(),
+    progress: jobProgressSchema.nullable(),
     runAt: z.string(),
     startedAt: z.string().nullable(),
     finishedAt: z.string().nullable(),

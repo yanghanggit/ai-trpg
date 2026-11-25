@@ -4,15 +4,25 @@ import { openDatabase } from "./db/connect";
 import { DEEPSEEK_SERVICE } from "./deepseek";
 import { loadEnv, ROOT_ENV_FILE } from "./env";
 import { createTurnJobRegistry, TURN_QUEUE } from "./game-ops";
-import { JobStore, JobWorker } from "./jobs";
+import { JobChangeBroker, JobStore, JobWorker } from "./jobs";
 import type { Logger } from "./logging";
 
 loadEnvFile({ path: ROOT_ENV_FILE, quiet: true });
 
 const env = loadEnv();
 // 连接池跟着进程走：路由只拿访问器，测试与 OpenAPI 导出不必建连接。
-const { db, pool } = openDatabase();
-const app = await buildApp({ env, db: () => db });
+const { db, pool, databaseUrl } = openDatabase();
+
+/**
+ * 作业状态推送的订阅源：一条常驻 `LISTEN` 连接。
+ *
+ * 它只服务 SSE，不参与任何业务判断——推送丢了，客户端按游标重查就能补回来。
+ * 在监听端口之前启动，客户端一连上来就能收到后续变更。
+ */
+const broker = new JobChangeBroker({ databaseUrl, logger: jobLogger() });
+broker.start();
+
+const app = await buildApp({ env, db: () => db, broker });
 
 /**
  * 回合作业在本进程里跑：入队与执行同一个部署单元，`dev` 一条命令就能推进回合。
@@ -43,8 +53,9 @@ try {
 
 async function shutdown(signal: NodeJS.Signals): Promise<void> {
   app.log.info({ signal }, "收到退出信号，正在关闭服务");
-  // 先停领取，再关连接池：正在跑的回合要能把自己的心跳与结果写完。
+  // 先停领取与订阅，再关连接池：正在跑的回合要能把自己的心跳与结果写完。
   await worker.stop();
+  await broker.stop();
   await app.close();
   await pool.end();
   process.exit(0);

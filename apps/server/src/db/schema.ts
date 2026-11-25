@@ -620,6 +620,12 @@ export const jobs = pgTable(
     error: text("error"),
     /** 机器可读的失败码：job handler 抛出的业务错误白名单（如 `invalid_state`）。 */
     errorCode: text("error_code"),
+    /**
+     * 执行中的阶段标记，只放「这一步在做什么」，不放世界状态。
+     *
+     * 一行作业仍是唯一真相：进度是它的一次 UPDATE，因此推送与重查天然一致。
+     */
+    progress: jsonb("progress").$type<{ step: string; detail?: string }>(),
     result: jsonb("result").$type<JsonValue>(),
     runAt: timestamp("run_at", { withTimezone: true }).notNull().defaultNow(),
     lockedBy: text("locked_by"),
@@ -633,6 +639,8 @@ export const jobs = pgTable(
     index("jobs_claim_idx").on(table.queue, table.status, table.runAt, table.createdAt),
     index("jobs_status_created_idx").on(table.status, table.createdAt),
     index("jobs_kind_idx").on(table.kind),
+    /** 按「同一组作业」（回合作业的组键是局）+ 更新时间查：列表、恢复与流式补发都走它。 */
+    index("jobs_serialization_updated_idx").on(table.serializationKey, table.updatedAt),
     uniqueIndex("jobs_active_serialization_unique")
       .on(table.queue, table.serializationKey)
       .where(

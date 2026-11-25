@@ -12,8 +12,11 @@ import { z } from "zod";
 import type { Database } from "../db/pool";
 import { GameError, getGameMeta } from "../game";
 import {
+  ACTIVE_JOB_STATUSES,
   defineJob,
+  type JobContext,
   type JobDefinition,
+  type JobProgress,
   JobRegistry,
   JobSerializationConflictError,
   type JobSnapshot,
@@ -30,7 +33,7 @@ import {
 import { type PlayerActionRequest, playerActionBodySchema } from "./player-action";
 import type { LlmServices, TurnServices } from "./services";
 
-/** 作业 kind：稳定标识，`job list --kind` 与注册表都按它查。 */
+/** 作业 kind：稳定标识，注册表按它分派，查询与轨迹按它筛。 */
 export const TURN_JOB = {
   /** 引擎跑循环的 actor 回合。 */
   actorNpc: "turn.actor.npc",
@@ -99,22 +102,22 @@ function turnJobDefinitions(
     defineJob({
       name: TURN_JOB.actorNpc,
       payload: npcPayload,
-      run: (payload) => runNpcTurn(deps, payload),
+      run: (payload, context) => runNpcTurn(deps, payload, context),
     }),
     defineJob({
       name: TURN_JOB.actorPlayer,
       payload: playerPayload,
-      run: (payload) => runPlayerTurn(deps, payload),
+      run: (payload, context) => runPlayerTurn(deps, payload, context),
     }),
     defineJob({
       name: TURN_JOB.stage,
       payload: stagePayload,
-      run: (payload) => runStageTurn(deps, payload),
+      run: (payload, context) => runStageTurn(deps, payload, context),
     }),
     defineJob({
       name: TURN_JOB.world,
       payload: worldPayload,
-      run: (payload) => runWorldTurn(deps, payload),
+      run: (payload, context) => runWorldTurn(deps, payload, context),
     }),
   ];
 }
@@ -122,14 +125,16 @@ function turnJobDefinitions(
 async function runNpcTurn(
   deps: TurnJobDeps,
   payload: z.infer<typeof npcPayload>,
+  context: JobContext,
 ): Promise<TurnJobResult> {
   const db = deps.db();
   await assertExpectedVersion(db, payload.gameId, payload.expectedVersion);
+  await context.reportProgress("planning");
   const { results } = await advanceNpc(
     db,
     payload.gameId,
     { actors: [payload.actorName] },
-    deps.services(),
+    withStep(deps.services(), context),
   );
   const result = results[0];
   if (result === undefined) {
@@ -145,9 +150,12 @@ async function runNpcTurn(
 async function runPlayerTurn(
   deps: TurnJobDeps,
   payload: z.infer<typeof playerPayload>,
+  context: JobContext,
 ): Promise<TurnJobResult> {
   const db = deps.db();
   await assertExpectedVersion(db, payload.gameId, payload.expectedVersion);
+  // 玩家回合的计划是客户端给的：没有「出计划」这一步，直接从落账开始。
+  await context.reportProgress("applying");
   const output = await submitPlayerAction(
     db,
     payload.gameId,
@@ -165,9 +173,11 @@ async function runPlayerTurn(
 async function runStageTurn(
   deps: TurnJobDeps,
   payload: z.infer<typeof stagePayload>,
+  context: JobContext,
 ): Promise<TurnJobResult> {
   const db = deps.db();
   await assertExpectedVersion(db, payload.gameId, payload.expectedVersion);
+  await context.reportProgress("planning");
   const { results } = await advanceStage(
     db,
     payload.gameId,
@@ -184,11 +194,28 @@ async function runStageTurn(
 async function runWorldTurn(
   deps: TurnJobDeps,
   payload: z.infer<typeof worldPayload>,
+  context: JobContext,
 ): Promise<TurnJobResult> {
   const db = deps.db();
   await assertExpectedVersion(db, payload.gameId, payload.expectedVersion);
+  await context.reportProgress("planning");
   const result = await advanceWorld(db, payload.gameId, llmServicesOf(deps.services()));
   return { ok: result.ok, messageCursor: result.messageCursor };
+}
+
+/**
+ * 把作业的阶段回调接到引擎上。
+ *
+ * 引擎只认 `onStep`，不认识作业；作业层再把它转成一行 `progress` 的 UPDATE。
+ * 回调是同步的，所以这里只把 Promise 挂出去——阶段上报不该让回合等一次写库。
+ */
+function withStep(services: TurnServices, context: JobContext): TurnServices {
+  return {
+    ...services,
+    onStep: (step) => {
+      void context.reportProgress(step);
+    },
+  };
 }
 
 /** 舞台 / world 回合只要一份 service：它们的计划与落账都不跑增量推理。 */
@@ -283,6 +310,8 @@ export type TurnJobView = {
   maxAttempts: number;
   error: string | null;
   errorCode: string | null;
+  /** 执行中的阶段：`planning` / `applying` / `finalizing`，没上报过为 null。 */
+  progress: JobProgress | null;
   runAt: string;
   startedAt: string | null;
   finishedAt: string | null;
@@ -303,6 +332,7 @@ export function toJobView(snapshot: JobSnapshot): TurnJobView {
     maxAttempts: snapshot.maxAttempts,
     error: snapshot.error,
     errorCode: snapshot.errorCode,
+    progress: snapshot.progress,
     runAt: snapshot.runAt.toISOString(),
     startedAt: snapshot.startedAt === null ? null : snapshot.startedAt.toISOString(),
     finishedAt: snapshot.finishedAt === null ? null : snapshot.finishedAt.toISOString(),
@@ -310,6 +340,78 @@ export function toJobView(snapshot: JobSnapshot): TurnJobView {
     updatedAt: snapshot.updatedAt.toISOString(),
     result: null,
   };
+}
+
+/**
+ * 列这一局的作业。
+ *
+ * 默认只列活跃的（`pending` / `running`）：客户端重载后要问的是「现在有没有回合在跑」，
+ * 而不是翻历史。带 `updatedSince` 时改为「这一局自那个时刻之后变过的作业」，终态也在内——
+ * 流式推送断线重连后就是靠它补上错过的终态。
+ */
+export type TurnJobListOptions = {
+  /** false 时连历史一起列；默认只列活跃的。 */
+  activeOnly?: boolean;
+  /** 只列更新时间晚于它的作业。 */
+  updatedSince?: Date;
+  limit?: number;
+};
+
+export async function listTurnJobs(
+  db: Database,
+  gameRef: string,
+  options: TurnJobListOptions = {},
+): Promise<TurnJobView[]> {
+  const game = await getGameMeta(db, gameRef);
+  const store = new JobStore(db);
+  const snapshots = await store.list({
+    serializationKey: turnSerializationKey(game.id),
+    ...(options.updatedSince === undefined && options.activeOnly !== false
+      ? { statuses: ACTIVE_JOB_STATUSES }
+      : {}),
+    ...(options.updatedSince === undefined ? {} : { updatedSince: options.updatedSince }),
+    ...(options.limit === undefined ? {} : { limit: options.limit }),
+  });
+  const records = await Promise.all(snapshots.map((snapshot) => store.getRecord(snapshot.jobId)));
+  const views: TurnJobView[] = [];
+  for (const record of records) {
+    if (record === null || !isPayloadOf(record.payload, game.id)) {
+      continue;
+    }
+    views.push({
+      ...toJobView(record),
+      result: (record.result as TurnJobResult | null) ?? null,
+    });
+  }
+  return views;
+}
+
+export type CancelTurnJobOutcome =
+  | { ok: true; job: TurnJobView }
+  | { ok: false; reason: "not_found" | "not_pending" };
+
+/**
+ * 取消一条还没开始的回合。
+ *
+ * 只撤排队期：已经在跑的那一个不中断——落账不幂等，半途停下会留下半份世界。
+ * 撤掉的作业是终态，串行键随之释放，客户端可以立刻入队下一回合。
+ */
+export async function cancelTurnJob(
+  db: Database,
+  gameRef: string,
+  jobId: string,
+): Promise<CancelTurnJobOutcome> {
+  const game = await getGameMeta(db, gameRef);
+  const store = new JobStore(db);
+  const record = await store.getRecord(jobId);
+  if (record === null || !isPayloadOf(record.payload, game.id)) {
+    return { ok: false, reason: "not_found" };
+  }
+  const canceled = await store.cancel(jobId);
+  if (canceled === null) {
+    return { ok: false, reason: "not_pending" };
+  }
+  return { ok: true, job: { ...toJobView(canceled), result: null } };
 }
 
 /** 按 id 读作业；只认属于这一局的那些，别局的 id 一律当不存在。 */

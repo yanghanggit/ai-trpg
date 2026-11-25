@@ -2,8 +2,10 @@ import { API_VERSION, APP_VERSION, SERVICE_NAME } from "@ai-trpg/shared";
 import type { FastifyPluginAsyncZod } from "fastify-type-provider-zod";
 import { z } from "zod";
 import type { Database } from "../db/pool";
+import type { JobChangeBroker } from "../jobs";
 import { createGameRoutes } from "./games";
 import { healthRoutes } from "./health";
+import { createJobStreamRoutes } from "./job-stream";
 import { createTraceRoutes } from "./traces";
 
 const rootResponseSchema = z.object({
@@ -16,7 +18,15 @@ const rootResponseSchema = z.object({
  * 装配所有路由；数据库用访问器传入，装配阶段不建立连接，
  * 因此 `gen:openapi` 可以在没有数据库的情况下导出完整契约。
  */
-export function createRoutes(db: () => Database): FastifyPluginAsyncZod {
+export type RouteOptions = {
+  /** 作业状态推送的订阅源；不传时 SSE 入口回 503，其它入口照常工作。 */
+  broker?: JobChangeBroker;
+};
+
+export function createRoutes(
+  db: () => Database,
+  options: RouteOptions = {},
+): FastifyPluginAsyncZod {
   return async (app) => {
     app.get(
       "/",
@@ -35,6 +45,10 @@ export function createRoutes(db: () => Database): FastifyPluginAsyncZod {
     );
 
     await app.register(healthRoutes, { prefix: `/api/${API_VERSION}` });
+    // 先挂流式入口：`jobs/stream` 是静态段，先注册也便于在路由表里一眼看到它在 `jobs/:job` 之前。
+    await app.register(createJobStreamRoutes(db, options.broker), {
+      prefix: `/api/${API_VERSION}`,
+    });
     await app.register(createGameRoutes(db), { prefix: `/api/${API_VERSION}` });
     await app.register(createTraceRoutes(db), { prefix: `/api/${API_VERSION}` });
   };

@@ -15,6 +15,7 @@ import { emit } from "../io";
 import { registerActionOrderCommands } from "./commands/action-order";
 import { registerGameCommands } from "./commands/game";
 import { registerInspectCommands } from "./commands/inspect";
+import { registerJobCommands } from "./commands/jobs";
 import { registerPlayerCommands } from "./commands/player";
 import { registerTickCommand } from "./commands/tick";
 import { registerTraceCommands } from "./commands/trace";
@@ -43,6 +44,7 @@ export function createProgram(): Command {
   registerPlayerCommands(program);
   registerTurnCommands(program);
   registerActionOrderCommands(program);
+  registerJobCommands(program);
   registerTickCommand(program);
   registerInspectCommands(program);
   registerTraceCommands(program);

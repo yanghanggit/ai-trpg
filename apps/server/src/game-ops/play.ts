@@ -625,6 +625,7 @@ export async function advanceNpc(
     service: services.service,
     inferenceService: services.inferenceService,
     ...(services.logger === undefined ? {} : { logger: services.logger }),
+    ...(services.onStep === undefined ? {} : { onStep: services.onStep }),
   };
   const game = await getGameMeta(db, gameRef);
   await assertExpectedVersion(db, gameRef, input.expectedVersion);

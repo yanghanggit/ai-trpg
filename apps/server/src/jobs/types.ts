@@ -10,10 +10,24 @@ import type { z } from "zod";
 import type { JsonValue } from "../db/schema";
 import type { Logger } from "../logging";
 
-export const JOB_STATUSES = ["pending", "running", "succeeded", "failed"] as const;
+export const JOB_STATUSES = ["pending", "running", "succeeded", "failed", "canceled"] as const;
 export type JobStatus = (typeof JOB_STATUSES)[number];
 
-export const TERMINAL_JOB_STATUSES: readonly JobStatus[] = ["succeeded", "failed"];
+/** 活跃：还没到终态；串行键只被这两种状态占用。 */
+export const ACTIVE_JOB_STATUSES: readonly JobStatus[] = ["pending", "running"];
+
+/** 终态：不再变化，也不再占用串行键。`canceled` 只覆盖「还没开始就被撤掉」的那种。 */
+export const TERMINAL_JOB_STATUSES: readonly JobStatus[] = ["succeeded", "failed", "canceled"];
+
+/**
+ * 执行中的阶段标记：handler 自己报，作业层不认识业务。
+ *
+ * 只放「这一步在做什么」，不放世界状态——否则作业行会变成第二份世界。
+ */
+export type JobProgress = {
+  step: string;
+  detail?: string;
+};
 
 export function isTerminalJobStatus(status: JobStatus): boolean {
   return TERMINAL_JOB_STATUSES.includes(status);
@@ -32,6 +46,8 @@ export type JobSnapshot = {
   error: string | null;
   /** 机器可读的失败码：handler 抛出的错误带 `code` 时留档，供客户端分辨处理方式。 */
   errorCode: string | null;
+  /** 最近一次上报的执行阶段；没有上报过为 null。 */
+  progress: JobProgress | null;
   runAt: Date;
   startedAt: Date | null;
   finishedAt: Date | null;
@@ -56,6 +72,11 @@ export type JobContext = {
   maxAttempts: number;
   signal: AbortSignal;
   logger: Logger;
+  /**
+   * 上报当前阶段。写入是尽力而为：报进度失败不该让一个已经在跑的业务回合失败，
+   * 所以它会吞掉错误、只记一行 warn。
+   */
+  reportProgress: (step: string, detail?: string) => Promise<void>;
 };
 
 export type JobDefinition<Payload, Result = unknown> = {
@@ -85,6 +106,10 @@ export type JobListFilter = {
   statuses?: readonly JobStatus[];
   kind?: string;
   queue?: string;
+  /** 同一组作业的组键（回合作业用 `turn:<gameId>`）。 */
+  serializationKey?: string;
+  /** 只取更新时间晚于它的行；流式补发与「断开后重查」用它。 */
+  updatedSince?: Date;
   /** 默认 50，最大 500。 */
   limit?: number;
 };

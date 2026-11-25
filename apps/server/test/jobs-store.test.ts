@@ -50,6 +50,73 @@ describe.skipIf(!testDatabaseUrl)("JobStore", () => {
     expect(await store.countByStatus()).toMatchObject({ pending: 1, running: 0 });
   });
 
+  it("publishes progress as an update, not a second state", async () => {
+    const queued = await store.enqueue({ kind: "test.echo", payload: {}, queue: "progress" });
+    expect(queued.progress).toBeNull();
+
+    const claimed = await store.claimNext({ queues: ["progress"], workerId: "worker-1" });
+    expect(claimed?.jobId).toBe(queued.jobId);
+
+    await store.setProgress(queued.jobId, "worker-1", { step: "planning" });
+    expect((await store.get(queued.jobId))?.progress).toEqual({ step: "planning" });
+
+    // 换一个 worker 写不动：进度跟租约绑在一起。
+    expect(await store.setProgress(queued.jobId, "worker-2", { step: "applying" })).toBe(false);
+    expect((await store.get(queued.jobId))?.progress).toEqual({ step: "planning" });
+  });
+
+  it("cancels only pending jobs and frees the serialization key", async () => {
+    const first = await store.enqueue({
+      kind: "test.echo",
+      payload: {},
+      queue: "serial",
+      serializationKey: "turn:1",
+    });
+
+    const canceled = await store.cancel(first.jobId);
+    expect(canceled).toMatchObject({ jobId: first.jobId, status: "canceled" });
+    expect(canceled?.finishedAt).not.toBeNull();
+
+    // 撤掉即终态：串行键释放，同一组可以立刻入队下一条。
+    const second = await store.enqueue({
+      kind: "test.echo",
+      payload: {},
+      queue: "serial",
+      serializationKey: "turn:1",
+    });
+    expect(second.jobId).not.toBe(first.jobId);
+
+    // 已经在跑的不撤回：只撤排队期。
+    const claimed = await store.claimNext({ queues: ["serial"], workerId: "worker-1" });
+    expect(claimed?.jobId).toBe(second.jobId);
+    expect(await store.cancel(second.jobId)).toBeNull();
+    expect((await store.get(second.jobId))?.status).toBe("running");
+  });
+
+  it("filters by serialization key and update time", async () => {
+    const mine = await store.enqueue({
+      kind: "test.echo",
+      payload: {},
+      queue: "grouped",
+      serializationKey: "turn:a",
+    });
+    await store.enqueue({
+      kind: "test.echo",
+      payload: {},
+      queue: "grouped",
+      serializationKey: "turn:b",
+    });
+
+    expect(await store.list({ serializationKey: "turn:a" })).toHaveLength(1);
+
+    // 游标之后没有任何变更。
+    const later = new Date(mine.updatedAt.getTime() + 1_000);
+    expect(await store.list({ serializationKey: "turn:a", updatedSince: later })).toHaveLength(0);
+    // 游标之前（含自己）能查到。
+    const earlier = new Date(mine.updatedAt.getTime() - 1_000);
+    expect(await store.list({ serializationKey: "turn:a", updatedSince: earlier })).toHaveLength(1);
+  });
+
   it("enforces one active job per serialization key", async () => {
     const first = await store.enqueue({
       kind: "test.echo",

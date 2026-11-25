@@ -5,6 +5,11 @@
  * `JobStore.get` 与 `waitForJob`。进程内 worker 由调用方启动，不在这里隐式常驻。
  */
 
+export {
+  JobChangeBroker,
+  type JobChangeBrokerOptions,
+  type JobStreamEvent,
+} from "./broker";
 export { enqueueJob } from "./enqueue";
 export {
   JobDefinitionError,
@@ -16,9 +21,17 @@ export {
   NonRetryableJobError,
 } from "./errors";
 export { toJsonValue } from "./json";
+export {
+  JOBS_CHANNEL,
+  type JobChange,
+  jobChangeOf,
+  notifyJobChange,
+  parseJobChange,
+} from "./notify";
 export { defineJob, JobRegistry } from "./registry";
 export { type EnqueueJobInput, JobStore } from "./store";
 export {
+  ACTIVE_JOB_STATUSES,
   type ClaimJobOptions,
   type EnqueueJobOptions,
   isTerminalJobStatus,
@@ -26,6 +39,7 @@ export {
   type JobContext,
   type JobDefinition,
   type JobListFilter,
+  type JobProgress,
   type JobRecord,
   type JobSnapshot,
   type JobStatus,

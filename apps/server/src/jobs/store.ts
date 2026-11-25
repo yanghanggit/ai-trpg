@@ -7,11 +7,19 @@
  */
 
 import { randomUUID } from "node:crypto";
-import { and, asc, desc, eq, inArray, isNotNull, lt, lte, sql } from "drizzle-orm";
+import { and, asc, desc, eq, gt, inArray, isNotNull, lt, lte, sql } from "drizzle-orm";
 import type { Database } from "../db/pool";
 import { type JsonValue, jobs } from "../db/schema";
 import { JobSerializationConflictError } from "./errors";
-import type { ClaimJobOptions, JobListFilter, JobRecord, JobSnapshot, JobStatus } from "./types";
+import { JOBS_CHANNEL, type JobChange, jobChangeOf, notifyJobChange } from "./notify";
+import type {
+  ClaimJobOptions,
+  JobListFilter,
+  JobProgress,
+  JobRecord,
+  JobSnapshot,
+  JobStatus,
+} from "./types";
 
 type JobRow = typeof jobs.$inferSelect;
 
@@ -35,6 +43,7 @@ function toSnapshot(row: JobRow): JobSnapshot {
     maxAttempts: row.maxAttempts,
     error: row.error,
     errorCode: row.errorCode,
+    progress: row.progress ?? null,
     runAt: row.runAt,
     startedAt: row.startedAt,
     finishedAt: row.finishedAt,
@@ -69,6 +78,26 @@ function isSerializationConflict(error: unknown): boolean {
 
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
+/**
+ * 事务内广播：`NOTIFY` 在提交时才投递，所以事务内发、回滚了就等于没发。
+ *
+ * 这里用最朴素的 SQL 而不是注入一个 store：事务句柄与 store 的 `db` 不是同一个对象。
+ */
+async function notifyChange(
+  tx: { execute: (query: ReturnType<typeof sql>) => Promise<unknown> },
+  row: JobRow | undefined,
+): Promise<void> {
+  if (!row) {
+    return;
+  }
+  const change: JobChange = jobChangeOf(toSnapshot(row));
+  try {
+    await tx.execute(sql`select pg_notify(${JOBS_CHANNEL}, ${JSON.stringify(change)})`);
+  } catch {
+    // 同上：通知失败不影响提交。
+  }
+}
+
 export class JobStore {
   constructor(readonly db: Database) {}
 
@@ -99,7 +128,9 @@ export class JobStore {
       if (!row) {
         throw new Error("作业入队失败：没有返回行");
       }
-      return toSnapshot(row);
+      const snapshot = toSnapshot(row);
+      await this.broadcast(row);
+      return snapshot;
     } catch (error) {
       if (!isSerializationConflict(error) || serializationKey === null) {
         throw error;
@@ -132,6 +163,10 @@ export class JobStore {
       filter.statuses && filter.statuses.length > 0
         ? inArray(jobs.status, [...filter.statuses])
         : undefined,
+      filter.serializationKey !== undefined
+        ? eq(jobs.serializationKey, filter.serializationKey)
+        : undefined,
+      filter.updatedSince ? gt(jobs.updatedAt, filter.updatedSince) : undefined,
     ].filter((condition) => condition !== undefined);
 
     const limit = Math.min(Math.max(filter.limit ?? 50, 1), 500);
@@ -181,7 +216,12 @@ export class JobStore {
         })
         .where(and(eq(jobs.id, row.id), eq(jobs.status, "pending")))
         .returning();
-      return updated ? toRecord(updated) : null;
+      if (!updated) {
+        return null;
+      }
+      // 通知写在事务里：提交成功才广播，观众看不到「领了又回滚」的假象。
+      await notifyChange(tx, updated);
+      return toRecord(updated);
     });
   }
 
@@ -201,7 +241,8 @@ export class JobStore {
         updatedAt: now,
       })
       .where(and(eq(jobs.id, jobId), eq(jobs.status, "running"), eq(jobs.lockedBy, workerId)))
-      .returning({ id: jobs.id });
+      .returning();
+    await this.broadcast(updated[0]);
     return updated.length > 0;
   }
 
@@ -226,7 +267,8 @@ export class JobStore {
         updatedAt: now,
       })
       .where(and(eq(jobs.id, jobId), eq(jobs.status, "running"), eq(jobs.lockedBy, workerId)))
-      .returning({ id: jobs.id });
+      .returning();
+    await this.broadcast(updated[0]);
     return updated.length > 0;
   }
 
@@ -250,16 +292,65 @@ export class JobStore {
         updatedAt: now,
       })
       .where(and(eq(jobs.id, jobId), eq(jobs.status, "running"), eq(jobs.lockedBy, workerId)))
-      .returning({ id: jobs.id });
+      .returning();
+    await this.broadcast(updated[0]);
     return updated.length > 0;
   }
 
-  /** 续租；worker 定期调用，避免长作业被其它 worker 误回收。 */
+  /**
+   * 上报执行阶段；只有仍持有租约的 worker 能写。
+   *
+   * 进度是这一行的一次 UPDATE：它同时让 `updated_at` 前进，等待方与流式补发都靠这个时间。
+   */
+  async setProgress(jobId: string, workerId: string, progress: JobProgress): Promise<boolean> {
+    const now = new Date();
+    const updated = await this.db
+      .update(jobs)
+      .set({ progress, updatedAt: now })
+      .where(and(eq(jobs.id, jobId), eq(jobs.status, "running"), eq(jobs.lockedBy, workerId)))
+      .returning();
+    await this.broadcast(updated[0]);
+    return updated.length > 0;
+  }
+
+  /**
+   * 取消一条还没开始的作业：只撤 `pending`，已经开始执行的回合不在这里中断。
+   *
+   * 执行中的回合没法安全叫停（落账不幂等，半途停下会留下半份世界），所以「停止」
+   * 这条语义暂时只覆盖排队期；到了 running 就让它跑完，客户端按终态处理。
+   */
+  async cancel(jobId: string): Promise<JobSnapshot | null> {
+    const now = new Date();
+    const updated = await this.db
+      .update(jobs)
+      .set({
+        status: "canceled",
+        finishedAt: now,
+        lockedBy: null,
+        lockedAt: null,
+        updatedAt: now,
+      })
+      .where(and(eq(jobs.id, jobId), eq(jobs.status, "pending")))
+      .returning();
+    const row = updated[0];
+    if (!row) {
+      return null;
+    }
+    await this.broadcast(row);
+    return toSnapshot(row);
+  }
+
+  /**
+   * 续租；worker 定期调用，避免长作业被其它 worker 误回收。
+   *
+   * 只动 `locked_at`：续租不是状态变更，不该推进 `updated_at`——那个时间同时是
+   * 客户端的补发游标，被心跳推着走会让「变过什么」失去意义。
+   */
   async heartbeat(jobId: string, workerId: string): Promise<boolean> {
     const now = new Date();
     const updated = await this.db
       .update(jobs)
-      .set({ lockedAt: now, updatedAt: now })
+      .set({ lockedAt: now })
       .where(and(eq(jobs.id, jobId), eq(jobs.status, "running"), eq(jobs.lockedBy, workerId)))
       .returning({ id: jobs.id });
     return updated.length > 0;
@@ -285,7 +376,7 @@ export class JobStore {
       const reclaimed: string[] = [];
       for (const row of rows) {
         const exhausted = row.attempts >= row.maxAttempts;
-        await tx
+        const [updated] = await tx
           .update(jobs)
           .set(
             exhausted
@@ -306,7 +397,9 @@ export class JobStore {
                   updatedAt: now,
                 },
           )
-          .where(eq(jobs.id, row.id));
+          .where(eq(jobs.id, row.id))
+          .returning();
+        await notifyChange(tx, updated);
         reclaimed.push(row.id);
       }
       return reclaimed;
@@ -323,11 +416,24 @@ export class JobStore {
       running: 0,
       succeeded: 0,
       failed: 0,
+      canceled: 0,
     };
     for (const row of rows) {
       counts[row.status] = row.count;
     }
     return counts;
+  }
+
+  /** 广播一次状态变更；失败只当作少一条通知，不影响已经写好的那一行。 */
+  private async broadcast(row: JobRow | undefined): Promise<void> {
+    if (!row) {
+      return;
+    }
+    try {
+      await notifyJobChange(this.db, jobChangeOf(toSnapshot(row)));
+    } catch {
+      // 广播是尽力而为：库里的行才是真相，观众重连时会按 updated_at 补查。
+    }
   }
 
   private async findActive(

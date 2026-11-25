@@ -17,6 +17,7 @@ import { findGame } from "../game/persistence/games";
 import { parseWorldContent } from "../game/world-definition";
 import {
   advanceAppearance,
+  cancelTurnJob,
   compactOp,
   completeActionOrderOp,
   createActionOrderOp,
@@ -27,6 +28,7 @@ import {
   enqueuePlayerTurn,
   enqueueStageTurn,
   enqueueWorldTurn,
+  listTurnJobs,
   memoryOp,
   nameLeaksOp,
   passTurn,
@@ -58,6 +60,13 @@ const gameParams = z.object({ game: z.string().trim().min(1) });
 const actorParams = gameParams.extend({ actor: z.string().trim().min(1) });
 const actionOrderParams = gameParams.extend({ order: z.string().trim().min(1) });
 const jobParams = gameParams.extend({ job: z.string().trim().min(1) });
+const jobsQuery = z.object({
+  /** 默认只列活跃作业；`all` 连历史一起列（排查用）。 */
+  status: z.enum(["active", "all"]).optional(),
+  /** 只要更新时间晚于这个时刻的作业；断线重连补查用。 */
+  updatedSince: z.iso.datetime().optional(),
+  limit: z.coerce.number().int().min(1).max(100).optional(),
+});
 
 /** 活状态是内部投影，暂不在这里收窄；契约稳定后再补字段级 schema。 */
 const stateSchema = z.unknown();
@@ -150,7 +159,11 @@ function services() {
  * slug 只按 owner 唯一，`findGame` 在跨用户重名时会失败——那是正确行为，
  * 客户端应改用 id。
  */
-async function requireGameAccess(db: Database, gameRef: string, user: AuthUser): Promise<void> {
+export async function requireGameAccess(
+  db: Database,
+  gameRef: string,
+  user: AuthUser,
+): Promise<void> {
   const game = await findGame(db, gameRef);
   if (!game) {
     throw new HttpError(404, "not_found", `游戏不存在: ${gameRef}`);
@@ -722,6 +735,58 @@ export function createGameRoutes(db: () => Database): FastifyPluginAsyncZod {
     );
 
     // ------------------------------------------------------------ 作业
+
+    app.get(
+      "/games/:game/jobs",
+      {
+        schema: {
+          tags: ["jobs"],
+          summary: "列这一局的作业",
+          description:
+            "默认只列活跃的（排队或正在跑），用于「现在有没有回合在跑」与重载后重接；" +
+            "带 updatedSince 时改为列自那之后变过的作业，终态也在内，供断线重连补查。",
+          params: gameParams,
+          querystring: jobsQuery,
+          response: { 200: z.object({ jobs: z.array(turnJobSchema) }) },
+        },
+      },
+      async (request) => {
+        const user = await requireUser(db(), request);
+        await requireGameAccess(db(), request.params.game, user);
+        const { status, updatedSince, limit } = request.query;
+        const jobs = await listTurnJobs(db(), request.params.game, {
+          ...(status === "all" ? { activeOnly: false } : {}),
+          ...(updatedSince === undefined ? {} : { updatedSince: new Date(updatedSince) }),
+          ...(limit === undefined ? {} : { limit }),
+        });
+        return { jobs };
+      },
+    );
+
+    app.post(
+      "/games/:game/jobs/:job/cancel",
+      {
+        schema: {
+          tags: ["jobs"],
+          summary: "取消一条还没开始的回合",
+          description:
+            "只撤排队期：已经在执行的那一个不中断（落账不幂等）。撤掉后串行键释放，可以立刻入队下一回合。",
+          params: jobParams,
+          response: { 200: z.object({ job: turnJobSchema }) },
+        },
+      },
+      async (request) => {
+        const user = await requireUser(db(), request);
+        await requireGameAccess(db(), request.params.game, user);
+        const outcome = await cancelTurnJob(db(), request.params.game, request.params.job);
+        if (!outcome.ok) {
+          throw outcome.reason === "not_found"
+            ? new HttpError(404, "not_found", `作业不存在: ${request.params.job}`)
+            : new HttpError(409, "invalid_state", `只有排队中的回合能取消: ${request.params.job}`);
+        }
+        return { job: outcome.job };
+      },
+    );
 
     app.get(
       "/games/:game/jobs/:job",

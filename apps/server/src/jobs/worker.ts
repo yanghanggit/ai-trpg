@@ -256,6 +256,17 @@ export class JobWorker {
         maxAttempts: job.maxAttempts,
         signal: controller.signal,
         logger: this.logger,
+        // 进度是尽力而为：上报失败只留一行 warn，不让一个已经落账的回合因此判失败。
+        reportProgress: async (step: string, detail?: string) => {
+          try {
+            await this.store.setProgress(job.jobId, this.workerId, {
+              step,
+              ...(detail === undefined ? {} : { detail }),
+            });
+          } catch (error) {
+            this.logger.warn(`作业进度上报失败: jobId=${job.jobId} step=${step}`, error);
+          }
+        },
       };
 
       try {

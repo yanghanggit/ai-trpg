@@ -187,6 +187,7 @@ CREATE TABLE "jobs" (
 	"max_attempts" integer DEFAULT 1 NOT NULL,
 	"error" text,
 	"error_code" text,
+	"progress" jsonb,
 	"result" jsonb,
 	"run_at" timestamp with time zone DEFAULT now() NOT NULL,
 	"locked_by" text,
@@ -347,6 +348,7 @@ CREATE UNIQUE INDEX "items_actor_name_unique" ON "items" USING btree ("actor_id"
 CREATE INDEX "jobs_claim_idx" ON "jobs" USING btree ("queue","status","run_at","created_at");--> statement-breakpoint
 CREATE INDEX "jobs_status_created_idx" ON "jobs" USING btree ("status","created_at");--> statement-breakpoint
 CREATE INDEX "jobs_kind_idx" ON "jobs" USING btree ("kind");--> statement-breakpoint
+CREATE INDEX "jobs_serialization_updated_idx" ON "jobs" USING btree ("serialization_key","updated_at");--> statement-breakpoint
 CREATE UNIQUE INDEX "jobs_active_serialization_unique" ON "jobs" USING btree ("queue","serialization_key") WHERE "jobs"."serialization_key" is not null and "jobs"."status" in ('pending', 'running');--> statement-breakpoint
 CREATE UNIQUE INDEX "stage_connections_world_edge_unique" ON "stage_connections" USING btree ("world_id","from_stage_id","to_stage_id");--> statement-breakpoint
 CREATE UNIQUE INDEX "stage_items_stage_anchor_name_unique" ON "stage_items" USING btree ("stage_id","anchor_key","name");--> statement-breakpoint

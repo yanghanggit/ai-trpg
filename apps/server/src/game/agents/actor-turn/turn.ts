@@ -50,6 +50,13 @@ import {
   parseRecognizeIdentity,
 } from "./tools";
 
+/**
+ * 一轮里能观察到的阶段：出计划（模型）、落账（写事务）、收尾（读送达）。
+ *
+ * 只给「在看哪一步」，不带世界状态——它会被写进作业行，作业行不该成为第二份世界。
+ */
+export type TurnStep = "planning" | "applying" | "finalizing";
+
 export type ActorTurnOptions = {
   service: ChatCompletionService;
   /** 提交后的推理阶段（换装外观、尸体外观、掉落）需要 LLM；不传则只跑确定性的部分。 */
@@ -60,6 +67,8 @@ export type ActorTurnOptions = {
   knowledgeProvider?: EmbeddingProvider;
   /** 覆盖 TRPG_AUDIT_NAMES；测试用来打开回合级名字审计。 */
   auditNameLeaks?: boolean;
+  /** 阶段回调：出计划之外的步骤由回合自己报（作业层用它更新进度）。 */
+  onStep?: (step: TurnStep) => void;
   /**
    * 上层预先开好的回合轨迹；不给就自己开一条。
    *
@@ -230,6 +239,7 @@ export async function runActorTurn(
 
   // 轮次用尽或模型忘记终结时，退回最后一次快照，让已暂存的动作照常落账。
   const plan = session.plan;
+  options.onStep?.("applying");
   const applied = await settleActorPlan(db, state.game.id, current.actor.id, plan, loop.success, {
     service: options.service,
     ...(options.inferenceService ? { inferenceService: options.inferenceService } : {}),
@@ -242,6 +252,7 @@ export async function runActorTurn(
     ...(applied.death ? { detail: applied.death } : {}),
   });
 
+  options.onStep?.("finalizing");
   return {
     ...(await readTurnDelivery(db, state.game.id)),
     ok: applied.ok,

@@ -12,6 +12,7 @@ import {
 import type { Database } from "./db/pool";
 import type { Env } from "./env";
 import { parseCorsOrigins } from "./env";
+import type { JobChangeBroker } from "./jobs";
 import { registerErrorHandler } from "./plugins/error-handler";
 import { createRoutes } from "./routes";
 
@@ -24,6 +25,8 @@ export type BuildAppOptions = {
    * 连接池由进程入口持有（`src/index.ts`），离线导出 OpenAPI 传一个不会被调用的桩。
    */
   db: () => Database;
+  /** 作业状态推送的订阅源；由进程入口持有并启动，测试可以不传。 */
+  broker?: JobChangeBroker;
 };
 
 /** 组装一个可注入、可测试的 Fastify 实例；监听端口由调用方负责。 */
@@ -31,6 +34,7 @@ export async function buildApp({
   env,
   logger = true,
   db,
+  broker,
 }: BuildAppOptions): Promise<FastifyInstance> {
   const loggerConfig: FastifyServerOptions["logger"] = logger
     ? {
@@ -79,7 +83,7 @@ export async function buildApp({
 
   app.get("/openapi.json", { schema: { hide: true } }, async () => app.swagger());
 
-  await app.register(createRoutes(db));
+  await app.register(createRoutes(db, broker === undefined ? {} : { broker }));
 
   if (env.NODE_ENV === "production" && env.CORS_ORIGINS.trim() === "*") {
     app.log.warn("CORS_ORIGINS=* 仅建议用于开发环境，生产环境请配置具体来源");
