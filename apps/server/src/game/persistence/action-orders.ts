@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { and, asc, eq, sql } from "drizzle-orm";
-import { actionOrderEntries, actionOrders, actors } from "../../db/schema";
+import { actionOrderEntries, actionOrders, actorControls, actors } from "../../db/schema";
 import type { ActionOrderStatus } from "../kernel/types";
 import type { Executor } from "./rows";
 
@@ -8,7 +8,7 @@ import type { Executor } from "./rows";
  * 行动顺位行的读写。
  *
  * 一局同时最多一条 `active`（部分唯一索引兜住），所以「当前顺位」是单行读取；条目按
- * `position` 升序返回，计数用 `actions_taken = actions_taken + 1` 原子自增——排队读再写
+ * `position` 升序返回，计数用 `turns_taken = turns_taken + 1` 原子自增——排队读再写
  * 会丢掉并发下的一次推进。这里只管行，排序规则在 `game/gameplay/ordering.ts`。
  */
 
@@ -47,7 +47,7 @@ export async function findActionOrder(
   return rows[0];
 }
 
-/** 建单：头与条目要在同一个事务里落；空名单由调用方先拦掉（至少一个顺位）。 */
+/** 开顺位：头与条目要在同一个事务里落；空名单由调用方先拦掉（至少一个名次）。 */
 export async function insertActionOrder(
   executor: Executor,
   input: { gameId: string; entries: readonly ActionOrderEntryDraft[] },
@@ -77,7 +77,7 @@ export async function listActionOrderEntries(
   executor: Executor,
   orderId: string,
 ): Promise<
-  { actorId: string; actorName: string; position: number; agility: number; actionsTaken: number }[]
+  { actorId: string; actorName: string; position: number; agility: number; turnsTaken: number }[]
 > {
   return executor
     .select({
@@ -85,7 +85,7 @@ export async function listActionOrderEntries(
       actorName: actors.name,
       position: actionOrderEntries.position,
       agility: actionOrderEntries.agility,
-      actionsTaken: actionOrderEntries.actionsTaken,
+      turnsTaken: actionOrderEntries.turnsTaken,
     })
     .from(actionOrderEntries)
     .innerJoin(actors, eq(actors.id, actionOrderEntries.actorId))
@@ -94,9 +94,44 @@ export async function listActionOrderEntries(
 }
 
 /**
+ * 这条顺位上此刻还能交给 agent 推进的 actor：活着的、且不是玩家自己操控的那个。
+ *
+ * 一次往返取齐条目 → 角色（生命、是否主角）→ 玩家控制行。筛在这里而不是在规则里，
+ * 是为了让「谁快轮到」保持成纯函数，也让读取投影只付一次数据库往返。被筛掉的人仍留在
+ * 顺位上并照旧保留自己的计数：他不是「不算数」，只是这一回合不归 agent 推。
+ */
+export async function listAdvanceableActorIds(
+  executor: Executor,
+  orderId: string,
+): Promise<Set<string>> {
+  const rows = await executor
+    .select({
+      actorId: actionOrderEntries.actorId,
+      hp: actors.hp,
+      isDefaultPlayer: actors.isDefaultPlayer,
+      controlledBy: actorControls.actorId,
+    })
+    .from(actionOrderEntries)
+    .innerJoin(actors, eq(actors.id, actionOrderEntries.actorId))
+    .leftJoin(
+      actorControls,
+      and(
+        eq(actorControls.actorId, actionOrderEntries.actorId),
+        eq(actorControls.controllerType, "player"),
+      ),
+    )
+    .where(eq(actionOrderEntries.orderId, orderId));
+  return new Set(
+    rows
+      .filter((row) => row.hp > 0 && !row.isDefaultPlayer && row.controlledBy === null)
+      .map((row) => row.actorId),
+  );
+}
+
+/**
  * 记一次推进：原子自增，返回这条顺位是否被加过。
  *
- * 名单是快照，所以「这个人不在单里」（建单后才加入世界）与「没有进行中的顺位」都只是
+ * 名单是快照，所以「这个人不在顺位上」（开顺位后才加入世界）与「没有进行中的顺位」都只是
  * 没记上，不是错误——调用方不必为它中断回合。
  */
 export async function incrementActionOrderEntry(
@@ -106,7 +141,7 @@ export async function incrementActionOrderEntry(
 ): Promise<boolean> {
   const updated = await executor
     .update(actionOrderEntries)
-    .set({ actionsTaken: sql`${actionOrderEntries.actionsTaken} + 1` })
+    .set({ turnsTaken: sql`${actionOrderEntries.turnsTaken} + 1` })
     .where(and(eq(actionOrderEntries.orderId, orderId), eq(actionOrderEntries.actorId, actorId)))
     .returning({ id: actionOrderEntries.id });
   return updated.length > 0;

@@ -134,6 +134,38 @@ export async function completeGameIfActive(
 }
 
 /**
+ * 删掉一局：一行，其余靠外键级联。
+ *
+ * 删就是删，不留归档也不软删；与顺位同一个取舍。进程内的轨迹是旁路，
+ * 不跟着数据库走。
+ */
+export async function deleteGameRow(executor: Executor, gameId: string): Promise<boolean> {
+  const deleted = await executor
+    .delete(games)
+    .where(eq(games.id, gameId))
+    .returning({ id: games.id });
+  return deleted.length > 0;
+}
+
+/**
+ * 只读版本号：客户端拿它判断自己手上的视图是否过期。
+ *
+ * 版本号是「这局被写过几次」的计数，不是一个可以自己维护的值——它只由写入事务推进，
+ * 所以读出来就是那一刻世界的样子。
+ */
+export async function readGameVersion(db: Reader, gameId: string): Promise<number> {
+  const [row] = await db
+    .select({ version: games.version })
+    .from(games)
+    .where(eq(games.id, gameId))
+    .limit(1);
+  if (!row) {
+    throw new GameError("not_found", `游戏不存在: ${gameId}`);
+  }
+  return row.version;
+}
+
+/**
  * 递增 game version：一个写入事务推一次，客户端据此判断状态有没有变过。
  *
  * 它不是并发控制：同一局的写入由 `games` 行锁串行化。

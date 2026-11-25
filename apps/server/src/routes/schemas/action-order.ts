@@ -7,7 +7,11 @@
 
 import type { z } from "zod";
 import { z as zod } from "zod";
-import type { ActionOrderEntryState, ActionOrderState } from "../../game/kernel/types";
+import type {
+  ActionOrderEntryState,
+  ActionOrderNextActorState,
+  ActionOrderState,
+} from "../../game/kernel/types";
 
 const actionOrderEntrySchema = zod
   .object({
@@ -15,9 +19,17 @@ const actionOrderEntrySchema = zod
     actorName: zod.string(),
     position: zod.number(),
     agility: zod.number(),
-    actionsTaken: zod.number(),
+    turnsTaken: zod.number(),
   })
   .meta({ id: "ActionOrderEntry" }) satisfies z.ZodType<ActionOrderEntryState>;
+
+const actionOrderNextActorSchema = zod
+  .object({
+    position: zod.number(),
+    actorId: zod.string(),
+    actorName: zod.string(),
+  })
+  .meta({ id: "ActionOrderNextActor" }) satisfies z.ZodType<ActionOrderNextActorState>;
 
 export const actionOrderSchema = zod
   .object({
@@ -26,5 +38,7 @@ export const actionOrderSchema = zod
     createdAt: zod.string(),
     completedAt: zod.string().nullable(),
     entries: zod.array(actionOrderEntrySchema),
+    gameVersion: zod.number(),
+    nextActor: actionOrderNextActorSchema.nullable(),
   })
   .meta({ id: "ActionOrder" }) satisfies z.ZodType<ActionOrderState>;

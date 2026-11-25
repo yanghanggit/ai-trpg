@@ -13,6 +13,7 @@ export * from "./agents/world-turn";
 export * from "./client-view";
 export * from "./create-game";
 export * from "./default-rounds";
+export * from "./end-game";
 export * from "./errors";
 export * from "./game-state";
 export * from "./kernel/affixes";

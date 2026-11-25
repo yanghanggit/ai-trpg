@@ -43,6 +43,13 @@
       "when": 1795524985079,
       "tag": "0005_redundant_spiral",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1795524985080,
+      "tag": "0006_turns_taken",
+      "breakpoints": true
     }
   ]
 }

@@ -24,6 +24,8 @@ import {
   completeActionOrderOp,
   createActionOrderOp,
   createGameOp,
+  deleteGameOp,
+  endGameOp,
   memoryOp,
   nameLeaksOp,
   playerActionBodySchema,
@@ -73,9 +75,17 @@ const createBody = z.object({
   slug: z.string().trim().min(1).optional(),
 });
 
+const endGameBody = z.object({
+  outcome: z.string().trim().min(1, "需要结局标签"),
+  /** 可选的结束正文；不给就只翻状态，不写公共事件。 */
+  message: z.string().optional(),
+});
+
 /** 回合推进只吃显式名单，没有「全部」：想推一群就把名字都列出来。 */
 const npcTurnBody = z.object({
   actors: z.array(z.string().trim().min(1)).min(1, "需要至少一个 actor 名"),
+  /** 客户端读到的那份视图的版本；给了就要求一致，避免拿旧视图做决定。 */
+  expectedVersion: z.number().int().min(0).optional(),
 });
 
 const stageTurnBody = z.object({
@@ -215,6 +225,48 @@ export function createGameRoutes(db: () => Database): FastifyPluginAsyncZod {
       async (request) => {
         await requireUser(db(), request);
         return { packs: Object.keys(CONTENT_PACKS) };
+      },
+    );
+
+    /**
+     * 结束一局：与 world 回合的结束同一个转移点，只多一个「谁叫停的」的区分。
+     *
+     * 已结束的局再结束返回 `ended: false`，不是错误——客户端重试不该看到失败。
+     */
+    app.post(
+      "/games/:game/end",
+      {
+        schema: {
+          tags: ["games"],
+          summary: "结束一局（客户端叫停，与 world 裁决同一转移点）",
+          description: "结局标签归调用方；正文可选，不给就只翻状态、不写事件。",
+          params: gameParams,
+          body: endGameBody,
+          response: { 200: z.object({ ended: z.boolean() }) },
+        },
+      },
+      async (request) => {
+        const user = await requireUser(db(), request);
+        await requireGameAccess(db(), request.params.game, user);
+        return endGameOp(db(), request.params.game, request.body);
+      },
+    );
+
+    /** 删局：一行级联清场，不留归档；轨迹文件是旁路，不跟着删。 */
+    app.delete(
+      "/games/:game",
+      {
+        schema: {
+          tags: ["games"],
+          summary: "删除一局（级联清场，不可恢复）",
+          params: gameParams,
+          response: { 200: z.object({ deleted: z.string(), slug: z.string() }) },
+        },
+      },
+      async (request) => {
+        const user = await requireUser(db(), request);
+        await requireGameAccess(db(), request.params.game, user);
+        return deleteGameOp(db(), request.params.game);
       },
     );
 
@@ -560,7 +612,7 @@ export function createGameRoutes(db: () => Database): FastifyPluginAsyncZod {
       {
         schema: {
           tags: ["action-orders"],
-          summary: "开一张行动顺位（按敏捷排序的快照）",
+          summary: "开一条行动顺位（按敏捷排序的快照）",
           params: gameParams,
           response: { 200: z.object({ order: actionOrderSchema }) },
         },
@@ -594,7 +646,7 @@ export function createGameRoutes(db: () => Database): FastifyPluginAsyncZod {
       {
         schema: {
           tags: ["action-orders"],
-          summary: "按 id 读一张行动顺位（含已完成的）",
+          summary: "按 id 读一条行动顺位（含已完成的）",
           params: actionOrderParams,
           response: { 200: z.object({ order: actionOrderSchema.nullable() }) },
         },
@@ -611,7 +663,7 @@ export function createGameRoutes(db: () => Database): FastifyPluginAsyncZod {
       {
         schema: {
           tags: ["action-orders"],
-          summary: "完成一张行动顺位",
+          summary: "完成一条行动顺位",
           params: actionOrderParams,
           response: { 200: z.object({ order: actionOrderSchema }) },
         },
@@ -628,7 +680,7 @@ export function createGameRoutes(db: () => Database): FastifyPluginAsyncZod {
       {
         schema: {
           tags: ["action-orders"],
-          summary: "移除一张行动顺位",
+          summary: "移除一条行动顺位",
           params: actionOrderParams,
           response: { 200: z.object({ removed: z.string() }) },
         },

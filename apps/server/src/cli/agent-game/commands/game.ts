@@ -1,7 +1,9 @@
 /**
- * 建局与读状态：`create` / `status` / `stage-map` / `snapshot` / `story`。
+ * 建局、读状态与生命周期：`create` / `status` / `stage-map` / `snapshot` / `story` /
+ * `end` / `delete`。
  *
  * 读命令不调用 LLM、不改状态；`create` 必须显式给出内容来源，不做隐式默认。
+ * `end` 与 `delete` 是客户端的叫停手段：结束保留档案，删除清场重建。
  */
 
 import { readFile } from "node:fs/promises";
@@ -14,6 +16,8 @@ import type { World } from "../../../game/world-definition";
 import { parseWorldContent } from "../../../game/world-definition";
 import {
   createGameOp,
+  deleteGameOp,
+  endGameOp,
   readActorLog,
   readActorView,
   readGameMessages,
@@ -107,6 +111,38 @@ export function registerGameCommands(program: Command, ctx: CommandContext): voi
         ),
       );
     },
+  });
+
+  addCommand(program, ctx, {
+    name: "end",
+    group: GROUP,
+    summary: "结束一局（与 world 裁决同一转移点，可重试）",
+    options: [
+      gameOption(),
+      requiredOption("--outcome <text>", "结局标签，写进 games.outcome"),
+      optionalOption("--message <text>", "玩家可见的结束正文；不给就只翻状态"),
+    ],
+    schema: z.object({
+      game: z.string(),
+      outcome: z.string().trim().min(1, "需要 --outcome <text>"),
+      message: z.string().optional(),
+    }),
+    run: async (input, ctx) =>
+      ctx.db((db) =>
+        endGameOp(db, input.game, {
+          outcome: input.outcome,
+          ...(input.message === undefined ? {} : { message: input.message }),
+        }),
+      ),
+  });
+
+  addCommand(program, ctx, {
+    name: "delete",
+    group: GROUP,
+    summary: "删除一局（级联清场，不可恢复）",
+    options: [gameOption()],
+    schema: z.object({ game: z.string() }),
+    run: async (input, ctx) => ctx.db((db) => deleteGameOp(db, input.game)),
   });
 
   addCommand(program, ctx, {

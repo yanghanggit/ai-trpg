@@ -18,7 +18,13 @@ const STATE_WRITERS: readonly { name: string; allowed: readonly string[] }[] = [
     allowed: ["agents/appearance/record.ts", "create-game/actors.ts"],
   },
   { name: "openPassage", allowed: ["agents/stage-turn/effects.ts"] },
-  { name: "completeGameIfActive", allowed: ["agents/world-turn/arbitrate.ts"] },
+  {
+    // 结束一局有两个合法发起者：world 自己的裁决，以及客户端叫停。两者都走同一个
+    // 转移点（compare-and-set），并发下只有一个生效，所以“谁能叫停”可以有两个，
+    // “状态从哪改”仍然只有一处。
+    name: "completeGameIfActive",
+    allowed: ["agents/world-turn/arbitrate.ts", "end-game/index.ts"],
+  },
 ];
 
 /**

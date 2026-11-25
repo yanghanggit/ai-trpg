@@ -407,7 +407,7 @@ export type RouteFailure = {
   reason: "empty" | "handle_ref" | "unknown_stage" | "ambiguous";
 };
 
-/** 一轮计划：按提交顺序执行的动作列表；条数上限由 `MAX_ACTIONS_PER_TURN` 约束。 */
+/** 一个回合的计划：按提交顺序执行的动作列表；条数上限由 `MAX_ACTIONS_PER_TURN` 约束。 */
 export type ActorPlan = {
   actions: ActorAction[];
   /** 认知更新：与动作同事务落账，但不产生公共事件、不占行动名额。 */
@@ -418,7 +418,7 @@ export type ActorPlan = {
   routeFailures?: RouteFailure[];
 };
 
-/** 舞台的一轮仲裁计划：按提交顺序更新 environment 或向 world 发通知。 */
+/** 舞台一个回合的仲裁计划：按提交顺序更新 environment 或向 world 发通知。 */
 export type StagePlan = {
   actions: StageAction[];
 };
@@ -431,7 +431,7 @@ export type WorldAction =
 /** world 的能力清单成员；由 `WorldAction` 派生。 */
 export type WorldActionKind = WorldAction["kind"];
 
-/** world 的一轮计划。 */
+/** world 一个回合的计划。 */
 export type WorldPlan = {
   actions: WorldAction[];
 };
@@ -621,31 +621,47 @@ export type StageVisitState = {
   lastVisitedAt: string;
 };
 
-/** 顺位的生命周期：进行中记数，完成后不再记数也不再挡下一张。 */
+/** 顺位的生命周期：进行中记数，完成后不再记数也不再挡下一条。 */
 export type ActionOrderStatus = "active" | "completed";
 
 /**
- * 行动顺位的条目：一个 actor 在这张快照里的位置与已推进的回合数。
+ * 行动顺位的条目：一个角色在这条快照里的名次与已推进的回合数。
  *
- * `agility` 是建单那一刻的敏捷现值（含穿戴与状态效果），只用于排序与留证；
+ * `agility` 是开顺位那一刻的敏捷现值（含穿戴与状态效果），只用于排序与留证；
  * 之后的属性变化不回写，快照就是快照。
  */
 export type ActionOrderEntryState = {
   actorId: string;
   actorName: string;
-  /** 1 起的顺位，全单不重复。 */
+  /** 1 起的名次，同一条顺位内不重复。 */
   position: number;
   agility: number;
-  actionsTaken: number;
+  turnsTaken: number;
 };
 
-/** 一张行动顺位：快照 + 每个顺位的计数 + 生命周期标记。 */
+/**
+ * 此刻该轮到谁：名次与身份，不给理由。
+ *
+ * 它是读出时算出的派生值，不落库——世界一变（有人死了、有人被玩家接管），
+ * 同一个名次可能指向别人。
+ */
+export type ActionOrderNextActorState = {
+  position: number;
+  actorId: string;
+  actorName: string;
+};
+
+/** 一条行动顺位：快照 + 每个名次的计数 + 生命周期标记。 */
 export type ActionOrderState = {
   id: string;
   status: ActionOrderStatus;
   createdAt: string;
   completedAt: string | null;
   entries: ActionOrderEntryState[];
+  /** 读出这一刻的世界版本：客户端据此判断自己手上的视图过不过期。 */
+  gameVersion: number;
+  /** 没有可推进的人（全死、全是玩家角色、顺位上没人）时为 null。 */
+  nextActor: ActionOrderNextActorState | null;
 };
 
 export type GameState = {

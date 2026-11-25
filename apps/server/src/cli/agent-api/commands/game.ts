@@ -8,7 +8,7 @@
 import { readFile } from "node:fs/promises";
 import type { Command } from "commander";
 import { z } from "zod";
-import { gameOption, optionalOption, positiveIntArg } from "../../args";
+import { gameOption, optionalOption, positiveIntArg, requiredOption } from "../../args";
 import { UsageError } from "../../errors";
 import { addApiCommand } from "../command";
 
@@ -125,6 +125,41 @@ export function registerGameCommands(program: Command): void {
         string,
         unknown
       >,
+  });
+
+  addApiCommand(program, {
+    name: "end",
+    group: GROUP,
+    summary: "结束一局（与 world 裁决同一转移点，可重试）",
+    options: [
+      gameOption(),
+      requiredOption("--outcome <text>", "结局标签"),
+      optionalOption("--message <text>", "玩家可见的结束正文；不给就只翻状态"),
+    ],
+    schema: z.object({
+      game: z.string(),
+      outcome: z.string().trim().min(1, "需要 --outcome <text>"),
+      message: z.string().optional(),
+    }),
+    run: async (input, client) =>
+      (await client.call({
+        method: "POST",
+        path: `/games/${encodeURIComponent(input.game)}/end`,
+        body: { outcome: input.outcome, message: input.message },
+      })) as Record<string, unknown>,
+  });
+
+  addApiCommand(program, {
+    name: "delete",
+    group: GROUP,
+    summary: "删除一局（级联清场，不可恢复）",
+    options: [gameOption()],
+    schema: z.object({ game: z.string() }),
+    run: async (input, client) =>
+      (await client.call({
+        method: "DELETE",
+        path: `/games/${encodeURIComponent(input.game)}`,
+      })) as Record<string, unknown>,
   });
 
   addApiCommand(program, {

@@ -27,7 +27,7 @@ export function registerActionOrderCommands(program: Command): void {
   addApiCommand(program, {
     name: "action-order-create",
     group: GROUP,
-    summary: "开一张行动顺位：服务端按敏捷现值排序并落快照",
+    summary: "开一条行动顺位：服务端按敏捷现值排序并落快照",
     options: [gameOption()],
     schema: gameInput,
     run: async (input, client) =>
@@ -56,7 +56,7 @@ export function registerActionOrderCommands(program: Command): void {
   addApiCommand(program, {
     name: "action-order-complete",
     group: GROUP,
-    summary: "完成一张行动顺位：打标记，之后不再记数",
+    summary: "完成一条行动顺位：打标记，之后不再记数",
     options: [gameOption(), requiredOption("--order <id>", "顺位 id")],
     schema: orderInput,
     run: async (input, client) =>
@@ -69,7 +69,7 @@ export function registerActionOrderCommands(program: Command): void {
   addApiCommand(program, {
     name: "action-order-remove",
     group: GROUP,
-    summary: "移除一张行动顺位：删行，条目级联",
+    summary: "移除一条行动顺位：删行，条目级联",
     options: [gameOption(), requiredOption("--order <id>", "顺位 id")],
     schema: orderInput,
     run: async (input, client) =>

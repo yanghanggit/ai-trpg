@@ -19,7 +19,7 @@ import {
   advanceWorld,
   settleDeaths,
 } from "../../../game-ops";
-import { gameOption, gameRef, requiredOption } from "../../args";
+import { gameOption, gameRef, optionalOption, requiredOption } from "../../args";
 import { addCommand } from "../command";
 import type { CommandContext } from "../context";
 
@@ -28,6 +28,7 @@ const GROUP = "回合推进";
 const npcInput = z.object({
   game: gameRef,
   actor: z.array(z.string().trim().min(1)).min(1, "需要至少一个 --actor <actorName>"),
+  expectedVersion: z.coerce.number().int().min(0).optional(),
 });
 
 const stageInput = z.object({
@@ -57,10 +58,26 @@ export function registerTurnCommands(program: Command, ctx: CommandContext): voi
     options: [
       gameOption(),
       requiredOption("--actor <names...>", "actor 名称，可重复用或一次给多个"),
+      optionalOption(
+        "--expected-version <n>",
+        "你读到的那份视图的版本；给了就要求一致，不一致即 409",
+      ),
     ],
     schema: npcInput,
     run: async (input, ctx) =>
-      ctx.db((db) => advanceNpc(db, input.game, { actors: input.actor }, services(ctx))),
+      ctx.db((db) =>
+        advanceNpc(
+          db,
+          input.game,
+          {
+            actors: input.actor,
+            ...(input.expectedVersion === undefined
+              ? {}
+              : { expectedVersion: input.expectedVersion }),
+          },
+          services(ctx),
+        ),
+      ),
   });
 
   addCommand(program, ctx, {

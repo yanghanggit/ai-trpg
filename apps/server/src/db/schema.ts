@@ -474,10 +474,10 @@ export const actorControls = pgTable("actor_controls", {
 });
 
 /**
- * 行动顺位：一次「此刻全员按敏捷排好」的快照，加上每个顺位已推进的回合数。
+ * 行动顺位：一次「此刻全员按敏捷排好」的快照，加上每个名次已推进的回合数。
  *
- * 一局同时最多一条进行中的顺位（部分唯一索引兜住），完成是打标记、移除是删行；
- * 条目按 `actor_id` 级联，顺位删掉即不留痕。快照只记敏捷值，不跟随后续换装。
+ * 一局内可以有很多条顺位，同时最多一条进行中（部分唯一索引兜住）；完成是打标记、
+ * 移除是删行。条目按 `actor_id` 级联，顺位删掉即不留痕。快照只记敏捷值，不跟随后续换装。
  */
 export const actionOrders = pgTable(
   "action_orders",
@@ -507,12 +507,12 @@ export const actionOrderEntries = pgTable(
     actorId: uuid("actor_id")
       .notNull()
       .references(() => actors.id, { onDelete: "cascade" }),
-    /** 1 起的顺位；同一单内唯一。 */
+    /** 1 起的名次；同一条顺位内唯一。 */
     position: integer("position").notNull(),
-    /** 建单那一刻的敏捷现值：排序依据的快照，之后换装不回写。 */
+    /** 开顺位那一刻的敏捷现值：排序依据的快照，之后换装不回写。 */
     agility: integer("agility").notNull(),
-    /** 在这个顺位下已落账的回合数。 */
-    actionsTaken: integer("actions_taken").notNull().default(0),
+    /** 在这个顺位下已落账的回合数；一次回合只加一，与它做了几个动作无关。 */
+    turnsTaken: integer("turns_taken").notNull().default(0),
   },
   (table) => [
     uniqueIndex("action_order_entries_order_actor_unique").on(table.orderId, table.actorId),

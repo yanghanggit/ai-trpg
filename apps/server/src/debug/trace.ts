@@ -169,6 +169,21 @@ export type TraceEvent =
       status: "ok" | "failed" | "skipped";
       actorName?: string;
       detail?: unknown;
+    }
+  | {
+      /**
+       * 一次推进与顺位的对账：谁被推了，顺位当时认为该轮到谁。
+       *
+       * 只记事实、不下判断：偏离的标准还没定，先把两边名次摆在一起，将来再决定怎么读。
+       */
+      event: "dispatch";
+      actorId: string;
+      actorName: string;
+      orderId: string;
+      expectedPosition: number | null;
+      actualPosition: number | null;
+      /** 名次一致为 true，不一致为 false，任一边缺名次时为 null。 */
+      followed: boolean | null;
     };
 
 /** 未显式配置时默认开启；测试环境不落盘，避免污染语料并拖慢用例。 */
@@ -611,6 +626,7 @@ export function renderTurnText(events: readonly TraceLine[]): string {
   let nameAuditIndex = 0;
   let observationIndex = 0;
   let phaseIndex = 0;
+  let dispatchIndex = 0;
 
   for (const line of events) {
     switch (line.event) {
@@ -772,6 +788,19 @@ export function renderTurnText(events: readonly TraceLine[]): string {
           `## 子阶段 · ${++phaseIndex}`,
           markdownFence(
             `${line.name}: ${line.status}${line.actorName ? ` (${line.actorName})` : ""}${phaseDetailText(line.detail)}`,
+          ),
+        );
+        break;
+      case "dispatch":
+        pushSection(
+          out,
+          `## 推进 · ${++dispatchIndex} · ${line.actorName}`,
+          markdownFence(
+            [
+              `期望名次: ${line.expectedPosition ?? "无"}`,
+              `实际名次: ${line.actualPosition ?? "不在顺位上"}`,
+              `一致: ${line.followed === null ? "无从判断" : String(line.followed)}`,
+            ].join("\n"),
           ),
         );
         break;

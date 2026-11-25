@@ -7,13 +7,13 @@ import { findActiveActionOrder, insertActionOrder } from "../persistence/action-
 import { readActionOrder } from "./read";
 
 /**
- * 建一张顺位：次序由服务端算，调用方只回答「现在开一张」。
+ * 开一条顺位：先后由服务端算，调用方只回答「现在开一条」。
  *
- * 这里只做台账该做的事——取此刻的 actor、把 gameplay 排好的次序编号 1..N、落库。
+ * 这里只做顺位该做的事——取此刻的 actor、把 gameplay 排好的先后编成名次 1..N、落库。
  * 「谁排前面」的判定在 `gameplay/ordering.ts`，本文件不认识敏捷。
  *
- * 「一局同时只有一张进行中的顺位」是硬约束，不是建议：先查再插只是为了让失败带上
- * 人话，真正的兜底是 `action_orders_game_active_unique`，并发下两张只能成一张。
+ * 「一局同时只有一条进行中的顺位」是硬约束，不是建议：先查再插只是为了让失败带上
+ * 人话，真正的兜底是 `action_orders_game_active_unique`，并发下两条只能成一条。
  */
 export async function openActionOrder(
   db: Database,

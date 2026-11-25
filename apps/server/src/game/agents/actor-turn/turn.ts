@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
 import type { Database } from "../../../db/pool";
-import { createTurnTrace, traceEvent } from "../../../debug/trace";
+import { createTurnTrace, type TraceContext, traceEvent } from "../../../debug/trace";
 import { DEFAULT_ERROR_RETRIES } from "../../../llm";
 import { agentLoop } from "../../../llm/agent-loop";
 import type { ChatCompletionService } from "../../../llm/protocol";
@@ -60,6 +60,13 @@ export type ActorTurnOptions = {
   knowledgeProvider?: EmbeddingProvider;
   /** 覆盖 TRPG_AUDIT_NAMES；测试用来打开回合级名字审计。 */
   auditNameLeaks?: boolean;
+  /**
+   * 上层预先开好的回合轨迹；不给就自己开一条。
+   *
+   * 同一个 `turnId` 下才能把这一轮之外的记录（如推进对账）挂到同一轮账上，
+   * 否则它们会变成一条没有回合边界的孤立轨迹。
+   */
+  trace?: TraceContext;
 };
 
 /**
@@ -92,7 +99,7 @@ export async function runActorTurn(
   }
   const maxRounds = options.maxRounds ?? DEFAULT_ACTOR_MAX_ROUNDS;
 
-  const trace = createTurnTrace({ game: state.game, turnKind: "actor" });
+  const trace = options.trace ?? createTurnTrace({ game: state.game, turnKind: "actor" });
   await traceEvent(trace, {
     event: "turn_start",
     label: current.actor.name,

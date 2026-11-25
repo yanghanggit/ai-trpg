@@ -4,7 +4,7 @@
 
 import type { Command } from "commander";
 import { z } from "zod";
-import { gameOption, requiredOption } from "../../args";
+import { gameOption, optionalOption, requiredOption } from "../../args";
 import { addApiCommand } from "../command";
 
 const GROUP = "回合推进";
@@ -12,6 +12,7 @@ const GROUP = "回合推进";
 const npcInput = z.object({
   game: z.string(),
   actor: z.array(z.string().trim().min(1)).min(1, "需要至少一个 --actor <actorName>"),
+  expectedVersion: z.coerce.number().int().min(0).optional(),
 });
 
 const stageInput = z.object({
@@ -34,13 +35,17 @@ export function registerTurnCommands(program: Command): void {
     options: [
       gameOption(),
       requiredOption("--actor <names...>", "actor 名称，可重复用或一次给多个"),
+      optionalOption(
+        "--expected-version <n>",
+        "你读到的那份视图的版本；给了就要求一致，不一致即 409",
+      ),
     ],
     schema: npcInput,
     run: async (input, client) =>
       (await client.call({
         method: "POST",
         path: `/games/${encodeURIComponent(input.game)}/turns/npc`,
-        body: { actors: input.actor },
+        body: { actors: input.actor, expectedVersion: input.expectedVersion },
       })) as Record<string, unknown>,
   });
 

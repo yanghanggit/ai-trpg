@@ -1,8 +1,8 @@
 /**
- * 行动顺位：开一张 / 读当前 / 完成 / 移除。
+ * 行动顺位：开一条 / 读当前 / 完成 / 移除。
  *
- * 四个命令都只动这张台账，不推进回合——推进仍归 `npc`。排序由服务端算，命令行不传
- * 顺序也不传敏捷：`action-order-create` 只回答「现在开一张」。
+ * 四个命令都只动这条顺位，不推进回合——推进仍归 `npc`。排序由服务端算，命令行不传
+ * 顺序也不传敏捷：`action-order-create` 只回答「现在开一条」。
  */
 
 import type { Command } from "commander";
@@ -35,7 +35,7 @@ export function registerActionOrderCommands(program: Command, ctx: CommandContex
   addCommand(program, ctx, {
     name: "action-order-create",
     group: GROUP,
-    summary: "开一张行动顺位：服务端按敏捷现值排序并落快照",
+    summary: "开一条行动顺位：服务端按敏捷现值排序并落快照",
     options: [gameOption()],
     schema: gameInput,
     run: async (input, ctx) => ctx.db((db) => createActionOrderOp(db, input.game)),
@@ -53,7 +53,7 @@ export function registerActionOrderCommands(program: Command, ctx: CommandContex
   addCommand(program, ctx, {
     name: "action-order-complete",
     group: GROUP,
-    summary: "完成一张行动顺位：打标记，之后不再记数",
+    summary: "完成一条行动顺位：打标记，之后不再记数",
     options: [gameOption(), requiredOption("--order <id>", "顺位 id")],
     schema: orderInput,
     run: async (input, ctx) => ctx.db((db) => completeActionOrderOp(db, input.game, input.order)),
@@ -62,7 +62,7 @@ export function registerActionOrderCommands(program: Command, ctx: CommandContex
   addCommand(program, ctx, {
     name: "action-order-remove",
     group: GROUP,
-    summary: "移除一张行动顺位：删行，条目级联",
+    summary: "移除一条行动顺位：删行，条目级联",
     options: [gameOption(), requiredOption("--order <id>", "顺位 id")],
     schema: orderInput,
     run: async (input, ctx) => ctx.db((db) => removeActionOrderOp(db, input.game, input.order)),

@@ -81,7 +81,7 @@ export type RenderTurnInput = TraceQuery & {
 };
 
 /**
- * 渲染一个回合：不传 `turn` 时取最近一轮。
+ * 渲染一个回合：不传 `turn` 时取最近的那个回合。
  *
  * `out` 是 `.md` 就合并成一份，否则按轮次的请求 / 响应各写一份；不传则只回文本。
  */
