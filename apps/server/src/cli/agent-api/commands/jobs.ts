@@ -56,12 +56,10 @@ export function registerJobCommands(program: Command): void {
   addApiCommand(program, {
     name: "job-cancel",
     group: GROUP,
-    summary: "取消一条还没开始的回合（排队期；已开始的不中断）",
+    summary: "取消一个回合：排队中的当场撤，执行中的在下一个检查点停",
     options: [gameOption(), requiredOption("--job <jobId>", "作业 id")],
     schema: jobInput,
-    run: async (input, client) => ({
-      job: await cancelTurnJob(client, input.game, input.job),
-    }),
+    run: async (input, client) => await cancelTurnJob(client, input.game, input.job),
   });
 
   addApiCommand(program, {

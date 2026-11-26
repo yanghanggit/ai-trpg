@@ -73,6 +73,38 @@ class EmptyPlanService implements ChatCompletionService {
   }
 }
 
+/**
+ * 一直卡在模型调用上，直到信号被掐断：用来验证「执行中取消」真的中断了等待，
+ * 而不是干等它自己返回。
+ */
+class BlockingService implements ChatCompletionService {
+  started = false;
+  private notifyStarted: (() => void) | undefined;
+  readonly isStarted = new Promise<void>((resolve) => {
+    this.notifyStarted = resolve;
+  });
+
+  async complete(
+    request: Parameters<ChatCompletionService["complete"]>[0],
+  ): Promise<ChatCompletionResult> {
+    this.started = true;
+    this.notifyStarted?.();
+    const signal = request.signal;
+    if (signal === undefined) {
+      throw new Error("阻塞服务需要取消信号");
+    }
+    await new Promise<never>((_, reject) => {
+      if (signal.aborted) {
+        reject(signal.reason);
+        return;
+      }
+      signal.addEventListener("abort", () => reject(signal.reason), { once: true });
+    });
+    // 上面永远 reject；这行只为满足返回类型。
+    throw new Error("不可达");
+  }
+}
+
 describe.skipIf(!testDatabaseUrl)("回合作业", () => {
   let handle: DatabaseHandle;
 
@@ -96,17 +128,22 @@ describe.skipIf(!testDatabaseUrl)("回合作业", () => {
     return created.game.slug;
   }
 
-  /** 用给定服务跑一轮 worker；返回处理掉的作业数。 */
-  async function drain(service: ChatCompletionService = new WaitService()): Promise<number> {
-    const worker = new JobWorker({
+  function makeWorker(service: ChatCompletionService): JobWorker {
+    return new JobWorker({
       store: new JobStore(handle.db),
       registry: createTurnJobRegistry({
         db: () => handle.db,
         services: () => ({ service, inferenceService: service }),
       }),
       queues: [TURN_QUEUE],
+      // 测试里等不了默认的 1 秒：取消检查点调紧。
+      cancelPollIntervalMs: 10,
     });
-    return worker.runOnce();
+  }
+
+  /** 用给定服务跑一轮 worker；返回处理掉的作业数。 */
+  async function drain(service: ChatCompletionService = new WaitService()): Promise<number> {
+    return makeWorker(service).runOnce();
   }
 
   it("入队即返回，执行后落账并给顺位 +1", async () => {
@@ -203,15 +240,47 @@ describe.skipIf(!testDatabaseUrl)("回合作业", () => {
     ).resolves.toMatchObject({ status: "pending" });
     expect(await drain()).toBe(1);
 
-    // 已经跑完（或正在跑）的撤不掉。
+    // 已经到终态的没有可撤的。
     expect(await cancelTurnJob(handle.db, game, job.jobId)).toEqual({
       ok: false,
-      reason: "not_pending",
+      reason: "finished",
     });
     expect(await cancelTurnJob(handle.db, game, "not-a-uuid")).toEqual({
       ok: false,
       reason: "not_found",
     });
+  });
+
+  it("执行中取消：中断模型调用、不落账、计数不变", async () => {
+    const game = await freshGame("回合作业执行中取消局");
+    const { order } = await createActionOrderOp(handle.db, game);
+    const lead = order.entries[0];
+    if (!lead) {
+      throw new Error("顺位没有条目");
+    }
+
+    const service = new BlockingService();
+    const job = await enqueueActorTurn(handle.db, game, { actor: lead.actorName });
+    const running = makeWorker(service).runOnce();
+    await service.isStarted;
+
+    // 请求取消：作业已在跑，所以是「请求」而不是「当场撤」。
+    const requested = await cancelTurnJob(handle.db, game, job.jobId);
+    expect(requested).toMatchObject({ ok: true, outcome: "requested" });
+    expect(requested.ok && requested.job.cancelRequested).toBe(true);
+
+    expect(await running).toBe(1);
+
+    const view = await readTurnJob(handle.db, game, job.jobId);
+    expect(view).toMatchObject({
+      status: "canceled",
+      errorCode: "job_canceled",
+      cancelRequested: true,
+      result: null,
+    });
+    // 没落账，顺位不计数——取消不是「跑完一个空回合」。
+    const after = (await readActionOrderOp(handle.db, game)).order;
+    expect(after?.entries[0]?.turnsTaken).toBe(0);
   });
 
   it("执行期间上报阶段，终态仍以行为准", async () => {

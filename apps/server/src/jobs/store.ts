@@ -23,6 +23,12 @@ import type {
 
 type JobRow = typeof jobs.$inferSelect;
 
+/** 取消请求的结果：`canceled` 是当场撤掉（排队中），`requested` 是等 worker 停（执行中）。 */
+export type CancelOutcome = {
+  outcome: "canceled" | "requested";
+  job: JobSnapshot;
+};
+
 export type EnqueueJobInput = {
   kind: string;
   payload: JsonValue;
@@ -44,6 +50,7 @@ function toSnapshot(row: JobRow): JobSnapshot {
     error: row.error,
     errorCode: row.errorCode,
     progress: row.progress ?? null,
+    cancelRequested: row.cancelRequested,
     runAt: row.runAt,
     startedAt: row.startedAt,
     finishedAt: row.finishedAt,
@@ -314,30 +321,68 @@ export class JobStore {
   }
 
   /**
-   * 取消一条还没开始的作业：只撤 `pending`，已经开始执行的回合不在这里中断。
+   * 请求取消：排队中的当场撤，执行中的只置标记。
    *
-   * 执行中的回合没法安全叫停（落账不幂等，半途停下会留下半份世界），所以「停止」
-   * 这条语义暂时只覆盖排队期；到了 running 就让它跑完，客户端按终态处理。
+   * 一条 UPDATE 定结果，避免「查到 pending、下一秒已 running」的竞态。
    */
-  async cancel(jobId: string): Promise<JobSnapshot | null> {
+  async requestCancel(jobId: string): Promise<CancelOutcome | null> {
+    const now = new Date();
+    const pendingNow = sql`${jobs.status} = 'pending'`;
+    const [row] = await this.db
+      .update(jobs)
+      .set({
+        status: sql`case when ${pendingNow} then 'canceled' else ${jobs.status} end`,
+        finishedAt: sql`case when ${pendingNow} then ${now} else ${jobs.finishedAt} end`,
+        lockedBy: sql`case when ${pendingNow} then null else ${jobs.lockedBy} end`,
+        lockedAt: sql`case when ${pendingNow} then null else ${jobs.lockedAt} end`,
+        cancelRequested: true,
+        updatedAt: now,
+      })
+      .where(and(eq(jobs.id, jobId), inArray(jobs.status, ["pending", "running"])))
+      .returning();
+    if (!row) {
+      return null;
+    }
+    await this.broadcast(row);
+    return {
+      outcome: row.status === "canceled" ? "canceled" : "requested",
+      job: toSnapshot(row),
+    };
+  }
+
+  /** 执行中的作业在检查点停下：落成终态 `canceled`，同样认租约。 */
+  async markCanceled(
+    jobId: string,
+    workerId: string,
+    error: string,
+    errorCode: string | null = "job_canceled",
+  ): Promise<boolean> {
     const now = new Date();
     const updated = await this.db
       .update(jobs)
       .set({
         status: "canceled",
+        error,
+        errorCode,
         finishedAt: now,
         lockedBy: null,
         lockedAt: null,
         updatedAt: now,
       })
-      .where(and(eq(jobs.id, jobId), eq(jobs.status, "pending")))
+      .where(and(eq(jobs.id, jobId), eq(jobs.status, "running"), eq(jobs.lockedBy, workerId)))
       .returning();
-    const row = updated[0];
-    if (!row) {
-      return null;
-    }
-    await this.broadcast(row);
-    return toSnapshot(row);
+    await this.broadcast(updated[0]);
+    return updated.length > 0;
+  }
+
+  /** worker 的取消检查点：按主键只读一列。 */
+  async cancelRequested(jobId: string): Promise<boolean> {
+    const [row] = await this.db
+      .select({ cancelRequested: jobs.cancelRequested })
+      .from(jobs)
+      .where(eq(jobs.id, jobId))
+      .limit(1);
+    return row?.cancelRequested ?? false;
   }
 
   /**

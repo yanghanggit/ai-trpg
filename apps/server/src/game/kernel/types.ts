@@ -778,3 +778,9 @@ export type WorldTurnResult = TurnDelivery & {
   plan: WorldPlan | null;
   loopSuccess: boolean;
 };
+
+/** 回合的三个阶段：出计划（模型）、落账（写事务）、收尾（增量推理与送达）。 */
+export type TurnStep = "planning" | "applying" | "finalizing";
+
+/** 阶段回调：`detail` 只放一句人能读的补充（例如「第 2/4 轮」）。 */
+export type TurnStepReporter = (step: TurnStep, detail?: string) => void;

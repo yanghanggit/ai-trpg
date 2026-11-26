@@ -48,6 +48,8 @@ export type JobSnapshot = {
   errorCode: string | null;
   /** 最近一次上报的执行阶段；没有上报过为 null。 */
   progress: JobProgress | null;
+  /** 是否已请求取消；执行中的作业靠它在检查点停下。 */
+  cancelRequested: boolean;
   runAt: Date;
   startedAt: Date | null;
   finishedAt: Date | null;

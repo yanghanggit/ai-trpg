@@ -73,9 +73,12 @@ describe.skipIf(!testDatabaseUrl)("JobStore", () => {
       serializationKey: "turn:1",
     });
 
-    const canceled = await store.cancel(first.jobId);
-    expect(canceled).toMatchObject({ jobId: first.jobId, status: "canceled" });
-    expect(canceled?.finishedAt).not.toBeNull();
+    const canceled = await store.requestCancel(first.jobId);
+    expect(canceled).toMatchObject({
+      outcome: "canceled",
+      job: { jobId: first.jobId, status: "canceled", cancelRequested: true },
+    });
+    expect(canceled?.job.finishedAt).not.toBeNull();
 
     // 撤掉即终态：串行键释放，同一组可以立刻入队下一条。
     const second = await store.enqueue({
@@ -86,11 +89,20 @@ describe.skipIf(!testDatabaseUrl)("JobStore", () => {
     });
     expect(second.jobId).not.toBe(first.jobId);
 
-    // 已经在跑的不撤回：只撤排队期。
+    // 已经在跑的不当场撤：置标记，等 worker 在检查点停下。
     const claimed = await store.claimNext({ queues: ["serial"], workerId: "worker-1" });
     expect(claimed?.jobId).toBe(second.jobId);
-    expect(await store.cancel(second.jobId)).toBeNull();
-    expect((await store.get(second.jobId))?.status).toBe("running");
+    const requested = await store.requestCancel(second.jobId);
+    expect(requested).toMatchObject({
+      outcome: "requested",
+      job: { status: "running", cancelRequested: true },
+    });
+    expect(await store.cancelRequested(second.jobId)).toBe(true);
+    expect(await store.markCanceled(second.jobId, "worker-1", "执行中被取消")).toBe(true);
+    expect((await store.get(second.jobId))?.status).toBe("canceled");
+
+    // 终态之后没有可撤的了。
+    expect(await store.requestCancel(second.jobId)).toBeNull();
   });
 
   it("filters by serialization key and update time", async () => {

@@ -58,6 +58,8 @@ export type AgentLoopOptions = {
   terminalTools?: readonly ToolDefinition[];
   /** 单次 completion 的超时；省略时由 provider 决定。 */
   timeoutMs?: number;
+  /** 每轮开始叫一次；一轮一次模型调用，这是进度的最细粒度。 */
+  onRound?: (round: number, maxRounds: number) => void;
   /**
    * 可重试的通讯失败（`error.retryable`）就地重试的次数；不计入 `maxRounds`，
    * 也不单独记一轮。默认 0，由业务按回合强度决定。
@@ -217,6 +219,7 @@ export async function agentLoop(options: AgentLoopOptions): Promise<AgentLoopRes
     maxRounds = 5,
     maxTerminalNudges = 2,
     finalRoundHint,
+    onRound,
     toolChoice = "auto",
     thinking = false,
     terminalTools = [],
@@ -251,6 +254,7 @@ export async function agentLoop(options: AgentLoopOptions): Promise<AgentLoopRes
   try {
     for (let round = 1; round <= maxRounds; round += 1) {
       logger.debug(`[agent_loop:${name}] 第 ${round}/${maxRounds} 轮`);
+      onRound?.(round, maxRounds);
       if (round === maxRounds && finalRoundHint) {
         currentPrompt =
           currentPrompt.length > 0 ? `${currentPrompt}\n\n${finalRoundHint}` : finalRoundHint;

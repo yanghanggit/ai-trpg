@@ -7,9 +7,10 @@ import type { ChatCompletionService } from "../../../llm/protocol";
 import { DEFAULT_STAGE_MAX_ROUNDS } from "../../default-rounds";
 import { GameError } from "../../errors";
 import { getGameStateSlice, readTurnDelivery } from "../../game-state";
-import type { StageTurnResult } from "../../kernel/types";
+import type { StageTurnResult, TurnStepReporter } from "../../kernel/types";
 import { loadAgentMemory } from "../../memory";
 import { findStage } from "../../stage-state";
+import { roundProgress } from "../step-progress";
 import { applyStagePlan } from "./arbitrate";
 import { STAGE_ACTION_KINDS, stageTurnContext } from "./context";
 import { createStagePlanSession } from "./plan-session";
@@ -21,6 +22,8 @@ export type StageTurnOptions = {
   service: ChatCompletionService;
   maxRounds?: number;
   logger?: Parameters<typeof agentLoop>[0]["logger"];
+  /** 阶段回调：规划按轮上报，落账与收尾各报一次（作业层用它写进度）。 */
+  onStep?: TurnStepReporter;
 };
 
 /** stage 回合由调用方显式推动，不随 actor 行动自动运行。 */
@@ -84,14 +87,17 @@ export async function runStageTurn(
     terminalTools: [submitStagePlanTool],
     service: options.service,
     maxRounds: options.maxRounds ?? DEFAULT_STAGE_MAX_ROUNDS,
+    ...roundProgress(options.onStep),
     errorRetries: DEFAULT_ERROR_RETRIES,
     loopId: randomUUID(),
     ...(options.logger ? { logger: options.logger } : {}),
     ...(trace ? { trace } : {}),
   });
 
+  options.onStep?.("applying");
   const ok = await applyStagePlan(db, state.game.id, stage.id, session.plan, loop.success, trace);
   await traceEvent(trace, { event: "turn_end", ok, loopSuccess: loop.success });
+  options.onStep?.("finalizing");
 
   return {
     ...(await readTurnDelivery(db, state.game.id)),

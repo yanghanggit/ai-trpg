@@ -23,6 +23,12 @@ export const DEEPSEEK_MODEL_FLASH = "deepseek-flash";
 export const DEEPSEEK_MODEL_PRO = "deepseek-v4-pro";
 
 export const DEFAULT_DEEPSEEK_TIMEOUT_MS = 30_000;
+
+/** 超时与调用方取消取并集；谁的 `reason` 先到就走谁。 */
+function abortSignalFor(request: { signal?: AbortSignal; timeoutMs?: number }): AbortSignal {
+  const timeout = AbortSignal.timeout(request.timeoutMs ?? DEFAULT_DEEPSEEK_TIMEOUT_MS);
+  return request.signal === undefined ? timeout : AbortSignal.any([request.signal, timeout]);
+}
 export const DEFAULT_DEEPSEEK_TEMPERATURE = 1.0;
 export const DEFAULT_DEEPSEEK_MAX_TOKENS = 16_384;
 export const DEFAULT_CONTEXT_WINDOW_TOKENS = 1_000_000;
@@ -140,8 +146,8 @@ function parseUsage(raw: unknown): Usage | undefined {
 }
 
 export class DeepSeekClient {
-  static readonly MODEL_FLASH = DEEPSEEK_MODEL_FLASH;
-  static readonly MODEL_PRO = DEEPSEEK_MODEL_PRO;
+  // static readonly MODEL_FLASH = DEEPSEEK_MODEL_FLASH;
+  // static readonly MODEL_PRO = DEEPSEEK_MODEL_PRO;
 
   static readonly CONTEXT_WINDOW_TOKENS: Readonly<Record<string, number>> = {
     [DEEPSEEK_MODEL_FLASH]: 1_000_000,
@@ -206,9 +212,13 @@ export class DeepSeekClient {
         method: "POST",
         headers: this.headers(apiKey),
         body: JSON.stringify(this.buildPayload(request)),
-        signal: AbortSignal.timeout(request.timeoutMs ?? DEFAULT_DEEPSEEK_TIMEOUT_MS),
+        signal: abortSignalFor(request),
       });
     } catch (error) {
+      // 取消不是通讯失败：原样抛出，别记成 timeout 再进重试。
+      if (request.signal?.aborted === true && request.signal.reason instanceof Error) {
+        throw request.signal.reason;
+      }
       const kind: ErrorKind =
         errorName(error) === "TimeoutError" || errorName(error) === "AbortError"
           ? "timeout"

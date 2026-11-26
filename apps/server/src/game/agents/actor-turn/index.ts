@@ -26,4 +26,4 @@ export {
   parseRecallRoute,
   parseRecognizeIdentity,
 } from "./tools";
-export { type ActorTurnOptions, runActorTurn, type TurnStep } from "./turn";
+export { type ActorTurnOptions, runActorTurn } from "./turn";

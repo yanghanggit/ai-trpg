@@ -164,6 +164,7 @@ async function settlePlayerTurnOnState(
     ...(options.inferenceService ? { inferenceService: options.inferenceService } : {}),
     ...(options.logger ? { logger: options.logger } : {}),
     ...(options.auditNameLeaks === undefined ? {} : { auditNameLeaks: options.auditNameLeaks }),
+    ...(options.onStep === undefined ? {} : { onStep: options.onStep }),
     ...(trace ? { trace } : {}),
   });
   await traceEvent(trace, { event: "turn_end", ok: result.ok, loopSuccess: true });

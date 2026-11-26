@@ -24,6 +24,7 @@ function snapshot(input: EnqueueJobInput): JobSnapshot {
     error: null,
     errorCode: null,
     progress: null,
+    cancelRequested: false,
     runAt: now,
     startedAt: null,
     finishedAt: null,

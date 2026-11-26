@@ -7,8 +7,9 @@ import type { ChatCompletionService } from "../../../llm/protocol";
 import { DEFAULT_WORLD_MAX_ROUNDS } from "../../default-rounds";
 import { GameError } from "../../errors";
 import { getGameStateSlice, readTurnDelivery } from "../../game-state";
-import type { WorldAction, WorldTurnResult } from "../../kernel/types";
+import type { TurnStepReporter, WorldAction, WorldTurnResult } from "../../kernel/types";
 import { loadAgentMemory } from "../../memory";
+import { roundProgress } from "../step-progress";
 import { applyWorldPlan } from "./arbitrate";
 import { createWorldPlanSession } from "./plan-session";
 import { buildWorldTurnInput } from "./prompt";
@@ -26,6 +27,8 @@ export type WorldTurnOptions = {
   service: ChatCompletionService;
   maxRounds?: number;
   logger?: Parameters<typeof agentLoop>[0]["logger"];
+  /** 阶段回调：规划按轮上报，落账与收尾各报一次（作业层用它写进度）。 */
+  onStep?: TurnStepReporter;
 };
 
 /** 推进一个 world 回合；由调用方显式触发，不随 actor/stage 自动运行。 */
@@ -100,14 +103,17 @@ export async function runWorldTurn(
     terminalTools: [submitWorldPlanTool],
     service: options.service,
     maxRounds: options.maxRounds ?? DEFAULT_WORLD_MAX_ROUNDS,
+    ...roundProgress(options.onStep),
     errorRetries: DEFAULT_ERROR_RETRIES,
     loopId: randomUUID(),
     ...(options.logger ? { logger: options.logger } : {}),
     ...(trace ? { trace } : {}),
   });
 
+  options.onStep?.("applying");
   const ok = await applyWorldPlan(db, state.game.id, session.plan, loop.success, trace);
   await traceEvent(trace, { event: "turn_end", ok, loopSuccess: loop.success });
+  options.onStep?.("finalizing");
 
   return {
     ...(await readTurnDelivery(db, state.game.id)),

@@ -37,6 +37,8 @@ export const turnJobSchema = z
     error: z.string().nullable(),
     errorCode: z.string().nullable(),
     progress: jobProgressSchema.nullable(),
+    /** 是否已请求取消：执行中的作业会在下一个检查点停下。 */
+    cancelRequested: z.boolean(),
     runAt: z.string(),
     startedAt: z.string().nullable(),
     finishedAt: z.string().nullable(),

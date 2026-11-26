@@ -9,7 +9,7 @@ import { randomUUID } from "node:crypto";
 import { hostname } from "node:os";
 import { setTimeout as delay } from "node:timers/promises";
 import { type Logger, silentLogger } from "../logging";
-import { NonRetryableJobError } from "./errors";
+import { JobCanceledError, NonRetryableJobError } from "./errors";
 import { toJsonValue } from "./json";
 import type { JobRegistry } from "./registry";
 import type { JobStore } from "./store";
@@ -33,6 +33,8 @@ export type JobWorkerOptions = {
   staleAfterMs?: number;
   /** 第 attempt 次失败后的重试延迟，默认 1s、2s、4s……最多 60s。 */
   retryDelayMs?: (attempt: number) => number;
+  /** 多久查一次取消请求；默认 1s，0 关闭。请求在库里，只能轮询。 */
+  cancelPollIntervalMs?: number;
   workerId?: string;
   logger?: Logger;
 };
@@ -76,6 +78,7 @@ export class JobWorker {
   private readonly pollIntervalMs: number;
   private readonly staleAfterMs: number;
   private readonly retryDelayMs: (attempt: number) => number;
+  private readonly cancelPollIntervalMs: number;
   private readonly logger: Logger;
   private readonly reclaimIntervalMs: number;
   private readonly stopController = new AbortController();
@@ -93,6 +96,7 @@ export class JobWorker {
     this.pollIntervalMs = options.pollIntervalMs ?? DEFAULT_POLL_INTERVAL_MS;
     this.staleAfterMs = options.staleAfterMs ?? DEFAULT_STALE_AFTER_MS;
     this.retryDelayMs = options.retryDelayMs ?? defaultRetryDelayMs;
+    this.cancelPollIntervalMs = options.cancelPollIntervalMs ?? 1_000;
     this.workerId = options.workerId ?? `${hostname()}:${process.pid}:${randomUUID().slice(0, 8)}`;
     this.logger = options.logger ?? silentLogger;
     this.reclaimIntervalMs = Math.max(MIN_RECLAIM_INTERVAL_MS, this.staleAfterMs / 2);
@@ -214,6 +218,7 @@ export class JobWorker {
     const controller = new AbortController();
     this.controllers.add(controller);
     const heartbeat = this.startHeartbeat(job.jobId);
+    const cancelWatch = this.startCancelWatch(job.jobId, controller);
     let timeout: NodeJS.Timeout | undefined;
 
     try {
@@ -293,11 +298,25 @@ export class JobWorker {
       if (heartbeat !== undefined) {
         clearInterval(heartbeat);
       }
+      if (cancelWatch !== undefined) {
+        clearInterval(cancelWatch);
+      }
       this.controllers.delete(controller);
     }
   }
 
   private async handleFailure(job: JobRecord, error: unknown): Promise<void> {
+    // 取消不是失败：它有自己的终态，也不该被重试。
+    if (error instanceof JobCanceledError) {
+      const canceled = await this.store.markCanceled(job.jobId, this.workerId, errorText(error));
+      if (canceled) {
+        this.logger.info(`作业已取消: kind=${job.kind} jobId=${job.jobId}`);
+      } else {
+        this.logger.warn(`作业取消时租约已失效: kind=${job.kind} jobId=${job.jobId}`);
+      }
+      return;
+    }
+
     const message = errorText(error);
     const code = errorCodeOf(error);
     const retryable = !(error instanceof NonRetryableJobError) && job.attempts < job.maxAttempts;
@@ -328,6 +347,30 @@ export class JobWorker {
     } else {
       this.logger.warn(`作业失败时租约已失效: kind=${job.kind} jobId=${job.jobId}`);
     }
+  }
+
+  /** 把库里的取消请求翻成一次 abort；停在哪由 handler 的检查点决定。 */
+  private startCancelWatch(jobId: string, controller: AbortController): NodeJS.Timeout | undefined {
+    if (this.cancelPollIntervalMs <= 0) {
+      return undefined;
+    }
+    const interval = setInterval(() => {
+      if (controller.signal.aborted) {
+        return;
+      }
+      void this.store
+        .cancelRequested(jobId)
+        .then((requested) => {
+          if (requested && !controller.signal.aborted) {
+            controller.abort(new JobCanceledError("作业在执行中被取消"));
+          }
+        })
+        .catch((error: unknown) => {
+          this.logger.warn(`查取消请求失败: jobId=${jobId}`, error);
+        });
+    }, this.cancelPollIntervalMs);
+    interval.unref();
+    return interval;
   }
 
   private startHeartbeat(jobId: string): NodeJS.Timeout | undefined {

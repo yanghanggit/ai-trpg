@@ -214,6 +214,44 @@ describe("DeepSeekClient", () => {
     expect(result.error?.statusCode).toBeUndefined();
   });
 
+  it("取消把原因原样抛出，不记成通讯失败", async () => {
+    const controller = new AbortController();
+    const reason = new Error("作业在执行中被取消");
+    controller.abort(reason);
+    // 真实 fetch 在 signal 被掐时会以 signal.reason 拒绝；这里照着这个行为造一个。
+    const { client } = makeClient(async (_url, init) => {
+      throw (init?.signal as AbortSignal | undefined)?.reason ?? new Error("请求没挂信号");
+    });
+
+    await expect(client.complete(makeRequest({ signal: controller.signal }))).rejects.toBe(reason);
+  });
+
+  it("取消能传到线上：掐外部信号，请求自己也断", async () => {
+    const controller = new AbortController();
+    let onTheWire: AbortSignal | undefined;
+    const { client } = makeClient(async (_url, init) => {
+      onTheWire = init?.signal as AbortSignal | undefined;
+      return jsonResponse(successPayload());
+    });
+    await client.complete(makeRequest({ signal: controller.signal }));
+
+    // 只有取并集，外部 abort 才能让这一发请求断掉。
+    expect(onTheWire).toBeInstanceOf(AbortSignal);
+    expect(onTheWire?.aborted).toBe(false);
+    controller.abort();
+    expect(onTheWire?.aborted).toBe(true);
+  });
+
+  it("外部信号没触发时，超时仍按 timeout 分类", async () => {
+    const controller = new AbortController();
+    const { client } = makeClient(async () => {
+      throw new DOMException("timeout", "TimeoutError");
+    });
+    const result = await client.complete(makeRequest({ signal: controller.signal }));
+    expect(result.ok).toBe(false);
+    expect(result.error?.kind).toBe("timeout");
+  });
+
   it("网络错误映射为 kind=connection", async () => {
     const { client } = makeClient(async () => {
       throw new TypeError("fetch failed");

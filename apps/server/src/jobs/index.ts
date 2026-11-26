@@ -12,6 +12,7 @@ export {
 } from "./broker";
 export { enqueueJob } from "./enqueue";
 export {
+  JobCanceledError,
   JobDefinitionError,
   JobFailedError,
   JobNotFoundError,
@@ -29,7 +30,7 @@ export {
   parseJobChange,
 } from "./notify";
 export { defineJob, JobRegistry } from "./registry";
-export { type EnqueueJobInput, JobStore } from "./store";
+export { type CancelOutcome, type EnqueueJobInput, JobStore } from "./store";
 export {
   ACTIVE_JOB_STATUSES,
   type ClaimJobOptions,

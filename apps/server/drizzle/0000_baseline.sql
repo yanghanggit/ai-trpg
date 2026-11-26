@@ -188,6 +188,7 @@ CREATE TABLE "jobs" (
 	"error" text,
 	"error_code" text,
 	"progress" jsonb,
+	"cancel_requested" boolean DEFAULT false NOT NULL,
 	"result" jsonb,
 	"run_at" timestamp with time zone DEFAULT now() NOT NULL,
 	"locked_by" text,

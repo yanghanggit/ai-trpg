@@ -5,7 +5,7 @@
  * 传输入口（CLI / HTTP）都注入同一组默认实现，测试可换成假服务。
  */
 
-import type { TurnStep } from "../game";
+import type { TurnStepReporter } from "../game";
 import type { ChatCompletionService } from "../llm/protocol";
 import type { Logger } from "../logging";
 
@@ -19,11 +19,13 @@ export type TurnServices = {
    *
    * 引擎不关心谁在听（作业层用它写进度、测试用它断言顺序），也不允许在这里塞状态。
    */
-  onStep?: (step: TurnStep) => void;
+  onStep?: TurnStepReporter;
 };
 
 /** 只跑一次推理的入口（探针、舞台 / 世界回合、压缩、死亡）。 */
 export type LlmServices = {
   service: ChatCompletionService;
   logger?: Logger;
+  /** 同 `TurnServices.onStep`。 */
+  onStep?: TurnStepReporter;
 };

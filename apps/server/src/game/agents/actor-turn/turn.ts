@@ -18,7 +18,7 @@ import { DEFAULT_ACTOR_MAX_ROUNDS } from "../../default-rounds";
 import { GameError } from "../../errors";
 import { getGameStateSlice, readTurnDelivery } from "../../game-state";
 import { handleOf } from "../../kernel/addressing";
-import type { ActorTurnResult } from "../../kernel/types";
+import type { ActorTurnResult, TurnStepReporter } from "../../kernel/types";
 import { isAlive } from "../../lookup";
 import { loadAgentMemory } from "../../memory";
 import { isPlayerControlled } from "../../persistence/actor-controls";
@@ -30,6 +30,7 @@ import {
   routeWorldFromState,
 } from "../../route";
 import { settleActorPlan } from "../../settle";
+import { roundProgress } from "../step-progress";
 import { actorTurnContext } from "./context";
 import { describeNameCollision } from "./identity";
 import { createPlanSession } from "./plan-session";
@@ -50,13 +51,6 @@ import {
   parseRecognizeIdentity,
 } from "./tools";
 
-/**
- * 一轮里能观察到的阶段：出计划（模型）、落账（写事务）、收尾（读送达）。
- *
- * 只给「在看哪一步」，不带世界状态——它会被写进作业行，作业行不该成为第二份世界。
- */
-export type TurnStep = "planning" | "applying" | "finalizing";
-
 export type ActorTurnOptions = {
   service: ChatCompletionService;
   /** 提交后的推理阶段（换装外观、尸体外观、掉落）需要 LLM；不传则只跑确定性的部分。 */
@@ -67,8 +61,8 @@ export type ActorTurnOptions = {
   knowledgeProvider?: EmbeddingProvider;
   /** 覆盖 TRPG_AUDIT_NAMES；测试用来打开回合级名字审计。 */
   auditNameLeaks?: boolean;
-  /** 阶段回调：出计划之外的步骤由回合自己报（作业层用它更新进度）。 */
-  onStep?: (step: TurnStep) => void;
+  /** 阶段回调：规划阶段按轮上报，落账与收尾由结算层上报。 */
+  onStep?: TurnStepReporter;
   /**
    * 上层预先开好的回合轨迹；不给就自己开一条。
    *
@@ -230,6 +224,7 @@ export async function runActorTurn(
     terminalTools: [submitPlanTool],
     service: options.service,
     maxRounds,
+    ...roundProgress(options.onStep),
     finalRoundHint:
       "# 最后一轮\n这是本回合最后一次推理机会，本次回复之后本轮结束。已决定做什么，就在这次回复里同时调用动作工具与 submit_plan；仍需信息就在这次回复里一并调完只读工具并立即提交，不要再留到下一轮。",
     errorRetries: DEFAULT_ERROR_RETRIES,
@@ -239,10 +234,10 @@ export async function runActorTurn(
 
   // 轮次用尽或模型忘记终结时，退回最后一次快照，让已暂存的动作照常落账。
   const plan = session.plan;
-  options.onStep?.("applying");
   const applied = await settleActorPlan(db, state.game.id, current.actor.id, plan, loop.success, {
     service: options.service,
     ...(options.inferenceService ? { inferenceService: options.inferenceService } : {}),
+    ...(options.onStep === undefined ? {} : { onStep: options.onStep }),
     ...optional,
   });
   await traceEvent(trace, {
@@ -252,7 +247,6 @@ export async function runActorTurn(
     ...(applied.death ? { detail: applied.death } : {}),
   });
 
-  options.onStep?.("finalizing");
   return {
     ...(await readTurnDelivery(db, state.game.id)),
     ok: applied.ok,

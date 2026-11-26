@@ -104,6 +104,8 @@ export type ChatCompletionRequestInit = {
   tools?: readonly ToolDefinition[];
   toolChoice?: ToolChoice;
   reasoningEffort?: ReasoningEffort;
+  /** 取消信号。契约：把 `signal.reason` 抛出而非塞进 `result.error`，否则会被当超时重试。 */
+  signal?: AbortSignal;
 };
 
 /** 不可变值对象；构造时显式校验，失败抛 TypeError / RangeError。 */
@@ -119,6 +121,7 @@ export class ChatCompletionRequest {
   readonly tools: readonly ToolDefinition[];
   readonly toolChoice: ToolChoice | undefined;
   readonly reasoningEffort: ReasoningEffort | undefined;
+  readonly signal: AbortSignal | undefined;
 
   constructor(init: ChatCompletionRequestInit) {
     if (init.label.length === 0) {
@@ -155,6 +158,7 @@ export class ChatCompletionRequest {
     this.tools = tools;
     this.toolChoice = init.toolChoice;
     this.reasoningEffort = init.reasoningEffort;
+    this.signal = init.signal;
 
     Object.freeze(this);
   }

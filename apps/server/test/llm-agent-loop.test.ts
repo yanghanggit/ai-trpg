@@ -80,6 +80,38 @@ function systemMessage(): ChatMessage {
 }
 
 describe("agentLoop", () => {
+  it("每轮开始时上报一次（逐轮进度只靠这个钩子）", async () => {
+    const rounds: [number, number][] = [];
+    const { service } = scriptedService((request, index) =>
+      index === 0
+        ? completion(request, {
+            finishReason: "tool_calls",
+            toolCalls: [toolCall("get_weather", { city: "北京" })],
+          })
+        : completion(request, { content: "北京晴" }),
+    );
+
+    await agentLoop({
+      name: "weather",
+      inputMessage: "北京天气怎么样？",
+      messages: [systemMessage()],
+      tools: [weatherTool],
+      handlers: {
+        get_weather: () => "晴",
+      },
+      service,
+      maxRounds: 3,
+      onRound: (round, total) => {
+        rounds.push([round, total]);
+      },
+    });
+
+    expect(rounds).toEqual([
+      [1, 3],
+      [2, 3],
+    ]);
+  });
+
   it("执行工具、回填 ToolMessage，并记录 loop 边界", async () => {
     let receivedArgs: Record<string, unknown> | undefined;
     const { calls, service } = scriptedService((request, index) =>

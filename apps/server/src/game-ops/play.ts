@@ -706,6 +706,7 @@ export async function advanceStage(
   const options = {
     service: services.service,
     ...(services.logger === undefined ? {} : { logger: services.logger }),
+    ...(services.onStep === undefined ? {} : { onStep: services.onStep }),
   };
   const results: StageTurnOutput[] = [];
   for (const stage of new Set(input.stages)) {
@@ -722,6 +723,7 @@ export async function advanceWorld(
   const result = await runWorldTurn(db, gameRef, {
     service: services.service,
     ...(services.logger === undefined ? {} : { logger: services.logger }),
+    ...(services.onStep === undefined ? {} : { onStep: services.onStep }),
   });
   return worldTurnOutput(result);
 }

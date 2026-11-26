@@ -33,6 +33,8 @@ export async function settleActorPlan(
     });
   };
 
+  // 关窗点：进了写事务这一回合就必须跑完，取消不再生效。
+  options.onStep?.("applying");
   const settlement = await settlePlan(db, gameId, actorId, plan, loopSuccess, options.trace);
 
   await traceEvent(options.trace, { event: "plan", actions: plan?.actions ?? [] });
@@ -49,6 +51,7 @@ export async function settleActorPlan(
     await traceEvent(options.trace, applied);
   }
 
+  options.onStep?.("finalizing");
   const increment = await runIncrementPhases(
     db,
     gameId,

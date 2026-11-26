@@ -768,11 +768,15 @@ export function createGameRoutes(db: () => Database): FastifyPluginAsyncZod {
       {
         schema: {
           tags: ["jobs"],
-          summary: "取消一条还没开始的回合",
+          summary: "取消一个回合（排队中立即撤，执行中在检查点停）",
           description:
-            "只撤排队期：已经在执行的那一个不中断（落账不幂等）。撤掉后串行键释放，可以立刻入队下一回合。",
+            "排队中的当场撤成 canceled，串行键释放；执行中的置 cancelRequested，worker 一秒内看到、" +
+            "在落账开始前的检查点停下（正在等的模型调用会被真正中断）。已经开跑落账的那一回合会跑完，" +
+            "以 succeeded 结束。已到终态的作业回 409——那不是错误，只是没什么可撤的。",
           params: jobParams,
-          response: { 200: z.object({ job: turnJobSchema }) },
+          response: {
+            200: z.object({ outcome: z.enum(["canceled", "requested"]), job: turnJobSchema }),
+          },
         },
       },
       async (request) => {
@@ -782,9 +786,13 @@ export function createGameRoutes(db: () => Database): FastifyPluginAsyncZod {
         if (!outcome.ok) {
           throw outcome.reason === "not_found"
             ? new HttpError(404, "not_found", `作业不存在: ${request.params.job}`)
-            : new HttpError(409, "invalid_state", `只有排队中的回合能取消: ${request.params.job}`);
+            : new HttpError(
+                409,
+                "invalid_state",
+                `这一回合已经结束，没有可撤的: ${request.params.job}`,
+              );
         }
-        return { job: outcome.job };
+        return { outcome: outcome.outcome, job: outcome.job };
       },
     );
 

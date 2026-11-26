@@ -626,6 +626,8 @@ export const jobs = pgTable(
      * 一行作业仍是唯一真相：进度是它的一次 UPDATE，因此推送与重查天然一致。
      */
     progress: jsonb("progress").$type<{ step: string; detail?: string }>(),
+    /** 取消请求：写库是因为 worker 可能在另一个进程，它每秒读一次。 */
+    cancelRequested: boolean("cancel_requested").notNull().default(false),
     result: jsonb("result").$type<JsonValue>(),
     runAt: timestamp("run_at", { withTimezone: true }).notNull().defaultNow(),
     lockedBy: text("locked_by"),

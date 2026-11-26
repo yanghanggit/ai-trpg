@@ -27,6 +27,8 @@ export type TurnJob = {
   error: string | null;
   errorCode: string | null;
   progress: TurnJobProgress | null;
+  /** 是否已请求取消：执行中的作业会在下一个检查点停下。 */
+  cancelRequested: boolean;
   updatedAt: string;
   result: TurnJobResult | null;
 };
@@ -138,17 +140,16 @@ export async function listTurnJobs(
   return jobs;
 }
 
-/** 取消一条还没开始的回合；已经开始执行的那一个会失败（409）。 */
+/** 取消一个回合；`outcome` 说明是当场撤掉还是等它在检查点停下。 */
 export async function cancelTurnJob(
   client: ApiClient,
   game: string,
   jobId: string,
-): Promise<TurnJob> {
-  const { job } = (await client.call({
+): Promise<{ outcome: "canceled" | "requested"; job: TurnJob }> {
+  return (await client.call({
     method: "POST",
     path: `${jobPath(game, jobId)}/cancel`,
-  })) as { job: TurnJob };
-  return job;
+  })) as { outcome: "canceled" | "requested"; job: TurnJob };
 }
 
 export type WatchTurnJobsOptions = {

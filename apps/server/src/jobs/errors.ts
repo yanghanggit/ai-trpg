@@ -87,3 +87,13 @@ export class NonRetryableJobError extends Error {
     this.name = "NonRetryableJobError";
   }
 }
+
+/** 作业被取消；带 `code`，因此会像业务错误一样留档为 `job_canceled`。 */
+export class JobCanceledError extends Error {
+  readonly code = "job_canceled";
+
+  constructor(message = "作业在执行中被取消") {
+    super(message);
+    this.name = "JobCanceledError";
+  }
+}

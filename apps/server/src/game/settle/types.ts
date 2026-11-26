@@ -23,6 +23,7 @@ import type {
   StealAction,
   StrikeAction,
   TeleportAction,
+  TurnStepReporter,
   UnequipAction,
   UseAction,
   WaitAction,
@@ -250,6 +251,8 @@ export type IncrementOptions = {
 export type SettleActorPlanOptions = IncrementOptions & {
   /** 回合结束后审计新增的 actor 记忆；默认读 TRPG_AUDIT_NAMES。 */
   auditNameLeaks?: boolean;
+  /** 阶段回调：落账前 `applying`，增量推理 `finalizing`。放结算层，玩家入口才能共用。 */
+  onStep?: TurnStepReporter;
 };
 
 /** 应用计划的结果；`rejection` 是给调用方（尤其是玩家入口）看的原因。 */

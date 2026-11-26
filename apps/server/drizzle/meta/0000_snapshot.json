@@ -1,5 +1,5 @@
 {
-  "id": "77aa813a-1c27-4dcb-8c99-df93fe86c5e3",
+  "id": "25ff78af-a088-4647-81c0-b1872b7de13e",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "version": "7",
   "dialect": "postgresql",
@@ -1862,6 +1862,13 @@
           "type": "jsonb",
           "primaryKey": false,
           "notNull": false
+        },
+        "cancel_requested": {
+          "name": "cancel_requested",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": false
         },
         "result": {
           "name": "result",

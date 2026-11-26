@@ -10,10 +10,12 @@
 
 import { z } from "zod";
 import type { Database } from "../db/pool";
+import type { TurnStepReporter } from "../game";
 import { GameError, getGameMeta } from "../game";
 import {
   ACTIVE_JOB_STATUSES,
   defineJob,
+  JobCanceledError,
   type JobContext,
   type JobDefinition,
   type JobProgress,
@@ -23,6 +25,7 @@ import {
   JobStore,
   toJsonValue,
 } from "../jobs";
+import { ChatCompletionRequest, type ChatCompletionService } from "../llm";
 import {
   advanceNpc,
   advanceStage,
@@ -129,12 +132,14 @@ async function runNpcTurn(
 ): Promise<TurnJobResult> {
   const db = deps.db();
   await assertExpectedVersion(db, payload.gameId, payload.expectedVersion);
+  const guard = cancelGuard(context);
+  // 先开个头，逐轮进度由引擎覆盖。
   await context.reportProgress("planning");
   const { results } = await advanceNpc(
     db,
     payload.gameId,
     { actors: [payload.actorName] },
-    withStep(deps.services(), context),
+    guard.services(deps.services()),
   );
   const result = results[0];
   if (result === undefined) {
@@ -154,14 +159,16 @@ async function runPlayerTurn(
 ): Promise<TurnJobResult> {
   const db = deps.db();
   await assertExpectedVersion(db, payload.gameId, payload.expectedVersion);
-  // 玩家回合的计划是客户端给的：没有「出计划」这一步，直接从落账开始。
+  const guard = cancelGuard(context);
+  // 玩家回合没有「出计划」这一步；台词审核仍在窗口内，落账时才关窗。
   await context.reportProgress("applying");
+  guard.throwIfCanceled();
   const output = await submitPlayerAction(
     db,
     payload.gameId,
     payload.actorName,
     payload.action,
-    deps.services(),
+    guard.services(deps.services()),
   );
   return {
     ok: true,
@@ -177,12 +184,13 @@ async function runStageTurn(
 ): Promise<TurnJobResult> {
   const db = deps.db();
   await assertExpectedVersion(db, payload.gameId, payload.expectedVersion);
+  const guard = cancelGuard(context);
   await context.reportProgress("planning");
   const { results } = await advanceStage(
     db,
     payload.gameId,
     { stages: [payload.stageRef] },
-    llmServicesOf(deps.services()),
+    guard.llm(llmServicesOf(deps.services())),
   );
   const result = results[0];
   if (result === undefined) {
@@ -198,23 +206,63 @@ async function runWorldTurn(
 ): Promise<TurnJobResult> {
   const db = deps.db();
   await assertExpectedVersion(db, payload.gameId, payload.expectedVersion);
+  const guard = cancelGuard(context);
   await context.reportProgress("planning");
-  const result = await advanceWorld(db, payload.gameId, llmServicesOf(deps.services()));
+  const result = await advanceWorld(db, payload.gameId, guard.llm(llmServicesOf(deps.services())));
   return { ok: result.ok, messageCursor: result.messageCursor };
 }
 
 /**
- * 把作业的阶段回调接到引擎上。
+ * 取消守卫：可撤窗口到落账开始为止（`onStep("applying")` 关窗）。
  *
- * 引擎只认 `onStep`，不认识作业；作业层再把它转成一行 `progress` 的 UPDATE。
- * 回调是同步的，所以这里只把 Promise 挂出去——阶段上报不该让回合等一次写库。
+ * 窗口内每次模型调用前查信号，调用本身也带着信号，所以在等的那一发会被真正掐断。
+ * 关窗后不再中断调用——增量推理在写事务之后，那里抛错会让已落账的回合看起来像失败。
  */
-function withStep(services: TurnServices, context: JobContext): TurnServices {
-  return {
-    ...services,
-    onStep: (step) => {
-      void context.reportProgress(step);
+type CancelGuard = {
+  services: (services: TurnServices) => TurnServices;
+  llm: (services: LlmServices) => LlmServices;
+  /** 落账前再查一次：被撤了就抛，不带着旧决定往下走。 */
+  throwIfCanceled: () => void;
+};
+
+function cancelGuard(context: JobContext): CancelGuard {
+  let cancelable = true;
+
+  /** 窗口内的取消检查：被撤了就抛，原因就是信号的 `reason`。 */
+  const throwIfCanceled = (): void => {
+    if (!cancelable || !context.signal.aborted) {
+      return;
+    }
+    throw context.signal.reason instanceof Error ? context.signal.reason : new JobCanceledError();
+  };
+
+  const wrap = (service: ChatCompletionService): ChatCompletionService => ({
+    async complete(request) {
+      if (!cancelable) {
+        return service.complete(request);
+      }
+      throwIfCanceled();
+      return service.complete(new ChatCompletionRequest({ ...request, signal: context.signal }));
     },
+  });
+
+  const onStep: TurnStepReporter = (step, detail) => {
+    if (step === "applying") {
+      throwIfCanceled();
+      cancelable = false;
+    }
+    void context.reportProgress(step, detail);
+  };
+
+  return {
+    services: (services) => ({
+      ...services,
+      service: wrap(services.service),
+      inferenceService: wrap(services.inferenceService),
+      onStep,
+    }),
+    llm: (services) => ({ ...services, service: wrap(services.service), onStep }),
+    throwIfCanceled,
   };
 }
 
@@ -312,6 +360,8 @@ export type TurnJobView = {
   errorCode: string | null;
   /** 执行中的阶段：`planning` / `applying` / `finalizing`，没上报过为 null。 */
   progress: JobProgress | null;
+  /** 是否已收到取消请求：执行中的作业会在下一个检查点停下。 */
+  cancelRequested: boolean;
   runAt: string;
   startedAt: string | null;
   finishedAt: string | null;
@@ -333,6 +383,7 @@ export function toJobView(snapshot: JobSnapshot): TurnJobView {
     error: snapshot.error,
     errorCode: snapshot.errorCode,
     progress: snapshot.progress,
+    cancelRequested: snapshot.cancelRequested,
     runAt: snapshot.runAt.toISOString(),
     startedAt: snapshot.startedAt === null ? null : snapshot.startedAt.toISOString(),
     finishedAt: snapshot.finishedAt === null ? null : snapshot.finishedAt.toISOString(),
@@ -387,14 +438,12 @@ export async function listTurnJobs(
 }
 
 export type CancelTurnJobOutcome =
-  | { ok: true; job: TurnJobView }
-  | { ok: false; reason: "not_found" | "not_pending" };
+  | { ok: true; outcome: "canceled" | "requested"; job: TurnJobView }
+  | { ok: false; reason: "not_found" | "finished" };
 
 /**
- * 取消一条还没开始的回合。
- *
- * 只撤排队期：已经在跑的那一个不中断——落账不幂等，半途停下会留下半份世界。
- * 撤掉的作业是终态，串行键随之释放，客户端可以立刻入队下一回合。
+ * 取消一个回合：排队中的当场撤成 `canceled`；执行中的只置 `cancelRequested`，
+ * 等 worker 在落账开始前停下。已经进写事务的会跑完，以 `succeeded` 收尾。
  */
 export async function cancelTurnJob(
   db: Database,
@@ -407,11 +456,15 @@ export async function cancelTurnJob(
   if (record === null || !isPayloadOf(record.payload, game.id)) {
     return { ok: false, reason: "not_found" };
   }
-  const canceled = await store.cancel(jobId);
-  if (canceled === null) {
-    return { ok: false, reason: "not_pending" };
+  const requested = await store.requestCancel(jobId);
+  if (requested === null) {
+    return { ok: false, reason: "finished" };
   }
-  return { ok: true, job: { ...toJobView(canceled), result: null } };
+  return {
+    ok: true,
+    outcome: requested.outcome,
+    job: { ...toJobView(requested.job), result: null },
+  };
 }
 
 /** 按 id 读作业；只认属于这一局的那些，别局的 id 一律当不存在。 */
