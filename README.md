@@ -98,7 +98,7 @@ pnpm dev
 
 **页面目录（mock）**：`pnpm dev:mock` 在独立端口起一个入口，按「页面 × 状态」列出可直达的深链接，全部由 fixture 渲染。它不进生产构建，也不需要服务端。约定见 `docs/web-client.md`。
 
-**截图**：`pnpm screenshot` 默认输出 `logs/screenshots/index-1280x900.png`，可用 `--size`、`--base`、`--click` 覆盖（`--click` 可点按钮与折叠面板的 `summary`）；脚本走 CDP 并等待 React 挂载，找不到 Chrome 时用 `CHROME_PATH` 指定。
+**截图**：`pnpm screenshot` 默认输出 `logs/screenshots/index-1280x900.png`，可用 `--size`、`--base`、`--click` 覆盖（`--click` 可点按钮与折叠面板的 `summary`，`--hover` 把指针移到某个元素上，用来截悬停才出现的提示与菜单）；脚本走 CDP 并等待 React 挂载，找不到 Chrome 时用 `CHROME_PATH` 指定。
 
 **pi 扩展**：`.pi/extensions/` 在 pi 启动时自动加载，提供 `deepseek_search`、`deepseek_fetch`、`vision`，读取 pi 进程环境中的 `DEEPSEEK_API_KEY`。密钥只在根 `.env` 时，用 `set -a; source .env; set +a; pi` 启动；改完扩展要重启 pi。
 

@@ -306,6 +306,60 @@ a {
   color: #1a0606;
 }
 
+/* 面板标题旁的「?」：悬停/聚焦才展开说明，正文留给读数。 */
+.hint {
+  position: relative;
+  display: inline-flex;
+  padding: 0;
+  background: none;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  margin-left: 7px;
+  border: 1px solid var(--line);
+  border-radius: 50%;
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 600;
+  font-family: inherit;
+  line-height: 1;
+  cursor: help;
+  vertical-align: 1px;
+}
+
+.hint:hover,
+.hint:focus-visible {
+  border-color: var(--accent);
+  color: var(--accent);
+  outline: none;
+}
+
+.hint__tip {
+  position: absolute;
+  top: -9px;
+  left: calc(100% + 8px);
+  z-index: 10;
+  display: none;
+  width: max-content;
+  max-width: 46ch;
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--panel-soft);
+  color: var(--text);
+  font-size: 12px;
+  font-weight: 400;
+  line-height: 1.65;
+  letter-spacing: normal;
+  box-shadow: 0 14px 34px rgb(0 0 0 / 45%);
+}
+
+.hint:hover .hint__tip,
+.hint:focus-visible .hint__tip {
+  display: block;
+}
+
 /* 表格里的引用（局名、slug）：可点，但不该长成一个按钮。 */
 .link-button {
   padding: 0;

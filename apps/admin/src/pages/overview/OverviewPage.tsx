@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { formatAt, formatNumber } from "../../lib/format";
+import Hint from "../../components/Hint";
+import { formatNumber } from "../../lib/format";
 import type { OverviewData, OverviewHandlers } from "./types";
 
 type Props = {
@@ -9,22 +9,12 @@ type Props = {
 } & OverviewHandlers;
 
 /**
- * 总览按三层读：身份（我在用谁看）→ 节点（看的是哪台机器）→ 局（看到什么内容）。
+ * 总览只回答两件事：我在用谁看（身份）、看的是哪台机器（节点）。
  *
- * 顺序是刻意的：身份决定可见范围，节点决定读数的归属，局才是内容。轨迹读数不在这里——
- * 它是文件语料，跟库对不上账，属于调试口径，单独一页。
+ * 内容不在这里：库名点进「局」，轨迹目录点进「轨迹」。两条入口都挂在节点上，因为
+ * 局是那台机器库里的行、轨迹是那台机器的磁盘——它们属于宿主，不属于这一屏。
  */
-export default function OverviewPage({ data, nodeUptime, onOpenGame, onOpenTraces }: Props) {
-  const [gameRef, setGameRef] = useState("");
-  const trimmed = gameRef.trim();
-
-  function handleOpen(event: React.FormEvent) {
-    event.preventDefault();
-    if (trimmed.length > 0) {
-      onOpenGame(trimmed);
-    }
-  }
-
+export default function OverviewPage({ data, nodeUptime, onOpenGames, onOpenTraces }: Props) {
   return (
     <main className="admin">
       <header className="admin__bar">
@@ -32,11 +22,13 @@ export default function OverviewPage({ data, nodeUptime, onOpenGame, onOpenTrace
           <p className="eyebrow">AI TRPG · admin</p>
           <h1>总览</h1>
         </div>
-        <p className="admin__hint">只监听本机。运维身份看全库，玩家身份只看自己名下的局。</p>
       </header>
 
       <section className="panel">
-        <h2>身份</h2>
+        <h2>
+          身份
+          <Hint text="开发期没有登录：请求头 Bearer <用户名>，用户名即令牌，没有密码。admin 是运维（看全库与机器级读数），demo 是玩家（只看自己名下的局）；名单写死在服务端 identity.ts，后台固定用 admin。" />
+        </h2>
         <dl className="facts">
           <div>
             <dt>用户名</dt>
@@ -67,19 +59,16 @@ export default function OverviewPage({ data, nodeUptime, onOpenGame, onOpenTrace
             </dd>
           </div>
         </dl>
-        <p className="muted">
-          开发期身份：请求头 <code>Authorization: Bearer &lt;用户名&gt;</code>
-          ，用户名即令牌，没有密码。两个身份：<code>admin</code>（运维，看全库与机器级读数）与{" "}
-          <code>demo</code>（玩家，只看自己名下的局）。名单写死在服务端 <code>identity.ts</code>
-          ；后台固定用 <code>admin</code>。
-        </p>
         {data.identityError === undefined ? null : (
           <p className="form-error">{data.identityError}</p>
         )}
       </section>
 
       <section className="panel">
-        <h2>节点</h2>
+        <h2>
+          节点
+          <Hint text="三个子块都属于同一个服务端进程：库来自它的 DATABASE_URL，轨迹目录在它所在的机器上，HTTP 与作业 worker 同进程。这里是「那一台机器」，不是多进程汇总。" />
+        </h2>
         <dl className="facts">
           <div>
             <dt>服务地址</dt>
@@ -137,7 +126,10 @@ export default function OverviewPage({ data, nodeUptime, onOpenGame, onOpenTrace
           </div>
         </dl>
 
-        <h3>数据库</h3>
+        <h3>
+          数据库
+          <Hint text="库名是这一台机器的数据源；点进去是库里的局。运维看全库，玩家只看自己名下的。" />
+        </h3>
         {data.node === undefined ? (
           <p className="muted">{data.nodeError ?? "读取中…"}</p>
         ) : data.node.database === null ? (
@@ -147,7 +139,14 @@ export default function OverviewPage({ data, nodeUptime, onOpenGame, onOpenTrace
             <div>
               <dt>库名</dt>
               <dd>
-                <code>{data.node.database.name}</code>
+                <button
+                  type="button"
+                  className="link-button"
+                  aria-label="打开局列表"
+                  onClick={onOpenGames}
+                >
+                  <code>{data.node.database.name}</code>
+                </button>
               </dd>
             </div>
             <div>
@@ -162,7 +161,10 @@ export default function OverviewPage({ data, nodeUptime, onOpenGame, onOpenTrace
           </dl>
         )}
 
-        <h3>轨迹目录</h3>
+        <h3>
+          轨迹目录
+          <Hint text="文件语料，不读数据库：记录这台机器跑过的所有回合（含已删掉的局），不按 owner 过滤。属于调试口径，单独一页看。" />
+        </h3>
         <dl className="facts">
           <div>
             <dt>开关</dt>
@@ -171,7 +173,18 @@ export default function OverviewPage({ data, nodeUptime, onOpenGame, onOpenTrace
           <div>
             <dt>目录</dt>
             <dd>
-              <code>{data.node === undefined ? "…" : data.node.trace.dir}</code>
+              {data.node === undefined ? (
+                "…"
+              ) : (
+                <button
+                  type="button"
+                  className="link-button"
+                  aria-label="打开轨迹读数"
+                  onClick={onOpenTraces}
+                >
+                  <code>{data.node.trace.dir}</code>
+                </button>
+              )}
             </dd>
           </div>
           <div>
@@ -179,104 +192,7 @@ export default function OverviewPage({ data, nodeUptime, onOpenGame, onOpenTrace
             <dd>{data.node === undefined ? "…" : formatNumber(data.node.trace.gameDirs)}</dd>
           </div>
         </dl>
-        <p className="muted">
-          这三段都属于同一个进程：库是它的 <code>DATABASE_URL</code>，轨迹是它所在机器的磁盘目录；
-          HTTP 与作业 worker 现在同进程（拆出去是后续选项）。所以这里看到的都是「那一台机器」，
-          不是跨进程汇总。
-        </p>
         {data.nodeError === undefined ? null : <p className="form-error">{data.nodeError}</p>}
-      </section>
-
-      <section className="panel">
-        <h2>局</h2>
-        <p className="muted">
-          运维看全库（「局主」列标明每一局归谁），玩家只看自己名下的局。按更新时间倒序， slug 或
-          uuid 都可以直接打开。
-        </p>
-        <form className="inline-form" onSubmit={handleOpen}>
-          <label className="field">
-            <span>局引用</span>
-            <input
-              value={gameRef}
-              onChange={(event) => setGameRef(event.target.value)}
-              placeholder="bell-monastery 或 uuid"
-              autoComplete="off"
-            />
-          </label>
-          <button className="button" type="submit" disabled={trimmed.length === 0}>
-            打开
-          </button>
-        </form>
-
-        {data.games === undefined ? (
-          <p className="muted">{data.gamesError ?? "读取中…"}</p>
-        ) : data.games.length === 0 ? (
-          <p className="muted">这个身份名下还没有局。</p>
-        ) : (
-          <table className="table">
-            <thead>
-              <tr>
-                <th>名称</th>
-                <th>slug</th>
-                <th>局主</th>
-                <th>状态</th>
-                <th>时刻</th>
-                <th>版本</th>
-                <th>在跑</th>
-                <th>更新</th>
-                <th />
-              </tr>
-            </thead>
-            <tbody>
-              {data.games.map((game) => (
-                <tr key={game.id}>
-                  <td>{game.name}</td>
-                  <td>
-                    <code>{game.slug}</code>
-                  </td>
-                  <td>
-                    <code>{game.ownerUsername}</code>
-                  </td>
-                  <td>
-                    {game.outcome === null ? game.status : `${game.status} · ${game.outcome}`}
-                  </td>
-                  <td>{formatNumber(game.clock)}</td>
-                  <td>{formatNumber(game.version)}</td>
-                  <td>
-                    {game.activeJob === null ? (
-                      "—"
-                    ) : (
-                      <span className="badge badge--pending">
-                        {game.activeJob.kind} · {game.activeJob.status}
-                      </span>
-                    )}
-                  </td>
-                  <td>{formatAt(game.updatedAt)}</td>
-                  <td>
-                    <button
-                      type="button"
-                      className="button button--ghost"
-                      onClick={() => onOpenGame(game.slug)}
-                    >
-                      打开
-                    </button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        )}
-      </section>
-
-      <section className="panel">
-        <h2>轨迹</h2>
-        <p className="muted">
-          轨迹是文件语料，不读数据库：它记录这台机器上跑过的每个回合（含已删掉的局）， 也不按 owner
-          过滤。所以它是调试口径，单独一页看。
-        </p>
-        <button type="button" className="button" onClick={onOpenTraces}>
-          打开轨迹读数
-        </button>
       </section>
     </main>
   );

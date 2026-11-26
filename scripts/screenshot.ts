@@ -54,6 +54,8 @@ const USAGE = `用真实浏览器给页面截图：导航 → 等待 → （可�
                      重名时点最后一个（浮层后渲染，也就是看得见的那一层）
   --wait <ms>        导航后等待，默认 ${DEFAULT_WAIT_MS}（等 React 挂载与接口返回）
   --click-wait <ms>  每次点击后等待，默认 ${DEFAULT_CLICK_WAIT_MS}
+  --hover <文本>     截图前把鼠标移到这个元素上（按 aria-label 或可见文字匹配）
+                     用来截悬停才出现的东西：提示、下拉、菜单
 
 环境变量：
   CHROME_PATH        指定浏览器可执行文件（默认按常见路径找 Chrome / Chromium）
@@ -67,6 +69,7 @@ interface Options {
   out: string;
   size: string;
   click: string;
+  hover: string;
   wait: number;
   clickWait: number;
   help: boolean;
@@ -79,6 +82,7 @@ function parseArgs(argv: string[]): Options {
     out: "",
     size: DEFAULT_SIZE,
     click: "",
+    hover: "",
     wait: DEFAULT_WAIT_MS,
     clickWait: DEFAULT_CLICK_WAIT_MS,
     help: false,
@@ -96,6 +100,9 @@ function parseArgs(argv: string[]): Options {
     },
     "--click": (value) => {
       options.click = value;
+    },
+    "--hover": (value) => {
+      options.hover = value;
     },
     "--wait": (value) => {
       options.wait = Number(value);
@@ -275,6 +282,43 @@ async function connectDevTools(webSocketUrl: string): Promise<CdpConnection> {
  * 点击脚本：找不到就回报名单，省得为了一个文案来回猜。
  * 文字匹配会先去掉 `aria-hidden` 的装饰，再按 aria-label / 可见文字 / 原始文字匹配。
  */
+/**
+ * 元素的中心点坐标。
+ *
+ * 悬停只能靠真实指针事件：`element.dispatchEvent(new MouseEvent("mouseover"))` 不会触发
+ * CSS `:hover`，所以先量坐标，再用 `Input.dispatchMouseEvent` 把指针移过去。
+ */
+function centerExpression(label: string): string {
+  return `(() => {
+    const wanted = ${JSON.stringify(label)};
+    const visibleText = (element) => {
+      const clone = element.cloneNode(true);
+      for (const decoration of clone.querySelectorAll('[aria-hidden="true"]')) {
+        decoration.remove();
+      }
+      return clone.textContent.trim();
+    };
+    const candidates = [
+      ...document.querySelectorAll("button, summary, a, [role='button'], [aria-label]"),
+    ];
+    const hit =
+      candidates.findLast(
+        (element) =>
+          element.getAttribute("aria-label") === wanted || visibleText(element) === wanted,
+      ) ??
+      candidates.findLast(
+        (element) =>
+          (element.getAttribute("aria-label") ?? "").includes(wanted) ||
+          visibleText(element).includes(wanted),
+      );
+    if (hit === undefined) {
+      return null;
+    }
+    const box = hit.getBoundingClientRect();
+    return { x: box.left + box.width / 2, y: box.top + box.height / 2 };
+  })()`;
+}
+
 function clickExpression(label: string): string {
   return `(() => {
     const wanted = ${JSON.stringify(label)};
@@ -420,6 +464,16 @@ async function main(): Promise<void> {
             `页面上没有按钮「${label}」。当前按钮：\n  ${String(clicked).split(" | ").join("\n  ")}`,
           );
         }
+        await sleep(options.clickWait);
+      }
+
+      if (options.hover !== "") {
+        const point = await evaluate(cdp, centerExpression(options.hover));
+        if (point === null || typeof point !== "object") {
+          throw new Error(`页面上找不到可悬停的元素「${options.hover}」`);
+        }
+        const { x, y } = point as { x: number; y: number };
+        await cdp.send("Input.dispatchMouseEvent", { type: "mouseMoved", x, y });
         await sleep(options.clickWait);
       }
 

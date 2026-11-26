@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { Link } from "react-router";
+import Hint from "../../components/Hint";
 import type { AdvanceKind } from "../../features/games/useGameActions";
 import type { JobView, MemoryOwner } from "../../features/games/useGameData";
 import { formatAt } from "../../lib/format";
@@ -21,7 +22,7 @@ export default function GamePanels({ data, actions }: Props) {
       <header className="admin__bar">
         <div>
           <p className="eyebrow">
-            <Link to="/">总览</Link> / 局控制台
+            <Link to="/">总览</Link> / <Link to="/games">局</Link> / 局控制台
           </p>
           <h1>
             <code>{data.slug}</code>
@@ -198,11 +199,10 @@ function AdvanceSection({ busy, actions }: { busy: boolean; actions: GamePageAct
 
   return (
     <section className="panel">
-      <h2>推进</h2>
-      <p className="muted">
-        world 能结束一局，stage 只写环境，npc 只推进一个 actor。入队立刻返回作业
-        id，结果看重读的终态。
-      </p>
+      <h2>
+        推进
+        <Hint text="world 能结束一局，stage 只写环境，npc 只推进一个 actor。入队立刻返回作业 id，结果只看重读的终态。" />
+      </h2>
 
       <form className="inline-form" onSubmit={handleSubmit}>
         <label className="field">
@@ -262,8 +262,10 @@ function AdvanceSection({ busy, actions }: { busy: boolean; actions: GamePageAct
 function StateSection({ data }: { data: GamePageData }) {
   return (
     <section className="panel">
-      <h2>活状态</h2>
-      <p className="muted">上帝视角的全量投影；形状仍是不透明的 `unknown`，这里只原样展开。</p>
+      <h2>
+        活状态
+        <Hint text="上帝视角的全量投影；形状仍是不透明的 unknown，这里只原样展开。" />
+      </h2>
       {data.state === undefined ? (
         <p className="muted">{data.stateError ?? "读取中…"}</p>
       ) : (
@@ -279,8 +281,10 @@ function StateSection({ data }: { data: GamePageData }) {
 function TraceSection({ data, actions }: { data: GamePageData; actions: GamePageActions }) {
   return (
     <section className="panel">
-      <h2>轨迹</h2>
-      <p className="muted">文件语料，不是数据库；这里读的是本局最近的回合。</p>
+      <h2>
+        轨迹
+        <Hint text="文件语料，不是数据库；这里读的是本局最近 50 个回合。" />
+      </h2>
       {data.turns === undefined ? (
         <p className="muted">{data.turnsError ?? "读取中…"}</p>
       ) : data.turns.length === 0 ? (
@@ -348,8 +352,10 @@ function TraceSection({ data, actions }: { data: GamePageData; actions: GamePage
 function MessagesSection({ data }: { data: GamePageData }) {
   return (
     <section className="panel">
-      <h2>事件流</h2>
-      <p className="muted">公共事件流（`game_messages`）：上帝视角、带真实名字，只追加。</p>
+      <h2>
+        事件流
+        <Hint text="公共事件流（game_messages）：上帝视角、带真实名字，只追加。" />
+      </h2>
       {data.messages === undefined ? (
         <p className="muted">{data.messagesError ?? "读取中…"}</p>
       ) : (
@@ -389,8 +395,10 @@ function AuxSection({ data, actions }: { data: GamePageData; actions: GamePageAc
 
   return (
     <section className="panel">
-      <h2>只读旁路</h2>
-      <p className="muted">都只读：记忆、真名扫描、探针。跑它们不改状态，也不写事件。</p>
+      <h2>
+        只读旁路
+        <Hint text="记忆、真名扫描、探针都只读：跑它们不改状态，也不写事件。" />
+      </h2>
 
       <h3>记忆</h3>
       <form

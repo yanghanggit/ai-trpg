@@ -1,5 +1,6 @@
 import type { ComponentType } from "react";
 import GameRoute from "./game/GameRoute";
+import GamesContainer from "./games/GamesContainer";
 import OverviewContainer from "./overview/OverviewContainer";
 import TracesContainer from "./traces/TracesContainer";
 
@@ -18,6 +19,7 @@ export type PageEntry = {
 
 export const pages: PageEntry[] = [
   { key: "overview", path: "/", title: "总览", Route: OverviewContainer },
+  { key: "games", path: "/games", title: "局", Route: GamesContainer },
   { key: "traces", path: "/traces", title: "轨迹", Route: TracesContainer },
   { key: "game", path: "/g/:slug", title: "局控制台", Route: GameRoute },
 ];
