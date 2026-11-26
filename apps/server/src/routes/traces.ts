@@ -8,7 +8,14 @@
 import type { FastifyPluginAsyncZod } from "fastify-type-provider-zod";
 import { z } from "zod";
 import type { Database } from "../db/pool";
-import { listTurns, readTurn, tailEvents, traceSchema, traceStats } from "../debug/trace";
+import {
+  listTraceFiles,
+  listTurns,
+  readTurn,
+  tailEvents,
+  traceSchema,
+  traceStats,
+} from "../debug/trace";
 import { requireAdmin } from "../plugins/auth";
 
 const TAIL_DEFAULT_LIMIT = 40;
@@ -21,6 +28,21 @@ const limitQuery = z.object({
     .regex(/^\d{8}$/, "since 需要 YYYYMMDD")
     .optional(),
   limit: z.coerce.number().int().min(1).optional(),
+});
+
+/** 阅览器的目录清单：只有元数据，不含任何一行事件。 */
+const traceFileSchema = z.object({
+  name: z.string(),
+  day: z.string(),
+  bytes: z.number(),
+  modifiedAt: z.iso.datetime(),
+});
+
+const traceGameSchema = z.object({
+  slug: z.string(),
+  files: z.array(traceFileSchema),
+  bytes: z.number(),
+  lastAt: z.iso.datetime().nullable(),
 });
 
 export function createTraceRoutes(db: () => Database): FastifyPluginAsyncZod {
@@ -50,6 +72,23 @@ export function createTraceRoutes(db: () => Database): FastifyPluginAsyncZod {
           }),
         };
       },
+    );
+
+    app.get(
+      "/traces/files",
+      {
+        schema: {
+          tags: ["traces"],
+          summary: "轨迹目录清单（阅览器的左侧栏）",
+          response: {
+            200: z.object({ dir: z.string(), games: z.array(traceGameSchema) }),
+          },
+        },
+        preHandler: async (request) => {
+          await requireAdmin(db(), request);
+        },
+      },
+      async () => listTraceFiles(),
     );
 
     app.get(

@@ -5,6 +5,7 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import {
   createTurnTrace,
   gcTrace,
+  listTraceFiles,
   listTurns,
   readTurn,
   renderTurnFiles,
@@ -97,9 +98,25 @@ describe("trace", () => {
       "utf8",
     );
 
+    // 同一回合后面还有一行可读时间：起始时间从它来，而不是留空。
+    await writeFile(
+      join(dirOfGame, "20990101.jsonl"),
+      `${JSON.stringify({
+        v: 1,
+        at: "2099-01-01T00:00:05.000Z",
+        gameId: "game-dirty",
+        gameSlug: "trace-dirty",
+        turnId: "turn-dirty",
+        turnKind: "player",
+        event: "turn_end",
+        ok: true,
+      })}\n`,
+      { flag: "a" },
+    );
+
     const turns = await listTurns({ gameSlug: "trace-dirty" });
     expect(turns.map((turn) => turn.turnId)).toEqual(["turn-dirty"]);
-    expect(turns[0]?.startedAt).toBe("");
+    expect(turns[0]?.startedAt).toBe("2099-01-01T00:00:05.000Z");
   });
 
   it("写入后能按回合复读、跨回合聚合、取最近事件", async () => {
@@ -278,5 +295,20 @@ describe("trace", () => {
     const trace = createTurnTrace({ game: GAME, turnKind: "stage" });
     expect(trace).toBeUndefined();
     await traceEvent(trace, { event: "turn_start", label: "无" });
+  });
+
+  it("目录清单只列有文件的局，按最近写入排序", async () => {
+    const { dir: root, games } = await listTraceFiles();
+    expect(root).toBe(dir);
+
+    const entry = games.find((game) => game.slug === GAME.slug);
+    expect(entry).toBeDefined();
+    expect(entry?.files.length).toBeGreaterThan(0);
+    expect(entry?.files[0]?.name).toMatch(/^\d{8}\.jsonl(\.gz)?$/);
+    expect(entry?.bytes).toBeGreaterThan(0);
+    expect(entry?.lastAt).not.toBeNull();
+
+    const lastAts = games.map((game) => game.lastAt ?? "");
+    expect([...lastAts].sort().reverse()).toEqual(lastAts);
   });
 });

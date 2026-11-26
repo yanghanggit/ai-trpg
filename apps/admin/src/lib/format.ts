@@ -18,3 +18,12 @@ export function formatAt(iso: string | null | undefined): string {
 export function formatNumber(value: number): string {
   return value.toLocaleString("zh-CN");
 }
+
+/** 文件大小：阅览器只需要知道量级，保留一位小数。 */
+export function formatBytes(bytes: number): string {
+  if (bytes < 1024) {
+    return `${bytes} B`;
+  }
+  const kb = bytes / 1024;
+  return kb < 1024 ? `${kb.toFixed(1)} KB` : `${(kb / 1024).toFixed(1)} MB`;
+}

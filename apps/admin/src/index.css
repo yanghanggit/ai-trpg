@@ -107,6 +107,11 @@ a {
   text-decoration: underline;
 }
 
+/* 面包屑里的标识（slug、id）不跟着大写：它是一个引用，不是标题。 */
+.eyebrow__ref {
+  text-transform: none;
+}
+
 .panel {
   margin-top: 20px;
   padding: 20px 22px;

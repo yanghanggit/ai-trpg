@@ -13,7 +13,16 @@
  */
 
 import { randomUUID } from "node:crypto";
-import { appendFile, mkdir, readdir, readFile, rm, unlink, writeFile } from "node:fs/promises";
+import {
+  appendFile,
+  mkdir,
+  readdir,
+  readFile,
+  rm,
+  stat,
+  unlink,
+  writeFile,
+} from "node:fs/promises";
 import { dirname, join, resolve } from "node:path";
 import { promisify } from "node:util";
 import { gunzip, gzip } from "node:zlib";
@@ -342,6 +351,69 @@ function safeParseLine(line: string): TraceLine | undefined {
   }
 }
 
+/** 目录里的一份轨迹文件；阅览器只读这些元数据，不解析正文。 */
+export type TraceFileEntry = {
+  name: string;
+  /** `YYYYMMDD`，与文件名同源。 */
+  day: string;
+  bytes: number;
+  modifiedAt: string;
+};
+
+/** 一个局目录：它有什么文件、占多大、最近写过没有。 */
+export type TraceGameEntry = {
+  /** 目录名：写盘时 slug 已做非法字符替换，所以它就是落盘的标识。 */
+  slug: string;
+  files: TraceFileEntry[];
+  bytes: number;
+  /** 最近一次写入；没有可用文件时为 null。 */
+  lastAt: string | null;
+};
+
+/**
+ * 列目录：这一台机器的 `logs/trace` 里有什么。
+ *
+ * 阅览器要的是「文件夹里有什么」，不是「跑过几回合」——所以这里只 stat，不解析行；
+ * 回合与事件按需再读。空目录不算一局，避免把手工建的空文件夹显示成局。
+ */
+export async function listTraceFiles(
+  env: NodeJS.ProcessEnv = process.env,
+): Promise<{ dir: string; games: TraceGameEntry[] }> {
+  const root = traceRoot(env);
+  const games: TraceGameEntry[] = [];
+  for (const slug of await listDir(root)) {
+    const dir = join(root, slug);
+    const names = (await listDir(dir))
+      .filter((name) => traceDayOf(name) !== undefined)
+      .sort(compareTraceFiles);
+    if (names.length === 0) {
+      continue;
+    }
+    const files: TraceFileEntry[] = [];
+    let bytes = 0;
+    let lastAt: string | null = null;
+    for (const name of names) {
+      const info = await stat(join(dir, name)).catch(() => undefined);
+      const day = traceDayOf(name);
+      if (info === undefined || day === undefined || !info.isFile()) {
+        continue;
+      }
+      const modifiedAt = info.mtime.toISOString();
+      files.push({ name, day, bytes: info.size, modifiedAt });
+      bytes += info.size;
+      if (lastAt === null || modifiedAt > lastAt) {
+        lastAt = modifiedAt;
+      }
+    }
+    if (files.length > 0) {
+      games.push({ slug, files, bytes, lastAt });
+    }
+  }
+  // 最近写过的局排前面：阅览器默认打开的就是它。
+  games.sort((left, right) => (right.lastAt ?? "").localeCompare(left.lastAt ?? ""));
+  return { dir: root, games };
+}
+
 async function traceFiles(query: TraceQuery): Promise<string[]> {
   const root = traceRoot();
   const games = query.gameSlug ? [query.gameSlug.replace(UNSAFE_PATH, "_")] : await listDir(root);
@@ -401,7 +473,7 @@ function summarize(lines: readonly TraceLine[]): TraceTurnSummary[] {
         turnId: line.turnId,
         gameSlug: line.gameSlug,
         turnKind: line.turnKind,
-        startedAt: timestampOf(line.at),
+        startedAt: "",
         llmCalls: 0,
         llmErrors: 0,
         actions: [],
@@ -410,6 +482,11 @@ function summarize(lines: readonly TraceLine[]): TraceTurnSummary[] {
         completionTokens: 0,
       };
       byTurn.set(line.turnId, summary);
+    }
+    // 起始时间取这一回合里最早的可读时间：首行的 `at` 万一被写坏，后面几行仍然能给出顺序。
+    const at = timestampOf(line.at);
+    if (at !== "" && (summary.startedAt === "" || at < summary.startedAt)) {
+      summary.startedAt = at;
     }
     switch (line.event) {
       case "turn_start":
@@ -455,10 +532,10 @@ function summarize(lines: readonly TraceLine[]): TraceTurnSummary[] {
 }
 
 /**
- * 行里的时间只用来排序与展示，读侧又不对文件做校验，所以这里统一成 ISO 字符串。
+ * 行里的时间只用来排序与展示，读侧又不对文件做校验，所以这里统一成字符串。
  *
- * 语料可能是手改过的、也可能是旧版本写下的：拿到无法使用的时间就留空，
- * 让这一行不影响其它回合的排序——绝不 `new Date(1)` 编一个 1970 年出来。
+ * `at: 1` 这类脏值一律当空：不 `new Date(1)` 编一个 1970 年出来，也不拿它排序。
+ * 空值会在回合汇总时被同回合其它行的时间补上；整回合都不可读时才留空。
  */
 function timestampOf(value: unknown): string {
   return typeof value === "string" ? value.trim() : "";

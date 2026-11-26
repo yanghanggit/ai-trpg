@@ -72,36 +72,25 @@ export function parseTraceTurn(raw: Record<string, unknown>): TraceTurn | undefi
   };
 }
 
-export type TraceStats = {
-  turns: number;
-  ok: number;
-  failed: number;
-  llm: { calls: number; errors: number; promptTokens: number; completionTokens: number };
-  /** 拒绝原因按次数降序；只用来在首页列「最常见的几步为什么被拒」。 */
-  rejections: [string, number][];
+/** 一行事件：阅览器只认「事件名 + 时间」，其余原样给出去看。 */
+export type TraceEvent = {
+  /** 这一回合里的第几条（0 起）：文件里的原顺序，也是渲染时的稳定键。 */
+  seq: number;
+  event: string;
+  at: string;
+  raw: Record<string, unknown>;
 };
 
-/** 收窄跨回合统计；缺字段按 0 处理，读数宁可低也不假装知道。 */
-export function parseTraceStats(raw: Record<string, unknown>): TraceStats {
-  const llm =
-    typeof raw.llm === "object" && raw.llm !== null ? (raw.llm as Record<string, unknown>) : {};
-  const rejections =
-    typeof raw.rejections === "object" && raw.rejections !== null
-      ? (raw.rejections as Record<string, unknown>)
-      : {};
-
-  return {
-    turns: numberOf(raw, "turns"),
-    ok: numberOf(raw, "ok"),
-    failed: numberOf(raw, "failed"),
-    llm: {
-      calls: numberOf(llm, "calls"),
-      errors: numberOf(llm, "errors"),
-      promptTokens: numberOf(llm, "promptTokens"),
-      completionTokens: numberOf(llm, "completionTokens"),
-    },
-    rejections: Object.entries(rejections)
-      .filter((entry): entry is [string, number] => typeof entry[1] === "number")
-      .sort((left, right) => right[1] - left[1]),
-  };
+/**
+ * 收窄一行事件；缺事件名才丢掉。
+ *
+ * 时间是展示用的：写坏了就留空、显示成「—」，但不能因为它把整行藏起来——
+ * 阅览器的职责是把文件里的行如实呈现出来。
+ */
+export function parseTraceEvent(raw: Record<string, unknown>, seq = 0): TraceEvent | undefined {
+  const event = stringOf(raw, "event");
+  if (event === undefined) {
+    return undefined;
+  }
+  return { seq, event, at: stringOf(raw, "at") ?? "", raw };
 }
