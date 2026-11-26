@@ -18,17 +18,13 @@ export default function TracesPage({ data, onOpenGame, onBack }: Props) {
           <p className="eyebrow">
             <Link to="/" onClick={onBack}>
               总览
-            </Link>{" "}
-            / 轨迹
+            </Link>
           </p>
           <h1>
             轨迹
             <Hint text="logs/trace 的只读阅览器：这一屏是局目录，点进去看它的回合，再点一个回合看原始事件。文件不读数据库，也不按 owner 过滤。" />
           </h1>
         </div>
-        <p className="admin__hint">
-          <code>{data.dir ?? "…"}</code>
-        </p>
       </header>
 
       <section className="panel">
@@ -36,6 +32,9 @@ export default function TracesPage({ data, onOpenGame, onBack }: Props) {
           目录
           <Hint text="每个局一个文件夹，一天一个 .jsonl（旧的会压成 .gz）。按最近写入排序。" />
         </h2>
+        <p className="muted">
+          <code>{data.dir ?? "…"}</code>
+        </p>
 
         {data.games === undefined ? (
           <p className="muted">{data.gamesError ?? "读取中…"}</p>

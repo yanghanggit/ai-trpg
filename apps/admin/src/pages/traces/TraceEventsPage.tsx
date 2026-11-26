@@ -31,18 +31,13 @@ export default function TraceEventsPage({ data, onBack }: Props) {
               onClick={onBack}
             >
               {data.slug}
-            </Link>{" "}
-            / 回合
+            </Link>
           </p>
           <h1>
             <code>{data.turnId.slice(0, 8)}</code>
+            <span className="page-kind">事件</span>
           </h1>
         </div>
-        <p className="admin__hint">
-          {data.turn === undefined
-            ? "…"
-            : `${data.turn.turnKind} · ${data.turn.actorName ?? data.turn.stageName ?? "—"} · ${formatAt(data.turn.startedAt)}`}
-        </p>
       </header>
 
       <section className="panel">
@@ -50,6 +45,11 @@ export default function TraceEventsPage({ data, onBack }: Props) {
           事件
           <Hint text="这一回合写进文件的原始行，保持文件顺序：事件名 + 时间，展开是整行 JSON。" />
         </h2>
+        <p className="muted">
+          {data.turn === undefined
+            ? "…"
+            : `${data.turn.turnKind} · ${data.turn.actorName ?? data.turn.stageName ?? "—"} · ${formatAt(data.turn.startedAt)}`}
+        </p>
 
         {data.events === undefined ? (
           <p className="muted">{data.eventsError ?? "读取中…"}</p>

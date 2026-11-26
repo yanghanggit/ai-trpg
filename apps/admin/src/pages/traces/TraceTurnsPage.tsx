@@ -24,18 +24,13 @@ export default function TraceTurnsPage({ data, onOpenTurn, onBack }: Props) {
             /{" "}
             <Link to="/traces" onClick={onBack}>
               轨迹
-            </Link>{" "}
-            / 局
+            </Link>
           </p>
           <h1>
             <code>{data.slug}</code>
+            <span className="page-kind">回合</span>
           </h1>
         </div>
-        <p className="admin__hint">
-          {selected === undefined
-            ? "…"
-            : `${formatNumber(selected.files.length)} 个文件 · ${formatBytes(selected.bytes)}`}
-        </p>
       </header>
 
       <section className="panel">
@@ -43,6 +38,11 @@ export default function TraceTurnsPage({ data, onOpenTurn, onBack }: Props) {
           回合
           <Hint text="这个局的回合，最新的在前；点一行看这一回合的原始事件。" />
         </h2>
+        <p className="muted">
+          {selected === undefined
+            ? "…"
+            : `${formatNumber(selected.files.length)} 个文件 · ${formatBytes(selected.bytes)}`}
+        </p>
 
         {selected === undefined ? null : (
           <p className="muted">

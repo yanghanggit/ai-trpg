@@ -2,7 +2,7 @@ import { useState } from "react";
 import { useNavigate } from "react-router";
 import { describeApiError } from "../../api/describeApiError";
 import { type AdvanceInput, useGameActions } from "../../features/games/useGameActions";
-import { useGameMessages, useMemory, useNameLeaks } from "../../features/games/useGameData";
+import { useMemory, useNameLeaks } from "../../features/games/useGameData";
 import GamePanels from "./GamePanels";
 import type { GamePageActions, GamePageData, MemoryQuery } from "./types";
 
@@ -15,9 +15,6 @@ import type { GamePageActions, GamePageData, MemoryQuery } from "./types";
 export default function GameConsole({ slug }: { slug: string }) {
   const navigate = useNavigate();
   const actions = useGameActions(slug);
-
-  const [autoRefresh, setAutoRefresh] = useState(true);
-  const messages = useGameMessages(slug, autoRefresh);
 
   const [queuedJobId, setQueuedJobId] = useState<string>();
 
@@ -46,7 +43,8 @@ export default function GameConsole({ slug }: { slug: string }) {
   }
 
   const handlers: GamePageActions = {
-    toggleAutoRefresh: () => setAutoRefresh((current) => !current),
+    openMessages: () => navigate(`/g/${encodeURIComponent(slug)}/messages`),
+    openBuild: () => navigate(`/g/${encodeURIComponent(slug)}/build`),
     refresh: async () => {
       await run("刷新", async () => {
         await actions.refresh();
@@ -102,9 +100,6 @@ export default function GameConsole({ slug }: { slug: string }) {
     slug,
     busy,
     actionError,
-    autoRefresh,
-    messages: messages.data,
-    messagesError: messages.isError ? describeApiError(messages.error) : undefined,
     queuedJobId,
     memory:
       memoryQuery === undefined || memory.data === undefined

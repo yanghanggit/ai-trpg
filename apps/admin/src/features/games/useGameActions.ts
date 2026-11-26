@@ -1,7 +1,7 @@
 import { unwrap } from "@ai-trpg/api-client";
-import { useQueryClient } from "@tanstack/react-query";
 import { api } from "../../api/client";
 import type { JobView, MemoryOwner } from "./useGameData";
+import { useRefreshGame } from "./useRefreshGame";
 
 /** 后台能推的三层回合；world 与另外两层一样是入队，不在请求里同步跑。 */
 export type AdvanceKind = "npc" | "stage" | "world";
@@ -21,12 +21,7 @@ export type AdvanceInput = {
  * 这里的返回值不代表回合已经落地。
  */
 export function useGameActions(slug: string) {
-  const queryClient = useQueryClient();
-
-  async function refresh() {
-    await queryClient.invalidateQueries({ queryKey: ["games", slug] });
-    await queryClient.invalidateQueries({ queryKey: ["traces"] });
-  }
+  const refresh = useRefreshGame(slug);
 
   async function advance(input: AdvanceInput): Promise<JobView> {
     const path = { game: slug };

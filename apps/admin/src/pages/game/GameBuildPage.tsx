@@ -29,14 +29,10 @@ export default function GameBuildPage({ data, onOpenConsole, onBack }: Props) {
             <Link to="/games" onClick={onBack}>
               局
             </Link>{" "}
-            /{" "}
-            <Link className="eyebrow__ref" to={`/g/${encodeURIComponent(data.slug)}`}>
-              {data.slug}
-            </Link>{" "}
-            / 建局数据
           </p>
           <h1>
             <code>{data.slug}</code>
+            <span className="page-kind">建局数据</span>
           </h1>
         </div>
         <div className="admin__actions">

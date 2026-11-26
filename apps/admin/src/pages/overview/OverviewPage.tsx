@@ -19,7 +19,6 @@ export default function OverviewPage({ data, nodeUptime, onOpenGames, onOpenTrac
     <main className="admin">
       <header className="admin__bar">
         <div>
-          <p className="eyebrow">AI TRPG · admin</p>
           <h1>总览</h1>
         </div>
       </header>

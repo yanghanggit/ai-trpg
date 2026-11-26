@@ -74,13 +74,20 @@ a {
   font-size: 0.9em;
 }
 
-.admin__hint {
-  margin: 0;
-  max-width: 42ch;
+/*
+ * h1 写这一页的对象（slug / 回合 id），页名挂成右侧标签：
+ * 同一份地址在三个同级页（控制台 / 建局数据 / 事件流）上各出现一次，面包屑不再重复它。
+ */
+.page-kind {
+  margin-left: 10px;
+  padding: 2px 9px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
   color: var(--muted);
-  font-size: 13px;
-  line-height: 1.6;
-  text-align: right;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  vertical-align: 4px;
 }
 
 .admin__actions {

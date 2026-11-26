@@ -4,6 +4,14 @@ import type { MemoryOwner, MessageView } from "../../features/games/useGameData"
 
 export type MemoryQuery = { owner: MemoryOwner; name?: string };
 
+/** 事件流页：整屏一张表，自带自动刷新开关。 */
+export type GameMessagesData = {
+  slug: string;
+  autoRefresh: boolean;
+  messages?: MessageView[];
+  messagesError?: string;
+};
+
 /** 建局数据：形状来自契约，行是不收窄的原始列。 */
 export type GameBuild = components["schemas"]["GameBuild"];
 
@@ -18,11 +26,7 @@ export type GamePageData = {
   slug: string;
   busy?: string;
   actionError?: string;
-  /** 事件流是不是按 5 秒自动重读。 */
-  autoRefresh: boolean;
 
-  messages?: MessageView[];
-  messagesError?: string;
   /** 刚入队的作业 id：只回一行回执，不再摊开作业表。 */
   queuedJobId?: string;
 
@@ -37,7 +41,9 @@ export type GamePageData = {
 
 export type GamePageActions = {
   refresh: () => Promise<void>;
-  toggleAutoRefresh: () => void;
+  /** 事件流与建局数据各自一页：控制台是这一局的枢纽，只留入口。 */
+  openMessages: () => void;
+  openBuild: () => void;
   advance: (input: AdvanceInput) => Promise<void>;
   pass: (actors: string[]) => Promise<void>;
   endGame: (input: { outcome: string; message?: string }) => Promise<void>;

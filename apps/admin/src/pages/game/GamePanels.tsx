@@ -2,8 +2,7 @@ import { useState } from "react";
 import { Link } from "react-router";
 import Hint from "../../components/Hint";
 import type { AdvanceKind } from "../../features/games/useGameActions";
-import { AUTO_REFRESH_INTERVAL_MS, type MemoryOwner } from "../../features/games/useGameData";
-import { formatAt } from "../../lib/format";
+import type { MemoryOwner } from "../../features/games/useGameData";
 import DangerDialog from "./DangerDialog";
 import type { GamePageActions, GamePageData } from "./types";
 
@@ -15,7 +14,7 @@ type Props = {
 /**
  * 局控制台的展示层：只读 `data`、只调 `actions`。
  *
- * 危险操作在这里要一次确认——确认是交互，不是判定；作业算不算成功仍然由容器重读终态决定。
+ * 危险操作在这里要一次确认——确认是交互，不是判定；写成没写成仍然由服务端说了算。
  */
 export default function GamePanels({ data, actions }: Props) {
   const [dangerOpen, setDangerOpen] = useState(false);
@@ -25,10 +24,11 @@ export default function GamePanels({ data, actions }: Props) {
       <header className="admin__bar">
         <div>
           <p className="eyebrow">
-            <Link to="/">总览</Link> / <Link to="/games">局</Link> / 局控制台
+            <Link to="/">总览</Link> / <Link to="/games">局</Link>
           </p>
           <h1>
             <code>{data.slug}</code>
+            <span className="page-kind">局控制台</span>
           </h1>
         </div>
         <div className="admin__actions">
@@ -38,11 +38,16 @@ export default function GamePanels({ data, actions }: Props) {
           <button
             type="button"
             className="button button--ghost"
-            aria-pressed={data.autoRefresh}
-            title={`每 ${AUTO_REFRESH_INTERVAL_MS / 1000} 秒重读一次事件流`}
-            onClick={() => actions.toggleAutoRefresh()}
+            onClick={() => actions.openBuild()}
           >
-            自动刷新：{data.autoRefresh ? "开" : "关"}
+            建局数据
+          </button>
+          <button
+            type="button"
+            className="button button--ghost"
+            onClick={() => actions.openMessages()}
+          >
+            事件流
           </button>
           <button
             type="button"
@@ -64,12 +69,11 @@ export default function GamePanels({ data, actions }: Props) {
       {data.actionError === undefined ? null : <p className="form-error">{data.actionError}</p>}
       {data.queuedJobId === undefined ? null : (
         <p className="muted">
-          已入队 <code>{data.queuedJobId.slice(0, 8)}</code>：结果看下面的事件流。
+          已入队 <code>{data.queuedJobId.slice(0, 8)}</code>：结果看事件流。
         </p>
       )}
 
       <AdvanceSection busy={data.busy !== undefined} actions={actions} />
-      <MessagesSection data={data} />
       <AuxSection data={data} actions={actions} />
       <DangerDialog
         slug={data.slug}
@@ -182,43 +186,6 @@ function AdvanceSection({ busy, actions }: { busy: boolean; actions: GamePageAct
           记空回合
         </button>
       </form>
-    </section>
-  );
-}
-
-function MessagesSection({ data }: { data: GamePageData }) {
-  return (
-    <section className="panel">
-      <h2>
-        事件流
-        <Hint text="公共事件流（game_messages）：上帝视角、带真实名字，只追加。" />
-      </h2>
-      {data.messages === undefined ? (
-        <p className="muted">{data.messagesError ?? "读取中…"}</p>
-      ) : (
-        <table className="table">
-          <thead>
-            <tr>
-              <th>#</th>
-              <th>类型</th>
-              <th>可见性</th>
-              <th>内容</th>
-              <th>时间</th>
-            </tr>
-          </thead>
-          <tbody>
-            {data.messages.map((message) => (
-              <tr key={message.id}>
-                <td>{message.sequence}</td>
-                <td>{message.kind}</td>
-                <td>{message.visibility}</td>
-                <td>{message.content}</td>
-                <td>{formatAt(message.createdAt)}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      )}
     </section>
   );
 }

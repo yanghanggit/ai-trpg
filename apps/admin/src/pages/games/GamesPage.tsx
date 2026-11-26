@@ -1,3 +1,4 @@
+import { Link } from "react-router";
 import Hint from "../../components/Hint";
 import { formatAt, formatNumber } from "../../lib/format";
 import type { GamesData, GamesHandlers } from "./types";
@@ -16,21 +17,22 @@ export default function GamesPage({ data, onOpenGame, onOpenBuild, onBack }: Pro
       <header className="admin__bar">
         <div>
           <p className="eyebrow">
-            <a href="/" onClick={stopThen(onBack)}>
-              ← 总览
-            </a>
+            <Link to="/" onClick={onBack}>
+              总览
+            </Link>
           </p>
           <h1>
             局
             <Hint text="运维看全库（「局主」列标明归属），玩家只看自己名下的局；按更新时间倒序。「运行中作业」＝这一局此刻有没有回合作业处于排队或执行中，同一局同时只有一个。" />
           </h1>
         </div>
-        <p className="admin__hint">
-          共 {data.games === undefined ? "…" : formatNumber(data.games.length)} 局
-        </p>
       </header>
 
       <section className="panel">
+        {data.games === undefined ? null : (
+          <p className="muted">共 {formatNumber(data.games.length)} 局</p>
+        )}
+
         {data.games === undefined ? (
           <p className="muted">{data.gamesError ?? "读取中…"}</p>
         ) : data.games.length === 0 ? (
@@ -110,9 +112,3 @@ export default function GamesPage({ data, onOpenGame, onOpenBuild, onBack }: Pro
 }
 
 /** 页内返回既走路由也要挡掉默认跳转，避免整页刷新丢掉缓存。 */
-function stopThen(handler: () => void): (event: React.MouseEvent) => void {
-  return (event) => {
-    event.preventDefault();
-    handler();
-  };
-}
