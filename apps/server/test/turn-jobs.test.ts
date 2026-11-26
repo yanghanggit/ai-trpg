@@ -8,7 +8,6 @@
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import "../src/db/env";
 import { type DatabaseHandle, openDatabase } from "../src/db/connect";
-import { DEMO_USER } from "../src/db/demo-fixture";
 import { resetDomainData, seedDemoData } from "../src/db/maintenance";
 import { runMigrations } from "../src/db/migrate";
 import { createGame, getGameMeta } from "../src/game";
@@ -26,6 +25,7 @@ import {
   TURN_QUEUE,
   takeControlOp,
 } from "../src/game-ops";
+import { DEMO_USER } from "../src/identity";
 import { JobStore, JobWorker } from "../src/jobs";
 import { ChatCompletionResult, type ChatCompletionService } from "../src/llm";
 import { TEST_WORLD } from "./test-world";

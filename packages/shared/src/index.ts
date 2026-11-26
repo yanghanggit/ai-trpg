@@ -1,5 +1,5 @@
 /**
- * 跨端共享的静态事实：服务标识与本地开发端口默认值。
+ * 跨端共享的静态事实：服务标识、本地开发端口默认值、开发期身份名。
  *
  * 准入判据是「第一次请求之前两端必须一致」：需要出现在响应里的领域词表（属性名、
  * 道具大类这类文案）走契约下发，不要搬进来——判据与后果见 `docs/architecture.md`
@@ -24,6 +24,15 @@ export const DEFAULT_MOCK_PORT = 5374;
 
 /** 管理后台的 dev server 端口默认值；只监听本机。 */
 export const DEFAULT_ADMIN_PORT = 5375;
+
+/**
+ * 开发期的两个身份名。
+ *
+ * `admin` 在服务端名单里：能碰任意一局，也能读机器级读数；`demo` 是玩家身份，数据归它。
+ * 名字必须两端一致，所以写在这里；`.env` 的 VITE_ADMIN_USERNAME / VITE_PLAYER_USERNAME 可覆盖。
+ */
+export const DEFAULT_ADMIN_USERNAME = "admin";
+export const DEFAULT_PLAYER_USERNAME = "demo";
 
 export function serverBaseUrl(port: number = DEFAULT_SERVER_PORT, host = "localhost"): string {
   return `http://${host}:${port}`;

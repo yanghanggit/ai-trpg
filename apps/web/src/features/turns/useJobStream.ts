@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { apiBaseUrl, devUsername } from "../../api/client";
+import { apiBaseUrl, playerUsername } from "../../api/client";
 import type { TurnJob } from "./turnJob";
 
 export type JobStreamState = {
@@ -25,7 +25,7 @@ export function useJobStream(game: string, options: { enabled?: boolean } = {}):
     }
     // 浏览器的 EventSource 不能自带请求头：这条流认查询串里的开发期身份。
     const url = new URL(`${apiBaseUrl}/api/v1/games/${encodeURIComponent(game)}/jobs/stream`);
-    url.searchParams.set("token", devUsername);
+    url.searchParams.set("token", playerUsername);
     const source = new EventSource(url);
 
     const onOpen = () => {

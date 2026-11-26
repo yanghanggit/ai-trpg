@@ -37,7 +37,7 @@ export function createProgram(): Command {
     .showSuggestionAfterError()
     .exitOverride()
     .option("--base <url>", "服务端地址，默认 AGENT_API_BASE_URL 或本机默认端口")
-    .option("--token <username>", "开发期身份：用户名，默认 AGENT_API_TOKEN")
+    .option("--token <username>", "开发期身份：默认 AGENT_API_TOKEN，再缺省为玩家身份")
     .option("--timeout <ms>", "单次请求超时，默认 120000");
 
   registerGameCommands(program);

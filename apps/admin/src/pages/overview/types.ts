@@ -1,22 +1,26 @@
 import type { GameSummary } from "../../features/games/useGames";
-import type { TraceStats } from "../../features/traces/traceIndex";
+import type { NodeStatus } from "../../features/node/useNodeStatus";
 
-/** 总览页只吃这一份数据；取数、聚合与跳转都在容器里。 */
+/**
+ * 总览页的三层读数：我在用谁看（身份）、看的是哪台机器（节点）、看到什么内容（局）。
+ *
+ * 轨迹读数不在这里：它是文件语料，与库脱钩，属于调试口径，单独一页。
+ */
 export type OverviewData = {
-  health?: {
-    version: string;
-    apiVersion: string;
-    uptimeSeconds: number;
-    latencyMs: number;
-  };
-  healthError?: string;
-  identity?: { username: string; displayName: string };
+  identity?: { id: string; username: string; displayName: string; isAdmin: boolean };
   identityError?: string;
-  stats?: TraceStats;
-  statsError?: string;
-  /** 当前身份名下的局，按更新时间倒序。 */
+  node?: NodeStatus;
+  nodeError?: string;
+  /** 可达性与往返单独看 `health`：节点自述不需要每 5 秒重问一遍。 */
+  health?: { latencyMs: number };
+  healthError?: string;
   games?: GameSummary[];
   gamesError?: string;
+  /** 连的服务端地址：这是配置，不是读数。 */
+  apiBaseUrl: string;
 };
 
-export type OpenGameHandler = (gameRef: string) => void;
+export type OverviewHandlers = {
+  onOpenGame: (gameRef: string) => void;
+  onOpenTraces: () => void;
+};

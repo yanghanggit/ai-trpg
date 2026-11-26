@@ -11,6 +11,7 @@ import type { FastifyRequest } from "fastify";
 import type { Database } from "../db/pool";
 import { users } from "../db/schema";
 import { HttpError } from "../http-error";
+import { isAdmin } from "../identity";
 
 export type AuthUser = {
   id: string;
@@ -56,4 +57,18 @@ export async function requireUser(
     throw new HttpError(401, "unauthorized", `用户不存在: ${username}`);
   }
   return row;
+}
+
+/**
+ * 机器级读数与运维入口的守卫。
+ *
+ * 它比 `requireGameAccess` 更早一步：那里判「这一局归不归你」，这里判「你是不是运维」。
+ * 名单是写死的（见 `identity.ts`），等真登录体系落地时改成查 `users.role` 即可。
+ */
+export async function requireAdmin(db: Database, request: FastifyRequest): Promise<AuthUser> {
+  const user = await requireUser(db, request);
+  if (!isAdmin(user.username)) {
+    throw new HttpError(403, "forbidden", "该入口只对运维身份开放");
+  }
+  return user;
 }

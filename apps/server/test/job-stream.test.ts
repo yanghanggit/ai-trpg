@@ -11,12 +11,12 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import "../src/db/env";
 import { buildApp } from "../src/app";
 import { type DatabaseHandle, openDatabase } from "../src/db/connect";
-import { DEMO_USER } from "../src/db/demo-fixture";
 import { resetDomainData, seedDemoData } from "../src/db/maintenance";
 import { runMigrations } from "../src/db/migrate";
 import { games } from "../src/db/schema";
 import type { Env } from "../src/env";
 import { TURN_JOB, TURN_QUEUE, turnSerializationKey } from "../src/game-ops";
+import { DEMO_USER } from "../src/identity";
 import { JobChangeBroker, JobStore, parseJobChange } from "../src/jobs";
 
 const testDatabaseUrl = process.env.TEST_DATABASE_URL?.trim();

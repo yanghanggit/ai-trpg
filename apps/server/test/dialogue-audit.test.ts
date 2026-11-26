@@ -6,7 +6,6 @@ import { BELL_MONASTERY_WORLD } from "../seeds/dark-fantasy";
 import { renderFunctionPrompt } from "../seeds/dark-fantasy/agents";
 import { DIALOGUE_AUDIT_SPEC } from "../seeds/dark-fantasy/agents/dialogue-audit";
 import { type DatabaseHandle, openDatabase } from "../src/db/connect";
-import { DEMO_USER } from "../src/db/demo-fixture";
 import { resetDomainData, seedDemoData } from "../src/db/maintenance";
 import { runMigrations } from "../src/db/migrate";
 import { dialogueBlocks } from "../src/db/schema";
@@ -26,6 +25,7 @@ import {
 } from "../src/game/agents/dialogue-audit";
 import { DialogueBlockedError } from "../src/game/errors";
 import type { WorldState } from "../src/game/kernel/types";
+import { DEMO_USER } from "../src/identity";
 import {
   ChatCompletionResult,
   type ChatCompletionService,

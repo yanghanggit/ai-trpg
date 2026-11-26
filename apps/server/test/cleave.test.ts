@@ -1,6 +1,5 @@
 import { randomUUID } from "node:crypto";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { DEMO_USER } from "../src/db/demo-fixture";
 import {
   type ActorPlan,
   createGame,
@@ -11,6 +10,7 @@ import {
 } from "../src/game";
 import { formatForm } from "../src/game/agents/appearance/form";
 import type { World } from "../src/game/world-definition";
+import { DEMO_USER } from "../src/identity";
 import { ChatCompletionResult, type ChatCompletionService, type ToolCall } from "../src/llm";
 import { memoryBody } from "./memory-content";
 import { TEST_WORLD } from "./test-world";

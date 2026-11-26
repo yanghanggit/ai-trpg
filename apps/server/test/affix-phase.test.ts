@@ -4,12 +4,12 @@ import { join } from "node:path";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import "../src/db/env";
 import { type DatabaseHandle, openDatabase } from "../src/db/connect";
-import { DEMO_USER } from "../src/db/demo-fixture";
 import { resetDomainData, seedDemoData } from "../src/db/maintenance";
 import { runMigrations } from "../src/db/migrate";
 import { readTurn, type TraceContext } from "../src/debug/trace";
 import { createGame } from "../src/game";
 import { type AffixRequest, runAffixPhase } from "../src/game/agents/affixes";
+import { DEMO_USER } from "../src/identity";
 import type { ChatCompletionService } from "../src/llm";
 import { TEST_WORLD } from "./test-world";
 

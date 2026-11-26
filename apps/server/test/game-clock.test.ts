@@ -1,7 +1,6 @@
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import "../src/db/env";
 import { type DatabaseHandle, openDatabase } from "../src/db/connect";
-import { DEMO_USER } from "../src/db/demo-fixture";
 import { resetDomainData, seedDemoData } from "../src/db/maintenance";
 import { runMigrations } from "../src/db/migrate";
 import {
@@ -23,6 +22,7 @@ import {
 import { MEMORY_KINDS } from "../src/game/memory/kinds";
 import { appendStageMemory } from "../src/game/observations";
 import { passTurn } from "../src/game-ops";
+import { DEMO_USER } from "../src/identity";
 import { TEST_WORLD } from "./test-world";
 
 const testDatabaseUrl = process.env.TEST_DATABASE_URL?.trim();

@@ -9,7 +9,7 @@ import type { FastifyPluginAsyncZod } from "fastify-type-provider-zod";
 import { z } from "zod";
 import type { Database } from "../db/pool";
 import { listTurns, readTurn, tailEvents, traceSchema, traceStats } from "../debug/trace";
-import { requireUser } from "../plugins/auth";
+import { requireAdmin } from "../plugins/auth";
 
 const TAIL_DEFAULT_LIMIT = 40;
 
@@ -37,7 +37,7 @@ export function createTraceRoutes(db: () => Database): FastifyPluginAsyncZod {
           },
         },
         preHandler: async (request) => {
-          await requireUser(db(), request);
+          await requireAdmin(db(), request);
         },
       },
       async (request) => {
@@ -62,7 +62,7 @@ export function createTraceRoutes(db: () => Database): FastifyPluginAsyncZod {
           response: { 200: z.object({ stats: z.record(z.string(), z.unknown()) }) },
         },
         preHandler: async (request) => {
-          await requireUser(db(), request);
+          await requireAdmin(db(), request);
         },
       },
       async (request) => {
@@ -85,7 +85,7 @@ export function createTraceRoutes(db: () => Database): FastifyPluginAsyncZod {
           response: { 200: z.record(z.string(), z.unknown()) },
         },
         preHandler: async (request) => {
-          await requireUser(db(), request);
+          await requireAdmin(db(), request);
         },
       },
       async () => traceSchema(),
@@ -101,7 +101,7 @@ export function createTraceRoutes(db: () => Database): FastifyPluginAsyncZod {
           response: { 200: z.object({ events: z.array(z.record(z.string(), z.unknown())) }) },
         },
         preHandler: async (request) => {
-          await requireUser(db(), request);
+          await requireAdmin(db(), request);
         },
       },
       async (request) => {
@@ -126,7 +126,7 @@ export function createTraceRoutes(db: () => Database): FastifyPluginAsyncZod {
           response: { 200: z.object({ events: z.array(z.record(z.string(), z.unknown())) }) },
         },
         preHandler: async (request) => {
-          await requireUser(db(), request);
+          await requireAdmin(db(), request);
         },
       },
       async (request) => ({ events: await readTurn(request.params.turn) }),
@@ -143,7 +143,7 @@ export function createTraceRoutes(db: () => Database): FastifyPluginAsyncZod {
           response: { 200: z.object({ turns: z.array(z.record(z.string(), z.unknown())) }) },
         },
         preHandler: async (request) => {
-          await requireUser(db(), request);
+          await requireAdmin(db(), request);
         },
       },
       async (request) => ({
@@ -166,7 +166,7 @@ export function createTraceRoutes(db: () => Database): FastifyPluginAsyncZod {
           response: { 200: z.object({ events: z.array(z.record(z.string(), z.unknown())) }) },
         },
         preHandler: async (request) => {
-          await requireUser(db(), request);
+          await requireAdmin(db(), request);
         },
       },
       async (request) => ({
@@ -188,7 +188,7 @@ export function createTraceRoutes(db: () => Database): FastifyPluginAsyncZod {
           response: { 200: z.object({ events: z.array(z.record(z.string(), z.unknown())) }) },
         },
         preHandler: async (request) => {
-          await requireUser(db(), request);
+          await requireAdmin(db(), request);
         },
       },
       async (request) => ({

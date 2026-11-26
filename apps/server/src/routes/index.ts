@@ -6,6 +6,7 @@ import type { JobChangeBroker } from "../jobs";
 import { createGameRoutes } from "./games";
 import { healthRoutes } from "./health";
 import { createJobStreamRoutes } from "./job-stream";
+import { createStatusRoutes, type StatusListen } from "./status";
 import { createTraceRoutes } from "./traces";
 
 const rootResponseSchema = z.object({
@@ -21,6 +22,8 @@ const rootResponseSchema = z.object({
 export type RouteOptions = {
   /** 作业状态推送的订阅源；不传时 SSE 入口回 503，其它入口照常工作。 */
   broker?: JobChangeBroker;
+  /** 服务端实际监听的地址；节点自述用它回答「这个进程开在哪个端口」。 */
+  listen?: StatusListen;
 };
 
 export function createRoutes(
@@ -45,6 +48,9 @@ export function createRoutes(
     );
 
     await app.register(healthRoutes, { prefix: `/api/${API_VERSION}` });
+    await app.register(createStatusRoutes(db, options.listen ?? { host: "?", port: 0 }), {
+      prefix: `/api/${API_VERSION}`,
+    });
     // 先挂流式入口：`jobs/stream` 是静态段，先注册也便于在路由表里一眼看到它在 `jobs/:job` 之前。
     await app.register(createJobStreamRoutes(db, options.broker), {
       prefix: `/api/${API_VERSION}`,

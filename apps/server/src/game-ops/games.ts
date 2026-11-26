@@ -9,13 +9,16 @@
  */
 
 import type { Database } from "../db/pool";
-import { listGamesByOwner } from "../game/persistence/games";
+import { listGames } from "../game/persistence/games";
+import { isAdmin } from "../identity";
 import { ACTIVE_JOB_STATUSES, JobStore } from "../jobs";
 import { turnSerializationKey } from "./turn-jobs";
 
 export type GameSummaryView = {
   id: string;
   slug: string;
+  ownerId: string;
+  ownerUsername: string;
   name: string;
   status: string;
   /** 结束时的结局标签；active 局为 null。 */
@@ -35,12 +38,20 @@ export type ListGamesOptions = {
   limit?: number;
 };
 
+/**
+ * 列局：运维看全库，其他人只看自己名下的。
+ *
+ * 「能看什么」只由身份决定，不由查询参数决定——所以这里没有 `owner` 参数，少一个可越权的入口。
+ */
 export async function listGamesOp(
   db: Database,
-  ownerId: string,
+  viewer: { id: string; username: string },
   options: ListGamesOptions = {},
 ): Promise<{ games: GameSummaryView[] }> {
-  const rows = await listGamesByOwner(db, ownerId, options);
+  const rows = await listGames(db, {
+    ...(isAdmin(viewer.username) ? {} : { ownerId: viewer.id }),
+    ...options,
+  });
 
   const gameIdByKey = new Map(rows.map((row) => [turnSerializationKey(row.id), row.id]));
   const activeRecords =
@@ -69,6 +80,8 @@ export async function listGamesOp(
     games: rows.map((row) => ({
       id: row.id,
       slug: row.slug,
+      ownerId: row.ownerId,
+      ownerUsername: row.ownerUsername,
       name: row.name,
       status: row.status,
       outcome: row.outcome,

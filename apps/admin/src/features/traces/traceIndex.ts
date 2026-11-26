@@ -47,7 +47,8 @@ export function parseTraceTurn(raw: Record<string, unknown>): TraceTurn | undefi
     turnId === undefined ||
     gameSlug === undefined ||
     turnKind === undefined ||
-    startedAt === undefined
+    startedAt === undefined ||
+    startedAt.length === 0
   ) {
     return undefined;
   }

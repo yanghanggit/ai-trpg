@@ -1,6 +1,7 @@
 import type { ComponentType } from "react";
 import GameRoute from "./game/GameRoute";
 import OverviewContainer from "./overview/OverviewContainer";
+import TracesContainer from "./traces/TracesContainer";
 
 /**
  * 页面清单：后台的唯一路由表。
@@ -17,5 +18,6 @@ export type PageEntry = {
 
 export const pages: PageEntry[] = [
   { key: "overview", path: "/", title: "总览", Route: OverviewContainer },
+  { key: "traces", path: "/traces", title: "轨迹", Route: TracesContainer },
   { key: "game", path: "/g/:slug", title: "局控制台", Route: GameRoute },
 ];

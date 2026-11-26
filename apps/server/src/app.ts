@@ -83,7 +83,12 @@ export async function buildApp({
 
   app.get("/openapi.json", { schema: { hide: true } }, async () => app.swagger());
 
-  await app.register(createRoutes(db, broker === undefined ? {} : { broker }));
+  await app.register(
+    createRoutes(db, {
+      ...(broker === undefined ? {} : { broker }),
+      listen: { host: env.HOST, port: env.PORT },
+    }),
+  );
 
   if (env.NODE_ENV === "production" && env.CORS_ORIGINS.trim() === "*") {
     app.log.warn("CORS_ORIGINS=* 仅建议用于开发环境，生产环境请配置具体来源");

@@ -7,8 +7,13 @@
 
 - 独立 Vite 应用，`apps/*` 工作区自动包含；`pnpm dev` 会一起起，端口见 `.env.example`。
 - 只监听 `127.0.0.1`，不随局域网暴露，也不承诺随生产部署——它目前是运维台，不是产品面。
-- 身份沿用 web 的开发期用户名（`Authorization: Bearer <username>`），因此**只能看到该 owner 名下的局**。
-- 总览页：健康、身份、轨迹读数、名下的局（`GET /games`）、按 slug 打开一局。
+- 身份固定 `admin`（`Authorization: Bearer admin`）。服务端 `src/identity.ts` 有一张写死的运维名单：
+  `admin` 越过 owner 检查、能读全库与机器级读数；`demo` 是玩家身份，只能碰自己名下的局。
+- 总览页按三层读：**身份**（以谁的身份读、owner id）→ **节点**（`GET /status` 给出的
+  进程 / 数据库 / 轨迹目录）→ **局**（`GET /games`）。轨迹读数不在首页，它是文件语料，
+  与库脱钩，单独一页 `/traces`。
+- `GET /status` 是节点自述：pid、node、监听地址、库名与 host、轨迹目录与局目录数，
+  凭据一律不出现。它描述的是**当前进程**，不做跨进程汇总。
 - 局控制台：作业列表与取消、三层回合推进、空过、活状态原文、事件流、轨迹与单回合事件、
   记忆 / 真名扫描 / 探针 / 快照 / 故事总结 / 压缩记忆、结束与删除一局。
 - 写操作一律「二次确认 + 重读作业终态」：入队成功不算回合发生过，`canceled` 与 `succeeded`
@@ -16,13 +21,20 @@
 
 ## 已知缺口
 
-- **权限停在 A**：owner 口径。跨 owner 排查需要 `ADMIN_USERNAMES` 白名单绕过 `requireGameAccess`，
-  再往后才是 `users.role`。两者都等到真登录体系一起做时更省事。
+- **名单还不是角色**：`admin` / `demo` 只是两行用户 + 一张写死的名单，`users` 表没有 `role` 列。
+  真角色体系要等会话令牌落地。
+- **只有一个节点**：后台连的是 `VITE_API_BASE_URL`（缺省同机 `DEFAULT_SERVER_PORT`）那一个服务端进程。
+  「多进程 / 多节点」要先有第二个服务端，且每个进程得能自报身份；现在先按单节点做，
+  结构上留了「节点」这一层。
+- **轨迹仍跨全部局**：`/traces` 已只对运维开放（`requireAdmin`），但它仍然把整台机器的回合
+  混在一起，没有按局隔离——这是调试口径的本意，别拿它当「某局的历史」。
+- **仍然不是登录**：`Bearer admin` 谁都能发。后台能「只给运维用」靠的是客户端写死身份 +
+  服务端名单决定阅读范围 + 只监听本机，不是访问控制。
 - **没有守卫**：`scripts/check-client-scope.mjs` 只守住「web 不读控制面」。反方向的
   「admin 不读 `ActorView`」没有必要——后台看玩家视角是为了对照，不是缺陷。
 
 ## 下一步
 
-1. 需要跨 owner 时再加白名单（`ADMIN_USERNAMES`），并把可见性判定收进一处——现在
-   `requireGameAccess` 与 `listGamesOp` 各写一遍「owner 名下」。
+1. 把「能看什么」的判定收进一处：现在 `requireGameAccess` 与 `listGamesOp` 各写一次 `isAdmin`。
 2. 后台如果需要盯全部作业而不只是某局的，再补跨局 `GET /jobs`；那属于运维视角，与回合视图分开。
+3. 会话令牌 + `users.role` 落地时，删掉名单，改 `plugins/auth.ts` 一处。

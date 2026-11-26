@@ -2,7 +2,6 @@ import { randomUUID } from "node:crypto";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import "../src/db/env";
 import { type DatabaseHandle, openDatabase } from "../src/db/connect";
-import { DEMO_USER } from "../src/db/demo-fixture";
 import { resetDomainData, seedDemoData } from "../src/db/maintenance";
 import { runMigrations } from "../src/db/migrate";
 import {
@@ -14,6 +13,7 @@ import {
 } from "../src/game";
 import type { GameState } from "../src/game/kernel/types";
 import type { World } from "../src/game/world-definition";
+import { DEMO_USER } from "../src/identity";
 import { ChatCompletionResult, type ChatCompletionService, type ToolCall } from "../src/llm";
 import { TEST_WORLD } from "./test-world";
 

@@ -1,5 +1,5 @@
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { DEMO_USER } from "../src/db/demo-fixture";
+import { DEMO_USER } from "../src/identity";
 import { allowAllDialogue } from "./test-dialogue-judge";
 import { TEST_WORLD } from "./test-world";
 import "../src/db/env";

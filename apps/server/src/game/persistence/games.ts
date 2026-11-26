@@ -1,7 +1,7 @@
 import { and, desc, eq, sql } from "drizzle-orm";
 import { z } from "zod";
 import type { Database } from "../../db/pool";
-import { gamePlayers, games, worlds } from "../../db/schema";
+import { gamePlayers, games, users, worlds } from "../../db/schema";
 import { GameError } from "../errors";
 import type { Executor } from "./rows";
 
@@ -50,6 +50,9 @@ export async function findGame(db: Reader, ref: string): Promise<GameRow | undef
 export type GameListRow = {
   id: string;
   slug: string;
+  /** 局主：运维看全库时靠它区分谁是谁的。 */
+  ownerId: string;
+  ownerUsername: string;
   name: string;
   status: string;
   /** 结束时的结局标签；active 局为空。 */
@@ -62,19 +65,25 @@ export type GameListRow = {
 };
 
 /**
- * 按 owner 列出这一局域：可见性落在 owner 上，与 `getGameMeta` 的访问判定同一个口径。
+ * 列出局；`ownerId` 省略即全库（只给运维用，判定在调用方）。
  *
- * 只读 `games` 一行；活跃作业、玩家数这类跨表读数由调用方另取，别把它变成一次大 join。
+ * 只读 `games` 与 `users` 两行；活跃作业、玩家数这类跨表读数由调用方另取，别把它变成大 join。
  */
-export async function listGamesByOwner(
+export async function listGames(
   db: Reader,
-  ownerId: string,
-  options: { status?: string; limit?: number } = {},
+  options: { ownerId?: string; status?: string; limit?: number } = {},
 ): Promise<GameListRow[]> {
+  const conditions = [
+    options.ownerId === undefined ? undefined : eq(games.ownerId, options.ownerId),
+    options.status === undefined ? undefined : eq(games.status, options.status),
+  ].filter((condition) => condition !== undefined);
+
   return db
     .select({
       id: games.id,
       slug: games.slug,
+      ownerId: games.ownerId,
+      ownerUsername: users.username,
       name: games.name,
       status: games.status,
       outcome: games.outcome,
@@ -85,11 +94,8 @@ export async function listGamesByOwner(
       updatedAt: games.updatedAt,
     })
     .from(games)
-    .where(
-      options.status === undefined
-        ? eq(games.ownerId, ownerId)
-        : and(eq(games.ownerId, ownerId), eq(games.status, options.status)),
-    )
+    .innerJoin(users, eq(users.id, games.ownerId))
+    .where(conditions.length === 0 ? undefined : and(...conditions))
     .orderBy(desc(games.updatedAt))
     .limit(options.limit ?? 50);
 }

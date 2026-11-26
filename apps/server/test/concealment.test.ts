@@ -2,7 +2,6 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import "../src/db/env";
 import type { DatabaseHandle } from "../src/db/connect";
 import { openDatabase } from "../src/db/connect";
-import { DEMO_USER } from "../src/db/demo-fixture";
 import { resetDomainData, seedDemoData } from "../src/db/maintenance";
 import { runMigrations } from "../src/db/migrate";
 import {
@@ -25,6 +24,7 @@ import { declareDeath } from "../src/game/agents/death/declare";
 import { buildStageTurnInput } from "../src/game/agents/stage-turn";
 import { damageActor } from "../src/game/persistence/actors";
 import type { World } from "../src/game/world-definition";
+import { DEMO_USER } from "../src/identity";
 import { buildActorTurnInput } from "./actor-turn-input";
 import { TEST_WORLD } from "./test-world";
 

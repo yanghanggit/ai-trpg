@@ -401,7 +401,7 @@ function summarize(lines: readonly TraceLine[]): TraceTurnSummary[] {
         turnId: line.turnId,
         gameSlug: line.gameSlug,
         turnKind: line.turnKind,
-        startedAt: line.at,
+        startedAt: timestampOf(line.at),
         llmCalls: 0,
         llmErrors: 0,
         actions: [],
@@ -454,6 +454,16 @@ function summarize(lines: readonly TraceLine[]): TraceTurnSummary[] {
   return [...byTurn.values()];
 }
 
+/**
+ * 行里的时间只用来排序与展示，读侧又不对文件做校验，所以这里统一成 ISO 字符串。
+ *
+ * 语料可能是手改过的、也可能是旧版本写下的：拿到无法使用的时间就留空，
+ * 让这一行不影响其它回合的排序——绝不 `new Date(1)` 编一个 1970 年出来。
+ */
+function timestampOf(value: unknown): string {
+  return typeof value === "string" ? value.trim() : "";
+}
+
 function planActionKinds(actions: unknown): string[] {
   if (!Array.isArray(actions)) {
     return [];
@@ -465,9 +475,16 @@ function planActionKinds(actions: unknown): string[] {
   );
 }
 
-/** 回合摘要，按发生时间升序；`limit` 取最近 N 轮。 */
+/**
+ * 回合摘要，按发生时间升序；`limit` 取最近 N 轮。
+ *
+ * 排序不能省：文件是按「局 → 日期」读的，跨局时行序不是时间序。先按 `startedAt` 排再切尾，
+ * 否则「最近 N 轮」会变成「某几个局的回合」。
+ */
 export async function listTurns(query: TraceQuery = {}): Promise<TraceTurnSummary[]> {
-  const turns = summarize(await readLines(await traceFiles(query)));
+  const turns = summarize(await readLines(await traceFiles(query))).sort((left, right) =>
+    left.startedAt.localeCompare(right.startedAt),
+  );
   return query.limit === undefined ? turns : turns.slice(-query.limit);
 }
 

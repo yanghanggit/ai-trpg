@@ -1,5 +1,5 @@
 import { createApiClient } from "@ai-trpg/api-client";
-import { DEFAULT_SERVER_PORT, serverBaseUrl } from "@ai-trpg/shared";
+import { DEFAULT_ADMIN_USERNAME, DEFAULT_SERVER_PORT, serverBaseUrl } from "@ai-trpg/shared";
 
 /**
  * 服务端地址：优先用 `.env` 的 VITE_API_BASE_URL；未配置时跟随页面主机名。
@@ -18,16 +18,16 @@ export const apiBaseUrl = resolveApiBaseUrl();
 /**
  * 开发期身份：服务端把 `Authorization: Bearer <username>` 当登录用。
  *
- * 后台目前等同于「当前 owner 的运维台」：它和 web 用同一个用户名，
- * 因此只能看见该 owner 名下的局。换成白名单或角色时只改这里与服务端鉴权插件。
+ * 后台固定用运维身份 `admin`——它在服务端名单里，能看全库与机器级读数。
+ * 换成真登录时改这里与服务端 `plugins/auth.ts`：把常量换成会话里的令牌。
  */
-export const devUsername = "demo";
+export const adminUsername = import.meta.env.VITE_ADMIN_USERNAME?.trim() || DEFAULT_ADMIN_USERNAME;
 
 export const api = createApiClient(apiBaseUrl);
 
 api.use({
   onRequest({ request }) {
-    request.headers.set("Authorization", `Bearer ${devUsername}`);
+    request.headers.set("Authorization", `Bearer ${adminUsername}`);
     return request;
   },
 });

@@ -52,6 +52,7 @@ import {
   toJobView,
 } from "../game-ops";
 import { HttpError } from "../http-error";
+import { isAdmin } from "../identity";
 import { type AuthUser, requireUser } from "../plugins/auth";
 import { actionOrderSchema } from "./schemas/action-order";
 import { actorLogSchema, actorViewSchema, gameMessageSchema } from "./schemas/client-view";
@@ -80,6 +81,8 @@ const gameSummarySchema = z
   .object({
     id: z.string(),
     slug: z.string(),
+    ownerId: z.string(),
+    ownerUsername: z.string(),
     name: z.string(),
     status: z.string(),
     outcome: z.string().nullable(),
@@ -191,6 +194,10 @@ export async function requireGameAccess(
   if (!game) {
     throw new HttpError(404, "not_found", `游戏不存在: ${gameRef}`);
   }
+  // 运维名单越过 owner 检查：它不拥有局，却能读任意一局。判定只在这一处。
+  if (isAdmin(user.username)) {
+    return;
+  }
   if (game.ownerId !== user.id) {
     throw new HttpError(403, "forbidden", "无权访问该局");
   }
@@ -215,18 +222,24 @@ export function createGameRoutes(db: () => Database): FastifyPluginAsyncZod {
         schema: {
           tags: ["account"],
           summary: "当前身份",
+          description: "开发期的「我是谁」：只有两行用户与一张写死的运维名单，没有角色字段。",
           response: {
             200: z.object({
               user: z.object({
                 id: z.string(),
                 username: z.string(),
                 displayName: z.string(),
+                /** 是否在运维名单里：决定能看全库还是只看自己名下的局。 */
+                isAdmin: z.boolean(),
               }),
             }),
           },
         },
       },
-      async (request) => ({ user: await requireUser(db(), request) }),
+      async (request) => {
+        const user = await requireUser(db(), request);
+        return { user: { ...user, isAdmin: isAdmin(user.username) } };
+      },
     );
 
     // ------------------------------------------------------------ 建局与读取
@@ -272,17 +285,17 @@ export function createGameRoutes(db: () => Database): FastifyPluginAsyncZod {
       {
         schema: {
           tags: ["games"],
-          summary: "列出当前身份名下的局",
+          summary: "列出局（运维看全库，其他人只看自己名下）",
           description:
-            "按更新时间倒序；可见性落在 owner 上，跨 owner 排查需要更高权限。" +
-            "`activeJob` 回答「这一局现在有没有回合在跑」，不是可累加的计数。",
+            "按更新时间倒序。运维身份看全库，其他人只看自己名下的局——可见性只由身份决定，" +
+            "所以这里没有 owner 参数。`activeJob` 回答「这一局现在有没有回合在跑」，不是计数。",
           querystring: listGamesQuery,
           response: { 200: z.object({ games: z.array(gameSummarySchema) }) },
         },
       },
       async (request) => {
         const user = await requireUser(db(), request);
-        return listGamesOp(db(), user.id, request.query);
+        return listGamesOp(db(), user, request.query);
       },
     );
 

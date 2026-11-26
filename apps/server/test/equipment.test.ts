@@ -1,7 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { BELL_MONASTERY_WORLD } from "../seeds/dark-fantasy";
-import { DEMO_USER } from "../src/db/demo-fixture";
+import { DEMO_USER } from "../src/identity";
 import { memoryBody } from "./memory-content";
 import { TEST_WORLD } from "./test-world";
 import "../src/db/env";

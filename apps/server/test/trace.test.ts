@@ -46,6 +46,62 @@ describe("trace", () => {
     expect(traceEnabled({ TRACE_ENABLED: "1" } as NodeJS.ProcessEnv)).toBe(true);
   });
 
+  it("跨局时回合按开始时间排，而不是按文件顺序", async () => {
+    // 先写 b（slug 排序在后），再写 a：文件顺序是 a、b，时间顺序是 b、a。
+    const later = createTurnTrace({
+      game: { id: "game-b", slug: "trace-order-b" },
+      turnKind: "player",
+      turnId: "turn-late",
+      enabled: true,
+    });
+    if (!later) {
+      throw new Error("轨迹未创建");
+    }
+    await traceEvent(later, { event: "turn_start", label: "late" });
+    await traceEvent(later, { event: "turn_end", ok: true, loopSuccess: true });
+
+    await new Promise((resolve) => setTimeout(resolve, 5));
+
+    const earlier = createTurnTrace({
+      game: { id: "game-a", slug: "trace-order-a" },
+      turnKind: "player",
+      turnId: "turn-earlier",
+      enabled: true,
+    });
+    if (!earlier) {
+      throw new Error("轨迹未创建");
+    }
+    await traceEvent(earlier, { event: "turn_start", label: "earlier" });
+    await traceEvent(earlier, { event: "turn_end", ok: true, loopSuccess: true });
+
+    const all = (await listTurns()).filter((turn) => turn.turnId.startsWith("turn-"));
+    expect(all.slice(-2).map((turn) => turn.turnId)).toEqual(["turn-late", "turn-earlier"]);
+  });
+
+  it("语料里时间坏掉时不影响读，也不编时间", async () => {
+    // 手写一行 `at` 是数字的记录：读侧不校验文件，写侧也不该因为脏数据崩掉。
+    const dirOfGame = join(dir, "trace-dirty");
+    await mkdir(dirOfGame, { recursive: true });
+    await writeFile(
+      join(dirOfGame, "20990101.jsonl"),
+      `${JSON.stringify({
+        v: 1,
+        at: 1,
+        gameId: "game-dirty",
+        gameSlug: "trace-dirty",
+        turnId: "turn-dirty",
+        turnKind: "player",
+        event: "turn_start",
+        label: "dirty",
+      })}\n`,
+      "utf8",
+    );
+
+    const turns = await listTurns({ gameSlug: "trace-dirty" });
+    expect(turns.map((turn) => turn.turnId)).toEqual(["turn-dirty"]);
+    expect(turns[0]?.startedAt).toBe("");
+  });
+
   it("写入后能按回合复读、跨回合聚合、取最近事件", async () => {
     const first = createTurnTrace({
       game: GAME,

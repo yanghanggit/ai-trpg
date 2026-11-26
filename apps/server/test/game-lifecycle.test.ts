@@ -2,7 +2,6 @@ import { eq } from "drizzle-orm";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import "../src/db/env";
 import { type DatabaseHandle, openDatabase } from "../src/db/connect";
-import { DEMO_USER } from "../src/db/demo-fixture";
 import { resetDomainData, seedDemoData } from "../src/db/maintenance";
 import { runMigrations } from "../src/db/migrate";
 import {
@@ -19,6 +18,7 @@ import {
 } from "../src/db/schema";
 import { allActors, createGame, endGame, getGameStateSlice, listGameMessages } from "../src/game";
 import { createActionOrderOp, deleteGameOp, endGameOp } from "../src/game-ops";
+import { DEMO_USER } from "../src/identity";
 import { TEST_WORLD } from "./test-world";
 
 const testDatabaseUrl = process.env.TEST_DATABASE_URL;

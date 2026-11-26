@@ -5,7 +5,7 @@
  * 「直连 PostgreSQL」为「请求运行中的服务端」。
  */
 
-import { API_VERSION, DEFAULT_SERVER_PORT } from "@ai-trpg/shared";
+import { API_VERSION, DEFAULT_PLAYER_USERNAME, DEFAULT_SERVER_PORT } from "@ai-trpg/shared";
 
 export type ApiClient = {
   base: string;
@@ -47,14 +47,15 @@ function baseUrl(flag: string | undefined): string {
   return new URL(raw).toString().replace(/\/+$/, "");
 }
 
+/**
+ * 开发期身份：`--token` → `AGENT_API_TOKEN` → 玩家身份。
+ *
+ * 缺省值让人不必每次带 `--token demo`；要换身份（比如用运维看全库）仍然显式传。
+ */
 function token(flag: string | undefined): string {
-  const raw = flag ?? process.env.AGENT_API_TOKEN;
-  if (!raw || raw.trim().length === 0) {
-    throw new ApiFailure(
-      0,
-      "missing_token",
-      "缺少开发期身份：传 --token <username> 或设置 AGENT_API_TOKEN",
-    );
+  const raw = flag ?? process.env.AGENT_API_TOKEN ?? DEFAULT_PLAYER_USERNAME;
+  if (raw.trim().length === 0) {
+    throw new ApiFailure(0, "missing_token", "--token 不能为空");
   }
   return raw.trim();
 }

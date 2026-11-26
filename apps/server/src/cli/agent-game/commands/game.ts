@@ -7,6 +7,7 @@
  */
 
 import { readFile } from "node:fs/promises";
+import { DEFAULT_PLAYER_USERNAME } from "@ai-trpg/shared";
 import type { Command } from "commander";
 import { z } from "zod";
 import { CONTENT_PACKS, getContentPack } from "../../../../seeds";
@@ -34,7 +35,8 @@ import type { CommandContext } from "../context";
 const GROUP = "建局与读取";
 
 const createInput = z.object({
-  user: z.string().trim().min(1, "需要 --user <username>"),
+  /** 局主：缺省是玩家身份，把省掉的参数留给「自己的局」这个默认。 */
+  user: z.string().trim().min(1).optional(),
   seed: z.string().trim().min(1).optional(),
   contentFile: z.string().trim().min(1).optional(),
   worldFile: z.string().trim().min(1).optional(),
@@ -87,7 +89,7 @@ export function registerGameCommands(program: Command, ctx: CommandContext): voi
     group: GROUP,
     summary: "用种子 / 内容包 / world JSON 建一局",
     options: [
-      requiredOption("--user <username>", "局主用户名"),
+      optionalOption("--user <username>", "局主用户名，默认玩家身份"),
       optionalOption("--seed <name>", `内置内容包：${Object.keys(CONTENT_PACKS).join(" / ")}`),
       optionalOption("--content-file <path>", "内容包 JSON（含 world 与 knowledge）"),
       optionalOption("--world-file <path>", "只含 world 的 JSON 文件"),
@@ -102,7 +104,7 @@ export function registerGameCommands(program: Command, ctx: CommandContext): voi
         createGameOp(
           db,
           {
-            username: input.user,
+            username: input.user ?? DEFAULT_PLAYER_USERNAME,
             world,
             ...(input.name === undefined ? {} : { name: input.name }),
             ...(input.slug === undefined ? {} : { slug: input.slug }),

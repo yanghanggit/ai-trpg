@@ -1,7 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { BELL_MONASTERY_WORLD, CROW_GRAVE_WORLD } from "../seeds/dark-fantasy";
-import { DEMO_USER } from "../src/db/demo-fixture";
 import { allowedActionKinds, carriedActionsForKind } from "../src/game/actions";
 import { buildFitTool, parseFit } from "../src/game/actions/fit";
 import {
@@ -15,6 +14,7 @@ import {
 } from "../src/game/item-state";
 import { itemNamesWithTrigger } from "../src/game/kernel/affixes";
 import { actorInnateActions } from "../src/game/world-definition";
+import { DEMO_USER } from "../src/identity";
 import { ChatCompletionResult, type ChatCompletionService, type ToolCall } from "../src/llm";
 import { TEST_WORLD } from "./test-world";
 import "../src/db/env";

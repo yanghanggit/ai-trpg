@@ -85,7 +85,16 @@ pnpm dev
 
 **两个投影**：`GET /api/v1/games/{game}` 返回客户端读的观看者投影（默认主角视角），`GET /api/v1/games/{game}/state` 返回控制面的全量活状态；`agent:game view` / `agent:api view` 读前者。设计与守卫见 `docs/architecture.md`。
 
-**管理后台**：`pnpm dev:admin`（`pnpm dev` 也会一起起）在独立端口起控制面界面，读的是全知视图：活状态、轨迹、作业、记忆与探针，并支持推进回合、结束与删除一局。它只监听本机，身份与 web 相同，因此只能看见该账号名下的局。
+**管理后台**：`pnpm dev:admin`（`pnpm dev` 也会一起起）在独立端口起控制面界面，读的是全知视图：活状态、轨迹、作业、记忆与探针，并支持推进回合、结束与删除一局。它只监听本机。
+
+**开发期身份**：只有两行用户，名字写在 `@ai-trpg/shared`。
+
+| 身份 | 用在哪 | 能看什么 |
+| --- | --- | --- |
+| `demo`（玩家） | web、`agent:game`、`agent:api` 的缺省值 | 只看自己名下的局 |
+| `admin`（运维） | 管理后台固定用它 | 全库的局 + 机器级读数（`/traces`、`/status`） |
+
+两者都靠 `Authorization: Bearer <用户名>` 声明，没有密码——**这不是登录**，闸门是「后台只监听本机」。
 
 **页面目录（mock）**：`pnpm dev:mock` 在独立端口起一个入口，按「页面 × 状态」列出可直达的深链接，全部由 fixture 渲染。它不进生产构建，也不需要服务端。约定见 `docs/web-client.md`。
 

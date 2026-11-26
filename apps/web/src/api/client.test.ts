@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { api, devUsername } from "./client";
+import { api, playerUsername } from "./client";
 
 afterEach(() => {
   vi.unstubAllGlobals();
@@ -22,6 +22,6 @@ describe("api client", () => {
     await api.GET("/api/v1/me");
 
     const request = fetchMock.mock.calls[0]?.[0] as Request | undefined;
-    expect(request?.headers.get("Authorization")).toBe(`Bearer ${devUsername}`);
+    expect(request?.headers.get("Authorization")).toBe(`Bearer ${playerUsername}`);
   });
 });

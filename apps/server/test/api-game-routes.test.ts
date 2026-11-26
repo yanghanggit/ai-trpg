@@ -13,12 +13,12 @@ import "../src/db/env";
 import { buildApp } from "../src/app";
 import type { DatabaseHandle } from "../src/db/connect";
 import { openDatabase } from "../src/db/connect";
-import { DEMO_USER } from "../src/db/demo-fixture";
 import { resetDomainData, seedDemoData } from "../src/db/maintenance";
 import { runMigrations } from "../src/db/migrate";
 import { games, users } from "../src/db/schema";
 import type { Env } from "../src/env";
 import { createTurnJobRegistry, TURN_QUEUE } from "../src/game-ops";
+import { ADMIN_USER, DEMO_USER } from "../src/identity";
 import { JobStore, JobWorker } from "../src/jobs";
 import type { ChatCompletionResult, ChatCompletionService } from "../src/llm";
 
@@ -45,6 +45,7 @@ describe.skipIf(!testDatabaseUrl)("业务 API", () => {
   let app: Awaited<ReturnType<typeof buildApp>>;
 
   const auth = { authorization: `Bearer ${DEMO_USER.username}` };
+  const adminAuth = { authorization: `Bearer ${ADMIN_USER.username}` };
 
   beforeAll(async () => {
     handle = openDatabase("TEST_DATABASE_URL");
@@ -84,7 +85,9 @@ describe.skipIf(!testDatabaseUrl)("业务 API", () => {
   it("令牌解析出身份", async () => {
     const response = await app.inject({ method: "GET", url: "/api/v1/me", headers: auth });
     expect(response.statusCode).toBe(200);
-    expect(response.json()).toMatchObject({ user: { username: DEMO_USER.username } });
+    expect(response.json()).toMatchObject({
+      user: { username: DEMO_USER.username, isAdmin: false },
+    });
   });
 
   it("建局、读状态、接管、提交动作、读事件流", async () => {
@@ -313,9 +316,120 @@ describe.skipIf(!testDatabaseUrl)("业务 API", () => {
     ).not.toContain(listSlug);
   });
 
+  it("节点自述给出进程、数据库与轨迹目录，且不含凭据", async () => {
+    const response = await app.inject({
+      method: "GET",
+      url: "/api/v1/status",
+      headers: adminAuth,
+    });
+    expect(response.statusCode).toBe(200);
+
+    const body = response.json() as Record<string, unknown>;
+    expect(body).toMatchObject({
+      listen: { host: expect.any(String), port: expect.any(Number) },
+      process: {
+        pid: expect.any(Number),
+        nodeVersion: expect.any(String),
+        startedAt: expect.any(String),
+        uptimeSeconds: expect.any(Number),
+      },
+      trace: {
+        enabled: expect.any(Boolean),
+        dir: expect.any(String),
+        gameDirs: expect.any(Number),
+      },
+    });
+    expect((body.database as { name: string }).name.length).toBeGreaterThan(0);
+
+    const password = new URL(process.env.TEST_DATABASE_URL ?? "").password;
+    if (password.length > 0) {
+      expect(JSON.stringify(body)).not.toContain(password);
+    }
+
+    const anonymous = await app.inject({ method: "GET", url: "/api/v1/status" });
+    expect(anonymous.statusCode).toBe(401);
+  });
+
   it("局列表要求登录", async () => {
     const response = await app.inject({ method: "GET", url: "/api/v1/games" });
     expect(response.statusCode).toBe(401);
+  });
+
+  it("运维看全库、玩家只看自己，机器级读数只对运维开放", async () => {
+    const otherUser = {
+      id: randomUUID(),
+      username: `outsider-${SLUG}`,
+      displayName: "第三方",
+    };
+    await handle.db.insert(users).values(otherUser);
+    const otherGameId = randomUUID();
+    await handle.db.insert(games).values({
+      id: otherGameId,
+      ownerId: otherUser.id,
+      slug: `${SLUG}-outsider`,
+      name: "别人的局",
+      contentVersion: "test",
+    });
+
+    const adminMe = await app.inject({ method: "GET", url: "/api/v1/me", headers: adminAuth });
+    expect(adminMe.json()).toMatchObject({ user: { isAdmin: true } });
+
+    // 运维：列表里有别人的局，也能直接打开自己并不拥有的那一局。
+    const adminList = await app.inject({
+      method: "GET",
+      url: "/api/v1/games?limit=100",
+      headers: adminAuth,
+    });
+    expect(
+      (adminList.json() as { games: { slug: string; ownerUsername: string }[] }).games,
+    ).toContainEqual(
+      expect.objectContaining({ slug: `${SLUG}-outsider`, ownerUsername: otherUser.username }),
+    );
+    const adminRead = await app.inject({
+      method: "GET",
+      url: `/api/v1/games/${SLUG}`,
+      headers: adminAuth,
+    });
+    expect(adminRead.statusCode).toBe(200);
+
+    // 玩家：列表里没有，打开别人的局是 403（不是 404——局存在，但没有权限）。
+    const playerList = await app.inject({
+      method: "GET",
+      url: "/api/v1/games?limit=100",
+      headers: auth,
+    });
+    expect(
+      (playerList.json() as { games: { slug: string }[] }).games.map((game) => game.slug),
+    ).not.toContain(`${SLUG}-outsider`);
+    const playerRead = await app.inject({
+      method: "GET",
+      url: `/api/v1/games/${SLUG}-outsider`,
+      headers: auth,
+    });
+    expect(playerRead.statusCode).toBe(403);
+
+    // 机器级读数（轨迹、节点自述）只对运维开放。
+    const playerTraces = await app.inject({
+      method: "GET",
+      url: "/api/v1/traces?limit=1",
+      headers: auth,
+    });
+    expect(playerTraces.statusCode).toBe(403);
+    const adminTraces = await app.inject({
+      method: "GET",
+      url: "/api/v1/traces?limit=1",
+      headers: adminAuth,
+    });
+    expect(adminTraces.statusCode).toBe(200);
+    const playerStatus = await app.inject({
+      method: "GET",
+      url: "/api/v1/status",
+      headers: auth,
+    });
+    expect(playerStatus.statusCode).toBe(403);
+
+    await handle.db.delete(games).where(eq(games.id, otherGameId));
+    await handle.db.delete(users).where(eq(users.id, otherUser.id));
   });
 
   it("不存在的局返回 404 而不是 500", async () => {

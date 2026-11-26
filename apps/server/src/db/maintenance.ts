@@ -1,5 +1,5 @@
 import { sql } from "drizzle-orm";
-import { DEMO_USER } from "./demo-fixture";
+import { SEED_USERS } from "../identity";
 import type { Database } from "./pool";
 import { appMeta, users } from "./schema";
 
@@ -50,27 +50,26 @@ export async function resetDomainData(db: Database): Promise<void> {
   await db.execute(sql.raw(`TRUNCATE TABLE ${tables} RESTART IDENTITY CASCADE`));
 }
 
+/** 开发期的两个身份：玩家（`demo`）与运维（`admin`）。 */
 export async function seedDemoData(db: Database): Promise<void> {
-  await db
-    .insert(users)
-    .values({
-      id: DEMO_USER.id,
-      username: DEMO_USER.username,
-      displayName: DEMO_USER.displayName,
-    })
-    .onConflictDoUpdate({
-      target: users.username,
-      set: { displayName: DEMO_USER.displayName, updatedAt: new Date() },
-    });
+  for (const user of SEED_USERS) {
+    await db
+      .insert(users)
+      .values({ id: user.id, username: user.username, displayName: user.displayName })
+      .onConflictDoUpdate({
+        target: users.username,
+        set: { displayName: user.displayName, updatedAt: new Date() },
+      });
+  }
 
   await db
     .insert(appMeta)
     .values({
       key: "demo",
-      value: { version: 1, fixture: "demo-user" },
+      value: { version: 1, fixture: "seed-users" },
     })
     .onConflictDoUpdate({
       target: appMeta.key,
-      set: { value: { version: 1, fixture: "demo-user" }, updatedAt: new Date() },
+      set: { value: { version: 1, fixture: "seed-users" }, updatedAt: new Date() },
     });
 }

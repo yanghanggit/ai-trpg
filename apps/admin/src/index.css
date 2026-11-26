@@ -306,6 +306,21 @@ a {
   color: #1a0606;
 }
 
+/* 表格里的引用（局名、slug）：可点，但不该长成一个按钮。 */
+.link-button {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--accent);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.link-button:hover {
+  text-decoration: underline;
+}
+
 .form-error {
   margin: 16px 0 0;
   padding: 12px 14px;
