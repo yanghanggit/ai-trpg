@@ -1,7 +1,6 @@
 import type { components } from "@ai-trpg/api-client";
 import type { AdvanceInput } from "../../features/games/useGameActions";
-import type { JobView, MemoryOwner, MessageView } from "../../features/games/useGameData";
-import type { TraceTurn } from "../../features/traces/traceIndex";
+import type { MemoryOwner, MessageView } from "../../features/games/useGameData";
 
 export type MemoryQuery = { owner: MemoryOwner; name?: string };
 
@@ -14,24 +13,18 @@ export type GameBuildData = {
   buildError?: string;
 };
 
-/** 局控制台的全部展示数据；形状与动作都由容器给，页面不碰网络。 */
+/** 局控制台的展示数据；动作与数据都由容器给，页面不碰网络。 */
 export type GamePageData = {
   slug: string;
   busy?: string;
   actionError?: string;
+  /** 事件流是不是按 5 秒自动重读。 */
+  autoRefresh: boolean;
 
   messages?: MessageView[];
   messagesError?: string;
-
-  jobs?: JobView[];
-  jobsError?: string;
-  /** 这一次写入产生的作业：盯到终态才算数。 */
-  watchedJob?: JobView;
-
-  turns?: TraceTurn[];
-  turnsError?: string;
-  selectedTurnId?: string;
-  turnEvents?: Record<string, unknown>[];
+  /** 刚入队的作业 id：只回一行回执，不再摊开作业表。 */
+  queuedJobId?: string;
 
   memory?: { query: MemoryQuery; payload: unknown };
   memoryError?: string;
@@ -44,7 +37,7 @@ export type GamePageData = {
 
 export type GamePageActions = {
   refresh: () => Promise<void>;
-  cancelJob: (jobId: string) => Promise<void>;
+  toggleAutoRefresh: () => void;
   advance: (input: AdvanceInput) => Promise<void>;
   pass: (actors: string[]) => Promise<void>;
   endGame: (input: { outcome: string; message?: string }) => Promise<void>;
@@ -55,5 +48,4 @@ export type GamePageActions = {
   story: () => Promise<void>;
   loadMemory: (query: MemoryQuery) => void;
   loadLeaks: () => void;
-  selectTurn: (turnId: string | undefined) => void;
 };

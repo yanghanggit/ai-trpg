@@ -5,33 +5,16 @@ import { api } from "../../api/client";
 export type JobView = components["schemas"]["TurnJob"];
 export type MessageView = components["schemas"]["GameMessage"];
 
-/** 有运行中作业时按这个间隔重读；没有就不轮询。 */
-export const ACTIVE_JOB_REFETCH_INTERVAL_MS = 2000;
-/** 单个作业盯终态时的间隔：比列表快一档，入队后能立刻看到结果。 */
-export const WATCHED_JOB_REFETCH_INTERVAL_MS = 1500;
-export const JOB_HISTORY_LIMIT = 20;
+/**
+ * 页面在看着时的自动刷新间隔。
+ *
+ * 只有事件流按这个节奏重读：回合落地就会追加一行，其他面板是按需读的原文，
+ * 反复重读既没新东西也白烧请求。
+ */
+export const AUTO_REFRESH_INTERVAL_MS = 5000;
 
-export function isActiveJob(status: JobView["status"]): boolean {
-  return status === "pending" || status === "running";
-}
-
-export function isTerminalJob(status: JobView["status"]): boolean {
-  return status === "succeeded" || status === "failed" || status === "canceled";
-}
-
-/** 上帝视角的活状态；形状是 `unknown`，后台原样当 JSON 展示。 */
-export function useGameState(slug: string) {
-  return useQuery({
-    queryKey: ["games", slug, "state"],
-    queryFn: async () =>
-      unwrap(await api.GET("/api/v1/games/{game}/state", { params: { path: { game: slug } } }))
-        .state,
-    enabled: slug.length > 0,
-  });
-}
-
-/** 公共事件流：上帝视角、带真实名字。 */
-export function useGameMessages(slug: string) {
+/** 公共事件流：上帝视角、带真实名字。`refetch` 关掉时只按需读。 */
+export function useGameMessages(slug: string, refetch: boolean) {
   return useQuery({
     queryKey: ["games", slug, "messages"],
     queryFn: async () =>
@@ -41,44 +24,7 @@ export function useGameMessages(slug: string) {
         }),
       ).messages,
     enabled: slug.length > 0,
-  });
-}
-
-/** 这一局的作业：活跃的与历史各一份视图，读的是同一行。 */
-export function useGameJobs(slug: string) {
-  return useQuery({
-    queryKey: ["games", slug, "jobs"],
-    queryFn: async () =>
-      unwrap(
-        await api.GET("/api/v1/games/{game}/jobs", {
-          params: { path: { game: slug }, query: { status: "all", limit: 50 } },
-        }),
-      ).jobs,
-    enabled: slug.length > 0,
-    refetchInterval: (query) =>
-      (query.state.data ?? []).some((job) => isActiveJob(job.status))
-        ? ACTIVE_JOB_REFETCH_INTERVAL_MS
-        : false,
-  });
-}
-
-/** 单个作业：入队或取消之后盯到终态，不靠「入队成功」推断成功。 */
-export function useGameJob(slug: string, jobId: string | undefined) {
-  return useQuery({
-    queryKey: ["games", slug, "job", jobId ?? ""],
-    queryFn: async () =>
-      unwrap(
-        await api.GET("/api/v1/games/{game}/jobs/{job}", {
-          params: { path: { game: slug, job: jobId ?? "" } },
-        }),
-      ).job,
-    enabled: slug.length > 0 && jobId !== undefined && jobId.length > 0,
-    refetchInterval: (query) => {
-      const job = query.state.data;
-      return job !== undefined && isTerminalJob(job.status)
-        ? false
-        : WATCHED_JOB_REFETCH_INTERVAL_MS;
-    },
+    refetchInterval: refetch ? AUTO_REFRESH_INTERVAL_MS : false,
   });
 }
 

@@ -65,16 +65,6 @@ export function useGameActions(slug: string) {
     await refresh();
   }
 
-  async function cancelJob(jobId: string): Promise<JobView> {
-    const result = unwrap(
-      await api.POST("/api/v1/games/{game}/jobs/{job}/cancel", {
-        params: { path: { game: slug, job: jobId } },
-      }),
-    );
-    await refresh();
-    return result.job;
-  }
-
   async function endGame(input: { outcome: string; message?: string }): Promise<void> {
     unwrap(
       await api.POST("/api/v1/games/{game}/end", {
@@ -144,7 +134,6 @@ export function useGameActions(slug: string) {
   return {
     advance,
     pass,
-    cancelJob,
     endGame,
     deleteGame,
     compact,

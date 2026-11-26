@@ -2,8 +2,9 @@ import { useState } from "react";
 import { Link } from "react-router";
 import Hint from "../../components/Hint";
 import type { AdvanceKind } from "../../features/games/useGameActions";
-import type { JobView, MemoryOwner } from "../../features/games/useGameData";
+import { AUTO_REFRESH_INTERVAL_MS, type MemoryOwner } from "../../features/games/useGameData";
 import { formatAt } from "../../lib/format";
+import DangerDialog from "./DangerDialog";
 import type { GamePageActions, GamePageData } from "./types";
 
 type Props = {
@@ -17,6 +18,8 @@ type Props = {
  * 危险操作在这里要一次确认——确认是交互，不是判定；作业算不算成功仍然由容器重读终态决定。
  */
 export default function GamePanels({ data, actions }: Props) {
+  const [dangerOpen, setDangerOpen] = useState(false);
+
   return (
     <main className="admin">
       <header className="admin__bar">
@@ -35,121 +38,46 @@ export default function GamePanels({ data, actions }: Props) {
           <button
             type="button"
             className="button button--ghost"
+            aria-pressed={data.autoRefresh}
+            title={`每 ${AUTO_REFRESH_INTERVAL_MS / 1000} 秒重读一次事件流`}
+            onClick={() => actions.toggleAutoRefresh()}
+          >
+            自动刷新：{data.autoRefresh ? "开" : "关"}
+          </button>
+          <button
+            type="button"
+            className="button button--ghost"
             onClick={() => void actions.refresh()}
           >
-            重读
+            刷新
+          </button>
+          <button
+            type="button"
+            className="button button--danger"
+            onClick={() => setDangerOpen(true)}
+          >
+            危险操作
           </button>
         </div>
       </header>
 
       {data.actionError === undefined ? null : <p className="form-error">{data.actionError}</p>}
+      {data.queuedJobId === undefined ? null : (
+        <p className="muted">
+          已入队 <code>{data.queuedJobId.slice(0, 8)}</code>：结果看下面的事件流。
+        </p>
+      )}
 
-      <JobsSection data={data} actions={actions} />
       <AdvanceSection busy={data.busy !== undefined} actions={actions} />
-      <TraceSection data={data} actions={actions} />
       <MessagesSection data={data} />
       <AuxSection data={data} actions={actions} />
-      <DangerSection data={data} actions={actions} />
+      <DangerDialog
+        slug={data.slug}
+        open={dangerOpen}
+        onClose={() => setDangerOpen(false)}
+        actions={actions}
+      />
     </main>
-  );
-}
-
-function JobsSection({ data, actions }: Props) {
-  const jobs = data.jobs ?? [];
-  const active = jobs.filter((job) => job.status === "pending" || job.status === "running");
-
-  function handleCancel(job: JobView) {
-    if (window.confirm(`取消作业 ${job.jobId}？排队中的当场撤，执行中的在下一个检查点停。`)) {
-      void actions.cancelJob(job.jobId);
-    }
-  }
-
-  return (
-    <section className="panel">
-      <h2>作业</h2>
-      <p className="muted">
-        {active.length === 0
-          ? "这一局现在没有运行中的作业。"
-          : `${active.length} 个作业排队或执行中。`}
-      </p>
-
-      {data.watchedJob === undefined ? null : (
-        <dl className="facts">
-          <div>
-            <dt>刚入队的作业</dt>
-            <dd>
-              <code>{data.watchedJob.jobId.slice(0, 8)}</code>
-            </dd>
-          </div>
-          <div>
-            <dt>状态</dt>
-            <dd className={statusClass(data.watchedJob.status)}>{data.watchedJob.status}</dd>
-          </div>
-          <div>
-            <dt>步骤</dt>
-            <dd>{data.watchedJob.progress?.step ?? "—"}</dd>
-          </div>
-          <div>
-            <dt>结果</dt>
-            <dd>
-              {data.watchedJob.result === null
-                ? "—"
-                : data.watchedJob.result.ok
-                  ? "ok"
-                  : (data.watchedJob.errorCode ?? "failed")}
-            </dd>
-          </div>
-        </dl>
-      )}
-
-      {data.jobs === undefined ? (
-        <p className="muted">{data.jobsError ?? "读取中…"}</p>
-      ) : (
-        <table className="table">
-          <thead>
-            <tr>
-              <th>作业</th>
-              <th>类型</th>
-              <th>状态</th>
-              <th>步骤 / 错误</th>
-              <th>更新时间</th>
-              <th />
-            </tr>
-          </thead>
-          <tbody>
-            {jobs.map((job) => (
-              <tr key={job.jobId}>
-                <td>
-                  <code>{job.jobId.slice(0, 8)}</code>
-                </td>
-                <td>{job.kind}</td>
-                <td className={statusClass(job.status)}>
-                  {job.status}
-                  {job.cancelRequested && job.status === "running" ? "（待撤）" : ""}
-                </td>
-                <td>
-                  {job.error === null
-                    ? (job.progress?.step ?? "—")
-                    : `${job.errorCode}: ${job.error}`}
-                </td>
-                <td>{formatAt(job.updatedAt)}</td>
-                <td>
-                  {job.status === "pending" || job.status === "running" ? (
-                    <button
-                      type="button"
-                      className="button button--ghost"
-                      onClick={() => handleCancel(job)}
-                    >
-                      取消
-                    </button>
-                  ) : null}
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      )}
-    </section>
   );
 }
 
@@ -254,77 +182,6 @@ function AdvanceSection({ busy, actions }: { busy: boolean; actions: GamePageAct
           记空回合
         </button>
       </form>
-    </section>
-  );
-}
-
-function TraceSection({ data, actions }: { data: GamePageData; actions: GamePageActions }) {
-  return (
-    <section className="panel">
-      <h2>
-        轨迹
-        <Hint text="文件语料，不是数据库；这里读的是本局最近 50 个回合。" />
-      </h2>
-      {data.turns === undefined ? (
-        <p className="muted">{data.turnsError ?? "读取中…"}</p>
-      ) : data.turns.length === 0 ? (
-        <p className="muted">还没有轨迹。</p>
-      ) : (
-        <table className="table">
-          <thead>
-            <tr>
-              <th>回合</th>
-              <th>类型</th>
-              <th>目标</th>
-              <th>结果</th>
-              <th>模型</th>
-              <th>开始</th>
-              <th />
-            </tr>
-          </thead>
-          <tbody>
-            {data.turns.map((turn) => (
-              <tr key={turn.turnId}>
-                <td>
-                  <code>{turn.turnId.slice(0, 8)}</code>
-                </td>
-                <td>{turn.turnKind}</td>
-                <td>{turn.actorName ?? turn.stageName ?? "—"}</td>
-                <td>
-                  {turn.ok === undefined ? "—" : turn.ok ? "ok" : (turn.rejected ?? "failed")}
-                </td>
-                <td>
-                  {turn.llmCalls}
-                  {turn.llmErrors > 0 ? `（错 ${turn.llmErrors}）` : ""}
-                </td>
-                <td>{formatAt(turn.startedAt)}</td>
-                <td>
-                  <button
-                    type="button"
-                    className="button button--ghost"
-                    onClick={() =>
-                      actions.selectTurn(
-                        data.selectedTurnId === turn.turnId ? undefined : turn.turnId,
-                      )
-                    }
-                  >
-                    {data.selectedTurnId === turn.turnId ? "收起" : "事件"}
-                  </button>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      )}
-
-      {data.selectedTurnId === undefined ? null : (
-        <details className="details" open>
-          <summary>回合 {data.selectedTurnId.slice(0, 8)} 的事件</summary>
-          <pre className="json">
-            {data.turnEvents === undefined ? "读取中…" : JSON.stringify(data.turnEvents, null, 2)}
-          </pre>
-        </details>
-      )}
     </section>
   );
 }
@@ -527,98 +384,4 @@ function AuxSection({ data, actions }: { data: GamePageData; actions: GamePageAc
       </form>
     </section>
   );
-}
-
-function DangerSection({ data, actions }: { data: GamePageData; actions: GamePageActions }) {
-  const [outcome, setOutcome] = useState("");
-  const [message, setMessage] = useState("");
-  const [confirmation, setConfirmation] = useState("");
-
-  const canEnd = outcome.trim().length > 0;
-  const canDelete = confirmation.trim() === data.slug;
-
-  return (
-    <section className="panel panel--danger">
-      <h2>危险操作</h2>
-
-      <h3>结束一局</h3>
-      <form
-        className="inline-form"
-        onSubmit={(event) => {
-          event.preventDefault();
-          if (!canEnd) {
-            return;
-          }
-          if (!window.confirm(`结束「${data.slug}」？结局标签：${outcome.trim()}`)) {
-            return;
-          }
-          void actions.endGame({
-            outcome: outcome.trim(),
-            ...(message.trim() === "" ? {} : { message: message.trim() }),
-          });
-        }}
-      >
-        <label className="field">
-          <span>结局标签</span>
-          <input
-            value={outcome}
-            onChange={(event) => setOutcome(event.target.value)}
-            autoComplete="off"
-          />
-        </label>
-        <label className="field">
-          <span>正文（可选）</span>
-          <input
-            value={message}
-            onChange={(event) => setMessage(event.target.value)}
-            autoComplete="off"
-          />
-        </label>
-        <button className="button button--danger" type="submit" disabled={!canEnd}>
-          结束
-        </button>
-      </form>
-
-      <h3>删除一局</h3>
-      <p className="muted">级联清场，不可恢复。输入 slug 确认。</p>
-      <form
-        className="inline-form"
-        onSubmit={(event) => {
-          event.preventDefault();
-          if (!canDelete) {
-            return;
-          }
-          if (window.confirm(`删除「${data.slug}」及其全部数据？不可恢复。`)) {
-            void actions.deleteGame();
-          }
-        }}
-      >
-        <label className="field">
-          <span>确认 slug</span>
-          <input
-            value={confirmation}
-            onChange={(event) => setConfirmation(event.target.value)}
-            placeholder={data.slug}
-            autoComplete="off"
-          />
-        </label>
-        <button className="button button--danger" type="submit" disabled={!canDelete}>
-          删除
-        </button>
-      </form>
-    </section>
-  );
-}
-
-function statusClass(status: JobView["status"]): string {
-  if (status === "succeeded") {
-    return "badge badge--ok";
-  }
-  if (status === "failed") {
-    return "badge badge--error";
-  }
-  if (status === "canceled") {
-    return "badge badge--muted";
-  }
-  return "badge badge--pending";
 }

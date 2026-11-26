@@ -2,14 +2,7 @@ import { useState } from "react";
 import { useNavigate } from "react-router";
 import { describeApiError } from "../../api/describeApiError";
 import { type AdvanceInput, useGameActions } from "../../features/games/useGameActions";
-import {
-  useGameJob,
-  useGameJobs,
-  useGameMessages,
-  useMemory,
-  useNameLeaks,
-} from "../../features/games/useGameData";
-import { useTraceTurns, useTurnEvents } from "../../features/traces/useTraces";
+import { useGameMessages, useMemory, useNameLeaks } from "../../features/games/useGameData";
 import GamePanels from "./GamePanels";
 import type { GamePageActions, GamePageData, MemoryQuery } from "./types";
 
@@ -23,15 +16,10 @@ export default function GameConsole({ slug }: { slug: string }) {
   const navigate = useNavigate();
   const actions = useGameActions(slug);
 
-  const messages = useGameMessages(slug);
-  const jobs = useGameJobs(slug);
-  const turns = useTraceTurns({ game: slug, limit: 50 });
+  const [autoRefresh, setAutoRefresh] = useState(true);
+  const messages = useGameMessages(slug, autoRefresh);
 
-  const [watchedJobId, setWatchedJobId] = useState<string>();
-  const watchedJob = useGameJob(slug, watchedJobId);
-
-  const [selectedTurnId, setSelectedTurnId] = useState<string>();
-  const turnEvents = useTurnEvents(selectedTurnId);
+  const [queuedJobId, setQueuedJobId] = useState<string>();
 
   const [memoryQuery, setMemoryQuery] = useState<MemoryQuery>();
   const memory = useMemory(slug, memoryQuery);
@@ -58,21 +46,16 @@ export default function GameConsole({ slug }: { slug: string }) {
   }
 
   const handlers: GamePageActions = {
+    toggleAutoRefresh: () => setAutoRefresh((current) => !current),
     refresh: async () => {
       await run("刷新", async () => {
         await actions.refresh();
       });
     },
-    cancelJob: async (jobId) => {
-      await run("取消作业", async () => {
-        const job = await actions.cancelJob(jobId);
-        setWatchedJobId(job.jobId);
-      });
-    },
     advance: async (input: AdvanceInput) => {
       await run("入队回合", async () => {
         const job = await actions.advance(input);
-        setWatchedJobId(job.jobId);
+        setQueuedJobId(job.jobId);
       });
     },
     pass: async (actors) => {
@@ -113,22 +96,16 @@ export default function GameConsole({ slug }: { slug: string }) {
     },
     loadMemory: (query) => setMemoryQuery(query),
     loadLeaks: () => setLeaksEnabled(true),
-    selectTurn: (turnId) => setSelectedTurnId(turnId),
   };
 
   const data: GamePageData = {
     slug,
     busy,
     actionError,
+    autoRefresh,
     messages: messages.data,
     messagesError: messages.isError ? describeApiError(messages.error) : undefined,
-    jobs: jobs.data,
-    jobsError: jobs.isError ? describeApiError(jobs.error) : undefined,
-    watchedJob: watchedJob.data,
-    turns: turns.data,
-    turnsError: turns.isError ? describeApiError(turns.error) : undefined,
-    selectedTurnId,
-    turnEvents: turnEvents.data,
+    queuedJobId,
     memory:
       memoryQuery === undefined || memory.data === undefined
         ? undefined
