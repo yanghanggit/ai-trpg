@@ -869,10 +869,6 @@ code {
   color: var(--accent);
 }
 
-.slot--action:hover .slot__note {
-  color: inherit;
-}
-
 .slot--action:focus-visible {
   outline: 2px solid var(--accent);
   outline-offset: 2px;
@@ -901,6 +897,10 @@ code {
   font-size: 11px;
   line-height: 1.5;
   color: var(--muted);
+}
+
+.slot--action:hover .slot__note {
+  color: inherit;
 }
 
 /* 封着的出口：与 .card--faded 同一套处理，名字降级但不消失。 */

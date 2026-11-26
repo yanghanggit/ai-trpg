@@ -534,7 +534,7 @@ describe("world content validation", () => {
           ...TEST_WORLD,
           actors: TEST_WORLD.actors.map((actor) =>
             actor.name === "守烬人"
-              ? { ...actor, actions: [...actor.actions, actor.actions[0]!] }
+              ? { ...actor, actions: [...actor.actions, ...actor.actions.slice(0, 1)] }
               : actor,
           ),
         }),
@@ -612,8 +612,11 @@ describe("world content validation", () => {
       };
       const parsed = parseWorldContent(withHideSkill);
       const keeper = parsed.actors.find((actor) => actor.name === "守烬人");
-      expect(keeper?.actions).not.toContain("hide");
-      expect(actorInnateActions(keeper!)).toContain("hide");
+      if (keeper === undefined) {
+        throw new Error("守烬人 应当被解析出来");
+      }
+      expect(keeper.actions).not.toContain("hide");
+      expect(actorInnateActions(keeper)).toContain("hide");
 
       // hide 也可以直接写进 actions：天生藏身的怪物不必有技艺。
       const direct = parseWorldContent({

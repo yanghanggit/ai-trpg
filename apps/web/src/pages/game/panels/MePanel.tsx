@@ -12,51 +12,49 @@ export default function MePanel({ view }: { view: GameView }) {
   const maxHp = viewer.stats.find((stat) => stat.key === "maxHp")?.value ?? 0;
 
   return (
-    <>
-      <dl className="rows">
-        <div>
-          <dt>局</dt>
-          <dd>{game.name}</dd>
-        </div>
-        <div>
-          <dt>slug</dt>
-          <dd>
-            <code>{game.slug}</code>
-          </dd>
-        </div>
-        <div>
-          <dt>状态</dt>
-          <dd>{game.status}</dd>
-        </div>
-        <div>
-          <dt>版本</dt>
-          <dd>
-            v{game.version} · {game.contentVersion}
-          </dd>
-        </div>
-        <div>
-          <dt>名字</dt>
-          <dd>{viewer.name}</dd>
-        </div>
-        <div>
-          <dt>引用</dt>
-          <dd>{self?.token ?? "—"}</dd>
-        </div>
-        <div>
-          <dt>隐匿</dt>
-          <dd>{viewer.concealed ? "对旁人不可见" : "未隐匿"}</dd>
-        </div>
-        <div>
-          <dt>外观</dt>
-          <dd>{viewer.appearance}</dd>
-        </div>
-        <div>
-          {/* 顶部条上已经有这组读数，这里压成一行，只为回看时不用抬头。 */}
-          <dt>属性</dt>
-          <dd className="readout">{readoutOf(viewer, maxHp)}</dd>
-        </div>
-      </dl>
-    </>
+    <dl className="rows">
+      <div>
+        <dt>局</dt>
+        <dd>{game.name}</dd>
+      </div>
+      <div>
+        <dt>slug</dt>
+        <dd>
+          <code>{game.slug}</code>
+        </dd>
+      </div>
+      <div>
+        <dt>状态</dt>
+        <dd>{game.status}</dd>
+      </div>
+      <div>
+        <dt>版本</dt>
+        <dd>
+          v{game.version} · {game.contentVersion}
+        </dd>
+      </div>
+      <div>
+        <dt>名字</dt>
+        <dd>{viewer.name}</dd>
+      </div>
+      <div>
+        <dt>引用</dt>
+        <dd>{self?.token ?? "—"}</dd>
+      </div>
+      <div>
+        <dt>隐匿</dt>
+        <dd>{viewer.concealed ? "对旁人不可见" : "未隐匿"}</dd>
+      </div>
+      <div>
+        <dt>外观</dt>
+        <dd>{viewer.appearance}</dd>
+      </div>
+      <div>
+        {/* 顶部条上已经有这组读数，这里压成一行，只为回看时不用抬头。 */}
+        <dt>属性</dt>
+        <dd className="readout">{readoutOf(viewer, maxHp)}</dd>
+      </div>
+    </dl>
   );
 }
 
