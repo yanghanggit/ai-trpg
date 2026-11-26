@@ -112,3 +112,4 @@ pnpm dev
 - 引擎与系统：[`docs/`](docs/README.md)，从索引进。
 - 内容与剧本：与 seed 同目录（如 `apps/server/seeds/dark-fantasy/bell-monastery.md`）。
 - 使用与工具链：本文件。
+- 进行中的工作与交接：[`todo/`](todo/README.md)，开工前先读，做完一条删一条。
