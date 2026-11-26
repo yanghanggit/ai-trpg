@@ -111,6 +111,8 @@ export async function runActorTurn(
     stageId: current.stage.id,
     stageName: current.stage.name,
     contentVersion: state.game.contentVersion,
+    clock: state.game.clock,
+    at: state.game.clock + 1,
   });
 
   const context = actorTurnContext(state, current);

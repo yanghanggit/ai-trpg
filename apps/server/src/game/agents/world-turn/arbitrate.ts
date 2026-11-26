@@ -7,7 +7,12 @@ import { appendMemoryMessages, loadAgentMemory } from "../../memory";
 import { MEMORY_KINDS } from "../../memory/kinds";
 import { appendStageDirective } from "../../memory/world-channel";
 import { appendPublicMessage } from "../../persistence/game-messages";
-import { bumpGameVersion, completeGameIfActive, lockGameRow } from "../../persistence/games";
+import {
+  advanceGameClock,
+  bumpGameVersion,
+  completeGameIfActive,
+  lockGameRow,
+} from "../../persistence/games";
 import type { Executor } from "../../persistence/rows";
 import { listStagesOfWorld } from "../../persistence/stages";
 import { loadWorldByGame } from "../../persistence/worlds";
@@ -62,6 +67,8 @@ export async function applyWorldPlan(
       return reject("本轮没有提交有效世界计划，状态未改变。");
     }
     if (actions.length === 0) {
+      // 显式空计划也是世界的一次回合：时间照走，只是没有世界级变更要写。
+      await advanceGameClock(tx, gameId);
       return true;
     }
     if (actions.length > MAX_WORLD_ACTIONS_PER_TURN) {
@@ -88,6 +95,8 @@ export async function applyWorldPlan(
       }
     }
 
+    // 校验全部通过 = 这一回合真的会落账：此后写的记忆落在新的一刻。
+    await advanceGameClock(tx, gameId);
     const now = new Date();
     let completed = false;
     for (const action of actions) {

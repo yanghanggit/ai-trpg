@@ -36,4 +36,4 @@
 
 ## 现在的验证位置
 
-`apps/server` 742 passed / 1 skipped，`apps/web` 50 passed，`pnpm typecheck`、`pnpm lint` 全绿。数据库只有一份基线迁移（`apps/server/drizzle/0000_baseline.sql`），改 schema 的方式见 `docs/database.md` 与待办里的说明。
+`apps/server` 747 passed / 1 skipped，`apps/web` 50 passed，`pnpm typecheck`、`pnpm lint` 全绿。数据库只有一份基线迁移（`apps/server/drizzle/0000_baseline.sql`），改 schema 的方式见 `docs/database.md` 与待办里的说明。

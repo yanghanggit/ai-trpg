@@ -70,6 +70,10 @@ export type TraceEvent =
       stageId?: string;
       stageName?: string;
       contentVersion?: string;
+      /** 读出这一刻的游戏时刻（规划看到的世界的时刻）。 */
+      clock?: number;
+      /** 这一回合落账后所在的时刻；被拒时不会到达。 */
+      at?: number;
     }
   | { event: "turn_end"; ok: boolean; loopSuccess?: boolean; detail?: unknown }
   | {

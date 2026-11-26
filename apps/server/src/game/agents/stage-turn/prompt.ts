@@ -1,3 +1,4 @@
+import { renderTurnClock } from "../../kernel/clock";
 import type { GameStateSlice, StageState } from "../../kernel/types";
 import { isAlive } from "../../lookup";
 import { describeStageAnchors } from "../../stage-state/describe";
@@ -70,6 +71,9 @@ ${concealedActors.map((actor) => `${actor.name}（隐匿）`).join("\n")}
   ];
 
   return `# 当前舞台
+
+## 当前时间
+${renderTurnClock(context.clock)}
 
 ## 舞台
 ${stage.name}

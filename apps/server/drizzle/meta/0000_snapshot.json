@@ -1,5 +1,5 @@
 {
-  "id": "25ff78af-a088-4647-81c0-b1872b7de13e",
+  "id": "605ed540-db3c-4cfd-bc03-c4f83bb878d8",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "version": "7",
   "dialect": "postgresql",
@@ -1572,6 +1572,13 @@
         },
         "version": {
           "name": "version",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 0
+        },
+        "clock": {
+          "name": "clock",
           "type": "integer",
           "primaryKey": false,
           "notNull": true,

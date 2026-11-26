@@ -75,6 +75,13 @@ export const games = pgTable(
     outcome: text("outcome"),
     contentVersion: text("content_version").notNull(),
     version: integer("version").notNull().default(0),
+    /**
+     * 逻辑时钟：每落账一个回合（任何一层）+1，0 是开局。
+     *
+     * 它回答「这是这个回合制世界的第几刻」，与墙钟时间、变更版本、行动轮计数都无关。
+     * 只在回合落账的写事务里推进；被拒的回合不推进。
+     */
+    clock: integer("clock").notNull().default(0),
     /** 本局实体序号的当前值；world / stage / actor / item 共用。 */
     entitySeq: integer("entity_seq").notNull().default(0),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),

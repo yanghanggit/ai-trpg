@@ -52,6 +52,8 @@ export type GameMeta = {
   status: string;
   contentVersion: string;
   version: number;
+  /** 逻辑时钟：已落账的回合数，0 是开局。 */
+  clock: number;
   playerId: string;
   /** 这局的 world id；按名字定位 actor / stage 时用它做作用域。 */
   worldId: string;
@@ -85,6 +87,7 @@ export async function getGameMeta(db: Database, ref: string): Promise<GameMeta> 
     status: game.status,
     contentVersion: game.contentVersion,
     version: game.version,
+    clock: game.clock,
     playerId: playerRow.id,
     worldId: worldRow.id,
   };
@@ -179,4 +182,35 @@ export async function bumpGameVersion(
     .update(games)
     .set({ version: sql<number>`${games.version} + 1`, updatedAt: now })
     .where(eq(games.id, gameId));
+}
+
+/** 只读逻辑时钟：本局已落账的回合数。 */
+export async function readGameClock(db: Reader, gameId: string): Promise<number> {
+  const [row] = await db
+    .select({ clock: games.clock })
+    .from(games)
+    .where(eq(games.id, gameId))
+    .limit(1);
+  if (!row) {
+    throw new GameError("not_found", `游戏不存在: ${gameId}`);
+  }
+  return row.clock;
+}
+
+/**
+ * 推进逻辑时钟，返回这一回合所在的那一刻。
+ *
+ * 只在回合真正落账的写事务里调用，且在写这一回合的记忆之前：同一事务内写下的记忆
+ * 随后都落这一刻。被拒的回合不调用——没落账就没有过去一刻。
+ */
+export async function advanceGameClock(executor: Executor, gameId: string): Promise<number> {
+  const [row] = await executor
+    .update(games)
+    .set({ clock: sql<number>`${games.clock} + 1` })
+    .where(eq(games.id, gameId))
+    .returning({ clock: games.clock });
+  if (!row) {
+    throw new GameError("not_found", `游戏不存在: ${gameId}`);
+  }
+  return row.clock;
 }

@@ -13,7 +13,7 @@ import { isAlive, listStageActorRefs, stageAddressLookup } from "../lookup";
 import { appendMemoryMessages, loadAgentMemory } from "../memory";
 import { MEMORY_KINDS } from "../memory/kinds";
 import { setActorConcealed } from "../persistence/actors";
-import { bumpGameVersion } from "../persistence/games";
+import { advanceGameClock, bumpGameVersion } from "../persistence/games";
 import type { ActorWithStageRow, Executor } from "../persistence/rows";
 import { upsertSignatureName } from "../persistence/signature-names";
 import { describeRoute, describeRouteFailure, loadRouteWorld } from "../route";
@@ -82,8 +82,8 @@ const COGNITION_KINDS: readonly string[] = [
 
 /**
  * 认知是「谁叫什么」「某地怎么走」这类不随现场变化的结论；`# 当时` 记的是舞台、在场者与
- * 可交互物，随时间与人员变动失真，拼在认知里只会误导。真正的「当时」需要世界级的时间
- * 与推进计数，等那套标记落地再补，现在不在认知条目上假装有时态。
+ * 可交互物，随时间与人员变动失真，拼在认知里只会误导。时刻由记忆层统一盖在每条消息上，
+ * 认知自己不再拼一遍现场。
  */
 function isCognition(metadata: Record<string, unknown>): boolean {
   const kind = metadata.kind;
@@ -212,6 +212,9 @@ export async function settlePlan(
       };
     }
 
+    // 计划通过校验的那一刻推进时钟：此后这一回合写的记忆落在新的一刻，而上面被拒的
+    // 记忆仍落在旧的一刻。被拒的回合没有落账，时间就不应该过去。
+    await advanceGameClock(tx, gameId);
     const now = new Date();
     const applied: {
       event: "applied";

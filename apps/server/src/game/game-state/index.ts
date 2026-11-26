@@ -287,6 +287,7 @@ function assembleState(rows: StateRows): GameStateSlice {
       outcome: rows.game.outcome ?? null,
       contentVersion: rows.game.contentVersion,
       version: rows.game.version,
+      clock: rows.game.clock,
       createdAt: rows.game.createdAt.toISOString(),
       updatedAt: rows.game.updatedAt.toISOString(),
     },

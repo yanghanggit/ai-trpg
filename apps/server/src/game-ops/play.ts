@@ -43,6 +43,7 @@ import {
   playerWait,
   playerWhisper,
   readActionOrder,
+  recordPassTurn,
   recordTurnTaken,
   refreshCorpseAppearance,
   releaseActorControl,
@@ -683,7 +684,7 @@ export async function passTurn(
     const actor = findActorByName(state, name).actor;
     results.push({
       actorName: actor.name,
-      counted: await recordTurnTaken(db, state.game.id, actor.id),
+      counted: await recordPassTurn(db, state.game.id, actor.id),
     });
   }
   return { results };

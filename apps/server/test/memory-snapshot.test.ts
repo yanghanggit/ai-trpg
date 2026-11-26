@@ -18,6 +18,7 @@ import {
 } from "../src/game";
 import type { World } from "../src/game/world-definition";
 import { ChatCompletionResult, type ChatCompletionService } from "../src/llm";
+import { memoryBody } from "./memory-content";
 import { TEST_WORLD } from "./test-world";
 
 const ITEM_WORLD: World = {
@@ -215,8 +216,10 @@ describe.skipIf(!testDatabaseUrl)("memory state snapshot", () => {
     const contents = (memories.find((memory) => memory.name === "守烬人")?.messages ?? []).map(
       (message) => message.content,
     );
-    const actionResult = contents.find((content) => content.startsWith("# 行动结果"));
-    const cognition = contents.filter((content) => content.startsWith("# 认知"));
+    const actionResult = contents
+      .map(memoryBody)
+      .find((content) => content.startsWith("# 行动结果"));
+    const cognition = contents.map(memoryBody).filter((content) => content.startsWith("# 认知"));
 
     expect(actionResult).toContain("# 当时");
     expect(cognition.length).toBeGreaterThan(0);
@@ -254,8 +257,10 @@ describe.skipIf(!testDatabaseUrl)("memory state snapshot", () => {
     const contents = (memories.find((memory) => memory.name === "守烬人")?.messages ?? []).map(
       (message) => message.content,
     );
-    const actionResult = contents.find((content) => content.startsWith("# 行动结果"));
-    const cognition = contents.filter((content) => content.startsWith("# 认知"));
+    const actionResult = contents
+      .map(memoryBody)
+      .find((content) => content.startsWith("# 行动结果"));
+    const cognition = contents.map(memoryBody).filter((content) => content.startsWith("# 认知"));
 
     expect(actionResult).toContain("# 当时");
     expect(cognition.length).toBeGreaterThan(0);

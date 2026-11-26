@@ -21,7 +21,7 @@ type Entry = {
   alive: boolean;
 };
 
-type Order = { id: string; gameVersion: number; entries: Entry[] };
+type Order = { id: string; clock: number; gameVersion: number; entries: Entry[] };
 
 /** `/state` 是控制面投影，只取 tick 需要的事实，不整份建模。 */
 type Snapshot = {
@@ -49,15 +49,15 @@ function unwrap<T>(payload: unknown, key: string): T {
   return value as T;
 }
 
-/** 顺位概览：名次、执行方、计数，死者标 `†`。 */
+/** 顺位概览：时刻、名次、执行方、计数，死者标 `†`。 */
 function tally(order: Order): string {
-  return order.entries
+  return `第 ${order.clock} 刻 | ${order.entries
     .map((entry) => {
       const mark = entry.alive ? "" : "†";
       const who = entry.control === "player" ? "玩家" : "agent";
       return `#${entry.position}${mark}(${who}):${entry.turnsTaken}`;
     })
-    .join(" ");
+    .join(" ")}`;
 }
 
 /** 视图过期是 tick 自己的簿记错，不是这个 actor 的失败：按错误码认，不解析文本。 */

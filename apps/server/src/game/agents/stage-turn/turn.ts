@@ -50,6 +50,8 @@ export async function runStageTurn(
     stageId: stage.id,
     stageName: stage.name,
     contentVersion: state.game.contentVersion,
+    clock: state.game.clock,
+    at: state.game.clock + 1,
   });
 
   const context = stageTurnContext(state, stage);

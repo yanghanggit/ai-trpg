@@ -9,6 +9,7 @@ function makeOrder(): ActionOrder {
     status: "active",
     createdAt: "2026-01-02T03:04:05.000Z",
     completedAt: null,
+    clock: 3,
     gameVersion: 2,
     entries: [
       {
@@ -46,6 +47,9 @@ function makeOrder(): ActionOrder {
 describe("OrderPanel", () => {
   it("名次、执行方、计数、出局都写在一行；下一个单独标出来", () => {
     render(<OrderPanel order={makeOrder()} selfActorId="b" />);
+
+    // 顺位给出的世界时刻：读它的人不必自己数回合。
+    expect(screen.getByText("第 3 刻")).toBeInTheDocument();
 
     const list = screen.getByLabelText("行动顺位");
     expect(list).toHaveTextContent("#1 戈特");

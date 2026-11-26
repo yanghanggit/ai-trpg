@@ -43,6 +43,8 @@ export const actionOrderSchema = z
     createdAt: z.string(),
     completedAt: z.string().nullable(),
     entries: z.array(actionOrderEntrySchema),
+    /** 读出这一刻的游戏时刻；回合落账时 +1。 */
+    clock: z.number(),
     gameVersion: z.number(),
     nextActor: actionOrderNextActorSchema.nullable(),
   })

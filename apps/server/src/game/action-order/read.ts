@@ -7,7 +7,7 @@ import {
   listActionOrderEntries,
   listOrderParticipants,
 } from "../persistence/action-orders";
-import { readGameVersion } from "../persistence/games";
+import { readGameClock, readGameVersion } from "../persistence/games";
 import { nextEntry } from "./next";
 
 /**
@@ -51,6 +51,7 @@ export async function projectActionOrder(
     createdAt: row.createdAt.toISOString(),
     completedAt: row.completedAt === null ? null : row.completedAt.toISOString(),
     entries,
+    clock: await readGameClock(db, row.gameId),
     gameVersion: await readGameVersion(db, row.gameId),
     nextActor:
       picked === null

@@ -26,6 +26,7 @@ function order(
     status: "active",
     createdAt: "2026-01-02T03:04:05.000Z",
     completedAt: null,
+    clock: 4,
     gameVersion,
     entries,
     nextActor:

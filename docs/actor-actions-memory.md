@@ -12,9 +12,9 @@ actor 长期 memory 是下一次 LLM request 的稳定上下文；`game_messages
 
 每次成功动作只留一条行动事实：做了什么、结果；台词动作保留说出口的原文。行动结果后附落账后的舞台、在场称谓与陈列道具，失败与拒绝也带这份状态；它取最终状态，移动后不会写成起点。这份状态只挂在行动事实上：纯认知条目（改名、路线回忆）不带，因为结论不随现场漂移。计划里的内心独白与玩家入口的 `reason` 只进过程轨迹，不写长期 memory。agent 词缀的增量另走自己的通道，不在行动事实里重复。
 
-长期 memory 只由引擎写入：system prompt、可选的 `openingBriefing`，之后是行动事实、观察与认知更新。任务提示词与工具轨迹不进入长期 memory。
+长期 memory 只由引擎写入：system prompt、可选的 `openingBriefing`，之后是行动事实、观察与认知更新。任务提示词与工具轨迹不进入长期 memory。每条事实由引擎盖上落账时的时刻（第几刻），所以同一份记忆自带时间顺序；这个刻度不是墙钟时间。
 
-→ 参见：[数据库](database.md)、[词缀](affixes.md)
+→ 参见：[数据库](database.md)、[词缀](affixes.md)、[行动顺位](action-order.md)
 
 ## 过程轨迹
 

@@ -18,6 +18,8 @@ export const STAGE_ACTION_KINDS = [
  */
 export type StageTurnContext = {
   stage: StageState;
+  /** 读出这一刻的游戏时刻：与 actor / world 共用同一只表。 */
+  clock: number;
   /** 本舞台的仲裁能力清单（内容层声明）。 */
   allowed: readonly StageActionKind[];
   /** 可去的相邻舞台名。 */
@@ -31,6 +33,7 @@ export type StageTurnContext = {
 export function stageTurnContext(state: GameStateSlice, stage: StageState): StageTurnContext {
   return {
     stage,
+    clock: state.game.clock,
     allowed: stage.actions,
     moves: adjacentStageNames(state, stage.id),
     sealed: sealedStageNames(state, stage.id),

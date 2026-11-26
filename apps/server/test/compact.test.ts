@@ -12,6 +12,7 @@ import {
   getGameMemories,
 } from "../src/game";
 import { ChatCompletionResult, type ChatCompletionService } from "../src/llm";
+import { memoryBody } from "./memory-content";
 import { TEST_WORLD } from "./test-world";
 
 const testDatabaseUrl = process.env.TEST_DATABASE_URL?.trim();
@@ -194,7 +195,7 @@ describe.skipIf(!testDatabaseUrl)("memory compaction", () => {
     const meta = (message: (typeof messages)[number]) =>
       message.metadata as Record<string, unknown> | undefined;
     expect(pinned.every((message) => meta(message)?.pinned === true)).toBe(true);
-    expect(pinned.map((message) => message.content)).toEqual([
+    expect(pinned.map((message) => memoryBody(message.content))).toEqual([
       "# 认知\n从灰烬门廊到断钟中殿：灰烬门廊 → 断钟中殿（新结论）",
       "# 认知\n从灰烬门廊到墓室：灰烬门廊 → 墓室",
       "# 认知\n你认不出「不存在的塔」这个地方，这次回忆只记下这一点。",
@@ -241,7 +242,7 @@ describe.skipIf(!testDatabaseUrl)("memory compaction", () => {
     );
     const pinned = (memory?.messages ?? []).slice(2);
     // 只留最近的 8 条：第 5..12 条
-    expect(pinned.map((message) => message.content)).toEqual(
+    expect(pinned.map((message) => memoryBody(message.content))).toEqual(
       Array.from({ length: 8 }, (_, index) => `# 认知\n第 ${index + 5} 条路线`),
     );
   });

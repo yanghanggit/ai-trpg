@@ -1,3 +1,4 @@
+import { renderTurnClock } from "../../kernel/clock";
 import { MAX_WORLD_ACTIONS_PER_TURN } from "../../kernel/limits";
 import type { GameStateSlice } from "../../kernel/types";
 import { isAlive } from "../../lookup";
@@ -28,6 +29,9 @@ ${stage.environment}
     .join("\n\n");
 
   return `# 世界状态
+
+## 当前时间
+${renderTurnClock(state.game.clock)}
 
 ## 世界
 ${state.world.name}

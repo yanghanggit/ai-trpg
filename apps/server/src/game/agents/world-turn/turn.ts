@@ -51,6 +51,8 @@ export async function runWorldTurn(
     event: "turn_start",
     label: state.world.name,
     contentVersion: state.game.contentVersion,
+    clock: state.game.clock,
+    at: state.game.clock + 1,
   });
 
   const lookStageTool = buildWorldLookStageTool(state);

@@ -12,6 +12,7 @@ import {
 import { formatForm } from "../src/game/agents/appearance/form";
 import type { World } from "../src/game/world-definition";
 import { ChatCompletionResult, type ChatCompletionService, type ToolCall } from "../src/llm";
+import { memoryBody } from "./memory-content";
 import { TEST_WORLD } from "./test-world";
 import "../src/db/env";
 import { type DatabaseHandle, openDatabase } from "../src/db/connect";
@@ -247,7 +248,7 @@ describe.skipIf(!testDatabaseUrl)("cleave", () => {
       memories
         .find((memory) => memory.name === "守烬人")
         ?.messages.map((message) => message.content)
-        .find((content) => content.startsWith("# 行动结果")) ?? "";
+        .find((content) => memoryBody(content).startsWith("# 行动结果")) ?? "";
     expect(feedback.match(/# 行动结果/g)).toHaveLength(1);
     expect(feedback.split("\n").filter((line) => line.includes("顺劈"))).toHaveLength(2);
   });

@@ -6,6 +6,7 @@ import { resetDomainData, seedDemoData } from "../src/db/maintenance";
 import { runMigrations } from "../src/db/migrate";
 import { createGame, getGameMemories, getGameState } from "../src/game";
 import { appendSelfObservation, appendStageMemory } from "../src/game/observations";
+import { memoryBody } from "./memory-content";
 import { TEST_WORLD } from "./test-world";
 
 /**
@@ -76,7 +77,7 @@ describe.skipIf(!testDatabaseUrl)("world-face write seams", () => {
     const memory = await actorMemory(created.game.id, actor.id);
     expect(
       memory?.messages.some(
-        (message) => message.content === "火焰舔过你的手背，皮肉在油脂里发紧。",
+        (message) => memoryBody(message.content) === "火焰舔过你的手背，皮肉在油脂里发紧。",
       ),
     ).toBe(true);
 

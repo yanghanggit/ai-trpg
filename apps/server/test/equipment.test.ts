@@ -2,6 +2,7 @@ import { randomUUID } from "node:crypto";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { BELL_MONASTERY_WORLD } from "../seeds/dark-fantasy";
 import { DEMO_USER } from "../src/db/demo-fixture";
+import { memoryBody } from "./memory-content";
 import { TEST_WORLD } from "./test-world";
 import "../src/db/env";
 import { type DatabaseHandle, openDatabase } from "../src/db/connect";
@@ -88,7 +89,7 @@ describe.skipIf(!testDatabaseUrl)("equip and unequip actions", () => {
     const feedback =
       memories
         .find((memory) => memory.name === "奥德里克")
-        ?.messages.filter((message) => message.content.startsWith("# 行动结果"))
+        ?.messages.filter((message) => memoryBody(message.content).startsWith("# 行动结果"))
         .map((message) => message.content.split("\n\n# 当时")[0] ?? message.content)
         .join("\n") ?? "";
     expect(feedback).toContain("你穿上了补丁斗篷");

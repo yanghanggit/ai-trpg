@@ -11,7 +11,7 @@ import { listActorNamesInWorld } from "../../lookup";
 import { appendMemoryMessages, ensureStageOpeningSnapshot, loadAgentMemory } from "../../memory";
 import { MEMORY_KINDS } from "../../memory/kinds";
 import { isPassageSealed, listOpenNeighborStageNames } from "../../persistence/edges";
-import { bumpGameVersion, lockGameRow } from "../../persistence/games";
+import { advanceGameClock, bumpGameVersion, lockGameRow } from "../../persistence/games";
 import { listStageItems } from "../../persistence/items";
 import { listStagesOfWorld, loadStageInWorld } from "../../persistence/stages";
 import { loadWorldByGame } from "../../persistence/worlds";
@@ -199,6 +199,9 @@ export async function applyStagePlan(
       }
     }
 
+    // 校验全部通过 = 这一回合真的会落账：此后写的舞台记忆落在新的一刻；
+    // 上面被拒的记忆还落在旧的一刻。
+    await advanceGameClock(tx, gameId);
     const now = new Date();
     for (const action of plan.actions) {
       await applyStageAction(tx, {

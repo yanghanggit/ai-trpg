@@ -37,12 +37,18 @@ export async function ensureStageOpeningSnapshot(
     ...anchor,
     items: (itemsByAnchor.get(anchor.key) ?? []).map((name) => ({ name })),
   }));
-  await appendMemoryMessages(executor, memory.row.id, [
-    {
-      type: "human",
-      content: buildStageOpeningSnapshot({ ...stage, anchors }),
-      metadata: { kind: MEMORY_KINDS.stageOpeningSnapshot },
-    },
-  ]);
+  await appendMemoryMessages(
+    executor,
+    memory.row.id,
+    [
+      {
+        type: "human",
+        content: buildStageOpeningSnapshot({ ...stage, anchors }),
+        metadata: { kind: MEMORY_KINDS.stageOpeningSnapshot },
+      },
+    ],
+    // 补写落在任意时刻，但它描述的是开局：时刻固定为 0，不跟着「现在」漂。
+    { at: 0 },
+  );
   return true;
 }

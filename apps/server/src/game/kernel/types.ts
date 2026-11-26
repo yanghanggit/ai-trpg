@@ -660,13 +660,20 @@ export type ActionOrderNextActorState = {
   control: ActionOrderControl;
 };
 
-/** 一条行动顺位：快照 + 每个名次的计数 + 生命周期标记。 */
+/**
+ * 一条行动顺位：快照 + 每个名次的计数 + 生命周期标记。
+ *
+ * `clock` 是读出这一刻的逻辑时刻（本局已落账的回合数）。它不属于这条顺位：
+ * 顺位可以收工、删掉、重开，时刻只随回合前进，不会清零。
+ */
 export type ActionOrderState = {
   id: string;
   status: ActionOrderStatus;
   createdAt: string;
   completedAt: string | null;
   entries: ActionOrderEntryState[];
+  /** 读出这一刻的游戏时刻；回合落账时 +1，被拒的回合不动。 */
+  clock: number;
   /** 读出这一刻的世界版本：客户端据此判断自己手上的视图过不过期。 */
   gameVersion: number;
   /** 顺位上没有还活着的人时为 null。玩家角色与 NPC 一样参与排队。 */
@@ -684,6 +691,8 @@ export type GameState = {
     outcome: string | null;
     contentVersion: string;
     version: number;
+    /** 逻辑时钟：已落账的回合数；0 是开局。 */
+    clock: number;
     createdAt: string;
     updatedAt: string;
   };

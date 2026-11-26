@@ -153,6 +153,7 @@ CREATE TABLE "games" (
 	"outcome" text,
 	"content_version" text NOT NULL,
 	"version" integer DEFAULT 0 NOT NULL,
+	"clock" integer DEFAULT 0 NOT NULL,
 	"entity_seq" integer DEFAULT 0 NOT NULL,
 	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
 	"updated_at" timestamp with time zone DEFAULT now() NOT NULL

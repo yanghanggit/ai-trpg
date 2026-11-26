@@ -5,6 +5,7 @@ import { effectiveSourcesOf } from "../../gameplay";
 import { describeEquipmentBrief } from "../../item-state/describe";
 import { refOf } from "../../kernel/addressing";
 import { STAT_LABELS } from "../../kernel/attributes";
+import { renderTurnClock } from "../../kernel/clock";
 import { MAX_ACTIONS_PER_TURN } from "../../kernel/limits";
 import { STATUS_EFFECT_LABEL } from "../../kernel/status-effects";
 import { isAlive } from "../../lookup";
@@ -59,6 +60,9 @@ function renderEnvironment(context: ActorTurnContext): string {
 
   // 两个可选小节各占一个插值位，各自带自己的空行：缺省时不留痕迹。
   return `# 当前环境
+
+## 当前时间
+${renderTurnClock(context.state.game.clock)}
 
 ## 舞台
 ${stage.name}
