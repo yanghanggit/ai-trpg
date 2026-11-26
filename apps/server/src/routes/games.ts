@@ -28,6 +28,7 @@ import {
   enqueuePlayerTurn,
   enqueueStageTurn,
   enqueueWorldTurn,
+  listGamesOp,
   listTurnJobs,
   memoryOp,
   nameLeaksOp,
@@ -73,6 +74,28 @@ const stateSchema = z.unknown();
 const resultsSchema = z.array(z.record(z.string(), z.unknown()));
 
 const actorTurnResponse = z.record(z.string(), z.unknown());
+
+/** 局列表一行：够回答「有哪些局、跑到哪、现在有没有回合在跑」。 */
+const gameSummarySchema = z
+  .object({
+    id: z.string(),
+    slug: z.string(),
+    name: z.string(),
+    status: z.string(),
+    outcome: z.string().nullable(),
+    contentVersion: z.string(),
+    version: z.number(),
+    clock: z.number(),
+    createdAt: z.iso.datetime(),
+    updatedAt: z.iso.datetime(),
+    activeJob: z.object({ jobId: z.string(), kind: z.string(), status: z.string() }).nullable(),
+  })
+  .meta({ id: "GameSummary" });
+
+const listGamesQuery = z.object({
+  status: z.enum(["active", "completed"]).optional(),
+  limit: z.coerce.number().int().min(1).max(100).optional(),
+});
 
 const createBody = z.object({
   seed: z.string().trim().min(1).optional(),
@@ -240,6 +263,26 @@ export function createGameRoutes(db: () => Database): FastifyPluginAsyncZod {
           { logger: request.log },
         );
         return readActorView(db(), created.state.game.slug);
+      },
+    );
+
+    // 控制面的局列表：写的是「这一局跑到哪」，不是世界内容。
+    app.get(
+      "/games",
+      {
+        schema: {
+          tags: ["games"],
+          summary: "列出当前身份名下的局",
+          description:
+            "按更新时间倒序；可见性落在 owner 上，跨 owner 排查需要更高权限。" +
+            "`activeJob` 回答「这一局现在有没有回合在跑」，不是可累加的计数。",
+          querystring: listGamesQuery,
+          response: { 200: z.object({ games: z.array(gameSummarySchema) }) },
+        },
+      },
+      async (request) => {
+        const user = await requireUser(db(), request);
+        return listGamesOp(db(), user.id, request.query);
       },
     );
 

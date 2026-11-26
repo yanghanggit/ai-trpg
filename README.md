@@ -31,6 +31,7 @@ pnpm dev
 启动后访问终端打印的地址：
 
 - Web：`http://<局域网 IP>:5373/`（Vite 的 Network 地址）
+- 管理后台：`http://127.0.0.1:5375/`（只监听本机，不随局域网暴露）
 - API：`http://<局域网 IP>:8787/api/v1/health`
 
 ## 局域网访问
@@ -47,14 +48,15 @@ pnpm dev
 
 | 命令                  | 说明                                                          |
 | --------------------- | ------------------------------------------------------------- |
-| `pnpm dev`            | 生成契约后并行启动服务端与客户端                              |
+| `pnpm dev`            | 生成契约后并行启动服务端、客户端与管理后台                    |
 | `pnpm dev:server`     | 只启动服务端                                                  |
 | `pnpm dev:web`        | 只启动客户端                                                  |
 | `pnpm dev:mock`       | 只启动页面目录（mock，独立端口）；不需要服务端与数据库        |
+| `pnpm dev:admin`      | 只启动管理后台（独立端口，只监听本机）                        |
 | `pnpm verify`         | install → 契约 → typecheck → lint → 测试 → 构建（不启动服务） |
 | `pnpm pipeline`       | `verify` 通过后直接进入 `pnpm dev`                            |
 | `pnpm test:run`       | 单次运行全部测试                                              |
-| `pnpm lint`           | Biome + 端口守卫 + Markdown 检查                              |
+| `pnpm lint`           | Biome + 端口 / mock / 客户端范围守卫 + Markdown 检查          |
 | `pnpm format`         | Biome + Markdown 格式化                                       |
 | `pnpm gen:api`        | 重新生成 OpenAPI 与客户端类型                                 |
 | `pnpm db:generate`    | 根据 schema 生成 SQL 迁移                                     |
@@ -82,6 +84,8 @@ pnpm dev
 **后台作业**：`pnpm job` 查看队列，`pnpm job:worker` 消费作业；HTTP 接入前都是独立工具，设计与边界见 `docs/background-jobs.md`。
 
 **两个投影**：`GET /api/v1/games/{game}` 返回客户端读的观看者投影（默认主角视角），`GET /api/v1/games/{game}/state` 返回控制面的全量活状态；`agent:game view` / `agent:api view` 读前者。设计与守卫见 `docs/architecture.md`。
+
+**管理后台**：`pnpm dev:admin`（`pnpm dev` 也会一起起）在独立端口起控制面界面，读的是全知视图：活状态、轨迹、作业、记忆与探针，并支持推进回合、结束与删除一局。它只监听本机，身份与 web 相同，因此只能看见该账号名下的局。
 
 **页面目录（mock）**：`pnpm dev:mock` 在独立端口起一个入口，按「页面 × 状态」列出可直达的深链接，全部由 fixture 渲染。它不进生产构建，也不需要服务端。约定见 `docs/web-client.md`。
 

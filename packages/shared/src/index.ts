@@ -22,6 +22,9 @@ export const DEFAULT_WEB_PORT = 5373;
 /** Mock 目录（页面 × 状态）的 dev server 端口默认值；与正式端分开进程。 */
 export const DEFAULT_MOCK_PORT = 5374;
 
+/** 管理后台的 dev server 端口默认值；只监听本机。 */
+export const DEFAULT_ADMIN_PORT = 5375;
+
 export function serverBaseUrl(port: number = DEFAULT_SERVER_PORT, host = "localhost"): string {
   return `http://${host}:${port}`;
 }

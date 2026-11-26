@@ -17,12 +17,13 @@
 | [客户端回路](web-cs-flow.md) | web 侧待办：停止、订阅、作业历史、走查清单与观察点 |
 | [服务器遗留](server-debt.md) | 归档策略、SSE 限流、取消边界等，含各自的触发条件 |
 | [内容与验收](content-verify.md) | 种子缺敏捷装备、多舞台走查、收尾路径 |
+| [管理后台](admin-console.md) | 控制面图形界面的形状、权限现状与缺口 |
 | [已定的取舍](decisions.md) | 不再讨论的决定；改它之前先读理由 |
 
 ## 关键命令
 
 - `pnpm dev`：服务端与页面一起起（一个命令两个进程，端口见 `.env.example`）
-- `pnpm test`：server + web 两套；`pnpm typecheck`；`pnpm lint`（biome + 端口 + mock 隔离 + markdown）
+- `pnpm test`：server + web + admin 三套；`pnpm typecheck`；`pnpm lint`（biome + 端口 + mock 隔离 + 客户端范围 + markdown）
 - `pnpm gen:api`：重生成 `packages/api-client`（契约改动后必须跑，生成物已 gitignore）
 - `pnpm --filter @ai-trpg/server jobs:prune`：只报告孤儿作业；加 `--apply` 才真删
 - `pnpm agent:api --help`：开发期 HTTP 客户端，逐条对应业务端点（回合、作业、顺位、接管、玩家动作）

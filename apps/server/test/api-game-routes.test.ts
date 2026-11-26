@@ -5,6 +5,7 @@
  * 需要 TEST_DATABASE_URL；未配置时整组跳过。
  */
 
+import { randomUUID } from "node:crypto";
 import { DEFAULT_SERVER_PORT } from "@ai-trpg/shared";
 import { eq } from "drizzle-orm";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
@@ -15,7 +16,7 @@ import { openDatabase } from "../src/db/connect";
 import { DEMO_USER } from "../src/db/demo-fixture";
 import { resetDomainData, seedDemoData } from "../src/db/maintenance";
 import { runMigrations } from "../src/db/migrate";
-import { games } from "../src/db/schema";
+import { games, users } from "../src/db/schema";
 import type { Env } from "../src/env";
 import { createTurnJobRegistry, TURN_QUEUE } from "../src/game-ops";
 import { JobStore, JobWorker } from "../src/jobs";
@@ -55,7 +56,9 @@ describe.skipIf(!testDatabaseUrl)("业务 API", () => {
 
   afterAll(async () => {
     if (handle) {
-      await handle.db.delete(games).where(eq(games.slug, SLUG));
+      for (const slug of [SLUG, `${SLUG}-list`]) {
+        await handle.db.delete(games).where(eq(games.slug, slug));
+      }
       await handle.pool.end();
     }
     if (app) {
@@ -210,6 +213,109 @@ describe.skipIf(!testDatabaseUrl)("业务 API", () => {
     });
     expect(response.statusCode).toBe(400);
     expect(response.json()).toMatchObject({ error: "invalid_request" });
+  });
+
+  it("局列表带元信息，且只含当前身份名下的局", async () => {
+    const listSlug = `${SLUG}-list`;
+    const created = await app.inject({
+      method: "POST",
+      url: "/api/v1/games",
+      headers: auth,
+      payload: { seed: "dark-fantasy:crow-grave", slug: listSlug },
+    });
+    expect(created.statusCode).toBe(200);
+
+    // 别人的局：直接插一行，避开建局路径——这条用例只验证列表的可见性口径。
+    const otherUser = {
+      id: randomUUID(),
+      username: `other-${listSlug}`,
+      displayName: "别人",
+    };
+    await handle.db.insert(users).values(otherUser);
+    await handle.db.insert(games).values({
+      id: randomUUID(),
+      ownerId: otherUser.id,
+      slug: `${listSlug}-foreign`,
+      name: "别人的局",
+      contentVersion: "test",
+    });
+
+    const listed = await app.inject({
+      method: "GET",
+      url: "/api/v1/games?limit=100",
+      headers: auth,
+    });
+    expect(listed.statusCode).toBe(200);
+
+    const body = listed.json() as {
+      games: {
+        slug: string;
+        status: string;
+        outcome: string | null;
+        clock: number;
+        version: number;
+        activeJob: unknown;
+        updatedAt: string;
+      }[];
+    };
+    const slugs = body.games.map((game) => game.slug);
+    expect(slugs).toContain(listSlug);
+    expect(slugs).not.toContain(`${listSlug}-foreign`);
+
+    const mine = body.games.find((game) => game.slug === listSlug);
+    expect(mine).toMatchObject({
+      status: "active",
+      outcome: null,
+      version: 0,
+      clock: 0,
+      activeJob: null,
+      updatedAt: expect.any(String),
+    });
+
+    // 入队一个 NPC 回合但不跑 worker：列表要能看到「这一局现在有回合在跑」。
+    const queued = await app.inject({
+      method: "POST",
+      url: `/api/v1/games/${listSlug}/turns/npc`,
+      headers: auth,
+      payload: { actor: "收尸人卡尔" },
+    });
+    expect(queued.statusCode).toBe(202);
+
+    const withActive = await app.inject({
+      method: "GET",
+      url: "/api/v1/games?limit=100",
+      headers: auth,
+    });
+    const activeRow = (
+      withActive.json() as {
+        games: {
+          slug: string;
+          activeJob: { jobId: string; kind: string; status: string } | null;
+        }[];
+      }
+    ).games.find((game) => game.slug === listSlug);
+    expect(activeRow?.activeJob).toMatchObject({ status: "pending" });
+    // 活跃作业是「这一局在跑什么」，不是跨局共享的一个计数。
+    expect(
+      (withActive.json() as { games: { slug: string; activeJob: unknown }[] }).games.filter(
+        (game) => game.activeJob !== null,
+      ),
+    ).toHaveLength(1);
+
+    // 状态过滤直接作用在列表上：这一局还没结束，不该出现在 completed 里。
+    const completed = await app.inject({
+      method: "GET",
+      url: "/api/v1/games?status=completed&limit=100",
+      headers: auth,
+    });
+    expect(
+      (completed.json() as { games: { slug: string }[] }).games.map((g) => g.slug),
+    ).not.toContain(listSlug);
+  });
+
+  it("局列表要求登录", async () => {
+    const response = await app.inject({ method: "GET", url: "/api/v1/games" });
+    expect(response.statusCode).toBe(401);
   });
 
   it("不存在的局返回 404 而不是 500", async () => {

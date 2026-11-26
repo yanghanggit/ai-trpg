@@ -1,0 +1,351 @@
+:root {
+  color-scheme: dark;
+  --bg: #0a0d12;
+  --panel: #121922;
+  --panel-soft: #161f29;
+  --line: #24313f;
+  --text: #e6edf3;
+  --muted: #8b9bb0;
+  --accent: #7dd3fc;
+  --ok: #4ade80;
+  --error: #f87171;
+  --pending: #fbbf24;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  min-height: 100%;
+}
+
+body {
+  margin: 0;
+  font-family:
+    ui-sans-serif, system-ui, -apple-system, "Segoe UI", "PingFang SC", "Hiragino Sans GB",
+    "Microsoft YaHei", sans-serif;
+  color: var(--text);
+  background:
+    radial-gradient(900px 520px at 12% -8%, rgb(125 211 252 / 10%), transparent 60%),
+    radial-gradient(800px 460px at 108% 6%, rgb(248 113 113 / 6%), transparent 55%), var(--bg);
+  -webkit-font-smoothing: antialiased;
+}
+
+code {
+  padding: 0.1em 0.35em;
+  border-radius: 4px;
+  background: rgb(255 255 255 / 8%);
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 0.9em;
+}
+
+a {
+  color: var(--accent);
+}
+
+.admin {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  max-width: 1280px;
+  margin: 0 auto;
+  padding: 20px clamp(16px, 2vw, 32px) 56px;
+}
+
+.admin__bar {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 16px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid var(--line);
+}
+
+.admin__bar h1 {
+  margin: 2px 0 0;
+  font-size: 24px;
+  letter-spacing: -0.01em;
+}
+
+.admin__bar h1 code {
+  font-size: 0.9em;
+}
+
+.admin__hint {
+  margin: 0;
+  max-width: 42ch;
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.6;
+  text-align: right;
+}
+
+.admin__actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.eyebrow {
+  margin: 0;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.24em;
+  color: var(--accent);
+  text-transform: uppercase;
+}
+
+.eyebrow a {
+  color: inherit;
+  text-decoration: none;
+}
+
+.eyebrow a:hover {
+  text-decoration: underline;
+}
+
+.panel {
+  margin-top: 20px;
+  padding: 20px 22px;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: linear-gradient(180deg, var(--panel-soft), var(--panel));
+}
+
+.panel--danger {
+  border-color: rgb(248 113 113 / 35%);
+}
+
+.panel h2 {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.panel h3 {
+  margin: 22px 0 10px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  color: var(--muted);
+  text-transform: uppercase;
+}
+
+.muted {
+  margin: 8px 0 0;
+  font-size: 13px;
+  line-height: 1.6;
+  color: var(--muted);
+}
+
+/* 读数网格：一格里一个标签 + 一个值，不摊成表。 */
+.facts {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 1px;
+  margin: 16px 0 0;
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--line);
+}
+
+.facts > div {
+  padding: 11px 13px;
+  background: var(--panel);
+}
+
+.facts dt {
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  color: var(--muted);
+}
+
+.facts dd {
+  margin: 6px 0 0;
+  font-size: 14px;
+  font-variant-numeric: tabular-nums;
+}
+
+.badge {
+  display: inline-block;
+  padding: 2px 10px;
+  border: 1px solid currentcolor;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.badge--ok {
+  color: var(--ok);
+  background: rgb(74 222 128 / 10%);
+}
+
+.badge--error {
+  color: var(--error);
+  background: rgb(248 113 113 / 10%);
+}
+
+.badge--pending {
+  color: var(--pending);
+  background: rgb(251 191 36 / 10%);
+}
+
+.badge--muted {
+  color: var(--muted);
+  background: rgb(139 155 176 / 10%);
+}
+
+.table {
+  width: 100%;
+  margin-top: 14px;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+
+.table th,
+.table td {
+  padding: 9px 10px;
+  border-bottom: 1px solid var(--line);
+  text-align: left;
+  vertical-align: top;
+}
+
+.table th {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  color: var(--muted);
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.table td {
+  line-height: 1.55;
+  /* 事件正文可能很长：让它自己换行，不把表撑出屏幕。 */
+  overflow-wrap: anywhere;
+}
+
+.inline-form {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 12px;
+  margin-top: 14px;
+}
+
+.field {
+  display: grid;
+  gap: 6px;
+  min-width: 180px;
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.field input,
+.field select {
+  padding: 8px 11px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--bg);
+  color: var(--text);
+  font: inherit;
+  font-size: 13px;
+}
+
+.field input:disabled {
+  opacity: 0.45;
+}
+
+.field input:focus,
+.field select:focus {
+  outline: 2px solid rgb(125 211 252 / 45%);
+  outline-offset: 1px;
+}
+
+.button {
+  padding: 8px 16px;
+  border: 1px solid var(--accent);
+  border-radius: 8px;
+  background: var(--accent);
+  color: #06131a;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.button:disabled {
+  cursor: default;
+  opacity: 0.45;
+}
+
+.button--ghost {
+  border-color: var(--line);
+  background: transparent;
+  color: var(--text);
+  font-weight: 500;
+}
+
+.button--ghost:hover:not(:disabled) {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.button--danger {
+  border-color: var(--error);
+  background: transparent;
+  color: var(--error);
+}
+
+.button--danger:hover:not(:disabled) {
+  background: var(--error);
+  color: #1a0606;
+}
+
+.form-error {
+  margin: 16px 0 0;
+  padding: 12px 14px;
+  border: 1px solid rgb(248 113 113 / 35%);
+  border-radius: 10px;
+  background: rgb(248 113 113 / 8%);
+  color: var(--error);
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+.details {
+  margin-top: 14px;
+  padding: 12px 14px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: rgb(18 25 34 / 60%);
+}
+
+.details summary {
+  font-size: 12px;
+  color: var(--muted);
+  cursor: pointer;
+}
+
+.details[open] summary {
+  margin-bottom: 10px;
+}
+
+.json {
+  margin: 0;
+  max-height: 460px;
+  padding: 12px;
+  overflow: auto;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--bg);
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 12px;
+  line-height: 1.6;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}

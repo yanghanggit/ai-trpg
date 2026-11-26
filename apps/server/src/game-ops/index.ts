@@ -7,6 +7,7 @@
 
 export * from "./action-order";
 export * from "./artifacts";
+export * from "./games";
 export * from "./inspect";
 export * from "./play";
 export * from "./player-action";

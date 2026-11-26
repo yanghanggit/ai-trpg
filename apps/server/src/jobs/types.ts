@@ -110,6 +110,8 @@ export type JobListFilter = {
   queue?: string;
   /** 同一组作业的组键（回合作业用 `turn:<gameId>`）。 */
   serializationKey?: string;
+  /** 一次取多组的组键：跨局列表用，避免按局逐个查。 */
+  serializationKeys?: readonly string[];
   /** 只取更新时间晚于它的行；流式补发与「断开后重查」用它。 */
   updatedSince?: Date;
   /** 默认 50，最大 500。 */

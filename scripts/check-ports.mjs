@@ -11,14 +11,21 @@ const root = fileURLToPath(new URL("..", import.meta.url));
 const sharedFile = "packages/shared/src/index.ts";
 
 const sharedSource = readFileSync(path.join(root, sharedFile), "utf8");
-const ports = [...sharedSource.matchAll(/DEFAULT_(?:SERVER|WEB|MOCK)_PORT\s*=\s*(\d+)/g)].map(
-  (match) => match[1],
-);
+const expectedPorts = ["SERVER", "WEB", "MOCK", "ADMIN"];
+const ports = [...sharedSource.matchAll(/DEFAULT_(\w+)_PORT\s*=\s*(\d+)/g)];
+const values = ports.map((match) => match[2]);
+const names = ports.map((match) => match[1]);
 
-if (ports.length !== 3 || new Set(ports).size !== 3) {
-  console.error(`❌ 无法从 ${sharedFile} 读到三个不同的默认端口`);
+if (
+  names.length !== expectedPorts.length ||
+  new Set(values).size !== expectedPorts.length ||
+  expectedPorts.some((name) => !names.includes(name))
+) {
+  console.error(`❌ ${sharedFile} 需要 ${expectedPorts.join(" / ")} 四个不同的默认端口`);
   process.exit(1);
 }
+
+const portNumbers = values;
 
 const allowed = [sharedFile, "scripts/check-ports.mjs", ".env.example", "README.md", "docs/"];
 
@@ -71,7 +78,7 @@ function walk(directory) {
 
     const lines = readFileSync(absolutePath, "utf8").split("\n");
     lines.forEach((line, index) => {
-      for (const port of ports) {
+      for (const port of portNumbers) {
         if (new RegExp(`\\b${port}\\b`).test(line)) {
           violations.push(`${relativePath}:${index + 1}  硬编码端口 ${port}`);
         }
@@ -90,4 +97,4 @@ if (violations.length > 0) {
   process.exit(1);
 }
 
-console.log(`✅ 端口唯一来源检查通过（${ports.join(" / ")}）`);
+console.log(`✅ 端口唯一来源检查通过（${portNumbers.join(" / ")}）`);

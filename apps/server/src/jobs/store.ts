@@ -203,6 +203,9 @@ export class JobStore {
       filter.serializationKey !== undefined
         ? eq(jobs.serializationKey, filter.serializationKey)
         : undefined,
+      filter.serializationKeys !== undefined && filter.serializationKeys.length > 0
+        ? inArray(jobs.serializationKey, [...filter.serializationKeys])
+        : undefined,
       filter.updatedSince ? gt(jobs.updatedAt, filter.updatedSince) : undefined,
     ].filter((condition) => condition !== undefined);
     return conditions.length > 0 ? and(...conditions) : undefined;

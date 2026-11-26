@@ -1,4 +1,4 @@
-import { eq, sql } from "drizzle-orm";
+import { and, desc, eq, sql } from "drizzle-orm";
 import { z } from "zod";
 import type { Database } from "../../db/pool";
 import { gamePlayers, games, worlds } from "../../db/schema";
@@ -44,6 +44,54 @@ export async function findGame(db: Reader, ref: string): Promise<GameRow | undef
   }
   const byId = await db.select().from(games).where(eq(games.id, ref)).limit(1);
   return byId[0];
+}
+
+/** 列表里一行局的元信息；不含世界内容，读列表不该装配世界。 */
+export type GameListRow = {
+  id: string;
+  slug: string;
+  name: string;
+  status: string;
+  /** 结束时的结局标签；active 局为空。 */
+  outcome: string | null;
+  contentVersion: string;
+  version: number;
+  clock: number;
+  createdAt: Date;
+  updatedAt: Date;
+};
+
+/**
+ * 按 owner 列出这一局域：可见性落在 owner 上，与 `getGameMeta` 的访问判定同一个口径。
+ *
+ * 只读 `games` 一行；活跃作业、玩家数这类跨表读数由调用方另取，别把它变成一次大 join。
+ */
+export async function listGamesByOwner(
+  db: Reader,
+  ownerId: string,
+  options: { status?: string; limit?: number } = {},
+): Promise<GameListRow[]> {
+  return db
+    .select({
+      id: games.id,
+      slug: games.slug,
+      name: games.name,
+      status: games.status,
+      outcome: games.outcome,
+      contentVersion: games.contentVersion,
+      version: games.version,
+      clock: games.clock,
+      createdAt: games.createdAt,
+      updatedAt: games.updatedAt,
+    })
+    .from(games)
+    .where(
+      options.status === undefined
+        ? eq(games.ownerId, ownerId)
+        : and(eq(games.ownerId, ownerId), eq(games.status, options.status)),
+    )
+    .orderBy(desc(games.updatedAt))
+    .limit(options.limit ?? 50);
 }
 
 export type GameMeta = {
