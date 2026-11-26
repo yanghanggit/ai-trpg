@@ -1,4 +1,10 @@
-export type GameErrorCode = "not_found" | "invalid_action" | "invalid_state" | "dialogue_blocked";
+export type GameErrorCode =
+  | "not_found"
+  | "invalid_action"
+  | "invalid_state"
+  /** 客户端拿着旧视图做决定：重读之后就能继续，和「状态不允许」不是一回事。 */
+  | "stale_view"
+  | "dialogue_blocked";
 
 export class GameError extends Error {
   readonly code: GameErrorCode;

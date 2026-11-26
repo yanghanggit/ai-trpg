@@ -85,6 +85,11 @@ function isSerializationConflict(error: unknown): boolean {
 
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
+/** 列表上限：默认 50，最多 500。 */
+function listLimit(filter: JobListFilter): number {
+  return Math.min(Math.max(filter.limit ?? 50, 1), 500);
+}
+
 /**
  * 事务内广播：`NOTIFY` 在提交时才投递，所以事务内发、回滚了就等于没发。
  *
@@ -163,7 +168,32 @@ export class JobStore {
     return row ? toRecord(row) : null;
   }
 
+  /**
+   * 与 `list` 同一套筛法，但连 `payload` / `result` 一起取回。
+   *
+   * 拼「作业视图」要 `result`，而快照刻意不带它；一次查询取全，别让调用方按 id 逐条补。
+   */
+  async listRecords(filter: JobListFilter = {}): Promise<JobRecord[]> {
+    const rows = await this.db
+      .select()
+      .from(jobs)
+      .where(this.listWhere(filter))
+      .orderBy(desc(jobs.createdAt))
+      .limit(listLimit(filter));
+    return rows.map(toRecord);
+  }
+
   async list(filter: JobListFilter = {}): Promise<JobSnapshot[]> {
+    const rows = await this.db
+      .select()
+      .from(jobs)
+      .where(this.listWhere(filter))
+      .orderBy(desc(jobs.createdAt))
+      .limit(listLimit(filter));
+    return rows.map(toSnapshot);
+  }
+
+  private listWhere(filter: JobListFilter) {
     const conditions = [
       filter.kind ? eq(jobs.kind, filter.kind) : undefined,
       filter.queue ? eq(jobs.queue, filter.queue) : undefined,
@@ -175,15 +205,7 @@ export class JobStore {
         : undefined,
       filter.updatedSince ? gt(jobs.updatedAt, filter.updatedSince) : undefined,
     ].filter((condition) => condition !== undefined);
-
-    const limit = Math.min(Math.max(filter.limit ?? 50, 1), 500);
-    const rows = await this.db
-      .select()
-      .from(jobs)
-      .where(conditions.length > 0 ? and(...conditions) : undefined)
-      .orderBy(desc(jobs.createdAt))
-      .limit(limit);
-    return rows.map(toSnapshot);
+    return conditions.length > 0 ? and(...conditions) : undefined;
   }
 
   /** 领取一条到期作业；没有可领取作业时返回 null。 */

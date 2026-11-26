@@ -31,7 +31,8 @@
     "rag:ingest": "tsx scripts/rag.ts ingest",
     "rag:search": "tsx scripts/rag.ts search",
     "rag:smoke": "tsx scripts/rag-smoke.ts",
-    "rag:eval": "tsx scripts/rag-eval.ts"
+    "rag:eval": "tsx scripts/rag-eval.ts",
+    "jobs:prune": "tsx scripts/jobs-prune.ts"
   },
   "dependencies": {
     "@ai-trpg/shared": "workspace:*",

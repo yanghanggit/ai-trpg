@@ -11,6 +11,7 @@ const GAME_ERROR_STATUS: Record<string, number> = {
   not_found: 404,
   invalid_action: 400,
   invalid_state: 409,
+  stale_view: 409,
   dialogue_blocked: 422,
 };
 

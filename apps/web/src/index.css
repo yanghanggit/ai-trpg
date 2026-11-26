@@ -517,6 +517,15 @@ code {
   color: var(--accent);
 }
 
+/* 页面顶上的一条事实提示（例如「有回合在跑」）：不抢版面，不点也不跳。 */
+.game__notice {
+  margin: 0 24px;
+  padding: 10px 14px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--panel-soft);
+}
+
 /* 卡片区：横向两排——舞台与锚点、在场角色。排内横向滚动。 */
 .board {
   display: flex;

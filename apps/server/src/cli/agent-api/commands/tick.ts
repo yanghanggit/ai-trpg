@@ -60,11 +60,9 @@ function tally(order: Order): string {
     .join(" ");
 }
 
-/** 视图过期是 tick 自己的簿记错，不是这个 actor 的失败。 */
+/** 视图过期是 tick 自己的簿记错，不是这个 actor 的失败：按错误码认，不解析文本。 */
 function isStaleView(error: unknown): boolean {
-  return (
-    error instanceof ApiFailure && error.status === 409 && error.message.includes("视图已过期")
-  );
+  return error instanceof ApiFailure && error.code === "stale_view";
 }
 
 function reason(error: unknown): string {

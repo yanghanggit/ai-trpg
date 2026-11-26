@@ -414,8 +414,8 @@ export async function listTurnJobs(
   options: TurnJobListOptions = {},
 ): Promise<TurnJobView[]> {
   const game = await getGameMeta(db, gameRef);
-  const store = new JobStore(db);
-  const snapshots = await store.list({
+  // 一次查询取全（含 result）：列表不该按 id 逐条补一遍。
+  const records = await new JobStore(db).listRecords({
     serializationKey: turnSerializationKey(game.id),
     ...(options.updatedSince === undefined && options.activeOnly !== false
       ? { statuses: ACTIVE_JOB_STATUSES }
@@ -423,18 +423,12 @@ export async function listTurnJobs(
     ...(options.updatedSince === undefined ? {} : { updatedSince: options.updatedSince }),
     ...(options.limit === undefined ? {} : { limit: options.limit }),
   });
-  const records = await Promise.all(snapshots.map((snapshot) => store.getRecord(snapshot.jobId)));
-  const views: TurnJobView[] = [];
-  for (const record of records) {
-    if (record === null || !isPayloadOf(record.payload, game.id)) {
-      continue;
-    }
-    views.push({
+  return records
+    .filter((record) => isPayloadOf(record.payload, game.id))
+    .map((record) => ({
       ...toJobView(record),
       result: (record.result as TurnJobResult | null) ?? null,
-    });
-  }
-  return views;
+    }));
 }
 
 export type CancelTurnJobOutcome =

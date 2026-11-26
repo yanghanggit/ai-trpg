@@ -311,7 +311,7 @@ describe.skipIf(!testDatabaseUrl)("回合作业", () => {
     const view = await readTurnJob(handle.db, game, job.jobId);
     expect(view).toMatchObject({
       status: "failed",
-      errorCode: "invalid_state",
+      errorCode: "stale_view",
       result: null,
     });
     expect(view?.error).toContain("视图已过期");

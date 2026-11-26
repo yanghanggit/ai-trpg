@@ -544,7 +544,7 @@ export async function assertExpectedVersion(
   const game = await getGameMeta(db, gameRef);
   if (expectedVersion !== game.version) {
     throw new GameError(
-      "invalid_state",
+      "stale_view",
       `视图已过期: 读到的是 version ${expectedVersion}，当前 ${game.version}，重读后再推进`,
     );
   }

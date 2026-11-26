@@ -9,6 +9,11 @@ function renderGame(state: keyof typeof gameFixtures = "active") {
   return render(
     <StagePage
       view={gameFixtures[state]}
+      renderTurn={({ onClose }) => (
+        <button type="button" onClick={onClose}>
+          提交这一回合
+        </button>
+      )}
       renderHistory={({ onClose }) => (
         <HistoryDrawer
           onClose={onClose}
@@ -269,5 +274,18 @@ describe("StagePage", () => {
     expect(
       within(screen.getByRole("dialog", { name: "行迹" })).getByText("墓园"),
     ).toBeInTheDocument();
+  });
+});
+
+describe("StagePage：动作入口", () => {
+  it("顶部「动作」打开注入的回合浮窗，内容由外层给", () => {
+    renderGame();
+
+    // 页面自己不取数：浮窗里出现什么完全由注入决定。
+    fireEvent.click(screen.getByRole("button", { name: "动作" }));
+    expect(screen.getByRole("button", { name: "提交这一回合" })).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "提交这一回合" }));
+    expect(screen.queryByRole("button", { name: "提交这一回合" })).not.toBeInTheDocument();
   });
 });

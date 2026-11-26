@@ -19,6 +19,7 @@ type Sheet =
   | { kind: "inventory" }
   | { kind: "people" }
   | { kind: "places" }
+  | { kind: "act" }
   | { kind: "history" }
   | { kind: "stage" }
   | { kind: "anchor"; anchor: GameView["stage"]["anchors"][number] }
@@ -31,6 +32,13 @@ type StagePageProps = {
    * 回调里要带上 `onClose`，关闭动作由页面自己管。
    */
   renderHistory: (args: { slug: string; onClose: () => void }) => ReactNode;
+  /**
+   * 「动作」浮窗也由外层注入：它要连服务端、要写状态，页面只负责开与关。
+   * mock 传一个假实现，同一个按钮在目录里就能点开。
+   */
+  renderTurn: (args: { slug: string; onClose: () => void }) => ReactNode;
+  /** 顶上的一条提示（例如「这一局有回合在跑」）；内容由外层决定，页面只留位置。 */
+  notice?: ReactNode;
 };
 
 /** 头像上的字：本名的第一个字（引号、括号里的部分不算）。 */
@@ -50,7 +58,7 @@ function initialOf(name: string): string {
  * 打开舞台浮窗才列成按钮：从哪扇门出去属于「这个舞台」，不属于「我此刻看得见的东西」。卡片只放名字与一句提示，
  * 描写类文本（环境、外观）都在浮窗里——那是给模型读的上下文，不是主页要铺的东西。
  */
-export default function StagePage({ view, renderHistory }: StagePageProps) {
+export default function StagePage({ view, renderHistory, renderTurn, notice }: StagePageProps) {
   const [sheet, setSheet] = useState<Sheet | null>(null);
   const { stage, viewer } = view;
   const maxHp = viewer.stats.find((stat) => stat.key === "maxHp")?.value ?? 0;
@@ -102,6 +110,8 @@ export default function StagePage({ view, renderHistory }: StagePageProps) {
             <ActorPanel actor={opened.actor} />
           </Dialog>
         );
+      case "act":
+        return renderTurn({ slug: view.game.slug, onClose: close });
       case "history":
         return renderHistory({ slug: view.game.slug, onClose: close });
     }
@@ -139,6 +149,9 @@ export default function StagePage({ view, renderHistory }: StagePageProps) {
         </div>
 
         <div className="game__actions">
+          <button type="button" className="action" onClick={() => open({ kind: "act" })}>
+            动作
+          </button>
           <button type="button" className="action" onClick={() => open({ kind: "inventory" })}>
             背包
           </button>
@@ -153,6 +166,8 @@ export default function StagePage({ view, renderHistory }: StagePageProps) {
           </button>
         </div>
       </nav>
+
+      {notice === undefined ? null : <div className="game__notice">{notice}</div>}
 
       <section className="board" aria-label="当前舞台">
         <ul className="board__row">
