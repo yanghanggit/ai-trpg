@@ -409,6 +409,11 @@ a {
   margin-bottom: 10px;
 }
 
+/* 整页原文：给建局数据这类「一屏读一份 JSON」的页面用。 */
+.json--tall {
+  max-height: 70vh;
+}
+
 .json {
   margin: 0;
   max-height: 460px;

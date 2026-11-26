@@ -53,6 +53,12 @@ export type GameListRow = {
   /** 局主：运维看全库时靠它区分谁是谁的。 */
   ownerId: string;
   ownerUsername: string;
+  /**
+   * 世界（剧本）名：建局时从内容模板物化，之后以数据库为准。
+   *
+   * 用 left join 而不是 inner：缺世界行说明这局建到一半，列表要让它露出来，而不是消失。
+   */
+  worldName: string | null;
   name: string;
   status: string;
   /** 结束时的结局标签；active 局为空。 */
@@ -84,6 +90,7 @@ export async function listGames(
       slug: games.slug,
       ownerId: games.ownerId,
       ownerUsername: users.username,
+      worldName: worlds.name,
       name: games.name,
       status: games.status,
       outcome: games.outcome,
@@ -95,6 +102,7 @@ export async function listGames(
     })
     .from(games)
     .innerJoin(users, eq(users.id, games.ownerId))
+    .leftJoin(worlds, eq(worlds.gameId, games.id))
     .where(conditions.length === 0 ? undefined : and(...conditions))
     .orderBy(desc(games.updatedAt))
     .limit(options.limit ?? 50);

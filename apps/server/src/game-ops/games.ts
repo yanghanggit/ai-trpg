@@ -19,6 +19,8 @@ export type GameSummaryView = {
   slug: string;
   ownerId: string;
   ownerUsername: string;
+  /** 世界（剧本）名；这一局用的是哪套内容。缺世界行时为 null。 */
+  worldName: string | null;
   name: string;
   status: string;
   /** 结束时的结局标签；active 局为 null。 */
@@ -29,7 +31,7 @@ export type GameSummaryView = {
   clock: number;
   createdAt: string;
   updatedAt: string;
-  /** 正在排队或执行的回合；没有就是 null。 */
+  /** 运行中的作业（排队或执行）；没有就是 null。 */
   activeJob: { jobId: string; kind: string; status: string } | null;
 };
 
@@ -82,6 +84,7 @@ export async function listGamesOp(
       slug: row.slug,
       ownerId: row.ownerId,
       ownerUsername: row.ownerUsername,
+      worldName: row.worldName,
       name: row.name,
       status: row.status,
       outcome: row.outcome,

@@ -6,7 +6,6 @@ import {
   useGameJob,
   useGameJobs,
   useGameMessages,
-  useGameState,
   useMemory,
   useNameLeaks,
 } from "../../features/games/useGameData";
@@ -24,7 +23,6 @@ export default function GameConsole({ slug }: { slug: string }) {
   const navigate = useNavigate();
   const actions = useGameActions(slug);
 
-  const state = useGameState(slug);
   const messages = useGameMessages(slug);
   const jobs = useGameJobs(slug);
   const turns = useTraceTurns({ game: slug, limit: 50 });
@@ -122,8 +120,6 @@ export default function GameConsole({ slug }: { slug: string }) {
     slug,
     busy,
     actionError,
-    state: state.data,
-    stateError: state.isError ? describeApiError(state.error) : undefined,
     messages: messages.data,
     messagesError: messages.isError ? describeApiError(messages.error) : undefined,
     jobs: jobs.data,

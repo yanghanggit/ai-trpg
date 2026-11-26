@@ -218,6 +218,33 @@ describe.skipIf(!testDatabaseUrl)("业务 API", () => {
     expect(response.json()).toMatchObject({ error: "invalid_request" });
   });
 
+  it("建局数据只取建局物化的行，不含运行时集合", async () => {
+    const response = await app.inject({
+      method: "GET",
+      url: `/api/v1/games/${SLUG}/build`,
+      headers: auth,
+    });
+    expect(response.statusCode).toBe(200);
+
+    const body = response.json() as {
+      game: { slug: string };
+      world: { name: string };
+      stages: unknown[];
+      actors: unknown[];
+      items: unknown[];
+      stageItems: unknown[];
+    };
+    expect(body.game.slug).toBe(SLUG);
+    expect(body.world.name.length).toBeGreaterThan(0);
+    expect(body.stages.length).toBeGreaterThan(0);
+    expect(body.actors.length).toBeGreaterThan(0);
+    expect(body.items.length + body.stageItems.length).toBeGreaterThan(0);
+    // 运行时状态不在这里：它每天都在长，不该混进这份可以通读的原文。
+    expect(body).not.toHaveProperty("messages");
+    expect(body).not.toHaveProperty("memories");
+    expect(body).not.toHaveProperty("jobs");
+  });
+
   it("局列表带元信息，且只含当前身份名下的局", async () => {
     const listSlug = `${SLUG}-list`;
     const created = await app.inject({
@@ -407,6 +434,12 @@ describe.skipIf(!testDatabaseUrl)("业务 API", () => {
       headers: auth,
     });
     expect(playerRead.statusCode).toBe(403);
+    const playerBuild = await app.inject({
+      method: "GET",
+      url: `/api/v1/games/${SLUG}-outsider/build`,
+      headers: auth,
+    });
+    expect(playerBuild.statusCode).toBe(403);
 
     // 机器级读数（轨迹、节点自述）只对运维开放。
     const playerTraces = await app.inject({

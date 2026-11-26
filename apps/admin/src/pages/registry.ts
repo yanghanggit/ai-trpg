@@ -1,4 +1,5 @@
 import type { ComponentType } from "react";
+import GameBuildRoute from "./game/GameBuildRoute";
 import GameRoute from "./game/GameRoute";
 import GamesContainer from "./games/GamesContainer";
 import OverviewContainer from "./overview/OverviewContainer";
@@ -31,4 +32,5 @@ export const pages: PageEntry[] = [
     Route: TraceEventsContainer,
   },
   { key: "game", path: "/g/:slug", title: "局控制台", Route: GameRoute },
+  { key: "game-build", path: "/g/:slug/build", title: "建局数据", Route: GameBuildRoute },
 ];

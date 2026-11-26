@@ -8,5 +8,7 @@ export type GamesData = {
 
 export type GamesHandlers = {
   onOpenGame: (gameRef: string) => void;
+  /** 「剧本」列的入口：看这一局的建局数据。 */
+  onOpenBuild: (gameRef: string) => void;
   onBack: () => void;
 };

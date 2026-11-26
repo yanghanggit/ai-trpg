@@ -17,6 +17,7 @@ import { findGame } from "../game/persistence/games";
 import { parseWorldContent } from "../game/world-definition";
 import {
   advanceAppearance,
+  buildDataOp,
   cancelTurnJob,
   compactOp,
   completeActionOrderOp,
@@ -76,13 +77,14 @@ const resultsSchema = z.array(z.record(z.string(), z.unknown()));
 
 const actorTurnResponse = z.record(z.string(), z.unknown());
 
-/** 局列表一行：够回答「有哪些局、跑到哪、现在有没有回合在跑」。 */
+/** 局列表一行：够回答「有哪些局、跑到哪、现在有没有运行中的作业」。 */
 const gameSummarySchema = z
   .object({
     id: z.string(),
     slug: z.string(),
     ownerId: z.string(),
     ownerUsername: z.string(),
+    worldName: z.string().nullable(),
     name: z.string(),
     status: z.string(),
     outcome: z.string().nullable(),
@@ -94,6 +96,23 @@ const gameSummarySchema = z
     activeJob: z.object({ jobId: z.string(), kind: z.string(), status: z.string() }).nullable(),
   })
   .meta({ id: "GameSummary" });
+
+/** 建局数据：集合的形状固定，行是原始列，值不收窄。 */
+const buildRowSchema = z.record(z.string(), z.unknown());
+const gameBuildSchema = z
+  .object({
+    game: buildRowSchema.nullable(),
+    world: buildRowSchema.nullable(),
+    stages: z.array(buildRowSchema),
+    stageConnections: z.array(buildRowSchema),
+    actors: z.array(buildRowSchema),
+    actorSignatures: z.array(buildRowSchema),
+    actorSignatureNames: z.array(buildRowSchema),
+    items: z.array(buildRowSchema),
+    stageItems: z.array(buildRowSchema),
+    gamePlayers: z.array(buildRowSchema),
+  })
+  .meta({ id: "GameBuild" });
 
 const listGamesQuery = z.object({
   status: z.enum(["active", "completed"]).optional(),
@@ -279,6 +298,27 @@ export function createGameRoutes(db: () => Database): FastifyPluginAsyncZod {
       },
     );
 
+    // 建局数据：一次性写下的那批行，运行时状态不在这里。
+    app.get(
+      "/games/:game/build",
+      {
+        schema: {
+          tags: ["games"],
+          summary: "建局物化的原始数据",
+          description:
+            "world / stage / 通路 / actor / 形态 / 道具 / 玩家归属的原始行，不做字段挑选。" +
+            "运行时状态（clock、version、消息、记忆、作业）不在这里。",
+          params: gameParams,
+          response: { 200: gameBuildSchema },
+        },
+      },
+      async (request) => {
+        const user = await requireUser(db(), request);
+        await requireGameAccess(db(), request.params.game, user);
+        return buildDataOp(db(), request.params.game);
+      },
+    );
+
     // 控制面的局列表：写的是「这一局跑到哪」，不是世界内容。
     app.get(
       "/games",
@@ -288,7 +328,7 @@ export function createGameRoutes(db: () => Database): FastifyPluginAsyncZod {
           summary: "列出局（运维看全库，其他人只看自己名下）",
           description:
             "按更新时间倒序。运维身份看全库，其他人只看自己名下的局——可见性只由身份决定，" +
-            "所以这里没有 owner 参数。`activeJob` 回答「这一局现在有没有回合在跑」，不是计数。",
+            "所以这里没有 owner 参数。`activeJob` 是这一局此刻运行中的作业，不是计数。",
           querystring: listGamesQuery,
           response: { 200: z.object({ games: z.array(gameSummarySchema) }) },
         },
@@ -799,7 +839,7 @@ export function createGameRoutes(db: () => Database): FastifyPluginAsyncZod {
           tags: ["jobs"],
           summary: "列这一局的作业",
           description:
-            "默认只列活跃的（排队或正在跑），用于「现在有没有回合在跑」与重载后重接；" +
+            "默认只列活跃作业（排队或执行中），用于「现在有没有作业在跑」与重载后重接；" +
             "带 updatedSince 时改为列自那之后变过的作业，终态也在内，供断线重连补查。",
           params: gameParams,
           querystring: jobsQuery,

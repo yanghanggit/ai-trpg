@@ -17,6 +17,7 @@ export default function GamesContainer() {
     <GamesPage
       data={data}
       onOpenGame={(gameRef) => navigate(`/g/${encodeURIComponent(gameRef)}`)}
+      onOpenBuild={(gameRef) => navigate(`/g/${encodeURIComponent(gameRef)}/build`)}
       onBack={() => navigate("/")}
     />
   );

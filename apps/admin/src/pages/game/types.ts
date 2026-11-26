@@ -1,17 +1,24 @@
+import type { components } from "@ai-trpg/api-client";
 import type { AdvanceInput } from "../../features/games/useGameActions";
 import type { JobView, MemoryOwner, MessageView } from "../../features/games/useGameData";
 import type { TraceTurn } from "../../features/traces/traceIndex";
 
 export type MemoryQuery = { owner: MemoryOwner; name?: string };
 
+/** 建局数据：形状来自契约，行是不收窄的原始列。 */
+export type GameBuild = components["schemas"]["GameBuild"];
+
+export type GameBuildData = {
+  slug: string;
+  build?: GameBuild;
+  buildError?: string;
+};
+
 /** 局控制台的全部展示数据；形状与动作都由容器给，页面不碰网络。 */
 export type GamePageData = {
   slug: string;
   busy?: string;
   actionError?: string;
-
-  state?: unknown;
-  stateError?: string;
 
   messages?: MessageView[];
   messagesError?: string;

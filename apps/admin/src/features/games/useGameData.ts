@@ -5,7 +5,7 @@ import { api } from "../../api/client";
 export type JobView = components["schemas"]["TurnJob"];
 export type MessageView = components["schemas"]["GameMessage"];
 
-/** 活跃作业在跑时按这个间隔重读；没有活跃作业就不轮询。 */
+/** 有运行中作业时按这个间隔重读；没有就不轮询。 */
 export const ACTIVE_JOB_REFETCH_INTERVAL_MS = 2000;
 /** 单个作业盯终态时的间隔：比列表快一档，入队后能立刻看到结果。 */
 export const WATCHED_JOB_REFETCH_INTERVAL_MS = 1500;

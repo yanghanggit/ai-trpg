@@ -46,7 +46,6 @@ export default function GamePanels({ data, actions }: Props) {
 
       <JobsSection data={data} actions={actions} />
       <AdvanceSection busy={data.busy !== undefined} actions={actions} />
-      <StateSection data={data} />
       <TraceSection data={data} actions={actions} />
       <MessagesSection data={data} />
       <AuxSection data={data} actions={actions} />
@@ -70,8 +69,8 @@ function JobsSection({ data, actions }: Props) {
       <h2>作业</h2>
       <p className="muted">
         {active.length === 0
-          ? "这一局现在没有在跑的回合。"
-          : `${active.length} 个回合在排队或执行中。`}
+          ? "这一局现在没有运行中的作业。"
+          : `${active.length} 个作业排队或执行中。`}
       </p>
 
       {data.watchedJob === undefined ? null : (
@@ -255,25 +254,6 @@ function AdvanceSection({ busy, actions }: { busy: boolean; actions: GamePageAct
           记空回合
         </button>
       </form>
-    </section>
-  );
-}
-
-function StateSection({ data }: { data: GamePageData }) {
-  return (
-    <section className="panel">
-      <h2>
-        活状态
-        <Hint text="上帝视角的全量投影；形状仍是不透明的 unknown，这里只原样展开。" />
-      </h2>
-      {data.state === undefined ? (
-        <p className="muted">{data.stateError ?? "读取中…"}</p>
-      ) : (
-        <details className="details">
-          <summary>展开原始 JSON</summary>
-          <pre className="json">{JSON.stringify(data.state, null, 2)}</pre>
-        </details>
-      )}
     </section>
   );
 }
