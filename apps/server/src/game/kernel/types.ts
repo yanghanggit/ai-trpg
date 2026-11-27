@@ -660,6 +660,50 @@ export type ActionOrderNextActorState = {
   control: ActionOrderControl;
 };
 
+/** 账上的一行是哪一层：角色、空回合（也是角色的一回合）、舞台、世界。 */
+export type ActionOrderTurnKind = "actor" | "pass" | "stage" | "world";
+
+/**
+ * 回合账的一行：某一行动轮里，某一层落过一次账。
+ *
+ * 只回答「谁推过什么」，不回答「该谁」——该谁仍然是顺位的 `nextActor`。
+ */
+export type ActionOrderTurnState = {
+  seq: number;
+  /** 行动轮编号：该顺位已落账的 world 行数 + 1。 */
+  round: number;
+  kind: ActionOrderTurnKind;
+  /** 角色 / 舞台的 id；world 行是固定字符串。 */
+  subjectId: string;
+  subjectName: string;
+  /** 角色行记他落账时所在的舞台；舞台行是自己；world 行没有。 */
+  stageId: string | null;
+  /** 落账后的时刻。 */
+  clock: number;
+  /** 只角色行有：顺位期望的名次、实际名次、是否一致；不在顺位上时为 null。 */
+  expectedPosition: number | null;
+  actualPosition: number | null;
+  followed: boolean | null;
+  at: string;
+};
+
+/**
+ * 行动轮：本轮的进度读数，从账上算出来，不落库。
+ *
+ * `world` 是这一轮补上的那个事实：world 推完不改任何计数，所以此前只能靠齐平猜；
+ * 现在它是一行账。读数仍然只是读数——引擎不判「本轮结束」，也不拒推错。
+ */
+export type ActionOrderRoundState = {
+  /** 最近一笔账所属的行动轮；world 落账后仍报它，直到下一笔角色回合开新轮。 */
+  index: number;
+  /** 本轮已经落过账的角色（含空回合）。 */
+  actors: { actorId: string; name: string; empty: boolean }[];
+  /** 本轮已经推过的舞台与次数。 */
+  stages: { stageId: string; name: string; turns: number }[];
+  /** 本轮的 world 回合推过没有。 */
+  world: boolean;
+};
+
 /**
  * 一条行动顺位：快照 + 每个名次的计数 + 生命周期标记。
  *

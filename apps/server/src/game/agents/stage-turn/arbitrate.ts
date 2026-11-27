@@ -1,5 +1,6 @@
 import type { Database } from "../../../db/pool";
 import { type TraceContext, traceEvent } from "../../../debug/trace";
+import { recordStageTurn } from "../../action-order/record";
 import { GameError } from "../../errors";
 import { assertStageFacingText } from "../../kernel/addressing";
 import {
@@ -202,6 +203,7 @@ export async function applyStagePlan(
     // 校验全部通过 = 这一回合真的会落账：此后写的舞台记忆落在新的一刻；
     // 上面被拒的记忆还落在旧的一刻。
     await advanceGameClock(tx, gameId);
+    await recordStageTurn(tx, gameId, stage);
     const now = new Date();
     for (const action of plan.actions) {
       await applyStageAction(tx, {

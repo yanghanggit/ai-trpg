@@ -930,6 +930,37 @@ a {
   margin-top: 14px;
 }
 
+/* 编排表：顺位就是行，舞台跟人绑在同一行。 */
+.orchestration {
+  width: 100%;
+  margin-top: 14px;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+
+.orchestration th {
+  padding: 4px 8px 6px;
+  border-bottom: 1px solid var(--line);
+  color: var(--muted);
+  font-weight: 500;
+  text-align: left;
+}
+
+.orchestration td {
+  padding: 5px 8px;
+  border-bottom: 1px solid rgb(36 49 63 / 60%);
+}
+
+.orchestration__pos {
+  width: 32px;
+  color: var(--accent);
+  font-variant-numeric: tabular-nums;
+}
+
+.orchestration__row--next td {
+  background: rgb(56 189 248 / 6%);
+}
+
 /* 推进的步骤日志：一步一行，作业 id 只露前 8 位。 */
 .steps {
   display: flex;

@@ -1,6 +1,6 @@
 import {
-  type AdvancePort,
   advanceOnce,
+  roundComplete,
   type TurnJob,
   type TurnRequest,
   waitForTurnJob,
@@ -12,9 +12,10 @@ import {
   createAdvancePort,
   enqueueTurn,
   fetchTurnJob,
+  fetchTurnState,
   labelOf,
 } from "../../features/games/advance";
-import { type AdvanceInput, useGameActions } from "../../features/games/useGameActions";
+import { useGameActions } from "../../features/games/useGameActions";
 import { useNameLeaks } from "../../features/games/useGameData";
 import { useGameGraph } from "../../features/games/useGameGraph";
 import GamePanels from "./GamePanels";
@@ -87,19 +88,8 @@ export default function GameConsole({ slug }: { slug: string }) {
   const waitForTurnJobSafe = (job: TurnJob): Promise<TurnJob> =>
     waitForTurnJob(job, (jobId) => fetchTurnJob(slug, jobId));
 
-  /** 下一位现在站在哪个舞台：舞台回合的目标由顺位与当前站位一起决定。 */
-  function stageNameOfNext(): string | undefined {
-    const next = graph.data?.order?.nextActor;
-    if (next === null || next === undefined) {
-      return undefined;
-    }
-    const actor = graph.data?.actors.find((item) => item.id === next.actorId);
-    const stage = graph.data?.stages.find((item) => item.id === actor?.stageId);
-    return stage?.name;
-  }
-
-  /** 编排端口：规则来自契约包，runTurn 换成带日志的那一版。 */
-  const port: AdvancePort = createAdvancePort(slug, runStep);
+  /** 编排端口：规则来自契约包，`runTurn` 换成带日志的那一版。 */
+  const port = createAdvancePort(slug, runStep);
 
   const handlers: GamePageActions = {
     refresh: async () => {
@@ -107,70 +97,38 @@ export default function GameConsole({ slug }: { slug: string }) {
         await actions.refresh();
       });
     },
-    advance: async (input: AdvanceInput) => {
-      await run("指定推进", async () => {
-        await actions.advance(input);
-        setAdvanceNote("已按指定的层推进一步。");
-      });
-    },
-    advanceChain: async () => {
-      await run("推进一步", async () => {
+    next: async () => {
+      await run("下一个", async () => {
         setAdvanceSteps([]);
         setAdvanceNote(undefined);
+        // 每一步都重新读：面板上那份 5 秒前的图不能拿来做决定。
+        const { order, round } = await fetchTurnState(slug);
+        if (order === null) {
+          const created = await actions.openOrder();
+          await actions.refresh();
+          setAdvanceNote(`开了一条顺位（${created.entries.length} 个名次）。再点一次开始推。`);
+          return;
+        }
+        if (order.nextActor === null) {
+          await actions.completeOrder(order.id);
+          setAdvanceNote("顺位上没有活着的人了：这条顺位已收工。");
+          return;
+        }
+        // 账上说这一轮 world 还没推、而活人计数已经齐平：先把这一轮收尾，
+        // 否则下一位的回合会把这一轮的第一位盖过去，world 就被跳掉了。
+        if (roundComplete(order) && round?.world !== true) {
+          await runStep({ kind: "world" });
+          await actions.refresh();
+          setAdvanceNote(`world 回合推完了第 ${round?.index ?? 1} 轮。`);
+          return;
+        }
+        if (order.nextActor.control === "player") {
+          setAdvanceNote(`轮到 ${order.nextActor.actorName}：玩家席位由玩家端自己决定。`);
+          return;
+        }
         const result = await advanceOnce(port, { retryOnStale: true });
         await actions.refresh();
         setAdvanceNote(noteOf(result));
-      });
-    },
-    advanceOne: async (kind) => {
-      await run("推进一步", async () => {
-        setAdvanceNote(undefined);
-        const order = graph.data?.order ?? null;
-        const next = order?.nextActor;
-        if (kind === "npc") {
-          if (next === null || next === undefined) {
-            setAdvanceNote("顺位上没有下一位，推不了 NPC 回合。");
-            return;
-          }
-          await runStep({
-            kind: "npc",
-            actor: next.actorName,
-            ...(order === null ? {} : { expectedVersion: order.gameVersion }),
-          });
-          await actions.refresh();
-          setAdvanceNote(`已推 ${next.actorName} 的回合。`);
-          return;
-        }
-        if (kind === "stage") {
-          const stage = stageNameOfNext();
-          if (stage === undefined) {
-            setAdvanceNote("认不出下一位所在的舞台，用「指定推进」写舞台名。");
-            return;
-          }
-          await runStep({ kind: "stage", stage });
-          await actions.refresh();
-          setAdvanceNote(`已推 ${stage} 的舞台回合。`);
-          return;
-        }
-        await runStep({ kind: "world" });
-        await actions.refresh();
-        setAdvanceNote("已推 world 回合。");
-      });
-    },
-    openOrder: async () => {
-      await run("开一条顺位", async () => {
-        await actions.openOrder();
-        setAdvanceNote("顺位已开：名次按敏捷现值排定。");
-      });
-    },
-    completeOrder: async () => {
-      await run("收工", async () => {
-        const order = graph.data?.order;
-        if (order === null || order === undefined) {
-          return;
-        }
-        await actions.completeOrder(order.id);
-        setAdvanceNote("这条顺位已收工。");
       });
     },
 

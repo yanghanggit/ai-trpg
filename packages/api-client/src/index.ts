@@ -2,6 +2,7 @@ export { type ApiClient, createApiClient } from "./client";
 export { ApiError, unwrap } from "./errors";
 export {
   type ActionOrder,
+  type ActionOrderRound,
   type AdvancePort,
   type AdvanceResult,
   advanceOnce,

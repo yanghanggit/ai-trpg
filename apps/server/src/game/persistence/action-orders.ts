@@ -1,7 +1,14 @@
 import { randomUUID } from "node:crypto";
-import { and, asc, eq, sql } from "drizzle-orm";
-import { actionOrderEntries, actionOrders, actorControls, actors } from "../../db/schema";
-import type { ActionOrderControl, ActionOrderStatus } from "../kernel/types";
+import { and, asc, desc, eq, sql } from "drizzle-orm";
+import {
+  actionOrderEntries,
+  actionOrders,
+  actionOrderTurns,
+  actorControls,
+  actors,
+  stages,
+} from "../../db/schema";
+import type { ActionOrderControl, ActionOrderStatus, ActionOrderTurnKind } from "../kernel/types";
 import type { Executor } from "./rows";
 
 /**
@@ -146,6 +153,98 @@ export async function incrementActionOrderEntry(
     .where(and(eq(actionOrderEntries.orderId, orderId), eq(actionOrderEntries.actorId, actorId)))
     .returning({ id: actionOrderEntries.id });
   return updated.length > 0;
+}
+
+/** 账上一行的草稿：层次、主体与落账后的时刻由调用方给，行动轮编号由这里算。 */
+export type ActionOrderTurnDraft = {
+  kind: ActionOrderTurnKind;
+  subjectId: string;
+  subjectName: string;
+  stageId?: string | null;
+  clock: number;
+  expectedPosition?: number | null;
+  actualPosition?: number | null;
+  followed?: boolean | null;
+};
+
+/**
+ * 记一笔账：这一行动轮里，这一层落过一次。
+ *
+ * 行动轮编号在这里定：已落账的 world 行数 + 1。所以 world 那笔本身也算进它收尾的那一轮，
+ * 之后的第一笔角色回合自然进下一轮。写入不做守卫——账是记录，落不进去也不影响回合。
+ */
+export async function appendActionOrderTurn(
+  executor: Executor,
+  orderId: string,
+  draft: ActionOrderTurnDraft,
+  now: Date = new Date(),
+): Promise<void> {
+  const [counted] = await executor
+    .select({ worlds: sql<number>`count(*)::int` })
+    .from(actionOrderTurns)
+    .where(and(eq(actionOrderTurns.orderId, orderId), eq(actionOrderTurns.kind, "world")));
+  await executor.insert(actionOrderTurns).values({
+    id: randomUUID(),
+    orderId,
+    round: (counted?.worlds ?? 0) + 1,
+    kind: draft.kind,
+    subjectId: draft.subjectId,
+    subjectName: draft.subjectName,
+    stageId: draft.stageId ?? null,
+    clock: draft.clock,
+    expectedPosition: draft.expectedPosition ?? null,
+    actualPosition: draft.actualPosition ?? null,
+    followed: draft.followed ?? null,
+    at: now,
+  });
+}
+
+/** 账上要记的角色事实：名字与他此刻所在的舞台。 */
+export async function readActorForLedger(
+  executor: Executor,
+  actorId: string,
+): Promise<{ name: string; stageId: string | null; stageName: string | null } | undefined> {
+  const [row] = await executor
+    .select({ name: actors.name, stageId: actors.stageId, stageName: stages.name })
+    .from(actors)
+    .leftJoin(stages, eq(stages.id, actors.stageId))
+    .where(eq(actors.id, actorId))
+    .limit(1);
+  return row;
+}
+
+/** 最近一笔账落在哪一行动轮：读「现在报的是哪一轮」用它，没有账时为 null。 */
+export async function readLastTurnRound(
+  executor: Executor,
+  orderId: string,
+): Promise<number | null> {
+  const [row] = await executor
+    .select({ round: actionOrderTurns.round })
+    .from(actionOrderTurns)
+    .where(eq(actionOrderTurns.orderId, orderId))
+    .orderBy(desc(actionOrderTurns.seq))
+    .limit(1);
+  return row?.round ?? null;
+}
+
+/** 某一行动轮的行，按写入顺序。 */
+export async function listActionOrderTurnsOfRound(
+  executor: Executor,
+  orderId: string,
+  round: number,
+): Promise<
+  { kind: ActionOrderTurnKind; subjectId: string; subjectName: string; stageId: string | null }[]
+> {
+  return executor
+    .select({
+      kind: actionOrderTurns.kind,
+      subjectId: actionOrderTurns.subjectId,
+      subjectName: actionOrderTurns.subjectName,
+      stageId: actionOrderTurns.stageId,
+    })
+    .from(actionOrderTurns)
+    .where(and(eq(actionOrderTurns.orderId, orderId), eq(actionOrderTurns.round, round)))
+    .orderBy(asc(actionOrderTurns.seq));
 }
 
 /** 完成是打标记；只在 `active` 上生效，返回是否真的从进行中转成了完成。 */

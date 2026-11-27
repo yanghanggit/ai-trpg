@@ -7,6 +7,22 @@ CREATE TABLE "action_order_entries" (
 	"turns_taken" integer DEFAULT 0 NOT NULL
 );
 --> statement-breakpoint
+CREATE TABLE "action_order_turns" (
+	"id" uuid PRIMARY KEY NOT NULL,
+	"order_id" uuid NOT NULL,
+	"seq" bigserial NOT NULL,
+	"round" integer NOT NULL,
+	"kind" text NOT NULL,
+	"subject_id" text NOT NULL,
+	"subject_name" text NOT NULL,
+	"stage_id" uuid,
+	"clock" integer NOT NULL,
+	"expected_position" integer,
+	"actual_position" integer,
+	"followed" boolean,
+	"at" timestamp with time zone DEFAULT now() NOT NULL
+);
+--> statement-breakpoint
 CREATE TABLE "action_orders" (
 	"id" uuid PRIMARY KEY NOT NULL,
 	"game_id" uuid NOT NULL,
@@ -294,6 +310,7 @@ CREATE TABLE "worlds" (
 --> statement-breakpoint
 ALTER TABLE "action_order_entries" ADD CONSTRAINT "action_order_entries_order_id_action_orders_id_fk" FOREIGN KEY ("order_id") REFERENCES "public"."action_orders"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "action_order_entries" ADD CONSTRAINT "action_order_entries_actor_id_actors_id_fk" FOREIGN KEY ("actor_id") REFERENCES "public"."actors"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "action_order_turns" ADD CONSTRAINT "action_order_turns_order_id_action_orders_id_fk" FOREIGN KEY ("order_id") REFERENCES "public"."action_orders"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "action_orders" ADD CONSTRAINT "action_orders_game_id_games_id_fk" FOREIGN KEY ("game_id") REFERENCES "public"."games"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "actor_controls" ADD CONSTRAINT "actor_controls_actor_id_actors_id_fk" FOREIGN KEY ("actor_id") REFERENCES "public"."actors"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "actor_controls" ADD CONSTRAINT "actor_controls_game_id_games_id_fk" FOREIGN KEY ("game_id") REFERENCES "public"."games"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
@@ -331,6 +348,8 @@ ALTER TABLE "stages" ADD CONSTRAINT "stages_world_id_worlds_id_fk" FOREIGN KEY (
 ALTER TABLE "worlds" ADD CONSTRAINT "worlds_game_id_games_id_fk" FOREIGN KEY ("game_id") REFERENCES "public"."games"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 CREATE UNIQUE INDEX "action_order_entries_order_actor_unique" ON "action_order_entries" USING btree ("order_id","actor_id");--> statement-breakpoint
 CREATE UNIQUE INDEX "action_order_entries_order_position_unique" ON "action_order_entries" USING btree ("order_id","position");--> statement-breakpoint
+CREATE INDEX "action_order_turns_order_round_idx" ON "action_order_turns" USING btree ("order_id","round");--> statement-breakpoint
+CREATE INDEX "action_order_turns_order_kind_idx" ON "action_order_turns" USING btree ("order_id","kind");--> statement-breakpoint
 CREATE UNIQUE INDEX "action_orders_game_active_unique" ON "action_orders" USING btree ("game_id") WHERE "action_orders"."status" = 'active';--> statement-breakpoint
 CREATE UNIQUE INDEX "actor_signature_names_observer_signature_unique" ON "actor_signature_names" USING btree ("observer_actor_id","signature_id");--> statement-breakpoint
 CREATE INDEX "actor_signature_names_game_observer_idx" ON "actor_signature_names" USING btree ("game_id","observer_actor_id");--> statement-breakpoint

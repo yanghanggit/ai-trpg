@@ -1,5 +1,4 @@
 import type { components } from "@ai-trpg/api-client";
-import type { AdvanceInput } from "../../features/games/useGameActions";
 import type { MessageView } from "../../features/games/useGameData";
 import type { GameGraph } from "../../features/games/useGameGraph";
 import type { MemoryTarget } from "./memory/targets";
@@ -142,14 +141,12 @@ export type GamePageData = {
 
 export type GamePageActions = {
   refresh: () => Promise<void>;
-  /** 指定推进：绕过编排，只下一层。 */
-  advance: (input: AdvanceInput) => Promise<void>;
-  /** 推进一步：按编排跑 npc → 该角色所在舞台 → （齐平时）world。 */
-  advanceChain: () => Promise<void>;
-  /** 只推一层；npc 的目标由顺位决定，不用传。 */
-  advanceOne: (kind: "npc" | "stage" | "world") => Promise<void>;
-  openOrder: () => Promise<void>;
-  completeOrder: () => Promise<void>;
+  /**
+   * 下一个：按游戏设计走一步（开顺位 / 补 world / 推一位角色与他的舞台 / 收工）。
+   *
+   * 后台只有这一个推进入口：不许指定推谁，也不许指定只推哪一层。
+   */
+  next: () => Promise<void>;
   endGame: (input: { outcome: string; message?: string }) => Promise<void>;
   deleteGame: () => Promise<void>;
   openLeaks: () => void;

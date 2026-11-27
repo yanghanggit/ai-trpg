@@ -1,5 +1,6 @@
 import {
   type ActionOrder,
+  type ActionOrderRound,
   type AdvancePort,
   type TurnJob,
   type TurnRequest,
@@ -64,13 +65,21 @@ export async function fetchTurnJob(slug: string, jobId: string): Promise<TurnJob
   ).job;
 }
 
-/** 读当前进行中的顺位；后台的「下一步」全靠它。 */
-export async function fetchOrder(slug: string): Promise<ActionOrder | null> {
-  return unwrap(
+/** 顺位与行动轮一起读：一个回答「该谁了」，一个回答「这一轮推到哪了」。 */
+export async function fetchTurnState(
+  slug: string,
+): Promise<{ order: ActionOrder | null; round: ActionOrderRound | null }> {
+  const payload = unwrap(
     await api.GET("/api/v1/games/{game}/action-orders/current", {
       params: { path: path(slug) },
     }),
-  ).order;
+  );
+  return { order: payload.order, round: payload.round };
+}
+
+/** 读当前进行中的顺位；只关心「该谁了」的地方用它。 */
+export async function fetchOrder(slug: string): Promise<ActionOrder | null> {
+  return (await fetchTurnState(slug)).order;
 }
 
 /** 舞台名单：名字 → 谁在这个舞台上。舞台回合的目标由它决定。 */

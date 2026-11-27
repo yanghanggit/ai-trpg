@@ -18,7 +18,7 @@ import type {
   GameGraphStage,
   GameGraphWorld,
 } from "../../game-ops/graph";
-import { actionOrderSchema } from "./action-order";
+import { actionOrderRoundSchema, actionOrderSchema } from "./action-order";
 
 const entitySchema = z.record(z.string(), z.unknown());
 
@@ -106,5 +106,6 @@ export const gameGraphSchema = z
     connections: z.array(gameGraphConnectionSchema),
     actors: z.array(gameGraphActorSchema),
     order: actionOrderSchema.nullable(),
+    round: actionOrderRoundSchema.nullable(),
   })
   .meta({ id: "GameGraph" }) satisfies z.ZodType<GameGraphData>;

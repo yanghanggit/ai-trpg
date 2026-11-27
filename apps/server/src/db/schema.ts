@@ -1,5 +1,6 @@
 import { sql } from "drizzle-orm";
 import {
+  bigserial,
   boolean,
   check,
   index,
@@ -17,6 +18,7 @@ import type { Stats } from "../game/kernel/attributes";
 import type { StatusEffect } from "../game/kernel/status-effects";
 import type {
   ActionOrderStatus,
+  ActionOrderTurnKind,
   AffixTriggers,
   CarriedActionKind,
   EquipmentSlots,
@@ -524,6 +526,46 @@ export const actionOrderEntries = pgTable(
   (table) => [
     uniqueIndex("action_order_entries_order_actor_unique").on(table.orderId, table.actorId),
     uniqueIndex("action_order_entries_order_position_unique").on(table.orderId, table.position),
+  ],
+);
+
+/**
+ * 回合账：顺位上每落账一个回合记一行（角色 / 空回合 / 舞台 / 世界）。
+ *
+ * 只追加，不参与回合决策，也不挡任何推进——与顺位、`dispatch` 同一条立场：记录，不是前置条件。
+ * 它补的是两个此前只能猜的事实：某一行动轮里，某个舞台推过没有、world 推过没有。
+ *
+ * `round` 写入时定下来（该顺位已落账的 world 行数 + 1），读侧一条区间查询就能拿到本行动轮。
+ * `subject_name` 冗余：账是历史，改名不改历史。`stage_id` 不给外键：舞台随局删掉之后，
+ * 这一行仍是「当时在哪儿落过账」的事实，名字还在。
+ */
+export const actionOrderTurns = pgTable(
+  "action_order_turns",
+  {
+    id: uuid("id").primaryKey(),
+    orderId: uuid("order_id")
+      .notNull()
+      .references(() => actionOrders.id, { onDelete: "cascade" }),
+    /** 单调序号：行序不靠时间戳，同一毫秒里的两笔也分得清先后。 */
+    seq: bigserial("seq", { mode: "number" }).notNull(),
+    /** 行动轮编号：写入时 = 该顺位已落账的 world 行数 + 1。 */
+    round: integer("round").notNull(),
+    kind: text("kind").$type<ActionOrderTurnKind>().notNull(),
+    subjectId: text("subject_id").notNull(),
+    subjectName: text("subject_name").notNull(),
+    /** 角色行记他落账时所在的舞台；舞台行是自己；world 行没有。 */
+    stageId: uuid("stage_id"),
+    /** 落账后的时刻。 */
+    clock: integer("clock").notNull(),
+    /** 只角色行有：顺位期望的名次、实际名次、是否一致；不在顺位上时留空。 */
+    expectedPosition: integer("expected_position"),
+    actualPosition: integer("actual_position"),
+    followed: boolean("followed"),
+    at: timestamp("at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    index("action_order_turns_order_round_idx").on(table.orderId, table.round),
+    index("action_order_turns_order_kind_idx").on(table.orderId, table.kind),
   ],
 );
 

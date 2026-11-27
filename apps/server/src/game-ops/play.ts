@@ -11,6 +11,7 @@ import {
   type AppearanceOutcome,
   createGame,
   deleteGameRow,
+  dispatchFacts,
   endGame,
   findActorByName,
   findActorByRef,
@@ -253,7 +254,12 @@ export async function submitPlayerAction(
     const result = await dispatchPlayerAction(db, gameRef, actorRef, action, services, trace);
     // 被拒的动作走不到这里（落账层直接抛错），所以「回来且 ok」就是「发生过」。
     if (result.ok) {
-      await recordTurnTaken(db, result.state.game.id, actor.id);
+      await recordTurnTaken(
+        db,
+        result.state.game.id,
+        actor.id,
+        order === null ? {} : { facts: dispatchFacts(order, actor.id) },
+      );
     }
     return playerActionOutput(result);
   } finally {
@@ -595,17 +601,13 @@ async function recordDispatch(input: {
   actorId: string;
   actorName: string;
 }): Promise<void> {
-  const actual = input.order.entries.find((entry) => entry.actorId === input.actorId);
-  const expected = input.order.nextActor;
+  const facts = dispatchFacts(input.order, input.actorId);
   await traceEvent(input.trace, {
     event: "dispatch",
     actorId: input.actorId,
     actorName: input.actorName,
     orderId: input.order.id,
-    expectedPosition: expected === null ? null : expected.position,
-    actualPosition: actual === undefined ? null : actual.position,
-    followed:
-      expected === null || actual === undefined ? null : expected.position === actual.position,
+    ...facts,
   });
 }
 
@@ -650,7 +652,12 @@ export async function advanceNpc(
       results.push(actorTurnOutput(result));
       const { actor } = findActorByName(result.state, name);
       if (result.ok) {
-        await recordTurnTaken(db, game.id, actor.id);
+        await recordTurnTaken(
+          db,
+          game.id,
+          actor.id,
+          order === null ? {} : { facts: dispatchFacts(order, actor.id) },
+        );
       }
       if (order !== null) {
         await recordDispatch({ trace, order, actorId: actor.id, actorName: actor.name });

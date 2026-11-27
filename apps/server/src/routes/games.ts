@@ -62,7 +62,7 @@ import {
 import { HttpError } from "../http-error";
 import { isAdmin } from "../identity";
 import { type AuthUser, requireUser } from "../plugins/auth";
-import { actionOrderSchema } from "./schemas/action-order";
+import { actionOrderRoundSchema, actionOrderSchema } from "./schemas/action-order";
 import { actorLogSchema, actorViewSchema, gameMessageSchema } from "./schemas/client-view";
 import { gameGraphSchema } from "./schemas/graph";
 import { turnJobSchema } from "./schemas/jobs";
@@ -998,7 +998,12 @@ export function createGameRoutes(db: () => Database): FastifyPluginAsyncZod {
           tags: ["action-orders"],
           summary: "读当前进行中的行动顺位",
           params: gameParams,
-          response: { 200: z.object({ order: actionOrderSchema.nullable() }) },
+          response: {
+            200: z.object({
+              order: actionOrderSchema.nullable(),
+              round: actionOrderRoundSchema.nullable(),
+            }),
+          },
         },
       },
       async (request) => {

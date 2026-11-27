@@ -102,6 +102,7 @@ function graph(overrides: Partial<GameGraph> = {}): GameGraph {
         },
       ],
     },
+    round: { index: 1, actors: [], stages: [], world: false },
     ...overrides,
   };
 }

@@ -1,45 +1,119 @@
 import { roundComplete } from "@ai-trpg/api-client";
 import type { GameGraph } from "../../features/games/useGameGraph";
 
-/** 推进面板要摆出来的读数：全部由顺位与图谱导出来，不在界面里另算一遍。 */
+/** 编排表的一行：顺位上的一个名次，与它对应的舞台、以及这一行动轮的状态。 */
+export type AdvanceRow = {
+  actorId: string;
+  actorName: string;
+  position: number;
+  control: "agent" | "player";
+  alive: boolean;
+  /** 这个角色在这一行动轮上已经落过账。 */
+  actedThisRound: boolean;
+  /** 他是这一行动轮里空过的（轮到过、没动手）。 */
+  emptyThisRound: boolean;
+  /** 他现在所在的舞台。 */
+  stageId?: string;
+  stageName?: string;
+  /** 顺位上的下一位就是他。 */
+  isNext: boolean;
+};
+
+/** 推进面板的读数：编排表 + 行动轮状态，全部由顺位、回合账与图谱导出来。 */
 export type AdvanceReadings = {
   hasOrder: boolean;
-  /** 下一位；顺位上没有活人时为 null。 */
-  next: { position: number; actorName: string; player: boolean } | null;
-  /** 活人各自的已过回合数，按名次排。 */
-  counts: number[];
-  /** 活人计数齐平（且不是全零）：这一轮人人都动过了。 */
-  complete: boolean;
-  /** 下一位现在所在的舞台；认不出就是 undefined。 */
-  nextStage?: string;
-  /** 编排能不能自己走：有顺位、有下一位、且不是玩家席位。 */
-  chainAllowed: boolean;
+  /** 最近一笔账所属的行动轮编号；没有顺位时为 0。 */
+  roundIndex: number;
+  rows: AdvanceRow[];
+  /** 这一行动轮的 world 回合推过没有。 */
+  worldPushed: boolean;
+  /** 活人计数齐平：这一轮人人都动过了。 */
+  roundDone: boolean;
+  /** 账上说这一轮 world 推过：这一轮已经收尾。 */
+  roundClosed: boolean;
+  /** 点了会被拦住的原因；没有就是能点。 */
+  blocked?: string;
+  /** 下一次点击会做什么，一句话。 */
+  nextStep: string;
 };
 
 /**
- * 从图谱里读出「下一步是什么」。
+ * 从图谱与行动轮读出「这一轮怎么走」。
  *
- * 三件事各有出处：`next` 与 `counts` 来自服务端的顺位快照，`nextStage` 来自 actor 的站位，
- * `complete` 是按共用的 `roundComplete` 算的读数。界面只负责把它们摆出来。
+ * 三件事各有出处：`rows` 来自顺位（名次是权威的），`stageName` 来自 actor 的摊位，
+ * `actedThisRound` / `worldPushed` 来自回合账——后者是此前只能拿「齐平」去猜的那一层。
+ *
+ * 按钮能不能点与「会做什么」是两件事：顺位上没人时按钮仍然能点，那一下是收工。
  */
-export function advanceReadings(graph: GameGraph | undefined): AdvanceReadings {
+export function advanceReadings(
+  graph: GameGraph | undefined,
+  round: GameGraph["round"] | undefined,
+): AdvanceReadings {
   const order = graph?.order ?? null;
   if (order === null) {
-    return { hasOrder: false, next: null, counts: [], complete: false, chainAllowed: false };
+    return {
+      hasOrder: false,
+      roundIndex: 0,
+      rows: [],
+      worldPushed: false,
+      roundDone: false,
+      roundClosed: false,
+      nextStep: "开一条顺位",
+    };
   }
-  const entries = order.entries.filter((entry) => entry.alive);
+
+  const acted = new Map<string, boolean>();
+  for (const row of round?.actors ?? []) {
+    acted.set(row.actorId, row.empty);
+  }
   const next = order.nextActor;
-  const actor = next === null ? undefined : graph?.actors.find((item) => item.id === next.actorId);
-  const stage = graph?.stages.find((item) => item.id === actor?.stageId);
+  const rows: AdvanceRow[] = order.entries.map((entry) => {
+    const actor = graph?.actors.find((item) => item.id === entry.actorId);
+    const stage = graph?.stages.find((item) => item.id === actor?.stageId);
+    return {
+      actorId: entry.actorId,
+      actorName: entry.actorName,
+      position: entry.position,
+      control: entry.control,
+      alive: entry.alive,
+      actedThisRound: acted.has(entry.actorId),
+      emptyThisRound: acted.get(entry.actorId) === true,
+      ...(stage === undefined ? {} : { stageId: stage.id, stageName: stage.name }),
+      isNext: next !== null && next.actorId === entry.actorId,
+    };
+  });
+
+  const roundDone = roundComplete(order);
+  const worldPushed = round?.world ?? false;
+  const nextStage = rows.find((row) => row.isNext)?.stageName;
+  const worldPending = roundDone && !worldPushed;
+
+  const blocked =
+    next === null
+      ? undefined
+      : next.control === "player"
+        ? `轮到 ${next.actorName}：玩家席位由玩家端自己决定`
+        : undefined;
+
+  const nextStep =
+    next === null
+      ? "收工（顺位上没有活着的人）"
+      : blocked !== undefined
+        ? "停在玩家席位"
+        : worldPending
+          ? `world 回合（收尾第 ${round?.index ?? 1} 轮）`
+          : `NPC ${next.actorName} → 舞台 ${nextStage ?? "（认不出）"}${
+              worldPending ? " → world 回合" : ""
+            }`;
+
   return {
     hasOrder: true,
-    next:
-      next === null
-        ? null
-        : { position: next.position, actorName: next.actorName, player: next.control === "player" },
-    counts: entries.map((entry) => entry.turnsTaken),
-    complete: roundComplete(order),
-    ...(stage === undefined ? {} : { nextStage: stage.name }),
-    chainAllowed: next !== null && next.control !== "player",
+    roundIndex: round?.index ?? 1,
+    rows,
+    worldPushed,
+    roundDone,
+    roundClosed: roundDone && worldPushed,
+    ...(blocked === undefined ? {} : { blocked }),
+    nextStep,
   };
 }

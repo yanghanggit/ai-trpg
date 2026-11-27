@@ -12,7 +12,13 @@
  */
 
 import type { Database } from "../db/pool";
-import { type ActionOrderState, getGameStateSlice, readActionOrder } from "../game";
+import {
+  type ActionOrderRoundState,
+  type ActionOrderState,
+  getGameStateSlice,
+  readActionOrder,
+  readActionOrderRound,
+} from "../game";
 
 /** 通道的通行状态；`sealed` 表示剧情相连但此刻过不去。 */
 export type GameGraphPassage = "open" | "sealed";
@@ -98,10 +104,14 @@ export type GameGraphData = {
   actors: GameGraphActor[];
   /** 当前进行中的顺位；没有就是 `null`，不是错误。 */
   order: ActionOrderState | null;
+  /** 本行动轮的进度读数；与顺位并列，不嵌套。 */
+  round: ActionOrderRoundState | null;
 };
 
 export async function readGameGraph(db: Database, gameRef: string): Promise<GameGraphData> {
   const state = await getGameStateSlice(db, gameRef);
+
+  const order = await readActionOrder(db, state.game.id);
 
   return {
     game: {
@@ -163,6 +173,7 @@ export async function readGameGraph(db: Database, gameRef: string): Promise<Game
         actions: [...actor.actions],
       })),
     ),
-    order: await readActionOrder(db, state.game.id),
+    order,
+    round: order === null ? null : await readActionOrderRound(db, order.id),
   };
 }

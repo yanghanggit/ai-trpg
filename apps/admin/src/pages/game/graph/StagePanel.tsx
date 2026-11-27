@@ -85,6 +85,12 @@ type Props = {
 export default function StagePanel({ graph, view, onItemClick, onSelectStage }: Props) {
   const { stage, neighbours } = view;
   const people = graph.actors.filter((actor) => actor.stageId === stage.id);
+  const round = graph.round;
+  const stageActorIds = new Set(people.map((actor) => actor.id));
+  const stageActors = (round?.actors ?? [])
+    .filter((row) => stageActorIds.has(row.actorId))
+    .map((row) => ({ name: row.name, empty: row.empty, acted: true }));
+  const stageTurns = (round?.stages ?? []).find((row) => row.stageId === stage.id)?.turns ?? 0;
 
   return (
     <aside className="inspector">
@@ -95,6 +101,33 @@ export default function StagePanel({ graph, view, onItemClick, onSelectStage }: 
           {stage.teleportBlocked ? " · 禁传送" : ""}
         </p>
       </header>
+
+      <h4>
+        本行动轮 · 第 {round?.index ?? 1} 轮
+        <Hint text="这一段来自回合账：本舞台的演员在这一轮落过账没有、本舞台自己推过几次、world 推过没有。账只记事实，不挡任何推进；没有账时说明这一轮还没开始。" />
+      </h4>
+      <ul className="inspector__list">
+        <li>
+          <strong>本舞台的演员</strong>
+          <span className="muted">
+            {stageActors.length === 0
+              ? "没有"
+              : stageActors
+                  .map((row) => `${row.name}${row.empty ? "（空过）" : row.acted ? " ✓" : ""}`)
+                  .join(" · ")}
+          </span>
+        </li>
+        <li>
+          <strong>本舞台</strong>
+          <span className="muted">
+            {stageTurns === 0 ? "这一轮还没推过" : `这一轮推过 ${stageTurns} 次`}
+          </span>
+        </li>
+        <li>
+          <strong>world 回合</strong>
+          <span className="muted">{round?.world === true ? "这一轮推过了" : "这一轮还没推"}</span>
+        </li>
+      </ul>
 
       <h4>环境</h4>
       <p className="inspector__text">{stage.environment || "—"}</p>

@@ -1,5 +1,5 @@
 {
-  "id": "605ed540-db3c-4cfd-bc03-c4f83bb878d8",
+  "id": "3fdf08a5-1857-4999-974a-d6975bf04c7e",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "version": "7",
   "dialect": "postgresql",
@@ -110,6 +110,155 @@
           "tableTo": "actors",
           "columnsFrom": [
             "actor_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.action_order_turns": {
+      "name": "action_order_turns",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "order_id": {
+          "name": "order_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "seq": {
+          "name": "seq",
+          "type": "bigserial",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "round": {
+          "name": "round",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "kind": {
+          "name": "kind",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "subject_id": {
+          "name": "subject_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "subject_name": {
+          "name": "subject_name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "stage_id": {
+          "name": "stage_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "clock": {
+          "name": "clock",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "expected_position": {
+          "name": "expected_position",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "actual_position": {
+          "name": "actual_position",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "followed": {
+          "name": "followed",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "at": {
+          "name": "at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "action_order_turns_order_round_idx": {
+          "name": "action_order_turns_order_round_idx",
+          "columns": [
+            {
+              "expression": "order_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "round",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "action_order_turns_order_kind_idx": {
+          "name": "action_order_turns_order_kind_idx",
+          "columns": [
+            {
+              "expression": "order_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "kind",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "action_order_turns_order_id_action_orders_id_fk": {
+          "name": "action_order_turns_order_id_action_orders_id_fk",
+          "tableFrom": "action_order_turns",
+          "tableTo": "action_orders",
+          "columnsFrom": [
+            "order_id"
           ],
           "columnsTo": [
             "id"

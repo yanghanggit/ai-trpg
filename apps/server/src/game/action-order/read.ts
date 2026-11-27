@@ -1,11 +1,17 @@
 import type { Database } from "../../db/pool";
-import type { ActionOrderEntryState, ActionOrderState } from "../kernel/types";
+import type {
+  ActionOrderEntryState,
+  ActionOrderRoundState,
+  ActionOrderState,
+} from "../kernel/types";
 import {
   type ActionOrderRow,
   findActionOrder,
   findActiveActionOrder,
   listActionOrderEntries,
+  listActionOrderTurnsOfRound,
   listOrderParticipants,
+  readLastTurnRound,
 } from "../persistence/action-orders";
 import { readGameClock, readGameVersion } from "../persistence/games";
 import { nextEntry } from "./next";
@@ -62,5 +68,51 @@ export async function projectActionOrder(
             actorName: picked.actorName,
             control: picked.control,
           },
+  };
+}
+
+/**
+ * 行动轮：本轮的进度读数，从回合账上算，不落库。
+ *
+ * 报的是「最近一笔账所属的行动轮」：world 落账之后仍然报它，直到下一笔角色回合开新轮——
+ * 所以「这一轮的 world 推过没有」是一个稳定的读数，而不是会被推完就清零的状态。
+ * 只读那一轮的行，长度与「这一轮走了几步」成正比，不随局的长度增长。
+ */
+export async function readActionOrderRound(
+  db: Database,
+  orderId: string,
+): Promise<ActionOrderRoundState> {
+  const last = await readLastTurnRound(db, orderId);
+  const index = last ?? 1;
+  const turns = last === null ? [] : await listActionOrderTurnsOfRound(db, orderId, index);
+  const actors: ActionOrderRoundState["actors"] = [];
+  const stages = new Map<string, { stageId: string; name: string; turns: number }>();
+  let world = false;
+  for (const turn of turns) {
+    if (turn.kind === "actor" || turn.kind === "pass") {
+      actors.push({
+        actorId: turn.subjectId,
+        name: turn.subjectName,
+        empty: turn.kind === "pass",
+      });
+      continue;
+    }
+    if (turn.kind === "stage") {
+      const stageId = turn.stageId ?? turn.subjectId;
+      const existing = stages.get(stageId);
+      if (existing === undefined) {
+        stages.set(stageId, { stageId, name: turn.subjectName, turns: 1 });
+      } else {
+        existing.turns += 1;
+      }
+      continue;
+    }
+    world = true;
+  }
+  return {
+    index,
+    actors,
+    stages: [...stages.values()],
+    world,
   };
 }

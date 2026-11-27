@@ -14,6 +14,9 @@ import { isTerminalJob, outcomeOf, type TurnJob, TurnJobFailure } from "./turn-j
 
 export type ActionOrder = components["schemas"]["ActionOrder"];
 
+/** 行动轮：本轮的进度读数（谁落过账、哪些舞台推过、world 推过没有）。 */
+export type ActionOrderRound = components["schemas"]["ActionOrderRound"];
+
 /** 玩家动作的请求体：契约里那份可判别联合，调用方不必再抄一遍。 */
 export type PlayerAction = paths["/api/v1/games/{game}/actors/{actor}/actions"]["post"] extends {
   requestBody: { content: { "application/json": infer Body } };

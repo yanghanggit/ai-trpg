@@ -9,6 +9,7 @@ import { z } from "zod";
 import type {
   ActionOrderEntryState,
   ActionOrderNextActorState,
+  ActionOrderRoundState,
   ActionOrderState,
 } from "../../game/kernel/types";
 
@@ -35,6 +36,38 @@ const actionOrderNextActorSchema = z
     control: controlSchema,
   })
   .meta({ id: "ActionOrderNextActor" }) satisfies z.ZodType<ActionOrderNextActorState>;
+
+const roundActorSchema = z.object({
+  actorId: z.string(),
+  name: z.string(),
+  /** 空回合：轮到过、没有动作落账。 */
+  empty: z.boolean(),
+});
+
+const roundStageSchema = z.object({
+  stageId: z.string(),
+  name: z.string(),
+  /** 这一行动轮推过几次（每个演员回合之后各一次）。 */
+  turns: z.number(),
+});
+
+/**
+ * 行动轮：本轮的进度读数。
+ *
+ * 它回答的是「集体推到哪了」——顺位回答「谁排第几、该谁了」。两者并列下发，不互相嵌套。
+ */
+export const actionOrderRoundSchema = z
+  .object({
+    /** 行动轮编号：已落账的 world 回合数 + 1。 */
+    index: z.number(),
+    /** 本轮已经落过账的角色（含空回合）。 */
+    actors: z.array(roundActorSchema),
+    /** 本轮已经推过的舞台与次数。 */
+    stages: z.array(roundStageSchema),
+    /** 本轮的 world 回合推过没有。 */
+    world: z.boolean(),
+  })
+  .meta({ id: "ActionOrderRound" }) satisfies z.ZodType<ActionOrderRoundState>;
 
 export const actionOrderSchema = z
   .object({

@@ -1,5 +1,6 @@
 import type { Database } from "../../../db/pool";
 import { type TraceContext, traceEvent } from "../../../debug/trace";
+import { recordWorldTurn } from "../../action-order/record";
 import { GameError } from "../../errors";
 import { MAX_WORLD_ACTIONS_PER_TURN } from "../../kernel/limits";
 import type { WorldPlan } from "../../kernel/types";
@@ -69,6 +70,7 @@ export async function applyWorldPlan(
     if (actions.length === 0) {
       // 显式空计划也是世界的一次回合：时间照走，只是没有世界级变更要写。
       await advanceGameClock(tx, gameId);
+      await recordWorldTurn(tx, gameId, world.name);
       return true;
     }
     if (actions.length > MAX_WORLD_ACTIONS_PER_TURN) {
@@ -97,6 +99,7 @@ export async function applyWorldPlan(
 
     // 校验全部通过 = 这一回合真的会落账：此后写的记忆落在新的一刻。
     await advanceGameClock(tx, gameId);
+    await recordWorldTurn(tx, gameId, world.name);
     const now = new Date();
     let completed = false;
     for (const action of actions) {

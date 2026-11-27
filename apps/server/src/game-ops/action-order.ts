@@ -7,12 +7,14 @@
 
 import type { Database } from "../db/pool";
 import {
+  type ActionOrderRoundState,
   type ActionOrderState,
   completeActionOrder,
   getGameMeta,
   getGameStateSlice,
   openActionOrder,
   readActionOrder,
+  readActionOrderRound,
   removeActionOrder,
 } from "../game";
 
@@ -24,14 +26,23 @@ export async function createActionOrderOp(
   return { order: await openActionOrder(db, state) };
 }
 
-/** 不给 id 就读当前进行中的那张；没有就回 `null`，不是错误。 */
+/**
+ * 不给 id 就读当前进行中的那张；没有就回 `null`，不是错误。
+ *
+ * 顺位与行动轮并列返回：一个回答「谁排第几、该谁了」，一个回答「这一轮推到哪了」。
+ * 两者不互相嵌套——账不是顺位的一部分，硬塞进去会让两个名字都变糊。
+ */
 export async function readActionOrderOp(
   db: Database,
   gameRef: string,
   orderId?: string,
-): Promise<{ order: ActionOrderState | null }> {
+): Promise<{ order: ActionOrderState | null; round: ActionOrderRoundState | null }> {
   const game = await getGameMeta(db, gameRef);
-  return { order: await readActionOrder(db, game.id, orderId) };
+  const order = await readActionOrder(db, game.id, orderId);
+  return {
+    order,
+    round: order === null ? null : await readActionOrderRound(db, order.id),
+  };
 }
 
 export async function completeActionOrderOp(
