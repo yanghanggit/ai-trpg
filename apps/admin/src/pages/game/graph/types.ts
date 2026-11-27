@@ -47,18 +47,27 @@ export type QueueRow = {
 };
 
 /** 舞台第二层：根、按顺位排好的 actor、还有能走到的邻舞台。 */
+/**
+ * 一条出口 = 一个邻舞台 + 两个方向各自通不通。
+ *
+ * 两个方向折叠成一行，是因为「去」与「来」问的是同一对人：分开列会把名字念两遍，
+ * 而图上本来也是一条线两个箭头。`null` = 那个方向根本没有通路。
+ */
+export type StageExit = {
+  stage: GameGraph["stages"][number];
+  /** 从这里去邻居。 */
+  out: "open" | "sealed" | null;
+  /** 从邻居来这里。 */
+  in: "open" | "sealed" | null;
+};
+
 export type StageView = {
   stage: GameGraph["stages"][number];
   actors: {
     actor: GameGraph["actors"][number];
     entry: QueueRow | undefined;
   }[];
-  neighbours: {
-    stage: GameGraph["stages"][number];
-    passage: "open" | "sealed";
-    /** `out` = 从这里出去，`in` = 从那边进来。 */
-    direction: "out" | "in";
-  }[];
+  neighbours: StageExit[];
 };
 
 /** 检索用的一条实体：舞台、actor、道具都归一成的形状。 */

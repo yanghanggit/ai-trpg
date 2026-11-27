@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import type { GameGraph } from "../../../features/games/useGameGraph";
 import {
   connectionPairs,
+  describePassage,
   entityIndex,
   nextStageId,
   queueRows,
@@ -150,22 +151,53 @@ describe("stageView", () => {
     expect(view?.actors.map((row) => row.actor.id)).toEqual(["a", "z"]);
   });
 
-  it("邻舞台两个方向都列出来，通行状态照抄", () => {
+  it("一个邻居一行，两个方向的通行状态各就各位", () => {
     const view = stageView(graph(), "hall");
-    expect(view?.neighbours.map((item) => [item.stage.id, item.direction, item.passage])).toEqual([
-      ["yard", "out", "open"],
-      ["yard", "in", "sealed"],
+    expect(view?.neighbours.map((item) => [item.stage.id, item.out, item.in])).toEqual([
+      ["yard", "open", "sealed"],
     ]);
 
+    // 换到对面看同一条线：去与来正好互换，行的顺序仍按邻居序号。
     const yard = stageView(graph(), "yard");
-    expect(yard?.neighbours.map((item) => [item.stage.id, item.direction, item.passage])).toEqual([
-      ["hall", "in", "open"],
-      ["hall", "out", "sealed"],
+    expect(yard?.neighbours.map((item) => [item.stage.id, item.out, item.in])).toEqual([
+      ["hall", "sealed", "open"],
+    ]);
+  });
+
+  it("只有单向通路时，另一侧是 null", () => {
+    const oneWay = graph({
+      connections: [
+        { id: "c1", fromStageId: "hall", toStageId: "yard", passage: "open" },
+      ] as GameGraph["connections"],
+    });
+    const view = stageView(oneWay, "hall");
+    expect(view?.neighbours.map((item) => [item.stage.id, item.out, item.in])).toEqual([
+      ["yard", "open", null],
     ]);
   });
 
   it("舞台不存在时返回 undefined，不抛", () => {
     expect(stageView(graph(), "nowhere")).toBeUndefined();
+  });
+});
+
+describe("describePassage", () => {
+  it("两个方向各说各的，缺的方向说没有路", () => {
+    const [yard] = stageView(graph(), "hall")?.neighbours ?? [];
+    expect(yard === undefined ? "" : describePassage(yard)).toBe("与yard：去能走，来封着");
+
+    const [hall] = stageView(graph(), "yard")?.neighbours ?? [];
+    expect(hall === undefined ? "" : describePassage(hall)).toBe("与hall：去封着，来能走");
+  });
+
+  it("单向通路里缺掉的那一半写「没有路」", () => {
+    const oneWay = graph({
+      connections: [
+        { id: "c1", fromStageId: "hall", toStageId: "yard", passage: "sealed" },
+      ] as GameGraph["connections"],
+    });
+    const [exit] = stageView(oneWay, "hall")?.neighbours ?? [];
+    expect(exit === undefined ? "" : describePassage(exit)).toBe("与yard：去封着，来没有路");
   });
 });
 

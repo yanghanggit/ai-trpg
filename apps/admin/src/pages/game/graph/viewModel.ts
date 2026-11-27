@@ -1,5 +1,5 @@
 import type { GameGraph, GraphActor } from "../../../features/games/useGameGraph";
-import type { EntityRef, QueueRow, StageView } from "./types";
+import type { EntityRef, QueueRow, StageExit, StageView } from "./types";
 
 /**
  * 图谱的读法：把契约里的两张平表拼成「世界 → 舞台 → actor」三层。
@@ -102,24 +102,43 @@ export function stageView(graph: GameGraph, stageId: string): StageView | undefi
         : leftPosition - rightPosition;
     });
 
-  const neighbours: StageView["neighbours"] = [];
+  // 一张表按邻居收：一条线两个方向落在同一行，不重复名字。
+  const exits = new Map<string, StageExit>();
+  const exitOf = (other: GameGraph["stages"][number]): StageExit => {
+    const existing = exits.get(other.id);
+    if (existing !== undefined) {
+      return existing;
+    }
+    const created: StageExit = { stage: other, out: null, in: null };
+    exits.set(other.id, created);
+    return created;
+  };
   for (const connection of graph.connections) {
     if (connection.fromStageId === stageId) {
       const target = graph.stages.find((item) => item.id === connection.toStageId);
       if (target !== undefined) {
-        neighbours.push({ stage: target, passage: connection.passage, direction: "out" });
+        exitOf(target).out = connection.passage;
       }
     }
     if (connection.toStageId === stageId) {
       const source = graph.stages.find((item) => item.id === connection.fromStageId);
       if (source !== undefined) {
-        neighbours.push({ stage: source, passage: connection.passage, direction: "in" });
+        exitOf(source).in = connection.passage;
       }
     }
   }
-  neighbours.sort((left, right) => left.stage.ordinal - right.stage.ordinal);
+  const neighbours = [...exits.values()].sort(
+    (left, right) => left.stage.ordinal - right.stage.ordinal,
+  );
 
   return { stage, actors, neighbours };
+}
+
+/** 一条通路读成一句话：给 `title` 与读屏用，画面上只出现箭头。 */
+export function describePassage(exit: StageExit): string {
+  const label = (passage: "open" | "sealed" | null): string =>
+    passage === null ? "没有路" : passage === "open" ? "能走" : "封着";
+  return `与${exit.stage.name}：去${label(exit.out)}，来${label(exit.in)}`;
 }
 
 /** 一个 actor 在顺位上的位置；不在顺位上就是 `undefined`。 */

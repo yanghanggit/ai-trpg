@@ -861,6 +861,53 @@ a {
   font-size: 13px;
 }
 
+/* 出口：一行一条通路，写成「本舞台 ⇄ 对面」。三段栅格让名字各靠中线排列。 */
+.exit__row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  align-items: center;
+  gap: 6px;
+}
+
+.exit__here,
+.exit__other {
+  overflow: hidden;
+  font-size: 13px;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.exit__here {
+  color: var(--muted);
+  text-align: right;
+}
+
+.exit__other {
+  text-align: left;
+}
+
+.passage {
+  flex: none;
+}
+
+.passage__half line,
+.passage__half path {
+  fill: none;
+  stroke: var(--accent);
+  stroke-width: 1.8;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.passage__half--sealed line,
+.passage__half--sealed path {
+  stroke: var(--muted);
+}
+
+.passage__half--sealed line {
+  stroke-dasharray: 4 3;
+}
+
 .inspector__sublist {
   margin-top: 4px;
   padding-left: 12px;

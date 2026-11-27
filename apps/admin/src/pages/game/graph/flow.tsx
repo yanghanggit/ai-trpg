@@ -135,11 +135,16 @@ export function stageFlow(
   // 根与邻舞台一起分层：进来在左、出去在右。
   const neighbourPositions = layoutStages(
     [stageId, ...ghostIds],
-    view.neighbours.map((neighbour) =>
-      neighbour.direction === "out"
-        ? { from: stageId, to: neighbour.stage.id }
-        : { from: neighbour.stage.id, to: stageId },
-    ),
+    view.neighbours.flatMap((neighbour) => {
+      const edges: { from: string; to: string }[] = [];
+      if (neighbour.out !== null) {
+        edges.push({ from: stageId, to: neighbour.stage.id });
+      }
+      if (neighbour.in !== null) {
+        edges.push({ from: neighbour.stage.id, to: stageId });
+      }
+      return edges;
+    }),
     { rankdir: "LR" },
   );
 

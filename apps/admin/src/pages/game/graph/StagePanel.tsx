@@ -1,5 +1,73 @@
+import Hint from "../../../components/Hint";
 import type { GameGraph } from "../../../features/games/useGameGraph";
-import type { StageView } from "./types";
+import type { StageExit, StageView } from "./types";
+import { describePassage } from "./viewModel";
+
+type Passage = "open" | "sealed" | null;
+
+/**
+ * 两个方向画成一条线的两半：左半边指向本舞台（从对面来），右半边指向对面（从这里去）。
+ *
+ * 一个方向一个状态，各自上色与线段样式：实线 accent = 能走，虚线灰 = 封着，
+ * 整半边不画 = 那个方向根本没有通路。所以一支箭头的单向通路自己就长成单向的样子。
+ */
+function PassageGlyph({ exit }: { exit: StageExit }) {
+  const half = (passage: Passage, side: "in" | "out") => {
+    if (passage === null) {
+      return null;
+    }
+    const sealed = passage === "sealed";
+    return (
+      <g className={sealed ? "passage__half passage__half--sealed" : "passage__half"}>
+        {side === "in" ? (
+          <>
+            <line x1="3" y1="7" x2="24" y2="7" />
+            <path d="M10 2.5 L3 7 L10 11.5" />
+          </>
+        ) : (
+          <>
+            <line x1="32" y1="7" x2="53" y2="7" />
+            <path d="M46 2.5 L53 7 L46 11.5" />
+          </>
+        )}
+      </g>
+    );
+  };
+
+  return (
+    <svg className="passage" viewBox="0 0 56 14" width="56" height="14" role="img">
+      <title>{describePassage(exit)}</title>
+      {half(exit.in, "in")}
+      {half(exit.out, "out")}
+    </svg>
+  );
+}
+
+/**
+ * 一条出口写成一条关系式：本舞台 ⇄ 对面那个。
+ *
+ * 两边的名字让箭头不必解释方向——左边那支指向本舞台，右边那支指向对面；
+ * 只有右边名字是链接，左边是本舞台自己，点了没有意义。
+ */
+function ExitRow({
+  exit,
+  here,
+  onSelect,
+}: {
+  exit: StageExit;
+  here: string;
+  onSelect: () => void;
+}) {
+  return (
+    <li className="exit__row">
+      <span className="exit__here">{here}</span>
+      <PassageGlyph exit={exit} />
+      <button type="button" className="linkish exit__other" onClick={onSelect}>
+        {exit.stage.name}
+      </button>
+    </li>
+  );
+}
 
 type Props = {
   graph: GameGraph;
@@ -44,25 +112,21 @@ export default function StagePanel({ graph, view, onItemClick, onSelectStage }: 
         </p>
       )}
 
-      <h4>出口</h4>
+      <h4>
+        出口
+        <Hint text="一行一条通路：左边是本舞台，右边是对面那个。两个方向各占半条线，左边那支指向这里、右边那支指向对面；实线=能走，虚线灰=封着，缺一半=那个方向没有通路。点右边名字跳过去。" />
+      </h4>
       {neighbours.length === 0 ? (
         <p className="muted">没有连通的舞台。</p>
       ) : (
-        <ul className="inspector__list">
-          {neighbours.map((neighbour) => (
-            <li key={`${neighbour.direction}:${neighbour.stage.id}`}>
-              <button
-                type="button"
-                className="linkish"
-                onClick={() => onSelectStage(neighbour.stage.id)}
-              >
-                {neighbour.stage.name}
-              </button>
-              <span className="muted">
-                {neighbour.direction === "out" ? "从这里去" : "从那边来"} ·{" "}
-                {neighbour.passage === "sealed" ? "封锁" : "可通行"}
-              </span>
-            </li>
+        <ul className="inspector__list exit">
+          {neighbours.map((exit) => (
+            <ExitRow
+              key={exit.stage.id}
+              exit={exit}
+              here={stage.name}
+              onSelect={() => onSelectStage(exit.stage.id)}
+            />
           ))}
         </ul>
       )}

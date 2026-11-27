@@ -30,7 +30,7 @@ export default function WorldCard({ graph, error, onOpen }: Props) {
     <section className="panel">
       <h2>
         世界图谱
-        <Hint text="一条线连两个舞台：箭头数=方向数，实线=至少一个方向能走，虚线=两个方向都封着，灰箭头=那个方向封着（sealed）。带「轮到」标记的舞台里站着顺位上的下一个人。点舞台看里面的人，点顺位条直接跳到那个人。" />
+        <Hint text="一条线连两个舞台：箭头数=方向数，实线=至少一个方向能走，虚线=两个方向都封着，灰箭头=那个方向封着（sealed）。带「轮到」标记的舞台里站着顺位上的下一个人。点舞台看里面的人，点顺位条直接跳到那个人。页头「第 N 刻」是本局已落账的回合数：舞台回合与世界回合也推进它，所以它通常大于顺位上各人的回合数。" />
       </h2>
 
       {error === undefined ? null : <p className="form-error">{error}</p>}
