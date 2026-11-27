@@ -3,6 +3,7 @@ import GamePageLinks from "../../components/GamePageLinks";
 import Hint from "../../components/Hint";
 import PageHeader from "../../components/PageHeader";
 import type { AdvanceKind } from "../../features/games/useGameActions";
+import { advanceReadings } from "./advanceReadings";
 import DangerDialog from "./DangerDialog";
 import StageExplorer, { type ExplorerTarget } from "./graph/StageExplorer";
 import WorldCard from "./graph/WorldCard";
@@ -52,11 +53,7 @@ export default function GamePanels({ data, actions }: Props) {
       </PageHeader>
 
       {data.actionError === undefined ? null : <p className="form-error">{data.actionError}</p>}
-      {data.queuedJobId === undefined ? null : (
-        <p className="muted">
-          已入队 <code>{data.queuedJobId.slice(0, 8)}</code>：结果看事件流。
-        </p>
-      )}
+      {data.advanceNote === undefined ? null : <p className="muted">{data.advanceNote}</p>}
 
       <WorldCard
         {...(data.graph === undefined ? {} : { graph: data.graph })}
@@ -65,7 +62,12 @@ export default function GamePanels({ data, actions }: Props) {
           setExplorer(actorId === undefined ? { stageId } : { stageId, actorId })
         }
       />
-      <AdvanceSection busy={data.busy !== undefined} actions={actions} />
+      <AdvanceSection
+        busy={data.busy !== undefined}
+        graph={data.graph}
+        steps={data.advanceSteps}
+        actions={actions}
+      />
       <LeaksDialog
         open={data.leaksOpen}
         result={data.leaks}
@@ -96,11 +98,25 @@ const ADVANCE_LABELS: Record<AdvanceKind, { label: string; target: string; place
     world: { label: "world 回合", target: "（不需要）", placeholder: "" },
   };
 
-function AdvanceSection({ busy, actions }: { busy: boolean; actions: GamePageActions }) {
+type AdvanceSectionProps = {
+  busy: boolean;
+  graph?: GamePageData["graph"];
+  steps: GamePageData["advanceSteps"];
+  actions: GamePageActions;
+};
+
+/**
+ * 推进：手动挡的同一次编排。
+ *
+ * 服务器只拥有四层单层入口与顺位快照，次序在客户端。这里把「下一步是什么」摆成读数，
+ * 主按钮一次跑完一小步（npc → 该角色所在舞台 → 齐平时 world），单步按钮留作修理。
+ */
+function AdvanceSection({ busy, graph, steps, actions }: AdvanceSectionProps) {
   const [kind, setKind] = useState<AdvanceKind>("npc");
   const [target, setTarget] = useState("");
   const [version, setVersion] = useState("");
-  const [actors, setActors] = useState("");
+
+  const { hasOrder, next, counts, complete, nextStage, chainAllowed } = advanceReadings(graph);
 
   const needsTarget = kind !== "world";
   const canSubmit = !needsTarget || target.trim().length > 0;
@@ -120,76 +136,161 @@ function AdvanceSection({ busy, actions }: { busy: boolean; actions: GamePageAct
     });
   }
 
-  function handlePass(event: React.FormEvent) {
-    event.preventDefault();
-    const names = actors
-      .split(/[,，\s]+/)
-      .map((name) => name.trim())
-      .filter((name) => name.length > 0);
-    if (names.length === 0) {
-      return;
-    }
-    void actions.pass(names);
-  }
-
   return (
     <section className="panel">
       <h2>
         推进
-        <Hint text="world 能结束一局，stage 只写环境，npc 只推进一个 actor。入队立刻返回作业 id，结果只看重读的终态。" />
+        <Hint text="一次点击只推进一个回合，作业落账后才有结果。串行编排（npc → 该角色所在舞台 → 齐平时 world）由「推进一步」一次跑完；链中途失败就按单步补完。玩家席位不替人决定，遇到它会停下。expectedVersion 默认取顺位读到的那份版本，手填只在指定推进里。" />
       </h2>
 
-      <form className="inline-form" onSubmit={handleSubmit}>
-        <label className="field">
-          <span>层</span>
-          <select value={kind} onChange={(event) => setKind(event.target.value as AdvanceKind)}>
-            {(Object.keys(ADVANCE_LABELS) as AdvanceKind[]).map((value) => (
-              <option key={value} value={value}>
-                {ADVANCE_LABELS[value].label}
-              </option>
-            ))}
-          </select>
-        </label>
-        <label className="field">
-          <span>{ADVANCE_LABELS[kind].target}</span>
-          <input
-            value={target}
-            onChange={(event) => setTarget(event.target.value)}
-            placeholder={ADVANCE_LABELS[kind].placeholder}
-            disabled={!needsTarget}
-            autoComplete="off"
-          />
-        </label>
-        <label className="field">
-          <span>expectedVersion（可选）</span>
-          <input
-            value={version}
-            onChange={(event) => setVersion(event.target.value)}
-            placeholder="留空则不比版本"
-            inputMode="numeric"
-            autoComplete="off"
-          />
-        </label>
-        <button className="button" type="submit" disabled={busy || !canSubmit}>
-          入队
-        </button>
-      </form>
+      {hasOrder ? null : <p className="muted">没有进行中的顺位：先开一条，才有「下一位」可推。</p>}
+      {hasOrder ? (
+        <dl className="facts facts--page">
+          <div>
+            <dt>下一位</dt>
+            <dd>
+              {next === null
+                ? "没有活着的了"
+                : `${next.position} ${next.actorName}（${next.player ? "玩家" : "NPC"}）`}
+            </dd>
+          </div>
+          <div>
+            <dt>本轮</dt>
+            <dd>
+              {counts.length === 0 ? "—" : counts.join(" / ")}
+              {" · "}
+              {complete ? "已齐平" : "未齐平"}
+            </dd>
+          </div>
+          <div>
+            <dt>下一步</dt>
+            <dd>
+              {next === null
+                ? "收工"
+                : `${next.player ? "等玩家动手" : `NPC ${next.actorName}`} → 舞台 ${
+                    nextStage ?? "（认不出）"
+                  } → ${complete ? "world 回合" : "齐平后才是 world"}`}
+            </dd>
+          </div>
+        </dl>
+      ) : null}
 
-      <h3>空过</h3>
-      <form className="inline-form" onSubmit={handlePass}>
-        <label className="field">
-          <span>actor 名单（逗号或空格分隔）</span>
-          <input
-            value={actors}
-            onChange={(event) => setActors(event.target.value)}
-            placeholder="例：神父, 修士"
-            autoComplete="off"
-          />
-        </label>
-        <button className="button button--ghost" type="submit" disabled={busy}>
-          记空回合
+      {complete && chainAllowed ? (
+        <p className="muted">
+          本轮活人已推齐：如果这一轮的 world 还没跑，先按「只推 world」——「推进一步」会从下一位
+          开始，等于跳过它。
+        </p>
+      ) : null}
+
+      <div className="row">
+        <button
+          type="button"
+          className="button"
+          disabled={busy || !chainAllowed}
+          onClick={() => void actions.advanceChain()}
+        >
+          推进一步
         </button>
-      </form>
+        <button
+          type="button"
+          className="button button--ghost"
+          disabled={busy || !chainAllowed}
+          onClick={() => void actions.advanceOne("npc")}
+        >
+          只推这位 NPC
+        </button>
+        <button
+          type="button"
+          className="button button--ghost"
+          disabled={busy || nextStage === undefined}
+          onClick={() => void actions.advanceOne("stage")}
+        >
+          只推舞台{nextStage === undefined ? "" : `：${nextStage}`}
+        </button>
+        <button
+          type="button"
+          className="button button--ghost"
+          disabled={busy}
+          onClick={() => void actions.advanceOne("world")}
+        >
+          只推 world
+        </button>
+        {hasOrder ? (
+          <button
+            type="button"
+            className="button button--ghost"
+            disabled={busy}
+            onClick={() => void actions.completeOrder()}
+          >
+            收工
+          </button>
+        ) : (
+          <button
+            type="button"
+            className="button button--ghost"
+            disabled={busy}
+            onClick={() => void actions.openOrder()}
+          >
+            开一条顺位
+          </button>
+        )}
+      </div>
+
+      {steps.length === 0 ? null : (
+        <ol className="steps">
+          {steps.map((step) => (
+            <li key={step.jobId} className="steps__row">
+              <span className="steps__label">{step.label}</span>
+              <code className="steps__id">{step.jobId.slice(0, 8)}</code>
+              <span className={step.status === "failed" ? "badge badge--error" : "badge"}>
+                {step.status}
+              </span>
+              {step.detail === undefined ? null : (
+                <span className="muted steps__detail">{step.detail}</span>
+              )}
+            </li>
+          ))}
+        </ol>
+      )}
+
+      <details className="raw">
+        <summary>指定推进（绕过编排，只下一层）</summary>
+        <form className="inline-form" onSubmit={handleSubmit}>
+          <label className="field">
+            <span>层</span>
+            <select value={kind} onChange={(event) => setKind(event.target.value as AdvanceKind)}>
+              {(Object.keys(ADVANCE_LABELS) as AdvanceKind[]).map((value) => (
+                <option key={value} value={value}>
+                  {ADVANCE_LABELS[value].label}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label className="field">
+            <span>{ADVANCE_LABELS[kind].target}</span>
+            <input
+              value={target}
+              onChange={(event) => setTarget(event.target.value)}
+              placeholder={ADVANCE_LABELS[kind].placeholder}
+              disabled={!needsTarget}
+              autoComplete="off"
+            />
+          </label>
+          <label className="field">
+            <span>expectedVersion（留空不比版本）</span>
+            <input
+              value={version}
+              onChange={(event) => setVersion(event.target.value)}
+              placeholder="留空则不比版本"
+              inputMode="numeric"
+              autoComplete="off"
+            />
+          </label>
+          <button className="button" type="submit" disabled={busy || !canSubmit}>
+            入队
+          </button>
+        </form>
+      </details>
     </section>
   );
 }

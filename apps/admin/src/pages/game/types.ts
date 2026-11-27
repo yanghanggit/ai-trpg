@@ -107,14 +107,28 @@ export type GameStoryData = {
   storyError?: string;
 };
 
+/**
+ * 一次推进里的一步：链由几个回合串成，每一步各自一个作业。
+ *
+ * 后台要看的就是这一列——哪一步成了、哪一步败在哪，而不是「跑完了」一行。
+ */
+export type AdvanceStep = {
+  label: string;
+  jobId: string;
+  status: string;
+  detail?: string;
+};
+
 /** 局控制台的展示数据；动作与数据都由容器给，页面不碰网络。 */
 export type GamePageData = {
   slug: string;
   busy?: string;
   actionError?: string;
 
-  /** 刚入队的作业 id：只回一行回执，不再摊开作业表。 */
-  queuedJobId?: string;
+  /** 最近一次推进的步骤（链或单步）：只留过程，不留结论。 */
+  advanceSteps: AdvanceStep[];
+  /** 推进回到界面时的一句话：停在哪、为什么停。 */
+  advanceNote?: string;
 
   /** 世界图谱：舞台、actor 与当前顺位的上帝视角。 */
   graph?: GameGraph;
@@ -128,8 +142,14 @@ export type GamePageData = {
 
 export type GamePageActions = {
   refresh: () => Promise<void>;
+  /** 指定推进：绕过编排，只下一层。 */
   advance: (input: AdvanceInput) => Promise<void>;
-  pass: (actors: string[]) => Promise<void>;
+  /** 推进一步：按编排跑 npc → 该角色所在舞台 → （齐平时）world。 */
+  advanceChain: () => Promise<void>;
+  /** 只推一层；npc 的目标由顺位决定，不用传。 */
+  advanceOne: (kind: "npc" | "stage" | "world") => Promise<void>;
+  openOrder: () => Promise<void>;
+  completeOrder: () => Promise<void>;
   endGame: (input: { outcome: string; message?: string }) => Promise<void>;
   deleteGame: () => Promise<void>;
   openLeaks: () => void;

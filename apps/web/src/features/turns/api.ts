@@ -1,22 +1,12 @@
-import { type paths, unwrap } from "@ai-trpg/api-client";
+import type { TurnRequest } from "@ai-trpg/api-client";
+import { unwrap } from "@ai-trpg/api-client";
 import { api } from "../../api/client";
 import type { TurnJob } from "./turnJob";
 
-/** 玩家动作的请求体：契约里那份可判别联合，客户端不再抄一遍。 */
-export type PlayerAction = paths["/api/v1/games/{game}/actors/{actor}/actions"]["post"] extends {
-  requestBody: { content: { "application/json": infer Body } };
-}
-  ? Body extends { action: infer Action }
-    ? Action
-    : never
-  : never;
-
-/** 一个回合的请求：四个入口各一种，客户端只负责把它们排成一次请求。 */
-export type TurnRequest =
-  | { kind: "npc"; actor: string; expectedVersion?: number }
-  | { kind: "player"; actor: string; action: PlayerAction; expectedVersion?: number }
-  | { kind: "stage"; stage: string; expectedVersion?: number }
-  | { kind: "world"; expectedVersion?: number };
+export type {
+  PlayerAction,
+  TurnRequest,
+} from "@ai-trpg/api-client";
 
 function versionOf(expectedVersion: number | undefined): { expectedVersion?: number } {
   return expectedVersion === undefined ? {} : { expectedVersion };

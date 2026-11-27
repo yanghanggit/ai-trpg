@@ -921,6 +921,47 @@ a {
   margin: 0;
 }
 
+/* 一排并排的按钮：推进的五个入口同一行，宽度按内容。 */
+.row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin-top: 14px;
+}
+
+/* 推进的步骤日志：一步一行，作业 id 只露前 8 位。 */
+.steps {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin: 12px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.steps__row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 0;
+  border-bottom: 1px solid rgb(36 49 63 / 60%);
+  font-size: 12.5px;
+}
+
+.steps__label {
+  min-width: 148px;
+}
+
+.steps__id {
+  color: var(--muted);
+}
+
+.steps__detail {
+  font-size: 11.5px;
+}
+
 /* 读数直接当页面的第一块：不套面板，也不顶一格空白。 */
 .facts--page {
   margin-top: 0;

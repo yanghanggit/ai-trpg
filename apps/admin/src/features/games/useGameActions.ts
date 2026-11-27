@@ -1,6 +1,14 @@
-import { type components, unwrap } from "@ai-trpg/api-client";
+import {
+  type ActionOrder,
+  type components,
+  type TurnJob,
+  type TurnRequest,
+  unwrap,
+  waitForTurnJob,
+} from "@ai-trpg/api-client";
 import { api } from "../../api/client";
-import type { JobView, MemoryOwner } from "./useGameData";
+import { enqueueTurn, fetchTurnJob } from "./advance";
+import type { MemoryOwner } from "./useGameData";
 import { useRefreshGame } from "./useRefreshGame";
 
 /** 后台能推的三层回合；world 与另外两层一样是入队，不在请求里同步跑。 */
@@ -23,38 +31,51 @@ export type AdvanceInput = {
 export function useGameActions(slug: string) {
   const refresh = useRefreshGame(slug);
 
-  async function advance(input: AdvanceInput): Promise<JobView> {
-    const path = { game: slug };
-    const body =
-      input.expectedVersion === undefined ? {} : { expectedVersion: input.expectedVersion };
-
-    const job =
+  /** 入队一个回合并等到终态；失败按作业留下的错误码抛出。 */
+  async function advance(input: AdvanceInput): Promise<TurnJob> {
+    const request: TurnRequest =
       input.kind === "npc"
-        ? unwrap(
-            await api.POST("/api/v1/games/{game}/turns/npc", {
-              params: { path },
-              body: { actor: input.target ?? "", ...body },
-            }),
-          ).job
+        ? {
+            kind: "npc",
+            actor: input.target ?? "",
+            ...(input.expectedVersion === undefined
+              ? {}
+              : { expectedVersion: input.expectedVersion }),
+          }
         : input.kind === "stage"
-          ? unwrap(
-              await api.POST("/api/v1/games/{game}/turns/stage", {
-                params: { path },
-                body: { stage: input.target ?? "", ...body },
-              }),
-            ).job
-          : unwrap(await api.POST("/api/v1/games/{game}/turns/world", { params: { path }, body }))
-              .job;
-
+          ? {
+              kind: "stage",
+              stage: input.target ?? "",
+              ...(input.expectedVersion === undefined
+                ? {}
+                : { expectedVersion: input.expectedVersion }),
+            }
+          : {
+              kind: "world",
+              ...(input.expectedVersion === undefined
+                ? {}
+                : { expectedVersion: input.expectedVersion }),
+            };
+    const job = await enqueueTurn(slug, request);
+    const done = await waitForTurnJob(job, (jobId) => fetchTurnJob(slug, jobId));
     await refresh();
-    return job;
+    return done;
   }
 
-  async function pass(actors: string[]): Promise<void> {
+  /** 开一条顺位：先后由服务端按敏捷现值排。 */
+  async function openOrder(): Promise<ActionOrder> {
+    const order = unwrap(
+      await api.POST("/api/v1/games/{game}/action-orders", { params: { path: { game: slug } } }),
+    ).order;
+    await refresh();
+    return order;
+  }
+
+  /** 收工：这条顺位不再挡下一条。 */
+  async function completeOrder(orderId: string): Promise<void> {
     unwrap(
-      await api.POST("/api/v1/games/{game}/turns/pass", {
-        params: { path: { game: slug } },
-        body: { actors },
+      await api.POST("/api/v1/games/{game}/action-orders/{order}/complete", {
+        params: { path: { game: slug, order: orderId } },
       }),
     );
     await refresh();
@@ -129,7 +150,8 @@ export function useGameActions(slug: string) {
 
   return {
     advance,
-    pass,
+    openOrder,
+    completeOrder,
     endGame,
     deleteGame,
     compact,
