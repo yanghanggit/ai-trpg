@@ -1,6 +1,9 @@
+import { useState } from "react";
+import Dialog from "../../components/Dialog";
 import GamePageLinks from "../../components/GamePageLinks";
 import Hint from "../../components/Hint";
 import PageHeader from "../../components/PageHeader";
+import type { MessageView } from "../../features/games/useGameData";
 import { formatAt } from "../../lib/format";
 import type { GameMessagesData } from "./types";
 
@@ -16,6 +19,8 @@ type Props = {
  */
 export default function GameMessagesPage({ data, onRefresh }: Props) {
   const messages = data.messages ?? [];
+  // 原文就是这一行本身：列表里已经带着，不必再发请求。
+  const [raw, setRaw] = useState<MessageView>();
 
   return (
     <main className="admin">
@@ -50,6 +55,7 @@ export default function GameMessagesPage({ data, onRefresh }: Props) {
                 <th>可见性</th>
                 <th>内容</th>
                 <th>时间</th>
+                <th />
               </tr>
             </thead>
             <tbody>
@@ -60,12 +66,31 @@ export default function GameMessagesPage({ data, onRefresh }: Props) {
                   <td>{message.visibility}</td>
                   <td>{message.content}</td>
                   <td>{formatAt(message.createdAt)}</td>
+                  <td>
+                    <button
+                      type="button"
+                      className="button button--ghost"
+                      onClick={() => setRaw(message)}
+                    >
+                      原文
+                    </button>
+                  </td>
                 </tr>
               ))}
             </tbody>
           </table>
         )}
       </section>
+
+      <Dialog
+        open={raw !== undefined}
+        onClose={() => setRaw(undefined)}
+        title={raw === undefined ? "消息" : `消息 #${raw.sequence} · ${raw.kind}`}
+      >
+        <pre className="json json--tall">
+          {raw === undefined ? "" : JSON.stringify(raw, null, 2)}
+        </pre>
+      </Dialog>
     </main>
   );
 }

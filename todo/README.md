@@ -6,9 +6,11 @@
 
 ## 现在到哪一步
 
-服务器侧的能力面已经闭合：回合全部走作业（入队 → 执行 → 终态 → 可查/可撤/可订阅），有进度、有取消、有推送。web 侧接上了**单步回路**：接管 → 提交一个动作或推进一步（agent 席位）/ 空过（玩家席位） → 终态 → 重读投影与顺位 → 刷新后接上正在跑的回合。
+服务器侧闭合：回合全部走作业（入队 → 执行 → 终态 → 可查/可撤/可订阅），有进度、有取消、有推送。web 侧接上了**单步回路**：接管 → 提交一个动作或推进一步（agent 席位）/ 空过（玩家席位） → 终态 → 重读投影与顺位 → 刷新后接上正在跑的回合。
 
-还没做的是「让这条回路在真界面里顺滑」：取消入口、订阅入口、作业历史视图，以及一次真机走查。动作种类停在 4 种（说/看/走/等），是刻意冻结的。
+运维侧另有一个独立产物 `apps/admin`：身份 / 节点 / 局 / 轨迹 / 事件流 / 快照 / 故事各自成页，能推进回合与做危险操作。它还缺的是「撤掉正在跑的作业」和作业总览。
+
+web 还没做的是「让回路在真界面里顺滑」：取消入口、订阅入口、作业历史视图，以及一次真机走查。动作种类停在 4 种（说/看/走/等），是刻意冻结的。
 
 ## 索引
 
@@ -17,7 +19,7 @@
 | [客户端回路](web-cs-flow.md) | web 侧待办：停止、订阅、作业历史、走查清单与观察点 |
 | [服务器遗留](server-debt.md) | 归档策略、SSE 限流、取消边界等，含各自的触发条件 |
 | [内容与验收](content-verify.md) | 种子缺敏捷装备、多舞台走查、收尾路径 |
-| [管理后台](admin-console.md) | 控制面图形界面的形状、权限现状与缺口 |
+| [管理后台](admin-console.md) | 控制面还没做的事，与几个先别动的边界 |
 | [已定的取舍](decisions.md) | 不再讨论的决定；改它之前先读理由 |
 
 ## 关键命令
@@ -33,8 +35,9 @@
 - 回合与作业：`apps/server/src/game-ops/turn-jobs.ts`（四个入口、串行键、进度、取消）、`apps/server/src/jobs/`（队列、worker、进度、取消、`LISTEN/NOTIFY` 广播）
 - 作业的 HTTP 面：`apps/server/src/routes/games.ts`（列表 / 读取 / 取消）、`apps/server/src/routes/job-stream.ts`（SSE）
 - web 的回路：`apps/web/src/features/turns/`（编排、入队、轮询、订阅、寻址）、`apps/web/src/pages/game/TurnDialog.tsx`（容器）、`panels/ActionForm.tsx` 与 `panels/OrderPanel.tsx`（纯展示）
+- 运维台：`apps/admin/src/components/PageHeader.tsx`（页头与导航）、`pages/game/`（一局的五个页）、`pages/overview/`（身份与节点）
 - 契约：`packages/api-client` 由 openapi 生成；`docs/` 里 `turn-jobs.md`、`background-jobs.md`、`web-client.md` 是这三块的所有者
 
 ## 现在的验证位置
 
-`apps/server` 747 passed / 1 skipped，`apps/web` 50 passed，`pnpm typecheck`、`pnpm lint` 全绿。数据库只有一份基线迁移（`apps/server/drizzle/0000_baseline.sql`），改 schema 的方式见 `docs/database.md` 与待办里的说明。
+`apps/server` 757 passed / 1 skipped，`apps/web` 50 passed，`apps/admin` 4 passed；`pnpm typecheck`、`pnpm lint` 全绿。数据库只有一份基线迁移（`apps/server/drizzle/0000_baseline.sql`），改 schema 的方式见 `docs/database.md` 与待办里的说明。
