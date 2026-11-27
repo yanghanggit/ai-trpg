@@ -937,6 +937,20 @@ a {
   margin-top: 14px;
 }
 
+/* 尸体也是 actor：名牌淡下去，名字照样在。 */
+.badge--dead {
+  border-style: dashed;
+  color: var(--muted);
+}
+
+/* 舞台详情里的在场读数：跟在标题后面，不和名牌抢位置。 */
+.inspector__census {
+  margin-left: 8px;
+  font-size: 11px;
+  font-weight: 400;
+  color: var(--muted);
+}
+
 /* 局列表行尾：两个动作并排，别被挤成两行。 */
 .games__actions {
   display: flex;

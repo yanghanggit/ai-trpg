@@ -48,6 +48,9 @@ export default function GameMessagesPage({ data, onRefresh, onToggleOrder }: Pro
         </h2>
         <p className="muted">
           共 {messages.length} 条{data.order === "desc" ? " · 最新在最上面" : ""}
+          {data.readAt === undefined
+            ? ""
+            : ` · 读于 ${formatAt(new Date(data.readAt).toISOString())}`}
         </p>
 
         {data.messages === undefined ? (

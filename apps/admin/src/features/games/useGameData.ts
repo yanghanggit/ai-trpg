@@ -20,6 +20,9 @@ export function useGameMessages(slug: string) {
       ),
     enabled: slug.length > 0,
     refetchInterval: useAutoRefreshInterval(),
+    // 这一页看的就是「有没有新行」：在另一个标签页推回合时，它也要跟上。
+    // 其它页保持 react-query 的默认（后台暂停轮询），不必每 5 秒白读一次。
+    refetchIntervalInBackground: true,
   });
 }
 

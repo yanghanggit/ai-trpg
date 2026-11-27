@@ -6,7 +6,8 @@ export type StageNodeData = {
   stageId: string;
   name: string;
   seq: number;
-  people: number;
+  /** 此刻在这个舞台的活人与尸体：一具尸体也是 actor，混成「N 人」就分不出还有没有活人。 */
+  census: { alive: number; dead: number };
   /** 顺位上的下一个人在这个舞台里。 */
   isNext: boolean;
   /** 第二层里的相邻舞台：淡一些，但可点。 */

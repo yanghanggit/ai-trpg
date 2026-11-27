@@ -62,13 +62,56 @@ export function connectionPairs(graph: GameGraph): ConnectionPair[] {
   return [...pairs.values()].sort((a, b) => a.id.localeCompare(b.id));
 }
 
-/** 每个舞台里有几个人；舞台节点用它写一行副标题。 */
-export function stagePeople(graph: GameGraph): Map<string, number> {
-  const counts = new Map<string, number>();
+/**
+ * 这个 actor 还活着吗。
+ *
+ * 顺位上有权威答案（服务端判的 `alive`），顺位外的人只能看血——两处口径都写在这一个函数里，
+ * 免得多一个地方自己判一遍，日后分叉。
+ */
+export function actorIsAlive(graph: GameGraph, actor: GameGraph["actors"][number]): boolean {
+  const entry = graph.order?.entries.find((item) => item.actorId === actor.id);
+  return entry?.alive ?? actor.hp > 0;
+}
+
+/** 一个舞台此刻的人：活着几个、躺着几个。 */
+export type StageCensus = { alive: number; dead: number };
+
+const EMPTY_CENSUS: StageCensus = { alive: 0, dead: 0 };
+
+/**
+ * 每个舞台的活人与尸体数；舞台节点用它写一行副标题。
+ *
+ * 只报合计数，不报「3 人」——一具尸体也是一个 `actor`，混在一起就分不出这地方还有没有活人。
+ */
+export function stageCensus(graph: GameGraph): Map<string, StageCensus> {
+  const counts = new Map<string, StageCensus>();
   for (const actor of graph.actors) {
-    counts.set(actor.stageId, (counts.get(actor.stageId) ?? 0) + 1);
+    const current = counts.get(actor.stageId) ?? EMPTY_CENSUS;
+    counts.set(
+      actor.stageId,
+      actorIsAlive(graph, actor)
+        ? { alive: current.alive + 1, dead: current.dead }
+        : { alive: current.alive, dead: current.dead + 1 },
+    );
   }
   return counts;
+}
+
+/** 空舞台就是 `{}`：画第二层时不用到处补默认值。 */
+export function censusOf(census: Map<string, StageCensus>, stageId: string): StageCensus {
+  return census.get(stageId) ?? EMPTY_CENSUS;
+}
+
+/**
+ * 副标题的一句话：空、只有活人、活人加尸体。
+ *
+ * 没有尸体就不写「死 0」——那一格不写出来，正好就是「这里没有死人」的读法。
+ */
+export function describeCensus(census: StageCensus): string {
+  if (census.alive + census.dead === 0) {
+    return "空";
+  }
+  return census.dead === 0 ? `活 ${census.alive}` : `活 ${census.alive} / 死 ${census.dead}`;
 }
 
 /** 顺位上的下一个人站在哪个舞台：世界图上高亮它，回答「轮到谁、在哪儿」。 */

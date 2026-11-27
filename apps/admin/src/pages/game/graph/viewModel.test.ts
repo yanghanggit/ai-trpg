@@ -2,11 +2,12 @@ import { describe, expect, it } from "vitest";
 import type { GameGraph } from "../../../features/games/useGameGraph";
 import {
   connectionPairs,
+  describeCensus,
   describePassage,
   entityIndex,
   nextStageId,
   queueRows,
-  stagePeople,
+  stageCensus,
   stageView,
 } from "./viewModel";
 
@@ -130,11 +131,52 @@ describe("nextStageId", () => {
   });
 });
 
-describe("stagePeople", () => {
-  it("按舞台数人头", () => {
-    const counts = stagePeople(graph());
-    expect(counts.get("hall")).toBe(2);
-    expect(counts.get("yard")).toBe(1);
+describe("stageCensus", () => {
+  it("按舞台分开数活人与尸体", () => {
+    const census = stageCensus(
+      graph({
+        actors: [actor("a", "hall", 1), actor("b", "hall", 2, { hp: 0 }), actor("c", "yard", 3)],
+      }),
+    );
+    expect(census.get("hall")).toEqual({ alive: 1, dead: 1 });
+    expect(census.get("yard")).toEqual({ alive: 1, dead: 0 });
+  });
+
+  it("顺位上有权威答案时以它为准，没有才看血", () => {
+    const order = {
+      id: "o",
+      status: "active" as const,
+      createdAt: "2026-01-01T00:00:00.000Z",
+      completedAt: null,
+      clock: 1,
+      gameVersion: 1,
+      nextActor: null,
+      // 血还满着，但顺位说他已经倒下：账上的答案优先。
+      entries: [
+        {
+          actorId: "a",
+          actorName: "a",
+          position: 1,
+          agility: 5,
+          turnsTaken: 0,
+          control: "agent" as const,
+          alive: false,
+        },
+      ],
+    };
+    const census = stageCensus(
+      graph({ actors: [actor("a", "hall", 1), actor("b", "hall", 2)], order }),
+    );
+    expect(census.get("hall")).toEqual({ alive: 1, dead: 1 });
+  });
+});
+
+describe("describeCensus", () => {
+  it("空舞台、只有活人、活人加尸体三种读法", () => {
+    expect(describeCensus({ alive: 0, dead: 0 })).toBe("空");
+    expect(describeCensus({ alive: 2, dead: 0 })).toBe("活 2");
+    expect(describeCensus({ alive: 2, dead: 1 })).toBe("活 2 / 死 1");
+    expect(describeCensus({ alive: 0, dead: 1 })).toBe("活 0 / 死 1");
   });
 });
 

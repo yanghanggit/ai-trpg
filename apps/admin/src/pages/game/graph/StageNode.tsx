@@ -1,5 +1,6 @@
 import { Handle, type NodeProps, Position } from "@xyflow/react";
 import type { StageFlowNode } from "./types";
+import { describeCensus } from "./viewModel";
 
 /**
  * 舞台节点。
@@ -41,7 +42,8 @@ export default function StageNode({ data }: NodeProps<StageFlowNode>) {
       <span className="graph-node__meta">
         <code>#{data.seq}</code>
         <span className="graph-node__dot">·</span>
-        {data.people} 人{data.isNext ? <span className="graph-node__flag">轮到</span> : null}
+        {describeCensus(data.census)}
+        {data.isNext ? <span className="graph-node__flag">轮到</span> : null}
       </span>
       <Handle
         type="source"

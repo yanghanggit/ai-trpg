@@ -13,7 +13,7 @@ import {
 import StageNode from "./StageNode";
 import type { ActorFlowNode, StageFlowNode } from "./types";
 import type { ConnectionPair } from "./viewModel";
-import { connectionPairs, nextStageId, stagePeople, stageView } from "./viewModel";
+import { censusOf, connectionPairs, nextStageId, stageCensus, stageView } from "./viewModel";
 
 /**
  * 契约到画布的翻译：两张图都从这里出，节点与边的读法只写一遍。
@@ -75,7 +75,7 @@ function pairEdge(pair: ConnectionPair, source: string, positions: Positions): E
 /** 第一层：世界图。舞台按 `ordinal` 进布局，坐标只取决于拓扑。 */
 export function worldFlow(graph: GameGraph): { nodes: StageFlowNode[]; edges: Edge[] } {
   const stages = [...graph.stages].sort((left, right) => left.ordinal - right.ordinal);
-  const people = stagePeople(graph);
+  const census = stageCensus(graph);
   const next = nextStageId(graph);
 
   const positions = layoutStages(
@@ -94,7 +94,7 @@ export function worldFlow(graph: GameGraph): { nodes: StageFlowNode[]; edges: Ed
       stageId: stage.id,
       name: stage.name,
       seq: stage.seq,
-      people: people.get(stage.id) ?? 0,
+      census: censusOf(census, stage.id),
       isNext: stage.id === next,
     },
     ...STAGE_NODE,
@@ -122,7 +122,7 @@ export function stageFlow(
     return { nodes: [], edges: [] };
   }
 
-  const people = stagePeople(graph);
+  const census = stageCensus(graph);
   const next = nextStageId(graph);
 
   const ghostIds: string[] = [];
@@ -164,7 +164,7 @@ export function stageFlow(
         stageId,
         name: view.stage.name,
         seq: view.stage.seq,
-        people: people.get(stageId) ?? 0,
+        census: censusOf(census, stageId),
         isNext: stageId === next,
         root: true,
       },
@@ -188,7 +188,7 @@ export function stageFlow(
         stageId: neighbour.stage.id,
         name: neighbour.stage.name,
         seq: neighbour.stage.seq,
-        people: people.get(neighbour.stage.id) ?? 0,
+        census: censusOf(census, neighbour.stage.id),
         isNext: neighbour.stage.id === next,
         ghost: true,
       },

@@ -1,7 +1,7 @@
 import Hint from "../../../components/Hint";
 import type { GameGraph } from "../../../features/games/useGameGraph";
 import type { StageExit, StageView } from "./types";
-import { describePassage } from "./viewModel";
+import { actorIsAlive, censusOf, describeCensus, describePassage, stageCensus } from "./viewModel";
 
 type Passage = "open" | "sealed" | null;
 
@@ -111,7 +111,7 @@ export default function StagePanel({ graph, view, onItemClick, onSelectStage }: 
           <strong>本舞台的演员</strong>
           <span className="muted">
             {stageActors.length === 0
-              ? "没有"
+              ? "没有活着的演员"
               : stageActors
                   .map((row) => `${row.name}${row.empty ? "（空过）" : row.acted ? " ✓" : ""}`)
                   .join(" · ")}
@@ -132,13 +132,22 @@ export default function StagePanel({ graph, view, onItemClick, onSelectStage }: 
       <h4>环境</h4>
       <p className="inspector__text">{stage.environment || "—"}</p>
 
-      <h4>在场</h4>
+      <h4>
+        在场
+        <span className="inspector__census">
+          {describeCensus(censusOf(stageCensus(graph), stage.id))}
+        </span>
+      </h4>
       {people.length === 0 ? (
         <p className="muted">这里没有人。</p>
       ) : (
         <p className="inspector__chips">
           {people.map((actor) => (
-            <span key={actor.id} className="badge">
+            // 尸体也是一个 actor：名单里分得开，尸体的名牌就淡下去。
+            <span
+              key={actor.id}
+              className={actorIsAlive(graph, actor) ? "badge" : "badge badge--dead"}
+            >
               {actor.name}
             </span>
           ))}

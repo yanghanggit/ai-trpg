@@ -36,6 +36,7 @@ export default function GameMessagesContainer({ slug }: { slug: string }) {
   const data: GameMessagesData = {
     slug,
     order,
+    ...(messages.dataUpdatedAt === 0 ? {} : { readAt: messages.dataUpdatedAt }),
     ...(messages.data === undefined
       ? {}
       : { messages: orderMessages(messages.data.messages, order) }),

@@ -9,6 +9,8 @@ export type GameMessagesData = {
   slug: string;
   /** 正序（旧在上）/ 倒序（新在上）：只影响怎么摆，不影响读到的条数。 */
   order: MessageOrder;
+  /** 这一份列表是哪一刻读回来的：关掉自动刷新时，陈旧一眼看得出来。 */
+  readAt?: number;
   messages?: MessageView[];
   messagesError?: string;
 };
