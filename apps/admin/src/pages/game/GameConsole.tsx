@@ -3,6 +3,7 @@ import { useNavigate } from "react-router";
 import { describeApiError } from "../../api/describeApiError";
 import { type AdvanceInput, useGameActions } from "../../features/games/useGameActions";
 import { useMemory, useNameLeaks } from "../../features/games/useGameData";
+import { useGameGraph } from "../../features/games/useGameGraph";
 import GamePanels from "./GamePanels";
 import type { GamePageActions, GamePageData, MemoryQuery } from "./types";
 
@@ -17,6 +18,7 @@ export default function GameConsole({ slug }: { slug: string }) {
   const actions = useGameActions(slug);
 
   const [queuedJobId, setQueuedJobId] = useState<string>();
+  const graph = useGameGraph(slug);
 
   const [memoryQuery, setMemoryQuery] = useState<MemoryQuery>();
   const memory = useMemory(slug, memoryQuery);
@@ -90,6 +92,8 @@ export default function GameConsole({ slug }: { slug: string }) {
     busy,
     actionError,
     queuedJobId,
+    ...(graph.data === undefined ? {} : { graph: graph.data }),
+    ...(graph.isError ? { graphError: describeApiError(graph.error) } : {}),
     memory:
       memoryQuery === undefined || memory.data === undefined
         ? undefined

@@ -5,6 +5,8 @@ import PageHeader from "../../components/PageHeader";
 import type { AdvanceKind } from "../../features/games/useGameActions";
 import type { MemoryOwner } from "../../features/games/useGameData";
 import DangerDialog from "./DangerDialog";
+import StageExplorer, { type ExplorerTarget } from "./graph/StageExplorer";
+import WorldCard from "./graph/WorldCard";
 import LeaksDialog from "./LeaksDialog";
 import type { GamePageActions, GamePageData } from "./types";
 
@@ -20,6 +22,8 @@ type Props = {
  */
 export default function GamePanels({ data, actions }: Props) {
   const [dangerOpen, setDangerOpen] = useState(false);
+  // 图谱钻取是这一页的临时视图，不当成路由：关掉就回到控制台原样。
+  const [explorer, setExplorer] = useState<ExplorerTarget>();
 
   return (
     <main className="admin">
@@ -55,6 +59,13 @@ export default function GamePanels({ data, actions }: Props) {
         </p>
       )}
 
+      <WorldCard
+        {...(data.graph === undefined ? {} : { graph: data.graph })}
+        {...(data.graphError === undefined ? {} : { error: data.graphError })}
+        onOpen={(stageId, actorId) =>
+          setExplorer(actorId === undefined ? { stageId } : { stageId, actorId })
+        }
+      />
       <AdvanceSection busy={data.busy !== undefined} actions={actions} />
       <AuxSection data={data} actions={actions} />
       <LeaksDialog
@@ -64,6 +75,11 @@ export default function GamePanels({ data, actions }: Props) {
         onRescan={() => actions.rescanLeaks()}
         onClose={() => actions.closeLeaks()}
         {...(data.leaksError === undefined ? {} : { error: data.leaksError })}
+      />
+      <StageExplorer
+        {...(data.graph === undefined ? {} : { graph: data.graph })}
+        {...(explorer === undefined ? {} : { target: explorer })}
+        onNavigate={setExplorer}
       />
       <DangerDialog
         slug={data.slug}

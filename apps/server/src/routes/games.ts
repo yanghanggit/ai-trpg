@@ -41,6 +41,7 @@ import {
   readActionOrderOp,
   readActorLog,
   readActorView,
+  readGameGraph,
   readGameMessages,
   readGameState,
   readSnapshotOp,
@@ -61,6 +62,7 @@ import { isAdmin } from "../identity";
 import { type AuthUser, requireUser } from "../plugins/auth";
 import { actionOrderSchema } from "./schemas/action-order";
 import { actorLogSchema, actorViewSchema, gameMessageSchema } from "./schemas/client-view";
+import { gameGraphSchema } from "./schemas/graph";
 import { turnJobSchema } from "./schemas/jobs";
 
 const gameParams = z.object({ game: z.string().trim().min(1) });
@@ -481,6 +483,28 @@ export function createGameRoutes(db: () => Database): FastifyPluginAsyncZod {
         const user = await requireUser(db(), request);
         await requireGameAccess(db(), request.params.game, user);
         return readGameState(db(), request.params.game);
+      },
+    );
+
+    // 图谱（上帝视角、带名字）：控制台画「世界 → 舞台 → actor → 道具」的实体索引。
+    app.get(
+      "/games/:game/graph",
+      {
+        schema: {
+          tags: ["games"],
+          summary: "上帝视角的实体索引：舞台图、actor 与当前顺位",
+          description:
+            "舞台与 actor 摊平成两张表，靠 `stageId` 相连；顺位是另一张快照，没有进行中的就是 `null`。" +
+            "不带公共事件流与世界级提示词——它随长局无界增长，不该混进一屏能读完的图谱。" +
+            "叶子实体（道具、装备、属性）原样透传。",
+          params: gameParams,
+          response: { 200: gameGraphSchema },
+        },
+      },
+      async (request) => {
+        const user = await requireUser(db(), request);
+        await requireGameAccess(db(), request.params.game, user);
+        return readGameGraph(db(), request.params.game);
       },
     );
 

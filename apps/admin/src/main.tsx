@@ -5,6 +5,8 @@ import { BrowserRouter } from "react-router";
 import App from "./App";
 import { shouldRetry } from "./api/queryPolicy";
 import { AutoRefreshProvider } from "./features/autoRefresh";
+// 图谱库自己的样式先进来，index.css 覆盖它（它在 @layer xyflow 里，普通 CSS 优先）。
+import "@xyflow/react/style.css";
 import "./index.css";
 
 const rootElement = document.getElementById("root");

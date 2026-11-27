@@ -9,6 +9,7 @@ export * from "./action-order";
 export * from "./artifacts";
 export * from "./build";
 export * from "./games";
+export * from "./graph";
 export * from "./inspect";
 export * from "./play";
 export * from "./player-action";

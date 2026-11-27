@@ -248,6 +248,76 @@ describe.skipIf(!testDatabaseUrl)("业务 API", () => {
     expect(body).not.toHaveProperty("jobs");
   });
 
+  it("图谱是同一份活状态的索引：舞台、actor 与顺位，不含事件流", async () => {
+    const first = await app.inject({
+      method: "GET",
+      url: `/api/v1/games/${SLUG}/graph`,
+      headers: auth,
+    });
+    expect(first.statusCode).toBe(200);
+
+    const before = first.json() as {
+      game: { slug: string };
+      world: { name: string };
+      stages: { id: string; anchors: unknown[] }[];
+      connections: { fromStageId: string; toStageId: string; passage: string }[];
+      actors: { id: string; stageId: string; hp: number; maxHp: number }[];
+      order: unknown;
+      messages?: unknown;
+      visits?: unknown;
+      player?: unknown;
+    };
+    expect(before.game.slug).toBe(SLUG);
+    expect(before.world.name.length).toBeGreaterThan(0);
+    expect(before.stages.length).toBeGreaterThan(0);
+    expect(before.actors.length).toBeGreaterThan(0);
+
+    // 舞台与 actor 靠 stageId 相连；边是有向的，两端都得是已知舞台。
+    const stageIds = new Set(before.stages.map((stage) => stage.id));
+    expect(before.actors.every((actor) => stageIds.has(actor.stageId))).toBe(true);
+    expect(
+      before.connections.every(
+        (edge) => stageIds.has(edge.fromStageId) && stageIds.has(edge.toStageId),
+      ),
+    ).toBe(true);
+    expect(before.actors.every((actor) => actor.hp <= actor.maxHp)).toBe(true);
+
+    // 没有进行中的顺位就是 null，不是空对象或空数组。
+    expect(before.order).toBeNull();
+    // 无界的运行时集合不进来：事件流随长局增长，player 与世界级提示词不是图谱要的。
+    expect(before).not.toHaveProperty("messages");
+    expect(before).not.toHaveProperty("visits");
+    expect(before).not.toHaveProperty("player");
+
+    const opened = await app.inject({
+      method: "POST",
+      url: `/api/v1/games/${SLUG}/action-orders`,
+      headers: auth,
+    });
+    expect(opened.statusCode).toBe(200);
+    const orderId = (opened.json() as { order: { id: string } }).order.id;
+
+    const withOrder = await app.inject({
+      method: "GET",
+      url: `/api/v1/games/${SLUG}/graph`,
+      headers: auth,
+    });
+    expect(withOrder.statusCode).toBe(200);
+    expect(withOrder.json()).toMatchObject({
+      order: {
+        id: orderId,
+        status: "active",
+        nextActor: { actorName: expect.any(String), position: expect.any(Number) },
+      },
+    });
+
+    await app.inject({
+      method: "DELETE",
+      url: `/api/v1/games/${SLUG}/action-orders/${orderId}`,
+      headers: auth,
+    });
+  });
+
   it("快照写盘后可列出、可按份读原文，越界份名读不到", async () => {
     const root = await mkdtemp(join(tmpdir(), "ai-trpg-snap-api-"));
     const previous = process.env.WORLDS_DIR;
@@ -520,6 +590,12 @@ describe.skipIf(!testDatabaseUrl)("业务 API", () => {
       headers: auth,
     });
     expect(playerBuild.statusCode).toBe(403);
+    const playerGraph = await app.inject({
+      method: "GET",
+      url: `/api/v1/games/${SLUG}-outsider/graph`,
+      headers: auth,
+    });
+    expect(playerGraph.statusCode).toBe(403);
 
     // 机器级读数（轨迹、节点自述）只对运维开放。
     const playerTraces = await app.inject({

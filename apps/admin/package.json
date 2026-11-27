@@ -15,7 +15,9 @@
   "dependencies": {
     "@ai-trpg/api-client": "workspace:*",
     "@ai-trpg/shared": "workspace:*",
+    "@dagrejs/dagre": "^3.1.4",
     "@tanstack/react-query": "^5.104.5",
+    "@xyflow/react": "^13.0.3",
     "react": "^19.3.0",
     "react-dom": "^19.3.0",
     "react-router": "^8.5.0"

@@ -11,6 +11,8 @@
 3. 会话令牌 + `users.role`：落地时删掉 `apps/server/src/identity.ts` 的名单，只改 `plugins/auth.ts` 一处。
 4. 故事总结改入队：它现在是同步长请求（多轮 LLM、没有作业行、不能取消）。改之前先定「故事算不算一次回合」。
 5. 多节点：`/status` 只描述当前进程，后台也只连 `VITE_API_BASE_URL` 那一个；要有第二个服务端才谈汇总。
+6. 图谱的检索框：`pages/game/graph/viewModel.ts` 的 `entityIndex` 已把舞台 / actor / 道具归一成
+   `kind / id / label / stageId`，只差一个输入框与 `fitView` 定位——节点一多，点图找东西会先失效。
 
 ## 现在的边界（条件不到就不动）
 

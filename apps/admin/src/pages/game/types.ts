@@ -1,6 +1,7 @@
 import type { components } from "@ai-trpg/api-client";
 import type { AdvanceInput } from "../../features/games/useGameActions";
 import type { MemoryOwner, MessageView } from "../../features/games/useGameData";
+import type { GameGraph } from "../../features/games/useGameGraph";
 
 export type MemoryQuery = { owner: MemoryOwner; name?: string };
 
@@ -75,6 +76,10 @@ export type GamePageData = {
 
   /** 刚入队的作业 id：只回一行回执，不再摊开作业表。 */
   queuedJobId?: string;
+
+  /** 世界图谱：舞台、actor 与当前顺位的上帝视角。 */
+  graph?: GameGraph;
+  graphError?: string;
 
   memory?: { query: MemoryQuery; payload: unknown };
   memoryError?: string;

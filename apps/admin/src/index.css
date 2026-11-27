@@ -192,7 +192,9 @@ a {
 /* 危险操作弹窗：原生 dialog，Esc 与点遮罩都能关。 */
 .dialog {
   width: min(560px, calc(100% - 32px));
+  max-height: calc(100vh - 40px);
   padding: 20px;
+  overflow: auto;
   border: 1px solid rgb(248 113 113 / 35%);
   border-radius: 14px;
   background: var(--panel);
@@ -534,4 +536,404 @@ a {
   line-height: 1.6;
   white-space: pre-wrap;
   overflow-wrap: anywhere;
+}
+
+/* ---------------------------------------------------------------- 世界图谱 */
+
+.panel__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+/* 画布容器必须有高度：xyflow 不撑高，父级给 0 就是一张空白。 */
+.graph-canvas {
+  margin-top: 14px;
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--bg);
+}
+
+.graph-canvas--card {
+  height: 300px;
+}
+
+.graph-canvas--explorer {
+  height: 100%;
+  min-height: 320px;
+  margin-top: 0;
+}
+
+/* 节点：卡片自己画边框与底色，xyflow 只管位置。 */
+.graph-node {
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 4px;
+  height: 100%;
+  padding: 8px 12px;
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--panel-soft);
+  color: var(--text);
+  font-size: 13px;
+}
+
+.graph-node--stage {
+  width: 176px;
+  height: 68px;
+}
+
+.graph-node--actor {
+  width: 216px;
+  height: 62px;
+}
+
+.graph-node--next {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 1px rgb(125 211 252 / 35%);
+}
+
+.graph-node--root {
+  border-color: rgb(125 211 252 / 55%);
+  background: var(--panel);
+}
+
+.graph-node--ghost {
+  border-style: dashed;
+  opacity: 0.62;
+}
+
+.graph-node__head {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+
+.graph-node__title {
+  overflow: hidden;
+  font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.graph-node__meta {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  overflow: hidden;
+  color: var(--muted);
+  font-size: 11.5px;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.graph-node .graph-node__meta code {
+  color: var(--muted);
+}
+
+.graph-node--dead .graph-node__title {
+  text-decoration: line-through;
+}
+
+.graph-node__dot {
+  opacity: 0.5;
+}
+
+.graph-node__flag {
+  margin-left: auto;
+  padding: 0 6px;
+  border: 1px solid currentcolor;
+  border-radius: 999px;
+  color: var(--accent);
+  font-size: 10.5px;
+  line-height: 15px;
+}
+
+.graph-node__pos {
+  display: inline-grid;
+  flex: none;
+  place-items: center;
+  width: 18px;
+  height: 18px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  color: var(--accent);
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+}
+
+.graph-node__tag {
+  flex: none;
+  padding: 0 5px;
+  border-radius: 4px;
+  background: rgb(139 155 176 / 18%);
+  color: var(--muted);
+  font-size: 10.5px;
+  line-height: 15px;
+}
+
+.graph-node__bar {
+  display: block;
+  width: 100%;
+  height: 3px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: rgb(139 155 176 / 18%);
+}
+
+.graph-node__bar-fill {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--ok);
+}
+
+/* 边只需要端点，不需要看得见的小圆点。 */
+.react-flow__handle {
+  width: 1px;
+  min-width: 0;
+  height: 1px;
+  min-height: 0;
+  border: 0;
+  background: transparent;
+}
+
+.react-flow__attribution {
+  background: transparent;
+  font-size: 9px;
+  opacity: 0.4;
+}
+
+/* 顺位条：名次是线性读法，不摊进画布。 */
+.queue {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 14px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.queue__row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 10px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--panel-soft);
+  color: var(--text);
+  font: inherit;
+  font-size: 12.5px;
+  cursor: pointer;
+}
+
+.queue__item--next .queue__row {
+  border-color: rgb(125 211 252 / 45%);
+}
+
+.queue__row:hover {
+  border-color: var(--accent);
+}
+
+.queue__pos {
+  color: var(--accent);
+  font-variant-numeric: tabular-nums;
+}
+
+.queue__name--dead {
+  color: var(--muted);
+  text-decoration: line-through;
+}
+
+.queue__meta {
+  color: var(--muted);
+  font-size: 11.5px;
+}
+
+/* ---------------------------------------------------------------- 图谱弹窗 */
+
+.dialog--wide {
+  width: min(1180px, calc(100% - 40px));
+  max-width: none;
+}
+
+.crumbs {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 8px;
+  font-size: 15px;
+}
+
+.crumbs__link {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--accent);
+  font: inherit;
+  cursor: pointer;
+}
+
+.crumbs__link:hover {
+  text-decoration: underline;
+}
+
+.crumbs__sep,
+.crumbs__here {
+  color: var(--muted);
+}
+
+.crumbs__here {
+  color: var(--text);
+}
+
+.explorer {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 340px;
+  gap: 18px;
+  height: 62vh;
+  min-height: 380px;
+  margin-top: 14px;
+}
+
+.inspector {
+  padding-left: 18px;
+  overflow: auto;
+  border-left: 1px solid var(--line);
+}
+
+.inspector__head h3 {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 600;
+  letter-spacing: 0;
+  color: var(--text);
+  text-transform: none;
+}
+
+.inspector h4 {
+  margin: 18px 0 8px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  color: var(--muted);
+}
+
+.inspector__hp {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 12px;
+  font-size: 12.5px;
+  font-variant-numeric: tabular-nums;
+  color: var(--muted);
+}
+
+.inspector__text {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.65;
+  color: var(--text);
+}
+
+.inspector__list,
+.inspector__sublist {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.inspector__list > li {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 8px;
+  padding: 5px 0;
+  border-bottom: 1px solid rgb(36 49 63 / 60%);
+  font-size: 13px;
+}
+
+.inspector__sublist {
+  margin-top: 4px;
+  padding-left: 12px;
+  border-left: 1px solid var(--line);
+}
+
+.inspector__chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 0;
+}
+
+.facts--tight {
+  grid-template-columns: repeat(auto-fit, minmax(110px, 1fr));
+  margin-top: 14px;
+}
+
+.linkish {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--accent);
+  font: inherit;
+  cursor: pointer;
+}
+
+.linkish:hover {
+  text-decoration: underline;
+}
+
+.item-affixes {
+  display: grid;
+  gap: 10px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.item-affixes > li {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 8px;
+}
+
+.item-affixes p {
+  flex-basis: 100%;
+  margin: 2px 0 0;
+}
+
+.raw {
+  margin-top: 18px;
+}
+
+.dialog .raw > summary {
+  color: var(--muted);
+  font-size: 12.5px;
+  cursor: pointer;
+}
+
+.raw .json {
+  margin-top: 8px;
+}
+
+@media (width <= 980px) {
+  .explorer {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: 46vh auto;
+    height: auto;
+  }
+
+  .inspector {
+    padding: 14px 0 0;
+    border-top: 1px solid var(--line);
+    border-left: 0;
+  }
 }
