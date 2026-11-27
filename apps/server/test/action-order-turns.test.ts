@@ -140,5 +140,14 @@ describe.skipIf(!testDatabaseUrl)("action order turns", () => {
     await passTurn(handle.db, state.game.slug, { actors: [name] });
     const round = await readActionOrderRound(handle.db, order?.id ?? "");
     expect(round.actors).toEqual([{ actorId: expect.any(String), name, empty: true }]);
+    // 空回合也带对账：顺位期望谁、实际推了谁。
+    const [row] = await handle.db
+      .select()
+      .from(actionOrderTurns)
+      .where(eq(actionOrderTurns.orderId, order?.id ?? ""));
+    expect(row?.kind).toBe("pass");
+    expect(row?.expectedPosition).toBe(1);
+    expect(row?.actualPosition).toBe(1);
+    expect(row?.followed).toBe(true);
   });
 });

@@ -9,6 +9,7 @@ import {
 } from "../persistence/action-orders";
 import { advanceGameClock, readGameClock } from "../persistence/games";
 import type { Executor } from "../persistence/rows";
+import { readActionOrder } from "./read";
 
 /**
  * 顺位上的两个记录口：计数（`entries.turns_taken`）与回合账（`action_order_turns`）。
@@ -83,8 +84,13 @@ export async function recordPassTurn(
   actorId: string,
 ): Promise<boolean> {
   return db.transaction(async (tx) => {
+    // 对账要在计数之前读：空回合也是「这一位过了一轮」，推错人同样要留痕。
+    const order = await readActionOrder(tx, gameId);
     await advanceGameClock(tx, gameId);
-    return recordTurnTaken(tx, gameId, actorId, { kind: "pass" });
+    return recordTurnTaken(tx, gameId, actorId, {
+      kind: "pass",
+      ...(order === null ? {} : { facts: dispatchFacts(order, actorId) }),
+    });
   });
 }
 
