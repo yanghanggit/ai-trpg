@@ -10,6 +10,8 @@ import type { GameMessagesData } from "./types";
 type Props = {
   data: GameMessagesData;
   onRefresh: () => Promise<void>;
+  /** 正序 / 倒序：只换摆法，不重读。 */
+  onToggleOrder: () => void;
 };
 
 /**
@@ -17,7 +19,7 @@ type Props = {
  *
  * 它是一屏长表，放在控制台里会把「推进」挤到折叠线以下，所以单独一页。
  */
-export default function GameMessagesPage({ data, onRefresh }: Props) {
+export default function GameMessagesPage({ data, onRefresh, onToggleOrder }: Props) {
   const messages = data.messages ?? [];
   // 原文就是这一行本身：列表里已经带着，不必再发请求。
   const [raw, setRaw] = useState<MessageView>();
@@ -33,21 +35,27 @@ export default function GameMessagesPage({ data, onRefresh }: Props) {
         nav={<GamePageLinks slug={data.slug} current="messages" />}
         title={<code>{data.slug}</code>}
         onRefresh={() => void onRefresh()}
-      />
+      >
+        <button type="button" className="button button--ghost" onClick={onToggleOrder}>
+          顺序：{data.order === "asc" ? "正序" : "倒序"}
+        </button>
+      </PageHeader>
 
       <section className="panel">
         <h2>
           事件流
           <Hint text="公共事件流（game_messages）：上帝视角、带真实名字，只追加。新回合落地就会多一行。" />
         </h2>
-        <p className="muted">共 {messages.length} 条</p>
+        <p className="muted">
+          共 {messages.length} 条{data.order === "desc" ? " · 最新在最上面" : ""}
+        </p>
 
         {data.messages === undefined ? (
           <p className="muted">{data.messagesError ?? "读取中…"}</p>
         ) : messages.length === 0 ? (
           <p className="muted">还没有事件。</p>
         ) : (
-          <table className="table">
+          <table className="table table--messages">
             <thead>
               <tr>
                 <th>#</th>

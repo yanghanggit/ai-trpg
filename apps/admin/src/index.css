@@ -932,6 +932,15 @@ a {
   margin-top: 14px;
 }
 
+/* 事件流：只有内容会换行，序号、类型、可见性、时间与按钮都保持一行。 */
+.table--messages td:nth-child(1),
+.table--messages td:nth-child(2),
+.table--messages td:nth-child(3),
+.table--messages td:nth-child(5),
+.table--messages td:nth-child(6) {
+  white-space: nowrap;
+}
+
 /* 编排表：顺位就是行，舞台跟人绑在同一行。 */
 .orchestration {
   width: 100%;

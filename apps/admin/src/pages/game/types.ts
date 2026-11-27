@@ -2,10 +2,13 @@ import type { components } from "@ai-trpg/api-client";
 import type { MessageView } from "../../features/games/useGameData";
 import type { GameGraph } from "../../features/games/useGameGraph";
 import type { MemoryTarget } from "./memory/targets";
+import type { MessageOrder } from "./messagesOrder";
 
-/** 事件流页：整屏一张表；自动刷新是全局开关，不在这一页存状态。 */
+/** 事件流页：整屏一张表；顺序进地址栏，自动刷新是全局开关。 */
 export type GameMessagesData = {
   slug: string;
+  /** 正序（旧在上）/ 倒序（新在上）：只影响怎么摆，不影响读到的条数。 */
+  order: MessageOrder;
   messages?: MessageView[];
   messagesError?: string;
 };
