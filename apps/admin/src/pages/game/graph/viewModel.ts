@@ -24,6 +24,44 @@ export function queueRows(graph: GameGraph): QueueRow[] {
     }));
 }
 
+/** 两个舞台之间的连通：一条线代表一对舞台，方向表里装一到两条。 */
+export type ConnectionPair = {
+  /** 稳定的边 id：两个舞台 id 排序后拼起来，刷新不会换。 */
+  id: string;
+  /** 画线的两端，按 id 排序：`[起点侧, 终点侧]`，与方向无关。 */
+  stageIds: [string, string];
+  directions: { from: string; to: string; passage: "open" | "sealed" }[];
+  /** 至少一个方向能走。封着的方向仍是连线，只是过不去。 */
+  passable: boolean;
+};
+
+/**
+ * 把逐方向的边折成「一对舞台一条线」。
+ *
+ * 内容层里双向通行是两条边，画布上却不需要两条曲线：一条线 + 两端各一个箭头，
+ * 就同时表达了「几个方向」与「各自通不通」。自环（同一舞台连自己）不画。
+ */
+export function connectionPairs(graph: GameGraph): ConnectionPair[] {
+  const pairs = new Map<string, ConnectionPair>();
+  for (const connection of graph.connections) {
+    const [left, right] = [connection.fromStageId, connection.toStageId].sort() as [string, string];
+    if (left === right) {
+      continue;
+    }
+    const id = `${left}~${right}`;
+    const pair = pairs.get(id) ?? { id, stageIds: [left, right], directions: [], passable: false };
+    pair.directions.push({
+      from: connection.fromStageId,
+      to: connection.toStageId,
+      passage: connection.passage,
+    });
+    pair.passable = pair.passable || connection.passage === "open";
+    pairs.set(id, pair);
+  }
+  // 顺序稳定：先按两端的 id 排，刷新前后同一条线留在原地。
+  return [...pairs.values()].sort((a, b) => a.id.localeCompare(b.id));
+}
+
 /** 每个舞台里有几个人；舞台节点用它写一行副标题。 */
 export function stagePeople(graph: GameGraph): Map<string, number> {
   const counts = new Map<string, number>();

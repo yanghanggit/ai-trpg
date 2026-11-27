@@ -21,14 +21,43 @@ export default function StageNode({ data }: NodeProps<StageFlowNode>) {
 
   return (
     <div className={classes.join(" ")}>
+      {/* 三个高度各一个入口/出口：几条线不会挤在同一个点上打结。 */}
+      <Handle
+        type="target"
+        position={Position.Left}
+        id="left-top"
+        isConnectable={false}
+        style={{ top: "26%" }}
+      />
       <Handle type="target" position={Position.Left} id="left" isConnectable={false} />
+      <Handle
+        type="target"
+        position={Position.Left}
+        id="left-bottom"
+        isConnectable={false}
+        style={{ top: "74%" }}
+      />
       <span className="graph-node__title">{data.name}</span>
       <span className="graph-node__meta">
         <code>#{data.seq}</code>
         <span className="graph-node__dot">·</span>
         {data.people} 人{data.isNext ? <span className="graph-node__flag">轮到</span> : null}
       </span>
+      <Handle
+        type="source"
+        position={Position.Right}
+        id="right-top"
+        isConnectable={false}
+        style={{ top: "26%" }}
+      />
       <Handle type="source" position={Position.Right} id="right" isConnectable={false} />
+      <Handle
+        type="source"
+        position={Position.Right}
+        id="right-bottom"
+        isConnectable={false}
+        style={{ top: "74%" }}
+      />
       <Handle type="source" position={Position.Bottom} id="bottom" isConnectable={false} />
     </div>
   );

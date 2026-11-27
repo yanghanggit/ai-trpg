@@ -5,7 +5,9 @@ import ActorInspector from "./ActorInspector";
 import FlowCanvas from "./FlowCanvas";
 import { stageFlow } from "./flow";
 import ItemDialog from "./ItemDialog";
+import PairDialog from "./PairDialog";
 import StagePanel from "./StagePanel";
+import type { ConnectionPair } from "./viewModel";
 import { stageView } from "./viewModel";
 
 export type ExplorerTarget = { stageId: string; actorId?: string };
@@ -25,6 +27,7 @@ type Props = {
  */
 export default function StageExplorer({ graph, target, onNavigate }: Props) {
   const [item, setItem] = useState<Record<string, unknown>>();
+  const [pair, setPair] = useState<ConnectionPair>();
 
   const stageId = target?.stageId;
   const flow = useMemo(
@@ -47,6 +50,7 @@ export default function StageExplorer({ graph, target, onNavigate }: Props) {
 
   function go(next: ExplorerTarget | undefined) {
     setItem(undefined);
+    setPair(undefined);
     onNavigate(next);
   }
 
@@ -105,6 +109,7 @@ export default function StageExplorer({ graph, target, onNavigate }: Props) {
               draggable
               onStageClick={(next) => go({ stageId: next })}
               onActorClick={(actorId) => go({ stageId: view.stage.id, actorId })}
+              onPairClick={(next) => setPair(next)}
             />
             {actor === undefined ? (
               graph === undefined ? null : (
@@ -127,6 +132,9 @@ export default function StageExplorer({ graph, target, onNavigate }: Props) {
       </Dialog>
 
       <ItemDialog item={item} onClose={() => setItem(undefined)} />
+      {graph === undefined ? null : (
+        <PairDialog graph={graph} pair={pair} onClose={() => setPair(undefined)} />
+      )}
     </>
   );
 }

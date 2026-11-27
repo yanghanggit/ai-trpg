@@ -1,6 +1,13 @@
 import { describe, expect, it } from "vitest";
 import type { GameGraph } from "../../../features/games/useGameGraph";
-import { entityIndex, nextStageId, queueRows, stagePeople, stageView } from "./viewModel";
+import {
+  connectionPairs,
+  entityIndex,
+  nextStageId,
+  queueRows,
+  stagePeople,
+  stageView,
+} from "./viewModel";
 
 function stage(id: string, ordinal: number, extra: Partial<GameGraph["stages"][number]> = {}) {
   return {
@@ -193,5 +200,53 @@ describe("entityIndex", () => {
     expect(whistle?.actorId).toBeUndefined();
     // 描述进关键字：搜索框按描述也能命中。
     expect(whistle?.keywords).toContain("木杆");
+  });
+});
+
+describe("connectionPairs", () => {
+  it("一对舞台一条线：双向的两条边折成一个 pair", () => {
+    const [pair, ...rest] = connectionPairs(graph());
+    expect(rest).toHaveLength(0);
+    expect(pair?.directions.map((direction) => direction.passage)).toEqual(["open", "sealed"]);
+    expect(pair?.passable).toBe(true);
+  });
+
+  it("单向的只留一个方向，线是「通」", () => {
+    const pairs = connectionPairs(
+      graph({
+        connections: [{ id: "c", fromStageId: "hall", toStageId: "yard", passage: "open" }],
+      }),
+    );
+    expect(pairs).toHaveLength(1);
+    expect(pairs[0]?.directions).toHaveLength(1);
+    expect(pairs[0]?.passable).toBe(true);
+  });
+
+  it("两个方向都封着时整条线不可通行", () => {
+    const pairs = connectionPairs(
+      graph({
+        connections: [
+          { id: "c1", fromStageId: "hall", toStageId: "yard", passage: "sealed" },
+          { id: "c2", fromStageId: "yard", toStageId: "hall", passage: "sealed" },
+        ],
+      }),
+    );
+    expect(pairs[0]?.directions).toHaveLength(2);
+    expect(pairs[0]?.passable).toBe(false);
+  });
+
+  it("自环不画；顺序稳定，刷新前后线不会换位置", () => {
+    const pairs = connectionPairs(
+      graph({
+        connections: [
+          { id: "c1", fromStageId: "hall", toStageId: "hall", passage: "open" },
+          { id: "c2", fromStageId: "yard", toStageId: "hall", passage: "open" },
+        ],
+      }),
+    );
+    expect(pairs).toHaveLength(1);
+    const ids = pairs[0]?.stageIds ?? [];
+    expect(ids).toEqual([...ids].sort());
+    expect(connectionPairs(graph())).toEqual(connectionPairs(graph()));
   });
 });

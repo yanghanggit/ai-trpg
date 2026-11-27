@@ -1,11 +1,19 @@
 import { type Edge, MarkerType } from "@xyflow/react";
 import type { GameGraph } from "../../../features/games/useGameGraph";
 import ActorNode from "./ActorNode";
-import CurvedEdge from "./CurvedEdge";
-import { ACTOR_NODE, layoutStageActors, layoutStages, STAGE_NODE } from "./layout";
+import {
+  ACTOR_NODE,
+  handlesFor,
+  layoutStageActors,
+  layoutStages,
+  leftmost,
+  type Positions,
+  STAGE_NODE,
+} from "./layout";
 import StageNode from "./StageNode";
 import type { ActorFlowNode, StageFlowNode } from "./types";
-import { nextStageId, queueRows, stagePeople, stageView } from "./viewModel";
+import type { ConnectionPair } from "./viewModel";
+import { connectionPairs, nextStageId, stagePeople, stageView } from "./viewModel";
 
 /**
  * 契约到画布的翻译：两张图都从这里出，节点与边的读法只写一遍。
@@ -13,31 +21,53 @@ import { nextStageId, queueRows, stagePeople, stageView } from "./viewModel";
  * `nodeTypes` 必须是模块级常量——每次渲染新建一份，xyflow 会把整张图重挂一遍。
  */
 export const nodeTypes = { stage: StageNode, actor: ActorNode };
-export const edgeTypes = { curved: CurvedEdge };
 
 const OPEN_STROKE = "rgb(125 211 252 / 60%)";
-const SEALED_STROKE = "rgb(139 155 176 / 55%)";
+/** 封锁的方向不用同一支箭头颜色：灰要灰得明显，比 accent 暗一档。 */
+const OPEN_MARKER = "rgb(125 211 252 / 85%)";
+const SEALED_MARKER = "rgb(148 163 184 / 90%)";
+const SEALED_STROKE = "rgb(148 163 184 / 70%)";
 const LINK_STROKE = "rgb(139 155 176 / 30%)";
 
-function stageEdge(id: string, source: string, target: string, sealed: boolean, offset = 0): Edge {
+function marker(passage: "open" | "sealed") {
   return {
-    id,
+    type: MarkerType.ArrowClosed,
+    width: 14,
+    height: 14,
+    color: passage === "open" ? OPEN_MARKER : SEALED_MARKER,
+  };
+}
+
+/**
+ * 一对舞台一条线。
+ *
+ * 方向只靠箭头：有哪个方向就画哪个方向的箭头（两端都有就是双向），
+ * 箭头按自己那个方向的上色——可通行是 accent，封着是灰。
+ * 线本身只说「有没有路」：至少一个方向通是实线，全封着是虚线。
+ *
+ * `source` 必须是画面上左边那个节点：箭头的一端落在哪，读的是画布而不是 id 顺序。
+ * `data.pair` 原样带着两个方向的状态，点线的弹窗直接用，不必再查。
+ */
+function pairEdge(pair: ConnectionPair, source: string, positions: Positions): Edge {
+  const target = pair.stageIds[0] === source ? pair.stageIds[1] : pair.stageIds[0];
+  const { sourceHandle, targetHandle } = handlesFor(positions, source, target);
+  // 画线方向是 source → target，所以「正向」是 source 出发的那条。
+  const forward = pair.directions.find((direction) => direction.from === source);
+  const backward = pair.directions.find((direction) => direction.from === target);
+
+  return {
+    id: pair.id,
     source,
     target,
-    type: "curved",
-    data: { axis: "h", offset },
-    sourceHandle: "right",
-    targetHandle: "left",
-    markerEnd: {
-      type: MarkerType.ArrowClosed,
-      width: 14,
-      height: 14,
-      color: sealed ? SEALED_STROKE : OPEN_STROKE,
-    },
+    sourceHandle,
+    targetHandle,
+    data: { pair },
+    ...(backward === undefined ? {} : { markerStart: marker(backward.passage) }),
+    ...(forward === undefined ? {} : { markerEnd: marker(forward.passage) }),
     style: {
-      stroke: sealed ? SEALED_STROKE : OPEN_STROKE,
+      stroke: pair.passable ? OPEN_STROKE : SEALED_STROKE,
       strokeWidth: 1.4,
-      ...(sealed ? { strokeDasharray: "6 4" } : {}),
+      ...(pair.passable ? {} : { strokeDasharray: "6 4" }),
     },
   };
 }
@@ -70,21 +100,9 @@ export function worldFlow(graph: GameGraph): { nodes: StageFlowNode[]; edges: Ed
     ...STAGE_NODE,
   }));
 
-  // 双向边各偏一侧，否则两条曲线完全重叠、只剩一个箭头。
-  const drawn = new Set(
-    graph.connections.map((connection) => `${connection.fromStageId}->${connection.toStageId}`),
+  const edges = connectionPairs(graph).map((pair) =>
+    pairEdge(pair, leftmost(positions, pair.stageIds), positions),
   );
-  const edges = graph.connections.map((connection) => {
-    const reverse = drawn.has(`${connection.toStageId}->${connection.fromStageId}`);
-    const offset = reverse ? (connection.fromStageId < connection.toStageId ? -16 : 16) : 0;
-    return stageEdge(
-      connection.id,
-      connection.fromStageId,
-      connection.toStageId,
-      connection.passage === "sealed",
-      offset,
-    );
-  });
 
   return { nodes, edges };
 }
@@ -207,46 +225,46 @@ export function stageFlow(
     });
   }
 
-  // 与第一层同理：相邻舞台常常双向相连，两条边要各偏一侧才看得出是两条。
-  const directions = new Set(
-    view.neighbours.map((neighbour) => `${neighbour.direction}:${neighbour.stage.id}`),
-  );
+  // 与第一层同一套读法：这张图只保留与根有关的那几对。
+  const edges: Edge[] = connectionPairs({
+    ...graph,
+    connections: graph.connections.filter(
+      (connection) => connection.fromStageId === stageId || connection.toStageId === stageId,
+    ),
+  }).map((pair) => pairEdge(pair, leftmost(neighbourPositions, pair.stageIds), neighbourPositions));
 
-  const edges: Edge[] = [];
-  for (const neighbour of view.neighbours) {
-    if (neighbour.stage.id === stageId) {
+  // actor 之间画成一条脊柱：根 → 第一名 → 下一名……
+  // 每人各连一根到根的话，线会从后面的卡片里穿过去。
+  const columns = new Map<number, string[]>();
+  for (const { actor } of view.actors) {
+    const relative = actorPositions.get(actor.id);
+    if (relative === undefined) {
       continue;
     }
-    const reverse = directions.has(
-      `${neighbour.direction === "out" ? "in" : "out"}:${neighbour.stage.id}`,
-    );
-    const offset = reverse ? (neighbour.direction === "out" ? 16 : -16) : 0;
-    edges.push(
-      neighbour.direction === "out"
-        ? stageEdge(
-            `out:${neighbour.stage.id}`,
-            stageId,
-            neighbour.stage.id,
-            neighbour.passage === "sealed",
-            offset,
-          )
-        : stageEdge(
-            `in:${neighbour.stage.id}`,
-            neighbour.stage.id,
-            stageId,
-            neighbour.passage === "sealed",
-            offset,
-          ),
-    );
+    const key = Math.round(relative.x);
+    columns.set(key, [...(columns.get(key) ?? []), actor.id]);
+  }
+  const links: { id: string; source: string; target: string }[] = [];
+  const [firstColumn] = [...columns.keys()].sort((left, right) => left - right);
+  for (const [x, actorIds] of columns) {
+    const head = actorIds[0];
+    if (head !== undefined && x === firstColumn) {
+      links.push({ id: `holds:${head}`, source: stageId, target: head });
+    }
+    for (let index = 1; index < actorIds.length; index += 1) {
+      const previous = actorIds[index - 1];
+      const current = actorIds[index];
+      if (previous !== undefined && current !== undefined) {
+        links.push({ id: `next:${previous}:${current}`, source: previous, target: current });
+      }
+    }
   }
 
-  for (const { actor } of view.actors) {
+  for (const link of links) {
     edges.push({
-      id: `holds:${actor.id}`,
-      source: stageId,
-      target: actor.id,
-      type: "curved",
-      data: { axis: "v", offset: 0 },
+      id: link.id,
+      source: link.source,
+      target: link.target,
       sourceHandle: "bottom",
       targetHandle: "top",
       style: { stroke: LINK_STROKE, strokeWidth: 1.2 },
@@ -259,14 +277,4 @@ export function stageFlow(
 /** 顺位条上点一行时要知道去哪一层：先找到人，再找他的舞台。 */
 export function actorStageId(graph: GameGraph, actorId: string): string | undefined {
   return graph.actors.find((actor) => actor.id === actorId)?.stageId;
-}
-
-/** 卡片没开顺位时用来兜底：有舞台就先展开第一个。 */
-export function firstStageId(graph: GameGraph): string | undefined {
-  return [...graph.stages].sort((left, right) => left.ordinal - right.ordinal)[0]?.id;
-}
-
-/** 顺位上有人的舞台优先：展开时落在「现在该看的地方」。 */
-export function preferredStageId(graph: GameGraph): string | undefined {
-  return queueRows(graph).length > 0 ? nextStageId(graph) : firstStageId(graph);
 }

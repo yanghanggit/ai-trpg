@@ -99,3 +99,52 @@ export function layoutStageActors(
   });
   return positions;
 }
+
+/**
+ * 一对节点的左右次序：连线从左边那个画到右边那个。
+ *
+ * 图形的左右与 id 的字典序无关；按坐标决定，箭头才会落在看得见的那一端。
+ * 同一列时用 y 兜底，仍是确定的。
+ */
+export function leftmost(
+  positions: Map<string, Position>,
+  stageIds: readonly [string, string],
+): string {
+  const [a, b] = stageIds;
+  const left = positions.get(a);
+  const right = positions.get(b);
+  if (left === undefined || right === undefined) {
+    return a;
+  }
+  if (left.x !== right.x) {
+    return left.x < right.x ? a : b;
+  }
+  return left.y <= right.y ? a : b;
+}
+
+export type Positions = Map<string, Position>;
+
+/**
+ * 连线挂在节点哪两个点上：错开高度，几条线才不会在同一个点打结。
+ *
+ * 目标在上方就从上口出、下口入；下方反过来；同一高度用中间那对。
+ */
+export function handlesFor(
+  positions: Positions,
+  source: string,
+  target: string,
+): { sourceHandle: string; targetHandle: string } {
+  const from = positions.get(source);
+  const to = positions.get(target);
+  if (from === undefined || to === undefined) {
+    return { sourceHandle: "right", targetHandle: "left" };
+  }
+  const dy = to.y - from.y;
+  if (dy < -40) {
+    return { sourceHandle: "right-top", targetHandle: "left-bottom" };
+  }
+  if (dy > 40) {
+    return { sourceHandle: "right-bottom", targetHandle: "left-top" };
+  }
+  return { sourceHandle: "right", targetHandle: "left" };
+}

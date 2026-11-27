@@ -540,13 +540,6 @@ a {
 
 /* ---------------------------------------------------------------- 世界图谱 */
 
-.panel__head {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-}
-
 /* 画布容器必须有高度：xyflow 不撑高，父级给 0 就是一张空白。 */
 .graph-canvas {
   margin-top: 14px;
@@ -936,4 +929,13 @@ a {
     border-top: 1px solid var(--line);
     border-left: 0;
   }
+}
+
+/* 连线在弹窗里可点：光标先说话，别让人猜。 */
+.graph-canvas--explorer .react-flow__edge:hover path {
+  stroke-width: 2.4;
+}
+
+.graph-canvas--explorer .react-flow__edge {
+  cursor: pointer;
 }

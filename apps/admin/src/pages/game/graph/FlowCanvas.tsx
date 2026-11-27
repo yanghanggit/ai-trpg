@@ -6,7 +6,8 @@ import {
   ReactFlow,
   ReactFlowProvider,
 } from "@xyflow/react";
-import { edgeTypes, nodeTypes } from "./flow";
+import { nodeTypes } from "./flow";
+import type { ConnectionPair } from "./viewModel";
 
 type Props = {
   nodes: Node[];
@@ -15,6 +16,8 @@ type Props = {
   className: string;
   onStageClick?: (stageId: string) => void;
   onActorClick?: (actorId: string) => void;
+  /** 点线：一对舞台的两个方向各自通不通。 */
+  onPairClick?: (pair: ConnectionPair) => void;
   draggable?: boolean;
   /** 卡片里关掉滚轮缩放，别抢页面滚动。 */
   zoomOnScroll?: boolean;
@@ -32,6 +35,7 @@ export default function FlowCanvas({
   className,
   onStageClick,
   onActorClick,
+  onPairClick,
   draggable = false,
   zoomOnScroll = true,
 }: Props) {
@@ -42,7 +46,6 @@ export default function FlowCanvas({
           nodes={nodes}
           edges={edges}
           nodeTypes={nodeTypes}
-          edgeTypes={edgeTypes}
           fitView
           fitViewOptions={{ padding: "12%" }}
           minZoom={0.25}
@@ -53,6 +56,12 @@ export default function FlowCanvas({
           zoomOnScroll={zoomOnScroll}
           preventScrolling={false}
           forceColorMode="dark"
+          onEdgeClick={(_event, edge) => {
+            const data = edge.data as { pair?: ConnectionPair } | undefined;
+            if (data?.pair !== undefined) {
+              onPairClick?.(data.pair);
+            }
+          }}
           onNodeClick={(_event, node) => {
             if (node.type === "stage") {
               onStageClick?.(node.id);

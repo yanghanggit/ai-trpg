@@ -2,7 +2,7 @@ import { useMemo } from "react";
 import Hint from "../../../components/Hint";
 import type { GameGraph } from "../../../features/games/useGameGraph";
 import FlowCanvas from "./FlowCanvas";
-import { actorStageId, preferredStageId, worldFlow } from "./flow";
+import { actorStageId, worldFlow } from "./flow";
 import QueueStrip from "./QueueStrip";
 import { queueRows } from "./viewModel";
 
@@ -28,28 +28,10 @@ export default function WorldCard({ graph, error, onOpen }: Props) {
 
   return (
     <section className="panel">
-      <div className="panel__head">
-        <h2>
-          世界图谱
-          <Hint text="实线=能走，虚线=封锁（sealed）；带「轮到」标记的舞台里站着顺位上的下一个人。点舞台看里面的人，点顺位条直接跳到那个人。" />
-        </h2>
-        <button
-          type="button"
-          className="button button--ghost"
-          disabled={graph === undefined}
-          onClick={() => {
-            if (graph === undefined) {
-              return;
-            }
-            const stageId = preferredStageId(graph);
-            if (stageId !== undefined) {
-              onOpen(stageId);
-            }
-          }}
-        >
-          展开
-        </button>
-      </div>
+      <h2>
+        世界图谱
+        <Hint text="一条线连两个舞台：箭头数=方向数，实线=至少一个方向能走，虚线=两个方向都封着，灰箭头=那个方向封着（sealed）。带「轮到」标记的舞台里站着顺位上的下一个人。点舞台看里面的人，点顺位条直接跳到那个人。" />
+      </h2>
 
       {error === undefined ? null : <p className="form-error">{error}</p>}
 
@@ -73,7 +55,7 @@ export default function WorldCard({ graph, error, onOpen }: Props) {
           <QueueStrip
             rows={rows}
             onSelect={(actorId) => {
-              const stageId = actorStageId(graph, actorId) ?? preferredStageId(graph);
+              const stageId = actorStageId(graph, actorId);
               if (stageId !== undefined) {
                 onOpen(stageId, actorId);
               }

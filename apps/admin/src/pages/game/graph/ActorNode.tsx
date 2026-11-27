@@ -21,6 +21,7 @@ export default function ActorNode({ data }: NodeProps<ActorFlowNode>) {
   return (
     <div className={classes.join(" ")}>
       <Handle type="target" position={Position.Top} id="top" isConnectable={false} />
+      <Handle type="source" position={Position.Bottom} id="bottom" isConnectable={false} />
       <span className="graph-node__head">
         {data.position === undefined ? null : (
           <span className="graph-node__pos">{data.position}</span>
