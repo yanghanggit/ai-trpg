@@ -87,7 +87,7 @@ describe.skipIf(!testDatabaseUrl)("agent probe", () => {
 
     const result = await runProbe(handle.db, slug, {
       service,
-      target: { type: "actor", actorRef: "守烬人" },
+      owner: { owner: "actor", name: "守烬人" },
       message: "你现在记得自己刚刚做了什么吗？",
     });
 
@@ -129,7 +129,7 @@ describe.skipIf(!testDatabaseUrl)("agent probe", () => {
 
     const result = await runProbe(handle.db, slug, {
       service,
-      target: { type: "stage", stageRef: "灰烬门廊" },
+      owner: { owner: "stage", name: "灰烬门廊" },
       message: "你记得这个舞台刚刚发生了什么吗？",
     });
 
@@ -141,6 +141,51 @@ describe.skipIf(!testDatabaseUrl)("agent probe", () => {
         message.content.includes("守烬人从门闩上拾取了测试提灯。"),
       ),
     ).toBe(true);
+
+    const afterState = await getGameState(handle.db, slug);
+    const afterMemories = await getGameMemories(handle.db, created.game.id);
+    expect(afterState.game.version).toBe(beforeState.game.version);
+    expect(afterState.messages).toHaveLength(beforeState.messages.length);
+    expect(afterMemories.map((memory) => [memory.name, memory.messages.length])).toEqual(
+      beforeMemories.map((memory) => [memory.name, memory.messages.length]),
+    );
+  });
+
+  it("answers from world memory only, without injecting any stage", async () => {
+    const created = await createGame(handle.db, {
+      username: DEMO_USER.username,
+      name: "world 探针测试局",
+      world: worldWithPickup,
+    });
+    const slug = created.game.slug;
+    await takeActorControl(handle.db, slug, "守烬人");
+    await playerPickup(handle.db, slug, "守烬人", {
+      targetAnchor: "门闩",
+      itemName: "测试提灯",
+    });
+
+    const beforeState = await getGameState(handle.db, slug);
+    const beforeMemories = await getGameMemories(handle.db, created.game.id);
+    const service = new CapturingProbeService();
+
+    const result = await runProbe(handle.db, slug, {
+      service,
+      owner: { owner: "world" },
+      message: "这局现在有几处舞台？",
+    });
+
+    expect(result.targetType).toBe("world");
+    // world 的记忆名是剧本名，不是局名。
+    expect(result.targetName).toBe(TEST_WORLD.worldName);
+    expect(service.request?.label).toContain("probe:world:");
+    expect(service.request?.inputMessage).toContain("这局现在有几处舞台？");
+    // 世界只带自己的宪法与记忆：舞台的在场、道具与观察都不注入。
+    expect(service.request?.inputMessage).not.toContain("## 舞台道具");
+    expect(
+      service.request?.messages.some((message) =>
+        message.content.includes("守烬人从门闩上拾取了测试提灯。"),
+      ),
+    ).toBe(false);
 
     const afterState = await getGameState(handle.db, slug);
     const afterMemories = await getGameMemories(handle.db, created.game.id);

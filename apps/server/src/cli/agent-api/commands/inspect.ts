@@ -30,11 +30,16 @@ const probeInput = z
     game: z.string(),
     actor: z.string().trim().min(1).optional(),
     stage: z.string().trim().min(1).optional(),
+    world: z.boolean().default(false),
     message: nonEmptyText("--message"),
   })
-  .refine((input) => (input.actor === undefined) !== (input.stage === undefined), {
-    message: "probe 需要 --actor 或 --stage 二选一",
-  });
+  .refine(
+    (input) =>
+      [input.actor, input.stage, input.world ? "world" : undefined].filter(
+        (value) => value !== undefined,
+      ).length === 1,
+    { message: "probe 需要 --actor、--stage 或 --world 三选一" },
+  );
 
 const memoryInput = z
   .object({
@@ -80,19 +85,26 @@ export function registerInspectCommands(program: Command): void {
   addApiCommand(program, {
     name: "probe",
     group: GROUP,
-    summary: "只读探针：让 agent 只凭 prompt 与 memory 回答一个问题",
+    summary: "只读探针：让 agent 只凭 prompt 与 memory 回一句话",
     options: [
       gameOption(),
       optionalActorOption(),
       optionalOption("--stage <ref>", "以舞台 agent 为探针目标"),
-      requiredOption("--message <text>", "问题"),
+      optionalOption("--world", "以世界 agent 为探针目标"),
+      requiredOption("--message <text>", "对它说的一句话"),
     ],
     schema: probeInput,
     run: async (input, client) =>
       (await client.call({
         method: "POST",
         path: `/games/${encodeURIComponent(input.game)}/probe`,
-        body: { actor: input.actor, stage: input.stage, message: input.message },
+        body: {
+          owner:
+            input.actor !== undefined ? "actor" : input.stage !== undefined ? "stage" : "world",
+          ...(input.actor === undefined ? {} : { name: input.actor }),
+          ...(input.stage === undefined ? {} : { name: input.stage }),
+          message: input.message,
+        },
       })) as Record<string, unknown>,
   });
 

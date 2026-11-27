@@ -42,4 +42,4 @@ web 还没做的是「让回路在真界面里顺滑」：取消入口、订阅�
 
 ## 现在的验证位置
 
-`apps/server` 759 passed / 1 skipped，`apps/web` 50 passed，`apps/admin` 33 passed；`pnpm typecheck`、`pnpm lint` 全绿。数据库只有一份基线迁移（`apps/server/drizzle/0000_baseline.sql`），改 schema 的方式见 `docs/database.md` 与待办里的说明。
+`apps/server` 761 passed / 1 skipped，`apps/web` 50 passed，`apps/admin` 33 passed；`pnpm typecheck`、`pnpm lint` 全绿。数据库只有一份基线迁移（`apps/server/drizzle/0000_baseline.sql`），改 schema 的方式见 `docs/database.md` 与待办里的说明。

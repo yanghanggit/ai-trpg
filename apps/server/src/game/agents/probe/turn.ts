@@ -1,13 +1,10 @@
 import type { Database } from "../../../db/pool";
-import { ChatCompletionRequest, type ChatMessage } from "../../../llm";
-import { findActorByName } from "../../actor-state";
+import { ChatCompletionRequest } from "../../../llm";
 import { GameError } from "../../errors";
 import { getGameStateSlice } from "../../game-state";
-import type { GameStateSlice } from "../../kernel/types";
-import { loadAgentMemory } from "../../memory";
-import { findStage } from "../../stage-state";
+import { loadAgentMemory, resolveMemoryOwner } from "../../memory";
 import { buildProbeInput } from "./prompt";
-import type { ProbeOptions, ProbeResult, ProbeTarget } from "./types";
+import type { ProbeOptions, ProbeResult } from "./types";
 
 /**
  * 只读探针：用目标 agent 自己的 system prompt 与 memory 回答一句话。
@@ -26,12 +23,22 @@ export async function runProbe(
     throw new GameError("invalid_action", "探针问题不能为空");
   }
 
-  const target = await loadProbeTarget(db, state, options.target);
+  // 定位复用记忆那一条：谁有记忆、名字怎么认，只有 owner.ts 说了算。
+  const owner = resolveMemoryOwner(
+    state,
+    options.owner.owner,
+    options.owner.owner === "world" ? undefined : options.owner.name,
+  );
+  const memory = await loadAgentMemory(db, state.game.id, owner.ownerType, owner.ownerId);
+  if (!memory) {
+    throw new GameError("invalid_state", `${owner.ownerType} 缺少 memory: ${owner.name}`);
+  }
+
   const result = await options.service.complete(
     new ChatCompletionRequest({
-      label: `probe:${options.target.type}:${target.name}`,
+      label: `probe:${owner.ownerType}:${owner.name}`,
       inputMessage: buildProbeInput(question),
-      messages: [...target.messages],
+      messages: [...memory.messages],
     }),
   );
   if (result.error) {
@@ -39,26 +46,9 @@ export async function runProbe(
   }
 
   return {
-    targetType: options.target.type,
-    targetName: target.name,
+    targetType: owner.ownerType,
+    targetName: owner.name,
     answer: result.content,
     finishReason: result.finishReason,
   };
-}
-
-/** 定位被问的实体，取它自己的 memory；两种目标的差别只在怎么找到它。 */
-async function loadProbeTarget(
-  db: Database,
-  state: GameStateSlice,
-  target: ProbeTarget,
-): Promise<{ name: string; messages: ChatMessage[] }> {
-  const { id, name } =
-    target.type === "actor"
-      ? findActorByName(state, target.actorRef).actor
-      : findStage(state, target.stageRef);
-  const memory = await loadAgentMemory(db, state.game.id, target.type, id);
-  if (!memory) {
-    throw new GameError("invalid_state", `${target.type} 缺少 memory: ${name}`);
-  }
-  return { name, messages: memory.messages };
 }

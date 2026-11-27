@@ -1,16 +1,16 @@
 # Agent 探针
 
-探针是对 agent 实体的一次只读记忆检查：读取目标的 system prompt 与 memory，临时追加一个问题，调用一次 LLM 并返回回答；不进入行动计划，不写入 memory，不改变游戏状态，也不注入当前 observation。
+探针是对 agent 实体的一次只读记忆检查：读取目标的 system prompt 与 memory，临时追加一句话，调用一次 LLM 并返回回答；不进入行动计划，不写入 memory，不改变游戏状态，也不注入当前 observation。追加的那句话可以是问题，也可以是一句判断——探针看的是目标会怎么回应，不是它肯不肯答题。
 
 它回答的是「这条信息真的进 memory 了吗」：检查关键行动结果、道具归属变化、private 事件是否写进了正确的 memory，以及目标仅凭记忆如何理解状态。探针不是行动，也不是对话事件——问 actor「你身上还有什么」不会让他移动、攻击或提交计划。
 
 ## 目标
 
-支持 actor 与 stage。actor 探针只用 actor 的 system prompt 与 memory，不注入当前舞台、自身道具或 observation；stage 探针只用 stage 的 system prompt 与 memory，不注入 environment、角色或舞台道具。
+三类记忆实体都能问：world、stage、actor。目标是「记忆所有者」而不是另一种实体，所以记忆读取与探针用同一套门牌——问谁就是读谁，解析只在 `resolveMemoryOwner` 一处。
 
-这样探针答不上来就是正常信号：若结果没有进入 memory，探针应当无法回答，而不是被当前状态补齐。stage 探针能看到本舞台的 private 事件，这是 stage memory 的既有可见性，不改变 actor 的可见范围。
+目标决定注入什么，除此之外没有别的差别：actor 探针只带 actor 的 system prompt 与 memory，不注入当前舞台、自身道具或 observation；stage 探针不注入 environment、角色或舞台道具；world 探针只带世界宪法与它自己的记忆，不注入任何舞台。
 
-world 已有自己的 memory 与 system prompt，但探针目前只接 actor 与 stage。
+这样探针答不上来就是正常信号：若结果没有进入 memory，探针应当无法回答，而不是被当前状态补齐。stage 探针能看到本舞台的 private 事件，这是 stage memory 的既有可见性，不改变 actor 的可见范围；world 探针能看到跨舞台的事实，那是世界自己的全知范围。
 
 ## 无副作用
 
@@ -22,6 +22,6 @@ world 已有自己的 memory 与 system prompt，但探针目前只接 actor 与
 
 ## CLI
 
-`agent:game probe` 用 `--actor` 或 `--stage` 指定目标，`--message` 给问题；输出包含目标类型、目标名称、回答与 finish reason，不返回可变游戏状态。
+`agent:game probe` 用 `--actor`、`--stage` 或 `--world` 指定目标，`--message` 给那句话；输出包含目标类型、目标名称、回答与 finish reason，不返回可变游戏状态。HTTP 面同样按 owner 门牌取目标，与 `GET /games/{game}/memory` 一致。
 
 → 参见：[开发期 Agent 工作流](debug-workflow.md)、[舞台](stage.md)、[Actor 行动与记忆](actor-actions-memory.md)、[Agent 与工具](agents.md)

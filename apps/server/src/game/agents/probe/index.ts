@@ -1,3 +1,3 @@
 export { buildProbeInput } from "./prompt";
 export { runProbe } from "./turn";
-export type { ProbeOptions, ProbeResult, ProbeTarget } from "./types";
+export type { ProbeOptions, ProbeResult } from "./types";

@@ -96,16 +96,17 @@ export function useGameActions(slug: string) {
 
   async function probe(input: {
     message: string;
-    actor?: string;
-    stage?: string;
+    /** 与记忆读取同一套门牌：问谁就是读谁。 */
+    owner: MemoryOwner;
+    name?: string;
   }): Promise<components["schemas"]["GameProbe"]> {
     return unwrap(
       await api.POST("/api/v1/games/{game}/probe", {
         params: { path: { game: slug } },
         body: {
+          owner: input.owner,
+          ...(input.name === undefined || input.name.length === 0 ? {} : { name: input.name }),
           message: input.message,
-          ...(input.actor === undefined || input.actor.length === 0 ? {} : { actor: input.actor }),
-          ...(input.stage === undefined || input.stage.length === 0 ? {} : { stage: input.stage }),
         },
       }),
     );

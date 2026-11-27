@@ -41,7 +41,7 @@ export const gameMemorySchema = z
 
 export const gameProbeSchema = z
   .object({
-    targetType: z.string(),
+    targetType: z.enum(["actor", "stage", "world"]),
     targetName: z.string(),
     answer: z.string(),
     finishReason: z.string().nullable(),

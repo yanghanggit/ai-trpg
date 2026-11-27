@@ -1,16 +1,20 @@
 import type { ChatCompletionService } from "../../../llm";
+import type { MemoryOwnerQuery, MemoryOwnerType } from "../../memory";
 
-/** 探针问谁：一个 actor，或一个 stage；world 没有探针入口。 */
-export type ProbeTarget = { type: "actor"; actorRef: string } | { type: "stage"; stageRef: string };
-
+/**
+ * 探针目标：和记忆读取同一套门牌，所以 actor / stage / world 都能问。
+ *
+ * 三类目标的差别只在谁是它的 system prompt 与 memory——那是 memory 自己的事，
+ * 这里不按类型分支。
+ */
 export type ProbeOptions = {
   service: ChatCompletionService;
-  target: ProbeTarget;
+  owner: MemoryOwnerQuery;
   message: string;
 };
 
 export type ProbeResult = {
-  targetType: ProbeTarget["type"];
+  targetType: MemoryOwnerType;
   targetName: string;
   answer: string;
   finishReason: string;

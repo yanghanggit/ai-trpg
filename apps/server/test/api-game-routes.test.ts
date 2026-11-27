@@ -318,6 +318,24 @@ describe.skipIf(!testDatabaseUrl)("业务 API", () => {
     });
   });
 
+  it("探针按 owner 门牌取目标：actor / stage 缺 name 直接 400", async () => {
+    const missing = await app.inject({
+      method: "POST",
+      url: `/api/v1/games/${SLUG}/probe`,
+      headers: auth,
+      payload: { owner: "actor", message: "你在哪？" },
+    });
+    expect(missing.statusCode).toBe(400);
+
+    const unknownOwner = await app.inject({
+      method: "POST",
+      url: `/api/v1/games/${SLUG}/probe`,
+      headers: auth,
+      payload: { owner: "nobody", message: "你在哪？" },
+    });
+    expect(unknownOwner.statusCode).toBe(400);
+  });
+
   it("快照写盘后可列出、可按份读原文，越界份名读不到", async () => {
     const root = await mkdtemp(join(tmpdir(), "ai-trpg-snap-api-"));
     const previous = process.env.WORLDS_DIR;

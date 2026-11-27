@@ -24,7 +24,7 @@ type Props = {
  */
 export default function ProbeDialog({ open, target, probe, error, busy, onAsk, onClose }: Props) {
   const [question, setQuestion] = useState("");
-  const askable = target !== undefined && target.kind !== "world";
+  const askable = target !== undefined;
   const canAsk = askable && !busy && question.trim().length > 0;
 
   return (
@@ -35,7 +35,7 @@ export default function ProbeDialog({ open, target, probe, error, busy, onAsk, o
       title={
         <>
           探针
-          <Hint text="对选中那份记忆说一句话：它只能说出自己被写进去的东西，所以答不上来也是结论。不写记忆、不产生事件、不改状态。要选一个舞台或角色才发得出去，world 没有探针入口。" />
+          <Hint text="对选中那份记忆说一句话：它只能说出自己被写进去的东西，所以答不上来也是结论。不写记忆、不产生事件、不改状态。世界、舞台、角色都问得，问谁就是读谁的记忆。" />
         </>
       }
     >
@@ -79,8 +79,7 @@ export default function ProbeDialog({ open, target, probe, error, busy, onAsk, o
             <div>
               <dt>目标</dt>
               <dd>
-                {KIND_LABEL[probe.answer.targetType === "stage" ? "stage" : "actor"]} ·{" "}
-                {probe.answer.targetName}
+                {KIND_LABEL[probe.answer.targetType]} · {probe.answer.targetName}
               </dd>
             </div>
             <div>

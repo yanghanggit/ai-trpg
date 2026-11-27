@@ -10,7 +10,8 @@ import { z } from "zod";
 import { dumpMemory } from "../../../debug/memory-dump";
 import { DEEPSEEK_SERVICE } from "../../../deepseek";
 import { renderNameLeakReport } from "../../../game";
-import type { ProbeTarget } from "../../../game/agents/probe";
+
+import type { MemoryOwnerQuery } from "../../../game/memory";
 import type { NameLeakReport } from "../../../game/name-audit";
 import {
   type CompactQuery,
@@ -42,11 +43,16 @@ const probeInput = z
     game: gameRef,
     actor: z.string().trim().min(1).optional(),
     stage: z.string().trim().min(1).optional(),
+    world: z.boolean().default(false),
     message: nonEmptyText("--message"),
   })
-  .refine((input) => (input.actor === undefined) !== (input.stage === undefined), {
-    message: "probe 需要 --actor 或 --stage 二选一",
-  });
+  .refine(
+    (input) =>
+      [input.actor, input.stage, input.world ? "world" : undefined].filter(
+        (value) => value !== undefined,
+      ).length === 1,
+    { message: "probe 需要 --actor、--stage 或 --world 三选一" },
+  );
 
 const memoryInput = z
   .object({
@@ -88,15 +94,18 @@ const compactInput = z
     { message: "compact --owner actor / --owner stage 需要 --name" },
   );
 
-/** `--actor` 与 `--stage` 二选一：refine 已挡过一次，这里只把类型窄化到 `ProbeTarget`。 */
-function probeTarget(input: { actor?: string; stage?: string }): ProbeTarget {
+/** 三个开关归一成记忆门牌：refine 已挡过一次，这里只做类型窄化。 */
+function probeOwner(input: { actor?: string; stage?: string; world: boolean }): MemoryOwnerQuery {
   if (input.actor !== undefined) {
-    return { type: "actor", actorRef: input.actor };
+    return { owner: "actor", name: input.actor };
   }
   if (input.stage !== undefined) {
-    return { type: "stage", stageRef: input.stage };
+    return { owner: "stage", name: input.stage };
   }
-  throw new UsageError("probe 需要 --actor 或 --stage 二选一");
+  if (input.world) {
+    return { owner: "world" };
+  }
+  throw new UsageError("probe 需要 --actor、--stage 或 --world 三选一");
 }
 
 /** 三个别名（`--actor` / `--stage` / `--owner`）归一成 owner + 名字。 */
@@ -139,12 +148,13 @@ export function registerInspectCommands(program: Command, ctx: CommandContext): 
   addCommand(program, ctx, {
     name: "probe",
     group: GROUP,
-    summary: "只读探针：让 agent 只凭 prompt 与 memory 回答一个问题",
+    summary: "只读探针：让 agent 只凭 prompt 与 memory 回一句话",
     options: [
       gameOption(),
       optionalActorOption(),
       optionalOption("--stage <ref>", "以舞台 agent 为探针目标"),
-      requiredOption("--message <text>", "问题"),
+      optionalOption("--world", "以世界 agent 为探针目标"),
+      requiredOption("--message <text>", "对它说的一句话"),
     ],
     schema: probeInput,
     run: async (input, ctx) =>
@@ -152,7 +162,7 @@ export function registerInspectCommands(program: Command, ctx: CommandContext): 
         probeOp(
           db,
           input.game,
-          { message: input.message, target: probeTarget(input) },
+          { message: input.message, owner: probeOwner(input) },
           { service: DEEPSEEK_SERVICE },
         ),
       ),

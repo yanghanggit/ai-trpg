@@ -179,8 +179,9 @@ const appearanceTurnBody = z.object({
 });
 
 const probeBody = z.object({
-  actor: z.string().trim().min(1).optional(),
-  stage: z.string().trim().min(1).optional(),
+  owner: z.enum(["actor", "stage", "world"]),
+  /** 只有 actor / stage 需要：world 一局一个。 */
+  name: z.string().trim().min(1).optional(),
   message: z.string().trim().min(1, "需要 message"),
 });
 
@@ -1149,7 +1150,7 @@ export function createGameRoutes(db: () => Database): FastifyPluginAsyncZod {
       {
         schema: {
           tags: ["inspect"],
-          summary: "只读探针：让 agent 只凭 prompt 与 memory 回答一个问题",
+          summary: "只读探针：让 agent 只凭 prompt 与 memory 回一句话",
           params: gameParams,
           body: probeBody,
           response: { 200: gameProbeSchema },
@@ -1159,17 +1160,20 @@ export function createGameRoutes(db: () => Database): FastifyPluginAsyncZod {
         const user = await requireUser(db(), request);
         await requireGameAccess(db(), request.params.game, user);
         const body = request.body;
-        if ((body.actor === undefined) === (body.stage === undefined)) {
-          throw new HttpError(400, "invalid_request", "actor 与 stage 必须二选一");
+        // 与 `/memory` 同一条门牌：world 不需要名字，另两类必须有。
+        if (body.owner !== "world" && body.name === undefined) {
+          throw new HttpError(400, "invalid_request", "actor / stage 还需要 name");
         }
-        const target =
-          body.actor !== undefined
-            ? ({ type: "actor", actorRef: body.actor } as const)
-            : ({ type: "stage", stageRef: body.stage as string } as const);
         return probeOp(
           db(),
           request.params.game,
-          { message: body.message, target },
+          {
+            message: body.message,
+            owner:
+              body.owner === "world"
+                ? { owner: "world" }
+                : { owner: body.owner, name: body.name as string },
+          },
           { service: DEEPSEEK_SERVICE },
         );
       },

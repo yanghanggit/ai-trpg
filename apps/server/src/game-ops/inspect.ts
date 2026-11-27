@@ -14,36 +14,33 @@ import {
   getGameState,
   getMemoryState,
   MEMORY_OWNER_TYPES,
-  type ProbeResult,
   resolveMemoryOwner,
   runProbe,
 } from "../game";
-import type { ProbeTarget } from "../game/agents/probe";
+import type { ProbeResult } from "../game/agents/probe";
 import type { GameState } from "../game/kernel/types";
-import type { AgentMemoryState, MemoryOwnerType } from "../game/memory";
+import type { AgentMemoryState, MemoryOwnerQuery, MemoryOwnerType } from "../game/memory";
 import type { NameLeakReport } from "../game/name-audit";
 import type { LlmServices } from "./services";
 
 export type { MemoryOwnerType };
 export { MEMORY_OWNER_TYPES };
 
+/** 探针与记忆读同一套门牌：问谁就是读谁。 */
 export async function probeOp(
   db: Database,
   gameRef: string,
-  input: { message: string; target: ProbeTarget },
+  input: { message: string; owner: MemoryOwnerQuery },
   services: LlmServices,
 ): Promise<ProbeResult> {
   return runProbe(db, gameRef, {
     service: services.service,
     message: input.message,
-    target: input.target,
+    owner: input.owner,
   });
 }
 
-export type MemoryQuery =
-  | { owner: "actor"; name: string }
-  | { owner: "stage"; name: string }
-  | { owner: "world" };
+export type MemoryQuery = MemoryOwnerQuery;
 
 /** 一份记忆的读回：owner 是谁、局是什么、消息有哪些。 */
 export type MemoryOpResult = {

@@ -91,14 +91,14 @@ export default function GameMemoryContainer({ slug }: { slug: string }) {
         });
       }}
       onAsk={(question) => {
-        const askTarget = target === undefined || target.kind === "world" ? undefined : target;
-        if (askTarget === undefined) {
+        if (target === undefined) {
           return;
         }
         void run("探针", async () => {
           const answer = await actions.probe({
             message: question,
-            ...(askTarget.kind === "actor" ? { actor: askTarget.name } : { stage: askTarget.name }),
+            owner: target.kind,
+            ...(target.kind === "world" ? {} : { name: target.name }),
           });
           setProbe({ answer, question });
         });

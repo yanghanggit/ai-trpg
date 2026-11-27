@@ -17,6 +17,13 @@ export type MemoryOwnerRef = {
   name: string;
 };
 
+/**
+ * 旁路读的门牌：world 一局一个、不需要名字，actor 与 stage 靠名字定位。
+ *
+ * 记忆读取与探针都用这一种写法，于是「问谁」和「读谁」是同一件事。
+ */
+export type MemoryOwnerQuery = { owner: "actor" | "stage"; name: string } | { owner: "world" };
+
 export function resolveMemoryOwner(
   state: GameStateSlice,
   ownerType: MemoryOwnerType,
