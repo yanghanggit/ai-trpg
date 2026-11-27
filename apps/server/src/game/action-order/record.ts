@@ -47,7 +47,15 @@ export async function recordTurnTaken(
   executor: Executor,
   gameId: string,
   actorId: string,
-  options: { kind?: "actor" | "pass"; facts?: TurnDispatchFacts } = {},
+  options: {
+    kind?: "actor" | "pass";
+    facts?: TurnDispatchFacts;
+    /**
+     * 动手时所在的舞台。move 在回合里当场落账，落账后再读就是「到达地」了，
+     * 而这一行记的是「事发地」——跟舞台回合推的是同一个舞台，两者才对得上。
+     */
+    stage?: { id: string; name: string };
+  } = {},
 ): Promise<boolean> {
   const order = await findActiveActionOrder(executor, gameId);
   if (!order) {
@@ -61,7 +69,7 @@ export async function recordTurnTaken(
       kind: options.kind ?? "actor",
       subjectId: actorId,
       subjectName: actor.name,
-      stageId: actor.stageId,
+      stageId: options.stage?.id ?? actor.stageId,
       clock: await readGameClock(executor, gameId),
       expectedPosition: facts?.expectedPosition ?? null,
       actualPosition: facts?.actualPosition ?? null,

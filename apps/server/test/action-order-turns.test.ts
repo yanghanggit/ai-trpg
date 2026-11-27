@@ -134,6 +134,24 @@ describe.skipIf(!testDatabaseUrl)("action order turns", () => {
     expect(row?.round).toBe(1);
   });
 
+  it("move 过的回合记的是出手那一处，不是落账时所在", async () => {
+    const { gameId, order, state } = await freshOrder("换舞台落账测试局");
+    const from = state.world.stages[0];
+    const to = state.world.stages[1] ?? from;
+    const actorId = from?.actors[0]?.id ?? "";
+    if (from === undefined || to === undefined) {
+      throw new Error("测试世界舞台不足");
+    }
+    // 调用方在回合之前把出手舞台传进来：move 之后读到的会是对面那个。
+    await recordTurnTaken(handle.db, gameId, actorId, { stage: { id: from.id, name: from.name } });
+    const [row] = await handle.db
+      .select()
+      .from(actionOrderTurns)
+      .where(eq(actionOrderTurns.orderId, order?.id ?? ""));
+    expect(row?.stageId).toBe(from.id);
+    expect(row?.subjectName).toBe(from.actors[0]?.name);
+  });
+
   it("空回合记成 pass：同一行动轮里能看到它，但不是有动作的回合", async () => {
     const { order, state } = await freshOrder("空回合测试局");
     const name = state.world.stages[0]?.actors[0]?.name ?? "";

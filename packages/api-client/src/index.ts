@@ -9,6 +9,7 @@ export {
   type PlayerAction,
   type Reader,
   roundComplete,
+  type StageRoster,
   stageOfActor,
   type TurnRequest,
   waitForTurnJob,

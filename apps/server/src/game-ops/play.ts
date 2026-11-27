@@ -155,16 +155,30 @@ export async function readGameMessages(
   return { messages, messageCursor };
 }
 
-/** 按舞台列 actor 名字：只读投影，不装配事件流。 */
-export async function readStageMap(
-  db: Database,
-  gameRef: string,
-): Promise<{ stages: Record<string, string[]> }> {
+/** 一个舞台的在场名单：定位用 id，名字只给人看。 */
+export type StageRoster = {
+  id: string;
+  name: string;
+  actors: { id: string; name: string }[];
+};
+
+/** 按舞台列出此刻在场的人。 */
+export type GameStageMap = { stages: StageRoster[] };
+
+/**
+ * 按舞台列此刻在场的人：只读投影，不装配事件流。
+ *
+ * 带 id 而不只是名字：编排要拿它决定「推哪个舞台」，按名字找会在同名角色上翻错舞台。
+ */
+export async function readStageMap(db: Database, gameRef: string): Promise<GameStageMap> {
   const state = await getGameState(db, gameRef);
-  const stages = Object.fromEntries(
-    state.world.stages.map((stage) => [stage.name, stage.actors.map((actor) => actor.name)]),
-  );
-  return { stages };
+  return {
+    stages: state.world.stages.map((stage) => ({
+      id: stage.id,
+      name: stage.name,
+      actors: stage.actors.map((actor) => ({ id: actor.id, name: actor.name })),
+    })),
+  };
 }
 
 export async function readVisitedStages(
@@ -223,6 +237,21 @@ export function playerActionOutput(result: ActorTurnResult): PlayerActionOutput 
   };
 }
 
+/**
+ * 动手时所在的舞台：move 会在回合里当场换舞台，事后再读就是到达地，不是事发地。
+ *
+ * 舞台回合推的是同一处（`stage-map` 在回合之前读），两边因此对得上。
+ */
+function dispatchStageOf(
+  state: GameStateSlice,
+  actorId: string,
+): { id: string; name: string } | undefined {
+  const stage = state.world.stages.find((candidate) =>
+    candidate.actors.some((actor) => actor.id === actorId),
+  );
+  return stage === undefined ? undefined : { id: stage.id, name: stage.name };
+}
+
 function reasonOf(action: { reason?: string }): { reason?: string } {
   return action.reason === undefined ? {} : { reason: action.reason };
 }
@@ -254,12 +283,11 @@ export async function submitPlayerAction(
     const result = await dispatchPlayerAction(db, gameRef, actorRef, action, services, trace);
     // 被拒的动作走不到这里（落账层直接抛错），所以「回来且 ok」就是「发生过」。
     if (result.ok) {
-      await recordTurnTaken(
-        db,
-        result.state.game.id,
-        actor.id,
-        order === null ? {} : { facts: dispatchFacts(order, actor.id) },
-      );
+      const dispatchStage = dispatchStageOf(state, actor.id);
+      await recordTurnTaken(db, result.state.game.id, actor.id, {
+        ...(dispatchStage === undefined ? {} : { stage: dispatchStage }),
+        ...(order === null ? {} : { facts: dispatchFacts(order, actor.id) }),
+      });
     }
     return playerActionOutput(result);
   } finally {
@@ -652,12 +680,12 @@ export async function advanceNpc(
       results.push(actorTurnOutput(result));
       const { actor } = findActorByName(result.state, name);
       if (result.ok) {
-        await recordTurnTaken(
-          db,
-          game.id,
-          actor.id,
-          order === null ? {} : { facts: dispatchFacts(order, actor.id) },
-        );
+        // 出手舞台取自回合之前读的那份状态：这一回合里他可能已经走开了。
+        const dispatchStage = dispatchStageOf(state, actor.id);
+        await recordTurnTaken(db, game.id, actor.id, {
+          ...(dispatchStage === undefined ? {} : { stage: dispatchStage }),
+          ...(order === null ? {} : { facts: dispatchFacts(order, actor.id) }),
+        });
       }
       if (order !== null) {
         await recordDispatch({ trace, order, actorId: actor.id, actorName: actor.name });

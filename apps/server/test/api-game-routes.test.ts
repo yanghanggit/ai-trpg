@@ -155,7 +155,16 @@ describe.skipIf(!testDatabaseUrl)("业务 API", () => {
       url: `/api/v1/games/${SLUG}/stage-map`,
       headers: auth,
     });
-    expect(stageMap.json()).toMatchObject({ stages: { 鸦葬岗: expect.any(Array) } });
+    // 舞台在测试世界里不止一个，所以按名字挑着看：两边都带 id，编排靠 id 定位。
+    expect(stageMap.json().stages).toEqual(
+      expect.arrayContaining([
+        {
+          id: expect.any(String),
+          name: "鸦葬岗",
+          actors: expect.arrayContaining([{ id: expect.any(String), name: expect.any(String) }]),
+        },
+      ]),
+    );
 
     const control = await app.inject({
       method: "POST",

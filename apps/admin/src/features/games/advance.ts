@@ -2,6 +2,7 @@ import {
   type ActionOrder,
   type ActionOrderRound,
   type AdvancePort,
+  type StageRoster,
   type TurnJob,
   type TurnRequest,
   unwrap,
@@ -83,7 +84,7 @@ export async function fetchOrder(slug: string): Promise<ActionOrder | null> {
 }
 
 /** 舞台名单：名字 → 谁在这个舞台上。舞台回合的目标由它决定。 */
-export async function fetchStageMap(slug: string): Promise<Record<string, string[]>> {
+export async function fetchStageMap(slug: string): Promise<StageRoster[]> {
   return unwrap(await api.GET("/api/v1/games/{game}/stage-map", { params: { path: path(slug) } }))
     .stages;
 }
@@ -96,7 +97,8 @@ export function labelOf(request: TurnRequest): string {
     case "player":
       return `玩家动作 · ${request.actor}`;
     case "stage":
-      return `舞台回合 · ${request.stage}`;
+      // 请求里带的是 id；名字只在给人看的时候用。
+      return `舞台回合 · ${request.stageName ?? request.stage}`;
     case "world":
       return "world 回合";
   }

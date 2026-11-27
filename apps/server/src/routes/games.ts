@@ -67,6 +67,7 @@ import { actorLogSchema, actorViewSchema, gameMessageSchema } from "./schemas/cl
 import { gameGraphSchema } from "./schemas/graph";
 import { turnJobSchema } from "./schemas/jobs";
 import { gameMemorySchema, gameProbeSchema } from "./schemas/memory";
+import { gameStageMapSchema } from "./schemas/stage-map";
 
 const gameParams = z.object({ game: z.string().trim().min(1) });
 const actorParams = gameParams.extend({ actor: z.string().trim().min(1) });
@@ -582,9 +583,9 @@ export function createGameRoutes(db: () => Database): FastifyPluginAsyncZod {
       {
         schema: {
           tags: ["games"],
-          summary: "按舞台列出 actor 名字",
+          summary: "按舞台列出在场的人（带 id）",
           params: gameParams,
-          response: { 200: z.object({ stages: z.record(z.string(), z.array(z.string())) }) },
+          response: { 200: gameStageMapSchema },
         },
       },
       async (request) => {

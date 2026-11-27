@@ -16,6 +16,15 @@ function entry(actorName: string, control: "agent" | "player", turnsTaken: numbe
   };
 }
 
+/** 一个舞台的在场名单：id 由名字拼出来，测的是「按 id 定位」这件事本身。 */
+function stage(name: string, actors: string[]) {
+  return {
+    id: `stage-${name}`,
+    name,
+    actors: actors.map((actor) => ({ id: `id-${actor}`, name: actor })),
+  };
+}
+
 function order(
   entries: ReturnType<typeof entry>[],
   next: ReturnType<typeof entry> | null,
@@ -44,7 +53,7 @@ function order(
 /** 一个记下所有请求、按剧本回顺位的端口。 */
 function makePort(script: {
   orders: (ActionOrder | null)[];
-  stages?: Record<string, string[]>;
+  stages?: ReturnType<typeof stage>[];
 }): AdvancePort & { requests: TurnRequest[] } {
   const requests: TurnRequest[] = [];
   let read = 0;
@@ -55,7 +64,7 @@ function makePort(script: {
       read += 1;
       return value;
     },
-    readStageMap: async () => script.stages ?? {},
+    readStageMap: async () => script.stages ?? [],
     runTurn: async (request) => {
       requests.push(request);
       return { jobId: "job-1" } as TurnJob;
@@ -83,9 +92,19 @@ describe("roundComplete", () => {
 });
 
 describe("stageOfActor", () => {
-  it("按名字找舞台；找不到就是没这个人在任何舞台上", () => {
-    expect(stageOfActor({ 炉厅: ["温娜", "戈特"], 后院: [] }, "戈特")).toBe("炉厅");
-    expect(stageOfActor({ 炉厅: ["温娜"] }, "无名旅人")).toBeUndefined();
+  it("按 actorId 找舞台；找不到就是没这个人在任何舞台上", () => {
+    const stages = [stage("炉厅", ["温娜", "戈特"]), stage("后院", [])];
+    expect(stageOfActor(stages, "id-戈特")?.name).toBe("炉厅");
+    expect(stageOfActor(stages, "id-无名旅人")).toBeUndefined();
+  });
+
+  it("同名角色分处两个舞台：按 id 各归各家，不取第一个", () => {
+    const stages = [
+      { id: "s1", name: "炉厅", actors: [{ id: "a-2", name: "戈特" }] },
+      { id: "s2", name: "后院", actors: [{ id: "a-1", name: "戈特" }] },
+    ];
+    expect(stageOfActor(stages, "a-1")?.id).toBe("s2");
+    expect(stageOfActor(stages, "a-2")?.id).toBe("s1");
   });
 });
 
@@ -103,20 +122,39 @@ describe("advanceOnce", () => {
     expect(port.requests).toEqual([]);
   });
 
-  it("agent 回合：推它、再推它所在舞台；一轮走完补 world", async () => {
+  it("move 过之后推的是他出手那一处（A），不是到达的那一处（B）", async () => {
+    const npc = entry("戈特", "agent", 0);
+    const from = stage("炉厅", ["戈特"]);
+    const to = stage("后院", ["戈特"]);
+    const port = makePort({
+      orders: [order([npc], npc), order([entry("戈特", "agent", 1)], null)],
+    });
+    // 名单在回合之前读：读到 A；回合里他走到 B，此后再读就是 B。
+    let reads = 0;
+    port.readStageMap = async () => {
+      reads += 1;
+      return reads === 1 ? [from] : [to];
+    };
+
+    expect(await advanceOnce(port)).toEqual({ kind: "advanced", steps: ["npc", "stage", "world"] });
+    expect(port.requests).toContainEqual({ kind: "stage", stage: from.id, stageName: from.name });
+    expect(port.requests).not.toContainEqual({ kind: "stage", stage: to.id, stageName: to.name });
+  });
+
+  it("agent 回合：推它、再推他动手时所在的舞台；一轮走完补 world", async () => {
     const npc = entry("戈特", "agent", 0);
     const port = makePort({
       // 第一次读：推进前；第二次读：判断这一轮是否走完。
       orders: [order([npc], npc), order([entry("戈特", "agent", 1)], null)],
-      stages: { 炉厅: ["戈特", "温娜"] },
+      stages: [stage("炉厅", ["戈特", "温娜"])],
     });
 
     expect(await advanceOnce(port)).toEqual({ kind: "advanced", steps: ["npc", "stage", "world"] });
     expect(port.requests).toEqual([
       // 带视图版本：执行时比对，过期就拒。
       { kind: "npc", actor: "戈特", expectedVersion: 3 },
-      // 舞台回合不带版本：上一回合已经改过世界。
-      { kind: "stage", stage: "炉厅" },
+      // 舞台回合不带版本：上一回合已经改过世界。定位用 id，名字只为显示。
+      { kind: "stage", stage: "stage-炉厅", stageName: "炉厅" },
       { kind: "world", expectedVersion: undefined },
     ]);
   });
@@ -130,7 +168,7 @@ describe("advanceOnce", () => {
       readOrder: async () =>
         // 第一次读到旧版本（npc 已换人），重读之后才是真的下一位。
         attempt === 0 ? order([npc], npc, 3) : order([npc, stale], stale, 4),
-      readStageMap: async () => ({}),
+      readStageMap: async () => [],
       runTurn: async (request) => {
         requests.push(request);
         attempt += 1;
@@ -169,7 +207,8 @@ describe("advanceOnce", () => {
         order([npc], npc),
         order([entry("戈特", "agent", 1), entry("温娜", "agent", 0)], entry("温娜", "agent", 0)),
       ],
-      stages: {},
+      // 名单里没有他：只推 npc，不推舞台。
+      stages: [stage("炉厅", ["温娜"])],
     });
 
     expect(await advanceOnce(port)).toEqual({ kind: "advanced", steps: ["npc"] });

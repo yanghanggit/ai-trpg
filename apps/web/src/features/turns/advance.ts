@@ -1,4 +1,4 @@
-import { unwrap, waitForTurnJob } from "@ai-trpg/api-client";
+import { type StageRoster, unwrap, waitForTurnJob } from "@ai-trpg/api-client";
 import { api } from "../../api/client";
 import { enqueueTurn, fetchTurnJob, type TurnRequest } from "./api";
 
@@ -10,7 +10,7 @@ import { enqueueTurn, fetchTurnJob, type TurnRequest } from "./api";
 export type { AdvancePort, AdvanceResult } from "@ai-trpg/api-client";
 export { advanceOnce, roundComplete, stageOfActor } from "@ai-trpg/api-client";
 
-async function readStageMap(game: string): Promise<Record<string, string[]>> {
+async function readStageMap(game: string): Promise<StageRoster[]> {
   return unwrap(await api.GET("/api/v1/games/{game}/stage-map", { params: { path: { game } } }))
     .stages;
 }

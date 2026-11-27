@@ -14,6 +14,9 @@ import { isTerminalJob, outcomeOf, type TurnJob, TurnJobFailure } from "./turn-j
 
 export type ActionOrder = components["schemas"]["ActionOrder"];
 
+/** 一个舞台的在场名单：定位用 id，名字只用来显示。 */
+export type StageRoster = components["schemas"]["GameStageMap"]["stages"][number];
+
 /** 行动轮：本轮的进度读数（谁落过账、哪些舞台推过、world 推过没有）。 */
 export type ActionOrderRound = components["schemas"]["ActionOrderRound"];
 
@@ -30,7 +33,14 @@ export type PlayerAction = paths["/api/v1/games/{game}/actors/{actor}/actions"][
 export type TurnRequest =
   | { kind: "npc"; actor: string; expectedVersion?: number }
   | { kind: "player"; actor: string; action: PlayerAction; expectedVersion?: number }
-  | { kind: "stage"; stage: string; expectedVersion?: number }
+  | {
+      kind: "stage";
+      /** 舞台引用：编排给 id（服务端 id 与名字都收，名字重了会要求改 id）。 */
+      stage: string;
+      /** 只用来显示的舞台名：服务端不读它。 */
+      stageName?: string;
+      expectedVersion?: number;
+    }
   | { kind: "world"; expectedVersion?: number };
 
 export type Reader<T> = () => Promise<T>;
@@ -38,7 +48,7 @@ export type Reader<T> = () => Promise<T>;
 /** 一次编排要用到的三件事：读顺位、读舞台名单、跑一个回合。 */
 export type AdvancePort = {
   readOrder: Reader<ActionOrder | null>;
-  readStageMap: () => Promise<Record<string, string[]>>;
+  readStageMap: () => Promise<StageRoster[]>;
   runTurn: (request: TurnRequest) => Promise<TurnJob>;
 };
 
@@ -63,12 +73,13 @@ export function roundComplete(
   return first > 0 && counts.every((count) => count === first);
 }
 
-/** 名字 → 舞台：舞台回合要推「这个 actor 现在在哪」。 */
-export function stageOfActor(
-  stages: Record<string, string[]>,
-  actorName: string,
-): string | undefined {
-  return Object.keys(stages).find((stage) => stages[stage]?.includes(actorName));
+/**
+ * 这个 actor 现在在哪个舞台：舞台回合推的是「他移动之后所在的那一处」。
+ *
+ * 按 id 找，不按名字：同名角色分处两个舞台是可能的，按名字取第一个会推到别人的舞台去。
+ */
+export function stageOfActor(stages: StageRoster[], actorId: string): StageRoster | undefined {
+  return stages.find((stage) => stage.actors.some((actor) => actor.id === actorId));
 }
 
 /** 视图过期是我们自己簿记的错：重读一次就能继续，不是这一回合的失败。 */
@@ -79,7 +90,7 @@ function isStaleView(error: unknown): boolean {
 /**
  * 推进一步。
  *
- * 一次只推一个 actor，然后推它所在的舞台；这一轮人人动过之后推 world。
+ * 一次只推一个 actor，然后推**他动手时所在的那个舞台**；这一轮人人动过之后推 world。
  * 遇到玩家席位就停下，把决定交回界面——引擎不替人做选择。
  *
  * 视图过期就重读重算一次：调用方手里那份顺位可能是几秒前的，那是编排的簿记问题，
@@ -112,6 +123,10 @@ async function advanceStep(port: AdvancePort): Promise<AdvanceResult> {
     return { kind: "player", actorName: next.actorName };
   }
 
+  // 舞台名单要在这一回合**之前**读：move 会当场落账，推完再读就是他到达的那个舞台了，
+  // 而该反应的是「他在哪动的手」（A 的人听到动静、A 的锚点被动过），不是「他到了哪」（B）。
+  const stage = stageOfActor(await port.readStageMap(), next.actorId);
+
   await port.runTurn({
     kind: "npc",
     actor: next.actorName,
@@ -119,11 +134,9 @@ async function advanceStep(port: AdvancePort): Promise<AdvanceResult> {
   });
   const steps: ("npc" | "stage" | "world")[] = ["npc"];
 
-  // 移动过的 actor 已经换了舞台：舞台名单要在这回合之后读。
-  const stage = stageOfActor(await port.readStageMap(), next.actorName);
   if (stage !== undefined) {
     // 不再带视图版本：上一回合已经改过世界，旧版本必然过期。
-    await port.runTurn({ kind: "stage", stage });
+    await port.runTurn({ kind: "stage", stage: stage.id, stageName: stage.name });
     steps.push("stage");
   }
 

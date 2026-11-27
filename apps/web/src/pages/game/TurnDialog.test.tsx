@@ -58,7 +58,18 @@ function stubServer(options: {
         return json({ results: [{ actorName: view.viewer.name, counted: true }] });
       }
       if (url.includes("/stage-map")) {
-        return json({ stages: { 鸦葬岗: [view.viewer.name, "收尸人卡尔"] } });
+        return json({
+          stages: [
+            {
+              id: "stage-鸦葬岗",
+              name: "鸦葬岗",
+              actors: [
+                { id: view.viewer.actorId, name: view.viewer.name },
+                { id: "actor-karl", name: "收尸人卡尔" },
+              ],
+            },
+          ],
+        });
       }
       if (url.includes("/turns/")) {
         const first = jobs[0] ?? pendingJob();
@@ -239,7 +250,18 @@ describe("TurnDialog：推进一步", () => {
           return json({ results: [{ actorName: view.viewer.name, counted: true }] });
         }
         if (url.includes("/stage-map")) {
-          return json({ stages: { 鸦葬岗: ["戈特", view.viewer.name] } });
+          return json({
+            stages: [
+              {
+                id: "stage-鸦葬岗",
+                name: "鸦葬岗",
+                actors: [
+                  { id: "actor-got", name: "戈特" },
+                  { id: view.viewer.actorId, name: view.viewer.name },
+                ],
+              },
+            ],
+          });
         }
         if (url.includes("/turns/")) {
           if (url.includes("/turns/npc")) {
@@ -268,7 +290,8 @@ describe("TurnDialog：推进一步", () => {
     );
     const turns = calls.filter((call) => call.url.includes("/turns/")).map((call) => call.body);
     expect(turns[0]).toMatchObject({ actor: "戈特", expectedVersion: 0 });
-    expect(turns[1]).toMatchObject({ stage: "鸦葬岗" });
+    // 舞台用 id 定位（名字会重），显示名不进请求体。
+    expect(turns[1]).toMatchObject({ stage: "stage-鸦葬岗" });
     // world 回合没有 body：它推的是整个世界的这一拍。
     expect(turns[2]).toEqual({});
     expect(await screen.findByText(/推了 npc \+ stage \+ world/)).toBeInTheDocument();
