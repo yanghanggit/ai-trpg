@@ -162,6 +162,117 @@ describe("world content validation", () => {
     expect(() => parseWorldContent(world)).toThrow();
   });
 
+  it("rejects a profile that names another actor without a starting name", () => {
+    const world = {
+      ...TEST_WORLD,
+      signatureNames: [],
+      actors: TEST_WORLD.actors.map((actor) =>
+        actor.key === "ember-keeper"
+          ? { ...actor, profile: "你守着断钟，提灯修士偶尔来换灯油。" }
+          : actor,
+      ),
+    };
+    expect(() => parseWorldContent(world)).toThrow(/没有对应的开局称呼/);
+  });
+
+  it("rejects a briefing that calls another actor by a different name", () => {
+    const world = {
+      ...TEST_WORLD,
+      // 称呼存在，但不是真名：设定里照样不能直呼真名。
+      signatureNames: [{ observer: "ember-keeper", subject: "lantern-monk", name: "提灯人" }],
+      actors: TEST_WORLD.actors.map((actor) =>
+        actor.key === "ember-keeper"
+          ? { ...actor, openingBriefing: "提灯修士来过门廊，又走了。" }
+          : actor,
+      ),
+    };
+    expect(() => parseWorldContent(world)).toThrow(/没有对应的开局称呼/);
+  });
+
+  it("accepts naming another actor when the starting name matches the true name", () => {
+    const world = {
+      ...TEST_WORLD,
+      signatureNames: [{ observer: "ember-keeper", subject: "lantern-monk", name: "提灯修士" }],
+      actors: TEST_WORLD.actors.map((actor) =>
+        actor.key === "ember-keeper"
+          ? { ...actor, profile: "你守着断钟，提灯修士偶尔来换灯油。" }
+          : actor,
+      ),
+    };
+    expect(() => parseWorldContent(world)).not.toThrow();
+  });
+
+  it("rejects a profile that names a stage the actor cannot see", () => {
+    const world = {
+      ...TEST_WORLD,
+      // 没有通道时，另一个舞台就是它不知道的地名。
+      connections: [],
+      actors: TEST_WORLD.actors.map((actor) =>
+        actor.key === "ember-keeper" ? { ...actor, profile: "你在断钟中殿里守过灯。" } : actor,
+      ),
+    };
+    expect(() => parseWorldContent(world)).toThrow(/没去过、也看不见的舞台/);
+  });
+
+  it("rejects a stage name behind a sealed passage", () => {
+    const world = {
+      ...TEST_WORLD,
+      connections: [{ from: "gate", to: "nave", passage: "sealed" as const }],
+      actors: TEST_WORLD.actors.map((actor) =>
+        actor.key === "ember-keeper" ? { ...actor, profile: "你在断钟中殿里守过灯。" } : actor,
+      ),
+    };
+    expect(() => parseWorldContent(world)).toThrow(/没去过、也看不见的舞台/);
+  });
+
+  it("accepts a stage name that is an open neighbour or already visited", () => {
+    const visible = {
+      ...TEST_WORLD,
+      actors: TEST_WORLD.actors.map((actor) =>
+        actor.key === "ember-keeper" ? { ...actor, profile: "你在断钟中殿里守过灯。" } : actor,
+      ),
+    };
+    expect(() => parseWorldContent(visible)).not.toThrow();
+
+    const visited = {
+      ...visible,
+      connections: [],
+      visitedStages: [{ actor: "ember-keeper", stage: "nave" }],
+    };
+    expect(() => parseWorldContent(visited)).not.toThrow();
+  });
+
+  it("rejects a stage name the actor cannot see in an anchor description", () => {
+    const world = {
+      ...TEST_WORLD,
+      connections: [],
+      stages: TEST_WORLD.stages.map((stage) =>
+        stage.key === "gate"
+          ? {
+              ...stage,
+              anchors: [{ key: "latch", label: "门闩", description: "门闩后面就是断钟中殿。" }],
+            }
+          : stage,
+      ),
+    };
+    expect(() => parseWorldContent(world)).toThrow(/尚未打通的舞台名/);
+  });
+
+  it("rejects a stage name in an appearance, which everyone can see", () => {
+    const world = {
+      ...TEST_WORLD,
+      actors: TEST_WORLD.actors.map((actor) =>
+        actor.key === "ember-keeper"
+          ? {
+              ...actor,
+              signature: { ...actor.signature, appearance: "斗篷上沾着断钟中殿的灰。" },
+            }
+          : actor,
+      ),
+    };
+    expect(() => parseWorldContent(world)).toThrow(/形态与外观不能包含舞台名/);
+  });
+
   it("rejects a starting signature name with system markers", () => {
     const world = {
       ...TEST_WORLD,

@@ -4,7 +4,7 @@
 >
 > 舞台图、角色与道具数值、能力声明以同目录 `bell-monastery.ts` 为准；本文只写剧情意图、验收口径与删除条件。
 
-内容版本 `bell-monastery.v17`，`contentKey` 为 `bell-monastery`。测试世界使用独立的小型 `TEST_WORLD`，不随本剧本变化。
+内容版本 `bell-monastery.v18`，`contentKey` 为 `bell-monastery`。测试世界使用独立的小型 `TEST_WORLD`，不随本剧本变化。
 
 ## 背景
 
@@ -43,6 +43,7 @@
 | Boss 战斗 | `strike` / 火把 / 鼠王 `brawl` | 鼠王硬皮 block 100，普通武器打不穿；火把需装备并声明 `strike`；鼠王力量 120，一口秒杀普通角色，清场后自行搜索 |
 | 钟窖收束 | 钟舌 + 祭坛 + 地窖 `open_passage` + 钟窖报告 + world | 世界收尾为「钟窖被打开」，写 `game_completed`；钟舌是必由之路 |
 | 认知与同步 | `signatureNames` / `visitedStages` / 拾取 | 只有鼠王记得封着的钟窖；环境不泄漏未通舞台名；拾取后 stage environment 同步，锚点保留，拾取事件留在 stage memory |
+| 开局认知 | 建局 / 设定文本 | 每条开局称呼落库；设定或简报里写了别人的真名（或去过、看不见的舞台名）而缺授权时建局被拒；开局观察写第 0 刻的所在与同舞台名单，有称呼写称呼，没称呼写 `#编号` |
 
 ## 暂不验证
 

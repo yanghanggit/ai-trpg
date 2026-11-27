@@ -449,18 +449,36 @@ describe.skipIf(!testDatabaseUrl)("name audit (database)", () => {
     });
   });
 
-  it("includes content-layer settings when skipKinds is empty", async () => {
+  it("scans content-layer settings only when skipKinds is empty", async () => {
     const created = await createMonasteryGame("名字审计内容层测试局");
-    const report = await auditGameNameLeaks(handle.db, created.game.slug, { skipKinds: [] });
-    // 坏运气认得鼠王，因此 profile 里出现「鼠王」不算越界。
+    const badLuck = await actorByName(created.game.slug, "小鼠“坏运气”");
+
+    // 种子里的开局文本已经通过建局校验：即使扫到内容层也不应有泄漏。
+    const seeded = await auditGameNameLeaks(handle.db, created.game.slug, { skipKinds: [] });
+    expect(seeded.leaks).toEqual([]);
+
+    // 手写一条内容层记忆，验证 skipKinds 门控：默认跳过 system prompt，放行后扫到。
+    const memoryRow = await loadAgentMemory(handle.db, created.game.id, "actor", badLuck.id);
+    if (!memoryRow) {
+      throw new Error("缺少 memory");
+    }
+    await appendMemoryMessages(handle.db, memoryRow.row.id, [
+      {
+        type: "human",
+        content: "你不记得这个名字：无名者。",
+        metadata: { kind: MEMORY_KINDS.actorSystemPrompt },
+      },
+    ]);
+    const byDefault = await auditGameNameLeaks(handle.db, created.game.slug);
     expect(
-      report.leaks.some(
-        (leak) => leak.observerName === "小鼠“坏运气”" && leak.matchedName === "鼠王",
+      byDefault.leaks.some(
+        (leak) => leak.observerName === "小鼠“坏运气”" && leak.matchedName === "无名者",
       ),
     ).toBe(false);
+    const allKinds = await auditGameNameLeaks(handle.db, created.game.slug, { skipKinds: [] });
     expect(
-      report.leaks.some(
-        (leak) => leak.observerName === "小鼠“坏运气”" && leak.matchedName === "奥德里克",
+      allKinds.leaks.some(
+        (leak) => leak.observerName === "小鼠“坏运气”" && leak.matchedName === "无名者",
       ),
     ).toBe(true);
   });
@@ -477,7 +495,7 @@ describe.skipIf(!testDatabaseUrl)("name audit (database)", () => {
       "无名者",
       {
         targetActorRef: "奥德里克",
-        message: "奥德里克，你听着。",
+        message: "记住这个名字：无名者。",
       },
       { judge: allowAllDialogue },
     );
@@ -486,7 +504,7 @@ describe.skipIf(!testDatabaseUrl)("name audit (database)", () => {
     const report = await auditGameNameLeaks(handle.db, created.game.slug);
     const leak = report.leaks.find(
       (candidate) =>
-        candidate.observerName === "小鼠“坏运气”" && candidate.matchedName === "奥德里克",
+        candidate.observerName === "小鼠“坏运气”" && candidate.matchedName === "无名者",
     );
     expect(leak).toMatchObject({
       communicationKind: "say",
@@ -500,12 +518,12 @@ describe.skipIf(!testDatabaseUrl)("name audit (database)", () => {
       const metadata = item.metadata as Record<string, unknown> | undefined;
       return (
         metadata?.kind === MEMORY_KINDS.communicationObservation &&
-        metadata.dialogue === "奥德里克，你听着。"
+        metadata.dialogue === "记住这个名字：无名者。"
       );
     });
     expect(communication?.metadata).toMatchObject({
       communicationKind: "say",
-      dialogue: "奥德里克，你听着。",
+      dialogue: "记住这个名字：无名者。",
     });
   });
 

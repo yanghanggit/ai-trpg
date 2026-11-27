@@ -9,6 +9,7 @@ import { getGameState } from "../game-state";
 import type { GameState } from "../kernel/types";
 import { parseWorldContent } from "../world-definition";
 import { bindSignatureNames, bindVisitedStages, createActors } from "./actors";
+import { bindOpeningObservations } from "./observations";
 import { buildFunctionPromptDumps } from "./prompts";
 import { resolveSlug } from "./slug";
 import { createConnections, createStages } from "./stages";
@@ -71,6 +72,12 @@ export async function createGame(
       stageIds: stages.stageIds,
       actorRefs: actors.actorRefs,
       now: new Date(),
+    });
+    // 开局观察必须排在称呼之后：名单里的名字要按刚落库的绑定渲染。
+    await bindOpeningObservations(tx, {
+      gameId,
+      world,
+      actorRefs: actors.actorRefs,
     });
   });
 

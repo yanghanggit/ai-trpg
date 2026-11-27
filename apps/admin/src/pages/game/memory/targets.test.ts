@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { findTarget, KIND_LABEL, type MemoryTarget, matchTargets } from "./targets";
 
 const targets: MemoryTarget[] = [
-  { kind: "world", id: "w", name: "枯钟修道院的故事", key: "bell-monastery.v17" },
+  { kind: "world", id: "w", name: "枯钟修道院的故事", key: "bell-monastery.v18" },
   { kind: "stage", id: "s1", name: "墓园", key: "graveyard" },
   { kind: "actor", id: "a1", name: "小鼠“坏运气”", key: "mouse" },
   { kind: "actor", id: "a2", name: "奥德里克", key: "odric" },

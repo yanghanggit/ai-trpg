@@ -15,6 +15,8 @@ export function checkWorldInvariants(world: World, ctx: z.RefinementCtx): void {
   checkFunctionPrompts(world, ctx);
   // 名字就是名字：角色与舞台在 world 内全局唯一，且不能带系统标记字符。
   checkEntityNamesUnique(world, ctx);
+  // 设定里写了别人的真名，就必须同时把这条认知写成称呼：真名不是自动知识。
+  checkActorCognitionNames(world, ctx);
   // key 是内容引用实体的唯一方式：重复会静默指向另一样东西，宁可解析失败也不猜。
   checkKeysUnique(world, ctx);
   const actorNames = world.actors.map((actor) => actor.name);
@@ -88,14 +90,18 @@ export function checkWorldInvariants(world: World, ctx: z.RefinementCtx): void {
         });
       }
       anchorLabels.add(anchor.label);
-      const anchorLeaks = findTextLeaks(
-        [anchor.label, anchor.description ?? ""].join("\n"),
-        actorNames,
-      );
+      const anchorLeaks = [
+        ...findTextLeaks([anchor.label, anchor.description ?? ""].join("\n"), actorNames),
+        ...findStageNameLeaks(
+          [anchor.label, anchor.description ?? ""].join("\n"),
+          stageNames,
+          visibleStageNames(stage.key),
+        ),
+      ];
       if (anchorLeaks.length > 0) {
         ctx.addIssue({
           code: "custom",
-          message: `锚点不能包含角色名或编号引用: ${anchorLeaks
+          message: `锚点不能包含角色名、编号引用或尚未打通的舞台名: ${anchorLeaks
             .map((leak) => leak.token)
             .join("、")}`,
           path: ["stages", index, "anchors", anchorIndex],
@@ -109,7 +115,79 @@ export function checkWorldInvariants(world: World, ctx: z.RefinementCtx): void {
     checkProficiencies(actor, index, ctx);
     checkActorSourcesOnly(actor, index, ctx);
     checkStatusEffects(actor, index, ctx);
+    checkActorStageNames(actor, index, visitedStageKeys(world), visibleStageNames, stageNames, ctx);
   });
+}
+
+/**
+ * 角色自己的文本（设定、开局简报）只能点名它去过或看得见的相邻舞台。
+ *
+ * 与舞台 environment 同一条规则，只是允许集从「这个舞台」换成「这个角色」：起点算去过，
+ * 开局到访算去过，其余只到看得见的相邻舞台为止。再远的地名得靠走到、听到或查到，
+ * 不能让设定替它宣布发现。同名是常用词时，写清楚它看得见的样子即可。
+ *
+ * 同样只认完全相同的舞台名：换一种说法就漏过去了。它回答的是「名字有没有越界」，
+ * 不回答「这句话该不该写」。外观与形态更严：谁都能看见，所以一个舞台名都不能有。
+ */
+function checkActorStageNames(
+  actor: Actor,
+  actorIndex: number,
+  visited: ReadonlyMap<string, ReadonlySet<string>>,
+  visibleStageNames: (stageKey: string) => Set<string>,
+  stageNames: readonly string[],
+  ctx: z.RefinementCtx,
+): void {
+  const seen = new Set<string>([actor.stageKey, ...(visited.get(actor.key) ?? [])]);
+  const allowed = new Set<string>();
+  for (const stageKey of seen) {
+    for (const name of visibleStageNames(stageKey)) {
+      allowed.add(name);
+    }
+  }
+  const fields = [
+    { key: "profile" as const, text: actor.profile },
+    { key: "openingBriefing" as const, text: actor.openingBriefing ?? "" },
+  ];
+  for (const field of fields) {
+    const leaks = findStageNameLeaks(field.text, stageNames, allowed);
+    if (leaks.length > 0) {
+      ctx.addIssue({
+        code: "custom",
+        message: `actor「${actor.name}」的 ${field.key} 提到了它没去过、也看不见的舞台: ${leaks
+          .map((leak) => leak.token)
+          .join("、")}；先补 visitedStages，或改写成它看得见的样子`,
+        path: ["actors", actorIndex, field.key],
+      });
+    }
+  }
+
+  // 外观与形态是所有看见它的人都会读到的一句话：没有允许集，任何舞台名都不行，
+  // 否则一个人站在那里就能替旁人宣布地名。
+  const appearanceLeaks = findStageNameLeaks(
+    [actor.signature.form, actor.signature.appearance ?? ""].join("\n"),
+    stageNames,
+    new Set<string>(),
+  );
+  if (appearanceLeaks.length > 0) {
+    ctx.addIssue({
+      code: "custom",
+      message: `actor「${actor.name}」的形态与外观不能包含舞台名: ${appearanceLeaks
+        .map((leak) => leak.token)
+        .join("、")}；外观谁都能看见，不能替旁人宣布地名`,
+      path: ["actors", actorIndex, "signature"],
+    });
+  }
+}
+
+/** `visitedStages` 按 actor 分组；只用作内容校验的允许集。 */
+function visitedStageKeys(world: World): Map<string, Set<string>> {
+  const visited = new Map<string, Set<string>>();
+  for (const visit of world.visitedStages ?? []) {
+    const stages = visited.get(visit.actor) ?? new Set<string>();
+    stages.add(visit.stage);
+    visited.set(visit.actor, stages);
+  }
+  return visited;
 }
 
 /**
@@ -323,6 +401,47 @@ function checkKeysUnique(world: World, ctx: z.RefinementCtx): void {
     }
     seenItems.add(key);
   }
+}
+
+/**
+ * 角色设定与开局简报里出现别人的真名，必须有对应的开局称呼。
+ *
+ * 设定是 actor 会读到的内容：写下真名等于直接告诉它这个名字。真名的合法来源只有
+ * 开局称呼声明（内容层授权）与世界内告知（运行时写进记忆），所以这里要求
+ * 「用了谁的真名，就有一条观察者→该签名、名字等于真名的 `signatureNames`」。
+ * 只想保留关系、不想给名字时，改写成它自己的叫法（称号、相貌、编号），
+ * 让名字留到自我介绍或互动里再获得。
+ *
+ * 只认完全相同的真名：同义说法、缩写与别名改得掉检查。这里挡的是常见笔误，
+ * 不构成「角色真的知道这个名字」的证明；写对了结构不等于写对了设定。
+ */
+function checkActorCognitionNames(world: World, ctx: z.RefinementCtx): void {
+  const boundNames = new Set(
+    (world.signatureNames ?? []).map(
+      (binding) => `${binding.observer}\u0000${binding.subject}\u0000${binding.name}`,
+    ),
+  );
+  world.actors.forEach((actor, actorIndex) => {
+    const fields = [
+      { key: "profile" as const, text: actor.profile },
+      { key: "openingBriefing" as const, text: actor.openingBriefing ?? "" },
+    ];
+    for (const field of fields) {
+      for (const subject of world.actors) {
+        if (subject.key === actor.key || !field.text.includes(subject.name)) {
+          continue;
+        }
+        if (boundNames.has(`${actor.key}\u0000${subject.key}\u0000${subject.name}`)) {
+          continue;
+        }
+        ctx.addIssue({
+          code: "custom",
+          message: `actor「${actor.name}」的 ${field.key} 写了「${subject.name}」，但没有对应的开局称呼；补一条 { observer: "${actor.key}", subject: "${subject.key}", name: "${subject.name}" }，或改写成它自己的叫法（称号、相貌），把名字留给自我介绍与互动`,
+          path: ["actors", actorIndex, field.key],
+        });
+      }
+    }
+  });
 }
 
 /**

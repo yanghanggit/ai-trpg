@@ -46,9 +46,10 @@ export async function createActors(
 
     // 开局只有一个签名。伪装 / 变身之后才会插入新签名。
     const signatureId = randomUUID();
+    const signatureSeq = await allocateEntitySeq(tx, gameId);
     await insertSignature(tx, {
       id: signatureId,
-      seq: await allocateEntitySeq(tx, gameId),
+      seq: signatureSeq,
       actorId,
       form: actor.signature.form,
     });
@@ -66,7 +67,7 @@ export async function createActors(
       },
       now,
     });
-    actorRefs.set(actor.key, { actorId, signatureId, name: actor.name });
+    actorRefs.set(actor.key, { actorId, signatureId, signatureSeq, name: actor.name });
 
     for (const item of actor.inventory) {
       await tx

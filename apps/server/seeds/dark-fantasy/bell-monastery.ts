@@ -13,7 +13,7 @@ import { DARK_FANTASY_SETTING } from "./campaign";
 
 /** 剧本「枯钟修道院」：黑暗奇幻战役下的第一个故事切片。 */
 export const BELL_MONASTERY: Script = {
-  contentVersion: "bell-monastery.v17",
+  contentVersion: "bell-monastery.v18",
   contentKey: "bell-monastery",
   worldName: "枯钟修道院的故事",
   functionPrompts: renderFunctionPrompts({
@@ -496,6 +496,8 @@ export const BELL_MONASTERY: Script = {
     // 幼崽认识父王的签名；当前称呼显式写为真名「鼠王」，「父王」只是台词里的关系称谓。
     { observer: "bad-luck", subject: "rat-king", name: "鼠王" },
     { observer: "rat-king", subject: "bad-luck", name: "坏运气" },
+    // 幼崽是被奥德里克从灰里捡回来的，叫得出他的名字；设定里写下的真名必须有这一条。
+    { observer: "bad-luck", subject: "odric", name: "奥德里克" },
   ],
   actions: ["notify_stage", "end_game"],
 };

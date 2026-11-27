@@ -9,6 +9,7 @@
 export const MEMORY_KINDS = {
   actorSystemPrompt: "actor_system_prompt",
   actorOpeningBriefing: "actor_opening_briefing",
+  actorOpeningObservation: "actor_opening_observation",
   compactedMemory: "compacted_memory",
   stageSystemPrompt: "stage_system_prompt",
   stageOpeningSnapshot: "stage_opening_snapshot",

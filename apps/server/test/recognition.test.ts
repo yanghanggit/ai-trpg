@@ -10,6 +10,7 @@ import { stages } from "../src/db/schema";
 import {
   type ActorPlan,
   createGame,
+  getGameMemories,
   getGameState,
   playerMove,
   playerRecognizeIdentity,
@@ -25,6 +26,7 @@ import { parseRecognizeIdentity } from "../src/game/agents/actor-turn";
 import { formatForm } from "../src/game/agents/appearance/form";
 import { addressLookupFor, handleOf, isHandleRef, refOf } from "../src/game/kernel/addressing";
 import { resolveVisibleActor } from "../src/game/lookup";
+import { MEMORY_KINDS } from "../src/game/memory/kinds";
 import { recordAppearance } from "../src/game/persistence/appearances";
 import { allocateEntitySeq } from "../src/game/persistence/entity-seq";
 import { insertSignature, switchCurrentSignature } from "../src/game/persistence/signatures";
@@ -97,7 +99,7 @@ describe.skipIf(!testDatabaseUrl)("names and addresses", () => {
       world: BELL_MONASTERY_WORLD,
     });
     const state = await getGameState(handle.db, created.game.slug);
-    expect(state.signatureNames).toHaveLength(5);
+    expect(state.signatureNames).toHaveLength(6);
     expect(state.signatureNames.every((row) => row.source === "content")).toBe(true);
 
     const actors = state.world.stages.flatMap((stage) => stage.actors);
@@ -109,6 +111,54 @@ describe.skipIf(!testDatabaseUrl)("names and addresses", () => {
         (row) => row.observerActorId === badLuck?.id && row.signatureId === ratKing?.signature.id,
       ),
     ).toMatchObject({ name: "鼠王", source: "content" });
+    // 幼崽是被奥德里克捡回来的：设定里的真名与这条称呼一致。
+    const odric = actors.find((actor) => actor.name === "奥德里克");
+    expect(
+      state.signatureNames.find(
+        (row) => row.observerActorId === badLuck?.id && row.signatureId === odric?.signature.id,
+      ),
+    ).toMatchObject({ name: "奥德里克", source: "content" });
+  });
+
+  it("writes the opening observation with the observer's own addresses", async () => {
+    const created = await createGame(handle.db, {
+      username: DEMO_USER.username,
+      name: "开局观察测试局",
+      world: BELL_MONASTERY_WORLD,
+    });
+    const state = await getGameState(handle.db, created.game.slug);
+    const actors = state.world.stages.flatMap((stage) => stage.actors);
+    const badLuck = actors.find((actor) => actor.name === "小鼠“坏运气”");
+    const odric = actors.find((actor) => actor.name === "奥德里克");
+    const cinder = actors.find((actor) => actor.name === "小狗“煤渣”");
+    const nameless = actors.find((actor) => actor.name === "无名者");
+    if (!badLuck || !odric || !cinder || !nameless) {
+      throw new Error("缺少开局观察夹具");
+    }
+
+    const memories = await getGameMemories(handle.db, created.game.id);
+    const openingOf = (actorId: string) => {
+      const memory = memories.find((entry) => entry.ownerId === actorId);
+      const observed = memory?.messages.find(
+        (item) =>
+          (item.metadata as { kind?: string } | undefined)?.kind ===
+          MEMORY_KINDS.actorOpeningObservation,
+      );
+      return observed?.content ?? "";
+    };
+
+    // 有称呼写称呼；没称呼退回同一条地址规则：`#编号` 加外观。
+    const badLuckView = openingOf(badLuck.id);
+    expect(badLuckView).toContain("# 本局开局处境");
+    expect(badLuckView).toContain("你所在：墓园");
+    expect(badLuckView).toContain(`${odric.name}（`);
+    expect(badLuckView).toContain(`${handleOf(cinder.signature.seq)} 外观：`);
+    expect(badLuckView).not.toContain("煤渣");
+
+    // 棺材里只有自己：名单为空，但处境照样落账。
+    const namelessView = openingOf(nameless.id);
+    expect(namelessView).toContain("你所在：棺材");
+    expect(namelessView).toContain("## 同舞台角色（只列你此刻看得见的角色）\n无");
   });
 
   it("uses a seed name as the observer's current name", async () => {
@@ -243,7 +293,11 @@ describe.skipIf(!testDatabaseUrl)("names and addresses", () => {
   it("keeps the observer's word as a label when two subjects share it", async () => {
     const world = {
       ...BELL_MONASTERY_WORLD,
+      // 只覆盖奥德里克的两条称呼，其余种子绑定保留：设定里的真名必须仍有对应称呼。
       signatureNames: [
+        ...(BELL_MONASTERY_WORLD.signatureNames ?? []).filter(
+          (binding) => binding.observer !== "odric",
+        ),
         { observer: "odric", subject: "cinder", name: "伙伴" },
         { observer: "odric", subject: "bad-luck", name: "伙伴" },
       ],

@@ -34,6 +34,27 @@ ${briefing}`;
 }
 
 /**
+ * actor 的开局观察：第 0 刻它在哪个舞台、同舞台有谁。
+ *
+ * 名单按观察者渲染：有称呼写称呼，没有写 `#编号` 加外观，与回合输入同一套地址。
+ * 它是一张开局快照，不是现状：结尾把当下的所在与在场交给每回合的「当前环境」，
+ * 不让人把旧名单当成现在还在场。
+ */
+export function buildActorOpeningObservation(input: {
+  stageName: string;
+  others: readonly string[];
+}): string {
+  return `# 本局开局处境
+
+你所在：${input.stageName}
+
+## 同舞台角色（只列你此刻看得见的角色）
+${input.others.length === 0 ? "无" : input.others.join("\n")}
+
+这是你进入此局那一刻的场面，记在第 0 刻。此后的所在、在场与穿戴以每回合的「当前环境」为准。`;
+}
+
+/**
  * 舞台的开局基线：t0 的 environment、锚点与锚点上的道具。不含在场角色——名单易变，
  * 且环境文本不允许出现角色名。
  */

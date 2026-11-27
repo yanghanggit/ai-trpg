@@ -269,11 +269,15 @@ describe.skipIf(!testDatabaseUrl)("memory-driven NPC slice", () => {
     const memories = await getGameMemories(handle.db, created.game.id);
     const keeper = memories.find((memory) => memory.name === "守烬人");
     const monk = memories.find((memory) => memory.name === "提灯修士");
-    expect(keeper?.messages.map((message) => message.type)).toEqual(["system", "human"]);
+    // 简报之后还有一条引擎写的开局观察：你在哪、同舞台有谁。
+    expect(keeper?.messages.map((message) => message.type)).toEqual(["system", "human", "human"]);
     expect(keeper?.messages[1]?.content).toContain("# 本局开局简报");
     expect(keeper?.messages[1]?.content).toContain("守住灰烬门廊，不要让陌生人靠近断钟。");
     expect(keeper?.messages[1]?.metadata).toMatchObject({ kind: "actor_opening_briefing" });
-    expect(monk?.messages.map((message) => message.type)).toEqual(["system"]);
+    expect(keeper?.messages[2]?.content).toContain("# 本局开局处境");
+    expect(keeper?.messages[2]?.metadata).toMatchObject({ kind: "actor_opening_observation" });
+    expect(monk?.messages.map((message) => message.type)).toEqual(["system", "human"]);
+    expect(monk?.messages[1]?.content).toContain("# 本局开局处境");
   });
 
   it("materializes skill actions into the actor at creation", async () => {

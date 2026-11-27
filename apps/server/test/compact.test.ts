@@ -321,7 +321,8 @@ describe.skipIf(!testDatabaseUrl)("memory compaction", () => {
     const firstArchive = afterFirst?.messages[1]?.metadata as
       | { compactedMessages?: unknown[] }
       | undefined;
-    expect(firstArchive?.compactedMessages).toHaveLength(1);
+    // 开局观察也是可压缩的旧消息：它和那条 AI 记忆一起进归档。
+    expect(firstArchive?.compactedMessages).toHaveLength(2);
 
     await appendMemoryMessages(handle.db, keeper?.id as string, [
       {
@@ -345,7 +346,7 @@ describe.skipIf(!testDatabaseUrl)("memory compaction", () => {
       | { compactedMessages?: Array<{ metadata?: { compactedMessages?: unknown[] } }> }
       | undefined;
     expect(secondArchive?.compactedMessages).toHaveLength(2);
-    expect(secondArchive?.compactedMessages?.[0]?.metadata?.compactedMessages).toHaveLength(1);
+    expect(secondArchive?.compactedMessages?.[0]?.metadata?.compactedMessages).toHaveLength(2);
   });
 
   it("skips compaction when contextUsageRatio is below the threshold", async () => {
@@ -378,7 +379,8 @@ describe.skipIf(!testDatabaseUrl)("memory compaction", () => {
 
     const after = await getGameMemories(handle.db, created.game.id);
     const keeperAfter = after.find((memory) => memory.name === "守烬人");
-    expect(keeperAfter?.messages).toHaveLength(2);
-    expect(keeperAfter?.messages[1]?.type).toBe("ai");
+    // system prompt + 开局观察 + 这条 AI 记忆；没有压缩。
+    expect(keeperAfter?.messages).toHaveLength(3);
+    expect(keeperAfter?.messages[2]?.type).toBe("ai");
   });
 });

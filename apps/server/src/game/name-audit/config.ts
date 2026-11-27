@@ -3,8 +3,8 @@ import { MEMORY_KINDS } from "../memory/kinds";
 /**
  * 审计的开关与口径。
  *
- * 默认跳过 system prompt：campaignSetting / profile 是内容层设定，可能刻意使用
- * 普通名词或历史人物名；需要连内容一起检查时显式关掉 `skipKinds`。
+ * 默认跳过 system prompt：内容层的真名已经由建局校验拦住（写了别人的真名就必须有对应
+ * 开局称呼），审计不必每回合重扫这一整段；要看内容层时显式关掉 `skipKinds`。
  */
 
 export const ENV_NAME_AUDIT = "TRPG_AUDIT_NAMES";
