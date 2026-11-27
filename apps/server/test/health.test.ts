@@ -49,6 +49,21 @@ describe("HTTP 骨架", () => {
     expect(Object.keys(paths)).toContain("/api/v1/health");
   });
 
+  it("预检放行删局用的 DELETE（缺省只放 GET/HEAD/POST）", async () => {
+    const response = await app.inject({
+      method: "OPTIONS",
+      url: "/api/v1/games/any-slug",
+      headers: {
+        origin: testEnv.CORS_ORIGINS,
+        "access-control-request-method": "DELETE",
+        "access-control-request-headers": "authorization",
+      },
+    });
+
+    expect(response.statusCode).toBe(204);
+    expect(response.headers["access-control-allow-methods"]).toContain("DELETE");
+  });
+
   it("未知路由返回结构化 404", async () => {
     const response = await app.inject({ method: "GET", url: "/api/v1/nope" });
 

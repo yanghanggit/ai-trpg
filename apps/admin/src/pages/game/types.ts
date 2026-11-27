@@ -157,7 +157,6 @@ export type GamePageActions = {
    */
   next: () => Promise<void>;
   endGame: (input: { outcome: string; message?: string }) => Promise<void>;
-  deleteGame: () => Promise<void>;
   openFeed: () => void;
   closeFeed: () => void;
   openLeaks: () => void;

@@ -54,7 +54,12 @@ export async function buildApp({
   app.setValidatorCompiler(validatorCompiler);
   app.setSerializerCompiler(serializerCompiler);
 
-  await app.register(cors, { origin: parseCorsOrigins(env.CORS_ORIGINS) });
+  // 方法要显式列全：@fastify/cors 缺省只放 GET/HEAD/POST，而删局是 DELETE——
+  // 浏览器会先在预检里被拒，报出来的却是「连不上服务端」，极难查。
+  await app.register(cors, {
+    origin: parseCorsOrigins(env.CORS_ORIGINS),
+    methods: ["GET", "HEAD", "POST", "DELETE"],
+  });
 
   await app.register(swagger, {
     openapi: {

@@ -6,7 +6,6 @@ import {
   waitForTurnJob,
 } from "@ai-trpg/api-client";
 import { useState } from "react";
-import { useNavigate } from "react-router";
 import { describeApiError } from "../../api/describeApiError";
 import {
   createAdvancePort,
@@ -29,7 +28,6 @@ import type { AdvanceStep, GamePageActions, GamePageData } from "./types";
  * 它不判断作业算不算成功，也不自己重读——那两条口径只由容器执行一次。
  */
 export default function GameConsole({ slug }: { slug: string }) {
-  const navigate = useNavigate();
   const actions = useGameActions(slug);
 
   const graph = useGameGraph(slug);
@@ -140,14 +138,8 @@ export default function GameConsole({ slug }: { slug: string }) {
     },
 
     endGame: async (input) => {
-      await run("结束一局", async () => {
+      await run("强制结束本局", async () => {
         await actions.endGame(input);
-      });
-    },
-    deleteGame: async () => {
-      await run("删除一局", async () => {
-        await actions.deleteGame();
-        navigate("/");
       });
     },
     openFeed: () => setFeedOpen(true),

@@ -937,6 +937,14 @@ a {
   margin-top: 14px;
 }
 
+/* 局列表行尾：两个动作并排，别被挤成两行。 */
+.games__actions {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+  white-space: nowrap;
+}
+
 /* 事件流：只有内容会换行，序号、类型、可见性、时间与按钮都保持一行。 */
 .table--messages td {
   white-space: nowrap;

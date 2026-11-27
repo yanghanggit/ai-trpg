@@ -4,25 +4,23 @@ import Hint from "../../components/Hint";
 import type { GamePageActions } from "./types";
 
 type Props = {
-  slug: string;
   open: boolean;
   onClose: () => void;
   actions: GamePageActions;
 };
 
 /**
- * 危险操作弹窗：结束一局与删除一局。
+ * 强制结束本局：给这一局落一个结局标签，故事就此收尾。
  *
- * 这两件事在一局的生命里只做一次，留在主页面等于每屏都在提醒「可以毁掉它」。
- * 弹窗本身就是那一次确认：按下去就执行，失败原因回主页面显示。
+ * 叫「强制」是因为它绕开剧情自己往下走的办法：落下去之后，服务端会拒掉之后所有回合。
+ * 它跟「删除」不是一回事：数据全留着，只是不再往下推，所以留在控制台（剧情层）；
+ * 删除是库存操作，在局列表那一页——那里才答得准要删哪一局。
  */
-export default function DangerDialog({ slug, open, onClose, actions }: Props) {
+export default function EndGameDialog({ open, onClose, actions }: Props) {
   const [outcome, setOutcome] = useState("");
   const [message, setMessage] = useState("");
-  const [confirmation, setConfirmation] = useState("");
 
   const canEnd = outcome.trim().length > 0;
-  const canDelete = confirmation.trim() === slug;
 
   return (
     <Dialog
@@ -30,12 +28,11 @@ export default function DangerDialog({ slug, open, onClose, actions }: Props) {
       onClose={onClose}
       title={
         <>
-          危险操作
-          <Hint text="结束一局留结局标签，删除一局级联清场且不可恢复——都只做一次，所以不摆在主页面上。" />
+          强制结束本局
+          <Hint text="强制：不等剧情自己走到结局，直接给这一局落结局标签。落下去之后新的回合会被服务端拒掉（游戏已结束），数据一条不删；想接着跑只能另建一局，所以它只做一次。" />
         </>
       }
     >
-      <h3>结束一局</h3>
       <form
         className="inline-form"
         onSubmit={(event) => {
@@ -69,35 +66,7 @@ export default function DangerDialog({ slug, open, onClose, actions }: Props) {
           />
         </label>
         <button className="button button--danger" type="submit" disabled={!canEnd}>
-          结束
-        </button>
-      </form>
-
-      <h3>删除一局</h3>
-      <p className="muted">级联清场，不可恢复。输入 slug 确认。</p>
-      <form
-        className="inline-form"
-        onSubmit={(event) => {
-          event.preventDefault();
-          if (!canDelete) {
-            return;
-          }
-          void actions.deleteGame();
-          setConfirmation("");
-          onClose();
-        }}
-      >
-        <label className="field">
-          <span>确认 slug</span>
-          <input
-            value={confirmation}
-            onChange={(event) => setConfirmation(event.target.value)}
-            placeholder={slug}
-            autoComplete="off"
-          />
-        </label>
-        <button className="button button--danger" type="submit" disabled={!canDelete}>
-          删除
+          强制结束
         </button>
       </form>
     </Dialog>

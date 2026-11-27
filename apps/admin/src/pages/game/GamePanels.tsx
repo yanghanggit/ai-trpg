@@ -3,7 +3,7 @@ import GamePageLinks from "../../components/GamePageLinks";
 import Hint from "../../components/Hint";
 import PageHeader from "../../components/PageHeader";
 import { advanceReadings } from "./advanceReadings";
-import DangerDialog from "./DangerDialog";
+import EndGameDialog from "./EndGameDialog";
 import { actorStageId } from "./graph/flow";
 import StageExplorer, { type ExplorerTarget } from "./graph/StageExplorer";
 import WorldCard from "./graph/WorldCard";
@@ -19,10 +19,10 @@ type Props = {
 /**
  * 局控制台的展示层：只读 `data`、只调 `actions`。
  *
- * 危险操作在这里要一次确认——确认是交互，不是判定；写成没写成仍然由服务端说了算。
+ * 强制结束本局在这里要一次确认——确认是交互，不是判定；写成没写成仍然由服务端说了算。
  */
 export default function GamePanels({ data, actions }: Props) {
-  const [dangerOpen, setDangerOpen] = useState(false);
+  const [endOpen, setEndOpen] = useState(false);
   // 图谱钻取是这一页的临时视图，不当成路由：关掉就回到控制台原样。
   const [explorer, setExplorer] = useState<ExplorerTarget>();
 
@@ -38,12 +38,8 @@ export default function GamePanels({ data, actions }: Props) {
         title={<code>{data.slug}</code>}
         onRefresh={() => void actions.refresh()}
         danger={
-          <button
-            type="button"
-            className="button button--danger"
-            onClick={() => setDangerOpen(true)}
-          >
-            危险操作
+          <button type="button" className="button button--danger" onClick={() => setEndOpen(true)}>
+            强制结束本局
           </button>
         }
       >
@@ -101,12 +97,7 @@ export default function GamePanels({ data, actions }: Props) {
         {...(explorer === undefined ? {} : { target: explorer })}
         onNavigate={setExplorer}
       />
-      <DangerDialog
-        slug={data.slug}
-        open={dangerOpen}
-        onClose={() => setDangerOpen(false)}
-        actions={actions}
-      />
+      <EndGameDialog open={endOpen} onClose={() => setEndOpen(false)} actions={actions} />
     </main>
   );
 }

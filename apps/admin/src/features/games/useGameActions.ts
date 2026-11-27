@@ -96,11 +96,6 @@ export function useGameActions(slug: string) {
     await refresh();
   }
 
-  async function deleteGame(): Promise<void> {
-    unwrap(await api.DELETE("/api/v1/games/{game}", { params: { path: { game: slug } } }));
-    await refresh();
-  }
-
   async function compact(input: { owner: MemoryOwner | "all"; name?: string }): Promise<unknown> {
     const payload = unwrap(
       await api.POST("/api/v1/games/{game}/compact", {
@@ -153,7 +148,6 @@ export function useGameActions(slug: string) {
     openOrder,
     completeOrder,
     endGame,
-    deleteGame,
     compact,
     probe,
     snapshot,

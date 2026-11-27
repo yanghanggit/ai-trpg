@@ -1,5 +1,8 @@
+import { useState } from "react";
 import PageHeader from "../../components/PageHeader";
+import type { GameSummary } from "../../features/games/useGames";
 import { formatAt, formatNumber } from "../../lib/format";
+import DeleteGameDialog from "./DeleteGameDialog";
 import type { GamesData, GamesHandlers } from "./types";
 
 type Props = { data: GamesData } & GamesHandlers;
@@ -9,8 +12,13 @@ type Props = { data: GamesData } & GamesHandlers;
  *
  * 从总览的「库名」点进来——局是库里的行，所以入口挂在库上，和「轨迹目录 → 轨迹页」同一个道理。
  * 一屏只有列表：能打开的局都已经在表里，不再另设「按引用打开」的输入框。
+ *
+ * 删除也在这里：它是「这一局不该存在了」，只有在看得见全部局的一页才答得准是哪一局。
  */
-export default function GamesPage({ data, onOpenGame, onOpenBuild, onRefresh }: Props) {
+export default function GamesPage({ data, onOpenGame, onOpenBuild, onDelete, onRefresh }: Props) {
+  // 正在确认删除的那一行：视图状态，不进地址栏。
+  const [deleting, setDeleting] = useState<GameSummary>();
+
   return (
     <main className="admin">
       <PageHeader
@@ -74,13 +82,20 @@ export default function GamesPage({ data, onOpenGame, onOpenBuild, onRefresh }: 
                   <td>{formatNumber(game.clock)}</td>
                   <td>{formatNumber(game.version)}</td>
                   <td>{formatAt(game.updatedAt)}</td>
-                  <td>
+                  <td className="games__actions">
                     <button
                       type="button"
                       className="button button--ghost"
                       onClick={() => onOpenGame(game.slug)}
                     >
                       控制台
+                    </button>
+                    <button
+                      type="button"
+                      className="button button--ghost button--danger"
+                      onClick={() => setDeleting(game)}
+                    >
+                      删除
                     </button>
                   </td>
                 </tr>
@@ -89,6 +104,14 @@ export default function GamesPage({ data, onOpenGame, onOpenBuild, onRefresh }: 
           </table>
         )}
       </section>
+
+      {deleting === undefined ? null : (
+        <DeleteGameDialog
+          game={deleting}
+          onClose={() => setDeleting(undefined)}
+          onDelete={onDelete}
+        />
+      )}
     </main>
   );
 }
