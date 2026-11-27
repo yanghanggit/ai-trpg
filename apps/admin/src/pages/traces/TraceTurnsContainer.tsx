@@ -26,10 +26,13 @@ export default function TraceTurnsContainer() {
   return (
     <TraceTurnsPage
       data={data}
+      onRefresh={() => {
+        void turns.refetch();
+        void files.refetch();
+      }}
       onOpenTurn={(turnId) =>
         navigate(`/traces/${encodeURIComponent(game)}/${encodeURIComponent(turnId)}`)
       }
-      onBack={() => navigate("/traces")}
     />
   );
 }

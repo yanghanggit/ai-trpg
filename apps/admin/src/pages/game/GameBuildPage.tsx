@@ -1,46 +1,30 @@
-import { Link } from "react-router";
 import Hint from "../../components/Hint";
+import PageHeader from "../../components/PageHeader";
 import { formatNumber } from "../../lib/format";
 import type { GameBuildData } from "./types";
 
-type Props = {
-  data: GameBuildData;
-  onOpenConsole: () => void;
-  onBack: () => void;
-};
+type Props = { data: GameBuildData; onRefresh: () => void };
 
 /**
  * 建局数据：这一局从内容模板一次性写下的那些行，原样展开。
  *
  * 只放建局数据，不放运行时状态：前者建完就不变、大小有底，后者每天在长。
  */
-export default function GameBuildPage({ data, onOpenConsole, onBack }: Props) {
+export default function GameBuildPage({ data, onRefresh }: Props) {
   const build = data.build;
 
   return (
     <main className="admin">
-      <header className="admin__bar">
-        <div>
-          <p className="eyebrow">
-            <Link to="/" onClick={onBack}>
-              总览
-            </Link>{" "}
-            /{" "}
-            <Link to="/games" onClick={onBack}>
-              局
-            </Link>{" "}
-          </p>
-          <h1>
-            <code>{data.slug}</code>
-            <span className="page-kind">建局数据</span>
-          </h1>
-        </div>
-        <div className="admin__actions">
-          <button type="button" className="button button--ghost" onClick={onOpenConsole}>
-            局控制台
-          </button>
-        </div>
-      </header>
+      <PageHeader
+        crumbs={[
+          { label: "总览", to: "/" },
+          { label: "局", to: "/games" },
+          { label: data.slug },
+          { label: "建局数据" },
+        ]}
+        title={<code>{data.slug}</code>}
+        onRefresh={onRefresh}
+      />
 
       <section className="panel">
         <h2>

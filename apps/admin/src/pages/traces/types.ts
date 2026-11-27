@@ -16,7 +16,7 @@ export type TracesData = {
 
 export type TracesHandlers = {
   onOpenGame: (slug: string) => void;
-  onBack: () => void;
+  onRefresh: () => void;
 };
 
 /** 第二层：一个局的回合。 */
@@ -30,7 +30,7 @@ export type TraceTurnsData = {
 
 export type TraceTurnsHandlers = {
   onOpenTurn: (turnId: string) => void;
-  onBack: () => void;
+  onRefresh: () => void;
 };
 
 /** 第三层：一个回合的原始事件。 */
@@ -40,8 +40,4 @@ export type TraceEventsData = {
   turn?: TraceTurn;
   events?: TraceEvent[];
   eventsError?: string;
-};
-
-export type TraceEventsHandlers = {
-  onBack: () => void;
 };

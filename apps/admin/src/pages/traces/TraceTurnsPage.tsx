@@ -1,5 +1,5 @@
-import { Link } from "react-router";
 import Hint from "../../components/Hint";
+import PageHeader from "../../components/PageHeader";
 import { formatAt, formatBytes, formatNumber } from "../../lib/format";
 import type { TraceTurnsData, TraceTurnsHandlers } from "./types";
 
@@ -10,28 +10,21 @@ type Props = { data: TraceTurnsData } & TraceTurnsHandlers;
  *
  * 文件列表只作背景（这个局由哪几个 .jsonl 组成），主体是回合表：找「那一回合」。
  */
-export default function TraceTurnsPage({ data, onOpenTurn, onBack }: Props) {
+export default function TraceTurnsPage({ data, onOpenTurn, onRefresh }: Props) {
   const selected = data.games?.find((game) => game.slug === data.slug);
 
   return (
     <main className="admin">
-      <header className="admin__bar">
-        <div>
-          <p className="eyebrow">
-            <Link to="/" onClick={onBack}>
-              总览
-            </Link>{" "}
-            /{" "}
-            <Link to="/traces" onClick={onBack}>
-              轨迹
-            </Link>
-          </p>
-          <h1>
-            <code>{data.slug}</code>
-            <span className="page-kind">回合</span>
-          </h1>
-        </div>
-      </header>
+      <PageHeader
+        crumbs={[
+          { label: "总览", to: "/" },
+          { label: "轨迹", to: "/traces" },
+          { label: data.slug, to: `/traces/${encodeURIComponent(data.slug)}` },
+          { label: "回合" },
+        ]}
+        title={<code>{data.slug}</code>}
+        onRefresh={onRefresh}
+      />
 
       <section className="panel">
         <h2>

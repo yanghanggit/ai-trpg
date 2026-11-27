@@ -1,4 +1,5 @@
 import Hint from "../../components/Hint";
+import PageHeader from "../../components/PageHeader";
 import { formatNumber } from "../../lib/format";
 import type { OverviewData, OverviewHandlers } from "./types";
 
@@ -17,11 +18,7 @@ type Props = {
 export default function OverviewPage({ data, nodeUptime, onOpenGames, onOpenTraces }: Props) {
   return (
     <main className="admin">
-      <header className="admin__bar">
-        <div>
-          <h1>总览</h1>
-        </div>
-      </header>
+      <PageHeader crumbs={[]} title="总览" />
 
       <section className="panel">
         <h2>

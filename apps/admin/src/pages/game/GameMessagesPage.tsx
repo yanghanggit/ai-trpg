@@ -1,14 +1,11 @@
-import { Link } from "react-router";
 import Hint from "../../components/Hint";
-import { AUTO_REFRESH_INTERVAL_MS } from "../../features/games/useGameData";
+import PageHeader from "../../components/PageHeader";
 import { formatAt } from "../../lib/format";
 import type { GameMessagesData } from "./types";
 
 type Props = {
   data: GameMessagesData;
-  onToggleAutoRefresh: () => void;
   onRefresh: () => Promise<void>;
-  onOpenConsole: () => void;
 };
 
 /**
@@ -16,44 +13,21 @@ type Props = {
  *
  * 它是一屏长表，放在控制台里会把「推进」挤到折叠线以下，所以单独一页。
  */
-export default function GameMessagesPage({
-  data,
-  onToggleAutoRefresh,
-  onRefresh,
-  onOpenConsole,
-}: Props) {
+export default function GameMessagesPage({ data, onRefresh }: Props) {
   const messages = data.messages ?? [];
 
   return (
     <main className="admin">
-      <header className="admin__bar">
-        <div>
-          <p className="eyebrow">
-            <Link to="/">总览</Link> / <Link to="/games">局</Link>
-          </p>
-          <h1>
-            <code>{data.slug}</code>
-            <span className="page-kind">事件流</span>
-          </h1>
-        </div>
-        <div className="admin__actions">
-          <button
-            type="button"
-            className="button button--ghost"
-            aria-pressed={data.autoRefresh}
-            title={`每 ${AUTO_REFRESH_INTERVAL_MS / 1000} 秒重读一次`}
-            onClick={onToggleAutoRefresh}
-          >
-            自动刷新：{data.autoRefresh ? "开" : "关"}
-          </button>
-          <button type="button" className="button button--ghost" onClick={() => void onRefresh()}>
-            刷新
-          </button>
-          <button type="button" className="button button--ghost" onClick={onOpenConsole}>
-            局控制台
-          </button>
-        </div>
-      </header>
+      <PageHeader
+        crumbs={[
+          { label: "总览", to: "/" },
+          { label: "局", to: "/games" },
+          { label: data.slug, to: `/g/${encodeURIComponent(data.slug)}` },
+          { label: "事件流" },
+        ]}
+        title={<code>{data.slug}</code>}
+        onRefresh={() => void onRefresh()}
+      />
 
       <section className="panel">
         <h2>

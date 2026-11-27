@@ -1,9 +1,9 @@
-import { Link } from "react-router";
 import Hint from "../../components/Hint";
+import PageHeader from "../../components/PageHeader";
 import { formatAt } from "../../lib/format";
-import type { TraceEventsData, TraceEventsHandlers } from "./types";
+import type { TraceEventsData } from "./types";
 
-type Props = { data: TraceEventsData } & TraceEventsHandlers;
+type Props = { data: TraceEventsData; onRefresh: () => void };
 
 /**
  * 第三层：一个回合的原始事件。
@@ -11,34 +11,19 @@ type Props = { data: TraceEventsData } & TraceEventsHandlers;
  * 一屏只读这一回合：每条一行，展开就是那行 JSON。这里不重排、不折叠语义——
  * 想看人读版本用 `agent:api trace render`。
  */
-export default function TraceEventsPage({ data, onBack }: Props) {
+export default function TraceEventsPage({ data, onRefresh }: Props) {
   return (
     <main className="admin">
-      <header className="admin__bar">
-        <div>
-          <p className="eyebrow">
-            <Link to="/" onClick={onBack}>
-              总览
-            </Link>{" "}
-            /{" "}
-            <Link to="/traces" onClick={onBack}>
-              轨迹
-            </Link>{" "}
-            /{" "}
-            <Link
-              className="eyebrow__ref"
-              to={`/traces/${encodeURIComponent(data.slug)}`}
-              onClick={onBack}
-            >
-              {data.slug}
-            </Link>
-          </p>
-          <h1>
-            <code>{data.turnId.slice(0, 8)}</code>
-            <span className="page-kind">事件</span>
-          </h1>
-        </div>
-      </header>
+      <PageHeader
+        crumbs={[
+          { label: "总览", to: "/" },
+          { label: "轨迹", to: "/traces" },
+          { label: data.slug, to: `/traces/${encodeURIComponent(data.slug)}` },
+          { label: "事件" },
+        ]}
+        title={<code>{data.turnId.slice(0, 8)}</code>}
+        onRefresh={onRefresh}
+      />
 
       <section className="panel">
         <h2>

@@ -1,20 +1,13 @@
 import { type components, unwrap } from "@ai-trpg/api-client";
 import { useQuery } from "@tanstack/react-query";
 import { api } from "../../api/client";
+import { useAutoRefreshInterval } from "../autoRefresh";
 
 export type JobView = components["schemas"]["TurnJob"];
 export type MessageView = components["schemas"]["GameMessage"];
 
-/**
- * 页面在看着时的自动刷新间隔。
- *
- * 只有事件流按这个节奏重读：回合落地就会追加一行，其他面板是按需读的原文，
- * 反复重读既没新东西也白烧请求。
- */
-export const AUTO_REFRESH_INTERVAL_MS = 5000;
-
-/** 公共事件流：上帝视角、带真实名字。`refetch` 关掉时只按需读。 */
-export function useGameMessages(slug: string, refetch: boolean) {
+/** 公共事件流：上帝视角、带真实名字；按全局自动刷新开关重读。 */
+export function useGameMessages(slug: string) {
   return useQuery({
     queryKey: ["games", slug, "messages"],
     queryFn: async () =>
@@ -24,7 +17,7 @@ export function useGameMessages(slug: string, refetch: boolean) {
         }),
       ).messages,
     enabled: slug.length > 0,
-    refetchInterval: refetch ? AUTO_REFRESH_INTERVAL_MS : false,
+    refetchInterval: useAutoRefreshInterval(),
   });
 }
 

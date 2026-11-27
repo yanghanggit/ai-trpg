@@ -65,7 +65,7 @@ a {
 }
 
 .admin__bar h1 {
-  margin: 2px 0 0;
+  margin: 8px 0 0;
   font-size: 24px;
   letter-spacing: -0.01em;
 }
@@ -74,35 +74,29 @@ a {
   font-size: 0.9em;
 }
 
-/*
- * h1 写这一页的对象（slug / 回合 id），页名挂成右侧标签：
- * 同一份地址在三个同级页（控制台 / 建局数据 / 事件流）上各出现一次，面包屑不再重复它。
- */
-.page-kind {
-  margin-left: 10px;
-  padding: 2px 9px;
-  border: 1px solid var(--line);
-  border-radius: 999px;
-  color: var(--muted);
-  font-size: 11px;
-  font-weight: 600;
-  letter-spacing: 0.06em;
-  vertical-align: 4px;
-}
-
 .admin__actions {
   display: flex;
   align-items: center;
   gap: 10px;
 }
 
+/* 面包屑：一级一个盒子，留出可点的面积；分隔符是装饰，不占点击。 */
 .eyebrow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 2px 4px;
   margin: 0;
   font-size: 11px;
   font-weight: 700;
   letter-spacing: 0.24em;
   color: var(--accent);
-  text-transform: uppercase;
+}
+
+.eyebrow a,
+.eyebrow__here {
+  padding: 4px 6px;
+  border-radius: 6px;
 }
 
 .eyebrow a {
@@ -111,12 +105,16 @@ a {
 }
 
 .eyebrow a:hover {
+  background: rgb(255 255 255 / 7%);
   text-decoration: underline;
 }
 
-/* 面包屑里的标识（slug、id）不跟着大写：它是一个引用，不是标题。 */
-.eyebrow__ref {
-  text-transform: none;
+.eyebrow__here {
+  color: var(--muted);
+}
+
+.eyebrow__sep {
+  color: var(--line);
 }
 
 .panel {
@@ -145,10 +143,23 @@ a {
   background: rgb(0 0 0 / 55%);
 }
 
-.dialog h2 {
+.dialog__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.dialog__head h2 {
   margin: 0;
   font-size: 16px;
   font-weight: 600;
+}
+
+.dialog__actions {
+  display: flex;
+  gap: 10px;
+  margin: 14px 0 0;
 }
 
 .dialog h3 {
@@ -158,12 +169,6 @@ a {
   letter-spacing: 0.08em;
   color: var(--muted);
   text-transform: uppercase;
-}
-
-.dialog__foot {
-  display: flex;
-  justify-content: flex-end;
-  margin-top: 22px;
 }
 
 .panel h2 {

@@ -1,9 +1,10 @@
 import { useState } from "react";
-import { Link } from "react-router";
 import Hint from "../../components/Hint";
+import PageHeader from "../../components/PageHeader";
 import type { AdvanceKind } from "../../features/games/useGameActions";
 import type { MemoryOwner } from "../../features/games/useGameData";
 import DangerDialog from "./DangerDialog";
+import LeaksDialog from "./LeaksDialog";
 import type { GamePageActions, GamePageData } from "./types";
 
 type Props = {
@@ -21,41 +22,16 @@ export default function GamePanels({ data, actions }: Props) {
 
   return (
     <main className="admin">
-      <header className="admin__bar">
-        <div>
-          <p className="eyebrow">
-            <Link to="/">总览</Link> / <Link to="/games">局</Link>
-          </p>
-          <h1>
-            <code>{data.slug}</code>
-            <span className="page-kind">局控制台</span>
-          </h1>
-        </div>
-        <div className="admin__actions">
-          {data.busy === undefined ? null : (
-            <span className="badge badge--pending">{data.busy}</span>
-          )}
-          <button
-            type="button"
-            className="button button--ghost"
-            onClick={() => actions.openBuild()}
-          >
-            建局数据
-          </button>
-          <button
-            type="button"
-            className="button button--ghost"
-            onClick={() => actions.openMessages()}
-          >
-            事件流
-          </button>
-          <button
-            type="button"
-            className="button button--ghost"
-            onClick={() => void actions.refresh()}
-          >
-            刷新
-          </button>
+      <PageHeader
+        crumbs={[
+          { label: "总览", to: "/" },
+          { label: "局", to: "/games" },
+          { label: data.slug, to: `/g/${encodeURIComponent(data.slug)}` },
+          { label: "局控制台" },
+        ]}
+        title={<code>{data.slug}</code>}
+        onRefresh={() => void actions.refresh()}
+        danger={
           <button
             type="button"
             className="button button--danger"
@@ -63,8 +39,13 @@ export default function GamePanels({ data, actions }: Props) {
           >
             危险操作
           </button>
-        </div>
-      </header>
+        }
+      >
+        {data.busy === undefined ? null : <span className="badge badge--pending">{data.busy}</span>}
+        <button type="button" className="button button--ghost" onClick={() => actions.openLeaks()}>
+          真名扫描
+        </button>
+      </PageHeader>
 
       {data.actionError === undefined ? null : <p className="form-error">{data.actionError}</p>}
       {data.queuedJobId === undefined ? null : (
@@ -75,6 +56,14 @@ export default function GamePanels({ data, actions }: Props) {
 
       <AdvanceSection busy={data.busy !== undefined} actions={actions} />
       <AuxSection data={data} actions={actions} />
+      <LeaksDialog
+        open={data.leaksOpen}
+        result={data.leaks}
+        scanning={data.leaksOpen && data.leaks === undefined && data.leaksError === undefined}
+        onRescan={() => actions.rescanLeaks()}
+        onClose={() => actions.closeLeaks()}
+        {...(data.leaksError === undefined ? {} : { error: data.leaksError })}
+      />
       <DangerDialog
         slug={data.slug}
         open={dangerOpen}
@@ -201,7 +190,7 @@ function AuxSection({ data, actions }: { data: GamePageData; actions: GamePageAc
     <section className="panel">
       <h2>
         只读旁路
-        <Hint text="记忆、真名扫描、探针都只读：跑它们不改状态，也不写事件。" />
+        <Hint text="记忆与探针都只读：跑它们不改状态，也不写事件。" />
       </h2>
 
       <h3>记忆</h3>
@@ -243,17 +232,6 @@ function AuxSection({ data, actions }: { data: GamePageData; actions: GamePageAc
             {data.memory.query.name === undefined ? "" : ` · ${data.memory.query.name}`}）
           </summary>
           <pre className="json">{JSON.stringify(data.memory.payload, null, 2)}</pre>
-        </details>
-      )}
-
-      <h3>真名泄漏扫描</h3>
-      <button type="button" className="button button--ghost" onClick={() => actions.loadLeaks()}>
-        扫描
-      </button>
-      {data.leaks === undefined ? null : (
-        <details className="details" open>
-          <summary>扫描结果</summary>
-          <pre className="json">{JSON.stringify(data.leaks, null, 2)}</pre>
         </details>
       )}
 
@@ -300,26 +278,6 @@ function AuxSection({ data, actions }: { data: GamePageData; actions: GamePageAc
         <details className="details" open>
           <summary>探针答复</summary>
           <pre className="json">{JSON.stringify(data.probeResult, null, 2)}</pre>
-        </details>
-      )}
-
-      <h3>产物</h3>
-      <div className="inline-form">
-        <button
-          type="button"
-          className="button button--ghost"
-          onClick={() => void actions.snapshot()}
-        >
-          落快照
-        </button>
-        <button type="button" className="button button--ghost" onClick={() => void actions.story()}>
-          故事总结
-        </button>
-      </div>
-      {data.auxResult === undefined ? null : (
-        <details className="details" open>
-          <summary>{data.auxResult.title}</summary>
-          <pre className="json">{JSON.stringify(data.auxResult.payload, null, 2)}</pre>
         </details>
       )}
 

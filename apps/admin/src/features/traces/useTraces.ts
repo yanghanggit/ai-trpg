@@ -1,6 +1,7 @@
 import { unwrap } from "@ai-trpg/api-client";
 import { useQuery } from "@tanstack/react-query";
 import { api } from "../../api/client";
+import { useAutoRefreshInterval } from "../autoRefresh";
 import { parseTraceEvent, parseTraceTurn, type TraceEvent, type TraceTurn } from "./traceIndex";
 
 /** 列表默认取多少回合：够看清「最近发生了什么」，又不至于把首页拖慢。 */
@@ -11,6 +12,7 @@ export function useTraceTurns(options: { game?: string; limit?: number; enabled?
   const limit = options.limit ?? TRACE_TURNS_LIMIT;
   return useQuery({
     queryKey: ["traces", options.game ?? "*", limit],
+    refetchInterval: useAutoRefreshInterval(),
     enabled: options.enabled ?? true,
     queryFn: async () => {
       const data = unwrap(

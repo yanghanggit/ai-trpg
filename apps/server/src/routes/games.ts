@@ -30,6 +30,8 @@ import {
   enqueueStageTurn,
   enqueueWorldTurn,
   listGamesOp,
+  listSnapshotsOp,
+  listStoriesOp,
   listTurnJobs,
   memoryOp,
   nameLeaksOp,
@@ -41,7 +43,9 @@ import {
   readActorView,
   readGameMessages,
   readGameState,
+  readSnapshotOp,
   readStageMap,
+  readStoryOp,
   readTurnJob,
   readVisitedStages,
   releaseControlOp,
@@ -63,6 +67,8 @@ const gameParams = z.object({ game: z.string().trim().min(1) });
 const actorParams = gameParams.extend({ actor: z.string().trim().min(1) });
 const actionOrderParams = gameParams.extend({ order: z.string().trim().min(1) });
 const jobParams = gameParams.extend({ job: z.string().trim().min(1) });
+const snapshotParams = gameParams.extend({ snapshot: z.string().trim().min(1) });
+const storyParams = gameParams.extend({ story: z.string().trim().min(1) });
 const jobsQuery = z.object({
   /** 默认只列活跃作业；`all` 连历史一起列（排查用）。 */
   status: z.enum(["active", "all"]).optional(),
@@ -93,7 +99,6 @@ const gameSummarySchema = z
     clock: z.number(),
     createdAt: z.iso.datetime(),
     updatedAt: z.iso.datetime(),
-    activeJob: z.object({ jobId: z.string(), kind: z.string(), status: z.string() }).nullable(),
   })
   .meta({ id: "GameSummary" });
 
@@ -192,6 +197,29 @@ const compactBody = z.object({
 });
 
 const snapshotBody = z.object({ root: z.string().trim().min(1).optional() });
+
+const snapshotEntrySchema = z
+  .object({
+    snapshotId: z.string(),
+    createdAt: z.iso.datetime(),
+    action: z.string().nullable(),
+    dbVersion: z.number().nullable(),
+    contentVersion: z.string().nullable(),
+    parts: z.number(),
+    path: z.string(),
+  })
+  .meta({ id: "GameSnapshotEntry" });
+
+const storyEntrySchema = z
+  .object({
+    name: z.string(),
+    createdAt: z.string(),
+    title: z.string(),
+    version: z.number().nullable(),
+    rounds: z.number().nullable(),
+    path: z.string(),
+  })
+  .meta({ id: "GameStoryEntry" });
 
 /** 开发期没有 AC；同一局的写入靠事务里的行锁串行化。 */
 function services() {
@@ -328,7 +356,7 @@ export function createGameRoutes(db: () => Database): FastifyPluginAsyncZod {
           summary: "列出局（运维看全库，其他人只看自己名下）",
           description:
             "按更新时间倒序。运维身份看全库，其他人只看自己名下的局——可见性只由身份决定，" +
-            "所以这里没有 owner 参数。`activeJob` 是这一局此刻运行中的作业，不是计数。",
+            "所以这里没有 owner 参数。这一局此刻在跑什么作业，看 `GET /games/{game}/jobs`。",
           querystring: listGamesQuery,
           response: { 200: z.object({ games: z.array(gameSummarySchema) }) },
         },
@@ -499,6 +527,59 @@ export function createGameRoutes(db: () => Database): FastifyPluginAsyncZod {
       },
     );
 
+    app.get(
+      "/games/:game/snapshots",
+      {
+        schema: {
+          tags: ["games"],
+          summary: "列出这一局的快照（磁盘上的文件，不是库里的行）",
+          description:
+            "按生成时间倒序。快照是提交后的只读投影，放在 `logs/worlds/<user>/<game>/<id>/`；" +
+            "库是权威状态源，这里只读文件。",
+          params: gameParams,
+          response: {
+            200: z.object({ dir: z.string(), snapshots: z.array(snapshotEntrySchema) }),
+          },
+        },
+      },
+      async (request) => {
+        const user = await requireUser(db(), request);
+        await requireGameAccess(db(), request.params.game, user);
+        return listSnapshotsOp(db(), request.params.game);
+      },
+    );
+
+    app.get(
+      "/games/:game/snapshots/:snapshot",
+      {
+        schema: {
+          tags: ["games"],
+          summary: "读一份快照：清单，或清单里某一份的原文",
+          description:
+            "不带 `part` 只回 manifest；带 `part` 回那一份的原文（名字必须出现在 manifest.parts 里）。",
+          params: snapshotParams,
+          querystring: z.object({ part: z.string().trim().min(1).optional() }),
+          response: {
+            200: z.object({
+              manifest: z.record(z.string(), z.unknown()),
+              part: z.string().nullable(),
+              content: z.string().nullable(),
+            }),
+          },
+        },
+      },
+      async (request) => {
+        const user = await requireUser(db(), request);
+        await requireGameAccess(db(), request.params.game, user);
+        return readSnapshotOp(
+          db(),
+          request.params.game,
+          request.params.snapshot,
+          request.query.part,
+        );
+      },
+    );
+
     app.post(
       "/games/:game/snapshot",
       {
@@ -537,6 +618,45 @@ export function createGameRoutes(db: () => Database): FastifyPluginAsyncZod {
         const user = await requireUser(db(), request);
         await requireGameAccess(db(), request.params.game, user);
         return storyOp(db(), request.params.game, services());
+      },
+    );
+
+    app.get(
+      "/games/:game/stories",
+      {
+        schema: {
+          tags: ["games"],
+          summary: "列出这一局的故事总结（磁盘上的 .md）",
+          description: "目录是平的，靠文件头里的 `- slug:` 认领；按生成时间倒序。",
+          params: gameParams,
+          response: {
+            200: z.object({ dir: z.string(), stories: z.array(storyEntrySchema) }),
+          },
+        },
+      },
+      async (request) => {
+        const user = await requireUser(db(), request);
+        await requireGameAccess(db(), request.params.game, user);
+        return listStoriesOp(db(), request.params.game);
+      },
+    );
+
+    app.get(
+      "/games/:game/stories/:story",
+      {
+        schema: {
+          tags: ["games"],
+          summary: "读一份故事总结的原文",
+          params: storyParams,
+          response: {
+            200: z.object({ name: z.string(), path: z.string(), content: z.string() }),
+          },
+        },
+      },
+      async (request) => {
+        const user = await requireUser(db(), request);
+        await requireGameAccess(db(), request.params.game, user);
+        return readStoryOp(db(), request.params.game, request.params.story);
       },
     );
 

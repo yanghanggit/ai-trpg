@@ -21,11 +21,10 @@ export default function GameConsole({ slug }: { slug: string }) {
   const [memoryQuery, setMemoryQuery] = useState<MemoryQuery>();
   const memory = useMemory(slug, memoryQuery);
 
-  const [leaksEnabled, setLeaksEnabled] = useState(false);
-  const leaks = useNameLeaks(slug, leaksEnabled);
+  const [leaksOpen, setLeaksOpen] = useState(false);
+  const leaks = useNameLeaks(slug, leaksOpen);
 
   const [probeResult, setProbeResult] = useState<unknown>();
-  const [auxResult, setAuxResult] = useState<{ title: string; payload: unknown }>();
   const [busy, setBusy] = useState<string>();
   const [actionError, setActionError] = useState<string>();
 
@@ -43,8 +42,6 @@ export default function GameConsole({ slug }: { slug: string }) {
   }
 
   const handlers: GamePageActions = {
-    openMessages: () => navigate(`/g/${encodeURIComponent(slug)}/messages`),
-    openBuild: () => navigate(`/g/${encodeURIComponent(slug)}/build`),
     refresh: async () => {
       await run("刷新", async () => {
         await actions.refresh();
@@ -74,7 +71,7 @@ export default function GameConsole({ slug }: { slug: string }) {
     },
     compact: async (input) => {
       await run("压缩记忆", async () => {
-        setAuxResult({ title: "压缩", payload: await actions.compact(input) });
+        await actions.compact(input);
       });
     },
     probe: async (input) => {
@@ -82,18 +79,10 @@ export default function GameConsole({ slug }: { slug: string }) {
         setProbeResult(await actions.probe(input));
       });
     },
-    snapshot: async () => {
-      await run("快照", async () => {
-        setAuxResult({ title: "快照", payload: await actions.snapshot() });
-      });
-    },
-    story: async () => {
-      await run("故事总结", async () => {
-        setAuxResult({ title: "故事总结", payload: await actions.story() });
-      });
-    },
     loadMemory: (query) => setMemoryQuery(query),
-    loadLeaks: () => setLeaksEnabled(true),
+    openLeaks: () => setLeaksOpen(true),
+    closeLeaks: () => setLeaksOpen(false),
+    rescanLeaks: () => void leaks.refetch(),
   };
 
   const data: GamePageData = {
@@ -108,8 +97,8 @@ export default function GameConsole({ slug }: { slug: string }) {
     memoryError: memory.isError ? describeApiError(memory.error) : undefined,
     leaks: leaks.data,
     leaksError: leaks.isError ? describeApiError(leaks.error) : undefined,
+    leaksOpen,
     probeResult,
-    auxResult,
   };
 
   return <GamePanels data={data} actions={handlers} />;

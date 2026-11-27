@@ -4,6 +4,7 @@ import { createRoot } from "react-dom/client";
 import { BrowserRouter } from "react-router";
 import App from "./App";
 import { shouldRetry } from "./api/queryPolicy";
+import { AutoRefreshProvider } from "./features/autoRefresh";
 import "./index.css";
 
 const rootElement = document.getElementById("root");
@@ -18,9 +19,11 @@ const queryClient = new QueryClient({
 createRoot(rootElement).render(
   <StrictMode>
     <QueryClientProvider client={queryClient}>
-      <BrowserRouter>
-        <App />
-      </BrowserRouter>
+      <AutoRefreshProvider>
+        <BrowserRouter>
+          <App />
+        </BrowserRouter>
+      </AutoRefreshProvider>
     </QueryClientProvider>
   </StrictMode>,
 );

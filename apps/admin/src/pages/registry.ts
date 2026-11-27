@@ -2,6 +2,10 @@ import type { ComponentType } from "react";
 import GameBuildRoute from "./game/GameBuildRoute";
 import GameMessagesRoute from "./game/GameMessagesRoute";
 import GameRoute from "./game/GameRoute";
+import GameSnapshotRoute from "./game/GameSnapshotRoute";
+import GameSnapshotsRoute from "./game/GameSnapshotsRoute";
+import GameStoriesRoute from "./game/GameStoriesRoute";
+import GameStoryRoute from "./game/GameStoryRoute";
 import GamesContainer from "./games/GamesContainer";
 import OverviewContainer from "./overview/OverviewContainer";
 import TraceEventsContainer from "./traces/TraceEventsContainer";
@@ -39,5 +43,19 @@ export const pages: PageEntry[] = [
     path: "/g/:slug/messages",
     title: "事件流",
     Route: GameMessagesRoute,
+  },
+  { key: "game-snapshots", path: "/g/:slug/snapshots", title: "快照", Route: GameSnapshotsRoute },
+  {
+    key: "game-snapshot",
+    path: "/g/:slug/snapshots/:snapshot",
+    title: "快照 · 内容",
+    Route: GameSnapshotRoute,
+  },
+  { key: "game-stories", path: "/g/:slug/stories", title: "故事", Route: GameStoriesRoute },
+  {
+    key: "game-story",
+    path: "/g/:slug/stories/:story",
+    title: "故事 · 原文",
+    Route: GameStoryRoute,
   },
 ];

@@ -6,6 +6,9 @@
  */
 
 import { randomUUID } from "node:crypto";
+import { mkdtemp, rm } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { DEFAULT_SERVER_PORT } from "@ai-trpg/shared";
 import { eq } from "drizzle-orm";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
@@ -245,6 +248,97 @@ describe.skipIf(!testDatabaseUrl)("业务 API", () => {
     expect(body).not.toHaveProperty("jobs");
   });
 
+  it("快照写盘后可列出、可按份读原文，越界份名读不到", async () => {
+    const root = await mkdtemp(join(tmpdir(), "ai-trpg-snap-api-"));
+    const previous = process.env.WORLDS_DIR;
+    process.env.WORLDS_DIR = root;
+    try {
+      const written = await app.inject({
+        method: "POST",
+        url: `/api/v1/games/${SLUG}/snapshot`,
+        headers: auth,
+        payload: {},
+      });
+      expect(written.statusCode).toBe(200);
+      expect(written.json()).toMatchObject({ manifest: { action: "snapshot" } });
+
+      const listed = await app.inject({
+        method: "GET",
+        url: `/api/v1/games/${SLUG}/snapshots`,
+        headers: auth,
+      });
+      expect(listed.statusCode).toBe(200);
+      const body = listed.json() as {
+        dir: string;
+        snapshots: { snapshotId: string; parts: number }[];
+      };
+      expect(body.dir.startsWith(root)).toBe(true);
+      expect(body.snapshots).toHaveLength(1);
+      const snapshotId = body.snapshots[0]?.snapshotId ?? "";
+      expect(body.snapshots[0]?.parts).toBeGreaterThan(0);
+
+      const manifestOnly = await app.inject({
+        method: "GET",
+        url: `/api/v1/games/${SLUG}/snapshots/${snapshotId}`,
+        headers: auth,
+      });
+      expect(manifestOnly.statusCode).toBe(200);
+      expect(manifestOnly.json()).toMatchObject({ part: null, content: null });
+
+      const part = await app.inject({
+        method: "GET",
+        url: `/api/v1/games/${SLUG}/snapshots/${snapshotId}?part=game.json`,
+        headers: auth,
+      });
+      expect(part.statusCode).toBe(200);
+      expect(JSON.parse((part.json() as { content: string }).content)).toMatchObject({
+        slug: SLUG,
+      });
+
+      // 份名走 manifest.parts 白名单，不接受任意路径。
+      const escaped = await app.inject({
+        method: "GET",
+        url: `/api/v1/games/${SLUG}/snapshots/${snapshotId}?part=${encodeURIComponent("../game.json")}`,
+        headers: auth,
+      });
+      expect(escaped.statusCode).toBe(404);
+
+      const missing = await app.inject({
+        method: "GET",
+        url: `/api/v1/games/${SLUG}/snapshots/nope`,
+        headers: auth,
+      });
+      expect(missing.statusCode).toBe(404);
+    } finally {
+      if (previous === undefined) {
+        process.env.WORLDS_DIR = undefined;
+        delete process.env.WORLDS_DIR;
+      } else {
+        process.env.WORLDS_DIR = previous;
+      }
+      await rm(root, { recursive: true, force: true });
+    }
+  });
+
+  it("故事清单按 slug 认领文件，读不到未列出的名字", async () => {
+    const listed = await app.inject({
+      method: "GET",
+      url: `/api/v1/games/${SLUG}/stories`,
+      headers: auth,
+    });
+    expect(listed.statusCode).toBe(200);
+    const body = listed.json() as { dir: string; stories: unknown[] };
+    expect(typeof body.dir).toBe("string");
+    expect(Array.isArray(body.stories)).toBe(true);
+
+    const missing = await app.inject({
+      method: "GET",
+      url: `/api/v1/games/${SLUG}/stories/nope.md`,
+      headers: auth,
+    });
+    expect(missing.statusCode).toBe(404);
+  });
+
   it("局列表带元信息，且只含当前身份名下的局", async () => {
     const listSlug = `${SLUG}-list`;
     const created = await app.inject({
@@ -284,7 +378,6 @@ describe.skipIf(!testDatabaseUrl)("业务 API", () => {
         outcome: string | null;
         clock: number;
         version: number;
-        activeJob: unknown;
         updatedAt: string;
       }[];
     };
@@ -298,11 +391,10 @@ describe.skipIf(!testDatabaseUrl)("业务 API", () => {
       outcome: null,
       version: 0,
       clock: 0,
-      activeJob: null,
       updatedAt: expect.any(String),
     });
 
-    // 入队一个 NPC 回合但不跑 worker：列表要能看到「这一局现在有回合在跑」。
+    // 列表只说「跑到哪」：作业状态属于局控制台的 `GET /jobs`，不再混进这一行。
     const queued = await app.inject({
       method: "POST",
       url: `/api/v1/games/${listSlug}/turns/npc`,
@@ -310,27 +402,15 @@ describe.skipIf(!testDatabaseUrl)("业务 API", () => {
       payload: { actor: "收尸人卡尔" },
     });
     expect(queued.statusCode).toBe(202);
-
-    const withActive = await app.inject({
+    const withQueued = await app.inject({
       method: "GET",
       url: "/api/v1/games?limit=100",
       headers: auth,
     });
-    const activeRow = (
-      withActive.json() as {
-        games: {
-          slug: string;
-          activeJob: { jobId: string; kind: string; status: string } | null;
-        }[];
-      }
-    ).games.find((game) => game.slug === listSlug);
-    expect(activeRow?.activeJob).toMatchObject({ status: "pending" });
-    // 活跃作业是「这一局在跑什么」，不是跨局共享的一个计数。
-    expect(
-      (withActive.json() as { games: { slug: string; activeJob: unknown }[] }).games.filter(
-        (game) => game.activeJob !== null,
-      ),
-    ).toHaveLength(1);
+    const queuedRow = (withQueued.json() as { games: Record<string, unknown>[] }).games.find(
+      (game) => game.slug === listSlug,
+    );
+    expect(queuedRow).not.toHaveProperty("activeJob");
 
     // 状态过滤直接作用在列表上：这一局还没结束，不该出现在 completed 里。
     const completed = await app.inject({

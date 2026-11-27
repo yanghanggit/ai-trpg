@@ -1,6 +1,7 @@
 import { type paths, unwrap } from "@ai-trpg/api-client";
 import { useQuery } from "@tanstack/react-query";
 import { api } from "../../api/client";
+import { useAutoRefreshInterval } from "../autoRefresh";
 
 /** 目录清单的响应形状直接取自契约，不在客户端另立一份。 */
 export type TraceFilesResponse =
@@ -16,6 +17,7 @@ export type TraceGameEntry = TraceFilesResponse["games"][number];
 export function useTraceFiles() {
   return useQuery({
     queryKey: ["traces", "files"],
+    refetchInterval: useAutoRefreshInterval(),
     queryFn: async () => unwrap(await api.GET("/api/v1/traces/files")),
   });
 }

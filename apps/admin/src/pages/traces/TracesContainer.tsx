@@ -19,7 +19,7 @@ export default function TracesContainer() {
     <TracesPage
       data={data}
       onOpenGame={(slug) => navigate(`/traces/${encodeURIComponent(slug)}`)}
-      onBack={() => navigate("/")}
+      onRefresh={() => void files.refetch()}
     />
   );
 }
