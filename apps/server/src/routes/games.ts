@@ -30,6 +30,7 @@ import {
   enqueueStageTurn,
   enqueueWorldTurn,
   listGamesOp,
+  listPromptBundlesOp,
   listSnapshotsOp,
   listStoriesOp,
   listTurnJobs,
@@ -44,6 +45,7 @@ import {
   readGameGraph,
   readGameMessages,
   readGameState,
+  readPromptBundleOp,
   readSnapshotOp,
   readStageMap,
   readStoryOp,
@@ -70,6 +72,7 @@ const actorParams = gameParams.extend({ actor: z.string().trim().min(1) });
 const actionOrderParams = gameParams.extend({ order: z.string().trim().min(1) });
 const jobParams = gameParams.extend({ job: z.string().trim().min(1) });
 const snapshotParams = gameParams.extend({ snapshot: z.string().trim().min(1) });
+const promptBundleParams = gameParams.extend({ bundle: z.string().trim().min(1) });
 const storyParams = gameParams.extend({ story: z.string().trim().min(1) });
 const jobsQuery = z.object({
   /** 默认只列活跃作业；`all` 连历史一起列（排查用）。 */
@@ -222,6 +225,44 @@ const storyEntrySchema = z
     path: z.string(),
   })
   .meta({ id: "GameStoryEntry" });
+
+const promptBundleEntrySchema = z
+  .object({
+    id: z.string(),
+    createdAt: z.iso.datetime(),
+    world: z.string(),
+    contentVersion: z.string(),
+    bytes: z.number(),
+    counts: z.object({
+      world: z.number(),
+      functions: z.number(),
+      stages: z.number(),
+      actors: z.number(),
+    }),
+    path: z.string(),
+  })
+  .meta({ id: "GamePromptBundle" });
+
+const promptBundleFileSchema = z
+  .object({
+    kind: z.enum(["world", "function", "stage", "actor"]),
+    name: z.string(),
+    path: z.string(),
+    bytes: z.number(),
+    content: z.string(),
+  })
+  .meta({ id: "GamePromptFile" });
+
+const promptBundleSchema = z
+  .object({
+    id: z.string(),
+    createdAt: z.iso.datetime(),
+    world: z.string(),
+    contentVersion: z.string(),
+    path: z.string(),
+    files: z.array(promptBundleFileSchema),
+  })
+  .meta({ id: "GamePromptBundleContent" });
 
 /** 开发期没有 AC；同一局的写入靠事务里的行锁串行化。 */
 function services() {
@@ -681,6 +722,48 @@ export function createGameRoutes(db: () => Database): FastifyPluginAsyncZod {
         const user = await requireUser(db(), request);
         await requireGameAccess(db(), request.params.game, user);
         return readStoryOp(db(), request.params.game, request.params.story);
+      },
+    );
+
+    app.get(
+      "/games/:game/prompts",
+      {
+        schema: {
+          tags: ["games"],
+          summary: "列出这一局建局时导出的 system prompt（磁盘上的目录，不是库里的行）",
+          description:
+            "一次建局导出一次，放在 `logs/prompts/<时间>_<世界名>_<内容版本>/`；" +
+            "容器里的 `manifest.json` 记着是哪一局建的，这里按它认领。新的在前。",
+          params: gameParams,
+          response: {
+            200: z.object({ dir: z.string(), bundles: z.array(promptBundleEntrySchema) }),
+          },
+        },
+      },
+      async (request) => {
+        const user = await requireUser(db(), request);
+        await requireGameAccess(db(), request.params.game, user);
+        return listPromptBundlesOp(db(), request.params.game);
+      },
+    );
+
+    app.get(
+      "/games/:game/prompts/:bundle",
+      {
+        schema: {
+          tags: ["games"],
+          summary: "读一份导出的 system prompt 原文（world / functions / stages / actors）",
+          description:
+            "一次读回这一份的全部文件：提示词不随回合变，逐份再请求没有意义。" +
+            "文件清单来自 `manifest.json`，不拼任意路径。",
+          params: promptBundleParams,
+          response: { 200: promptBundleSchema },
+        },
+      },
+      async (request) => {
+        const user = await requireUser(db(), request);
+        await requireGameAccess(db(), request.params.game, user);
+        return readPromptBundleOp(db(), request.params.game, request.params.bundle);
       },
     );
 

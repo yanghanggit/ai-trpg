@@ -60,7 +60,7 @@ describe.skipIf(!testDatabaseUrl)("业务 API", () => {
 
   afterAll(async () => {
     if (handle) {
-      for (const slug of [SLUG, `${SLUG}-list`]) {
+      for (const slug of [SLUG, `${SLUG}-list`, `${SLUG}-prompt`]) {
         await handle.db.delete(games).where(eq(games.slug, slug));
       }
       await handle.pool.end();
@@ -385,6 +385,82 @@ describe.skipIf(!testDatabaseUrl)("业务 API", () => {
         delete process.env.WORLDS_DIR;
       } else {
         process.env.WORLDS_DIR = previous;
+      }
+      await rm(root, { recursive: true, force: true });
+    }
+  });
+
+  it("建局导出的 system prompt 按局认领、整包读回，目录名越界读不到", async () => {
+    const root = await mkdtemp(join(tmpdir(), "ai-trpg-prompts-api-"));
+    const previous = process.env.PROMPTS_DIR;
+    process.env.PROMPTS_DIR = root;
+    const slug = `${SLUG}-prompt`;
+    try {
+      const created = await app.inject({
+        method: "POST",
+        url: "/api/v1/games",
+        headers: auth,
+        payload: { seed: "dark-fantasy:bell-monastery", slug },
+      });
+      expect(created.statusCode).toBe(200);
+
+      const listed = await app.inject({
+        method: "GET",
+        url: `/api/v1/games/${slug}/prompts`,
+        headers: auth,
+      });
+      expect(listed.statusCode).toBe(200);
+      const body = listed.json() as {
+        dir: string;
+        bundles: {
+          id: string;
+          createdAt: string;
+          counts: { world: number; functions: number; stages: number; actors: number };
+        }[];
+      };
+      expect(body.dir.startsWith(root)).toBe(true);
+      expect(body.bundles).toHaveLength(1);
+      const bundle = body.bundles[0];
+      expect(bundle?.counts).toMatchObject({ world: 1 });
+      expect(bundle?.counts.functions).toBeGreaterThan(0);
+      expect(bundle?.counts.stages).toBeGreaterThan(1);
+      expect(bundle?.counts.actors).toBeGreaterThan(1);
+
+      const content = await app.inject({
+        method: "GET",
+        url: `/api/v1/games/${slug}/prompts/${encodeURIComponent(bundle?.id ?? "")}`,
+        headers: auth,
+      });
+      expect(content.statusCode).toBe(200);
+      const files = (
+        content.json() as { id: string; files: { kind: string; path: string; content: string }[] }
+      ).files;
+      const counts = bundle?.counts ?? { world: 0, functions: 0, stages: 0, actors: 0 };
+      expect(files).toHaveLength(counts.world + counts.functions + counts.stages + counts.actors);
+      expect(files[0]?.kind).toBe("world");
+      expect(files[0]?.path.endsWith(".md")).toBe(true);
+      expect(files[0]?.content).toContain("你扮演世界");
+
+      // 同一份导出只属于建它的那一局：目录名一样，认领靠 manifest 里的 slug。
+      const other = await app.inject({
+        method: "GET",
+        url: `/api/v1/games/${SLUG}/prompts`,
+        headers: auth,
+      });
+      expect((other.json() as { bundles: unknown[] }).bundles).toHaveLength(0);
+
+      // 目录名不在清单里就 404：读名字，不拼路径。
+      const escaped = await app.inject({
+        method: "GET",
+        url: `/api/v1/games/${slug}/prompts/${encodeURIComponent("../..")}`,
+        headers: auth,
+      });
+      expect(escaped.statusCode).toBe(404);
+    } finally {
+      if (previous === undefined) {
+        delete process.env.PROMPTS_DIR;
+      } else {
+        process.env.PROMPTS_DIR = previous;
       }
       await rm(root, { recursive: true, force: true });
     }

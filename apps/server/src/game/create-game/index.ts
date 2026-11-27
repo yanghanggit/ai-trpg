@@ -75,6 +75,7 @@ export async function createGame(
   });
 
   await dumpSystemPrompts({
+    game: { slug },
     world: { name: world.worldName, contentVersion: world.contentVersion },
     worldPrompt,
     functionPromptDumps: buildFunctionPromptDumps(world),

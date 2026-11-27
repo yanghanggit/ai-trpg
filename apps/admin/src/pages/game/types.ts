@@ -22,6 +22,8 @@ export type GameBuildData = {
 };
 
 export type GameSnapshotEntry = components["schemas"]["GameSnapshotEntry"];
+export type GamePromptBundle = components["schemas"]["GamePromptBundle"];
+export type GamePromptFile = components["schemas"]["GamePromptFile"];
 export type GameStoryEntry = components["schemas"]["GameStoryEntry"];
 
 /** 快照清单页。 */
@@ -57,6 +59,24 @@ export type GameStoriesData = {
   busy?: string;
   actionError?: string;
   lastPath?: string;
+};
+
+/** 系统提示词导出清单页。 */
+export type GamePromptsData = {
+  slug: string;
+  dir?: string;
+  bundles?: GamePromptBundle[];
+  bundlesError?: string;
+};
+
+/** 一份导出：整包读回，选中哪份由查询参数记。 */
+export type GamePromptBundleData = {
+  slug: string;
+  id: string;
+  bundle?: { createdAt: string; world: string; contentVersion: string; files: GamePromptFile[] };
+  /** 选中的文件路径；没选就落在第一份。 */
+  file?: string;
+  bundleError?: string;
 };
 
 /** 一份故事原文。 */

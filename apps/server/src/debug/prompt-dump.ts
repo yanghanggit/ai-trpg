@@ -14,9 +14,14 @@ import { findRepoRoot } from "./paths";
 /** 覆盖导出根目录；也用于在测试环境强制开启导出。 */
 export const PROMPTS_DIR_ENV = "PROMPTS_DIR";
 
+/** 容器里的元信息文件名：列举时先读它，读不到就当不是导出容器。 */
+export const MANIFEST_FILE = "manifest.json";
+
 const SAFE_FILENAME_PATTERN = /[^0-9A-Za-z_.\-\u4e00-\u9fff]/g;
 
 export type PromptDumpInput = {
+  /** 哪一局建的：写进 manifest，目录名里放不下（世界名与版本都可能是多局共用的）。 */
+  game: { slug: string };
   /** 世界名做文件名（与 actor / stage 一致）；内容版本进容器目录名。 */
   world: { name: string; contentVersion: string };
   worldPrompt: string;
@@ -24,6 +29,24 @@ export type PromptDumpInput = {
   functionPromptDumps: readonly { name: string; prompt: string }[];
   actorPrompts: readonly { name: string; prompt: string }[];
   stagePrompts: readonly { name: string; prompt: string }[];
+};
+
+/** 容器里的文件清单：读的时候只按这份清单取，不拼任意路径。 */
+export type PromptDumpFile = {
+  kind: "world" | "function" | "stage" | "actor";
+  /** 人类名（世界名 / 职能名 / 舞台名 / 角色名），不带扩展名。 */
+  name: string;
+  /** 容器内的相对路径，`/` 分隔。 */
+  path: string;
+  bytes: number;
+};
+
+/** `manifest.json`：谁建的、什么时候建的、里面有哪些文件。 */
+export type PromptDumpManifest = {
+  game: { slug: string };
+  world: { name: string; contentVersion: string };
+  createdAt: string;
+  files: PromptDumpFile[];
 };
 
 /** 导出根目录：`PROMPTS_DIR` > `<repo>/logs/prompts`。 */
@@ -85,33 +108,41 @@ export async function dumpSystemPrompts(
     await mkdir(join(dir, "stages"), { recursive: true });
     await mkdir(join(dir, "functions"), { recursive: true });
 
-    await writeFile(
-      join(dir, `${safeFileName(input.world.name)}.md`),
-      `${input.worldPrompt}
-`,
-      "utf8",
+    const files: PromptDumpFile[] = [];
+    const write = async (
+      kind: PromptDumpFile["kind"],
+      name: string,
+      path: string,
+      body: string,
+    ) => {
+      await writeFile(join(dir, ...path.split("/")), body, "utf8");
+      files.push({ kind, name, path, bytes: Buffer.byteLength(body, "utf8") });
+    };
+
+    await write(
+      "world",
+      input.world.name,
+      `${safeFileName(input.world.name)}.md`,
+      input.worldPrompt,
     );
     for (const fn of input.functionPromptDumps) {
-      await writeFile(
-        join(dir, "functions", `${safeFileName(fn.name)}.md`),
-        `${fn.prompt}\n`,
-        "utf8",
-      );
+      await write("function", fn.name, `functions/${safeFileName(fn.name)}.md`, fn.prompt);
     }
     for (const stage of input.stagePrompts) {
-      await writeFile(
-        join(dir, "stages", `${safeFileName(stage.name)}.md`),
-        `${stage.prompt}\n`,
-        "utf8",
-      );
+      await write("stage", stage.name, `stages/${safeFileName(stage.name)}.md`, stage.prompt);
     }
     for (const actor of input.actorPrompts) {
-      await writeFile(
-        join(dir, "actors", `${safeFileName(actor.name)}.md`),
-        `${actor.prompt}\n`,
-        "utf8",
-      );
+      await write("actor", actor.name, `actors/${safeFileName(actor.name)}.md`, actor.prompt);
     }
+
+    // 目录名只有时间、世界名与版本，认不出是哪一局建的；manifest 补上这一层。
+    const manifest: PromptDumpManifest = {
+      game: { slug: input.game.slug },
+      world: { name: input.world.name, contentVersion: input.world.contentVersion },
+      createdAt: (options.now ?? new Date()).toISOString(),
+      files,
+    };
+    await writeFile(join(dir, MANIFEST_FILE), `${JSON.stringify(manifest, null, 2)}\n`, "utf8");
     return dir;
   } catch (error) {
     options.logger?.warn("导出 system prompt 失败", error);

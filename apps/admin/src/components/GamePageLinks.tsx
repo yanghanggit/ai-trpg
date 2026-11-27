@@ -1,7 +1,7 @@
 import { Link } from "react-router";
 import { useMediaQuery } from "../lib/useMediaQuery";
 
-export type GamePage = "console" | "build" | "messages" | "snapshots" | "stories";
+export type GamePage = "console" | "build" | "messages" | "snapshots" | "stories" | "prompts";
 
 const PAGES: { key: GamePage; label: string; suffix: string }[] = [
   { key: "console", label: "局控制台", suffix: "" },
@@ -9,13 +9,14 @@ const PAGES: { key: GamePage; label: string; suffix: string }[] = [
   { key: "messages", label: "事件流", suffix: "/messages" },
   { key: "snapshots", label: "快照", suffix: "/snapshots" },
   { key: "stories", label: "故事", suffix: "/stories" },
+  { key: "prompts", label: "系统提示词", suffix: "/prompts" },
 ];
 
-/** 五个页名加路径一共这么长，再窄就得折行；折行会把面包屑挤成两行，不如收起来。 */
-const NARROW_QUERY = "(max-width: 1120px)";
+/** 六个页名加路径一共这么长，再窄就得折行；折行会把面包屑挤成两行，不如收起来。 */
+const NARROW_QUERY = "(max-width: 1210px)";
 
 /**
- * 一局下面的五个页，接在面包屑的局地址后面：`… / clock-e2e / 快照 · 局控制台 · …`
+ * 一局下面的六个页，接在面包屑的局地址后面：`… / clock-e2e / 快照 · 局控制台 · …`
  *
  * 导航只有这一处——页头右侧只放动作。窄屏时只留当前页，其余收进「更多」。
  */

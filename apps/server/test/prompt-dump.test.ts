@@ -5,6 +5,7 @@ import { join } from "node:path";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import {
   dumpSystemPrompts,
+  MANIFEST_FILE,
   PROMPTS_DIR_ENV,
   promptsRoot,
   safeFileName,
@@ -12,6 +13,7 @@ import {
 } from "../src/debug/prompt-dump";
 
 const input = {
+  game: { slug: "clock-e2e" },
   world: { name: "枯钟修道院", contentVersion: "test.v1" },
   worldPrompt: "WORLD PROMPT",
   functionPromptDumps: [{ name: "affixes", prompt: "FUNCTION PROMPT" }],
@@ -48,6 +50,16 @@ describe("prompt dump", () => {
     expect(await readFile(join(dir as string, "functions", "affixes.md"), "utf8")).toContain(
       "FUNCTION PROMPT",
     );
+    const manifest = JSON.parse(await readFile(join(dir as string, MANIFEST_FILE), "utf8"));
+    expect(manifest.game.slug).toBe("clock-e2e");
+    expect(manifest.files.map((file: { path: string }) => file.path)).toEqual([
+      "枯钟修道院.md",
+      "functions/affixes.md",
+      "stages/灰烬门廊.md",
+      "actors/奥德里克.md",
+    ]);
+    expect(manifest.files[0].kind).toBe("world");
+    expect(manifest.files[0].bytes).toBe("WORLD PROMPT".length);
   });
 
   it("keeps two games created in the same second apart", async () => {

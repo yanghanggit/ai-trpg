@@ -1,6 +1,8 @@
 import type { ComponentType } from "react";
 import GameBuildRoute from "./game/GameBuildRoute";
 import GameMessagesRoute from "./game/GameMessagesRoute";
+import GamePromptBundleRoute from "./game/GamePromptBundleRoute";
+import GamePromptsRoute from "./game/GamePromptsRoute";
 import GameRoute from "./game/GameRoute";
 import GameSnapshotRoute from "./game/GameSnapshotRoute";
 import GameSnapshotsRoute from "./game/GameSnapshotsRoute";
@@ -43,6 +45,13 @@ export const pages: PageEntry[] = [
     path: "/g/:slug/messages",
     title: "事件流",
     Route: GameMessagesRoute,
+  },
+  { key: "game-prompts", path: "/g/:slug/prompts", title: "系统提示词", Route: GamePromptsRoute },
+  {
+    key: "game-prompt",
+    path: "/g/:slug/prompts/:bundle",
+    title: "系统提示词 · 原文",
+    Route: GamePromptBundleRoute,
   },
   { key: "game-snapshots", path: "/g/:slug/snapshots", title: "快照", Route: GameSnapshotsRoute },
   {

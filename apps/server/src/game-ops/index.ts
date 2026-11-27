@@ -13,6 +13,7 @@ export * from "./graph";
 export * from "./inspect";
 export * from "./play";
 export * from "./player-action";
+export * from "./prompts";
 export * from "./services";
 export * from "./trace";
 export * from "./turn-jobs";
