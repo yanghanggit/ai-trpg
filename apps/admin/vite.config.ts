@@ -20,13 +20,14 @@ export default defineConfig(({ mode }) => {
     envDir: repoRoot,
     plugins: [react()],
     server: {
-      // 后台只服务本机：它读的是全知视图，不该出现在局域网里。
-      host: "127.0.0.1",
+      // 监听 0.0.0.0：后台也要能从局域网打开。它读的是全知视图，所以别只靠网络边界：
+      // 在 .env 里配 ADMIN_TOKEN + VITE_ADMIN_TOKEN（同一个值），否则知道用户名就是运维。
+      host: true,
       port,
       strictPort: true,
     },
     preview: {
-      host: "127.0.0.1",
+      host: true,
       port,
       strictPort: true,
     },

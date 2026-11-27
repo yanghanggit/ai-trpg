@@ -12,7 +12,9 @@ import {
 import type { Database } from "./db/pool";
 import type { Env } from "./env";
 import { parseCorsOrigins } from "./env";
+import { isAdmin } from "./identity";
 import type { JobChangeBroker } from "./jobs";
+import { assertAdminToken, claimedUsername } from "./plugins/auth";
 import { registerErrorHandler } from "./plugins/error-handler";
 import { createRoutes } from "./routes";
 
@@ -85,6 +87,15 @@ export async function buildApp({
   });
 
   registerErrorHandler(app);
+
+  // 后台口令守卫：自称 `admin` 的请求先过这道闸，再谈「你是不是运维」。
+  // 放在全局而不是逐路由，是因为 admin 身份在每个入口都被 `requireUser` 放行过一次，
+  // 逐处补就会漏一处；这里只看请求头，不查库。
+  app.addHook("onRequest", async (request) => {
+    if (isAdmin(claimedUsername(request, { allowQueryToken: true }))) {
+      assertAdminToken(request, env.ADMIN_TOKEN);
+    }
+  });
 
   app.get("/openapi.json", { schema: { hide: true } }, async () => app.swagger());
 

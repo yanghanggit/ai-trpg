@@ -8,7 +8,7 @@
 
 服务器侧闭合：回合全部走作业（入队 → 执行 → 终态 → 可查/可撤/可订阅），有进度、有取消、有推送。web 侧接上了**单步回路**：接管 → 提交一个动作或推进一步（agent 席位）/ 空过（玩家席位） → 终态 → 重读投影与顺位 → 刷新后接上正在跑的回合。
 
-运维侧另有一个独立产物 `apps/admin`：身份 / 节点 / 局 / 轨迹 / 事件流 / 记忆 / 系统提示词 / 快照 / 故事各自成页，能推进回合与做危险操作。控制台顶部一张世界图谱（舞台图），点进去按舞台 → actor → 道具逐层看；推进面板只有「下一个」一个按钮：它自己开顺位、收工、补 world、推一位角色与他的舞台；面板上是按名次排的编排表，舞台跟着人走，本轮状态来自回合账（`action_order_turns`）。它还缺的是「撤掉正在跑的作业」、作业总览与图谱的检索框。
+运维侧另有一个独立产物 `apps/admin`：身份 / 节点 / 局 / 轨迹 / 事件流 / 记忆 / 系统提示词 / 快照 / 故事各自成页，能推进回合与做危险操作。控制台顶部一张世界图谱（舞台图），点进去按舞台 → actor → 道具逐层看；推进面板只有「下一个」一个按钮：它自己开顺位、收工、补 world、推一位角色与他的舞台；面板上是按名次排的编排表，舞台跟着人走，本轮状态来自回合账（`action_order_turns`）。它还缺的是「撤掉正在跑的作业」、作业总览与图谱的检索框。后台现在与 web、服务端一样监听 `0.0.0.0`，能走局域网；代价是那道「只听本机」的墙换成了共享口令 `ADMIN_TOKEN`（`x-admin-token`），它不是身份——同一台机器上的多个观看者仍是同一个 `admin`。
 
 web 还没做的是「让回路在真界面里顺滑」：取消入口、订阅入口、作业历史视图，以及一次真机走查。动作种类停在 4 种（说/看/走/等），是刻意冻结的。
 
@@ -18,7 +18,7 @@ web 还没做的是「让回路在真界面里顺滑」：取消入口、订阅�
 | --- | --- |
 | [客户端回路](web-cs-flow.md) | web 侧待办：停止、订阅、作业历史、走查清单与观察点 |
 | [服务器遗留](server-debt.md) | 归档策略、SSE 限流、取消边界等，含各自的触发条件 |
-| [内容与验收](content-verify.md) | 种子缺敏捷装备、多舞台走查、收尾路径 |
+| [内容与验收](content-verify.md) | 种子缺敏捷装备、收尾路径 |
 | [管理后台](admin-console.md) | 控制面还没做的事，与几个先别动的边界 |
 | [已定的取舍](decisions.md) | 不再讨论的决定；改它之前先读理由 |
 
@@ -34,7 +34,8 @@ web 还没做的是「让回路在真界面里顺滑」：取消入口、订阅�
 
 - 回合与作业：`apps/server/src/game-ops/turn-jobs.ts`（四个入口、串行键、进度、取消）、`apps/server/src/jobs/`（队列、worker、进度、取消、`LISTEN/NOTIFY` 广播）
 - 作业的 HTTP 面：`apps/server/src/routes/games.ts`（列表 / 读取 / 取消）、`apps/server/src/routes/job-stream.ts`（SSE）
-- web 的回路：`apps/web/src/features/turns/`（编排、入队、轮询、订阅、寻址）、`apps/web/src/pages/game/TurnDialog.tsx`（容器）、`panels/ActionForm.tsx` 与 `panels/OrderPanel.tsx`（纯展示）
+- 编排规则（一份、两端共用）：`packages/api-client/src/orchestration.ts`（一次推进走哪几步、舞台推哪一处、`stale_view` 重试）；端口在 `apps/web/src/features/turns/advance.ts` 与 `apps/admin/src/features/games/advance.ts`
+- web 的回路：`apps/web/src/features/turns/`（入队、轮询、订阅、寻址）、`apps/web/src/pages/game/TurnDialog.tsx`（容器）、`panels/ActionForm.tsx` 与 `panels/OrderPanel.tsx`（纯展示）
 - 运维台：`apps/admin/src/components/PageHeader.tsx`（页头与导航）、`pages/game/`（一局的七个页）、`pages/game/graph/`（世界图谱：布局纯函数 + xyflow 画布）、`pages/overview/`（身份与节点）
 - 图谱的读：`apps/server/src/game-ops/graph.ts`（活状态的另一个切面）、`apps/server/src/routes/schemas/graph.ts`（线上契约）
 - 提示词导出的读：`apps/server/src/debug/prompt-dump.ts`（写盘与 `manifest.json`）、`apps/server/src/game-ops/prompts.ts`（按局认领、整包读回）
@@ -42,4 +43,4 @@ web 还没做的是「让回路在真界面里顺滑」：取消入口、订阅�
 
 ## 现在的验证位置
 
-`apps/server` 775 passed / 1 skipped，`apps/web` 50 passed，`apps/admin` 42 passed；`pnpm typecheck`、`pnpm lint` 全绿。数据库只有一份基线迁移（`apps/server/drizzle/0000_baseline.sql`），改 schema 的方式见 `docs/database.md` 与待办里的说明。
+`apps/server` 781 passed / 1 skipped，`apps/web` 52 passed，`apps/admin` 51 passed；`pnpm typecheck`、`pnpm lint` 全绿。数据库只有一份基线迁移（`apps/server/drizzle/0000_baseline.sql`），改 schema 的方式见 `docs/database.md` 与待办里的说明。

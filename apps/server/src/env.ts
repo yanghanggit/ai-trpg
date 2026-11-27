@@ -10,6 +10,11 @@ const envSchema = z.object({
   HOST: z.string().min(1).default("0.0.0.0"),
   PORT: z.coerce.number().int().min(1).max(65535).default(DEFAULT_SERVER_PORT),
   CORS_ORIGINS: z.string().default("*"),
+  /**
+   * 后台口令：配了之后，`admin` 身份的请求除了 `Authorization` 还要带 `x-admin-token`。
+   * 不配就是旧的「用户名即令牌」。后台搬到局域网后，这层是唯一挡在 Wi-Fi 与「运维」之间的东西。
+   */
+  ADMIN_TOKEN: z.string().trim().min(1).optional(),
   LOG_LEVEL: z.enum(["fatal", "error", "warn", "info", "debug", "trace", "silent"]).default("info"),
   DEEPSEEK_API_KEY: z.string().optional(),
   REPLICATE_API_TOKEN: z.string().optional(),

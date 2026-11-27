@@ -3,7 +3,9 @@ import { DEFAULT_ADMIN_USERNAME, DEFAULT_SERVER_PORT, serverBaseUrl } from "@ai-
 
 /**
  * 服务端地址：优先用 `.env` 的 VITE_API_BASE_URL；未配置时跟随页面主机名。
- * 后台只监听 127.0.0.1，所以缺省就落在同一台机器的服务端上。
+ *
+ * 跟随主机名是后台能走局域网的关键：用局域网 IP 打开页面时，请求就去同一台机器的
+ * 服务端端口，而不是访问者自己的本机回环地址。
  */
 function resolveApiBaseUrl(): string {
   const configured = import.meta.env.VITE_API_BASE_URL?.trim();
@@ -23,11 +25,22 @@ export const apiBaseUrl = resolveApiBaseUrl();
  */
 export const adminUsername = import.meta.env.VITE_ADMIN_USERNAME?.trim() || DEFAULT_ADMIN_USERNAME;
 
+/**
+ * 后台口令：与服务端 `ADMIN_TOKEN` 是同一个值，走 `x-admin-token` 头。
+ *
+ * 空着就只有「用户名即令牌」——本机用没问题，但后台一旦能被局域网访问，那道墙就只剩 Wi-Fi。
+ * 配了 `ADMIN_TOKEN` 却不填这里时，每条请求都会 401 并说明原因。
+ */
+const adminToken = import.meta.env.VITE_ADMIN_TOKEN?.trim() ?? "";
+
 export const api = createApiClient(apiBaseUrl);
 
 api.use({
   onRequest({ request }) {
     request.headers.set("Authorization", `Bearer ${adminUsername}`);
+    if (adminToken.length > 0) {
+      request.headers.set("x-admin-token", adminToken);
+    }
     return request;
   },
 });

@@ -31,12 +31,16 @@ pnpm dev
 启动后访问终端打印的地址：
 
 - Web：`http://<局域网 IP>:5373/`（Vite 的 Network 地址）
-- 管理后台：`http://127.0.0.1:5375/`（只监听本机，不随局域网暴露）
+- 管理后台：`http://<局域网 IP>:5375/`（同样监听 `0.0.0.0`，走局域网时**务必**配 `ADMIN_TOKEN`）
 - API：`http://<局域网 IP>:8787/api/v1/health`
 
 ## 局域网访问
 
-服务端默认监听 `0.0.0.0`；客户端未配置 `VITE_API_BASE_URL` 时按当前页面主机名推导地址，所以用局域网 IP 打开页面就请求同一台机器——不要用 `localhost` 访问另一台机器。IP 变化后以 Vite 输出的 Network（en0）地址为准。需要固定地址时在根 `.env` 设 `VITE_API_BASE_URL=http://<en0 IP>:8787` 并重启；建议路由器做 MAC 绑定。
+服务端与两个前端（web / admin）都监听 `0.0.0.0`；客户端未配置 `VITE_API_BASE_URL` 时按当前页面主机名推导地址，所以用局域网 IP 打开页面就请求同一台机器——不要用 `localhost` 访问另一台机器。IP 变化后以 Vite 输出的 Network（en0）地址为准。需要固定地址时在根 `.env` 设 `VITE_API_BASE_URL=http://<en0 IP>:8787` 并重启；建议路由器做 MAC 绑定。
+
+**管理后台走局域网要先加锁。** 后台的身份是 `Authorization: Bearer <username>`（用户名即令牌），而 `admin` 能越过局主检查、读全库、删局，所以「同一 Wi-Fi 上谁能打开 5375」就等于「谁是运维」。做法只有两步：根 `.env` 里 `ADMIN_TOKEN=<随便一串>` + `VITE_ADMIN_TOKEN=<同一个值>`，重启 dev。服务端收到自称 `admin` 的请求会先比 `x-admin-token`，对不上直接 401（消息里会写该配哪个变量）；玩家端不受影响，仍只带 `Authorization`。不配就只能在本机用——把 `apps/admin/vite.config.ts` 的 `host` 改回 `127.0.0.1`。
+
+macOS 第一次监听 `0.0.0.0` 会弹「允许 node 接受传入连接」，拒绝的话别的设备连不上；也可去「系统设置 → 网络 → 防火墙」放行。
 
 ## 环境变量
 
