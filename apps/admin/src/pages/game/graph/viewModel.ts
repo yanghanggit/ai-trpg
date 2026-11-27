@@ -8,7 +8,7 @@ import type { EntityRef, QueueRow, StageExit, StageView } from "./types";
  * 这些函数都是纯的，所以能在 node 环境里直接断言（后台的页面测试不引 jsdom）。
  */
 
-/** 顺位条：名次、已走回合、控制方、是否已死都在服务端算好了。 */
+/** 顺位：名次、已走回合、控制方、是否已死都在服务端算好了。 */
 export function queueRows(graph: GameGraph): QueueRow[] {
   const nextActorId = graph.order?.nextActor?.actorId;
   return [...(graph.order?.entries ?? [])]

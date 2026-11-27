@@ -22,6 +22,8 @@ export type AdvanceRow = {
 /** 推进面板的读数：编排表 + 行动轮状态，全部由顺位、回合账与图谱导出来。 */
 export type AdvanceReadings = {
   hasOrder: boolean;
+  /** 这一局的世界名：world 行要写明是哪个世界在收尾。 */
+  worldName?: string;
   /** 最近一笔账所属的行动轮编号；没有顺位时为 0。 */
   roundIndex: number;
   rows: AdvanceRow[];
@@ -108,6 +110,7 @@ export function advanceReadings(
 
   return {
     hasOrder: true,
+    ...(graph?.world.name === undefined ? {} : { worldName: graph.world.name }),
     roundIndex: round?.index ?? 1,
     rows,
     worldPushed,

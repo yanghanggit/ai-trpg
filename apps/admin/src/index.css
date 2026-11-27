@@ -703,53 +703,6 @@ a {
   opacity: 0.4;
 }
 
-/* 顺位条：名次是线性读法，不摊进画布。 */
-.queue {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  margin: 14px 0 0;
-  padding: 0;
-  list-style: none;
-}
-
-.queue__row {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 6px 10px;
-  border: 1px solid var(--line);
-  border-radius: 999px;
-  background: var(--panel-soft);
-  color: var(--text);
-  font: inherit;
-  font-size: 12.5px;
-  cursor: pointer;
-}
-
-.queue__item--next .queue__row {
-  border-color: rgb(125 211 252 / 45%);
-}
-
-.queue__row:hover {
-  border-color: var(--accent);
-}
-
-.queue__pos {
-  color: var(--accent);
-  font-variant-numeric: tabular-nums;
-}
-
-.queue__name--dead {
-  color: var(--muted);
-  text-decoration: line-through;
-}
-
-.queue__meta {
-  color: var(--muted);
-  font-size: 11.5px;
-}
-
 /* ---------------------------------------------------------------- 图谱弹窗 */
 
 /* 探针：一句话加一段答复，比默认宽、比图谱窄。 */

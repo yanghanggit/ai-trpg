@@ -4,6 +4,7 @@ import Hint from "../../components/Hint";
 import PageHeader from "../../components/PageHeader";
 import { advanceReadings } from "./advanceReadings";
 import DangerDialog from "./DangerDialog";
+import { actorStageId } from "./graph/flow";
 import StageExplorer, { type ExplorerTarget } from "./graph/StageExplorer";
 import WorldCard from "./graph/WorldCard";
 import LeaksDialog from "./LeaksDialog";
@@ -66,6 +67,12 @@ export default function GamePanels({ data, actions }: Props) {
         graph={data.graph}
         steps={data.advanceSteps}
         actions={actions}
+        onOpenActor={(actorId) => {
+          const stageId = data.graph === undefined ? undefined : actorStageId(data.graph, actorId);
+          if (stageId !== undefined) {
+            setExplorer({ stageId, actorId });
+          }
+        }}
       />
       <LeaksDialog
         open={data.leaksOpen}
@@ -95,6 +102,8 @@ type AdvanceSectionProps = {
   graph?: GamePageData["graph"];
   steps: GamePageData["advanceSteps"];
   actions: GamePageActions;
+  /** 点表里的角色：落到他的舞台页，看这个人现在的样子。 */
+  onOpenActor: (actorId: string) => void;
 };
 
 /**
@@ -103,9 +112,10 @@ type AdvanceSectionProps = {
  * 服务器只拥有四层单层入口与顺位/回合账的两份读数，次序在客户端。这里把次序摆成一张
  * 编排表——名次、角色、他所在的舞台、这一轮过了没有——按钮只有一个：按游戏设计往下走。
  */
-function AdvanceSection({ busy, graph, steps, actions }: AdvanceSectionProps) {
+function AdvanceSection({ busy, graph, steps, actions, onOpenActor }: AdvanceSectionProps) {
   const readings = advanceReadings(graph, graph?.round);
-  const { hasOrder, rows, worldPushed, roundDone, roundClosed, blocked, nextStep } = readings;
+  const { hasOrder, rows, worldPushed, roundDone, roundClosed, blocked, nextStep, worldName } =
+    readings;
 
   return (
     <section className="panel">
@@ -134,7 +144,13 @@ function AdvanceSection({ busy, graph, steps, actions }: AdvanceSectionProps) {
               <tr key={row.actorId} className={row.isNext ? "orchestration__row--next" : undefined}>
                 <td className="orchestration__pos">{row.position}</td>
                 <td>
-                  <span className={row.alive ? undefined : "muted"}>{row.actorName}</span>
+                  <button
+                    type="button"
+                    className={row.alive ? "linkish" : "linkish muted"}
+                    onClick={() => onOpenActor(row.actorId)}
+                  >
+                    {row.actorName}
+                  </button>
                 </td>
                 <td className="muted">{row.stageName ?? "—"}</td>
                 <td className="muted">{row.control === "player" ? "玩家" : "NPC"}</td>
@@ -153,7 +169,10 @@ function AdvanceSection({ busy, graph, steps, actions }: AdvanceSectionProps) {
             ))}
             <tr className={roundDone && !worldPushed ? "orchestration__row--next" : undefined}>
               <td className="orchestration__pos">—</td>
-              <td>world 回合</td>
+              <td>
+                world 回合
+                {worldName === undefined ? null : <span className="muted"> · {worldName}</span>}
+              </td>
               <td className="muted">收尾这一轮</td>
               <td className="muted">—</td>
               <td>

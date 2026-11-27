@@ -279,7 +279,7 @@ export function stageFlow(
   return { nodes, edges };
 }
 
-/** 顺位条上点一行时要知道去哪一层：先找到人，再找他的舞台。 */
+/** 编排表里点一个人时要知道去哪一层：先找到人，再找他的舞台。 */
 export function actorStageId(graph: GameGraph, actorId: string): string | undefined {
   return graph.actors.find((actor) => actor.id === actorId)?.stageId;
 }

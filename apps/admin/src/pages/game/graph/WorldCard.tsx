@@ -2,14 +2,12 @@ import { useMemo } from "react";
 import Hint from "../../../components/Hint";
 import type { GameGraph } from "../../../features/games/useGameGraph";
 import FlowCanvas from "./FlowCanvas";
-import { actorStageId, worldFlow } from "./flow";
-import QueueStrip from "./QueueStrip";
-import { queueRows } from "./viewModel";
+import { worldFlow } from "./flow";
 
 type Props = {
   graph?: GameGraph;
   error?: string;
-  /** 点舞台或顺位条：打开第二层，落在那个舞台 / 那个人。 */
+  /** 点舞台：打开第二层，落在那个舞台。 */
   onOpen: (stageId: string, actorId?: string) => void;
 };
 
@@ -24,13 +22,12 @@ export default function WorldCard({ graph, error, onOpen }: Props) {
     () => (graph === undefined ? { nodes: [], edges: [] } : worldFlow(graph)),
     [graph],
   );
-  const rows = useMemo(() => (graph === undefined ? [] : queueRows(graph)), [graph]);
 
   return (
     <section className="panel">
       <h2>
         世界图谱
-        <Hint text="一条线连两个舞台：箭头数=方向数，实线=至少一个方向能走，虚线=两个方向都封着，灰箭头=那个方向封着（sealed）。带「轮到」标记的舞台里站着顺位上的下一个人。点舞台看里面的人，点顺位条直接跳到那个人。页头「第 N 刻」是本局已落账的回合数：舞台回合与世界回合也推进它，所以它通常大于顺位上各人的回合数。" />
+        <Hint text="一条线连两个舞台：箭头数=方向数，实线=至少一个方向能走，虚线=两个方向都封着，灰箭头=那个方向封着（sealed）。带「轮到」标记的舞台里站着顺位上的下一个人。点舞台看里面的人。页头「第 N 刻」是本局已落账的回合数：舞台回合与世界回合也推进它，所以它通常大于顺位上各人的回合数。" />
       </h2>
 
       {error === undefined ? null : <p className="form-error">{error}</p>}
@@ -51,15 +48,6 @@ export default function WorldCard({ graph, error, onOpen }: Props) {
             edges={flow.edges}
             zoomOnScroll={false}
             onStageClick={(stageId) => onOpen(stageId)}
-          />
-          <QueueStrip
-            rows={rows}
-            onSelect={(actorId) => {
-              const stageId = actorStageId(graph, actorId);
-              if (stageId !== undefined) {
-                onOpen(stageId, actorId);
-              }
-            }}
           />
         </>
       )}

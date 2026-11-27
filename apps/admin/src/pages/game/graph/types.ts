@@ -35,7 +35,7 @@ export type ActorNodeData = {
 export type StageFlowNode = Node<StageNodeData, "stage">;
 export type ActorFlowNode = Node<ActorNodeData, "actor">;
 
-/** 顺位条一行：直接从 `order.entries` 来，不另算名次。 */
+/** 顺位的一行：直接从 `order.entries` 来，不另算名次。 */
 export type QueueRow = {
   actorId: string;
   name: string;
