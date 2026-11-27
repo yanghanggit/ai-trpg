@@ -152,6 +152,9 @@ export async function cancelTurnJob(
   })) as { outcome: "canceled" | "requested"; job: TurnJob };
 }
 
+/** 流是怎么结束的：服务端到点收尾（`close`）还是连接自己断了（`eof`）。 */
+export type WatchStreamEnd = "closed" | "eof";
+
 export type WatchTurnJobsOptions = {
   /** 从哪个游标之后补发；不给就只补活跃作业。 */
   since?: string;
@@ -171,7 +174,7 @@ export async function watchTurnJobs(
   client: ApiClient,
   game: string,
   options: WatchTurnJobsOptions,
-): Promise<void> {
+): Promise<WatchStreamEnd> {
   // `client.base` 只是服务端根地址；流式入口与 `call()` 一样要自己补上 API 前缀。
   const url = new URL(
     `${client.base}/api/${API_VERSION}/games/${encodeURIComponent(game)}/jobs/stream`,
@@ -197,6 +200,7 @@ export async function watchTurnJobs(
 
   const decoder = new TextDecoder();
   let buffer = "";
+  let ended: WatchStreamEnd = "eof";
   for await (const chunk of response.body) {
     buffer += decoder.decode(chunk, { stream: true });
     // 事件之间以空行分隔；保留最后一段（可能是半条）等下一个 chunk。
@@ -204,13 +208,22 @@ export async function watchTurnJobs(
     while (boundary >= 0) {
       const raw = buffer.slice(0, boundary);
       buffer = buffer.slice(boundary + 2);
+      // 服务端给单条流设了寿命：到点会先发一条 `close` 再挂断，这不是错误。
+      if (raw.split("\n").some((line) => line.trim() === "event: close")) {
+        ended = "closed";
+        break;
+      }
       const job = parseServerSentEvent(raw);
       if (job !== undefined) {
         options.onJob(job);
       }
       boundary = buffer.indexOf("\n\n");
     }
+    if (ended === "closed") {
+      break;
+    }
   }
+  return ended;
 }
 
 /** 只关心 `event: job`：其它（心跳注释、retry 提示）一律忽略。 */

@@ -75,7 +75,7 @@ export function registerJobCommands(program: Command): void {
       // 每条事件一行 JSON（JSONL），最后再给一份汇总信封。
       const seen = new Set<string>();
       note(`订阅第 ${input.game} 局：每条事件一行 JSON，Ctrl-C 结束`);
-      await watchTurnJobs(client, input.game, {
+      const ended = await watchTurnJobs(client, input.game, {
         ...(input.since === undefined ? {} : { since: input.since }),
         onOpen: () => note("已连接"),
         onJob: (job) => {
@@ -83,7 +83,10 @@ export function registerJobCommands(program: Command): void {
           process.stdout.write(`${JSON.stringify({ ok: true, action: "job-watch", job })}\n`);
         },
       });
-      return { game: input.game, jobs: seen.size };
+      if (ended === "closed") {
+        note("推送到期：服务端给单条流设了寿命，已主动收尾；要接着看请重跑一次（带 --since）");
+      }
+      return { game: input.game, jobs: seen.size, ended };
     },
   });
 }

@@ -70,16 +70,3 @@ export type StageView = {
   }[];
   neighbours: StageExit[];
 };
-
-/** 检索用的一条实体：舞台、actor、道具都归一成的形状。 */
-export type EntityRef = {
-  kind: "stage" | "actor" | "item";
-  id: string;
-  label: string;
-  /** 在哪个舞台下（道具是持有者的舞台，舞台是自己）。 */
-  stageId: string;
-  /** 道具挂在谁身上。 */
-  actorId?: string;
-  /** 检索时一并匹配的别名与描述，不显示。 */
-  keywords: string;
-};

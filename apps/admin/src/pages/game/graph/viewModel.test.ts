@@ -4,7 +4,6 @@ import {
   connectionPairs,
   describeCensus,
   describePassage,
-  entityIndex,
   nextStageId,
   queueRows,
   stageCensus,
@@ -241,40 +240,6 @@ describe("describePassage", () => {
     });
     const [exit] = stageView(oneWay, "hall")?.neighbours ?? [];
     expect(exit === undefined ? "" : describePassage(exit)).toBe("与yard：去封着，来没有路");
-  });
-});
-
-describe("entityIndex", () => {
-  it("舞台、actor、道具都能从根上查到，并带上归属", () => {
-    const indexed = graph({
-      actors: [actor("a", "hall", 1, { items: [{ id: "i1", name: "铁锹", description: "钝了" }] })],
-      stages: [
-        stage("hall", 0, {
-          anchors: [
-            {
-              key: "peg",
-              label: "木杆",
-              items: [{ id: "i2", name: "骨哨", description: "" }],
-            },
-          ],
-        }),
-      ],
-    });
-
-    const entries = entityIndex(indexed);
-    expect(entries.find((entry) => entry.kind === "stage" && entry.id === "hall")?.stageId).toBe(
-      "hall",
-    );
-    expect(entries.find((entry) => entry.kind === "actor" && entry.id === "a")?.stageId).toBe(
-      "hall",
-    );
-    const sword = entries.find((entry) => entry.kind === "item" && entry.label === "铁锹");
-    expect(sword).toMatchObject({ stageId: "hall", actorId: "a" });
-    const whistle = entries.find((entry) => entry.kind === "item" && entry.label === "骨哨");
-    expect(whistle).toMatchObject({ stageId: "hall" });
-    expect(whistle?.actorId).toBeUndefined();
-    // 描述进关键字：搜索框按描述也能命中。
-    expect(whistle?.keywords).toContain("木杆");
   });
 });
 

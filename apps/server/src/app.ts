@@ -17,6 +17,7 @@ import type { JobChangeBroker } from "./jobs";
 import { assertAdminToken, claimedUsername } from "./plugins/auth";
 import { registerErrorHandler } from "./plugins/error-handler";
 import { createRoutes } from "./routes";
+import type { StreamLimits } from "./routes/stream-limits";
 
 export type BuildAppOptions = {
   env: Env;
@@ -29,6 +30,8 @@ export type BuildAppOptions = {
   db: () => Database;
   /** 作业状态推送的订阅源；由进程入口持有并启动，测试可以不传。 */
   broker?: JobChangeBroker;
+  /** SSE 的三条上限（每身份并发数 / 单流寿命 / 积压字节）；用例把它调小。 */
+  streamLimits?: StreamLimits;
 };
 
 /** 组装一个可注入、可测试的 Fastify 实例；监听端口由调用方负责。 */
@@ -37,6 +40,7 @@ export async function buildApp({
   logger = true,
   db,
   broker,
+  streamLimits,
 }: BuildAppOptions): Promise<FastifyInstance> {
   const loggerConfig: FastifyServerOptions["logger"] = logger
     ? {
@@ -102,6 +106,7 @@ export async function buildApp({
   await app.register(
     createRoutes(db, {
       ...(broker === undefined ? {} : { broker }),
+      ...(streamLimits === undefined ? {} : { streamLimits }),
       listen: { host: env.HOST, port: env.PORT },
     }),
   );

@@ -25,6 +25,13 @@ import { HttpError } from "../http-error";
 import type { JobChangeBroker } from "../jobs";
 import { requireUser } from "../plugins/auth";
 import { requireGameAccess } from "./games";
+import {
+  createStreamRegistry,
+  isOverloaded,
+  STREAM_MAX_BUFFERED_BYTES,
+  STREAM_MAX_LIFETIME_MS,
+  type StreamLimits,
+} from "./stream-limits";
 
 const gameParams = z.object({ game: z.string().trim().min(1) });
 
@@ -41,7 +48,13 @@ const HEARTBEAT_INTERVAL_MS = 15_000;
 export function createJobStreamRoutes(
   db: () => Database,
   broker: JobChangeBroker | undefined,
+  limits: StreamLimits = {},
 ): FastifyPluginAsyncZod {
+  // 登记簿跟着这份路由走：一个进程一份，额度按身份算。
+  const streams = createStreamRegistry(limits);
+  const lifetimeMs = limits.lifetimeMs ?? STREAM_MAX_LIFETIME_MS;
+  const maxBufferedBytes = limits.maxBufferedBytes ?? STREAM_MAX_BUFFERED_BYTES;
+
   return async (app) => {
     app.get(
       "/games/:game/jobs/stream",
@@ -67,6 +80,15 @@ export function createJobStreamRoutes(
         }
         if (broker === undefined) {
           throw new HttpError(503, "unavailable", "作业推送未启用：这个进程没有启动订阅");
+        }
+        // 额度在 hijack 之前拿：拿不到就还是一条普通请求，能正常回 429。
+        const lease = streams.open(user.username);
+        if (lease === undefined) {
+          throw new HttpError(
+            429,
+            "too_many_streams",
+            "这个身份挂着的作业推送太多了：先收掉不用的页面（每条流都有寿命，到点会自己结束）",
+          );
         }
 
         const since = request.query.since === undefined ? undefined : new Date(request.query.since);
@@ -102,6 +124,14 @@ export function createJobStreamRoutes(
         let closed = false;
         let chain: Promise<void> = Promise.resolve();
 
+        /**
+         * 慢消费者：积压超过预算直接收尾。
+         *
+         * 推的是「去看一眼」的提醒，不是流水账——断掉不丢事实，客户端重连时按 `since` 补发。
+         * 真让它一直缓存，占的是进程自己的内存。
+         */
+        const overloaded = (): boolean => isOverloaded(raw.writableLength, maxBufferedBytes);
+
         const writeView = (view: TurnJobView): void => {
           if (closed) {
             return;
@@ -111,6 +141,10 @@ export function createJobStreamRoutes(
             return;
           }
           sent.set(view.jobId, { signature, updatedAt: view.updatedAt });
+          if (overloaded()) {
+            finish();
+            return;
+          }
           raw.write(
             `id: ${view.updatedAt}\nevent: job\ndata: ${JSON.stringify({ job: view })}\n\n`,
           );
@@ -170,11 +204,31 @@ export function createJobStreamRoutes(
         });
 
         const heartbeat = setInterval(() => {
-          if (!closed) {
-            raw.write(": ping\n\n");
+          if (closed) {
+            return;
           }
+          if (overloaded()) {
+            finish();
+            return;
+          }
+          raw.write(": ping\n\n");
         }, HEARTBEAT_INTERVAL_MS);
         heartbeat.unref();
+
+        /**
+         * 到点收尾：发一条 `close` 再挂断。
+         *
+         * 寿命不是「防挂死」的兜底而是常态：客户端看到 `close` 按 `retry` 重连、
+         * 带上 `since` 补发，中间那几十毫秒的变更不会丢。
+         */
+        const lifetime = setTimeout(() => {
+          if (closed) {
+            return;
+          }
+          raw.write(`event: close\ndata: ${JSON.stringify({ reason: "lifetime" })}\n\n`);
+          finish();
+        }, lifetimeMs);
+        lifetime.unref();
 
         const cleanup = (): void => {
           if (closed) {
@@ -182,8 +236,19 @@ export function createJobStreamRoutes(
           }
           closed = true;
           clearInterval(heartbeat);
+          clearTimeout(lifetime);
           unsubscribe();
+          lease.release();
         };
+
+        /** 主动收尾：先清理，再让 socket 正常结束（不 reset，客户端才会走重连）。 */
+        function finish(): void {
+          if (closed) {
+            return;
+          }
+          cleanup();
+          raw.end();
+        }
         request.raw.on("close", cleanup);
         raw.on("close", cleanup);
         raw.on("error", cleanup);

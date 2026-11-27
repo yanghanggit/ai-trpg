@@ -1,5 +1,5 @@
 import type { GameGraph, GraphActor } from "../../../features/games/useGameGraph";
-import type { EntityRef, QueueRow, StageExit, StageView } from "./types";
+import type { QueueRow, StageExit, StageView } from "./types";
 
 /**
  * 图谱的读法：把契约里的两张平表拼成「世界 → 舞台 → actor」三层。
@@ -187,69 +187,6 @@ export function describePassage(exit: StageExit): string {
 /** 一个 actor 在顺位上的位置；不在顺位上就是 `undefined`。 */
 export function actorInQueue(graph: GameGraph, actorId: string): QueueRow | undefined {
   return queueRows(graph).find((row) => row.actorId === actorId);
-}
-
-/**
- * 检索索引：舞台、actor、道具都归一成 `kind / id / label`。
- *
- * 现在只喂给未来的搜索框，但形状先定下来——三层各自造一套搜索结果，迟早要拆。
- */
-export function entityIndex(graph: GameGraph): EntityRef[] {
-  const entries: EntityRef[] = [];
-
-  for (const stage of graph.stages) {
-    entries.push({
-      kind: "stage",
-      id: stage.id,
-      label: stage.name,
-      stageId: stage.id,
-      keywords: [stage.key, stage.environment].join(" "),
-    });
-    for (const anchor of stage.anchors) {
-      for (const item of anchor.items) {
-        entries.push(itemRef(item, stage.id, undefined, anchor.label));
-      }
-    }
-  }
-
-  for (const actor of graph.actors) {
-    entries.push({
-      kind: "actor",
-      id: actor.id,
-      label: actor.name,
-      stageId: actor.stageId,
-      keywords: [actor.key, text(actor.appearance, "text")].join(" "),
-    });
-    for (const item of actor.items) {
-      entries.push(itemRef(item, actor.stageId, actor.id));
-    }
-  }
-
-  return entries;
-}
-
-/** 原始行里可能缺字段：读不到就当没有，不抛。 */
-function text(row: Record<string, unknown>, field: string): string {
-  const value = row[field];
-  return typeof value === "string" ? value : "";
-}
-
-function itemRef(
-  item: Record<string, unknown>,
-  stageId: string,
-  actorId: string | undefined,
-  anchorLabel?: string,
-): EntityRef {
-  const label = text(item, "name");
-  const id = text(item, "id") || text(item, "key") || label;
-  return {
-    kind: "item",
-    id,
-    label,
-    stageId,
-    ...(actorId === undefined ? {} : { actorId }),
-    keywords: [text(item, "description"), anchorLabel ?? ""].join(" "),
-  };
 }
 
 /** actor 的血量比例：血条用，夹在 0..1，避免脏数据把条撑出去。 */
