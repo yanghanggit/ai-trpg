@@ -26,7 +26,7 @@ export default function GamePanels({ data, actions }: Props) {
   const [explorer, setExplorer] = useState<ExplorerTarget>();
 
   return (
-    <main className="admin">
+    <main className="admin admin--console">
       <PageHeader
         crumbs={[
           { label: "总览", to: "/" },
@@ -55,25 +55,29 @@ export default function GamePanels({ data, actions }: Props) {
       {data.actionError === undefined ? null : <p className="form-error">{data.actionError}</p>}
       {data.advanceNote === undefined ? null : <p className="muted">{data.advanceNote}</p>}
 
-      <WorldCard
-        {...(data.graph === undefined ? {} : { graph: data.graph })}
-        {...(data.graphError === undefined ? {} : { error: data.graphError })}
-        onOpen={(stageId, actorId) =>
-          setExplorer(actorId === undefined ? { stageId } : { stageId, actorId })
-        }
-      />
-      <AdvanceSection
-        busy={data.busy !== undefined}
-        graph={data.graph}
-        steps={data.advanceSteps}
-        actions={actions}
-        onOpenActor={(actorId) => {
-          const stageId = data.graph === undefined ? undefined : actorStageId(data.graph, actorId);
-          if (stageId !== undefined) {
-            setExplorer({ stageId, actorId });
+      {/* 图谱在左、推进在右：图谱要的是面积，推进要的是顺手。 */}
+      <div className="console-grid">
+        <WorldCard
+          {...(data.graph === undefined ? {} : { graph: data.graph })}
+          {...(data.graphError === undefined ? {} : { error: data.graphError })}
+          onOpen={(stageId, actorId) =>
+            setExplorer(actorId === undefined ? { stageId } : { stageId, actorId })
           }
-        }}
-      />
+        />
+        <AdvanceSection
+          busy={data.busy !== undefined}
+          graph={data.graph}
+          steps={data.advanceSteps}
+          actions={actions}
+          onOpenActor={(actorId) => {
+            const stageId =
+              data.graph === undefined ? undefined : actorStageId(data.graph, actorId);
+            if (stageId !== undefined) {
+              setExplorer({ stageId, actorId });
+            }
+          }}
+        />
+      </div>
       <LeaksDialog
         open={data.leaksOpen}
         result={data.leaks}
@@ -118,7 +122,7 @@ function AdvanceSection({ busy, graph, steps, actions, onOpenActor }: AdvanceSec
     readings;
 
   return (
-    <section className="panel">
+    <section className="panel panel--advance">
       <h2>
         推进
         <Hint text="一次点击走一步：没有顺位就先开一条，顺位上没人了就收工；这一轮活人已齐平而 world 还没推，就先补 world；否则推下一位角色，再推他所在的舞台。每一步都重新读顺位与回合账，不拿面板上那份旧图做决定。玩家席位不替人决定，遇到它会停下。" />
@@ -135,7 +139,6 @@ function AdvanceSection({ busy, graph, steps, actions, onOpenActor }: AdvanceSec
               <th>#</th>
               <th>角色</th>
               <th>舞台</th>
-              <th>控制</th>
               <th>本轮</th>
             </tr>
           </thead>
@@ -151,9 +154,11 @@ function AdvanceSection({ busy, graph, steps, actions, onOpenActor }: AdvanceSec
                   >
                     {row.actorName}
                   </button>
+                  <span className="orchestration__control">
+                    {row.control === "player" ? "玩家" : "NPC"}
+                  </span>
                 </td>
                 <td className="muted">{row.stageName ?? "—"}</td>
-                <td className="muted">{row.control === "player" ? "玩家" : "NPC"}</td>
                 <td>
                   {row.actedThisRound ? (
                     <span className={row.emptyThisRound ? "badge" : "badge badge--ok"}>
@@ -169,19 +174,17 @@ function AdvanceSection({ busy, graph, steps, actions, onOpenActor }: AdvanceSec
             ))}
             <tr className={roundDone && !worldPushed ? "orchestration__row--next" : undefined}>
               <td className="orchestration__pos">—</td>
-              <td>
+              <td colSpan={2}>
                 world 回合
                 {worldName === undefined ? null : <span className="muted"> · {worldName}</span>}
               </td>
-              <td className="muted">收尾这一轮</td>
-              <td className="muted">—</td>
               <td>
                 {worldPushed ? (
                   <span className="badge badge--ok">✓</span>
                 ) : roundDone ? (
                   <span className="badge badge--pending">该推</span>
                 ) : (
-                  <span className="muted">活人齐平后</span>
+                  <span className="muted">齐平后</span>
                 )}
               </td>
             </tr>

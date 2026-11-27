@@ -55,6 +55,11 @@ a {
   padding: 20px clamp(16px, 2vw, 32px) 56px;
 }
 
+/* 控制台多一列：图谱要面积，所以这一页比别的页宽。 */
+.admin--console {
+  max-width: 1560px;
+}
+
 .admin__bar {
   display: flex;
   align-items: flex-end;
@@ -286,6 +291,7 @@ a {
 
 .badge {
   display: inline-block;
+  white-space: nowrap;
   padding: 2px 10px;
   border: 1px solid currentcolor;
   border-radius: 999px;
@@ -549,8 +555,9 @@ a {
   background: var(--bg);
 }
 
+/* 定高是硬要求（xyflow 要有确定尺寸）：分栏后取视口剩余高度，桌面上一屏看得全。 */
 .graph-canvas--card {
-  height: 300px;
+  height: clamp(520px, calc(100vh - 300px), 820px);
 }
 
 .graph-canvas--explorer {
@@ -874,6 +881,48 @@ a {
   margin: 0;
 }
 
+/* 图谱在左、推进在右：左栏吃满剩余宽度，右栏定宽。 */
+.console-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 420px;
+  gap: 20px;
+  align-items: start;
+}
+
+.console-grid > .panel {
+  margin-top: 20px;
+}
+
+/* 右栏跟着滚：图谱再高，按钮也一直在视野里。 */
+.panel--advance {
+  position: sticky;
+  top: 16px;
+}
+
+/* 编排表在窄栏里：数字列与徽章收紧，名字占大头。 */
+.panel--advance .orchestration {
+  font-size: 12.5px;
+}
+
+.panel--advance .orchestration th,
+.panel--advance .orchestration td {
+  padding: 5px 6px;
+}
+
+@media (max-width: 1200px) {
+  .console-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .panel--advance {
+    position: static;
+  }
+
+  .graph-canvas--card {
+    height: 320px;
+  }
+}
+
 /* 一排并排的按钮：推进的五个入口同一行，宽度按内容。 */
 .row {
   display: flex;
@@ -904,10 +953,23 @@ a {
   border-bottom: 1px solid rgb(36 49 63 / 60%);
 }
 
+/* 控制方跟着名字走，省一列：窄栏里五列放不下。 */
+.orchestration__control {
+  margin-left: 6px;
+  color: var(--muted);
+  font-size: 11px;
+}
+
 .orchestration__pos {
   width: 32px;
   color: var(--accent);
   font-variant-numeric: tabular-nums;
+}
+
+/* 本轮这一列只放徽章，别让它被名字挤成两行。 */
+.panel--advance .orchestration td:last-child {
+  white-space: nowrap;
+  text-align: right;
 }
 
 .orchestration__row--next td {
