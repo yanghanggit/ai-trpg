@@ -16,9 +16,10 @@ import {
   labelOf,
 } from "../../features/games/advance";
 import { useGameActions } from "../../features/games/useGameActions";
-import { useNameLeaks } from "../../features/games/useGameData";
+import { useMessageCursor, useNameLeaks } from "../../features/games/useGameData";
 import { useGameGraph } from "../../features/games/useGameGraph";
 import GamePanels from "./GamePanels";
+import { readSeenCursor, unseenCount } from "./seenCursor";
 import type { AdvanceStep, GamePageActions, GamePageData } from "./types";
 
 /**
@@ -37,6 +38,12 @@ export default function GameConsole({ slug }: { slug: string }) {
 
   const [leaksOpen, setLeaksOpen] = useState(false);
   const leaks = useNameLeaks(slug, leaksOpen);
+
+  // 「新事件」：推进刚产出的事件不该在主事件流那张全量表里找，所以按钮放在推进面板上。
+  // 条数 = 当前最大序号 − 这个浏览器的阅读水位；水位在关窗时重读一次。
+  const cursor = useMessageCursor(slug);
+  const [feedOpen, setFeedOpen] = useState(false);
+  const [seen, setSeen] = useState(() => readSeenCursor(slug));
 
   const [busy, setBusy] = useState<string>();
   const [actionError, setActionError] = useState<string>();
@@ -143,6 +150,11 @@ export default function GameConsole({ slug }: { slug: string }) {
         navigate("/");
       });
     },
+    openFeed: () => setFeedOpen(true),
+    closeFeed: () => {
+      setFeedOpen(false);
+      setSeen(readSeenCursor(slug));
+    },
     openLeaks: () => setLeaksOpen(true),
     closeLeaks: () => setLeaksOpen(false),
     rescanLeaks: () => void leaks.refetch(),
@@ -159,6 +171,9 @@ export default function GameConsole({ slug }: { slug: string }) {
     leaks: leaks.data,
     leaksError: leaks.isError ? describeApiError(leaks.error) : undefined,
     leaksOpen,
+    ...(cursor.data === undefined ? {} : { latestCursor: cursor.data }),
+    unseen: unseenCount(cursor.data, seen),
+    feedOpen,
   };
 
   return <GamePanels data={data} actions={handlers} />;

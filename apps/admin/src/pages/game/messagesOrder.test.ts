@@ -1,14 +1,21 @@
 import { describe, expect, it } from "vitest";
-import { orderMessages, parseMessageOrder } from "./messagesOrder";
+import { orderMessages, resolveMessageOrder } from "./messagesOrder";
 
 const messages = [{ sequence: 3 }, { sequence: 1 }, { sequence: 2 }];
 
-describe("parseMessageOrder", () => {
-  it("只认 desc，其余都是正序", () => {
-    expect(parseMessageOrder("desc")).toBe("desc");
-    expect(parseMessageOrder("asc")).toBe("asc");
-    expect(parseMessageOrder(null)).toBe("asc");
-    expect(parseMessageOrder("随便写点")).toBe("asc");
+describe("resolveMessageOrder", () => {
+  it("地址栏写了就听地址栏", () => {
+    expect(resolveMessageOrder("desc", "asc")).toBe("desc");
+    expect(resolveMessageOrder("asc", "desc")).toBe("asc");
+  });
+
+  it("地址栏没写就听本机记住的那个", () => {
+    expect(resolveMessageOrder(null, "desc")).toBe("desc");
+    expect(resolveMessageOrder(undefined, "asc")).toBe("asc");
+  });
+
+  it("认不出的值不抹掉记住的选择", () => {
+    expect(resolveMessageOrder("随便写点", "desc")).toBe("desc");
   });
 });
 

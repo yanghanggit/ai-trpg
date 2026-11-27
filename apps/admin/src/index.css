@@ -717,6 +717,11 @@ a {
   width: min(820px, calc(100% - 32px));
 }
 
+/* 新事件：一张表，和事件流页同一个读法；给它比探针宽一点的行。 */
+.dialog--feed {
+  width: min(980px, calc(100% - 32px));
+}
+
 .dialog--probe .inline-form .field {
   flex: 1;
 }
@@ -933,12 +938,13 @@ a {
 }
 
 /* 事件流：只有内容会换行，序号、类型、可见性、时间与按钮都保持一行。 */
-.table--messages td:nth-child(1),
-.table--messages td:nth-child(2),
-.table--messages td:nth-child(3),
-.table--messages td:nth-child(5),
-.table--messages td:nth-child(6) {
+.table--messages td {
   white-space: nowrap;
+}
+
+/* 例外：正文那格自己换行——按列位置写死的话，换一组列就全错。 */
+.table--messages td.cell--wrap {
+  white-space: normal;
 }
 
 /* 编排表：顺位就是行，舞台跟人绑在同一行。 */

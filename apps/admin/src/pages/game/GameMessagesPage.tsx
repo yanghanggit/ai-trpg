@@ -44,7 +44,7 @@ export default function GameMessagesPage({ data, onRefresh, onToggleOrder }: Pro
       <section className="panel">
         <h2>
           事件流
-          <Hint text="公共事件流（game_messages）：上帝视角、带真实名字，只追加。新回合落地就会多一行。" />
+          <Hint text="公共事件流（game_messages）：上帝视角、带真实名字，只追加。新回合落地就会多一行。顺序记在这台机器上——选过倒序，下次进这一页还是倒序。" />
         </h2>
         <p className="muted">
           共 {messages.length} 条{data.order === "desc" ? " · 最新在最上面" : ""}
@@ -72,7 +72,7 @@ export default function GameMessagesPage({ data, onRefresh, onToggleOrder }: Pro
                   <td>{message.sequence}</td>
                   <td>{message.kind}</td>
                   <td>{message.visibility}</td>
-                  <td>{message.content}</td>
+                  <td className="cell--wrap">{message.content}</td>
                   <td>{formatAt(message.createdAt)}</td>
                   <td>
                     <button

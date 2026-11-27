@@ -3,7 +3,13 @@ import { describeApiError } from "../../api/describeApiError";
 import { useGameMessages } from "../../features/games/useGameData";
 import { useRefreshGame } from "../../features/games/useRefreshGame";
 import GameMessagesPage from "./GameMessagesPage";
-import { type MessageOrder, orderMessages, parseMessageOrder } from "./messagesOrder";
+import {
+  type MessageOrder,
+  orderMessages,
+  readOrderPreference,
+  resolveMessageOrder,
+  writeOrderPreference,
+} from "./messagesOrder";
 import type { GameMessagesData } from "./types";
 
 /**
@@ -16,24 +22,23 @@ export default function GameMessagesContainer({ slug }: { slug: string }) {
   const refresh = useRefreshGame(slug);
   const messages = useGameMessages(slug);
 
-  const order = parseMessageOrder(params.get("order"));
+  const order = resolveMessageOrder(params.get("order"), readOrderPreference());
 
   function toggleOrder(): void {
     const next: MessageOrder = order === "asc" ? "desc" : "asc";
+    // 两个去处都写：地址栏管这一屏，偏好管下次进这一页还这么排。
+    writeOrderPreference(next);
     const updated = new URLSearchParams(params);
-    if (next === "asc") {
-      // 默认值不写进地址栏：干净的链接就是正序。
-      updated.delete("order");
-    } else {
-      updated.set("order", next);
-    }
+    updated.set("order", next);
     setParams(updated, { replace: true });
   }
 
   const data: GameMessagesData = {
     slug,
     order,
-    ...(messages.data === undefined ? {} : { messages: orderMessages(messages.data, order) }),
+    ...(messages.data === undefined
+      ? {}
+      : { messages: orderMessages(messages.data.messages, order) }),
     ...(messages.isError ? { messagesError: describeApiError(messages.error) } : {}),
   };
 

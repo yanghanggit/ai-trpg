@@ -140,6 +140,12 @@ export type GamePageData = {
   leaksError?: string;
   /** 扫描结果进弹窗：按钮在顶部，报告不占主页面版面。 */
   leaksOpen: boolean;
+
+  /** 这一局事件流的最大序号：新事件弹窗第一次打开时拿它当起点。 */
+  latestCursor?: number;
+  /** 上次看过之后新增的条数：推进刚产出的东西，就该在推进旁边数出来。 */
+  unseen: number;
+  feedOpen: boolean;
 };
 
 export type GamePageActions = {
@@ -152,6 +158,8 @@ export type GamePageActions = {
   next: () => Promise<void>;
   endGame: (input: { outcome: string; message?: string }) => Promise<void>;
   deleteGame: () => Promise<void>;
+  openFeed: () => void;
+  closeFeed: () => void;
   openLeaks: () => void;
   closeLeaks: () => void;
   rescanLeaks: () => void;
