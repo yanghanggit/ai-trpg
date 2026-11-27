@@ -1,3 +1,4 @@
+import GamePageLinks from "../../components/GamePageLinks";
 import Hint from "../../components/Hint";
 import PageHeader from "../../components/PageHeader";
 import { formatAt } from "../../lib/format";
@@ -23,8 +24,8 @@ export default function GameMessagesPage({ data, onRefresh }: Props) {
           { label: "总览", to: "/" },
           { label: "局", to: "/games" },
           { label: data.slug, to: `/g/${encodeURIComponent(data.slug)}` },
-          { label: "事件流" },
         ]}
+        nav={<GamePageLinks slug={data.slug} current="messages" />}
         title={<code>{data.slug}</code>}
         onRefresh={() => void onRefresh()}
       />

@@ -49,7 +49,7 @@ const USAGE = `用真实浏览器给页面截图：导航 → 等待 → （可�
   --base <url>       显式指定地址，默认 ${defaultBase}
   --out <file>       输出文件，默认 logs/screenshots/<路径末段>-<宽>x<高>.png
   --size <宽x高>     视口尺寸，默认 ${DEFAULT_SIZE}
-  --click <文本>     截图前点一下这个按钮（按 aria-label 或按钮文字匹配）
+  --click <文本>     截图前点一下这个按钮或链接（按 aria-label 或可见文字匹配）
                      用 | 分隔可连点多下，如：--click "立即重试|确定"
                      重名时点最后一个（浮层后渲染，也就是看得见的那一层）
   --wait <ms>        导航后等待，默认 ${DEFAULT_WAIT_MS}（等 React 挂载与接口返回）
@@ -330,7 +330,8 @@ function clickExpression(label: string): string {
       return clone.textContent.trim();
     };
     // 折叠面板（<summary>）也算可点目标：排查时经常要展开 <details> 再截图。
-    const buttons = [...document.querySelectorAll("button, summary")];
+    // 链接也算：页头那排「去别的页」是真的 <a>。
+    const buttons = [...document.querySelectorAll("button, summary, a")];
     const hit = buttons.findLast(
       (button) =>
         button.getAttribute("aria-label") === wanted ||

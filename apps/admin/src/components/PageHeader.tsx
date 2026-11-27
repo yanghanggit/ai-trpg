@@ -15,6 +15,8 @@ type Props = {
   /** 这一页的对象（slug、回合 id）或页名；列表页就是页名。 */
   title: ReactNode;
   hint?: string;
+  /** 同一层的其它页，接在面包屑后面：导航只出现在这一行。 */
+  nav?: ReactNode;
   /** 页面自己的动作，排在自动刷新/刷新的左边。 */
   children?: ReactNode;
   onRefresh?: () => void;
@@ -28,7 +30,15 @@ type Props = {
  * 右侧的顺序是固定的：页面动作 → 自动刷新 → 刷新 → 危险操作。这样切页时
  * 「自动刷新」和「刷新」不会左右乱跳，手不用重新找。
  */
-export default function PageHeader({ crumbs, title, hint, children, onRefresh, danger }: Props) {
+export default function PageHeader({
+  crumbs,
+  title,
+  hint,
+  nav,
+  children,
+  onRefresh,
+  danger,
+}: Props) {
   return (
     <header className="admin__bar">
       <div>
@@ -52,6 +62,16 @@ export default function PageHeader({ crumbs, title, hint, children, onRefresh, d
               </Fragment>
             );
           })}
+          {nav === undefined ? null : (
+            <>
+              {crumbs.length === 0 ? null : (
+                <span className="eyebrow__sep" aria-hidden="true">
+                  /
+                </span>
+              )}
+              <span className="eyebrow__pages">{nav}</span>
+            </>
+          )}
         </nav>
         <h1>
           {title}

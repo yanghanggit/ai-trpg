@@ -1,3 +1,4 @@
+import GamePageLinks from "../../components/GamePageLinks";
 import Hint from "../../components/Hint";
 import PageHeader from "../../components/PageHeader";
 import { formatNumber } from "../../lib/format";
@@ -16,12 +17,8 @@ export default function GameBuildPage({ data, onRefresh }: Props) {
   return (
     <main className="admin">
       <PageHeader
-        crumbs={[
-          { label: "总览", to: "/" },
-          { label: "局", to: "/games" },
-          { label: data.slug },
-          { label: "建局数据" },
-        ]}
+        crumbs={[{ label: "总览", to: "/" }, { label: "局", to: "/games" }, { label: data.slug }]}
+        nav={<GamePageLinks slug={data.slug} current="build" />}
         title={<code>{data.slug}</code>}
         onRefresh={onRefresh}
       />

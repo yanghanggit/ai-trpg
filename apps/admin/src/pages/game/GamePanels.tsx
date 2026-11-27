@@ -1,4 +1,5 @@
 import { useState } from "react";
+import GamePageLinks from "../../components/GamePageLinks";
 import Hint from "../../components/Hint";
 import PageHeader from "../../components/PageHeader";
 import type { AdvanceKind } from "../../features/games/useGameActions";
@@ -27,8 +28,8 @@ export default function GamePanels({ data, actions }: Props) {
           { label: "总览", to: "/" },
           { label: "局", to: "/games" },
           { label: data.slug, to: `/g/${encodeURIComponent(data.slug)}` },
-          { label: "局控制台" },
         ]}
+        nav={<GamePageLinks slug={data.slug} current="console" />}
         title={<code>{data.slug}</code>}
         onRefresh={() => void actions.refresh()}
         danger={

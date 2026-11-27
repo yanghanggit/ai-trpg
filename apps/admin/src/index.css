@@ -80,6 +80,66 @@ a {
   gap: 10px;
 }
 
+/* 同一层的页：接在面包屑后面，用 · 分隔，当前页不点。 */
+.eyebrow__pages {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 2px;
+}
+
+.eyebrow__page {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.eyebrow__dot {
+  color: var(--line);
+}
+
+/* 窄屏折叠：「更多 ▾」是个原生 details，菜单浮在页头之上。 */
+.eyebrow__more {
+  position: relative;
+}
+
+.eyebrow__more > summary {
+  padding: 4px 6px;
+  border-radius: 6px;
+  color: var(--muted);
+  cursor: pointer;
+  list-style: none;
+}
+
+.eyebrow__more > summary::-webkit-details-marker {
+  display: none;
+}
+
+.eyebrow__more > summary:hover {
+  background: rgb(255 255 255 / 7%);
+  color: var(--accent);
+}
+
+.eyebrow__menu {
+  position: absolute;
+  z-index: 20;
+  top: calc(100% + 6px);
+  left: 0;
+  display: grid;
+  gap: 8px;
+  min-width: 132px;
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--panel);
+  box-shadow: 0 12px 28px rgb(0 0 0 / 45%);
+}
+
+.eyebrow__menu a {
+  padding: 0;
+  letter-spacing: 0.12em;
+}
+
 /* 面包屑：一级一个盒子，留出可点的面积；分隔符是装饰，不占点击。 */
 .eyebrow {
   display: flex;

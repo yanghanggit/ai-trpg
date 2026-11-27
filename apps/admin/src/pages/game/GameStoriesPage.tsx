@@ -1,3 +1,4 @@
+import GamePageLinks from "../../components/GamePageLinks";
 import Hint from "../../components/Hint";
 import PageHeader from "../../components/PageHeader";
 import { formatAt, formatNumber } from "../../lib/format";
@@ -26,8 +27,8 @@ export default function GameStoriesPage({ data, onOpen, onRefresh, onRun }: Prop
           { label: "总览", to: "/" },
           { label: "局", to: "/games" },
           { label: data.slug, to: `/g/${encodeURIComponent(data.slug)}` },
-          { label: "故事" },
         ]}
+        nav={<GamePageLinks slug={data.slug} current="stories" />}
         title={<code>{data.slug}</code>}
         onRefresh={() => void onRefresh()}
       >
