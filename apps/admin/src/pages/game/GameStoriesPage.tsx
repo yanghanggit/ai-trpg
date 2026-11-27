@@ -86,7 +86,7 @@ export default function GameStoriesPage({ data, onOpen, onRefresh, onRun }: Prop
                       className="button button--ghost"
                       onClick={() => onOpen(story.name)}
                     >
-                      阅读
+                      原文
                     </button>
                   </td>
                 </tr>

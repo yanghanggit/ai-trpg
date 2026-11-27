@@ -82,7 +82,7 @@ export default function GamePromptsPage({ data, onOpen, onRefresh }: Props) {
                       className="button button--ghost"
                       onClick={() => onOpen(bundle.id)}
                     >
-                      打开
+                      原文
                     </button>
                   </td>
                 </tr>

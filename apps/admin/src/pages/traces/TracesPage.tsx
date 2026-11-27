@@ -59,7 +59,7 @@ export default function TracesPage({ data, onOpenGame, onRefresh }: Props) {
                       className="button button--ghost"
                       onClick={() => onOpenGame(game.slug)}
                     >
-                      打开
+                      回合
                     </button>
                   </td>
                 </tr>

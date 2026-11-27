@@ -80,7 +80,7 @@ export default function GamesPage({ data, onOpenGame, onOpenBuild, onRefresh }: 
                       className="button button--ghost"
                       onClick={() => onOpenGame(game.slug)}
                     >
-                      打开
+                      控制台
                     </button>
                   </td>
                 </tr>

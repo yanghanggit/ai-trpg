@@ -85,7 +85,7 @@ export default function GameSnapshotsPage({ data, onOpen, onRefresh, onTake }: P
                       className="button button--ghost"
                       onClick={() => onOpen(snapshot.snapshotId)}
                     >
-                      打开
+                      内容
                     </button>
                   </td>
                 </tr>
