@@ -1,15 +1,23 @@
 import { Link } from "react-router";
 import { useMediaQuery } from "../lib/useMediaQuery";
 
-export type GamePage = "console" | "build" | "messages" | "snapshots" | "stories" | "prompts";
+export type GamePage =
+  | "console"
+  | "build"
+  | "messages"
+  | "memory"
+  | "snapshots"
+  | "stories"
+  | "prompts";
 
 const PAGES: { key: GamePage; label: string; suffix: string }[] = [
   { key: "console", label: "局控制台", suffix: "" },
   { key: "build", label: "建局数据", suffix: "/build" },
   { key: "messages", label: "事件流", suffix: "/messages" },
+  { key: "memory", label: "记忆", suffix: "/memory" },
+  { key: "prompts", label: "系统提示词", suffix: "/prompts" },
   { key: "snapshots", label: "快照", suffix: "/snapshots" },
   { key: "stories", label: "故事", suffix: "/stories" },
-  { key: "prompts", label: "系统提示词", suffix: "/prompts" },
 ];
 
 /** 六个页名加路径一共这么长，再窄就得折行；折行会把面包屑挤成两行，不如收起来。 */

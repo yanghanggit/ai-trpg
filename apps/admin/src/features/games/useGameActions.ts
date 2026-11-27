@@ -1,4 +1,4 @@
-import { unwrap } from "@ai-trpg/api-client";
+import { type components, unwrap } from "@ai-trpg/api-client";
 import { api } from "../../api/client";
 import type { JobView, MemoryOwner } from "./useGameData";
 import { useRefreshGame } from "./useRefreshGame";
@@ -98,7 +98,7 @@ export function useGameActions(slug: string) {
     message: string;
     actor?: string;
     stage?: string;
-  }): Promise<unknown> {
+  }): Promise<components["schemas"]["GameProbe"]> {
     return unwrap(
       await api.POST("/api/v1/games/{game}/probe", {
         params: { path: { game: slug } },

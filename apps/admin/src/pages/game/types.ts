@@ -1,9 +1,8 @@
 import type { components } from "@ai-trpg/api-client";
 import type { AdvanceInput } from "../../features/games/useGameActions";
-import type { MemoryOwner, MessageView } from "../../features/games/useGameData";
+import type { MessageView } from "../../features/games/useGameData";
 import type { GameGraph } from "../../features/games/useGameGraph";
-
-export type MemoryQuery = { owner: MemoryOwner; name?: string };
+import type { MemoryTarget } from "./memory/targets";
 
 /** 事件流页：整屏一张表；自动刷新是全局开关，不在这一页存状态。 */
 export type GameMessagesData = {
@@ -61,6 +60,26 @@ export type GameStoriesData = {
   lastPath?: string;
 };
 
+export type GameMemoryPayload = components["schemas"]["GameMemory"];
+export type GameMemoryMessage = components["schemas"]["GameMemoryMessage"];
+export type GameProbeAnswer = components["schemas"]["GameProbe"];
+
+/** 记忆页：选一个实体，读它的记忆，或对它发探针。 */
+export type GameMemoryData = {
+  slug: string;
+  /** 可搜的实体清单，来自世界图谱那一份投影。 */
+  targets: MemoryTarget[];
+  target?: MemoryTarget;
+  memory?: GameMemoryPayload;
+  memoryError?: string;
+  targetsError?: string;
+  busy?: string;
+  actionError?: string;
+  /** 最近一次探针：问题与答复一起留着，免得答对不上问。 */
+  probe?: { answer: GameProbeAnswer; question: string };
+  probeError?: string;
+};
+
 /** 系统提示词导出清单页。 */
 export type GamePromptsData = {
   slug: string;
@@ -101,13 +120,10 @@ export type GamePageData = {
   graph?: GameGraph;
   graphError?: string;
 
-  memory?: { query: MemoryQuery; payload: unknown };
-  memoryError?: string;
   leaks?: unknown;
   leaksError?: string;
   /** 扫描结果进弹窗：按钮在顶部，报告不占主页面版面。 */
   leaksOpen: boolean;
-  probeResult?: unknown;
 };
 
 export type GamePageActions = {
@@ -116,9 +132,6 @@ export type GamePageActions = {
   pass: (actors: string[]) => Promise<void>;
   endGame: (input: { outcome: string; message?: string }) => Promise<void>;
   deleteGame: () => Promise<void>;
-  compact: (input: { owner: MemoryOwner | "all"; name?: string }) => Promise<void>;
-  probe: (input: { message: string; actor?: string; stage?: string }) => Promise<void>;
-  loadMemory: (query: MemoryQuery) => void;
   openLeaks: () => void;
   closeLeaks: () => void;
   rescanLeaks: () => void;

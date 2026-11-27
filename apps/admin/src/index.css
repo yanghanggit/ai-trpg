@@ -752,6 +752,15 @@ a {
 
 /* ---------------------------------------------------------------- 图谱弹窗 */
 
+/* 探针：一句话加一段答复，比默认宽、比图谱窄。 */
+.dialog--probe {
+  width: min(820px, calc(100% - 32px));
+}
+
+.dialog--probe .inline-form .field {
+  flex: 1;
+}
+
 .dialog--wide {
   width: min(1180px, calc(100% - 40px));
   max-width: none;
@@ -1035,4 +1044,120 @@ a {
   .prompt-viewer__body {
     padding-top: 12px;
   }
+}
+
+/* ---------------------------------------------------------------- 记忆 */
+
+/* 搜索框带着自己的下拉：先搜再定，类型只是选完之后的补充显示。 */
+.picker {
+  position: relative;
+  max-width: 460px;
+  margin: 14px 0 0;
+}
+
+.picker__input {
+  width: 100%;
+}
+
+.picker__menu {
+  position: absolute;
+  z-index: 20;
+  top: calc(100% + 4px);
+  left: 0;
+  right: 0;
+  max-height: 320px;
+  margin: 0;
+  padding: 4px;
+  overflow: auto;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--panel-soft);
+  box-shadow: 0 12px 28px rgb(0 0 0 / 45%);
+}
+
+.picker__option {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  width: 100%;
+  padding: 7px 9px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--text);
+  font: inherit;
+  font-size: 13px;
+  text-align: left;
+  cursor: pointer;
+}
+
+.picker__option--on {
+  background: rgb(125 211 252 / 12%);
+  color: var(--accent);
+}
+
+.picker__name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.picker__kind {
+  flex: none;
+  padding: 1px 7px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  color: var(--muted);
+  font-size: 11px;
+}
+
+.picker__key {
+  flex: 1;
+  overflow: hidden;
+  color: var(--muted);
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 11.5px;
+  text-align: right;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.picker__empty {
+  margin: 8px 0 0;
+  color: var(--muted);
+  font-size: 12.5px;
+}
+
+.picker__picked {
+  margin: 8px 0 0;
+  color: var(--muted);
+  font-size: 12.5px;
+}
+
+.memory {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  margin: 16px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.memory__head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 0 0 6px;
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+
+.memory__head .badge {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+
+.memory__question {
+  margin: 16px 0 8px;
+  padding-left: 10px;
+  border-left: 2px solid var(--line);
 }

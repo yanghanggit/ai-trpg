@@ -1,7 +1,7 @@
 # 管理后台（未做）
 
 `apps/admin` 的形状由代码自述：页头与导航在 `components/PageHeader.tsx`、`components/GamePageLinks.tsx`，
-一局的六个页在 `pages/game/`，机器读数在 `routes/status.ts` 与 `pages/overview/`。
+一局的七个页在 `pages/game/`，机器读数在 `routes/status.ts` 与 `pages/overview/`。
 本页只记**还没做的事**。
 
 ## 未做

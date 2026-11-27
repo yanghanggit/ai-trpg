@@ -3,7 +3,6 @@ import GamePageLinks from "../../components/GamePageLinks";
 import Hint from "../../components/Hint";
 import PageHeader from "../../components/PageHeader";
 import type { AdvanceKind } from "../../features/games/useGameActions";
-import type { MemoryOwner } from "../../features/games/useGameData";
 import DangerDialog from "./DangerDialog";
 import StageExplorer, { type ExplorerTarget } from "./graph/StageExplorer";
 import WorldCard from "./graph/WorldCard";
@@ -67,7 +66,6 @@ export default function GamePanels({ data, actions }: Props) {
         }
       />
       <AdvanceSection busy={data.busy !== undefined} actions={actions} />
-      <AuxSection data={data} actions={actions} />
       <LeaksDialog
         open={data.leaksOpen}
         result={data.leaks}
@@ -190,138 +188,6 @@ function AdvanceSection({ busy, actions }: { busy: boolean; actions: GamePageAct
         </label>
         <button className="button button--ghost" type="submit" disabled={busy}>
           记空回合
-        </button>
-      </form>
-    </section>
-  );
-}
-
-function AuxSection({ data, actions }: { data: GamePageData; actions: GamePageActions }) {
-  const [owner, setOwner] = useState<MemoryOwner>("actor");
-  const [name, setName] = useState("");
-  const [question, setQuestion] = useState("");
-  const [askName, setAskName] = useState("");
-  const [compactOwner, setCompactOwner] = useState<MemoryOwner | "all">("all");
-
-  return (
-    <section className="panel">
-      <h2>
-        只读旁路
-        <Hint text="记忆与探针都只读：跑它们不改状态，也不写事件。" />
-      </h2>
-
-      <h3>记忆</h3>
-      <form
-        className="inline-form"
-        onSubmit={(event) => {
-          event.preventDefault();
-          actions.loadMemory({ owner, ...(name.trim() === "" ? {} : { name: name.trim() }) });
-        }}
-      >
-        <label className="field">
-          <span>owner</span>
-          <select value={owner} onChange={(event) => setOwner(event.target.value as MemoryOwner)}>
-            <option value="actor">actor</option>
-            <option value="stage">stage</option>
-            <option value="world">world</option>
-          </select>
-        </label>
-        <label className="field">
-          <span>名字（可选）</span>
-          <input
-            value={name}
-            onChange={(event) => setName(event.target.value)}
-            autoComplete="off"
-          />
-        </label>
-        <button className="button button--ghost" type="submit">
-          读取
-        </button>
-      </form>
-      {data.memory === undefined ? (
-        data.memoryError === undefined ? null : (
-          <p className="form-error">{data.memoryError}</p>
-        )
-      ) : (
-        <details className="details">
-          <summary>
-            记忆原文（{data.memory.query.owner}
-            {data.memory.query.name === undefined ? "" : ` · ${data.memory.query.name}`}）
-          </summary>
-          <pre className="json">{JSON.stringify(data.memory.payload, null, 2)}</pre>
-        </details>
-      )}
-
-      <h3>探针</h3>
-      <form
-        className="inline-form"
-        onSubmit={(event) => {
-          event.preventDefault();
-          if (question.trim().length === 0) {
-            return;
-          }
-          void actions.probe({
-            message: question.trim(),
-            ...(askName.trim() === "" ? {} : { actor: askName.trim() }),
-          });
-        }}
-      >
-        <label className="field">
-          <span>问题</span>
-          <input
-            value={question}
-            onChange={(event) => setQuestion(event.target.value)}
-            placeholder="只凭 prompt 与 memory 回答"
-            autoComplete="off"
-          />
-        </label>
-        <label className="field">
-          <span>actor（可选）</span>
-          <input
-            value={askName}
-            onChange={(event) => setAskName(event.target.value)}
-            autoComplete="off"
-          />
-        </label>
-        <button
-          className="button button--ghost"
-          type="submit"
-          disabled={question.trim().length === 0}
-        >
-          提问
-        </button>
-      </form>
-      {data.probeResult === undefined ? null : (
-        <details className="details" open>
-          <summary>探针答复</summary>
-          <pre className="json">{JSON.stringify(data.probeResult, null, 2)}</pre>
-        </details>
-      )}
-
-      <h3>压缩记忆</h3>
-      <form
-        className="inline-form"
-        onSubmit={(event) => {
-          event.preventDefault();
-          if (window.confirm(`压缩 ${compactOwner} 的记忆？`)) {
-            void actions.compact({ owner: compactOwner });
-          }
-        }}
-      >
-        <label className="field">
-          <span>owner</span>
-          <select
-            value={compactOwner}
-            onChange={(event) => setCompactOwner(event.target.value as MemoryOwner | "all")}
-          >
-            <option value="all">all</option>
-            <option value="actor">actor</option>
-            <option value="stage">stage</option>
-            <option value="world">world</option>
-          </select>
-        </label>
-        <button className="button button--ghost" type="submit">
-          压缩
         </button>
       </form>
     </section>

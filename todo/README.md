@@ -8,7 +8,7 @@
 
 服务器侧闭合：回合全部走作业（入队 → 执行 → 终态 → 可查/可撤/可订阅），有进度、有取消、有推送。web 侧接上了**单步回路**：接管 → 提交一个动作或推进一步（agent 席位）/ 空过（玩家席位） → 终态 → 重读投影与顺位 → 刷新后接上正在跑的回合。
 
-运维侧另有一个独立产物 `apps/admin`：身份 / 节点 / 局 / 轨迹 / 事件流 / 系统提示词 / 快照 / 故事各自成页，能推进回合与做危险操作。控制台顶部一张世界图谱（舞台图 + 顺位条），点进去按舞台 → actor → 道具逐层看。它还缺的是「撤掉正在跑的作业」、作业总览与图谱的检索框。
+运维侧另有一个独立产物 `apps/admin`：身份 / 节点 / 局 / 轨迹 / 事件流 / 记忆 / 系统提示词 / 快照 / 故事各自成页，能推进回合与做危险操作。控制台顶部一张世界图谱（舞台图 + 顺位条），点进去按舞台 → actor → 道具逐层看。它还缺的是「撤掉正在跑的作业」、作业总览与图谱的检索框。
 
 web 还没做的是「让回路在真界面里顺滑」：取消入口、订阅入口、作业历史视图，以及一次真机走查。动作种类停在 4 种（说/看/走/等），是刻意冻结的。
 
@@ -35,11 +35,11 @@ web 还没做的是「让回路在真界面里顺滑」：取消入口、订阅�
 - 回合与作业：`apps/server/src/game-ops/turn-jobs.ts`（四个入口、串行键、进度、取消）、`apps/server/src/jobs/`（队列、worker、进度、取消、`LISTEN/NOTIFY` 广播）
 - 作业的 HTTP 面：`apps/server/src/routes/games.ts`（列表 / 读取 / 取消）、`apps/server/src/routes/job-stream.ts`（SSE）
 - web 的回路：`apps/web/src/features/turns/`（编排、入队、轮询、订阅、寻址）、`apps/web/src/pages/game/TurnDialog.tsx`（容器）、`panels/ActionForm.tsx` 与 `panels/OrderPanel.tsx`（纯展示）
-- 运维台：`apps/admin/src/components/PageHeader.tsx`（页头与导航）、`pages/game/`（一局的六个页）、`pages/game/graph/`（世界图谱：布局纯函数 + xyflow 画布）、`pages/overview/`（身份与节点）
+- 运维台：`apps/admin/src/components/PageHeader.tsx`（页头与导航）、`pages/game/`（一局的七个页）、`pages/game/graph/`（世界图谱：布局纯函数 + xyflow 画布）、`pages/overview/`（身份与节点）
 - 图谱的读：`apps/server/src/game-ops/graph.ts`（活状态的另一个切面）、`apps/server/src/routes/schemas/graph.ts`（线上契约）
 - 提示词导出的读：`apps/server/src/debug/prompt-dump.ts`（写盘与 `manifest.json`）、`apps/server/src/game-ops/prompts.ts`（按局认领、整包读回）
 - 契约：`packages/api-client` 由 openapi 生成；`docs/` 里 `turn-jobs.md`、`background-jobs.md`、`web-client.md` 是这三块的所有者
 
 ## 现在的验证位置
 
-`apps/server` 759 passed / 1 skipped，`apps/web` 50 passed，`apps/admin` 25 passed；`pnpm typecheck`、`pnpm lint` 全绿。数据库只有一份基线迁移（`apps/server/drizzle/0000_baseline.sql`），改 schema 的方式见 `docs/database.md` 与待办里的说明。
+`apps/server` 759 passed / 1 skipped，`apps/web` 50 passed，`apps/admin` 33 passed；`pnpm typecheck`、`pnpm lint` 全绿。数据库只有一份基线迁移（`apps/server/drizzle/0000_baseline.sql`），改 schema 的方式见 `docs/database.md` 与待办里的说明。

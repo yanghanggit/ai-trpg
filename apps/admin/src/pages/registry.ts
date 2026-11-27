@@ -1,5 +1,6 @@
 import type { ComponentType } from "react";
 import GameBuildRoute from "./game/GameBuildRoute";
+import GameMemoryRoute from "./game/GameMemoryRoute";
 import GameMessagesRoute from "./game/GameMessagesRoute";
 import GamePromptBundleRoute from "./game/GamePromptBundleRoute";
 import GamePromptsRoute from "./game/GamePromptsRoute";
@@ -46,6 +47,7 @@ export const pages: PageEntry[] = [
     title: "事件流",
     Route: GameMessagesRoute,
   },
+  { key: "game-memory", path: "/g/:slug/memory", title: "记忆", Route: GameMemoryRoute },
   { key: "game-prompts", path: "/g/:slug/prompts", title: "系统提示词", Route: GamePromptsRoute },
   {
     key: "game-prompt",

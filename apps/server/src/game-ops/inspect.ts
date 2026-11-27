@@ -14,6 +14,7 @@ import {
   getGameState,
   getMemoryState,
   MEMORY_OWNER_TYPES,
+  type ProbeResult,
   resolveMemoryOwner,
   runProbe,
 } from "../game";
@@ -31,7 +32,7 @@ export async function probeOp(
   gameRef: string,
   input: { message: string; target: ProbeTarget },
   services: LlmServices,
-): Promise<Record<string, unknown>> {
+): Promise<ProbeResult> {
   return runProbe(db, gameRef, {
     service: services.service,
     message: input.message,
@@ -44,17 +45,20 @@ export type MemoryQuery =
   | { owner: "stage"; name: string }
   | { owner: "world" };
 
+/** 一份记忆的读回：owner 是谁、局是什么、消息有哪些。 */
+export type MemoryOpResult = {
+  owner: ReturnType<typeof resolveMemoryOwner>;
+  game: GameState["game"];
+  memory: AgentMemoryState;
+  messages: number;
+};
+
 /** 记忆原文：owner 解析只有一处，导出物由调用方决定写到哪。 */
 export async function memoryOp(
   db: Database,
   gameRef: string,
   query: MemoryQuery,
-): Promise<{
-  owner: ReturnType<typeof resolveMemoryOwner>;
-  game: GameState["game"];
-  memory: AgentMemoryState;
-  messages: number;
-}> {
+): Promise<MemoryOpResult> {
   const state = await getGameState(db, gameRef);
   const owner = resolveMemoryOwner(
     state,

@@ -8,6 +8,8 @@ type Props = {
   children: ReactNode;
   /** 宽版：图谱这类要画布又要点选的弹窗用。 */
   wide?: boolean;
+  /** 额外类名：比宽版窄、比默认宽的那种中间尺寸由使用方自己给。 */
+  className?: string;
   /**
    * ESC 的另一种含义：层级里的「退一级」。
    *
@@ -23,7 +25,15 @@ type Props = {
  * 只认「用户主动关闭」的两个入口：关闭按钮与 ESC / 点遮罩；不监听 `close` 事件——
  * 卸载时我们自己也会 close，那个事件会把「被关掉的」误当成用户操作。
  */
-export default function Dialog({ title, open, onClose, children, wide, onCancel }: Props) {
+export default function Dialog({
+  title,
+  open,
+  onClose,
+  children,
+  wide,
+  className,
+  onCancel,
+}: Props) {
   const ref = useRef<HTMLDialogElement>(null);
 
   useEffect(() => {
@@ -43,7 +53,9 @@ export default function Dialog({ title, open, onClose, children, wide, onCancel 
     // biome-ignore lint/a11y/useKeyWithClickEvents: 点遮罩关闭是鼠标的便利；键盘走 ESC（原生 cancel）。
     <dialog
       ref={ref}
-      className={wide === true ? "dialog dialog--wide" : "dialog"}
+      className={["dialog", wide === true ? "dialog--wide" : "", className ?? ""]
+        .filter((value) => value.length > 0)
+        .join(" ")}
       onCancel={(event) => {
         event.preventDefault();
         (onCancel ?? onClose)();

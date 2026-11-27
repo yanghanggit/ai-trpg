@@ -66,6 +66,7 @@ import { actionOrderSchema } from "./schemas/action-order";
 import { actorLogSchema, actorViewSchema, gameMessageSchema } from "./schemas/client-view";
 import { gameGraphSchema } from "./schemas/graph";
 import { turnJobSchema } from "./schemas/jobs";
+import { gameMemorySchema, gameProbeSchema } from "./schemas/memory";
 
 const gameParams = z.object({ game: z.string().trim().min(1) });
 const actorParams = gameParams.extend({ actor: z.string().trim().min(1) });
@@ -1151,7 +1152,7 @@ export function createGameRoutes(db: () => Database): FastifyPluginAsyncZod {
           summary: "只读探针：让 agent 只凭 prompt 与 memory 回答一个问题",
           params: gameParams,
           body: probeBody,
-          response: { 200: actorTurnResponse },
+          response: { 200: gameProbeSchema },
         },
       },
       async (request) => {
@@ -1182,7 +1183,7 @@ export function createGameRoutes(db: () => Database): FastifyPluginAsyncZod {
           summary: "读取某个 agent 的 memory",
           params: gameParams,
           querystring: memoryQuery,
-          response: { 200: actorTurnResponse },
+          response: { 200: gameMemorySchema },
         },
       },
       async (request) => {
